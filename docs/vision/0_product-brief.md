@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.0
-**Date:** 2026-06-14  
+**Version:** 1.1
+**Date:** 2026-06-21  
 **Status:** Approved
 
 ---
@@ -46,8 +46,8 @@ a **structured, authoritative interface** to any software project:
     - Audit trail of who decided what and when
 
 2. **Project DNA** — Structural map of the project
-    - Modules, tech stack, conventions
-    - Source of truth for project anatomy
+    - Modules, tech stack, conventions, resource paths
+    - Source of truth for project anatomy; enables agents to navigate without full codebase scans
 
 3. **Project Directives** — Role-based rules that both humans and agents respect
     - Custom directives (team-defined)

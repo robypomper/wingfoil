@@ -1,7 +1,7 @@
 # User Journeys — WingFoil
 
-**Version:** 1.0
-**Date:** 2026-06-15
+**Version:** 1.1
+**Date:** 2026-06-21
 **Status:** Pending
 
 ---
@@ -23,6 +23,7 @@ automatically.
 |      | - Classic mode (default)          | Questions + multiple choice options                          | Fast setup with sensible defaults; template serves as baseline            |
 |      | - Agent-assisted mode             | Natural conversation with AI agent                           | More flexible, personalized answers; template adapted to team context     |
 | 3    | Start kickoff workflow phase      | CLI: `wingfoil workflow start {kickoff}`                     | First workflow step executes; project is officially started               |
+| 4    | Verify project structure paths    | CLI: `wingfoil paths` or `wingfoil paths sources --list`     | User confirms all resource paths (code, docs, config) are properly mapped |
 
 **Obstacles:**
 
@@ -52,6 +53,7 @@ manual work.
 |      | - Deduce from git history        | Analyzes commits/authors to suggest initial team roles    | Directives suggested from observed patterns; customize as needed   |
 |      | - Seed Memory with defaults      | Creates initial Memory structure; user fills in decisions | Memory ready for documenting decisions (not importing old docs)    |
 |      | - Configure workflow             | Select built-in template, adapt to team process           | Workflow reflects current process + future improvements            |
+|      | - Fill project's resource paths  | Wizard guides: map sources, tests, docs, config paths     | All project resource paths configured in DNA for agent navigation  |
 | 3    | Soft rollout to the team         | Announcement + optional onboarding                        | Team starts using WingFoil gradually; not a hard cutover           |
 | 4    | Begin using workflow and agents  | CLI: `wingfoil agent execute` or `workflow next`          | Agents and humans start executing workflow steps with full context |
 
@@ -211,6 +213,7 @@ tests/releases, and reviews an audit trail showing who decided and when.
 | Step | Action                                          | Tool / Interaction                              | Outcome                                                                         |
 |------|-------------------------------------------------|-------------------------------------------------|---------------------------------------------------------------------------------|
 | 1    | Access project Memory                           | CLI / Dashboard (v2)                            | Casey sees all decisions and artifacts                                          |
+| 1.5  | Explore project documentation structure         | CLI: `wingfoil paths docs` or `governance`      | Casey sees where to find architecture, data models, team info, stakeholders     |
 | 2    | Search or browse decisions by topic             | CLI: `wingfoil memory search api-design`        | Casey finds the API design decision quickly                                     |
 | 3    | Read the decision document (ADR, RFC)           | Memory file                                     | Casey understands what, why, and who decided                                    |
 | 4    | Check current project DNA for status            | CLI: `wingfoil dna show`                        | Casey knows: team size, tech stack, current phase, risks                        |
