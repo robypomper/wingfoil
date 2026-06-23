@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.1
-**Date:** 2026-06-21  
+**Version:** 1.2
+**Date:** 2026-06-23  
 **Status:** Approved
 
 ---
@@ -11,9 +11,11 @@
 **For** developers and teams already using AI agents to write software  
 **who** lose consistency and control over the development process as the project grows  
 **WingFoil is** an open-source harness for AI-assisted software development  
-**that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to the project
+**that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to
+the project
 **Unlike** relying on large context windows or full codebase scans  
-**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all actors in the development process
+**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all
+actors in the development process
 
 ---
 
@@ -249,15 +251,51 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 
 ---
 
+## Technical Stack
+
+**Language & Runtime:** TypeScript, Node.js 18+ (npm)  
+**Storage:** Git (local file-backed, YAML + Markdown)  
+**CLI:** Commander.js, chalk for formatting  
+**MCP Server:** Model Context Protocol (stdio transport, Anthropic SDK)  
+**Validation:** Zod (JSON Schema)  
+**Testing:** Jest (>80% coverage target)  
+**Deployment:** npm registry (public), semantic versioning
+
+See [`docs/vision/2A_technical-architecture.md`](docs/vision/2A_technical-architecture.md) for detailed architecture,
+module layout, and design decisions.
+
+---
+
+## Known Constraints & Assumptions
+
+- **Single Project:** One `.wingfoil/` instance per repo (multi-project in v1+)
+- **Git-only Storage:** No cloud backend; all state versioned in git
+- **Local First:** No real-time collaboration (async via git push/pull) (auto-sync in v1+)
+- **Timeline:** 5 weeks (aggressive with AI support; buffer if velocity drops)
+- **No IDE Plugins in MVP:** MCP sufficient; native integration in v1+
+- **Keyword Search Only:** Semantic search deferred to v1.1+
+- **Manual Approval Gates:** No automated workflow triggers in MVP
+
+---
+
 ## References
 
-This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026):
+This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). See the complete index at
+[`INDEX.md`](INDEX.md).
 
-- **Product Vision** — `docs/vision/product-brief.md` (this file)
-- **Personas** — [`docs/vision/2_personas.md`](docs/vision/2_personas.md)
-- **User Journeys** — [`docs/vision/3_journeys.md`](docs/vision/3_journeys.md)
-- **Features** — [`docs/vision/4_features.md`](docs/vision/4_features.md)
-- **Sequencer** — [`docs/vision/5A_sequencer.md`](docs/vision/5A_sequencer.md)
-- **MVP Canvas** — [`docs/vision/5B_mvp-canvas.md`](docs/vision/5B_mvp-canvas.md)
+**Core Documents:**
+
+- [`1A_product-vision.md`](1A_product-vision.md) — Vision statement, key decisions
+- [`1B_is-isnot.md`](1B_is-isnot.md) — Scope boundaries
+- [`2_personas.md`](2_personas.md) — User types and pain points
+- [`3_journeys.md`](3_journeys.md) — 8 end-to-end user journeys
+- [`4_features.md`](4_features.md) — 57 features across 5 pillars
+
+**Technical & Planning:**
+
+- [`2A_technical-architecture.md`](2A_technical-architecture.md) — Tech stack, modules, data models
+- [`3A_key-decisions.md`](3A_key-decisions.md) — 15 design decisions with rationale
+- [`5A_sequencer.md`](5A_sequencer.md) — Week-by-week timeline, Definition of Done
+- [`5B_mvp-canvas.md`](5B_mvp-canvas.md) — MVP canvas and success criteria
 
 All documents are versioned in git and open for refinement as development progresses.

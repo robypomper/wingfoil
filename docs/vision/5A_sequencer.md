@@ -1,7 +1,7 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.0
-**Date:** 2026-06-21
+**Version:** 1.1
+**Date:** 2026-06-23
 **Status:** Pending
 
 ---
@@ -233,6 +233,73 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 | Documentation lag                                   | Medium     | Low          | Keep docs minimal; focus on API examples + workflow-config.md              |
 | Scope creep on directives validation                | High       | High         | Push automated CI/CD validation to post-MVP                                |
 | Team velocity lower than estimated                  | Medium     | Medium       | Cut Week 5 if needed; push workflow checks + polish to v0.2                |
+
+---
+
+## Definition of Done (per Release)
+
+### v0.1 Definition of Done (Project Memory + DNA)
+
+- ✓ Git storage layer functional (`.wingfoil/` structure, commit tracking)
+- ✓ Memory CRUD commands work (add, search, history)
+- ✓ DNA YAML schema defined and validated
+- ✓ CLI commands tested locally (`init`, `dna set/show`, `memory add/search`, `paths`)
+- ✓ MCP Resources endpoint (DNA + Memory) functional
+- ✓ >80% test coverage on core modules (storage, validation)
+- ✓ README + quickstart guide documented
+- ✓ npm package published with v0.1.0 tag
+- ✓ Journey 0a (new project) and Journey 1 (Alex) manually tested end-to-end
+
+### v0.2 Definition of Done (Project Directives)
+
+- ✓ All v0.1 features stable (no regressions)
+- ✓ Directive CRUD commands work (`create`, `add`, `assign`, `list`, `update`)
+- ✓ Built-in directive templates (≥3 types: Code Quality, Testing, Code Review)
+- ✓ Role-based directive auto-loading functional
+- ✓ MCP Prompts endpoint functional
+- ✓ >80% test coverage on directive module
+- ✓ Directive documentation + examples included
+- ✓ npm package v0.2.0 published
+- ✓ Journey 2 (Sam - review) and Journey 3 (Jordan - team dev) manually tested
+
+### v0.3 Definition of Done (Workflow State Management)
+
+- ✓ All v0.2 features stable (no regressions)
+- ✓ Workflow commands functional (start, end, create, submit, approve, reject, next, status)
+- ✓ State transitions working (draft → pending → approved/rejected → fallback)
+- ✓ Approval routing by role functional
+- ✓ Notification system (basic CLI output + git hooks) functional
+- ✓ Agent execute wrapper (<30 sec context load) working
+- ✓ >80% test coverage on workflow module
+- ✓ npm package v0.3.0 published
+- ✓ Journey 4 (Morgan - enforce) manually tested end-to-end
+
+### v0.4 Definition of Done (Interaction Layer + Polish)
+
+- ✓ All v0.3 features stable (no regressions)
+- ✓ `wingfoil init --from-existing` functional
+- ✓ `wingfoil audit` functional
+- ✓ `wingfoil dna infer` functional (or simplified fallback)
+- ✓ `wingfoil memory import` functional
+- ✓ MCP server stable (Resources + Tools + Prompts all working)
+- ✓ Reference workflow templates (Scrum, Kanban, Lean, Trunk-Based) functional
+- ✓ CLI help + error messages polished
+- ✓ >80% test coverage on all modules
+- ✓ npm package v0.4.0 published
+- ✓ Journey 5 (Casey - PM) and Journey 6 (Morgan - evolution) manually tested
+
+### v1.0 Definition of Done (MVP Complete)
+
+- ✓ All v0.4 features stable (no regressions)
+- ✓ All 6 user journeys (0a, 0b, 1–4) executable and tested
+- ✓ Bonus journeys (5, 6) functional
+- ✓ Comprehensive documentation (API guide, workflow examples, troubleshooting)
+- ✓ Integration testing (end-to-end for all journeys) passing
+- ✓ Determinism validation: two independent runs produce equivalent outputs
+- ✓ Audit trail verified (all changes tracked to author + timestamp)
+- ✓ npm package v1.0.0 published with release notes
+- ✓ Security review completed (no secrets in repo, audit trail works)
+- ✓ Ready for early adopter onboarding
 
 ---
 
