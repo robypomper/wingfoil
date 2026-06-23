@@ -254,9 +254,10 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026):
 
 - **Product Vision** — `docs/vision/product-brief.md` (this file)
-- **Personas** — `docs/personas/`
-- **User Journeys** — `docs/journeys/`
-- **Features** — `docs/features/`
-- **MVP Canvas** — `docs/mvp/`
+- **Personas** — [`docs/vision/2_personas.md`](docs/vision/2_personas.md)
+- **User Journeys** — [`docs/vision/3_journeys.md`](docs/vision/3_journeys.md)
+- **Features** — [`docs/vision/4_features.md`](docs/vision/4_features.md)
+- **Sequencer** — [`docs/vision/5A_sequencer.md`](docs/vision/5A_sequencer.md)
+- **MVP Canvas** — [`docs/vision/5B_mvp-canvas.md`](docs/vision/5B_mvp-canvas.md)
 
 All documents are versioned in git and open for refinement as development progresses.

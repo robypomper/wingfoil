@@ -31,12 +31,12 @@
 
 ## Outputs
 
-| Document                | Path                               | Status |
-|-------------------------|------------------------------------|--------|
-| Product Vision          | `docs/vision/1A_product-vision.md` | Done   |
-| Is/Is Not/Does/Does Not | `docs/vision/1B_is-isnot.md`       | Done   |
-| Personas                | `docs/vision/2_personas.md`        | Done   |
-| User Journeys           | `docs/vision/3_journeys.md`        | Done   |
-| Feature List + Review   | `docs/vision/4_features.md`        | ToDo   |
-| Sequencer               | `docs/vision/5A_sequencer.md`      | ToDo   |
-| MVP Canvas              | `docs/vision/5B_mvp-canvas.md`     | ToDo   |
+| Document                | Path                                                                    | Status |
+|-------------------------|-------------------------------------------------------------------------|--------|
+| Product Vision          | [`docs/vision/1A_product-vision.md`](docs/vision/1A_product-vision.md)` | Done   |
+| Is/Is Not/Does/Does Not | [`docs/vision/1B_is-isnot.md`](docs/vision/1B_is-isnot.md)`             | Done   |
+| Personas                | [`docs/vision/2_personas.md`](docs/vision/2_personas.md)                | Done   |
+| User Journeys           | [`docs/vision/3_journeys.md`](docs/vision/3_journeys.md)                | Done   |
+| Feature List + Review   | [`docs/vision/4_features.md`](docs/vision/4_features.md)                | Done   |
+| Sequencer               | [`docs/vision/5A_sequencer.md`](docs/vision/5A_sequencer.md)            | Done   |
+| MVP Canvas              | [`docs/vision/5B_mvp-canvas.md`](docs/vision/5B_mvp-canvas.md)          | Done   |
