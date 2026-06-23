@@ -1,7 +1,7 @@
 # Is / Is Not / Does / Does Not — WingFoil
 
-**Version:** 1.0
-**Date:** 2026-06-15
+**Version:** 1.1
+**Date:** 2026-06-24
 **Status:** Pending
 
 ---
@@ -20,7 +20,9 @@
 - An AI model or coding agent
 - An IDE or IDE plugin
 - A code generator or code reviewer
-- A task execution or coordination tool — does not execute tasks or coordinate task work
+- A task executor or work verifier — it launches the configured agents but neither performs the development work itself
+  nor inspects agent output directly; it only validates deliverables through workflow checks, run as a separate command
+  after the agent has executed
 - A real-time collaboration platform
 - A spec or requirements validator
 
@@ -33,6 +35,9 @@
   State Management)
 - Exposes CLI commands for querying and updating all project state
 - Exposes MCP tools, resources, and prompts for AI agents
+- Launches the configured AI agents with auto-loaded context (orchestration wrapper; does not perform the work itself)
+- Auto-syncs built-in Directives and Workflow templates when DNA (tech-stack/methodology) changes
+- Validates deliverables through workflow checks (pre/post execution), run as a separate command after the agent runs
 - Makes independent development runs produce substantially equivalent output (Determinism)
 - Notifies users when human intervention is required (human-on-the-loop supervision)
 
@@ -43,6 +48,5 @@
 - Replace AI agents or models
 - Provide native IDE integrations beyond MCP
 - Manage multiple projects or workspaces (v1)
-- Auto-sync Directives when DNA changes (v1)
 - Auto-compile documents — document generation is limited to templates and simple placeholders derived from project
   state and properties

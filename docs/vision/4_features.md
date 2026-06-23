@@ -1,15 +1,14 @@
 # Features — WingFoil
 
-**Version:** 1.0  
-**Date:** 2026-06-21  
+**Version:** 1.1  
+**Date:** 2026-06-24  
 **Status:** Pending
 
 ---
 
 ## Feature List — Organized by Pillar
 
-Features are organized into **5 Core Pillars** (P1–P5, with P1 including shared infrastructure) + **Extra Features** (
-X1, X2).
+Features are organized into **5 Core Pillars** (P1–P5, with P1 including shared infrastructure) + **Extra Features** (X1).
 Each feature includes: ID, Journey references, User personas, Description, and Type.
 
 ---
@@ -20,16 +19,20 @@ Centralized, git-backed storage for decisions, ADRs, RFCs, and project artifacts
 provide shared infrastructure (git storage + versioning) used by all pillars (Memory, DNA, Directives, Workflow) to
 persist their configuration and state files.
 
-| ID   | Feature                                | Journey            | User                | Description                                                                                            | Type           |
-|------|----------------------------------------|--------------------|---------------------|--------------------------------------------------------------------------------------------------------|----------------|
-| P1.1 | Git-Backed Storage (foundational)      | 0a, 0b, 1, 2, 3, 4 | All                 | Centralized git repository for all project state (Memory, DNA, Directives, Workflow) in `.wingfoil/`   | Infrastructure |
-| P1.2 | Versioning & Audit Trail (all pillars) | 1, 2, 3, 5         | Morgan, Casey       | All changes (Memory, DNA, Directives, Workflow) tracked via git with author, timestamp, commit message | Infrastructure |
-| P1.3 | `wingfoil memory add`                  | 0a, 0b, 5          | Morgan, Alex, Casey | Create/add document to Memory in `.wingfoil/memory/`                                                   | Command        |
-| P1.4 | `wingfoil memory import`               | 0b                 | Morgan, Alex        | Scan project for existing docs and import into Memory (interactive, with metadata extraction)          | Command        |
-| P1.5 | `wingfoil memory search`               | 1, 3, 5            | Casey, Alex         | Query Memory by keyword and metadata                                                                   | Command        |
-| P1.6 | `wingfoil memory history`              | 2, 3, 5            | Morgan, Casey       | View audit trail of a decision or document via git blame/log                                           | Command        |
-| P1.7 | Memory Entries (git-backed)            | 0a, 0b, 1, 2, 3    | All                 | Store documents, decisions, artifacts in `.wingfoil/memory/` with versioning                           | Infrastructure |
-| P1.8 | Keyword Memory Search                  | 1, 3, 5            | Alex, Casey         | Find relevant docs by keyword and metadata                                                             | Feature        |
+| ID    | Feature                                | Journey            | User                | Description                                                                                            | Type           |
+|-------|----------------------------------------|--------------------|---------------------|--------------------------------------------------------------------------------------------------------|----------------|
+| P1.1  | Git-Backed Storage (foundational)      | 0a, 0b, 1, 2, 3, 4 | All                 | Centralized git repository for all project state (Memory, DNA, Directives, Workflow) in `.wingfoil/`   | Infrastructure |
+| P1.2  | Versioning & Audit Trail (all pillars) | 1, 2, 3, 5         | Morgan, Casey       | All changes (Memory, DNA, Directives, Workflow) tracked via git with author, timestamp, commit message | Infrastructure |
+| P1.3  | `wingfoil memory add`                  | 0a, 0b, 2, 4, 5    | Morgan, Alex, Casey | Create/add document to Memory in `.wingfoil/memory/` (draft state)                                     | Command        |
+| P1.4  | `wingfoil memory import`               | 0b                 | Morgan, Alex        | Scan project for existing docs and import into Memory (interactive, with metadata extraction)          | Command        |
+| P1.5  | `wingfoil memory search`               | 1, 3, 5            | Casey, Alex         | Query Memory by keyword and metadata                                                                   | Command        |
+| P1.6  | `wingfoil memory submit`               | 2, 4, 5            | Morgan, Alex        | Submit Memory document for approval (pending state)                                                    | Command        |
+| P1.7  | `wingfoil memory approve`              | 2, 4, 5            | Morgan, Casey       | Approve Memory document (approved state); records reason                                               | Command        |
+| P1.8  | `wingfoil memory reject`               | 2, 4, 5            | Morgan, Casey       | Reject Memory document; reverts to draft for rework                                                    | Command        |
+| P1.9  | `wingfoil memory deprecate`            | 2, 3, 5            | Morgan, Casey       | Mark Memory document as deprecated (remains in repo, agents ignore)                                    | Command        |
+| P1.10 | `wingfoil memory history`              | 2, 3, 5            | Morgan, Casey       | View audit trail of Memory document (commits, approvals, state changes)                                | Command        |
+| P1.11 | Memory Entries (git-backed)            | 0a, 0b, 1, 2, 3    | All                 | Store documents, decisions, artifacts in `.wingfoil/memory/` with versioning                           | Infrastructure |
+| P1.12 | Keyword Memory Search                  | 1, 3, 5            | Alex, Casey         | Find relevant docs by keyword and metadata                                                             | Feature        |
 
 ---
 
@@ -37,12 +40,12 @@ persist their configuration and state files.
 
 Structural map of project (modules, tech stack, conventions, team structure in `.wingfoil/dna.yaml`).
 
-| ID   | Feature                         | Journey         | User         | Description                                                                                     | Type           |
-|------|---------------------------------|-----------------|--------------|-------------------------------------------------------------------------------------------------|----------------|
-| P2.1 | `wingfoil dna set`              | 0a, 6           | All          | Define/update project DNA                                                                       | Command        |
-| P2.2 | `wingfoil dna show`             | 3, 5            | Casey, All   | Query and display project DNA                                                                   | Command        |
-| P2.3 | `wingfoil dna infer`            | 0b              | Morgan, Alex | Auto-scan codebase and propose DNA structure (human reviews/approves)                           | Command        |
-| P2.4 | Project DNA (structured config) | 0a, 0b, 1, 2, 3 | All          | Define project anatomy (modules, tech stack, team members, conventions) in `.wingfoil/dna.yaml` | Infrastructure |
+| ID   | Feature                         | Journey         | User         | Description                                                                                                                           | Type           |
+|------|---------------------------------|-----------------|--------------|---------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| P2.1 | `wingfoil dna set`              | 0a, 6           | All          | Define/update project DNA                                                                                                             | Command        |
+| P2.2 | `wingfoil dna show`             | 3, 5            | Casey, All   | Query and display project DNA                                                                                                         | Command        |
+| P2.3 | `wingfoil dna infer`            | 0b              | Morgan, Alex | Auto-scan codebase and propose DNA structure (human reviews/approves)                                                                 | Command        |
+| P2.4 | Project DNA (structured config) | 0a, 0b, 1, 2, 3 | All          | Define project anatomy (modules, tech stack, team members, conventions) in `.wingfoil/dna.yaml`                                       | Infrastructure |
 | P2.5 | `wingfoil paths [category]`     | 0a, 0b, 5       | All          | Query project resource paths by category (sources, tests, docs, config, governance); drill-down support; formats: console, json, yaml | Command        |
 
 ---
@@ -53,52 +56,50 @@ Role-based rules that humans and agents respect automatically (in `.wingfoil/dir
 
 | ID   | Feature                                | Journey      | User         | Description                                                                                         | Type           |
 |------|----------------------------------------|--------------|--------------|-----------------------------------------------------------------------------------------------------|----------------|
-| P3.1 | `wingfoil directive create`            | 0a           | Morgan, Alex | Create new custom directive file                                                                    | Command        |
-| P3.2 | `wingfoil directive add`               | 0a, 0b       | Morgan, Alex | Add built-in directive template from WingFoil package                                               | Command        |
-| P3.3 | `wingfoil directive assign`            | 2, 6         | Morgan       | Bind directive to role (defined in DNA)                                                             | Command        |
-| P3.4 | `wingfoil directive list`              | All          | All          | List available directives (custom + built-in) and role assignments                                  | Command        |
-| P3.5 | `wingfoil directive update`            | 2, 4, 6      | Morgan       | Modify existing directive                                                                           | Command        |
-| P3.6 | Project Directives (custom + built-in) | 0a, 0b, 2    | Morgan, Alex | Define "how we work" rules, scoped by role; custom + built-in in `.wingfoil/directives/`            | Infrastructure |
-| P3.7 | Auto-Load Directives by Role           | 1, 2, 3      | All          | Directives auto-load when agents/developers execute tasks with that role                            | Feature        |
-| P3.8 | Role-Based Directive Assignment        | 0a, 0b, 2, 4 | Morgan       | Bind multiple directives to roles; one-to-many relationships                                        | Feature        |
-| P3.9 | Built-in Directive Templates           | 0a, 0b, 0    | All          | Pre-configured templates: Code Quality, Testing, Code Review, Architecture, Security, Documentation | Feature        |
+| P3.1 | `wingfoil directive create`            | 0a, 4        | Morgan, Alex | Create new custom directive file                                                                    | Command        |
+| P3.2 | `wingfoil directive assign`            | 2, 4, 6      | Morgan       | Bind directive to role (defined in DNA)                                                             | Command        |
+| P3.3 | `wingfoil directive remove`            | 2, 4, 6      | Morgan, Alex | Remove custom directive after verifying it's not referenced elsewhere                               | Command        |
+| P3.4 | `wingfoil directives list`             | All          | All          | List available directives (custom + built-in) and role assignments                                  | Command        |
+| P3.5 | Project Directives (custom + built-in) | 0a, 0b, 2    | Morgan, Alex | Define "how we work" rules, scoped by role; custom + built-in in `.wingfoil/directives/`            | Infrastructure |
+| P3.6 | Auto-Load Directives by Role           | 1, 2, 3      | All          | Directives auto-load when agents/developers execute tasks with that role                            | Feature        |
+| P3.7 | Role-Based Directive Assignment        | 0a, 0b, 2, 4 | Morgan       | Bind multiple directives to roles; one-to-many relationships                                        | Feature        |
+| P3.8 | Built-in Directive Templates           | 0a, 0b, 0    | All          | Pre-configured templates: Code Quality, Testing, Code Review, Architecture, Security, Documentation | Feature        |
 
 ---
 
 ### **Pillar 4: Project Workflow (P4)**
 
-Unified tracking of project progress, blockers, and deliverables (config in `.wingfoil/workflows.yaml`, state in
+Unified tracking of project progress, blockers, and deliverables (main config in `.wingfoil/workflows.yaml`, which
+`include()`s built-in/custom workflow files from `.wingfoil/workflows/{built-in,custom}/`; state in
 `.wingfoil/memory/` frontmatter).
 
-| ID    | Feature                                     | Journey            | User          | Description                                                                                            | Type           |
-|-------|---------------------------------------------|--------------------|---------------|--------------------------------------------------------------------------------------------------------|----------------|
-| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions) in `.wingfoil/workflows.yaml`              | Infrastructure |
-| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open workflow phase; initialize first step                                                             | Command        |
-| P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close workflow phase; mark as complete                                                                 | Command        |
-| P4.4  | `wingfoil workflow create {ELEMENT}`        | 2, 4               | Morgan, Alex  | Create deliverable from template (draft state)                                                         | Command        |
-| P4.5  | `wingfoil workflow submit {ELEMENT}`        | 2, 4               | Morgan, Alex  | Submit deliverable for approval (pending state)                                                        | Command        |
-| P4.6  | `wingfoil workflow approve {ELEMENT}`       | 2, 4, 5            | Morgan, Casey | Approve deliverable (approved state); records reason                                                   | Command        |
-| P4.7  | `wingfoil workflow reject {ELEMENT}`        | 2, 4, 5            | Morgan, Casey | Reject deliverable; trigger fallback to previous step                                                  | Command        |
-| P4.8  | `wingfoil workflow next`                    | 1, 4               | Alex, Morgan  | Show next step + directives for current role + task instructions                                       | Command        |
-| P4.9  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show current state of all open workflows and pending approvals                                         | Command        |
-| P4.10 | Workflow Steps (atomic actions)             | 0a, 0b, 1, 2, 4    | All           | Steps execute: memory.create, agent.execute, workflow.submit, git operations (branch, worktree, merge) | Feature        |
-| P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking (draft → pending → approved/rejected)                     | Feature        |
-| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4    | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)            | Feature        |
-| P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter (no separate state index file needed)         | Infrastructure |
-| P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person                      | Feature        |
-| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | Jump to previous step on rejection; optionally log feedback                                            | Feature        |
-| P4.16 | Workflow include() Composition              | 0a, 0b, 4          | Morgan        | Reference sub-workflows and steps from other files via `include()`                                     | Feature        |
-| P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns                                                                | Feature        |
+| ID    | Feature                                     | Journey            | User          | Description                                                                                       | Type           |
+|-------|---------------------------------------------|--------------------|---------------|---------------------------------------------------------------------------------------------------|----------------|
+| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows | Infrastructure |
+| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open workflow phase; initialize first step                                                        | Command        |
+| P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close workflow phase; mark as complete                                                            | Command        |
+| P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step + directives for current role + task instructions                                  | Command        |
+| P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show current state of open workflows and pending approvals                                        | Command        |
+| P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List available workflows (built-in + custom)                                                      | Command        |
+| P4.7  | `wingfoil workflow show`                    | 0a, 0b, 6          | All           | Display details of a workflow (phases, steps, directives, Memory structure)                       | Command        |
+| P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4       | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                       | Command        |
+| P4.9  | `wingfoil workflow remove`                  | 2, 4, 6            | Morgan, Alex  | Remove custom workflow after verifying it's not included elsewhere                                | Command        |
+| P4.10 | Workflow Steps (atomic actions)             | 0a, 0b, 1, 2, 4    | All           | Steps execute: memory.add, memory.submit, agent.execute, git operations (branch, worktree, merge) | Feature        |
+| P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking (draft → pending → approved/rejected)                | Feature        |
+| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4    | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)       | Feature        |
+| P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter (no separate state index file needed)    | Infrastructure |
+| P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person                 | Feature        |
+| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | Jump to previous step on rejection; optionally log feedback                                       | Feature        |
+| P4.16 | Workflow include() Composition              | 0a, 0b, 4          | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps in `.wingfoil/workflows/{built-in,custom}/` via `include()` | Feature        |
+| P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns                                                           | Feature        |
 
 Pre-built methodology templates for fast onboarding.
 
-| ID    | Feature                                  | Journey | User         | Description                                                                              | Type    |
-|-------|------------------------------------------|---------|--------------|------------------------------------------------------------------------------------------|---------|
-| P4.18 | `wingfoil workflow template list`        | 0a, 0b  | All          | List available reference workflow templates (Scrum, Kanban, Lean Inception, Trunk-Based) | Command |
-| P4.19 | `wingfoil workflow template show {name}` | 0a, 0b  | All          | Display details of a template (phases, directives, Memory structure)                     | Command |
-| P4.20 | Reference Workflow Templates             | 0a, 0b  | All          | Pre-built methodology templates: Scrum, Kanban, Lean Inception, Trunk-Based, Custom      | Feature |
-| P4.21 | Template Expansion                       | 0a, 0b  | Alex, Morgan | Auto-generate phases, directives, Memory sections from selected template                 | Feature |
-| P4.22 | Template Customization                   | 0a, 0b  | Morgan       | Override template defaults to match team style                                           | Feature |
+| ID    | Feature                      | Journey | User         | Description                                                                         | Type    |
+|-------|------------------------------|---------|--------------|-------------------------------------------------------------------------------------|---------|
+| P4.18 | Reference Workflow Templates | 0a, 0b  | All          | Pre-built methodology templates: Scrum, Kanban, Lean Inception, Trunk-Based, Custom | Feature |
+| P4.19 | Template Expansion           | 0a, 0b  | Alex, Morgan | Auto-generate phases, directives, Memory sections from selected template            | Feature |
+| P4.20 | Template Customization       | 0a, 0b  | Morgan       | Override template defaults to match team style                                      | Feature |
 
 ---
 
@@ -108,13 +109,12 @@ Dual interface (CLI for humans, MCP Server for agents).
 
 #### **5.1 — Project Initialization**
 
-| ID     | Feature                           | Journey                  | User         | Description                                                                 | Type    |
-|--------|-----------------------------------|--------------------------|--------------|-----------------------------------------------------------------------------|---------|
-| P5.1.1 | `wingfoil init`                   | 0a                       | Alex, Morgan | Initialize WingFoil on new project (interactive wizard)                     | Command |
-| P5.1.2 | `wingfoil init --from-existing`   | 0b                       | Morgan, Alex | Initialize WingFoil on existing project without restructuring               | Command |
-| P5.1.3 | `wingfoil init --template {name}` | 0a                       | Alex, Morgan | Initialize project with reference workflow template                         | Command |
-| P5.1.4 | `wingfoil audit`                  | 0b                       | Morgan, Alex | Scan project and summarize current state (languages, frameworks, structure) | Command |
-| P5.1.5 | CLI UX Improvements               | 0a, 0b, 1, 2, 3, 4, 5, 6 | All          | Better help, formatting, error messages, shell integration                  | Feature |
+| ID     | Feature                      | Journey                  | User         | Description                                                                      | Type    |
+|--------|------------------------------|--------------------------|--------------|----------------------------------------------------------------------------------|---------|
+| P5.1.1 | `wingfoil init`              | 0a                       | Alex, Morgan | Initialize WingFoil on new project (interactive wizard, with template selection) | Command |
+| P5.1.2 | `wingfoil init --mode infer` | 0b                       | Morgan, Alex | Initialize WingFoil on existing project with codebase inference                  | Command |
+| P5.1.3 | `wingfoil audit`             | 0b                       | Morgan, Alex | Scan project and summarize current state (languages, frameworks, structure)      | Command |
+| P5.1.4 | CLI UX Improvements          | 0a, 0b, 1, 2, 3, 4, 5, 6 | All          | Better help, formatting, error messages, shell integration                       | Feature |
 
 #### **5.2 — Agent Execution**
 
@@ -161,25 +161,25 @@ Notifications and alerts across all features.
 
 **Target Date:** July 10, 2026
 
-| Feature ID | Feature                           | Complexity | Dependencies      | MVP Risk | Priority | Why                                       | Notes                                    |
-|------------|-----------------------------------|------------|-------------------|----------|----------|-------------------------------------------|------------------------------------------|
-| P1.1       | Git-Backed Storage (foundational) | Low        | Git               | Low      | Critical | Foundation for all pillars                | Stores all project state in `.wingfoil/` |
-| P1.2       | Versioning & Audit Trail          | Low        | Git               | Low      | Critical | Enables change tracking and audit         | Via git commits automatically            |
-| P1.3       | `wingfoil memory add`             | Low        | Git               | Low      | Critical | Core user workflow                        | Essential for all personas               |
-| P1.5       | `wingfoil memory search`          | Medium     | Memory, file I/O  | Medium   | Critical | Find decisions quickly                    | Keyword search MVP; semantic post-MVP    |
-| P1.7       | Memory Entries (git-backed)       | Low        | Git               | Low      | Critical | Storage layer for Memory pillar           | Shared infrastructure for all pillars    |
-| P1.8       | Keyword Memory Search             | Medium     | Memory, file I/O  | Medium   | Critical | Query Memory by topic                     | Basic keyword matching                   |
-| P2.1       | `wingfoil dna set`                | Low        | DNA               | Low      | Critical | Define/update project structure           | Basic CRUD operations                    |
-| P2.2       | `wingfoil dna show`               | Low        | DNA               | Low      | Critical | Query project structure                   | Essential for all journeys               |
-| P2.4       | Project DNA (structured config)   | Low        | None              | Low      | Critical | Storage layer for DNA pillar              | Shared infrastructure for all pillars    |
+| Feature ID | Feature                           | Complexity | Dependencies       | MVP Risk | Priority | Why                                       | Notes                                       |
+|------------|-----------------------------------|------------|--------------------|----------|----------|-------------------------------------------|---------------------------------------------|
+| P1.1       | Git-Backed Storage (foundational) | Low        | Git                | Low      | Critical | Foundation for all pillars                | Stores all project state in `.wingfoil/`    |
+| P1.2       | Versioning & Audit Trail          | Low        | Git                | Low      | Critical | Enables change tracking and audit         | Via git commits automatically               |
+| P1.3       | `wingfoil memory add`             | Low        | Git                | Low      | Critical | Core user workflow                        | Essential for all personas                  |
+| P1.5       | `wingfoil memory search`          | Medium     | Memory, file I/O   | Medium   | Critical | Find decisions quickly                    | Keyword search MVP; semantic post-MVP       |
+| P1.11      | Memory Entries (git-backed)       | Low        | Git                | Low      | Critical | Storage layer for Memory pillar           | Shared infrastructure for all pillars       |
+| P1.12      | Keyword Memory Search             | Medium     | Memory, file I/O   | Medium   | Critical | Query Memory by topic                     | Basic keyword matching                      |
+| P2.1       | `wingfoil dna set`                | Low        | DNA                | Low      | Critical | Define/update project structure           | Basic CRUD operations                       |
+| P2.2       | `wingfoil dna show`               | Low        | DNA                | Low      | Critical | Query project structure                   | Essential for all journeys                  |
+| P2.4       | Project DNA (structured config)   | Low        | None               | Low      | Critical | Storage layer for DNA pillar              | Shared infrastructure for all pillars       |
 | P2.5       | `wingfoil paths [category]`       | Medium     | DNA (paths config) | Low      | High     | Query resource paths without full scan    | Supports drill-down and multi-format output |
-| P5.1.1     | `wingfoil init` (basic wizard)    | Low        | DNA, Directives   | Low      | Critical | First user interaction                    | Q&A mode only; agent-assisted in v0.4    |
-| P5.1.2     | `wingfoil init --from-existing`   | Medium     | Codebase scanning | Medium   | Critical | Adoption blocker for existing projects    | Infers DNA, suggests directives          |
-| P5.1.4     | `wingfoil audit`                  | Medium     | Codebase scanning | Medium   | Critical | Understand current state before migration | Pre-requisite to 0b journey              |
-| P5.2.1     | MCP Resources (DNA + Memory)      | Medium     | MCP spec, CLI     | Medium   | Critical | Agents can access project state           | Read-only; foundation for agent context  |
-| P4.18      | `wingfoil workflow template list` | Low        | None              | Low      | High     | Reduce friction in init                   | Browse templates before selection        |
-| P4.19      | `wingfoil workflow template show` | Low        | None              | Low      | High     | Help user choose template                 | Display template details                 |
-| P4.20      | Reference Workflow Templates      | Low        | None              | Low      | High     | Fast onboarding with proven workflows     | Scrum, Kanban, Lean, Trunk-Based         |
+| P5.1.1     | `wingfoil init` (basic wizard)    | Low        | DNA, Directives    | Low      | Critical | First user interaction                    | Q&A mode only; agent-assisted in v0.4       |
+| P5.1.2     | `wingfoil init --mode infer`      | Medium     | Codebase scanning  | Medium   | Critical | Adoption blocker for existing projects    | Infers DNA, suggests directives             |
+| P5.1.3     | `wingfoil audit`                  | Medium     | Codebase scanning  | Medium   | Critical | Understand current state before migration | Pre-requisite to 0b journey                 |
+| P5.2.1     | MCP Resources (DNA + Memory)      | Medium     | MCP spec, CLI      | Medium   | Critical | Agents can access project state           | Read-only; foundation for agent context     |
+| P4.18      | Reference Workflow Templates      | Low        | None               | Low      | High     | Fast onboarding with proven workflows     | Scrum, Kanban, Lean, Trunk-Based            |
+| P4.19      | Template Expansion                | Low        | None               | Low      | High     | Generate workflow + directives            | From template selection                     |
+| P4.20      | Template Customization            | Low        | None               | Low      | Medium   | Override defaults                         | Adapt templates to team                     |
 
 ---
 
@@ -189,18 +189,20 @@ Notifications and alerts across all features.
 
 | Feature ID | Feature                                | Complexity | Dependencies                | MVP Risk | Priority | Why                                 | Notes                                                                       |
 |------------|----------------------------------------|------------|-----------------------------|----------|----------|-------------------------------------|-----------------------------------------------------------------------------|
+| P1.6       | `wingfoil memory submit`               | Low        | Memory, frontmatter         | Low      | Critical | Submit docs for approval            | Transitions draft → pending                                                 |
+| P1.7       | `wingfoil memory approve`              | Low        | Memory, frontmatter         | Low      | Critical | Approve Memory documents            | Records approver, timestamp, reason                                         |
+| P1.8       | `wingfoil memory reject`               | Low        | Memory, frontmatter         | Low      | Critical | Reject documents for rework         | Reverts to draft with feedback                                              |
+| P1.9       | `wingfoil memory deprecate`            | Low        | Memory, frontmatter         | Low      | Medium   | Mark docs as obsolete               | Agents ignore deprecated docs                                               |
+| P1.10      | `wingfoil memory history`              | Low        | Git                         | Low      | High     | View audit trail of decisions       | Shows commits + state transitions                                           |
 | P3.1       | `wingfoil directive create`            | Low        | Built-in template library   | Low      | Critical | Teams define custom rules           | Custom directives for team style                                            |
-| P3.2       | `wingfoil directive add`               | Low        | Built-in template library   | Low      | Critical | Adopt WingFoil best practices       | Built-in templates for common scenarios                                     |
-| P3.3       | `wingfoil directive assign`            | Medium     | DNA (roles)                 | Medium   | High     | Bind rules to roles                 | Role defined in `.wingfoil/dna.yaml`                                        |
-| P3.4       | `wingfoil directive list`              | Low        | None                        | Low      | High     | Discover available rules            | Essential for Morgan to manage                                              |
-| P3.5       | `wingfoil directive update`            | Low        | None                        | Low      | Medium   | Evolve rules as team matures        | Versioned in git                                                            |
-| P3.6       | Project Directives (custom + built-in) | Medium     | Memory, built-in templates  | Low      | Critical | Storage layer for Directives pillar | Shared infrastructure for all pillars                                       |
-| P3.7       | Auto-Load Directives by Role           | Medium     | Directive system, templates | Medium   | Critical | Agents respect rules automatically  | Core value proposition                                                      |
-| P3.8       | Role-Based Directive Assignment        | Low        | None                        | Low      | High     | Flexible role bindings              | One role → multiple directives                                              |
-| P3.9       | Built-in Directive Templates           | Low        | None                        | Low      | High     | Reduce friction                     | Pre-configured: Testing, Code Review, Architecture, Security, Documentation |
+| P3.2       | `wingfoil directive assign`            | Medium     | DNA (roles)                 | Medium   | High     | Bind rules to roles                 | Role defined in `.wingfoil/dna.yaml`                                        |
+| P3.3       | `wingfoil directive remove`            | Low        | None                        | Low      | Medium   | Remove custom directives            | Verify not referenced elsewhere                                             |
+| P3.4       | `wingfoil directives list`             | Low        | None                        | Low      | High     | Discover available rules            | Essential for Morgan to manage                                              |
+| P3.5       | Project Directives (custom + built-in) | Medium     | Memory, built-in templates  | Low      | Critical | Storage layer for Directives pillar | Shared infrastructure for all pillars                                       |
+| P3.6       | Auto-Load Directives by Role           | Medium     | Directive system, templates | Medium   | Critical | Agents respect rules automatically  | Core value proposition                                                      |
+| P3.7       | Role-Based Directive Assignment        | Low        | None                        | Low      | High     | Flexible role bindings              | One role → multiple directives                                              |
+| P3.8       | Built-in Directive Templates           | Low        | None                        | Low      | High     | Reduce friction                     | Pre-configured: Code Quality, Testing, Code Review, Architecture, Security, Documentation |
 | P5.2.2     | MCP Prompts (role-based)               | Medium     | Directive system, templates | Medium   | Critical | Agents receive instructions + rules | Auto-loaded at session start                                                |
-| P4.21      | Template Expansion                     | Low        | None                        | Low      | High     | Generate workflow + directives      | From template selection                                                     |
-| P4.22      | Template Customization                 | Low        | None                        | Low      | Medium   | Override defaults                   | Adapt templates to team                                                     |
 
 ---
 
@@ -208,34 +210,36 @@ Notifications and alerts across all features.
 
 **Target Date:** July 24, 2026
 
-| Feature ID | Feature                                     | Complexity | Dependencies                             | MVP Risk | Priority | Why                              | Notes                                                         |
-|------------|---------------------------------------------|------------|------------------------------------------|----------|----------|----------------------------------|---------------------------------------------------------------|
-| P4.1       | Project Workflow (configuration)            | Medium     | None                                     | Low      | Critical | Define team process              | v0.1 + v0.2 foundation                                        |
-| P4.2       | `wingfoil workflow start`                   | Low        | Workflow config                          | Low      | Critical | Begin workflow phase             | Atomic operation                                              |
-| P4.3       | `wingfoil workflow end`                     | Low        | Workflow config                          | Low      | Critical | Close workflow phase             | Atomic operation                                              |
-| P4.4       | `wingfoil workflow create`                  | Medium     | Memory, state tracking                   | Medium   | Critical | Create deliverables              | From templates                                                |
-| P4.5       | `wingfoil workflow submit`                  | Medium     | Memory, state tracking                   | Medium   | Critical | Submit for approval              | State transition                                              |
-| P4.6       | `wingfoil workflow approve`                 | Medium     | Memory, state tracking                   | Medium   | Critical | Accept deliverable               | Records decision                                              |
-| P4.7       | `wingfoil workflow reject`                  | Medium     | Memory, state tracking                   | Medium   | Critical | Request rework                   | With feedback                                                 |
-| P4.8       | `wingfoil workflow next`                    | Low        | Workflow, directives                     | Low      | Critical | Know what to do next             | Essential for all journeys                                    |
-| P4.9       | `wingfoil workflow status`                  | Low        | Workflow state                           | Low      | Critical | See project state                | For Casey + Morgan                                            |
-| P4.10      | Workflow Steps (atomic actions)             | High       | Memory, Directives, Agent                | High     | Critical | Execute step logic               | Memory.create, agent.execute, git ops, submit, await-approval |
-| P4.11      | Deliverables (Memory + State)               | Medium     | Memory, git versioning                   | Medium   | Critical | Track work items                 | Frontmatter-based state                                       |
-| P4.12      | Workflow Checks (pre/post)                  | High       | File system, git, test runner            | High     | Critical | Enforce quality gates            | Validation rules                                              |
-| P4.13      | Workflow State Deduction (from Memory)      | Low        | Git, Memory frontmatter                  | Low      | Critical | Deduce state from Memory files   | No separate `.wingfoil/state/` index needed                   |
-| P4.14      | Approval Routing (role-based from DNA)      | Medium     | DNA (roles, team members), Notifications | Medium   | High     | Route approvals correctly        | Team members defined in `.wingfoil/dna.yaml`                  |
-| P4.15      | Fallback on Rejection                       | High       | State machine, optional steps            | High     | High     | Handle rejections gracefully     | Return to previous step                                       |
-| P4.17      | Built-in Workflow Templates (Task, Release) | Low        | None                                     | Low      | High     | Common workflow patterns         | Task + Release templates                                      |
-| P5.3.1     | `wingfoil agent execute [--next]`           | Medium     | Agent SDK, MCP, Directives               | High     | Critical | Launch agents with context       | Foundation for agent journeys                                 |
-| P5.3.2     | Agent Role Selection per Step               | Medium     | Workflow system                          | Medium   | High     | Route agent by step              | Correct role per phase                                        |
-| P5.3.3     | Relevance Filtering                         | Medium     | Memory, Agent context                    | Medium   | Medium   | Load only relevant docs          | Avoid context window exhaustion                               |
-| P5.4.1     | Agent Role Definition                       | Low        | None                                     | Low      | Critical | Define agent personas            | Developer, Reviewer, QA, Architect                            |
-| P5.4.2     | Agent Role → Directives Binding             | Low        | Directive system                         | Low      | Critical | Auto-load rules for agent        | Core differentiator                                           |
-| P5.4.3     | Agent Context Pre-Loading                   | Medium     | DNA, Memory, Directives                  | Medium   | Critical | Pre-fetch agent context          | <30 sec launch time                                           |
-| P5.4.4     | Agent Execution Context                     | Medium     | MCP, Agent SDK                           | Medium   | Critical | Structured context passing       | DNA + Memory + Directives                                     |
-| P5.2.3     | MCP Tools (state management)                | Medium     | Workflow state, MCP spec                 | Medium   | High     | Agents can update workflow state | Submit, approve, record memory                                |
-| X2.1       | "Human Needed" Notifications                | Medium     | CLI hooks, git hooks                     | Medium   | High     | Alert on approvals needed        | Essential for Morgan + Casey                                  |
-| X2.2       | Notification Routing                        | Medium     | DNA (roles), Notifications               | Medium   | Medium   | Route alerts by role             | Role-based or person-specific                                 |
+| Feature ID | Feature                                     | Complexity | Dependencies                             | MVP Risk | Priority | Why                              | Notes                                             |
+|------------|---------------------------------------------|------------|------------------------------------------|----------|----------|----------------------------------|---------------------------------------------------|
+| P4.1       | Project Workflow (configuration)            | Medium     | None                                     | Low      | Critical | Define team process              | v0.1 + v0.2 foundation                            |
+| P4.2       | `wingfoil workflow start`                   | Low        | Workflow config                          | Low      | Critical | Begin workflow phase             | Atomic operation                                  |
+| P4.3       | `wingfoil workflow end`                     | Low        | Workflow config                          | Low      | Critical | Close workflow phase             | Atomic operation                                  |
+| P1.3       | `wingfoil memory add` (for deliverables)    | Medium     | Memory, state tracking                   | Medium   | Critical | Create deliverables              | Draft state Memory files                          |
+| P1.6       | `wingfoil memory submit`                    | Medium     | Memory, state tracking                   | Medium   | Critical | Submit for approval              | Pending state transition                          |
+| P1.7       | `wingfoil memory approve`                   | Medium     | Memory, state tracking                   | Medium   | Critical | Accept deliverable               | Records approver, timestamp, reason               |
+| P1.8       | `wingfoil memory reject`                    | Medium     | Memory, state tracking                   | Medium   | Critical | Request rework                   | Reverts to draft with feedback                    |
+| P4.4       | `wingfoil workflow next`                    | Low        | Workflow, directives                     | Low      | Critical | Know what to do next             | Essential for all journeys                        |
+| P4.5       | `wingfoil workflow status`                  | Low        | Workflow state                           | Low      | Critical | See project state                | For Casey + Morgan                                |
+| P4.6       | `wingfoil workflow list`                    | Low        | Workflow config                          | Low      | High     | Browse available workflows       | Built-in + custom                                 |
+| P4.7       | `wingfoil workflow show`                    | Low        | Workflow config                          | Low      | High     | View workflow details            | Phases, steps, directives                         |
+| P4.10      | Workflow Steps (atomic actions)             | High       | Memory, Directives, Agent                | High     | Critical | Execute step logic               | Memory.add, memory.submit, agent.execute, git ops |
+| P4.11      | Deliverables (Memory + State)               | Medium     | Memory, git versioning                   | Medium   | Critical | Track work items                 | Frontmatter-based state                           |
+| P4.12      | Workflow Checks (pre/post)                  | High       | File system, git, test runner            | High     | Critical | Enforce quality gates            | Validation rules                                  |
+| P4.13      | Workflow State Deduction (from Memory)      | Low        | Git, Memory frontmatter                  | Low      | Critical | Deduce state from Memory files   | No separate `.wingfoil/state/` index needed       |
+| P4.14      | Approval Routing (role-based from DNA)      | Medium     | DNA (roles, team members), Notifications | Medium   | High     | Route approvals correctly        | Team members defined in `.wingfoil/dna.yaml`      |
+| P4.15      | Fallback on Rejection                       | High       | State machine, optional steps            | High     | High     | Handle rejections gracefully     | Return to previous step                           |
+| P4.17      | Built-in Workflow Templates (Task, Release) | Low        | None                                     | Low      | High     | Common workflow patterns         | Task + Release templates                          |
+| P5.3.1     | `wingfoil agent execute [--next]`           | Medium     | Agent SDK, MCP, Directives               | High     | Critical | Launch agents with context       | Foundation for agent journeys                     |
+| P5.3.2     | Agent Role Selection per Step               | Medium     | Workflow system                          | Medium   | High     | Route agent by step              | Correct role per phase                            |
+| P5.3.3     | Relevance Filtering                         | Medium     | Memory, Agent context                    | Medium   | Medium   | Load only relevant docs          | Avoid context window exhaustion                   |
+| P5.4.1     | Agent Role Definition                       | Low        | None                                     | Low      | Critical | Define agent personas            | Developer, Reviewer, QA, Architect                |
+| P5.4.2     | Agent Role → Directives Binding             | Low        | Directive system                         | Low      | Critical | Auto-load rules for agent        | Core differentiator                               |
+| P5.4.3     | Agent Context Pre-Loading                   | Medium     | DNA, Memory, Directives                  | Medium   | Critical | Pre-fetch agent context          | <30 sec launch time                               |
+| P5.4.4     | Agent Execution Context                     | Medium     | MCP, Agent SDK                           | Medium   | Critical | Structured context passing       | DNA + Memory + Directives                         |
+| P5.2.3     | MCP Tools (state management)                | Medium     | Workflow state, MCP spec                 | Medium   | High     | Agents can update workflow state | Submit, approve, record memory                    |
+| X1.1       | "Human Needed" Notifications                | Medium     | CLI hooks, git hooks                     | Medium   | High     | Alert on approvals needed        | Essential for Morgan + Casey                      |
+| X1.2       | Notification Routing                        | Medium     | DNA (roles), Notifications               | Medium   | Medium   | Route alerts by role             | Role-based or person-specific                     |
 
 ---
 
@@ -246,7 +250,7 @@ Notifications and alerts across all features.
 | Feature ID | Feature                           | Complexity | Dependencies                          | MVP Risk | Priority | Why                             | Notes                   |
 |------------|-----------------------------------|------------|---------------------------------------|----------|----------|---------------------------------|-------------------------|
 | P1.4       | `wingfoil memory import`          | Medium     | Memory, file I/O                      | Medium   | High     | Auto-import existing docs       | Reduce 0b friction      |
-| P1.6       | `wingfoil memory history`         | Low        | Git log                               | Low      | Medium   | Audit trail for decisions       | Casey requirement       |
+| P1.10      | `wingfoil memory history`         | Low        | Git log                               | Low      | Medium   | Audit trail for decisions       | Casey requirement       |
 | P2.3       | `wingfoil dna infer`              | Medium     | Codebase scanning, language detection | Medium   | High     | Auto-detect DNA                 | Reduce 0b friction      |
 | P5.1.3     | `wingfoil init --template {name}` | Low        | Template system                       | Low      | High     | CLI flag for templates          | v0.1 had menu selection |
 | P5.1.5     | CLI UX Improvements               | Low        | None                                  | Low      | High     | Polish help, formatting, errors | Better user experience  |
@@ -291,9 +295,9 @@ Notifications and alerts across all features.
 
 **Pillar 1 — Project Memory:**
 
-- ✓ Memory Entries (P1.7) — `.wingfoil/memory/`
-- ✓ Add, Search, History commands (P1.3–P1.6)
-- ✓ Keyword search (P1.8)
+- ✓ Memory Entries (P1.11) — `.wingfoil/memory/`
+- ✓ Add, Search, History commands (P1.3, P1.5, P1.10)
+- ✓ Keyword search (P1.12)
 
 **Pillar 2 — Project DNA:**
 
@@ -302,14 +306,14 @@ Notifications and alerts across all features.
 
 **Pillar 3 — Project Directives:**
 
-- ✓ Project Directives (P3.6) — `.wingfoil/directives/`
-- ✓ Create, Add, Assign, Update commands (P3.1–P3.5)
-- ✓ Built-in templates (P3.9)
-- ✓ Auto-Load by Role (P3.7)
+- ✓ Project Directives (P3.5) — `.wingfoil/directives/`
+- ✓ Create, Assign, Remove, List commands (P3.1–P3.4)
+- ✓ Built-in templates (P3.8)
+- ✓ Auto-Load by Role (P3.6)
 
 **Pillar 4 — Project Workflow:**
 
-- ✓ Project Workflow (P4.1) — `.wingfoil/workflows.yaml`
+- ✓ Project Workflow (P4.1) — `.wingfoil/workflows.yaml` (main file + `include()` of built-in/custom workflows)
 - ✓ State deduced from Memory (P4.13) — no separate state file
 - ✓ All workflow commands (P4.2–P4.9)
 - ✓ Deliverables, Checks, Routing, Fallback (P4.11–P4.16)
@@ -324,11 +328,11 @@ Notifications and alerts across all features.
 
 **Extra Features:**
 
-- ✓ Reference Workflow Templates (P4.18–P4.22) — Scrum, Kanban, Lean, Trunk-Based
+- ✓ Reference Workflow Templates (P4.18–P4.20) — Scrum, Kanban, Lean, Trunk-Based
 - ✓ Notification System (X1) — Basic approvals
 
 **Total Features (MVP):** 57 core features across all pillars
-**Release Timeline:** 4 weeks (v0.1 → v1.0)
+**Release Timeline:** 5 weeks (v0.1 → v1.0)
 **Target Adoption:** ≥1 real team by v0.2, ≥3 teams by v1.0
 
 ---
@@ -382,17 +386,19 @@ Example step configuration:
     - git.merge(to: main)
 ```
 
-### Built-in Directive Templates (P3.9)
+### Built-in Directive Templates (P3.8)
 
-WingFoil provides pre-configured directive templates for common scenarios:
+WingFoil provides pre-configured directive templates for common scenarios (6 types):
 
-- **Code Quality**: Testing, linting, code coverage
+- **Code Quality**: linting, code coverage, complexity limits
+- **Testing**: test-first/TDD, coverage thresholds, test structure
 - **Code Review**: Review checklist, approval gates
 - **Architecture**: ADR requirements, tech decisions
 - **Security**: Credential handling, secrets
 - **Documentation**: README, API docs, decision logs
 
-Teams can use `wingfoil directive add {template}` to adopt and customize.
+Built-in directive templates are auto-installed during `wingfoil init` based on the selected methodology. Teams can
+create custom directives with `wingfoil directive create`.
 
 ### Agent Role Configurations (P5.4)
 

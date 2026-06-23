@@ -1,7 +1,7 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.1
-**Date:** 2026-06-23
+**Version:** 1.2
+**Date:** 2026-06-24
 **Status:** Pending
 
 ---
@@ -13,7 +13,7 @@
 | **1** | v0.1 (Jul 10)  | Core Infrastructure           | Memory, DNA, git integration, workflow schema, core CLI           | Must have |
 | **2** | v0.2 (Jul 17)  | CLI + Directives              | Directives, workflow state tracking, directive assignment         | Must have |
 | **3** | v0.3 (Jul 24)  | Agent Execution + Workflow    | Agent wrapper, workflow create/submit/approve/reject, MCP Prompts | Must have |
-| **4** | v0.4 (Jul 31)  | MCP + Migration               | init --from-existing, audit, infer, import, MCP Resources         | Must have |
+| **4** | v0.4 (Jul 31)  | MCP + Migration               | init --mode infer, audit, dna infer, import, MCP Resources        | Must have |
 | **5** | v1.0 (Aug 7)   | Workflow Completion + Release | Workflow checks, fallback logic, templates, testing, npm publish  | Must have |
 
 ---
@@ -57,21 +57,21 @@
 
 **Goal:** Deliver Pillar 3 (Directives). Build directive management and role-based binding.
 
-| Feature                                        | Effort               | Owner | Status |
-|------------------------------------------------|----------------------|-------|--------|
-| `wingfoil memory search` (keyword search)      | M                    | Dev   |        |
-| `wingfoil memory history` (audit trail)        | S                    | Dev   |        |
-| `wingfoil directive create` (custom directive) | S                    | Dev   |        |
-| `wingfoil directive add` (import built-in)     | M                    | Dev   |        |
-| `wingfoil directive assign` (bind to role)     | M                    | Dev   |        |
-| `wingfoil directive list` (query directives)   | S                    | Dev   |        |
-| `wingfoil directive update` (modify existing)  | S                    | Dev   |        |
-| Built-in directive templates (6 types)         | M                    | Dev   |        |
-| Auto-Load Directives by Role (feature)         | M                    | Dev   |        |
-| Role-Based Directive Assignment (feature)      | M                    | Dev   |        |
-| MCP Prompts (role-based directive templates)   | M                    | Dev   |        |
-| CLI testing + documentation                    | M                    | Dev   |        |
-| **Week 2 Total**                               | **~12 story points** |       |        |
+| Feature                                                     | Effort               | Owner | Status |
+|-------------------------------------------------------------|----------------------|-------|--------|
+| `wingfoil memory search` (keyword search)                   | M                    | Dev   |        |
+| `wingfoil memory history` (audit trail)                     | S                    | Dev   |        |
+| `wingfoil memory submit/approve/reject` (state transitions) | M                    | Dev   |        |
+| `wingfoil directive create` (custom directive)              | S                    | Dev   |        |
+| `wingfoil directive assign` (bind to role)                  | M                    | Dev   |        |
+| `wingfoil directive remove` (remove directive)              | S                    | Dev   |        |
+| `wingfoil directives list` (query directives)               | S                    | Dev   |        |
+| Built-in directive templates (6 types)                      | M                    | Dev   |        |
+| Auto-Load Directives by Role (feature)                      | M                    | Dev   |        |
+| Role-Based Directive Assignment (feature)                   | M                    | Dev   |        |
+| MCP Prompts (role-based directive templates)                | M                    | Dev   |        |
+| CLI testing + documentation                                 | M                    | Dev   |        |
+| **Week 2 Total**                                            | **~12 story points** |       |        |
 
 **Outputs:**
 
@@ -93,14 +93,16 @@
 
 | Feature                                                | Effort               | Owner | Status |
 |--------------------------------------------------------|----------------------|-------|--------|
-| `wingfoil workflow create {ELEMENT}` (draft)           | M                    | Dev   |        |
-| `wingfoil workflow submit {ELEMENT}` (pending)         | M                    | Dev   |        |
-| `wingfoil workflow approve {ELEMENT}`                  | M                    | Dev   |        |
-| `wingfoil workflow reject {ELEMENT}`                   | M                    | Dev   |        |
+| `wingfoil memory add` (create deliverable)             | M                    | Dev   |        |
+| `wingfoil memory submit` (submit for approval)         | M                    | Dev   |        |
+| `wingfoil memory approve` (approve Memory document)    | M                    | Dev   |        |
+| `wingfoil memory reject` (reject Memory document)      | M                    | Dev   |        |
 | `wingfoil workflow next` (show next step + directives) | M                    | Dev   |        |
 | `wingfoil workflow status` (show all workflows)        | S                    | Dev   |        |
 | `wingfoil workflow start {workflow}`                   | S                    | Dev   |        |
 | `wingfoil workflow end {workflow}`                     | S                    | Dev   |        |
+| `wingfoil workflow list` (list available workflows)    | S                    | Dev   |        |
+| `wingfoil workflow show` (show workflow details)       | S                    | Dev   |        |
 | Deliverable state transitions (frontmatter + tracking) | M                    | Dev   |        |
 | Workflow state deduction from Memory (feature)         | M                    | Dev   |        |
 | Approval routing (role-based from DNA)                 | M                    | Dev   |        |
@@ -108,7 +110,7 @@
 | `wingfoil agent execute [--next]` wrapper              | M                    | Dev   |        |
 | Agent role selection per workflow step                 | M                    | Dev   |        |
 | Notification system (basic: CLI output + git hooks)    | M                    | Dev   |        |
-| **Week 3 Total**                                       | **~15 story points** |       |        |
+| **Week 3 Total**                                       | **~16 story points** |       |        |
 
 **Outputs:**
 
@@ -136,7 +138,7 @@
 | Feature                                         | Effort               | Owner | Status |
 |-------------------------------------------------|----------------------|-------|--------|
 | `wingfoil audit` (scan project state)           | M                    | Dev   |        |
-| `wingfoil init --from-existing`                 | M                    | Dev   |        |
+| `wingfoil init --mode infer`                    | M                    | Dev   |        |
 | `wingfoil dna infer` (propose DNA from code)    | L                    | Dev   |        |
 | `wingfoil dna show` enhancements                | S                    | Dev   |        |
 | `wingfoil memory import` (import existing docs) | M                    | Dev   |        |
@@ -151,7 +153,7 @@
 **Outputs:**
 
 - v0.4 released: Full Interaction Layer + Polish
-- Existing projects can adopt WingFoil via `init --from-existing` (Journey 0b)
+- Existing projects can adopt WingFoil via `init --mode infer` (Journey 0b)
 - Agents can query and update state via full MCP integration
 - Journey 5 (Casey - PM visibility) fully functional
 - Journey 6 (Morgan - workflow evolution) fully functional
@@ -179,7 +181,7 @@
 | Element types + custom states configuration                 | M                    | Dev   |        |
 | Workflow YAML validation + error handling                   | M                    | Dev   |        |
 | Built-in workflow templates refinement & completion         | M                    | Dev   |        |
-| Integration testing (all 6 journeys)                        | L                    | Dev   |        |
+| Integration testing (all 8 journeys)                        | L                    | Dev   |        |
 | Documentation (README, API guide, workflow examples)        | L                    | Dev   |        |
 | Release testing + edge cases                                | M                    | Dev   |        |
 | npm package setup + publish                                 | S                    | Dev   |        |
@@ -189,9 +191,8 @@
 **Outputs:**
 
 - v1.0 released: WingFoil MVP complete with all 5 pillars integrated
-- All 6 journeys (0a, 0b, 1, 2, 3, 4) fully functional end-to-end
+- All 8 journeys (0a, 0b, 1–6) fully functional end-to-end
 - All features from v0.1–v0.4 stable and polished
-- Journey 5 (Casey) and Journey 6 (Morgan - workflow evolution) complete
 - Comprehensive documentation and examples provided
 - Published to npm with semantic versioning
 - Ready for early adopter validation and feedback
@@ -254,7 +255,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 
 - ✓ All v0.1 features stable (no regressions)
 - ✓ Directive CRUD commands work (`create`, `add`, `assign`, `list`, `update`)
-- ✓ Built-in directive templates (≥3 types: Code Quality, Testing, Code Review)
+- ✓ Built-in directive templates (6 types: Code Quality, Testing, Code Review, Architecture, Security, Documentation)
 - ✓ Role-based directive auto-loading functional
 - ✓ MCP Prompts endpoint functional
 - ✓ >80% test coverage on directive module
@@ -277,7 +278,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 ### v0.4 Definition of Done (Interaction Layer + Polish)
 
 - ✓ All v0.3 features stable (no regressions)
-- ✓ `wingfoil init --from-existing` functional
+- ✓ `wingfoil init --mode infer` functional
 - ✓ `wingfoil audit` functional
 - ✓ `wingfoil dna infer` functional (or simplified fallback)
 - ✓ `wingfoil memory import` functional
@@ -291,8 +292,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 ### v1.0 Definition of Done (MVP Complete)
 
 - ✓ All v0.4 features stable (no regressions)
-- ✓ All 6 user journeys (0a, 0b, 1–4) executable and tested
-- ✓ Bonus journeys (5, 6) functional
+- ✓ All 8 user journeys (0a, 0b, 1–6) executable and tested
 - ✓ Comprehensive documentation (API guide, workflow examples, troubleshooting)
 - ✓ Integration testing (end-to-end for all journeys) passing
 - ✓ Determinism validation: two independent runs produce equivalent outputs
@@ -305,14 +305,15 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 
 ## Success Criteria (v1.0 MVP)
 
-- ✓ All 6 user journeys executable and tested (0a, 0b, 1, 2, 3, 4)
+- ✓ All 8 user journeys executable and tested (0a, 0b, 1–6)
     - ✓ Journey 0a: New project setup with template
     - ✓ Journey 0b: Existing project migration
     - ✓ Journey 1: Alex (solo dev) with auto-loaded context
     - ✓ Journey 2: Sam (reviewer) with review workflow
     - ✓ Journey 3: Jordan (team dev) with directives
     - ✓ Journey 4: Morgan (tech lead) with governance
-- ✓ Journey 5 (Casey - PM visibility) and Journey 6 (Morgan - workflow evolution) functional
+    - ✓ Journey 5: Casey (PM) with decision visibility
+    - ✓ Journey 6: Morgan (tech lead) with workflow evolution
 - ✓ Workflow state transitions work correctly (draft → pending → approved/rejected → fallback)
 - ✓ Agent wrapper loads directives + context correctly in <30 seconds
 - ✓ No data loss or corruption from git integration
