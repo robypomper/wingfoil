@@ -72,7 +72,7 @@ project:
 ✓ Versionable in git
 
 **Pillar 4: Workflow State Management (v0.3)**
-✓ Workflow configuration (`.wingfoil/workflows.yaml`)  
+✓ Workflow configuration (`.wingfoil/workflows.yaml` main file + `include()` of built-in/custom workflows)  
 ✓ State machine: draft → pending → approved/rejected  
 ✓ Fallback on rejection, approval routing  
 ✓ Built-in workflow templates (Scrum, Kanban, Lean, Trunk-Based)
@@ -136,14 +136,15 @@ agents should produce substantially equivalent software.
 
 ### MVP Success Criteria (v1.0)
 
-- ✓ All 6 core user journeys executable and tested (0a, 0b, 1, 2, 3, 4)
+- ✓ All 8 user journeys executable and tested (0a, 0b, 1–6)
     - Journey 0a: New project initialization with template
     - Journey 0b: Existing project migration
     - Journey 1: Alex (solo dev) with auto-loaded context
     - Journey 2: Sam (code reviewer) with review workflow
     - Journey 3: Jordan (team developer) with auto-loaded directives
     - Journey 4: Morgan (tech lead) with governance enforcement
-- ✓ Bonus journeys functional: Journey 5 (Casey - PM visibility) and Journey 6 (Morgan - workflow evolution)
+    - Journey 5: Casey (PM) with decision visibility
+    - Journey 6: Morgan (tech lead) with workflow evolution
 - ✓ Data integrity preserved (git versioning + audit trail work)
 - ✓ CLI is intuitive and documented (help text, examples)
 - ✓ MCP server is stable (<1 sec queries)
@@ -179,7 +180,7 @@ This MVP Canvas is part of a comprehensive product specification created via Lea
 | `2_personas.md`        | 1.0     | Pending  | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
 | `3_journeys.md`        | 1.1     | Pending  | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
 | `4_features.md`        | 1.0     | Pending  | 57 features across 5 pillars, organized by release version |
-| `5_sequencer.md`       | 1.1     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
-| `5B_mvp-canvas.md`     | 1.1     | Approved | This file — MVP canvas with success criteria               |
+| `5A_sequencer.md`      | 1.0     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
+| `5B_mvp-canvas.md`     | 1.0     | Approved | This file — MVP canvas with success criteria               |
 
 **All outputs are versioned in git and open for refinement as development progresses.**

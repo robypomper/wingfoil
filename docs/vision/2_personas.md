@@ -110,4 +110,4 @@
 
 ---
 
-*Note: Taylor is defined for future reference. MVP focuses on Alex, Sam, Morgan, and Casey.*
+*Note: Taylor is defined for future reference. MVP focuses on Alex, Sam, Jordan, Morgan, and Casey.*

@@ -261,9 +261,6 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 **Testing:** Jest (>80% coverage target)  
 **Deployment:** npm registry (public), semantic versioning
 
-See [`docs/vision/2A_technical-architecture.md`](docs/vision/2A_technical-architecture.md) for detailed architecture,
-module layout, and design decisions.
-
 ---
 
 ## Known Constraints & Assumptions
@@ -280,8 +277,8 @@ module layout, and design decisions.
 
 ## References
 
-This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). See the complete index at
-[`INDEX.md`](INDEX.md).
+This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). See the workshop plan in
+[`X_lean-inception-plan.md`](X_lean-inception-plan.md).
 
 **Core Documents:**
 
@@ -293,8 +290,7 @@ This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). 
 
 **Technical & Planning:**
 
-- [`2A_technical-architecture.md`](2A_technical-architecture.md) — Tech stack, modules, data models
-- [`3A_key-decisions.md`](3A_key-decisions.md) — 15 design decisions with rationale
+- [`X_cli-cmds.md`](X_cli-cmds.md) — CLI commands reference (all pillars)
 - [`5A_sequencer.md`](5A_sequencer.md) — Week-by-week timeline, Definition of Done
 - [`5B_mvp-canvas.md`](5B_mvp-canvas.md) — MVP canvas and success criteria
 
