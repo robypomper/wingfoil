@@ -1,6 +1,6 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-06-24
 **Status:** Pending
 
@@ -28,6 +28,7 @@
 |-----------------------------------------------------|----------------------|-------|--------|
 | `.wingfoil/` directory structure                    | S                    | Dev   |        |
 | Project Memory (file storage + git versioning)      | M                    | Dev   |        |
+| `.wingfoil/memory.yaml` (element schema + per-type states) | M              | Dev   |        |
 | Project DNA (YAML schema + validation)              | S                    | Dev   |        |
 | Git integration (commit, blame, history)            | M                    | Dev   |        |
 | `.gitignore` patterns for WingFoil                  | S                    | Dev   |        |
@@ -116,7 +117,7 @@
 
 - v0.3 released: Workflow State Management fully functional
 - Agents can be launched with full workflow context
-- Workflow approval cycle complete (draft → pending → approved/rejected → fallback)
+- Workflow approval cycle complete (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
 - Journey 1 (Alex) fully functional with workflow integration
 - Journey 2 (Sam - reviewer) approval workflow functional
 - Journey 3 (Jordan) task execution with auto-loaded directives functional
@@ -267,7 +268,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 
 - ✓ All v0.2 features stable (no regressions)
 - ✓ Workflow commands functional (start, end, create, submit, approve, reject, next, status)
-- ✓ State transitions working (draft → pending → approved/rejected → fallback)
+- ✓ State transitions working (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
 - ✓ Approval routing by role functional
 - ✓ Notification system (basic CLI output + git hooks) functional
 - ✓ Agent execute wrapper (<30 sec context load) working
@@ -314,7 +315,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
     - ✓ Journey 4: Morgan (tech lead) with governance
     - ✓ Journey 5: Casey (PM) with decision visibility
     - ✓ Journey 6: Morgan (tech lead) with workflow evolution
-- ✓ Workflow state transitions work correctly (draft → pending → approved/rejected → fallback)
+- ✓ Workflow state transitions work correctly (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
 - ✓ Agent wrapper loads directives + context correctly in <30 seconds
 - ✓ No data loss or corruption from git integration
 - ✓ CLI is intuitive and self-documenting (`--help` works)

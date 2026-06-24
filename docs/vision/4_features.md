@@ -1,6 +1,6 @@
 # Features — WingFoil
 
-**Version:** 1.1  
+**Version:** 1.2
 **Date:** 2026-06-24  
 **Status:** Pending
 
@@ -33,6 +33,7 @@ persist their configuration and state files.
 | P1.10 | `wingfoil memory history`              | 2, 3, 5            | Morgan, Casey       | View audit trail of Memory document (commits, approvals, state changes)                                | Command        |
 | P1.11 | Memory Entries (git-backed)            | 0a, 0b, 1, 2, 3    | All                 | Store documents, decisions, artifacts in `.wingfoil/memory/` with versioning                           | Infrastructure |
 | P1.12 | Keyword Memory Search                  | 1, 3, 5            | Alex, Casey         | Find relevant docs by keyword and metadata                                                             | Feature        |
+| P1.13 | Memory Element Schema (`memory.yaml`)   | 0a, 0b, 2, 4       | All                 | Define each element type (path pattern, name, description, tags, **allowed states + transitions**) in `.wingfoil/memory.yaml`; basis for per-type state machines | Infrastructure |
 
 ---
 
@@ -75,23 +76,23 @@ Unified tracking of project progress, blockers, and deliverables (main config in
 
 | ID    | Feature                                     | Journey            | User          | Description                                                                                       | Type           |
 |-------|---------------------------------------------|--------------------|---------------|---------------------------------------------------------------------------------------------------|----------------|
-| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows | Infrastructure |
-| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open workflow phase; initialize first step                                                        | Command        |
-| P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close workflow phase; mark as complete                                                            | Command        |
-| P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step + directives for current role + task instructions                                  | Command        |
-| P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show current state of open workflows and pending approvals                                        | Command        |
-| P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List available workflows (built-in + custom)                                                      | Command        |
+| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); workflows are classified `kind: main` (independently startable) or `kind: sub` (include-only); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows | Infrastructure |
+| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open a **main** workflow and set it as the active workflow context; initialize first step (subs are not started — they run when included) | Command        |
+| P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close the active (or named) main workflow; clear/restore the active context                       | Command        |
+| P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step of the active workflow, its **element**, directives for the role + instructions    | Command        |
+| P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show state of all open (active) main workflows and pending approvals; highlights the active one   | Command        |
+| P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List workflows **executable now** (startable mains + a sub when it is the next step); `--all` lists every defined workflow | Command        |
 | P4.7  | `wingfoil workflow show`                    | 0a, 0b, 6          | All           | Display details of a workflow (phases, steps, directives, Memory structure)                       | Command        |
 | P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4       | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                       | Command        |
 | P4.9  | `wingfoil workflow remove`                  | 2, 4, 6            | Morgan, Alex  | Remove custom workflow after verifying it's not included elsewhere                                | Command        |
 | P4.10 | Workflow Steps (atomic actions)             | 0a, 0b, 1, 2, 4    | All           | Steps execute: memory.add, memory.submit, agent.execute, git operations (branch, worktree, merge) | Feature        |
-| P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking (draft → pending → approved/rejected)                | Feature        |
+| P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking; states follow the element's **per-type** state machine in `.wingfoil/memory.yaml` (default: draft → pending → approved/rejected → deprecated) | Feature        |
 | P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4    | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)       | Feature        |
-| P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter (no separate state index file needed)    | Infrastructure |
+| P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter, validated against the element type's allowed states (P1.13); no separate state index file needed | Infrastructure |
 | P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person                 | Feature        |
-| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | Jump to previous step on rejection; optionally log feedback                                       | Feature        |
-| P4.16 | Workflow include() Composition              | 0a, 0b, 4          | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps in `.wingfoil/workflows/{built-in,custom}/` via `include()` | Feature        |
-| P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns                                                           | Feature        |
+| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | On reject, jump to a `fallback.step` within the same workflow; optionally assign a new state (`fallback.set_state`) to the rejected document | Feature        |
+| P4.16 | Workflow include() Composition              | 0a, 0b, 4          | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps via `include()`; an include runs once or **once per element** via `iterate_over: <type>` with optional `where` filters (status/tags) | Feature        |
+| P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns (e.g. Release as a main workflow, Task as an includable sub) | Feature        |
 
 Pre-built methodology templates for fast onboarding.
 
@@ -120,7 +121,7 @@ Dual interface (CLI for humans, MCP Server for agents).
 
 | ID     | Feature                           | Journey        | User         | Description                                                                          | Type    |
 |--------|-----------------------------------|----------------|--------------|--------------------------------------------------------------------------------------|---------|
-| P5.3.1 | `wingfoil agent execute [--next]` | 0a, 1, 2, 4, 6 | All          | Wrapper that launches agent with auto-loaded context (directives, Memory, next task) | Command |
+| P5.3.1 | `wingfoil agent execute [--next]` | 0a, 1, 2, 4, 6 | All          | Wrapper that launches the agent with auto-loaded context; with `--next` the role and target element are resolved from the current workflow step (explicit override via `--element type:id`) | Command |
 | P5.3.2 | Agent Role Selection per Step     | 0a, 1, 2, 4    | All          | Route agent to correct role based on current workflow step                           | Feature |
 | P5.3.3 | Relevance Filtering               | 1, 2, 3        | Alex, Agents | Agent loads only relevant Memory docs, avoiding noise                                | Feature |
 
@@ -296,6 +297,7 @@ Notifications and alerts across all features.
 **Pillar 1 — Project Memory:**
 
 - ✓ Memory Entries (P1.11) — `.wingfoil/memory/`
+- ✓ Element schema + per-type state machines (P1.13) — `.wingfoil/memory.yaml`
 - ✓ Add, Search, History commands (P1.3, P1.5, P1.10)
 - ✓ Keyword search (P1.12)
 
@@ -314,9 +316,10 @@ Notifications and alerts across all features.
 **Pillar 4 — Project Workflow:**
 
 - ✓ Project Workflow (P4.1) — `.wingfoil/workflows.yaml` (main file + `include()` of built-in/custom workflows)
-- ✓ State deduced from Memory (P4.13) — no separate state file
+- ✓ Workflow kinds (main/sub), active context, context-aware list (P4.1–P4.6)
+- ✓ State deduced from Memory, validated per-type (P4.13) — no separate state file
 - ✓ All workflow commands (P4.2–P4.9)
-- ✓ Deliverables, Checks, Routing, Fallback (P4.11–P4.16)
+- ✓ Deliverables, Checks, Routing, Fallback (step+state), iterate_over (P4.11–P4.16)
 - ✓ Git operations in workflow steps (P4.10)
 
 **Pillar 5 — Interaction Layer:**
@@ -341,14 +344,75 @@ Notifications and alerts across all features.
 
 ### Workflow State Deduction (P4.13)
 
-State is **deduced from Memory files**, not stored in a separate index:
+State is **deduced from Memory files**, not stored in a separate index. The valid states for each file come from its
+element type's state machine in `.wingfoil/memory.yaml` (P1.13):
 
-- If `.wingfoil/memory/tasks/task-xyz.md` exists and has frontmatter `status: draft` → draft state
-- If frontmatter `status: pending` → awaiting approval
-- If frontmatter `status: approved` → approved
+- A `task` file with frontmatter `status: in-progress` → that task is being implemented
+- A `release` file with frontmatter `status: releasing` → release phase in progress
+- Transitions are validated against the type's graph; an illegal transition is rejected
 
 This avoids a separate `.wingfoil/state/workflows.md` index file and keeps state close to deliverables. Git tracks all
 state changes via Memory file commits.
+
+### Memory Element Schema & Per-Type State Machines (P1.13)
+
+Memory element types are **not hardcoded**: they are configured in `.wingfoil/memory.yaml`. Each type declares its path
+pattern, name, description, tags, and — crucially — **its own state machine** (allowed states + transitions). There is
+no single global state machine: a `release` and a `task` move through different lifecycles. The CLI verbs
+(`submit`/`approve`/`reject`/`deprecate`) and workflow `element.set_state` actions are both validated against the type's
+graph. A `defaults` block (`draft → pending → approved/rejected → deprecated`) is used by any type that does not override
+`states`.
+
+```yaml
+# .wingfoil/memory.yaml (excerpt)
+types:
+  release:
+    path: "release/{id}.md"
+    states:
+      values: [ draft, planning, in-development, releasing, released, deprecated ]
+      initial: draft
+      transitions: { draft: [planning], planning: [in-development], in-development: [releasing], releasing: [released], "*": [deprecated] }
+  task:
+    path: "task/{id}.md"
+    states:
+      values: [ draft, pending, backlog, in-progress, in-review, approved, done, deprecated ]
+      initial: draft
+      transitions: { draft: [pending], pending: [backlog, draft], backlog: [in-progress], in-progress: [in-review], in-review: [approved, in-progress], approved: [done], "*": [deprecated] }
+```
+
+This is why the same verb can land in different states by type (e.g. approving a task during planning → `backlog`, while
+approving it after review → `approved`), avoiding the "approved twice" ambiguity.
+
+### Workflow Kinds, Active Context & Composition (P4.1, P4.2, P4.6, P4.16)
+
+- **Kinds:** every workflow declares `kind: main` (independently startable, e.g. `release-cycle`, `report-bug`,
+  `create-rfc`) or `kind: sub` (include-only, e.g. a TDD `dev-loop`). Subs are never started with `workflow start`; they
+  run when a phase `include()`s them.
+- **Active context:** `wingfoil workflow start <name>` sets the **active workflow**; subsequent commands target it
+  unless `--name` is given. Multiple main workflows can be open at once (e.g. start `report-bug` during a
+  `release-cycle` phase); commands reference the **last** started.
+- **Context-aware `list`:** `workflow list` shows only what is **executable now** — startable mains plus a sub when it
+  is the next step. `--all` lists every defined workflow.
+- **Composition with iteration:** an `include()` runs once, or **once per element** via `iterate_over: <type>` with
+  optional `where` filters by status/tags.
+
+```yaml
+# release-cycle implementation phase: run the TDD sub once per backlog task of this release
+- name: implementation
+  include: dev-loop-tdd
+  iterate_over: task
+  where: { status: [ backlog ], tags: [ "{release.version}" ] }
+```
+
+### Fallback on Rejection (P4.15)
+
+A rejection returns to a named step in the same workflow and may override the document's state:
+
+```yaml
+review:
+  approval: { by_role: reviewer }
+  fallback: { step: red, set_state: in-progress }   # reject → back to 'red', task → in-progress
+```
 
 ### Team Members & Approval Routing (P4.14)
 
@@ -380,9 +444,10 @@ Example step configuration:
 
 ```yaml
 - name: Code Review
+  role: reviewer            # agent.execute resolves role + element from the step (B6/P5.3.1)
   actions:
     - git.create_branch(task-id)
-    - agent.execute(reviewer)
+    - agent.execute
     - git.merge(to: main)
 ```
 

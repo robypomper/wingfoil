@@ -1,7 +1,7 @@
 # MVP Canvas — WingFoil v1.0 (MVP Complete)
 
-**Version:** 1.0
-**Date:** 2026-06-21
+**Version:** 1.1
+**Date:** 2026-06-24
 **Status:** Pending
 
 ---
@@ -58,6 +58,7 @@ project:
 
 **Pillar 1: Project Memory (v0.1)**
 ✓ Git-backed document storage (`.wingfoil/memory/`)  
+✓ Element schema + per-type state machines (`.wingfoil/memory.yaml`)  
 ✓ Versioning & audit trail (git commits)  
 ✓ Add, search, history commands
 
@@ -73,8 +74,9 @@ project:
 
 **Pillar 4: Workflow State Management (v0.3)**
 ✓ Workflow configuration (`.wingfoil/workflows.yaml` main file + `include()` of built-in/custom workflows)  
-✓ State machine: draft → pending → approved/rejected  
-✓ Fallback on rejection, approval routing  
+✓ Workflow kinds (main/sub), active context, context-aware `list`  
+✓ Per-type state machines in `.wingfoil/memory.yaml` (default: draft → pending → approved/rejected)  
+✓ Fallback on rejection (target step + state), approval routing, `iterate_over` composition  
 ✓ Built-in workflow templates (Scrum, Kanban, Lean, Trunk-Based)
 
 **Pillar 5: Interaction Layer (v0.4)**

@@ -1,6 +1,6 @@
 # Is / Is Not / Does / Does Not — WingFoil
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2026-06-24
 **Status:** Pending
 
@@ -33,6 +33,8 @@
 - Manages and auto-loads role-based directives at session start (Project Directives)
 - Tracks and manages workflow state, ensuring all actors share understanding of project progress and blockers (Workflow
   State Management)
+- Defines each Memory element type and its own state machine in `.wingfoil/memory.yaml` (per-type states, not a single
+  global one)
 - Exposes CLI commands for querying and updating all project state
 - Exposes MCP tools, resources, and prompts for AI agents
 - Launches the configured AI agents with auto-loaded context (orchestration wrapper; does not perform the work itself)

@@ -1,7 +1,7 @@
 # Product Vision — WingFoil
 
-**Version:** 1.0
-**Date:** 2026-06-15
+**Version:** 1.1
+**Date:** 2026-06-24
 **Status:** Pending
 
 ---
@@ -58,6 +58,14 @@ processes without designing from scratch.
     - Add team-specific Memory sections
 4. **Version Control** — Template choices are versioned in git; audit trail shows what template was used and how it was
    modified
+
+### Main vs Sub Workflows
+
+Workflows are either **main** (independently startable — e.g. a release cycle, a bug report, an RFC creation) or **sub**
+(include-only building blocks reused inside other workflows — e.g. a TDD dev-loop). Several main workflows can be active
+at once (a `report-bug` started during a `release-cycle`); commands target the most recently started one. Sub-workflows
+are never started directly: a phase `include()`s them, optionally once per element (`iterate_over`). The reference
+templates above are delivered as composable main + sub workflows.
 
 ### Benefits
 

@@ -1,6 +1,6 @@
 # CLI Commands Reference — WingFoil
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-06-24  
 **Status:** Pending
 
@@ -13,17 +13,21 @@ its interface, description, actors (personas), user journeys, relevant notes, an
 
 ## Pillar 1: Project Memory Commands
 
-**Philosophy:** Memory documents are created in draft state, then flow through a state machine (draft → pending →
-approved/rejected → deprecated). This mirrors the Workflow pillars but operates at the document level.
+**Philosophy:** Memory documents flow through a state machine that is **specific to their element type**, configured in
+`.wingfoil/memory.yaml` (P1.13). Each type declares its path pattern, name, tags and allowed states + transitions; a
+`defaults` block (draft → pending → approved/rejected → deprecated) applies to any type that does not override it. The
+verbs below (`submit`/`approve`/`reject`/`deprecate`) perform the legal transition for the document's current state and
+type — so e.g. approving a `task` during planning lands in `backlog`, while approving it after review lands in
+`approved`. This mirrors the Workflow pillars but operates at the document level.
 
 | Command                                                                                 | Description                                                             | Actors              | Journeys  | Notes                                                                                                                                                                          |
 |-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------|---------------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `wingfoil memory add [--type TYPE] [--title "title"] [--tags "tag1,tag2"]`              | Create new Memory document (draft state) with specified type            | Morgan, Alex, Casey | 0a, 0b, 5 | Creates document in `.wingfoil/memory/[TYPE]/[document-id].md` with frontmatter state. Assigns unique document-id (UUID or slug)                                               |
-| `wingfoil memory search [keyword] [--type TYPE] [--status STATUS] [--format json/yaml]` | Query Memory by keyword, type, and status                               | Casey, Alex         | 1, 3, 5   | Keyword search only in v0.1. Filters by type (adr, rfc, decision, task, etc.) and status (draft, pending, approved, deprecated)                                                |
+| `wingfoil memory search [keyword] [--type TYPE] [--status STATUS] [--format json/yaml]` | Query Memory by keyword, type, and status                               | Casey, Alex         | 1, 3, 5   | Keyword search only in v0.1. Filters by type (adr, rfc, decision, task, etc.) and status (states are type-dependent — see `.wingfoil/memory.yaml`; e.g. draft, pending, approved, deprecated)                |
 | `wingfoil memory import [path] [--action copy/move/link]`                               | Scan existing docs and import into Memory                               | Morgan, Alex        | 0b        | Interactive if `--action` not specified. Prevents duplicates by checking filename hash. Supports: copy (new file), move (original deleted), link (symlink, avoids duplication) |
-| `wingfoil memory submit [document-id] [--notes "text"]`                                 | Submit Memory document for approval (draft → pending state)             | Morgan, Alex        | 2, 4, 5   | State transition recorded in frontmatter. Creates git commit. Notes stored in frontmatter for context                                                                          |
-| `wingfoil memory approve [document-id] [--reason "reason"]`                             | Approve Memory document (pending → approved state)                      | Morgan, Casey       | 2, 4, 5   | Records approver name, timestamp, reason in frontmatter. Creates git commit. Document is now active/current                                                                    |
-| `wingfoil memory reject [document-id] [--reason "reason"]`                              | Reject Memory document (pending → draft state)                          | Morgan, Casey       | 2, 4, 5   | Reverts to draft for rework. Reason stored in frontmatter for feedback. Creates git commit                                                                                     |
+| `wingfoil memory submit [document-id] [--notes "text"]`                                 | Submit Memory document for approval (advances per the type's "submit" edge) | Morgan, Alex        | 2, 4, 5   | Performs the type's legal submit transition (e.g. task draft → pending); gate-only types just record `pending_approval`. Recorded in frontmatter + git commit                  |
+| `wingfoil memory approve [document-id] [--reason "reason"]`                             | Approve Memory document (advances per the type's "accept" edge)         | Morgan, Casey       | 2, 4, 5   | Destination state depends on type + current state (e.g. task: pending → backlog, in-review → approved). Records approver, timestamp, reason. Creates git commit                |
+| `wingfoil memory reject [document-id] [--reason "reason"]`                              | Reject Memory document (advances per the type's "reject" edge)          | Morgan, Casey       | 2, 4, 5   | When invoked inside a workflow step, follows the step's `fallback` (target step + optional `set_state`). Reason stored in frontmatter. Creates git commit                      |
 | `wingfoil memory deprecate [document-id] [--reason "reason"]`                           | Mark Memory document as deprecated (any state → deprecated)             | Morgan, Casey       | 2, 3, 5   | Document remains in repo (not deleted) but marked as obsolete. Reason recorded. Agents ignore deprecated docs in context loading                                               |
 | `wingfoil memory history [document-id] [--format json/yaml]`                            | View audit trail of Memory document (commits, approvals, state changes) | Morgan, Casey       | 2, 3, 5   | Shows full git history + state transitions from frontmatter                                                                                                                    |
 
@@ -34,7 +38,7 @@ approved/rejected → deprecated). This mirrors the Workflow pillars but operate
 | `document-id`           | string (slug/UUID) | Unique identifier for Memory document                        | Auto-generated on `memory add`, or provided in command | System generates if not specified (e.g., `adr-001-async-design`) or user provides | Filename and frontmatter `id:` field                                   |
 | `TYPE`                  | enum               | Document type: adr, rfc, decision, task, release, risk, etc. | User selects during `memory add` (interactive or flag) | Dropdown menu or `--type` flag                                                    | Directory structure `.wingfoil/memory/[TYPE]/` and frontmatter `type:` |
 | `document-id` (history) | string             | ID of document to view history for                           | Provided in command                                    | Must exist in Memory                                                              | Retrieved from filename                                                |
-| `status`                | enum               | Document state: draft, pending, approved, deprecated         | Auto-tracked in frontmatter                            | State machine transitions (submit, approve, reject, deprecate)                    | Frontmatter `status:` field, tracked via git commits                   |
+| `status`                | enum               | Document state (type-dependent per `.wingfoil/memory.yaml`; default: draft, pending, approved, deprecated) | Auto-tracked in frontmatter                            | Per-type state machine transitions (submit, approve, reject, deprecate)            | Frontmatter `status:` field, tracked via git commits                   |
 
 ---
 
@@ -108,6 +112,15 @@ conventions, and resource paths.
 inline — it references the built-in and custom workflow files via `include()`. Built-in templates live in
 `.wingfoil/workflows/built-in/`, custom workflows in `.wingfoil/workflows/custom/`.
 
+**Kinds (main vs sub):** every workflow declares `kind: main` (independently startable — e.g. `release-cycle`,
+`report-bug`, `create-rfc`) or `kind: sub` (include-only — e.g. a TDD `dev-loop`). A sub is never started directly; it
+runs when a phase `include()`s it, optionally per element via `iterate_over: <type>` with `where` filters.
+
+**Active workflow context:** `wingfoil workflow start <name>` sets the **active** workflow; subsequent commands
+(`next`, `status`, `agent execute --next`, `memory submit/approve`) target it unless `--name` is given. Multiple main
+workflows may be open at once (e.g. `start report-bug` during a `release-cycle` phase); commands always reference the
+**last** started. `workflow end` closes the active (or named) workflow and restores the previous context.
+
 **Sync Process:** When `wingfoil dna set methodology` updates, WingFoil:
 
 - Copies/updates built-in template files to `.wingfoil/workflows/built-in/`
@@ -116,11 +129,11 @@ inline — it references the built-in and custom workflow files via `include()`.
 
 | Command                                                             | Description                                                                 | Actors        | Journeys      | Notes                                                                                                                                                          |
 |---------------------------------------------------------------------|-----------------------------------------------------------------------------|---------------|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `wingfoil workflow status [--format json/yaml]`                     | Show current state of open workflows and pending approvals                  | Morgan, Casey | 2, 3, 4, 5, 6 | Dashboard view of all workflow states. Useful for identifying bottlenecks. Filterable by approval status                                                       |
-| `wingfoil workflow next [--assigned-to USER] [--format json/yaml]`  | Show next step + directives for current role + task instructions            | Alex, Morgan  | 1, 4          | Displays current workflow state, pending tasks, next action. Shows auto-loaded directives for assigned role. Can filter by element type                        |
-| `wingfoil workflow start [--name NAME]`                             | Open workflow phase; initialize first step                                  | Morgan, Alex  | 0a, 0b        | Marks workflow as "in-progress" in state tracking (Memory frontmatter). Creates git commit                                                                     |
-| `wingfoil workflow end [--name NAME]`                               | Close workflow phase; mark as complete                                      | Morgan, Alex  | 0a, 0b        | Marks workflow as "completed". Creates git commit                                                                                                              |
-| `wingfoil workflow list [--format json/yaml]`                       | List available workflows                                                    | All           | 0a, 0b        | Shows: name, description, methodology (for built-in), phases, built-in status                                                                                  |
+| `wingfoil workflow status [--format json/yaml]`                     | Show state of all open (active) main workflows and pending approvals        | Morgan, Casey | 2, 3, 4, 5, 6 | Dashboard view; highlights the active workflow. Useful for identifying bottlenecks. Filterable by approval status                                              |
+| `wingfoil workflow next [--assigned-to USER] [--format json/yaml]`  | Show next step of the active workflow, its element + directives             | Alex, Morgan  | 1, 4          | Reports the **element of the current step** (e.g. REL in planning, TASK in implementation), next action, and auto-loaded directives for the role               |
+| `wingfoil workflow start [--name NAME]`                             | Open a **main** workflow; set it as the active context; init first step     | Morgan, Alex  | 0a, 0b        | Only main workflows are startable. Sets active context (last-start-wins). Creates git commit. Subs run via `include()`, never via start                        |
+| `wingfoil workflow end [--name NAME]`                               | Close the active (or named) main workflow; restore previous context         | Morgan, Alex  | 0a, 0b        | Marks workflow "completed"; clears/restores active context. Creates git commit                                                                                 |
+| `wingfoil workflow list [--all] [--format json/yaml]`              | List workflows **executable now** (`--all` for every defined workflow)      | All           | 0a, 0b        | Context-aware: startable mains + a sub when it is the next executable step. `--all` shows every defined workflow (incl. subs). Shows name, kind, description    |
 | `wingfoil workflow show [--name NAME] [--format json/yaml]`         | Display details of a workflow (phases, steps, directives, Memory structure) | All           | 0a, 0b        | Shows full workflow spec: phases, steps, default directives bound, initial Memory docs to create                                                               |
 | `wingfoil workflow create [--name NAME]`                            | Create new custom workflow file (interactive or flag-based)                 | Morgan, Alex  | 2, 4, 6       | Creates `.wingfoil/workflows/custom/[name].yaml`. Custom workflows can be included in main via `include()`. Not auto-removed on DNA change                     |
 | `wingfoil workflow remove [--name NAME] [--verify-includes]`        | Remove custom workflow after verifying it's not included elsewhere          | Morgan, Alex  | 2, 4, 6       | Only removes custom workflows (built-in removed via DNA change). `--verify-includes` checks if workflow is referenced in `include()` statements before removal |
@@ -163,15 +176,15 @@ interactive wizard, flag-based, or inferred from repo. Initialization automatica
 
 | Command                                                          | Description                                                           | Actors | Journeys       | Notes                                                                                                                                                                                                                |
 |------------------------------------------------------------------|-----------------------------------------------------------------------|--------|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `wingfoil agent execute [--next] [--role ROLE] [--task TASK_ID]` | Launch agent with auto-loaded context (directives, Memory, next task) | All    | 0a, 1, 2, 4, 6 | Without `--next`: agent chooses task or user specifies with `--task`. With `--next`: automatically loads the next pending task from workflow + assigned directives for the role. Pre-loads Memory context in <30 sec |
+| `wingfoil agent execute [--next] [--role ROLE] [--element TYPE:ID]` | Launch agent with auto-loaded context (directives, Memory, target element) | All    | 0a, 1, 2, 4, 6 | With `--next` (normal path): **role and target element are resolved from the active workflow's current step** (e.g. role=reviewer, element=task:task-101). Override explicitly with `--element type:id` (and optionally `--role`). Pre-loads Memory context in <30 sec |
 
 ### Parameters for Agent Execution
 
 | Parameter | Type   | Description                                           | Where Found                                 | How Managed                                                                           | Where Saved                        |
 |-----------|--------|-------------------------------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------|------------------------------------|
-| `--next`  | flag   | Auto-load next pending task from workflow             | Determined by workflow state machine        | If set, queries workflow state and loads next task automatically                      | N/A (affects behavior, not stored) |
-| `ROLE`    | string | Agent role (developer, reviewer, qa, architect, etc.) | Defined in DNA or specified via flag        | Used to auto-load role-specific directives. If not specified, defaults to `developer` | N/A (used for context filtering)   |
-| `TASK_ID` | string | Specific task ID to execute                           | Provided via flag or `workflow next` output | Must exist in workflow state                                                          | N/A (query parameter)              |
+| `--next`  | flag   | Resolve role + target element from the current step  | Active workflow's current step              | If set, queries the active workflow and loads the step's role + element automatically | N/A (affects behavior, not stored) |
+| `ROLE`    | string | Agent role (developer, reviewer, qa, architect, etc.) | Step definition, or DNA, or flag            | Normally taken from the step; flag overrides. If neither, defaults to `developer`     | N/A (used for context filtering)   |
+| `--element` | string | Target element as `type:id` (e.g. `task:task-101`, `release:rel-...`) | `workflow next` output, or user flag        | Resolved from the step with `--next`; override for ad-hoc runs. Must exist in Memory  | N/A (query parameter)              |
 
 ---
 
