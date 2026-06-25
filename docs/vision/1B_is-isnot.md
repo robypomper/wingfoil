@@ -2,7 +2,7 @@
 
 **Version:** 1.2
 **Date:** 2026-06-24
-**Status:** Pending
+**Status:** Approved
 
 ---
 
@@ -21,8 +21,9 @@
 - An IDE or IDE plugin
 - A code generator or code reviewer
 - A task executor or work verifier — it launches the configured agents but neither performs the development work itself
-  nor inspects agent output directly; it only validates deliverables through workflow checks, run as a separate command
-  after the agent has executed
+  nor inspects agent output for correctness; its only checks are shallow workflow-step validations (e.g. a frontmatter
+  field holds an expected state/value, a required file or section exists) that keep the workflow and its files aligned —
+  not a verification that the executed task is correct
 - A real-time collaboration platform
 - A spec or requirements validator
 
@@ -31,15 +32,16 @@
 - Stores and versions documents, decisions, and artifacts in git (Project Memory)
 - Exposes the full structural map of a project to humans and agents (Project DNA)
 - Manages and auto-loads role-based directives at session start (Project Directives)
-- Tracks and manages workflow state, ensuring all actors share understanding of project progress and blockers (Workflow
-  State Management)
+- Tracks and manages workflow state, ensuring all actors share understanding of project progress and blockers (Project
+  Workflow)
 - Defines each Memory element type and its own state machine in `.wingfoil/memory.yaml` (per-type states, not a single
   global one)
 - Exposes CLI commands for querying and updating all project state
 - Exposes MCP tools, resources, and prompts for AI agents
 - Launches the configured AI agents with auto-loaded context (orchestration wrapper; does not perform the work itself)
 - Auto-syncs built-in Directives and Workflow templates when DNA (tech-stack/methodology) changes
-- Validates deliverables through workflow checks (pre/post execution), run as a separate command after the agent runs
+- Runs shallow workflow checks (frontmatter state/field values, file/section existence) pre/post step to keep the
+  workflow and its files aligned — run as a separate command after the agent runs, not a correctness review of the work
 - Makes independent development runs produce substantially equivalent output (Determinism)
 - Notifies users when human intervention is required (human-on-the-loop supervision)
 

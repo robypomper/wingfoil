@@ -2,7 +2,7 @@
 
 **Version:** 1.1
 **Date:** 2026-06-24
-**Status:** Pending
+**Status:** Approved
 
 ---
 
@@ -28,7 +28,7 @@ project:
 - **Project Memory** — git-backed storage for decisions and artifacts
 - **Project DNA** — structural map of the project (modules, tech stack, conventions)
 - **Project Directives** — role-based rules that both humans and agents respect
-- **Workflow State Management** — unified tracking and communication of project flow, ensuring all actors maintain
+- **Project Workflow** — unified tracking and communication of project flow, ensuring all actors maintain
   shared understanding of progress and blockers
 - **Interaction Layer** — CLI for humans, MCP for agents
 
@@ -38,17 +38,19 @@ project:
 
 **For** developers and teams already using AI agents  
 **WingFoil** makes the development process deterministic  
-**By** centralizing memory, conventions, and directives — keeping them synchronized across all actors
+**By** centralizing memory, conventions, directives, and workflow state — keeping them synchronized across all actors
 
 ---
 
 ## Target Users
 
-| User                         | Problem                                     | Solution                                | Success                                         |
-|------------------------------|---------------------------------------------|-----------------------------------------|-------------------------------------------------|
-| **Alex** (solo dev)          | Re-explains context every session           | Load relevant info in 30 seconds        | Agent is pre-loaded; work starts immediately    |
-| **Morgan** (tech lead)       | Conventions drift; governance is leaky      | Encode rules once; auto-load for agents | Rules are enforced; violations are caught early |
-| **Casey** (non-tech manager) | Decisions are scattered; visibility is poor | Query decisions and audit trail         | Can answer strategic questions in minutes       |
+| User                         | Problem                                                    | Solution                                    | Success                                             |
+|------------------------------|------------------------------------------------------------|---------------------------------------------|-----------------------------------------------------|
+| **Alex** (solo dev)          | Re-explains context every session                          | Load relevant info in 30 seconds            | Agent is pre-loaded; work starts immediately        |
+| **Sam** (code reviewer)      | Reviews are manual, slow, inconsistent with team standards | Launch AI review agent with team directives | Reviews are fast, auditable, and tied to standards  |
+| **Jordan** (team developer)  | Doesn't know team rules; agents ignore them                | Auto-loaded team directives per role        | Submits work aligned with team standards first time |
+| **Morgan** (tech lead)       | Conventions drift; governance is leaky                     | Encode rules once; auto-load for agents     | Rules are enforced; violations are caught early     |
+| **Casey** (non-tech manager) | Decisions are scattered; visibility is poor                | Query decisions and audit trail             | Can answer strategic questions in minutes           |
 
 ---
 
@@ -72,7 +74,7 @@ project:
 ✓ Role-based assignment and auto-load  
 ✓ Versionable in git
 
-**Pillar 4: Workflow State Management (v0.3)**
+**Pillar 4: Project Workflow (v0.3)**
 ✓ Workflow configuration (`.wingfoil/workflows.yaml` main file + `include()` of built-in/custom workflows)  
 ✓ Workflow kinds (main/sub), active context, context-aware `list`  
 ✓ Per-type state machines in `.wingfoil/memory.yaml` (default: draft → pending → approved/rejected)  
@@ -103,11 +105,12 @@ agents should produce substantially equivalent software.
 
 | Metric                       | Target                                                   | How Measured            |
 |------------------------------|----------------------------------------------------------|-------------------------|
-| **Adoption**                 | ≥1 real team using WingFoil by v0.2                      | GitHub issues, feedback |
-| **Context Load Time**        | <30 seconds to load relevant Memory + DNA                | Agent session timing    |
+| **Adoption**                 | ≥1 real team using WingFoil by v0.4                      | GitHub issues, feedback |
+| **Context Load Time**        | <30 seconds to load relevant Memory + DNA + Workflow     | Agent session timing    |
 | **Rule Compliance**          | 100% of agents receive correct directives for their role | MCP integration tests   |
 | **Query Speed**              | DNA/Memory queries <1 second                             | CLI + MCP benchmarks    |
 | **Audit Trail Completeness** | All decisions traceable to author + timestamp            | Git log verification    |
+| **Workflow State Sync**      | All team members + agents share current project state    | Workflow status checks  |
 
 ---
 
@@ -157,7 +160,7 @@ agents should produce substantially equivalent software.
 
 - Validate Determinism Index: two independent runs from same specs produce equivalent outputs
 - Gather feedback from early adopters (Weeks 1–4 post-release Aug 7)
-- Secure ≥1 real team using WingFoil in production by v0.2 milestone (achieved by Week 2 of release cycle)
+- Secure ≥1 real team using WingFoil in production by v0.4 milestone (achieved by Week 4 of release cycle)
 - Prioritize v1.1+ roadmap: semantic search, dashboard UI, IDE plugins, automated validation
 - Explore commercial positioning (white-label, enterprise features, SaaS model)
 
@@ -172,17 +175,19 @@ agents should produce substantially equivalent software.
 
 ## Appendix: Documentation Reference
 
-This MVP Canvas is part of a comprehensive product specification created via Lean Inception workshop (June 15–21, 2026):
+This MVP Canvas is part of a comprehensive product specification created via Lean Inception workshop (June 2026):
 
-| Document               | Version | Status   | Content                                                    |
-|------------------------|---------|----------|------------------------------------------------------------|
-| `0_product-brief.md`   | 1.1     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
-| `1A_product-vision.md` | 1.0     | Pending  | Vision statement, key decisions, reference workflows       |
-| `1B_is-isnot.md`       | 1.0     | Pending  | What WingFoil is/isn't, does/doesn't do                    |
-| `2_personas.md`        | 1.0     | Pending  | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
-| `3_journeys.md`        | 1.1     | Pending  | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
-| `4_features.md`        | 1.0     | Pending  | 57 features across 5 pillars, organized by release version |
-| `5A_sequencer.md`      | 1.0     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
-| `5B_mvp-canvas.md`     | 1.0     | Approved | This file — MVP canvas with success criteria               |
+| Document                   | Version | Status   | Content                                                    |
+|----------------------------|---------|----------|------------------------------------------------------------|
+| `0_product-brief.md`       | 1.2     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
+| `1A_product-vision.md`     | 1.1     | Approved | Vision statement, key decisions, reference workflows       |
+| `1B_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
+| `2_personas.md`            | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
+| `3_journeys.md`            | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
+| `4_features.md`            | 1.2     | Approved | 63 features across 5 pillars, organized by release version |
+| `5A_sequencer.md`          | 1.3     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
+| `5B_mvp-canvas.md`         | 1.1     | Approved | This file — MVP canvas with success criteria               |
+| `X_cli-cmds.md`            | 1.1     | Approved | CLI commands reference (all pillars)                       |
+| `X_lean-inception-plan.md` | —       | —        | Lean Inception workshop plan and session log               |
 
 **All outputs are versioned in git and open for refinement as development progresses.**

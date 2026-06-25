@@ -1,9 +1,9 @@
 # Lean Inception — WingFoil
 
-**Date:** 2026-06-11 5
+**Date:** 2026-06-11
 **Facilitator:** Claude (Lead)  
 **Team roles:** Stakeholder, Architect, PM, Dev, UX  
-**Input:** `docs/vision/product-brief.md`
+**Input:** `0_product-brief.md`
 
 ---
 
@@ -14,8 +14,8 @@
 | **1**   | Product Vision · Is/Is Not/Does/Does Not       | Done   |
 | **2**   | Personas                                       | Done   |
 | **3**   | User Journey                                   | Done   |
-| **4**   | Feature Brainstorm + Technical/Business Review | ToDo   |
-| **5**   | Sequencer + MVP Canvas                         | ToDo   |
+| **4**   | Feature Brainstorm + Technical/Business Review | Done   |
+| **5**   | Sequencer + MVP Canvas                         | Done   |
 
 ---
 
@@ -31,12 +31,12 @@
 
 ## Outputs
 
-| Document                | Path                                                                    | Status |
-|-------------------------|-------------------------------------------------------------------------|--------|
-| Product Vision          | [`docs/vision/1A_product-vision.md`](docs/vision/1A_product-vision.md)` | Done   |
-| Is/Is Not/Does/Does Not | [`docs/vision/1B_is-isnot.md`](docs/vision/1B_is-isnot.md)`             | Done   |
-| Personas                | [`docs/vision/2_personas.md`](docs/vision/2_personas.md)                | Done   |
-| User Journeys           | [`docs/vision/3_journeys.md`](docs/vision/3_journeys.md)                | Done   |
-| Feature List + Review   | [`docs/vision/4_features.md`](docs/vision/4_features.md)                | Done   |
-| Sequencer               | [`docs/vision/5A_sequencer.md`](docs/vision/5A_sequencer.md)            | Done   |
-| MVP Canvas              | [`docs/vision/5B_mvp-canvas.md`](docs/vision/5B_mvp-canvas.md)          | Done   |
+| Document                | Path                                         | Status |
+|-------------------------|----------------------------------------------|--------|
+| Product Vision          | [1A_product-vision.md](1A_product-vision.md) | Done   |
+| Is/Is Not/Does/Does Not | [1B_is-isnot.md](1B_is-isnot.md)             | Done   |
+| Personas                | [2_personas.md](2_personas.md)               | Done   |
+| User Journeys           | [3_journeys.md](3_journeys.md)               | Done   |
+| Feature List + Review   | [4_features.md](4_features.md)               | Done   |
+| Sequencer               | [5A_sequencer.md](5A_sequencer.md)           | Done   |
+| MVP Canvas              | [5B_mvp-canvas.md](5B_mvp-canvas.md)         | Done   |

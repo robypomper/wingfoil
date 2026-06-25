@@ -2,7 +2,7 @@
 
 **Version:** 1.1
 **Date:** 2026-06-24
-**Status:** Pending
+**Status:** Approved
 
 ---
 
@@ -24,7 +24,7 @@
 | Unified or per-persona vision?              | Unified — the core value proposition applies across all user types                                                                              |
 | Primary target                              | Developers and teams **already using** AI agents                                                                                                |
 | Core value language                         | "Deterministic" — correct and intentional                                                                                                       |
-| Differentiator vs. CLAUDE.md / .cursorrules | Distinct: WingFoil provides structured DNA, role-based Directives, Workflow State Management, and an MCP server — not a single flat config file |
+| Differentiator vs. CLAUDE.md / .cursorrules | Distinct: WingFoil provides structured DNA, role-based Directives, a Project Workflow engine, and an MCP server — not a single flat config file |
 
 ---
 
@@ -36,13 +36,13 @@ processes without designing from scratch.
 
 ### Supported Templates
 
-| Methodology         | Use Case                                         | Workflow Phases                                  | Approval Gates            | Directives Focus                                     |
-|---------------------|--------------------------------------------------|--------------------------------------------------|---------------------------|------------------------------------------------------|
-| **Scrum**           | Team-based iterative delivery                    | Sprint Planning → Dev → Review → Testing → Merge | Code review, QA sign-off  | Sprint commitments, definition of done, story points |
-| **Kanban**          | Continuous flow, minimal WIP                     | To Do → In Progress → In Review → Done           | Continuous delivery gates | WIP limits, lead time, cycle time                    |
-| **Lean Inception**  | Product discovery & MVP validation               | Discovery → Validation → Build → Test → Release  | Stakeholder checkpoints   | MVP scope, risk mitigation, lean thinking            |
-| **Trunk-Based Dev** | High-frequency integration, short-lived branches | Feature flag → Dev → Merge → Deploy              | Automated CI/CD checks    | Code quality, test coverage, deployment frequency    |
-| **Custom**          | Team-defined process                             | User-defined                                     | User-defined              | User-defined                                         |
+| Methodology         | Use Case                                         | Workflow Phases                                                            | Approval Gates            | Directives Focus                                     |
+|---------------------|--------------------------------------------------|----------------------------------------------------------------------------|---------------------------|------------------------------------------------------|
+| **Scrum**           | Team-based iterative delivery                    | Sprint Planning → Development → Code Review → QA Testing → Merge & Release | Code review, QA sign-off  | Sprint commitments, definition of done, story points |
+| **Kanban**          | Continuous flow, minimal WIP                     | To Do → In Progress → In Review → Done                                     | Continuous delivery gates | WIP limits, lead time, cycle time                    |
+| **Lean Inception**  | Product discovery & MVP validation               | Discovery → Validation → Build → Test → Release                            | Stakeholder checkpoints   | MVP scope, risk mitigation, lean thinking            |
+| **Trunk-Based Dev** | High-frequency integration, short-lived branches | Feature flag → Dev → Merge → Deploy                                        | Automated CI/CD checks    | Code quality, test coverage, deployment frequency    |
+| **Custom**          | Team-defined process                             | User-defined                                                               | User-defined              | User-defined                                         |
 
 ### How Reference Workflows Work
 

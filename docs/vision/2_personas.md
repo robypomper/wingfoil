@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** 2026-06-15
-**Status:** Pending
+**Status:** Approved
 
 ---
 
@@ -64,7 +64,7 @@
 
 > *"I need to know that agents are working within the rules we've set, not inventing new ones."*
 
-- **Profile:** Senior developer leading a team of 2–6. Sets architecture decisions, reviews PRs, defines conventions.
+- **Profile:** Senior developer leading a team of 3–8. Sets architecture decisions, reviews PRs, defines conventions.
   The team (humans + agents) works in parallel streams.
 - **AI usage level:** Review → Planning
 - **Pain:** Agents don't respect established conventions unless explicitly reminded. Decisions made in one session don't
@@ -83,7 +83,7 @@
 
 - **Profile:** Product manager, team lead, or stakeholder. Does not write code. Cares about delivery, quality, and team
   velocity. Works with one or more technical leads who handle the details.
-- **AI usage level:** Review (agents' outputs), Planning (project roadmap, specs)
+- **AI usage level:** Review (agents' outputs) → Planning (project roadmap, specs)
 - **Pain:** Unclear what's been decided, what the process is, what risks exist. Relies entirely on secondhand
   information from technical leads. Can't tell if an agent's output is correct or aligned with intent.
 - **Goals with WingFoil:**

@@ -2,19 +2,19 @@
 
 **Version:** 1.3
 **Date:** 2026-06-24
-**Status:** Pending
+**Status:** Approved
 
 ---
 
 ## Timeline Overview
 
-| Week  | Target Release | Focus                         | Deliverables                                                      | Go/No-Go  |
-|-------|----------------|-------------------------------|-------------------------------------------------------------------|-----------|
-| **1** | v0.1 (Jul 10)  | Core Infrastructure           | Memory, DNA, git integration, workflow schema, core CLI           | Must have |
-| **2** | v0.2 (Jul 17)  | CLI + Directives              | Directives, workflow state tracking, directive assignment         | Must have |
-| **3** | v0.3 (Jul 24)  | Agent Execution + Workflow    | Agent wrapper, workflow create/submit/approve/reject, MCP Prompts | Must have |
-| **4** | v0.4 (Jul 31)  | MCP + Migration               | init --mode infer, audit, dna infer, import, MCP Resources        | Must have |
-| **5** | v1.0 (Aug 7)   | Workflow Completion + Release | Workflow checks, fallback logic, templates, testing, npm publish  | Must have |
+| Week  | Target Release | Focus                         | Deliverables                                                          | Go/No-Go  |
+|-------|----------------|-------------------------------|-----------------------------------------------------------------------|-----------|
+| **1** | v0.1 (Jul 10)  | Core Infrastructure           | Memory, DNA, git integration, workflow schema, core CLI               | Must have |
+| **2** | v0.2 (Jul 17)  | CLI + Directives              | Directives, memory state transitions, directive assignment            | Must have |
+| **3** | v0.3 (Jul 24)  | Agent Execution + Workflow    | Agent wrapper, workflow commands, reference templates                 | Must have |
+| **4** | v0.4 (Jul 31)  | MCP + Migration               | init --mode infer, audit, dna infer, import, MCP Resources            | Must have |
+| **5** | v1.0 (Aug 7)   | Workflow Completion + Release | Workflow checks, workflow validation, templates, testing, npm publish | Must have |
 
 ---
 
@@ -24,22 +24,22 @@
 
 **Goal:** Deliver Pillar 1 (Memory) + Pillar 2 (DNA). Build the storage, versioning, and structural foundation layers.
 
-| Feature                                             | Effort               | Owner | Status |
-|-----------------------------------------------------|----------------------|-------|--------|
-| `.wingfoil/` directory structure                    | S                    | Dev   |        |
-| Project Memory (file storage + git versioning)      | M                    | Dev   |        |
-| `.wingfoil/memory.yaml` (element schema + per-type states) | M              | Dev   |        |
-| Project DNA (YAML schema + validation)              | S                    | Dev   |        |
-| Git integration (commit, blame, history)            | M                    | Dev   |        |
-| `.gitignore` patterns for WingFoil                  | S                    | Dev   |        |
-| `wingfoil init` (basic wizard)                      | M                    | Dev   |        |
-| `wingfoil dna set/show`                             | S                    | Dev   |        |
-| `wingfoil memory add`                               | M                    | Dev   |        |
-| `wingfoil paths [category]` (resource path query)   | M                    | Dev   |        |
-| MCP Resources skeleton (DNA + Memory endpoints)     | M                    | Dev   |        |
-| `.wingfoil/workflows.yaml` schema (foundation only) | M                    | Dev   |        |
-| Reference workflow templates (definition)           | M                    | Dev   |        |
-| **Week 1 Total**                                    | **~12 story points** |       |        |
+| Feature                                                    | Effort               | Owner | Status |
+|------------------------------------------------------------|----------------------|-------|--------|
+| `.wingfoil/` directory structure                           | S                    | Dev   |        |
+| Project Memory (file storage + git versioning)             | M                    | Dev   |        |
+| `.wingfoil/memory.yaml` (element schema + per-type states) | M                    | Dev   |        |
+| Project DNA (YAML schema + validation)                     | S                    | Dev   |        |
+| Git integration (commit, blame, history)                   | M                    | Dev   |        |
+| `.gitignore` patterns for WingFoil                         | S                    | Dev   |        |
+| `wingfoil init` (basic wizard)                             | M                    | Dev   |        |
+| `wingfoil dna set/show`                                    | S                    | Dev   |        |
+| `wingfoil memory add`                                      | M                    | Dev   |        |
+| `wingfoil memory search` (keyword search)                  | M                    | Dev   |        |
+| `wingfoil paths [category]` (resource path query)          | M                    | Dev   |        |
+| MCP Resources skeleton (DNA + Memory endpoints)            | M                    | Dev   |        |
+| `.wingfoil/workflows.yaml` schema (foundation only)        | M                    | Dev   |        |
+| **Week 1 Total**                                           | **~13 story points** |       |        |
 
 **Outputs:**
 
@@ -60,7 +60,6 @@
 
 | Feature                                                     | Effort               | Owner | Status |
 |-------------------------------------------------------------|----------------------|-------|--------|
-| `wingfoil memory search` (keyword search)                   | M                    | Dev   |        |
 | `wingfoil memory history` (audit trail)                     | S                    | Dev   |        |
 | `wingfoil memory submit/approve/reject` (state transitions) | M                    | Dev   |        |
 | `wingfoil directive create` (custom directive)              | S                    | Dev   |        |
@@ -72,7 +71,7 @@
 | Role-Based Directive Assignment (feature)                   | M                    | Dev   |        |
 | MCP Prompts (role-based directive templates)                | M                    | Dev   |        |
 | CLI testing + documentation                                 | M                    | Dev   |        |
-| **Week 2 Total**                                            | **~12 story points** |       |        |
+| **Week 2 Total**                                            | **~11 story points** |       |        |
 
 **Outputs:**
 
@@ -84,44 +83,50 @@
 
 **Blockers:** None (depends only on Week 1)
 
-**Risk:** Directive complexity may overwhelm users — start with 3 built-in templates, add others in v0.3
+**Risk:** Directive complexity may overwhelm users — deliver all 6 built-in templates but keep directive UX simple.
 
 ---
 
-### Week 3 — v0.3: Workflow State Management (Jul 24)
+### Week 3 — v0.3: Project Workflow (Jul 24)
 
-**Goal:** Deliver Pillar 4 (Workflow State Management). Build workflow commands and approval cycle.
+**Goal:** Deliver Pillar 4 (Project Workflow) plus agent execution (Pillar 5.3). Build workflow commands and approval
+cycle.
 
-| Feature                                                | Effort               | Owner | Status |
-|--------------------------------------------------------|----------------------|-------|--------|
-| `wingfoil memory add` (create deliverable)             | M                    | Dev   |        |
-| `wingfoil memory submit` (submit for approval)         | M                    | Dev   |        |
-| `wingfoil memory approve` (approve Memory document)    | M                    | Dev   |        |
-| `wingfoil memory reject` (reject Memory document)      | M                    | Dev   |        |
-| `wingfoil workflow next` (show next step + directives) | M                    | Dev   |        |
-| `wingfoil workflow status` (show all workflows)        | S                    | Dev   |        |
-| `wingfoil workflow start {workflow}`                   | S                    | Dev   |        |
-| `wingfoil workflow end {workflow}`                     | S                    | Dev   |        |
-| `wingfoil workflow list` (list available workflows)    | S                    | Dev   |        |
-| `wingfoil workflow show` (show workflow details)       | S                    | Dev   |        |
-| Deliverable state transitions (frontmatter + tracking) | M                    | Dev   |        |
-| Workflow state deduction from Memory (feature)         | M                    | Dev   |        |
-| Approval routing (role-based from DNA)                 | M                    | Dev   |        |
-| Fallback on rejection (jump to previous step)          | M                    | Dev   |        |
-| `wingfoil agent execute [--next]` wrapper              | M                    | Dev   |        |
-| Agent role selection per workflow step                 | M                    | Dev   |        |
-| Notification system (basic: CLI output + git hooks)    | M                    | Dev   |        |
-| **Week 3 Total**                                       | **~16 story points** |       |        |
+| Feature                                                         | Effort               | Owner | Status |
+|-----------------------------------------------------------------|----------------------|-------|--------|
+| `wingfoil workflow next` (show next step + directives)          | M                    | Dev   |        |
+| `wingfoil workflow status` (show all workflows)                 | S                    | Dev   |        |
+| `wingfoil workflow start {workflow}`                            | S                    | Dev   |        |
+| `wingfoil workflow end {workflow}`                              | S                    | Dev   |        |
+| `wingfoil workflow list` (list available workflows)             | S                    | Dev   |        |
+| `wingfoil workflow show` (show workflow details)                | S                    | Dev   |        |
+| `wingfoil workflow create` / `remove` (custom workflows)        | M                    | Dev   |        |
+| Deliverable state transitions (frontmatter + tracking)          | M                    | Dev   |        |
+| Workflow state deduction from Memory (feature)                  | M                    | Dev   |        |
+| Approval routing (role-based from DNA)                          | M                    | Dev   |        |
+| Fallback on rejection (jump to previous step)                   | M                    | Dev   |        |
+| `wingfoil agent execute [--next]` wrapper                       | M                    | Dev   |        |
+| Agent role selection per workflow step                          | M                    | Dev   |        |
+| Notification system (basic: CLI output + git hooks)             | M                    | Dev   |        |
+| Reference workflow templates (Scrum, Kanban, Lean, Trunk-Based) | M                    | Dev   |        |
+| Template expansion + customization                              | M                    | Dev   |        |
+| **Week 3 Total**                                                | **~16 story points** |       |        |
+
+> **Note:** the Memory lifecycle verbs (`memory add/submit/approve/reject`) are delivered in v0.1–v0.2;
+> Week 3 covers only their **integration** into workflow steps (state transitions, approval routing,
+> fallback), already accounted for by the deduction/routing/fallback rows above.
 
 **Outputs:**
 
-- v0.3 released: Workflow State Management fully functional
+- v0.3 released: Project Workflow fully functional
 - Agents can be launched with full workflow context
-- Workflow approval cycle complete (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
+- Workflow approval cycle complete (per-type state machines; default draft → pending → approved/rejected; reject →
+  fallback step)
 - Journey 1 (Alex) fully functional with workflow integration
 - Journey 2 (Sam - reviewer) approval workflow functional
 - Journey 3 (Jordan) task execution with auto-loaded directives functional
 - Journey 4 (Morgan - enforce) governance through directives functional
+- Built-in workflow templates available for onboarding
 
 **Blockers:**
 
@@ -134,7 +139,8 @@
 
 ### Week 4 — v0.4: Interaction Layer + Polish (Jul 31)
 
-**Goal:** Deliver Pillar 5 (Interaction Layer). Support existing projects and polish all features.
+**Goal:** Complete Pillar 5 (Interaction Layer): MCP server, migration tooling, and polish. (Agent execution shipped in
+v0.3.)
 
 | Feature                                         | Effort               | Owner | Status |
 |-------------------------------------------------|----------------------|-------|--------|
@@ -146,10 +152,8 @@
 | MCP server (Node.js, stable)                    | M                    | Dev   |        |
 | MCP Resources (DNA + Memory endpoints)          | M                    | Dev   |        |
 | MCP Tools (workflow state management)           | M                    | Dev   |        |
-| Reference workflow templates (Scrum, Kanban)    | M                    | Dev   |        |
-| Template expansion + customization              | M                    | Dev   |        |
 | CLI UX improvements (help, formatting, errors)  | M                    | Dev   |        |
-| **Week 4 Total**                                | **~12 story points** |       |        |
+| **Week 4 Total**                                | **~10 story points** |       |        |
 
 **Outputs:**
 
@@ -158,7 +162,6 @@
 - Agents can query and update state via full MCP integration
 - Journey 5 (Casey - PM visibility) fully functional
 - Journey 6 (Morgan - workflow evolution) fully functional
-- Built-in workflow templates reduce setup friction
 - All CLI commands documented and user-friendly
 
 **Blockers:**
@@ -211,7 +214,7 @@ Week 1 (v0.1: Memory + DNA) → Release July 10
     ↓
 Week 2 (v0.2: Directives) ← depends on Week 1 → Release July 17
     ↓
-Week 3 (v0.3: Workflow State) ← depends on Weeks 1-2 → Release July 24
+Week 3 (v0.3: Project Workflow) ← depends on Weeks 1-2 → Release July 24
     ↓
 Week 4 (v0.4: Interaction Layer) ← depends on Weeks 1-3 → Release July 31
     ↓
@@ -225,16 +228,16 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 
 ## Risk Mitigation
 
-| Risk                                                | Likelihood | Impact       | Mitigation                                                                 |
-|-----------------------------------------------------|------------|--------------|----------------------------------------------------------------------------|
-| Workflow state machine logic too complex            | High       | **Critical** | Start simple: draft → pending → approved only; no advanced fallback in MVP |
-| `dna infer` complexity balloons                     | Medium     | High         | Simplify heuristics; fallback to manual guidance                           |
-| Workflow checks validation (git, tests, etc.) slips | Medium     | High         | Move advanced checks to v0.2; MVP: basic file + frontmatter checks only    |
-| Agent wrapper integration with MCP fails            | Medium     | High         | Prototype agent wrapper early in Week 2; test with MCP skeleton            |
-| MCP spec changes or integration issues              | Low        | Medium       | Start MCP early in Week 3; test aggressively                               |
-| Documentation lag                                   | Medium     | Low          | Keep docs minimal; focus on API examples + workflow-config.md              |
-| Scope creep on directives validation                | High       | High         | Push automated CI/CD validation to post-MVP                                |
-| Team velocity lower than estimated                  | Medium     | Medium       | Cut Week 5 if needed; push workflow checks + polish to v0.2                |
+| Risk                                                | Likelihood | Impact       | Mitigation                                                                          |
+|-----------------------------------------------------|------------|--------------|-------------------------------------------------------------------------------------|
+| Workflow state machine logic too complex            | High       | **Critical** | Start simple: draft → pending → approved only; no advanced fallback in MVP          |
+| `dna infer` complexity balloons                     | Medium     | High         | Simplify heuristics; fallback to manual guidance                                    |
+| Workflow checks validation (git, tests, etc.) slips | Medium     | High         | Defer advanced checks to v1.1 (post-MVP); MVP: basic file + frontmatter checks only |
+| Agent wrapper integration with MCP fails            | Medium     | High         | Prototype agent wrapper early in Week 2; test with MCP skeleton                     |
+| MCP spec changes or integration issues              | Low        | Medium       | Start MCP early in Week 1 (Resources skeleton); test aggressively                   |
+| Documentation lag                                   | Medium     | Low          | Keep docs minimal; focus on API examples + workflow-config.md                       |
+| Scope creep on directives validation                | High       | High         | Push automated CI/CD validation to post-MVP                                         |
+| Team velocity lower than estimated                  | Medium     | Medium       | Cut Week 5 if needed; push workflow checks + polish to v1.1 (post-MVP)              |
 
 ---
 
@@ -243,7 +246,7 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 ### v0.1 Definition of Done (Project Memory + DNA)
 
 - ✓ Git storage layer functional (`.wingfoil/` structure, commit tracking)
-- ✓ Memory CRUD commands work (add, search, history)
+- ✓ Memory commands work (add, search)
 - ✓ DNA YAML schema defined and validated
 - ✓ CLI commands tested locally (`init`, `dna set/show`, `memory add/search`, `paths`)
 - ✓ MCP Resources endpoint (DNA + Memory) functional
@@ -255,7 +258,8 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 ### v0.2 Definition of Done (Project Directives)
 
 - ✓ All v0.1 features stable (no regressions)
-- ✓ Directive CRUD commands work (`create`, `add`, `assign`, `list`, `update`)
+- ✓ `wingfoil memory history` (audit trail) functional
+- ✓ Directive commands work (`create`, `assign`, `remove`, `list`)
 - ✓ Built-in directive templates (6 types: Code Quality, Testing, Code Review, Architecture, Security, Documentation)
 - ✓ Role-based directive auto-loading functional
 - ✓ MCP Prompts endpoint functional
@@ -264,11 +268,13 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 - ✓ npm package v0.2.0 published
 - ✓ Journey 2 (Sam - review) and Journey 3 (Jordan - team dev) manually tested
 
-### v0.3 Definition of Done (Workflow State Management)
+### v0.3 Definition of Done (Project Workflow)
 
 - ✓ All v0.2 features stable (no regressions)
-- ✓ Workflow commands functional (start, end, create, submit, approve, reject, next, status)
-- ✓ State transitions working (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
+- ✓ Workflow commands functional (start, end, list, show, create, remove, next, status); Memory lifecycle verbs (
+  submit/approve/reject) integrated into workflow steps
+- ✓ State transitions working (per-type state machines; default draft → pending → approved/rejected; reject → fallback
+  step)
 - ✓ Approval routing by role functional
 - ✓ Notification system (basic CLI output + git hooks) functional
 - ✓ Agent execute wrapper (<30 sec context load) working
@@ -315,7 +321,8 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
     - ✓ Journey 4: Morgan (tech lead) with governance
     - ✓ Journey 5: Casey (PM) with decision visibility
     - ✓ Journey 6: Morgan (tech lead) with workflow evolution
-- ✓ Workflow state transitions work correctly (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
+- ✓ Workflow state transitions work correctly (per-type state machines; default draft → pending → approved/rejected;
+  reject → fallback step)
 - ✓ Agent wrapper loads directives + context correctly in <30 seconds
 - ✓ No data loss or corruption from git integration
 - ✓ CLI is intuitive and self-documenting (`--help` works)
