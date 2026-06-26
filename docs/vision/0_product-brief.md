@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.0
-**Date:** 2026-06-14  
+**Version:** 1.2
+**Date:** 2026-06-23  
 **Status:** Approved
 
 ---
@@ -46,15 +46,15 @@ a **structured, authoritative interface** to any software project:
     - Audit trail of who decided what and when
 
 2. **Project DNA** — Structural map of the project
-    - Modules, tech stack, conventions
-    - Source of truth for project anatomy
+    - Modules, tech stack, conventions, resource paths
+    - Source of truth for project anatomy; enables agents to navigate without full codebase scans
 
 3. **Project Directives** — Role-based rules that both humans and agents respect
     - Custom directives (team-defined)
     - Built-in directives (WingFoil templates)
     - Scoped by role, auto-loaded for agents
 
-4. **Workflow State Management** — Unified tracking and communication of project flow
+4. **Project Workflow** — Unified tracking and communication of project flow
     - Commands to record development state and decisions
     - Configuration to expose workflow status to both developers and agents
     - Ensures all actors (human + AI) maintain a shared understanding of progress, blockers, and next steps
@@ -110,7 +110,7 @@ git tree (same checkpoint or flow commits), ensuring consistency across independ
 
 ### Morgan — Tech Lead
 
-- **Profile:** Senior developer leading a team of 2–6. Sets architecture, reviews PRs, defines conventions.
+- **Profile:** Senior developer leading a team of 3–8. Sets architecture, reviews PRs, defines conventions.
 - **Pain:** Agents don't respect established rules unless explicitly reminded. Governance is manual and leaky. Difficult
   to keep team and agents synchronized on progress.
 - **Goal with WingFoil:** Encode team rules once; have them auto-loaded and enforced. Track and communicate workflow
@@ -136,7 +136,7 @@ progress alignment across all team members and agents.
 
 | Metric                       | Target                                                          |
 |------------------------------|-----------------------------------------------------------------|
-| **Adoption**                 | ≥1 real team using WingFoil by v0.2                             |
+| **Adoption**                 | ≥1 real team using WingFoil by v0.4                             |
 | **Context Load Time**        | <30 seconds to load relevant Memory + DNA + Workflow            |
 | **Rule Compliance**          | 100% of agents receive correct directives for their role        |
 | **Workflow State Sync**      | All team members + agents share current project state           |
@@ -153,8 +153,10 @@ progress alignment across all team members and agents.
 
 ### Go-to-Market Strategy
 
-**Pillar-Based Release Roadmap:** WingFoil releases build progressively, adding one pillar per version until all five
-pillars are stable and integrated (v1.0 / MVP Complete).
+**Incremental Release Roadmap:** WingFoil releases build progressively. Each version centers on a pillar, but shared
+infrastructure (git storage, audit trail) and an early MCP Resources skeleton land in v0.1, reference templates arrive
+with the Workflow pillar (v0.3), and some versions span more than one pillar. v1.0 integrates and stabilizes all five
+rather than adding a new one.
 
 **Phase 1 (v0.1):** Project Memory + Project DNA
 
@@ -167,19 +169,19 @@ pillars are stable and integrated (v1.0 / MVP Complete).
 **Phase 2 (v0.2):** + Project Directives
 
 - Governance layer: role-based rules, auto-loading
-- Target: Small teams (Morgan + early adopters)
+- Target: Small teams (Morgan, Sam + early adopters)
 - Focus: Team rule enforcement, first validation with real teams
 
-**Phase 3 (v0.3):** + Workflow State Management
+**Phase 3 (v0.3):** + Project Workflow
 
 - Unified state tracking and team synchronization
 - Target: Expanding teams with Jordan-type developers
 - Focus: Shared context, blockers, progress alignment
 
-**Phase 4 (v0.4):** + Interaction Layer Polish
+**Phase 4 (v0.4):** + Interaction Layer (polish & stabilization)
 
 - CLI UX refinement, MCP stability, documentation
-- Target: Broader adoption, production readiness
+- Target: Broader adoption, production readiness; non-technical stakeholders (Casey) gain decision visibility
 - Focus: User experience, reliability
 
 **Version 1.0 (MVP Complete):** All five pillars integrated, stable, and battle-tested
@@ -196,13 +198,14 @@ pillars are stable and integrated (v1.0 / MVP Complete).
 ## Investment & Timeline
 
 - **Team:** 1 developer (Roberto Pompermaier, supported by AI agents)
-- **Release Cadence:** One pillar per week (aggressive but achievable with AI support)
-- **Estimate:** ~30 story points (v0.1); roadmap TBD post-validation
+- **Release Cadence:** roughly one release per week, each centered on a pillar (some weeks deliver shared
+  infrastructure or span two pillars; aggressive but achievable with AI support)
+- **Estimate:** ~13 story points (v0.1), ~63 across the full MVP; roadmap TBD post-validation
 - **Target Releases:**
-    - **v0.1** (Project Memory + DNA): ~July 10, 2026
-    - **v0.2** (+ Directives): ~July 17, 2026
-    - **v0.3** (+ Workflow Management): ~July 24, 2026
-    - **v0.4** (+ Polish): ~July 31, 2026
+    - **v0.1** (Project Memory + Project DNA): ~July 10, 2026
+    - **v0.2** (+ Project Directives): ~July 17, 2026
+    - **v0.3** (+ Project Workflow): ~July 24, 2026
+    - **v0.4** (+ Interaction Layer): ~July 31, 2026
     - **v1.0** (MVP Complete): ~August 7, 2026
 
 **Note:** Each release is technically oversized for a traditional 1-week sprint (would require 2–3 weeks without AI
@@ -226,13 +229,21 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 
 - ✓ Team developer (Jordan) and Tech Lead (Morgan) can define and enforce team rules
 - ✓ Agents auto-receive correct directives for their role
-- ✓ ≥1 real team using WingFoil in production
+- ✓ First pilot team trialing WingFoil for early validation
 
-### v0.3 Success (+ Workflow Management)
+### v0.3 Success (+ Project Workflow)
 
 - ✓ Team can track and share project state without manual updates
 - ✓ All actors (humans + agents) stay aligned on progress and blockers
 - ✓ Workflow state queryable and updateable via CLI + MCP
+
+### v0.4 Success (+ Interaction Layer)
+
+- ✓ Existing projects can adopt WingFoil via `init --mode infer` (Journey 0b)
+- ✓ MCP server stable (Resources + Prompts + Tools) with <1 sec queries
+- ✓ CLI help, formatting, and error messages polished
+- ✓ Journey 5 (Casey) and Journey 6 (Morgan) executable end-to-end
+- ✓ ≥1 real team using WingFoil in production
 
 ### v1.0 Success (MVP Complete)
 
@@ -249,14 +260,47 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 
 ---
 
+## Technical Stack
+
+**Language & Runtime:** TypeScript, Node.js 18+ (npm)  
+**Storage:** Git (local file-backed, YAML + Markdown)  
+**CLI:** Commander.js, chalk for formatting  
+**MCP Server:** Model Context Protocol (stdio transport, Anthropic SDK)  
+**Validation:** Zod (JSON Schema)  
+**Testing:** Jest (>80% coverage target)  
+**Deployment:** npm registry (public), semantic versioning
+
+---
+
+## Known Constraints & Assumptions
+
+- **Single Project:** One `.wingfoil/` instance per repo (multi-project in v1+)
+- **Git-only Storage:** No cloud backend; all state versioned in git
+- **Local First:** No real-time collaboration (async via git push/pull) (auto-sync in v1+)
+- **Timeline:** 5 weeks (aggressive with AI support; buffer if velocity drops)
+- **No IDE Plugins in MVP:** MCP sufficient; native integration in v1+
+- **Keyword Search Only:** Semantic search deferred to v1.1+
+- **Manual Approval Gates:** No automated workflow triggers in MVP
+
+---
+
 ## References
 
-This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026):
+This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). See the workshop plan in
+[`X_lean-inception-plan.md`](X_lean-inception-plan.md).
 
-- **Product Vision** — `docs/vision/product-brief.md` (this file)
-- **Personas** — `docs/personas/`
-- **User Journeys** — `docs/journeys/`
-- **Features** — `docs/features/`
-- **MVP Canvas** — `docs/mvp/`
+**Core Documents:**
+
+- [`1A_product-vision.md`](1A_product-vision.md) — Vision statement, key decisions
+- [`1B_is-isnot.md`](1B_is-isnot.md) — Scope boundaries
+- [`2_personas.md`](2_personas.md) — User types and pain points
+- [`3_journeys.md`](3_journeys.md) — 8 end-to-end user journeys
+- [`4_features.md`](4_features.md) — 63 features across 5 pillars
+
+**Technical & Planning:**
+
+- [`X_cli-cmds.md`](X_cli-cmds.md) — CLI commands reference (all pillars)
+- [`5A_sequencer.md`](5A_sequencer.md) — Week-by-week timeline, Definition of Done
+- [`5B_mvp-canvas.md`](5B_mvp-canvas.md) — MVP canvas and success criteria
 
 All documents are versioned in git and open for refinement as development progresses.
