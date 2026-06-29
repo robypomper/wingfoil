@@ -1,0 +1,522 @@
+[
+  {
+    "id": "TASK-029",
+    "ref": "REQ-SYS-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-08 - Role-based binding",
+    "description": "Implement the Architecture constraint REQ-SYS-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-08 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-046",
+      "TASK-051",
+      "TASK-080",
+      "TASK-092"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-030",
+    "ref": "REQ-PERF-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-05 - Bounded context via relevance",
+    "description": "Implement the Performance constraint REQ-PERF-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-05 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-043",
+      "TASK-090"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-031",
+    "ref": "REQ-STATE-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-01 - Frontmatter lifecycle, per-type validated",
+    "description": "Implement the State constraint REQ-STATE-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-040",
+      "TASK-077",
+      "TASK-079"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-032",
+    "ref": "REQ-STATE-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-05 - Role/task-scoped context",
+    "description": "Implement the State constraint REQ-STATE-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-050",
+      "TASK-093",
+      "TASK-094"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-033",
+    "ref": "REQ-STATE-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-06 - Deprecated excluded from context",
+    "description": "Implement the State constraint REQ-STATE-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-06 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-043",
+      "TASK-090"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-034",
+    "ref": "REQ-INT-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-02 - MCP Prompts role-based",
+    "description": "Implement the Integrations constraint REQ-INT-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-050",
+      "TASK-053"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-035",
+    "ref": "REQ-SEC-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-03 - Role-based approval authority",
+    "description": "Implement the Security constraint REQ-SEC-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-03 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-041",
+      "TASK-080"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-036",
+    "ref": "REQ-SEC-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-04 - Mandatory reason on verbs",
+    "description": "Implement the Security constraint REQ-SEC-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-041",
+      "TASK-042",
+      "TASK-043"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-037",
+    "ref": "REQ-SEC-07",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-07 - Immutable built-in assets",
+    "description": "Implement the Security constraint REQ-SEC-07. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-07 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-047",
+      "TASK-075"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-038",
+    "ref": "REQ-SEC-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-08 - Secret/credential hygiene",
+    "description": "Implement the Security constraint REQ-SEC-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-08 in the SARD.",
+    "priority": "High",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-052"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-039",
+    "ref": "REQ-SEC-10",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-10 - Built-in template integrity",
+    "description": "Implement the Security constraint REQ-SEC-10. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-10 in the SARD.",
+    "priority": "High",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-052",
+      "TASK-083"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-040",
+    "ref": "P1.6",
+    "type": "User Story",
+    "title": "Implement wingfoil memory submit",
+    "description": "As Jordan, deliver feature P1.6 (US-3-09). See user story map US-3-09 and BDD p1-memory/P1.6-memory-submit.feature.",
+    "acceptance_criteria": "Scenario: Submit a draft document for approval\nWhen I run \"wingfoil memory submit task-101\"\nThen the document frontmatter becomes \"status: pending\"\nAnd the transition is recorded in git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.6-memory-submit.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-031"
+    ]
+  },
+  {
+    "id": "TASK-041",
+    "ref": "P1.7",
+    "type": "User Story",
+    "title": "Implement wingfoil memory approve",
+    "description": "As Sam, deliver feature P1.7 (US-2-10). See user story map US-2-10 and BDD p1-memory/P1.7-memory-approve.feature.",
+    "acceptance_criteria": "Scenario: Approve a pending document with a reason\nWhen I run \"wingfoil memory approve task-101 --reason 'meets standards'\"\nThen the document transitions to the type's post-review approved state\nAnd the git commit records the approver identity, timestamp, and reason \"meets standards\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.7-memory-approve.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-013",
+      "TASK-035",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-042",
+    "ref": "P1.8",
+    "type": "User Story",
+    "title": "Implement wingfoil memory reject",
+    "description": "As Morgan, deliver feature P1.8 (US-4-11). See user story map US-4-11 and BDD p1-memory/P1.8-memory-reject.feature.",
+    "acceptance_criteria": "Scenario: Reject a pending document with feedback\nWhen I run \"wingfoil memory reject task-101 --reason 'tests missing'\"\nThen the document frontmatter becomes \"status: draft\"\nAnd the git commit records the rejecter identity, timestamp, and reason \"tests missing\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.8-memory-reject.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-013",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-043",
+    "ref": "P1.9",
+    "type": "User Story",
+    "title": "Implement wingfoil memory deprecate",
+    "description": "As Casey, deliver feature P1.9 (US-5-04). See user story map US-5-04 and BDD p1-memory/P1.9-memory-deprecate.feature.",
+    "acceptance_criteria": "Scenario: Deprecate an approved document\nWhen I run \"wingfoil memory deprecate decision-12 --reason 'superseded by decision-20'\"\nThen the document frontmatter becomes \"status: deprecated\"\nAnd the file remains present in the repository\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.9-memory-deprecate.feature",
+    "priority": "Medium",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-030",
+      "TASK-033",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-044",
+    "ref": "P1.10",
+    "type": "User Story",
+    "title": "Implement wingfoil memory history",
+    "description": "As Casey, deliver feature P1.10 (US-5-08). See user story map US-5-08 and BDD p1-memory/P1.10-memory-history.feature.",
+    "acceptance_criteria": "Scenario: View the full audit trail of a document\nWhen I run \"wingfoil memory history decision-12\"\nThen the output lists 3 entries in chronological order\nAnd each entry shows author, ISO-8601 timestamp, state change, and reason\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.10-memory-history.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-006",
+      "TASK-013"
+    ]
+  },
+  {
+    "id": "TASK-045",
+    "ref": "P3.1",
+    "type": "User Story",
+    "title": "Implement wingfoil directive create",
+    "description": "As Morgan, deliver feature P3.1 (US-4-02). See user story map US-4-02 and BDD p3-directives/P3.1-directive-create.feature.",
+    "acceptance_criteria": "Scenario: Create a new custom directive\nWhen I run \"wingfoil directive create --name no-direct-db-access\"\nThen a directive file \"no-direct-db-access\" is created under \".wingfoil/directives/custom/\"\nAnd the change is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.1-directive-create.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-046",
+    "ref": "P3.2",
+    "type": "User Story",
+    "title": "Implement wingfoil directive assign",
+    "description": "As Morgan, deliver feature P3.2 (US-4-05). See user story map US-4-05 and BDD p3-directives/P3.2-directive-assign.feature.",
+    "acceptance_criteria": "Scenario: Assign a directive to a role\nWhen I run \"wingfoil directive assign --directive testing --role developer\"\nThen the role \"developer\" lists \"testing\" among its assigned directives\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.2-directive-assign.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-029"
+    ]
+  },
+  {
+    "id": "TASK-047",
+    "ref": "P3.3",
+    "type": "User Story",
+    "title": "Implement wingfoil directive remove",
+    "description": "As Morgan, deliver feature P3.3 (US-6-07). See user story map US-6-07 and BDD p3-directives/P3.3-directive-remove.feature.",
+    "acceptance_criteria": "Scenario: Remove an unreferenced custom directive\nGiven \"legacy-rule\" is not assigned to any role or workflow step\nWhen I run \"wingfoil directive remove legacy-rule\"\nThen the directive file is deleted\nAnd the removal is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.3-directive-remove.feature",
+    "priority": "Medium",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-037"
+    ]
+  },
+  {
+    "id": "TASK-048",
+    "ref": "P3.4",
+    "type": "User Story",
+    "title": "Implement wingfoil directives list",
+    "description": "As Morgan, deliver feature P3.4 (US-4-04). See user story map US-4-04 and BDD p3-directives/P3.4-directives-list.feature.",
+    "acceptance_criteria": "Scenario: List all directives with assignments\nWhen I run \"wingfoil directives list\"\nThen the output includes the 6 built-in directives and \"no-direct-db-access\"\nAnd each directive shows its assigned roles (or \"unassigned\")",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.4-directives-list.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-049",
+    "ref": "P3.5",
+    "type": "User Story",
+    "title": "Implement Project Directives (custom + built-in)",
+    "description": "As Morgan, deliver feature P3.5 (US-4-03). See user story map US-4-03 and BDD p3-directives/P3.5-project-directives.feature.",
+    "acceptance_criteria": "Scenario: Directive storage layout exists after init\nWhen I inspect \".wingfoil/directives/\"\nThen it contains a \"built-in/\" and a \"custom/\" subfolder\nAnd both are tracked by git",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.5-project-directives.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-002"
+    ]
+  },
+  {
+    "id": "TASK-050",
+    "ref": "P3.6",
+    "type": "User Story",
+    "title": "Implement Auto-Load Directives by Role",
+    "description": "As Jordan, deliver feature P3.6 (US-3-06). See user story map US-3-06 and BDD p3-directives/P3.6-auto-load-by-role.feature.",
+    "acceptance_criteria": "Scenario: Directives auto-load at task execution\nWhen an agent executes a task under the \"developer\" role\nThen the agent context includes the \"testing\" and \"code-quality\" directives\nAnd 100% of the role's assigned directives are present in the context",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.6-auto-load-by-role.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-032",
+      "TASK-034"
+    ]
+  },
+  {
+    "id": "TASK-051",
+    "ref": "P3.7",
+    "type": "User Story",
+    "title": "Implement Role-Based Directive Assignment",
+    "description": "As Morgan, deliver feature P3.7 (US-4-06). See user story map US-4-06 and BDD p3-directives/P3.7-role-based-assignment.feature.",
+    "acceptance_criteria": "Scenario: Bind multiple directives to one role\nWhen I assign \"testing\", \"code-quality\", and \"security\" to role \"developer\"\nThen role \"developer\" lists exactly those 3 directives",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.7-role-based-assignment.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-029"
+    ]
+  },
+  {
+    "id": "TASK-052",
+    "ref": "P3.8",
+    "type": "User Story",
+    "title": "Implement Built-in Directive Templates",
+    "description": "As Alex, deliver feature P3.8 (US-0A-09). See user story map US-0A-09 and BDD p3-directives/P3.8-builtin-directive-templates.feature.",
+    "acceptance_criteria": "Scenario: Built-in templates are installed during init\nWhen initialization completes\nThen \".wingfoil/directives/built-in/\" contains exactly 6 templates\nAnd the set is: code-quality, testing, code-review, architecture, security, documentation",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.8-builtin-directive-templates.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-038",
+      "TASK-039"
+    ]
+  },
+  {
+    "id": "TASK-053",
+    "ref": "P5.2.2",
+    "type": "User Story",
+    "title": "Implement MCP Prompts (role-based)",
+    "description": "As Agents, deliver feature P5.2.2 (US-1-06). See user story map US-1-06 and BDD p5-interaction/P5.2.2-mcp-prompts.feature.",
+    "acceptance_criteria": "Scenario: Auto-load role prompt at session start\nWhen an agent session starts under the \"developer\" role\nThen the MCP prompt for \"developer\" is returned\nAnd it embeds the \"testing\" and \"code-quality\" directives",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.2-mcp-prompts.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-034"
+    ]
+  }
+]

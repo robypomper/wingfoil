@@ -1,0 +1,580 @@
+[
+  {
+    "id": "TASK-001",
+    "ref": "REQ-SYS-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-01 - Git-backed single source of truth",
+    "description": "Implement the Architecture constraint REQ-SYS-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-016",
+      "TASK-020"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-002",
+    "ref": "REQ-SYS-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-02 - Decoupled pillars",
+    "description": "Implement the Architecture constraint REQ-SYS-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-022",
+      "TASK-025",
+      "TASK-049",
+      "TASK-067"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-003",
+    "ref": "REQ-SYS-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-04 - Configurable per-type state machines",
+    "description": "Implement the Architecture constraint REQ-SYS-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-022",
+      "TASK-077"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-004",
+    "ref": "REQ-SYS-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-05 - Dual interface over shared core",
+    "description": "Implement the Architecture constraint REQ-SYS-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-027",
+      "TASK-028",
+      "TASK-053",
+      "TASK-087",
+      "TASK-101",
+      "TASK-102",
+      "TASK-103"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-005",
+    "ref": "REQ-SYS-09",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-09 - npm distribution",
+    "description": "Implement the Architecture constraint REQ-SYS-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-09 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [],
+    "dependencies": [],
+    "note": "related_stories intentionally empty: foundational/cross-cutting infrastructure (npm distribution) not tied to a single story."
+  },
+  {
+    "id": "TASK-006",
+    "ref": "REQ-PERF-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-02 - DNA/Memory query latency",
+    "description": "Implement the Performance constraint REQ-PERF-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-019",
+      "TASK-024",
+      "TASK-044"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-007",
+    "ref": "REQ-PERF-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-04 - MCP resource fetch latency",
+    "description": "Implement the Performance constraint REQ-PERF-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-028"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-008",
+    "ref": "REQ-STATE-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-08 - Default state-machine fallback",
+    "description": "Implement the State constraint REQ-STATE-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-08 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-022"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-009",
+    "ref": "REQ-INT-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-01 - MCP Resources read-only",
+    "description": "Implement the Integrations constraint REQ-INT-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-028"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-010",
+    "ref": "REQ-INT-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-04 - CLI exit-code contract",
+    "description": "Implement the Integrations constraint REQ-INT-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-04 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [],
+    "dependencies": [],
+    "note": "related_stories intentionally empty: foundational/cross-cutting infrastructure (CLI exit-code contract) not tied to a single story."
+  },
+  {
+    "id": "TASK-011",
+    "ref": "REQ-INT-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-05 - Machine-readable formats",
+    "description": "Implement the Integrations constraint REQ-INT-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-026",
+      "TASK-071"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-012",
+    "ref": "REQ-SEC-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-01 - Git identity required",
+    "description": "Implement the Security constraint REQ-SEC-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-017"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-013",
+    "ref": "REQ-SEC-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-02 - Complete audit trail",
+    "description": "Implement the Security constraint REQ-SEC-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-017",
+      "TASK-041",
+      "TASK-042",
+      "TASK-044"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-014",
+    "ref": "REQ-SEC-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-05 - Read-only agent read channel",
+    "description": "Implement the Security constraint REQ-SEC-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-028",
+      "TASK-087"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-015",
+    "ref": "REQ-SEC-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-06 - Storage confinement",
+    "description": "Implement the Security constraint REQ-SEC-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-06 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-020"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-016",
+    "ref": "P1.1",
+    "type": "User Story",
+    "title": "Implement Git-Backed Storage",
+    "description": "As Alex, deliver feature P1.1 (US-0A-01). See user story map US-0A-01 and BDD p1-memory/P1.1-git-backed-storage.feature.",
+    "acceptance_criteria": "Scenario: Initialize the WingFoil storage structure\nGiven the directory has no \".wingfoil/\" folder\nWhen the WingFoil storage is initialized\nThen a \".wingfoil/\" directory is created\nAnd it contains the subfolders \"memory/\", \"directives/\", and the files \"dna.yaml\", \"memory.yaml\", \"workflows.yaml\"\nAnd the new files are staged as a single git commit authored by the current git user",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-001"
+    ]
+  },
+  {
+    "id": "TASK-017",
+    "ref": "P1.2",
+    "type": "User Story",
+    "title": "Implement Versioning & Audit Trail",
+    "description": "As Morgan, deliver feature P1.2 (US-0A-02). See user story map US-0A-02 and BDD p1-memory/P1.2-versioning-audit-trail.feature.",
+    "acceptance_criteria": "Scenario: Every state change records author and timestamp\nGiven a Memory document \"task-101\" exists\nWhen its frontmatter \"status\" changes from \"draft\" to \"pending\"\nThen a git commit is created for the change\nAnd the commit records the author identity and an ISO-8601 timestamp\nAnd the commit message references the document id \"task-101\" and the new state \"pending\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.2-versioning-audit-trail.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-012",
+      "TASK-013"
+    ]
+  },
+  {
+    "id": "TASK-018",
+    "ref": "P1.3",
+    "type": "User Story",
+    "title": "Implement wingfoil memory add",
+    "description": "As Morgan, deliver feature P1.3 (US-4-01). See user story map US-4-01 and BDD p1-memory/P1.3-memory-add.feature.",
+    "acceptance_criteria": "Scenario: Add a new Memory document in draft state\nWhen I run \"wingfoil memory add --type decision --title 'Use PostgreSQL'\"\nThen a Memory file is created under \".wingfoil/memory/decision/\"\nAnd its frontmatter contains \"status: draft\" and a generated unique id\nAnd the command exits with code 0 and prints the new document id",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.3-memory-add.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-019",
+    "ref": "P1.5",
+    "type": "User Story",
+    "title": "Implement wingfoil memory search",
+    "description": "As Alex, deliver feature P1.5 (US-1-08). See user story map US-1-08 and BDD p1-memory/P1.5-memory-search.feature.",
+    "acceptance_criteria": "Scenario: Find a decision by keyword\nWhen I run \"wingfoil memory search api\"\nThen the results include the document titled \"API design\"\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.5-memory-search.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ]
+  },
+  {
+    "id": "TASK-020",
+    "ref": "P1.11",
+    "type": "User Story",
+    "title": "Implement Memory Entries (git-backed)",
+    "description": "As Alex, deliver feature P1.11 (US-0A-03). See user story map US-0A-03 and BDD p1-memory/P1.11-memory-entries.feature.",
+    "acceptance_criteria": "Scenario: Memory store is ready after initialization\nWhen I inspect the project structure\nThen a \".wingfoil/memory/\" directory exists\nAnd it is tracked by git",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.11-memory-entries.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-015"
+    ]
+  },
+  {
+    "id": "TASK-021",
+    "ref": "P1.12",
+    "type": "User Story",
+    "title": "Implement Keyword Memory Search",
+    "description": "As Alex, deliver feature P1.12 (US-1-09). See user story map US-1-09 and BDD p1-memory/P1.12-keyword-search.feature.",
+    "acceptance_criteria": "Scenario: Keyword match against document body and metadata\nWhen I search for \"caching\"\nThen both \"A\" and \"B\" are returned\nAnd results are ranked with metadata matches before body-only matches",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.12-keyword-search.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-022",
+    "ref": "P1.13",
+    "type": "User Story",
+    "title": "Implement Memory Element Schema (memory.yaml)",
+    "description": "As Morgan, deliver feature P1.13 (US-0A-04). See user story map US-0A-04 and BDD p1-memory/P1.13-memory-element-schema.feature.",
+    "acceptance_criteria": "Scenario: Validate a well-formed element schema\nGiven \".wingfoil/memory.yaml\" defines type \"release\" with states and transitions\nWhen the schema is validated\nThen validation passes\nAnd the \"release\" type exposes initial state \"draft\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.13-memory-element-schema.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-002",
+      "TASK-003",
+      "TASK-008"
+    ]
+  },
+  {
+    "id": "TASK-023",
+    "ref": "P2.1",
+    "type": "User Story",
+    "title": "Implement wingfoil dna set",
+    "description": "As Alex, deliver feature P2.1 (US-0A-08). See user story map US-0A-08 and BDD p2-dna/P2.1-dna-set.feature.",
+    "acceptance_criteria": "Scenario: Set a DNA field\nWhen I run \"wingfoil dna set tech_stack.language python\"\nThen \".wingfoil/dna.yaml\" contains \"language: python\" under \"tech_stack\"\nAnd the change is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.1-dna-set.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-024",
+    "ref": "P2.2",
+    "type": "User Story",
+    "title": "Implement wingfoil dna show",
+    "description": "As Jordan, deliver feature P2.2 (US-3-03). See user story map US-3-03 and BDD p2-dna/P2.2-dna-show.feature.",
+    "acceptance_criteria": "Scenario: Display the full DNA\nWhen I run \"wingfoil dna show\"\nThen the output includes tech stack, modules, conventions, and team sections\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ]
+  },
+  {
+    "id": "TASK-025",
+    "ref": "P2.4",
+    "type": "User Story",
+    "title": "Implement Project DNA (structured config)",
+    "description": "As Alex, deliver feature P2.4 (US-0A-05). See user story map US-0A-05 and BDD p2-dna/P2.4-project-dna-config.feature.",
+    "acceptance_criteria": "Scenario: DNA file exists and is schema-valid after init\nWhen I validate \".wingfoil/dna.yaml\"\nThen validation passes\nAnd the file declares the sections \"modules\", \"tech_stack\", \"team\", \"conventions\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.4-project-dna-config.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-002"
+    ]
+  },
+  {
+    "id": "TASK-026",
+    "ref": "P2.5",
+    "type": "User Story",
+    "title": "Implement wingfoil paths [category]",
+    "description": "As Alex, deliver feature P2.5 (US-0A-22). See user story map US-0A-22 and BDD p2-dna/P2.5-paths.feature.",
+    "acceptance_criteria": "Scenario: List paths for a category\nWhen I run \"wingfoil paths sources --list\"\nThen the output contains \"src/\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.5-paths.feature",
+    "priority": "High",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-011"
+    ]
+  },
+  {
+    "id": "TASK-027",
+    "ref": "P5.1.1",
+    "type": "User Story",
+    "title": "Implement wingfoil init",
+    "description": "As Alex, deliver feature P5.1.1 (US-0A-06). See user story map US-0A-06 and BDD p5-interaction/P5.1.1-init.feature.",
+    "acceptance_criteria": "Scenario: Initialize with the wizard and a selected template\nWhen I run \"wingfoil init\" and select the \"Scrum\" template through the wizard\nThen a complete \".wingfoil/\" structure is created (dna, memory, directives, workflows)\nAnd no manual YAML editing was required\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.1-init.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "note": "Task remains in v0.1; the 'init --template' portion is planned for v0.4 (split recorded in the USM index)."
+  },
+  {
+    "id": "TASK-028",
+    "ref": "P5.2.1",
+    "type": "User Story",
+    "title": "Implement MCP Resources (DNA + Memory)",
+    "description": "As Agents, deliver feature P5.2.1 (US-1-07). See user story map US-1-07 and BDD p5-interaction/P5.2.1-mcp-resources.feature.",
+    "acceptance_criteria": "Scenario: Fetch a Memory document as an MCP resource\nWhen the agent requests the resource for Memory document \"decision-12\"\nThen the document content and metadata are returned\nAnd the response is produced in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.1-mcp-resources.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-007",
+      "TASK-009",
+      "TASK-014"
+    ]
+  }
+]

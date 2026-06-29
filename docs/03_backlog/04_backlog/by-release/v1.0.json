@@ -1,0 +1,101 @@
+[
+  {
+    "id": "TASK-061",
+    "ref": "REQ-STATE-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-04 - Atomic step execution",
+    "description": "Implement the State constraint REQ-STATE-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v1.0",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-076"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-065",
+    "ref": "REQ-INT-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-06 - Git operations as actions",
+    "description": "Implement the Integrations constraint REQ-INT-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-06 in the SARD.",
+    "priority": "Blocker",
+    "release": "v1.0",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-076"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-076",
+    "ref": "P4.10",
+    "type": "User Story",
+    "title": "Implement Workflow Steps (atomic actions)",
+    "description": "As All, deliver feature P4.10 (US-0A-20). See user story map US-0A-20 and BDD p4-workflow/P4.10-workflow-steps.feature.",
+    "acceptance_criteria": "Scenario: Execute an atomic step action successfully\nWhen the step is executed\nThen a git branch named after the task id is created\nAnd the step is marked complete\nAnd the action is recorded in git history",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.10-workflow-steps.feature",
+    "priority": "Critical",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": [
+      "TASK-061",
+      "TASK-065"
+    ]
+  },
+  {
+    "id": "TASK-078",
+    "ref": "P4.12",
+    "type": "User Story",
+    "title": "Implement Workflow Checks (pre/post)",
+    "description": "As Morgan, deliver feature P4.12 (US-6-03). See user story map US-6-03 and BDD p4-workflow/P4.12-workflow-checks.feature.",
+    "acceptance_criteria": "Scenario: Step passes when the check is satisfied\nGiven the measured test coverage is 85 percent\nWhen the post-check runs\nThen the check passes\nAnd the step is allowed to complete",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.12-workflow-checks.feature",
+    "priority": "Critical",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-083",
+    "ref": "P4.17",
+    "type": "User Story",
+    "title": "Implement Built-in Workflow Templates (Task, Release)",
+    "description": "As Alex, deliver feature P4.17 (US-0A-21). See user story map US-0A-21 and BDD p4-workflow/P4.17-builtin-workflow-templates.feature.",
+    "acceptance_criteria": "Scenario: Built-in workflow templates are available after init\nWhen initialization completes\nThen a main workflow template \"release-cycle\" is available\nAnd an includable sub template \"task\" is available",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.17-builtin-workflow-templates.feature",
+    "priority": "High",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": [
+      "TASK-039"
+    ]
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://wingfoil.dev/03_backlog/04_backlog/schema.json",
+  "title": "WingFoil Product Backlog",
+  "description": "Backlog of work items derived from Modules 1-3. Array of task objects.",
+  "type": "array",
+  "items": { "$ref": "#/definitions/task" },
+  "definitions": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "ref", "type", "title", "description", "acceptance_criteria", "priority", "release", "tags", "dependencies"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^TASK-[0-9]{3}$" },
+        "ref": { "type": "string", "description": "Source feature id (Px.y/X1.y) or requirement id (REQ-*)." },
+        "type": { "type": "string", "enum": ["User Story", "Technical Task"] },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "acceptance_criteria": { "type": "string", "minLength": 1 },
+        "acceptance_criteria_full": { "type": "string", "description": "Path to the full .feature file (User Story only)." },
+        "priority": { "type": "string", "enum": ["Blocker", "Critical", "High", "Medium", "Low"] },
+        "release": { "type": "string", "enum": ["v0.1", "v0.2", "v0.3", "v0.4", "v1.0"] },
+        "pillar": { "type": "string", "enum": ["P1", "P2", "P3", "P4", "P5", "X1"] },
+        "area": { "type": "string", "enum": ["Architecture", "Performance", "State", "Integrations", "Security"] },
+        "tags": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "related_stories": { "type": "array", "items": { "type": "string", "pattern": "^TASK-[0-9]{3}$" } },
+        "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^TASK-[0-9]{3}$" } },
+        "note": { "type": "string", "description": "Optional annotation: deliberate-design clarification (e.g. intentionally empty related_stories, cross-wave feature split)." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "User Story" } } },
+          "then": { "required": ["pillar", "acceptance_criteria_full"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Technical Task" } } },
+          "then": { "required": ["area", "related_stories"] }
+        }
+      ]
+    }
+  }
+}
