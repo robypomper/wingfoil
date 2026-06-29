@@ -196,6 +196,7 @@ WingFoil releases build progressively—one pillar per week until all five pilla
 | Phase                            | Timeline       | Status     | Focus                          |
 |----------------------------------|----------------|------------|--------------------------------|
 | Lean Inception                   | June 2026      | ✓ Complete | Product vision & roadmap       |
+| Requirements Spec (Downcast)     | June 2026      | ✓ Complete | USM · BDD · SARD · Backlog     |
 | **v0.1** (Memory + DNA)          | ~July 10, 2026 | 🔄 In Dev  | Core foundations               |
 | **v0.2** (+ Directives)          | ~July 17, 2026 | Planned    | Team governance                |
 | **v0.3** (+ Workflow Management) | ~July 24, 2026 | Planned    | State sync & team coordination |
@@ -233,6 +234,40 @@ first production user.
 
 ---
 
+## Project Documentation
+
+Before implementation, the product is fully specified through a **traceable documentation pipeline** under `docs/`,
+taking the Lean Inception vision down to an implementation-ready backlog (the *specification downcast*):
+
+```
+docs/
+├── 01_vision/         Lean Inception — product brief, vision, personas, 8 journeys, features, sequencer, MVP canvas
+├── 02_requirements/   Specification downcast:
+│   ├── 01_user_story_map/   User Story Map (Jeff Patton) — journey backbone + prioritized stories, incl. edge cases
+│   ├── 02_bdd/              BDD suite (Gojko Adzic) — Gherkin scenarios per feature (happy + error/edge paths)
+│   └── 03_sard/             System & Architecture Requirements (Volere) — NFRs with measurable Fit Criteria
+└── 03_backlog/        Operational backlog — schema-validated JSON work items, partitioned by release wave
+```
+
+**Traceability chain.** Every item links back through the layers:
+`Backlog task → SARD requirement / BDD scenario → User Story → Journey → Vision feature`.
+
+**MVP scope at a glance:**
+
+| Layer          | Artifact                                                    | Count    |
+|----------------|-------------------------------------------------------------|----------|
+| Vision         | User journeys                                               | 8        |
+| Vision         | MVP features (5 pillars + notifications)                    | 63       |
+| User Story Map | Journey files · edge-case / interruption stories            | 7 · 14   |
+| BDD            | Gherkin feature files / scenarios                           | 63 / 190 |
+| SARD           | Architecture & NFR requirements (measurable Fit Criteria)   | 43       |
+| Backlog        | Implementation-ready tasks (63 user stories + 43 technical) | 106      |
+
+All artifacts are scheduled across 5 release waves (v0.1 → v1.0), sequenced by risk in
+`docs/01_vision/07_sequencer.md`.
+
+---
+
 ## License
 
 MIT — open source and free to use.
@@ -254,7 +289,7 @@ See `CONTRIBUTING.md` for development setup (coming soon).
 ## Questions?
 
 - **GitHub Issues:** Bug reports, feature requests
-- **Documentation:** See `docs/` for detailed guides (coming soon)
+- **Documentation:** See [`docs/`](docs/) — vision, requirements (USM · BDD · SARD), and the implementation backlog
 - **Community:** Join discussions (links coming soon)
 
 ---
