@@ -1,0 +1,23 @@
+Feature: P1.8 (US-4-11) - wingfoil memory reject
+  As Morgan, I want to reject a document so it reverts to draft for rework with feedback.
+
+  Background:
+    Given an initialized WingFoil project
+    And a Memory document "task-101" exists with "status: pending"
+
+  Scenario: Reject a pending document with feedback
+    When I run "wingfoil memory reject task-101 --reason 'tests missing'"
+    Then the document frontmatter becomes "status: draft"
+    And the git commit records the rejecter identity, timestamp, and reason "tests missing"
+    And the command exits with code 0
+
+  Scenario: Error - rejecting a document that is not pending
+    Given the document "task-101" has "status: draft"
+    When I run "wingfoil memory reject task-101 --reason 'x'"
+    Then the state is unchanged
+    And the command exits with code 1 and message "only pending documents can be rejected (current: draft)"
+
+  Scenario: Error - rejecting without a reason
+    When I run "wingfoil memory reject task-101"
+    Then the state is unchanged
+    And the command exits with code 2 and message "missing required argument: --reason"
