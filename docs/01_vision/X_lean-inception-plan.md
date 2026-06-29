@@ -3,7 +3,7 @@
 **Date:** 2026-06-11
 **Facilitator:** Claude (Lead)  
 **Team roles:** Stakeholder, Architect, PM, Dev, UX  
-**Input:** `0_product-brief.md`
+**Input:** `01_product-brief.md`
 
 ---
 
@@ -33,10 +33,10 @@
 
 | Document                | Path                                         | Status |
 |-------------------------|----------------------------------------------|--------|
-| Product Vision          | [1A_product-vision.md](1A_product-vision.md) | Done   |
-| Is/Is Not/Does/Does Not | [1B_is-isnot.md](1B_is-isnot.md)             | Done   |
-| Personas                | [2_personas.md](2_personas.md)               | Done   |
-| User Journeys           | [3_journeys.md](3_journeys.md)               | Done   |
-| Feature List + Review   | [4_features.md](4_features.md)               | Done   |
-| Sequencer               | [5A_sequencer.md](5A_sequencer.md)           | Done   |
-| MVP Canvas              | [5B_mvp-canvas.md](5B_mvp-canvas.md)         | Done   |
+| Product Vision          | [02_product-vision.md](02_product-vision.md) | Done   |
+| Is/Is Not/Does/Does Not | [03_is-isnot.md](03_is-isnot.md)             | Done   |
+| Personas                | [04_personas.md](04_personas.md)             | Done   |
+| User Journeys           | [05_journeys.md](05_journeys.md)             | Done   |
+| Feature List + Review   | [06_features.md](06_features.md)             | Done   |
+| Sequencer               | [07_sequencer.md](07_sequencer.md)           | Done   |
+| MVP Canvas              | [08_mvp-canvas.md](08_mvp-canvas.md)         | Done   |

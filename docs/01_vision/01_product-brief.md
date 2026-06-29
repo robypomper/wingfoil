@@ -11,9 +11,11 @@
 **For** developers and teams already using AI agents to write software  
 **who** lose consistency and control over the development process as the project grows  
 **WingFoil is** an open-source harness for AI-assisted software development  
-**that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to the project
+**that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to
+the project
 **Unlike** relying on large context windows or full codebase scans  
-**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all actors in the development process
+**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all
+actors in the development process
 
 ---
 
@@ -291,16 +293,16 @@ This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). 
 
 **Core Documents:**
 
-- [`1A_product-vision.md`](1A_product-vision.md) — Vision statement, key decisions
-- [`1B_is-isnot.md`](1B_is-isnot.md) — Scope boundaries
-- [`2_personas.md`](2_personas.md) — User types and pain points
-- [`3_journeys.md`](3_journeys.md) — 8 end-to-end user journeys
-- [`4_features.md`](4_features.md) — 63 features across 5 pillars
+- [`02_product-vision.md`](02_product-vision.md) — Vision statement, key decisions
+- [`03_is-isnot.md`](03_is-isnot.md) — Scope boundaries
+- [`04_personas.md`](04_personas.md) — User types and pain points
+- [`05_journeys.md`](05_journeys.md) — 8 end-to-end user journeys
+- [`06_features.md`](06_features.md) — 63 features across 5 pillars
 
 **Technical & Planning:**
 
 - [`X_cli-cmds.md`](X_cli-cmds.md) — CLI commands reference (all pillars)
-- [`5A_sequencer.md`](5A_sequencer.md) — Week-by-week timeline, Definition of Done
-- [`5B_mvp-canvas.md`](5B_mvp-canvas.md) — MVP canvas and success criteria
+- [`07_sequencer.md`](07_sequencer.md) — Week-by-week timeline, Definition of Done
+- [`08_mvp-canvas.md`](08_mvp-canvas.md) — MVP canvas and success criteria
 
 All documents are versioned in git and open for refinement as development progresses.

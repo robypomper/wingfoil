@@ -179,14 +179,14 @@ This MVP Canvas is part of a comprehensive product specification created via Lea
 
 | Document                   | Version | Status   | Content                                                    |
 |----------------------------|---------|----------|------------------------------------------------------------|
-| `0_product-brief.md`       | 1.2     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
-| `1A_product-vision.md`     | 1.1     | Approved | Vision statement, key decisions, reference workflows       |
-| `1B_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
-| `2_personas.md`            | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
-| `3_journeys.md`            | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
-| `4_features.md`            | 1.2     | Approved | 63 features across 5 pillars, organized by release version |
-| `5A_sequencer.md`          | 1.3     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
-| `5B_mvp-canvas.md`         | 1.1     | Approved | This file — MVP canvas with success criteria               |
+| `01_product-brief.md`      | 1.2     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
+| `02_product-vision.md`     | 1.1     | Approved | Vision statement, key decisions, reference workflows       |
+| `03_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
+| `04_personas.md`           | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
+| `05_journeys.md`           | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
+| `06_features.md`           | 1.2     | Approved | 63 features across 5 pillars, organized by release version |
+| `07_sequencer.md`          | 1.3     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
+| `08_mvp-canvas.md`         | 1.1     | Approved | This file — MVP canvas with success criteria               |
 | `X_cli-cmds.md`            | 1.1     | Approved | CLI commands reference (all pillars)                       |
 | `X_lean-inception-plan.md` | —       | —        | Lean Inception workshop plan and session log               |
 
