@@ -13,6 +13,9 @@ Translates the **[MVP]** user stories from Module 1 into deterministic system be
 and edge cases, expressed in Gherkin (Given-When-Then).
 
 - **Unit:** one `.feature` file per MVP feature (`Px.y` / `X1.y`), grouped by pillar.
+  The 31 additional `[MVP]` user stories in Module 1 that carry no BDD anchor
+  (`_(ref: Px.y)_` marker) are **ref-marked duplicates**: they share the behavior of their
+  feature and are fully covered by that feature's `.feature` file. No extra file is needed.
 - **Coverage rule:** every feature has **≥1 nominal (Happy Path)** scenario and **≥1
   error/edge** scenario.
 - **No ambiguous terms:** vague wording ("fast", "quickly") is replaced by quantified
