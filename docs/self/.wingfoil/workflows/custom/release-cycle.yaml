@@ -1,0 +1,37 @@
+# WingFoil — release-cycle (SUB workflow)
+# One iteration per release wave (v0.1 .. v1.0). Composes planning, per-task dev loops,
+# submission, publishing, and retrospective. Best practice adapted to WingFoil's weekly,
+# per-pillar cadence. Include-only; sw-life-cycle iterates it over `release`.
+name: release-cycle
+kind: sub
+description: >-
+  Deliver one release: plan scope -> run a TDD dev-loop per backlog task (including bug-fix
+  tasks) -> submit -> publish to npm -> retrospective.
+version: 1.0
+element: release        # the iterated element provided by sw-life-cycle (iterate_over: release)
+
+phases:
+  - name: planning
+    description: "Define release scope, story points, and the task backlog for this release."
+    include: release-planning
+
+  - name: implementation
+    description: >-
+      Run the TDD dev-loop once per backlog task tagged for this release — including the fix
+      tasks derived from bugs scheduled into this release; each keeps its source bug in sync
+      (`bug.sync_state`, see dev-loop.yaml).
+    include: dev-loop
+    iterate_over: task
+    where: { status: [backlog], tags: ["{release.version}"] }
+
+  - name: submit
+    description: "Assemble the release, run checks, request approval."
+    include: release-submit
+
+  - name: publishing
+    description: "Tag, build, and publish to npm; mark the release released."
+    include: release-publishing
+
+  - name: retrospective
+    description: "Capture learnings and adjust the next release."
+    include: retrospective

@@ -1,0 +1,32 @@
+# WingFoil — release-publishing (SUB workflow)
+# Best practice adapted to WingFoil. Include-only.
+name: release-publishing
+kind: sub
+description: >-
+  Publish an approved release: tag, build, publish to the npm registry, and mark the release
+  element as released.
+version: 1.0
+element: release
+
+phases:
+  - name: tag
+    description: "Create the semver git tag for the release."
+    role: tech-lead
+    actions:
+      - git.commit("release {release.version}")
+      - git.tag("{release.version}")
+
+  - name: publish
+    description: "Build and publish the package to npm."
+    role: tech-lead
+    actions:
+      - agent.execute        # build + `npm publish`
+    checks:
+      pre: ["tests.passing"]
+      post: ["package published to npm registry"]
+
+  - name: mark-released
+    description: "Mark the release element released."
+    role: tech-lead
+    actions:
+      - element.set_state(released)            # release: releasing -> released

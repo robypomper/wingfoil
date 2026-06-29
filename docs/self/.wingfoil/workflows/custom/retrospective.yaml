@@ -1,0 +1,26 @@
+# WingFoil — retrospective (SUB workflow)
+# Best practice adapted to WingFoil. Include-only.
+name: retrospective
+kind: sub
+description: >-
+  Close the release loop: capture what went well / what to improve as Memory, and feed
+  adjustments into the next release planning.
+version: 1.0
+element: release
+
+phases:
+  - name: capture
+    description: "Record retrospective learnings as a Memory decision-log."
+    role: facilitator
+    actions:
+      - 'memory.add(type: decision-log, title: "Retrospective {release.version}")'
+      - memory.submit
+    produces:
+      - "docs/04_memory/design/dls/retro-{release.version}.md"
+    checks:
+      post: ["frontmatter.required: [title]"]   # title always set by action above
+
+  - name: approve
+    description: "Approve the retrospective so its actions are committed."
+    role: approver
+    approval: { by_role: approver }
