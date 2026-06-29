@@ -1,0 +1,33 @@
+# WingFoil — Directive role assignments (P3.2, P3.7)
+# Binds directives to roles defined in .wingfoil/dna.yaml. One directive may bind to many roles.
+# NOTE: WingFoil's official built-in templates (P3.8) are not yet implemented, so there are no
+# `built-in/` directives; the P3.8 templates currently live in `custom/` as stand-ins. The generic
+# `security` stand-in is left unassigned here; its WingFoil elaboration `security-secrets` is assigned
+# globally. Approval/directives bind to roles, never to people (REQ-SYS-08).
+version: 1.0
+
+assignments:
+  developer:
+    - code-quality
+    - testing
+    - determinism
+  reviewer:
+    - code-review
+    - traceability
+  qa:
+    - testing
+  architect:
+    - architecture
+    - determinism
+    - traceability
+  product-owner:
+    - traceability
+  tech-lead:
+    - architecture
+    - code-review
+
+# Global directives apply to every role.
+global:
+  - doc-versioning
+  - documentation
+  - security-secrets
