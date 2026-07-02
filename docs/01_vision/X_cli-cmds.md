@@ -1,7 +1,7 @@
 # CLI Commands Reference — WingFoil
 
-**Version:** 1.1
-**Date:** 2026-06-24  
+**Version:** 1.2
+**Date:** 2026-07-02  
 **Status:** Approved
 
 ---
@@ -93,7 +93,7 @@ conventions, and resource paths.
 | Command                                                                                             | Description                                                  | Actors       | Journeys | Notes                                                                                                                                                                  |
 |-----------------------------------------------------------------------------------------------------|--------------------------------------------------------------|--------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `wingfoil directive create [--name NAME] [--file-format md/yaml] [--template TEMPLATE]`             | Create new custom directive file (interactive or flag-based) | Morgan, Alex | 0a, 4    | Creates `.wingfoil/directives/custom/[name].md`. Unique within custom directives. Not auto-removed                                                                     |
-| `wingfoil directive assign [--directive DIRECTIVE_ID] [--role ROLE] [--scope global/role-specific]` | Bind custom directive to role(s) or make global              | Morgan       | 2, 6     | Maps custom directive to roles defined in DNA. One directive can bind to multiple roles. Records in `.wingfoil/directives/.assignments.yaml`                           |
+| `wingfoil directive assign [--directive DIRECTIVE_ID] [--role ROLE] [--scope global/role-specific]` | Bind custom directive to role(s) or make global              | Morgan       | 2, 6     | Maps custom directive to roles defined in DNA. One directive can bind to multiple roles. Records in `.wingfoil/roles.yaml`                           |
 | `wingfoil directive remove [--directive DIRECTIVE_ID] [--verify-usage]`                             | Disassociate custom directive from roles and remove it       | Morgan, Alex | 2, 4, 6  | Only removes custom directives (built-in removed via DNA change). `--verify-usage` checks if directive is referenced anywhere before removal. Removes from assignments |
 | `wingfoil directives list [--role ROLE] [--built-in/--custom/--all] [--format json/yaml]`           | List all directives (built-in + custom) and role assignments | All          | All      | Shows: directive id, name, type (built-in/custom), roles assigned, scope. Can filter by role or type                                                                   |
 
@@ -103,8 +103,8 @@ conventions, and resource paths.
 |-----------------------------|--------|-------------------------------------------------------------------------------------|---------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------|
 | `NAME`                      | string | Custom directive name (slug format)                                                 | User input or auto-generated from template  | Must be unique within custom directives. Auto-slug if not provided | Filename `.wingfoil/directives/custom/[name].md`                         |
 | `DIRECTIVE_ID`              | string | Unique ID of directive (built-in or custom)                                         | Listed via `directives list` or in filename | System-managed (UUID or slug)                                      | Directive filename or registry                                           |
-| `ROLE`                      | string | Role name defined in DNA (developer, reviewer, qa, architect, etc.)                 | Listed via `dna show --section team`        | Defined in DNA, referenced in assignments                          | `.wingfoil/directives/.assignments.yaml`                                 |
-| `SCOPE`                     | enum   | Scope type: global (all roles) or role-specific                                     | User specifies via flag                     | Controls whether directive applies to all roles or specific ones   | `.wingfoil/directives/.assignments.yaml` mapping                         |
+| `ROLE`                      | string | Role name defined in DNA (developer, reviewer, qa, architect, etc.)                 | Listed via `dna show --section team`        | Defined in DNA, referenced in assignments                          | `.wingfoil/roles.yaml`                                 |
+| `SCOPE`                     | enum   | Scope type: global (all roles) or role-specific                                     | User specifies via flag                     | Controls whether directive applies to all roles or specific ones   | `.wingfoil/roles.yaml` mapping                         |
 | `--built-in/--custom/--all` | flag   | Filter directive type                                                               | User selects                                | Separates installed built-in from user-created custom              | Inferred from directory: `.wingfoil/directives/built-in/` vs `custom/`   |
 | `TEMPLATE`                  | string | Value of `--template` on `directive create`: starter template for the new directive | User input or selected during create        | Determines initial content/scaffolding of the directive file       | N/A (input only; result saved in directive file)                         |
 | `--file-format`             | enum   | Directive file content format on `directive create`: md or yaml                     | User specifies via flag                     | Controls the on-disk format of the created directive file          | File extension/content of `.wingfoil/directives/custom/[name].[md/yaml]` |
