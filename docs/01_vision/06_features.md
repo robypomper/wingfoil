@@ -1,7 +1,7 @@
 # Features — WingFoil
 
-**Version:** 1.2
-**Date:** 2026-06-24  
+**Version:** 1.3
+**Date:** 2026-06-29  
 **Status:** Approved
 
 ---
@@ -23,11 +23,11 @@ persist their configuration and state files.
 | ID    | Feature                                | Journey            | User                | Description                                                                                                                                                      | Type           |
 |-------|----------------------------------------|--------------------|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
 | P1.1  | Git-Backed Storage (foundational)      | 0a, 0b, 1, 2, 3, 4 | All                 | Centralized git repository for all project state (Memory, DNA, Directives, Workflow) in `.wingfoil/`                                                             | Infrastructure |
-| P1.2  | Versioning & Audit Trail (all pillars) | 1, 2, 3, 5         | Morgan, Casey       | All changes (Memory, DNA, Directives, Workflow) tracked via git with author, timestamp, commit message                                                           | Infrastructure |
+| P1.2  | Versioning & Audit Trail (all pillars) | 0a, 1, 2, 3, 5     | Morgan, Casey       | All changes (Memory, DNA, Directives, Workflow) tracked via git with author, timestamp, commit message                                                           | Infrastructure |
 | P1.3  | `wingfoil memory add`                  | 0a, 0b, 2, 4, 5    | Morgan, Alex, Casey | Create/add document to Memory in `.wingfoil/memory/` (draft state)                                                                                               | Command        |
 | P1.4  | `wingfoil memory import`               | 0b                 | Morgan, Alex        | Scan project for existing docs and import into Memory (interactive, with metadata extraction)                                                                    | Command        |
 | P1.5  | `wingfoil memory search`               | 1, 3, 5            | Casey, Alex         | Query Memory by keyword and metadata                                                                                                                             | Command        |
-| P1.6  | `wingfoil memory submit`               | 2, 4, 5            | Morgan, Alex        | Submit Memory document for approval (pending state)                                                                                                              | Command        |
+| P1.6  | `wingfoil memory submit`               | 2, 3, 4, 5         | Morgan, Alex        | Submit Memory document for approval (pending state)                                                                                                              | Command        |
 | P1.7  | `wingfoil memory approve`              | 2, 4, 5            | Morgan, Casey       | Approve Memory document (approved state); records reason                                                                                                         | Command        |
 | P1.8  | `wingfoil memory reject`               | 2, 4, 5            | Morgan, Casey       | Reject Memory document; reverts to draft for rework                                                                                                              | Command        |
 | P1.9  | `wingfoil memory deprecate`            | 2, 3, 5            | Morgan, Casey       | Mark Memory document as deprecated (remains in repo, agents ignore)                                                                                              | Command        |
@@ -62,7 +62,7 @@ Role-based rules that humans and agents respect automatically (in `.wingfoil/dir
 | P3.2 | `wingfoil directive assign`            | 2, 4, 6      | Morgan       | Bind directive to role (defined in DNA)                                                             | Command        |
 | P3.3 | `wingfoil directive remove`            | 2, 4, 6      | Morgan, Alex | Remove custom directive after verifying it's not referenced elsewhere                               | Command        |
 | P3.4 | `wingfoil directives list`             | All          | All          | List available directives (custom + built-in) and role assignments                                  | Command        |
-| P3.5 | Project Directives (custom + built-in) | 0a, 0b, 2    | Morgan, Alex | Define "how we work" rules, scoped by role; custom + built-in in `.wingfoil/directives/`            | Infrastructure |
+| P3.5 | Project Directives (custom + built-in) | 0a, 0b, 2, 4 | Morgan, Alex | Define "how we work" rules, scoped by role; custom + built-in in `.wingfoil/directives/`            | Infrastructure |
 | P3.6 | Auto-Load Directives by Role           | 1, 2, 3      | All          | Directives auto-load when agents/developers execute tasks with that role                            | Feature        |
 | P3.7 | Role-Based Directive Assignment        | 0a, 0b, 2, 4 | Morgan       | Bind multiple directives to roles; one-to-many relationships                                        | Feature        |
 | P3.8 | Built-in Directive Templates           | 0a, 0b       | All          | Pre-configured templates: Code Quality, Testing, Code Review, Architecture, Security, Documentation | Feature        |
@@ -84,15 +84,15 @@ Unified tracking of project progress, blockers, and deliverables (main config in
 | P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show state of all open (active) main workflows and pending approvals; highlights the active one                                                                                                                                     | Command        |
 | P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List workflows **executable now** (startable mains + a sub when it is the next step); `--all` lists every defined workflow                                                                                                          | Command        |
 | P4.7  | `wingfoil workflow show`                    | 0a, 0b, 6          | All           | Display details of a workflow (phases, steps, directives, Memory structure)                                                                                                                                                         | Command        |
-| P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4       | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                                                                                                                                                         | Command        |
+| P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4, 6    | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                                                                                                                                                         | Command        |
 | P4.9  | `wingfoil workflow remove`                  | 2, 4, 6            | Morgan, Alex  | Remove custom workflow after verifying it's not included elsewhere                                                                                                                                                                  | Command        |
 | P4.10 | Workflow Steps (atomic actions)             | 0a, 0b, 1, 2, 4    | All           | Steps execute: memory.add, memory.submit, agent.execute, git operations (branch, worktree, merge)                                                                                                                                   | Feature        |
 | P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking; states follow the element's **per-type** state machine in `.wingfoil/memory.yaml` (default: draft → pending → approved/rejected → deprecated)                                         | Feature        |
-| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4    | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)                                                                                                                                         | Feature        |
+| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4, 6 | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)                                                                                                                                         | Feature        |
 | P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter, validated against the element type's allowed states (P1.13); no separate state index file needed                                                                          | Infrastructure |
 | P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person                                                                                                                                                   | Feature        |
 | P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | On reject, jump to a `fallback.step` within the same workflow; optionally assign a new state (`fallback.set_state`) to the rejected document                                                                                        | Feature        |
-| P4.16 | Workflow include() Composition              | 0a, 0b, 4          | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps via `include()`; an include runs once or **once per element** via `iterate_over: <type>` with optional `where` filters (status/tags)                                 | Feature        |
+| P4.16 | Workflow include() Composition              | 0a, 0b, 4, 6       | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps via `include()`; an include runs once or **once per element** via `iterate_over: <type>` with optional `where` filters (status/tags)                                 | Feature        |
 | P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns (e.g. Release as a main workflow, Task as an includable sub)                                                                                                                                | Feature        |
 
 Pre-built methodology templates for fast onboarding.
@@ -171,7 +171,7 @@ Notifications and alerts across all features.
 | P1.5       | `wingfoil memory search`              | Medium     | Memory, file I/O   | Medium   | Critical | Find decisions quickly                 | Keyword search MVP; semantic post-MVP              |
 | P1.11      | Memory Entries (git-backed)           | Low        | Git                | Low      | Critical | Storage layer for Memory pillar        | Shared infrastructure for all pillars              |
 | P1.12      | Keyword Memory Search                 | Medium     | Memory, file I/O   | Medium   | Critical | Query Memory by topic                  | Basic keyword matching                             |
-| P1.13      | Memory Element Schema (`memory.yaml`) | Low        | Git                | Low      | Critical | Per-type state machines for Memory     | Element schema in `.wingfoil/memory.yaml`          |
+| P1.13      | Memory Element Schema (`memory.yaml`) | Low        | Git                | Low      | Critical | Per-type state machines for Memory     | Element schema in `.wingfoil/memory.yaml`; full custom-states configuration refined in v1.0 (see 07_sequencer.md Week 5) |
 | P2.1       | `wingfoil dna set`                    | Low        | DNA                | Low      | Critical | Define/update project structure        | Basic CRUD operations                              |
 | P2.2       | `wingfoil dna show`                   | Low        | DNA                | Low      | Critical | Query project structure                | Essential for all journeys                         |
 | P2.4       | Project DNA (structured config)       | Low        | None               | Low      | Critical | Storage layer for DNA pillar           | Shared infrastructure for all pillars              |
@@ -211,6 +211,12 @@ Notifications and alerts across all features.
 > **Note:** the Memory lifecycle verbs (`memory add/submit/approve/reject/deprecate/history`) are
 > delivered in v0.1–v0.2. v0.3 does **not** re-deliver them; it integrates them into workflow steps
 > (approval routing, `fallback.set_state`, `agent execute`).
+>
+> **Scope note (release sequencing, aligned to `07_sequencer.md`):** v0.3 exposes the workflow
+> *command surface*, but the riskier execution/validation machine is hardened later. Atomic step
+> execution (P4.10), pre/post checks (P4.12) and the built-in Task/Release templates (P4.17) are
+> completed in **v1.0** (07_sequencer.md Week 5); MCP Tools for state management (P5.2.3) ship in
+> **v0.4** alongside the rest of the MCP server.
 
 | Feature ID | Feature                                     | Complexity | Dependencies                             | MVP Risk | Priority | Why                                   | Notes                                             |
 |------------|---------------------------------------------|------------|------------------------------------------|----------|----------|---------------------------------------|---------------------------------------------------|
@@ -223,14 +229,11 @@ Notifications and alerts across all features.
 | P4.7       | `wingfoil workflow show`                    | Low        | Workflow config                          | Low      | High     | View workflow details                 | Phases, steps, directives                         |
 | P4.8       | `wingfoil workflow create`                  | Low        | Workflow config                          | Low      | High     | Create custom workflows               | Interactive or flag-based                         |
 | P4.9       | `wingfoil workflow remove`                  | Low        | Workflow config                          | Low      | Medium   | Remove custom workflows               | Verify not included elsewhere                     |
-| P4.10      | Workflow Steps (atomic actions)             | High       | Memory, Directives, Agent                | High     | Critical | Execute step logic                    | Memory.add, memory.submit, agent.execute, git ops |
 | P4.11      | Deliverables (Memory + State)               | Medium     | Memory, git versioning                   | Medium   | Critical | Track work items                      | Frontmatter-based state                           |
-| P4.12      | Workflow Checks (pre/post)                  | High       | File system, git, test runner            | High     | Critical | Enforce quality gates                 | Validation rules                                  |
 | P4.13      | Workflow State Deduction (from Memory)      | Low        | Git, Memory frontmatter                  | Low      | Critical | Deduce state from Memory files        | No separate `.wingfoil/state/` index needed       |
 | P4.14      | Approval Routing (role-based from DNA)      | Medium     | DNA (roles, team members), Notifications | Medium   | High     | Route approvals correctly             | Team members defined in `.wingfoil/dna.yaml`      |
 | P4.15      | Fallback on Rejection                       | High       | State machine, optional steps            | High     | High     | Handle rejections gracefully          | Return to previous step                           |
 | P4.16      | Workflow include() Composition              | Medium     | Workflow config                          | Medium   | High     | Compose sub-workflows; iterate_over   | include() once or once-per-element                |
-| P4.17      | Built-in Workflow Templates (Task, Release) | Low        | None                                     | Low      | High     | Common workflow patterns              | Task + Release templates                          |
 | P4.18      | Reference Workflow Templates                | Low        | Workflow config                          | Low      | High     | Fast onboarding with proven workflows | Scrum, Kanban, Lean, Trunk-Based                  |
 | P4.19      | Template Expansion                          | Low        | Workflow config                          | Low      | High     | Generate workflow + directives        | From template selection                           |
 | P4.20      | Template Customization                      | Low        | Workflow config                          | Low      | Medium   | Override defaults                     | Adapt templates to team                           |
@@ -241,7 +244,6 @@ Notifications and alerts across all features.
 | P5.4.2     | Agent Role → Directives Binding             | Low        | Directive system                         | Low      | Critical | Auto-load rules for agent             | Core differentiator                               |
 | P5.4.3     | Agent Context Pre-Loading                   | Medium     | DNA, Memory, Directives                  | Medium   | Critical | Pre-fetch agent context               | <30 sec launch time                               |
 | P5.4.4     | Agent Execution Context                     | Medium     | MCP, Agent SDK                           | Medium   | Critical | Structured context passing            | DNA + Memory + Directives                         |
-| P5.2.3     | MCP Tools (state management)                | Medium     | Workflow state, MCP spec                 | Medium   | High     | Agents can update workflow state      | Submit, approve, record memory                    |
 | X1.1       | "Human Needed" Notifications                | Medium     | CLI hooks, git hooks                     | Medium   | High     | Alert on approvals needed             | Essential for Morgan + Casey                      |
 | X1.2       | Notification Routing                        | Medium     | DNA (roles), Notifications               | Medium   | Medium   | Route alerts by role                  | Role-based or person-specific                     |
 
@@ -260,6 +262,7 @@ Notifications and alerts across all features.
 | P5.1.1     | `wingfoil init --template {name}` | Low        | Template system                       | Low      | High     | CLI flag for templates            | Flag of P5.1.1 (init); v0.1 had menu selection |
 | P5.1.4     | CLI UX Improvements               | Low        | None                                  | Low      | High     | Polish help, formatting, errors   | Better user experience                         |
 | P5.4.5     | Agent-Assisted Init Wizard        | Medium     | Agent SDK, conversation               | Medium   | High     | Natural language setup            | Alternative to Q&A mode                        |
+| P5.2.3     | MCP Tools (state management)       | Medium     | Workflow state, MCP spec              | Medium   | High     | Agents can update workflow state  | Submit, approve, record memory                 |
 
 ---
 
@@ -267,11 +270,14 @@ Notifications and alerts across all features.
 
 **Target Date:** August 7, 2026
 
-| Feature ID | Feature                     | Complexity | MVP Risk | Priority | Why                                             |
-|------------|-----------------------------|------------|----------|----------|-------------------------------------------------|
-| —          | All v0.4 features stable    | —          | Low      | Critical | Production-ready; battle-tested                 |
-| —          | Determinism Index validated | —          | Medium   | Critical | Two independent runs produce equivalent outputs |
-| —          | ≥1 real team using WingFoil | —          | High     | Critical | Early adopter validation                        |
+| Feature ID | Feature                                     | Complexity | MVP Risk | Priority | Why                                             |
+|------------|---------------------------------------------|------------|----------|----------|-------------------------------------------------|
+| P4.10      | Workflow Steps (atomic actions)             | High       | High     | Critical | Execute step logic (memory/agent/git ops)       |
+| P4.12      | Workflow Checks (pre/post)                  | High       | High     | Critical | Enforce quality gates (file/git/test checks)    |
+| P4.17      | Built-in Workflow Templates (Task, Release) | Low        | Low      | High     | Common workflow patterns (Task + Release)       |
+| —          | All v0.4 features stable                     | —          | Low      | Critical | Production-ready; battle-tested                 |
+| —          | Determinism Index validated                 | —          | Medium   | Critical | Two independent runs produce equivalent outputs |
+| —          | ≥1 real team using WingFoil                 | —          | High     | Critical | Early adopter validation                        |
 
 ---
 
@@ -323,8 +329,9 @@ Notifications and alerts across all features.
 - ✓ Workflow kinds (main/sub), active context, context-aware list (P4.1–P4.6)
 - ✓ State deduced from Memory, validated per-type (P4.13) — no separate state file
 - ✓ All workflow commands (P4.2–P4.9)
-- ✓ Deliverables, Checks, Routing, Fallback (step+state), iterate_over (P4.11–P4.16)
-- ✓ Git operations in workflow steps (P4.10)
+- ✓ Deliverables, Routing, Fallback (step+state), iterate_over (P4.11, P4.13–P4.16) — v0.3
+- ✓ Workflow Checks pre/post (P4.12) and Git operations in workflow steps / atomic actions (P4.10) — hardened in **v1.0** (07_sequencer.md Week 5)
+- ✓ Built-in Workflow Templates (Task, Release) (P4.17) — completed in **v1.0**
 
 **Pillar 5 — Interaction Layer:**
 

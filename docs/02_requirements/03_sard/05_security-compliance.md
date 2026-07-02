@@ -1,0 +1,115 @@
+# SARD — Part 5: Security & Compliance
+
+**ID prefix:** `REQ-SEC-*`
+**Derivation:** access-control and data-integrity constraints implied by the BDD suite.
+
+---
+
+## 5. Security & Compliance
+
+### REQ-SEC-01 — Git identity required for state mutations
+
+* **Description:** No state change is committed without a configured git identity (user.name + user.email).
+* **Rationale:** Every change must be attributable.
+* **Fit Criterion:** With git identity unset, any state-mutating command fails with
+  `"git identity not configured (user.name/user.email)"` and writes nothing.
+* **Traceability:** Feature P1.2 (US-0A-02, BDD `p1-memory/P1.2-versioning-audit-trail.feature`).
+
+### REQ-SEC-02 — Complete, attributable audit trail
+
+* **Description:** 100% of state changes are recorded in git with author and ISO-8601 timestamp; approvals/rejections
+  also record a reason.
+* **Rationale:** Auditability is a core value proposition (Casey, Morgan).
+* **Fit Criterion:** `git log` verification over all `.wingfoil/` changes shows author + timestamp for every change with
+  **0** "unknown author"; `memory history` lists each transition with author, timestamp, and reason.
+* **Traceability:** Feature P1.2 (US-0A-02, BDD `p1-memory/P1.2-versioning-audit-trail.feature`); Feature P1.7
+  (US-2-10, BDD `p1-memory/P1.7-memory-approve.feature`); Feature P1.8 (US-4-11, BDD `p1-memory/P1.8-memory-reject.feature`);
+  Feature P1.10 (US-5-08, BDD `p1-memory/P1.10-memory-history.feature`).
+
+### REQ-SEC-03 — Role-based approval authority
+
+* **Description:** Only users/agents holding the required approver role (per DNA) may approve a given element type.
+* **Rationale:** Governance gates; no self-approval bypass.
+* **Fit Criterion:** An approve attempt by a principal lacking the required role is rejected with
+  `"user not authorized to approve type '<type>'"` and the state is unchanged.
+* **Traceability:** Feature P1.7 (US-2-10, BDD `p1-memory/P1.7-memory-approve.feature`); Feature P4.14 (US-4-07,
+  BDD `p4-workflow/P4.14-approval-routing.feature`).
+
+### REQ-SEC-04 — Mandatory justification on decision verbs
+
+* **Description:** `approve`, `reject`, and `deprecate` require a `--reason`.
+* **Rationale:** Decisions must be explainable in the audit trail.
+* **Fit Criterion:** Omitting `--reason` on `approve`/`reject`/`deprecate` returns exit code `2` with
+  `"missing required argument: --reason"` and makes no change.
+* **Traceability:** Feature P1.7 (US-2-10, BDD `p1-memory/P1.7-memory-approve.feature`); Feature P1.8 (US-4-11,
+  BDD `p1-memory/P1.8-memory-reject.feature`); Feature P1.9 (US-5-04, BDD `p1-memory/P1.9-memory-deprecate.feature`).
+
+### REQ-SEC-05 — Read-only agent read channel
+
+* **Description:** Agents cannot mutate state through the MCP Resources channel; mutations occur only through validated
+  MCP Tools.
+* **Rationale:** Principle of least privilege per channel (channel-scoped restatement of REQ-INT-01 / REQ-INT-03).
+* **Fit Criterion:** A write attempt issued over the MCP Resources channel is refused with `"resources are read-only"`
+  and persists nothing; in a channel-enumeration test the only agent write path that successfully mutates state is an
+  MCP Tool call, and that call is rejected unless it passes state-machine validation.
+* **Traceability:** Feature P5.2.1 (US-1-07, BDD `p5-interaction/P5.2.1-mcp-resources.feature`); Feature P5.2.3
+  (US-2-11, BDD `p5-interaction/P5.2.3-mcp-tools.feature`).
+
+### REQ-SEC-06 — Storage confinement
+
+* **Description:** Memory entries may only be written under `.wingfoil/memory/`.
+* **Rationale:** Prevent state leakage outside the managed, versioned store.
+* **Fit Criterion:** An attempt to write a Memory entry to a path outside `.wingfoil/memory/` is refused with
+  `"Memory entries must reside under .wingfoil/memory/"`.
+* **Traceability:** Feature P1.11 (US-0A-03, BDD `p1-memory/P1.11-memory-entries.feature`).
+
+### REQ-SEC-07 — Immutable built-in assets
+
+* **Description:** Built-in directives and built-in workflow templates cannot be removed; custom assets can be removed
+  only when unreferenced.
+* **Rationale:** Protect the baseline; prevent dangling references.
+* **Fit Criterion:** `directive remove` / `workflow remove` on a built-in is rejected ("built-in … cannot be removed");
+  removal of a still-referenced custom asset is rejected naming the referrer.
+* **Traceability:** Feature P3.3 (US-6-07, BDD `p3-directives/P3.3-directive-remove.feature`); Feature P4.9 (US-6-11,
+  BDD `p4-workflow/P4.9-workflow-remove.feature`).
+
+### REQ-SEC-08 — Secret/credential hygiene
+
+* **Description:** Credentials and secrets are handled per the built-in Security directive and are never persisted into
+  Memory, DNA, or Directives.
+* **Rationale:** Avoid committing secrets to the git-backed store.
+* **Fit Criterion:** After `init`, the built-in `security` directive is present; a scan of committed `.wingfoil/`
+  content matches **0** known secret patterns (e.g., API keys, private-key headers).
+* **Traceability:** Feature P3.8 (US-0A-09, BDD `p3-directives/P3.8-builtin-directive-templates.feature`);
+  `06_features.md` (built-in Security directive).
+
+### REQ-SEC-09 — Human approval before inferred writes
+
+* **Description:** Inference flows (`init --mode infer`, `dna infer`) present every inferred section for human approval
+  before persisting it.
+* **Rationale:** Inference is imperfect; humans stay in control of recorded truth.
+* **Fit Criterion:** No inferred DNA/config is written until explicitly approved; aborting the flow persists nothing.
+* **Traceability:** Feature P2.3 (US-0B-03, BDD `p2-dna/P2.3-dna-infer.feature`); Feature P5.1.2 (US-0B-02,
+  BDD `p5-interaction/P5.1.2-init-infer.feature`).
+
+### REQ-SEC-10 — Integrity checks on built-in templates
+
+* **Description:** Built-in directive and workflow templates are integrity/schema-checked before installation during
+  `init`.
+* **Rationale:** A corrupted baseline must not partially install.
+* **Fit Criterion:** A corrupted or schema-invalid built-in template aborts `init` before writing partial assets, with a
+  message naming the failing template.
+* **Traceability:** Feature P3.8 (US-0A-09, BDD `p3-directives/P3.8-builtin-directive-templates.feature`); Feature P4.17
+  (US-0A-21, BDD `p4-workflow/P4.17-builtin-workflow-templates.feature`).
+
+### REQ-SEC-11 — Notification routing authority by role / decision-type
+
+* **Description:** Each notification is routed only to the roles or persons configured for its decision-type in
+  `dna.yaml`. Routing authority is declarative and role-based; no notification reaches a role that the configuration
+  does not authorize for that decision-type.
+* **Rationale:** Notification routing is a governance control: approval and decision prompts must reach exactly the
+  accountable roles, and must not leak to unconfigured recipients (least-privilege over the notification surface).
+* **Fit Criterion:** `A notification is routed to exactly the roles/persons configured for its decision-type in dna.yaml;
+  0 notifications routed to unconfigured roles — asserted over a routing fixture.`
+* **Traceability:** Feature X1.2 (US-2-03, BDD `x1-notification/X1.2-notification-routing.feature`); Feature X1.1
+  (US-2-02, BDD `x1-notification/X1.1-human-needed-notifications.feature`).

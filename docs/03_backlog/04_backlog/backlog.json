@@ -1,0 +1,2163 @@
+[
+  {
+    "id": "TASK-001",
+    "ref": "REQ-SYS-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-01 - Git-backed single source of truth",
+    "description": "Implement the Architecture constraint REQ-SYS-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-016",
+      "TASK-020"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-002",
+    "ref": "REQ-SYS-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-02 - Decoupled pillars",
+    "description": "Implement the Architecture constraint REQ-SYS-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-022",
+      "TASK-025",
+      "TASK-049",
+      "TASK-067"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-003",
+    "ref": "REQ-SYS-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-04 - Configurable per-type state machines",
+    "description": "Implement the Architecture constraint REQ-SYS-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-022",
+      "TASK-077"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-004",
+    "ref": "REQ-SYS-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-05 - Dual interface over shared core",
+    "description": "Implement the Architecture constraint REQ-SYS-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-027",
+      "TASK-028",
+      "TASK-053",
+      "TASK-087",
+      "TASK-101",
+      "TASK-102",
+      "TASK-103"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-005",
+    "ref": "REQ-SYS-09",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-09 - npm distribution",
+    "description": "Implement the Architecture constraint REQ-SYS-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-09 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.1",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [],
+    "dependencies": [],
+    "note": "related_stories intentionally empty: foundational/cross-cutting infrastructure (npm distribution) not tied to a single story."
+  },
+  {
+    "id": "TASK-006",
+    "ref": "REQ-PERF-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-02 - DNA/Memory query latency",
+    "description": "Implement the Performance constraint REQ-PERF-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-019",
+      "TASK-024",
+      "TASK-044"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-007",
+    "ref": "REQ-PERF-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-04 - MCP resource fetch latency",
+    "description": "Implement the Performance constraint REQ-PERF-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-028"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-008",
+    "ref": "REQ-STATE-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-08 - Default state-machine fallback",
+    "description": "Implement the State constraint REQ-STATE-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-08 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-022"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-009",
+    "ref": "REQ-INT-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-01 - MCP Resources read-only",
+    "description": "Implement the Integrations constraint REQ-INT-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-028"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-010",
+    "ref": "REQ-INT-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-04 - CLI exit-code contract",
+    "description": "Implement the Integrations constraint REQ-INT-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-04 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [],
+    "dependencies": [],
+    "note": "related_stories intentionally empty: foundational/cross-cutting infrastructure (CLI exit-code contract) not tied to a single story."
+  },
+  {
+    "id": "TASK-011",
+    "ref": "REQ-INT-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-05 - Machine-readable formats",
+    "description": "Implement the Integrations constraint REQ-INT-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-026",
+      "TASK-071"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-012",
+    "ref": "REQ-SEC-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-01 - Git identity required",
+    "description": "Implement the Security constraint REQ-SEC-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-017"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-013",
+    "ref": "REQ-SEC-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-02 - Complete audit trail",
+    "description": "Implement the Security constraint REQ-SEC-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-017",
+      "TASK-041",
+      "TASK-042",
+      "TASK-044"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-014",
+    "ref": "REQ-SEC-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-05 - Read-only agent read channel",
+    "description": "Implement the Security constraint REQ-SEC-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-028",
+      "TASK-087"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-015",
+    "ref": "REQ-SEC-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-06 - Storage confinement",
+    "description": "Implement the Security constraint REQ-SEC-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-06 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.1",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-020"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-016",
+    "ref": "P1.1",
+    "type": "User Story",
+    "title": "Implement Git-Backed Storage",
+    "description": "As Alex, deliver feature P1.1 (US-0A-01). See user story map US-0A-01 and BDD p1-memory/P1.1-git-backed-storage.feature.",
+    "acceptance_criteria": "Scenario: Initialize the WingFoil storage structure\nGiven the directory has no \".wingfoil/\" folder\nWhen the WingFoil storage is initialized\nThen a \".wingfoil/\" directory is created\nAnd it contains the subfolders \"memory/\", \"directives/\", and the files \"dna.yaml\", \"memory.yaml\", \"workflows.yaml\"\nAnd the new files are staged as a single git commit authored by the current git user",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-001"
+    ]
+  },
+  {
+    "id": "TASK-017",
+    "ref": "P1.2",
+    "type": "User Story",
+    "title": "Implement Versioning & Audit Trail",
+    "description": "As Morgan, deliver feature P1.2 (US-0A-02). See user story map US-0A-02 and BDD p1-memory/P1.2-versioning-audit-trail.feature.",
+    "acceptance_criteria": "Scenario: Every state change records author and timestamp\nGiven a Memory document \"task-101\" exists\nWhen its frontmatter \"status\" changes from \"draft\" to \"pending\"\nThen a git commit is created for the change\nAnd the commit records the author identity and an ISO-8601 timestamp\nAnd the commit message references the document id \"task-101\" and the new state \"pending\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.2-versioning-audit-trail.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-012",
+      "TASK-013"
+    ]
+  },
+  {
+    "id": "TASK-018",
+    "ref": "P1.3",
+    "type": "User Story",
+    "title": "Implement wingfoil memory add",
+    "description": "As Morgan, deliver feature P1.3 (US-4-01). See user story map US-4-01 and BDD p1-memory/P1.3-memory-add.feature.",
+    "acceptance_criteria": "Scenario: Add a new Memory document in draft state\nWhen I run \"wingfoil memory add --type decision --title 'Use PostgreSQL'\"\nThen a Memory file is created under \".wingfoil/memory/decision/\"\nAnd its frontmatter contains \"status: draft\" and a generated unique id\nAnd the command exits with code 0 and prints the new document id",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.3-memory-add.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-019",
+    "ref": "P1.5",
+    "type": "User Story",
+    "title": "Implement wingfoil memory search",
+    "description": "As Alex, deliver feature P1.5 (US-1-08). See user story map US-1-08 and BDD p1-memory/P1.5-memory-search.feature.",
+    "acceptance_criteria": "Scenario: Find a decision by keyword\nWhen I run \"wingfoil memory search api\"\nThen the results include the document titled \"API design\"\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.5-memory-search.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ]
+  },
+  {
+    "id": "TASK-020",
+    "ref": "P1.11",
+    "type": "User Story",
+    "title": "Implement Memory Entries (git-backed)",
+    "description": "As Alex, deliver feature P1.11 (US-0A-03). See user story map US-0A-03 and BDD p1-memory/P1.11-memory-entries.feature.",
+    "acceptance_criteria": "Scenario: Memory store is ready after initialization\nWhen I inspect the project structure\nThen a \".wingfoil/memory/\" directory exists\nAnd it is tracked by git",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.11-memory-entries.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-015"
+    ]
+  },
+  {
+    "id": "TASK-021",
+    "ref": "P1.12",
+    "type": "User Story",
+    "title": "Implement Keyword Memory Search",
+    "description": "As Alex, deliver feature P1.12 (US-1-09). See user story map US-1-09 and BDD p1-memory/P1.12-keyword-search.feature.",
+    "acceptance_criteria": "Scenario: Keyword match against document body and metadata\nWhen I search for \"caching\"\nThen both \"A\" and \"B\" are returned\nAnd results are ranked with metadata matches before body-only matches",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.12-keyword-search.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-022",
+    "ref": "P1.13",
+    "type": "User Story",
+    "title": "Implement Memory Element Schema (memory.yaml)",
+    "description": "As Morgan, deliver feature P1.13 (US-0A-04). See user story map US-0A-04 and BDD p1-memory/P1.13-memory-element-schema.feature.",
+    "acceptance_criteria": "Scenario: Validate a well-formed element schema\nGiven \".wingfoil/memory.yaml\" defines type \"release\" with states and transitions\nWhen the schema is validated\nThen validation passes\nAnd the \"release\" type exposes initial state \"draft\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.13-memory-element-schema.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-002",
+      "TASK-003",
+      "TASK-008"
+    ]
+  },
+  {
+    "id": "TASK-023",
+    "ref": "P2.1",
+    "type": "User Story",
+    "title": "Implement wingfoil dna set",
+    "description": "As Alex, deliver feature P2.1 (US-0A-08). See user story map US-0A-08 and BDD p2-dna/P2.1-dna-set.feature.",
+    "acceptance_criteria": "Scenario: Set a DNA field\nWhen I run \"wingfoil dna set tech_stack.language python\"\nThen \".wingfoil/dna.yaml\" contains \"language: python\" under \"tech_stack\"\nAnd the change is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.1-dna-set.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-024",
+    "ref": "P2.2",
+    "type": "User Story",
+    "title": "Implement wingfoil dna show",
+    "description": "As Jordan, deliver feature P2.2 (US-3-03). See user story map US-3-03 and BDD p2-dna/P2.2-dna-show.feature.",
+    "acceptance_criteria": "Scenario: Display the full DNA\nWhen I run \"wingfoil dna show\"\nThen the output includes tech stack, modules, conventions, and team sections\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ]
+  },
+  {
+    "id": "TASK-025",
+    "ref": "P2.4",
+    "type": "User Story",
+    "title": "Implement Project DNA (structured config)",
+    "description": "As Alex, deliver feature P2.4 (US-0A-05). See user story map US-0A-05 and BDD p2-dna/P2.4-project-dna-config.feature.",
+    "acceptance_criteria": "Scenario: DNA file exists and is schema-valid after init\nWhen I validate \".wingfoil/dna.yaml\"\nThen validation passes\nAnd the file declares the sections \"modules\", \"tech_stack\", \"team\", \"conventions\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.4-project-dna-config.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-002"
+    ]
+  },
+  {
+    "id": "TASK-026",
+    "ref": "P2.5",
+    "type": "User Story",
+    "title": "Implement wingfoil paths [category]",
+    "description": "As Alex, deliver feature P2.5 (US-0A-22). See user story map US-0A-22 and BDD p2-dna/P2.5-paths.feature.",
+    "acceptance_criteria": "Scenario: List paths for a category\nWhen I run \"wingfoil paths sources --list\"\nThen the output contains \"src/\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.5-paths.feature",
+    "priority": "High",
+    "release": "v0.1",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-011"
+    ]
+  },
+  {
+    "id": "TASK-027",
+    "ref": "P5.1.1",
+    "type": "User Story",
+    "title": "Implement wingfoil init",
+    "description": "As Alex, deliver feature P5.1.1 (US-0A-06). See user story map US-0A-06 and BDD p5-interaction/P5.1.1-init.feature.",
+    "acceptance_criteria": "Scenario: Initialize with the wizard and a selected template\nWhen I run \"wingfoil init\" and select the \"Scrum\" template through the wizard\nThen a complete \".wingfoil/\" structure is created (dna, memory, directives, workflows)\nAnd no manual YAML editing was required\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.1-init.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "note": "Task remains in v0.1; the 'init --template' portion is planned for v0.4 (split recorded in the USM index)."
+  },
+  {
+    "id": "TASK-028",
+    "ref": "P5.2.1",
+    "type": "User Story",
+    "title": "Implement MCP Resources (DNA + Memory)",
+    "description": "As Agents, deliver feature P5.2.1 (US-1-07). See user story map US-1-07 and BDD p5-interaction/P5.2.1-mcp-resources.feature.",
+    "acceptance_criteria": "Scenario: Fetch a Memory document as an MCP resource\nWhen the agent requests the resource for Memory document \"decision-12\"\nThen the document content and metadata are returned\nAnd the response is produced in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.1-mcp-resources.feature",
+    "priority": "Critical",
+    "release": "v0.1",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.1"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-007",
+      "TASK-009",
+      "TASK-014"
+    ]
+  },
+  {
+    "id": "TASK-029",
+    "ref": "REQ-SYS-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-08 - Role-based binding",
+    "description": "Implement the Architecture constraint REQ-SYS-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-08 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-046",
+      "TASK-051",
+      "TASK-080",
+      "TASK-092"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-030",
+    "ref": "REQ-PERF-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-05 - Bounded context via relevance",
+    "description": "Implement the Performance constraint REQ-PERF-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-05 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-043",
+      "TASK-090"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-031",
+    "ref": "REQ-STATE-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-01 - Frontmatter lifecycle, per-type validated",
+    "description": "Implement the State constraint REQ-STATE-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-040",
+      "TASK-077",
+      "TASK-079"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-032",
+    "ref": "REQ-STATE-05",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-05 - Role/task-scoped context",
+    "description": "Implement the State constraint REQ-STATE-05. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-05 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-050",
+      "TASK-093",
+      "TASK-094"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-033",
+    "ref": "REQ-STATE-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-06 - Deprecated excluded from context",
+    "description": "Implement the State constraint REQ-STATE-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-06 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-043",
+      "TASK-090"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-034",
+    "ref": "REQ-INT-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-02 - MCP Prompts role-based",
+    "description": "Implement the Integrations constraint REQ-INT-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-050",
+      "TASK-053"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-035",
+    "ref": "REQ-SEC-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-03 - Role-based approval authority",
+    "description": "Implement the Security constraint REQ-SEC-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-03 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-041",
+      "TASK-080"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-036",
+    "ref": "REQ-SEC-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-04 - Mandatory reason on verbs",
+    "description": "Implement the Security constraint REQ-SEC-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-041",
+      "TASK-042",
+      "TASK-043"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-037",
+    "ref": "REQ-SEC-07",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-07 - Immutable built-in assets",
+    "description": "Implement the Security constraint REQ-SEC-07. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-07 in the SARD.",
+    "priority": "Medium",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-047",
+      "TASK-075"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-038",
+    "ref": "REQ-SEC-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-08 - Secret/credential hygiene",
+    "description": "Implement the Security constraint REQ-SEC-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-08 in the SARD.",
+    "priority": "High",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-052"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-039",
+    "ref": "REQ-SEC-10",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-10 - Built-in template integrity",
+    "description": "Implement the Security constraint REQ-SEC-10. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-10 in the SARD.",
+    "priority": "High",
+    "release": "v0.2",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-052",
+      "TASK-083"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-040",
+    "ref": "P1.6",
+    "type": "User Story",
+    "title": "Implement wingfoil memory submit",
+    "description": "As Jordan, deliver feature P1.6 (US-3-09). See user story map US-3-09 and BDD p1-memory/P1.6-memory-submit.feature.",
+    "acceptance_criteria": "Scenario: Submit a draft document for approval\nWhen I run \"wingfoil memory submit task-101\"\nThen the document frontmatter becomes \"status: pending\"\nAnd the transition is recorded in git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.6-memory-submit.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-031"
+    ]
+  },
+  {
+    "id": "TASK-041",
+    "ref": "P1.7",
+    "type": "User Story",
+    "title": "Implement wingfoil memory approve",
+    "description": "As Sam, deliver feature P1.7 (US-2-10). See user story map US-2-10 and BDD p1-memory/P1.7-memory-approve.feature.",
+    "acceptance_criteria": "Scenario: Approve a pending document with a reason\nWhen I run \"wingfoil memory approve task-101 --reason 'meets standards'\"\nThen the document transitions to the type's post-review approved state\nAnd the git commit records the approver identity, timestamp, and reason \"meets standards\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.7-memory-approve.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-013",
+      "TASK-035",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-042",
+    "ref": "P1.8",
+    "type": "User Story",
+    "title": "Implement wingfoil memory reject",
+    "description": "As Morgan, deliver feature P1.8 (US-4-11). See user story map US-4-11 and BDD p1-memory/P1.8-memory-reject.feature.",
+    "acceptance_criteria": "Scenario: Reject a pending document with feedback\nWhen I run \"wingfoil memory reject task-101 --reason 'tests missing'\"\nThen the document frontmatter becomes \"status: draft\"\nAnd the git commit records the rejecter identity, timestamp, and reason \"tests missing\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.8-memory-reject.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-013",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-043",
+    "ref": "P1.9",
+    "type": "User Story",
+    "title": "Implement wingfoil memory deprecate",
+    "description": "As Casey, deliver feature P1.9 (US-5-04). See user story map US-5-04 and BDD p1-memory/P1.9-memory-deprecate.feature.",
+    "acceptance_criteria": "Scenario: Deprecate an approved document\nWhen I run \"wingfoil memory deprecate decision-12 --reason 'superseded by decision-20'\"\nThen the document frontmatter becomes \"status: deprecated\"\nAnd the file remains present in the repository\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.9-memory-deprecate.feature",
+    "priority": "Medium",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-030",
+      "TASK-033",
+      "TASK-036"
+    ]
+  },
+  {
+    "id": "TASK-044",
+    "ref": "P1.10",
+    "type": "User Story",
+    "title": "Implement wingfoil memory history",
+    "description": "As Casey, deliver feature P1.10 (US-5-08). See user story map US-5-08 and BDD p1-memory/P1.10-memory-history.feature.",
+    "acceptance_criteria": "Scenario: View the full audit trail of a document\nWhen I run \"wingfoil memory history decision-12\"\nThen the output lists 3 entries in chronological order\nAnd each entry shows author, ISO-8601 timestamp, state change, and reason\nAnd the query returns in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.10-memory-history.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-006",
+      "TASK-013"
+    ]
+  },
+  {
+    "id": "TASK-045",
+    "ref": "P3.1",
+    "type": "User Story",
+    "title": "Implement wingfoil directive create",
+    "description": "As Morgan, deliver feature P3.1 (US-4-02). See user story map US-4-02 and BDD p3-directives/P3.1-directive-create.feature.",
+    "acceptance_criteria": "Scenario: Create a new custom directive\nWhen I run \"wingfoil directive create --name no-direct-db-access\"\nThen a directive file \"no-direct-db-access\" is created under \".wingfoil/directives/custom/\"\nAnd the change is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.1-directive-create.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-046",
+    "ref": "P3.2",
+    "type": "User Story",
+    "title": "Implement wingfoil directive assign",
+    "description": "As Morgan, deliver feature P3.2 (US-4-05). See user story map US-4-05 and BDD p3-directives/P3.2-directive-assign.feature.",
+    "acceptance_criteria": "Scenario: Assign a directive to a role\nWhen I run \"wingfoil directive assign --directive testing --role developer\"\nThen the role \"developer\" lists \"testing\" among its assigned directives\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.2-directive-assign.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-029"
+    ]
+  },
+  {
+    "id": "TASK-047",
+    "ref": "P3.3",
+    "type": "User Story",
+    "title": "Implement wingfoil directive remove",
+    "description": "As Morgan, deliver feature P3.3 (US-6-07). See user story map US-6-07 and BDD p3-directives/P3.3-directive-remove.feature.",
+    "acceptance_criteria": "Scenario: Remove an unreferenced custom directive\nGiven \"legacy-rule\" is not assigned to any role or workflow step\nWhen I run \"wingfoil directive remove legacy-rule\"\nThen the directive file is deleted\nAnd the removal is committed to git\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.3-directive-remove.feature",
+    "priority": "Medium",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-037"
+    ]
+  },
+  {
+    "id": "TASK-048",
+    "ref": "P3.4",
+    "type": "User Story",
+    "title": "Implement wingfoil directives list",
+    "description": "As Morgan, deliver feature P3.4 (US-4-04). See user story map US-4-04 and BDD p3-directives/P3.4-directives-list.feature.",
+    "acceptance_criteria": "Scenario: List all directives with assignments\nWhen I run \"wingfoil directives list\"\nThen the output includes the 6 built-in directives and \"no-direct-db-access\"\nAnd each directive shows its assigned roles (or \"unassigned\")",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.4-directives-list.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-049",
+    "ref": "P3.5",
+    "type": "User Story",
+    "title": "Implement Project Directives (custom + built-in)",
+    "description": "As Morgan, deliver feature P3.5 (US-4-03). See user story map US-4-03 and BDD p3-directives/P3.5-project-directives.feature.",
+    "acceptance_criteria": "Scenario: Directive storage layout exists after init\nWhen I inspect \".wingfoil/directives/\"\nThen it contains a \"built-in/\" and a \"custom/\" subfolder\nAnd both are tracked by git",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.5-project-directives.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-002"
+    ]
+  },
+  {
+    "id": "TASK-050",
+    "ref": "P3.6",
+    "type": "User Story",
+    "title": "Implement Auto-Load Directives by Role",
+    "description": "As Jordan, deliver feature P3.6 (US-3-06). See user story map US-3-06 and BDD p3-directives/P3.6-auto-load-by-role.feature.",
+    "acceptance_criteria": "Scenario: Directives auto-load at task execution\nWhen an agent executes a task under the \"developer\" role\nThen the agent context includes the \"testing\" and \"code-quality\" directives\nAnd 100% of the role's assigned directives are present in the context",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.6-auto-load-by-role.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-032",
+      "TASK-034"
+    ]
+  },
+  {
+    "id": "TASK-051",
+    "ref": "P3.7",
+    "type": "User Story",
+    "title": "Implement Role-Based Directive Assignment",
+    "description": "As Morgan, deliver feature P3.7 (US-4-06). See user story map US-4-06 and BDD p3-directives/P3.7-role-based-assignment.feature.",
+    "acceptance_criteria": "Scenario: Bind multiple directives to one role\nWhen I assign \"testing\", \"code-quality\", and \"security\" to role \"developer\"\nThen role \"developer\" lists exactly those 3 directives",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.7-role-based-assignment.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-029"
+    ]
+  },
+  {
+    "id": "TASK-052",
+    "ref": "P3.8",
+    "type": "User Story",
+    "title": "Implement Built-in Directive Templates",
+    "description": "As Alex, deliver feature P3.8 (US-0A-09). See user story map US-0A-09 and BDD p3-directives/P3.8-builtin-directive-templates.feature.",
+    "acceptance_criteria": "Scenario: Built-in templates are installed during init\nWhen initialization completes\nThen \".wingfoil/directives/built-in/\" contains exactly 6 templates\nAnd the set is: code-quality, testing, code-review, architecture, security, documentation",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p3-directives/P3.8-builtin-directive-templates.feature",
+    "priority": "High",
+    "release": "v0.2",
+    "pillar": "P3",
+    "tags": [
+      "MVP",
+      "P3",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-038",
+      "TASK-039"
+    ]
+  },
+  {
+    "id": "TASK-053",
+    "ref": "P5.2.2",
+    "type": "User Story",
+    "title": "Implement MCP Prompts (role-based)",
+    "description": "As Agents, deliver feature P5.2.2 (US-1-06). See user story map US-1-06 and BDD p5-interaction/P5.2.2-mcp-prompts.feature.",
+    "acceptance_criteria": "Scenario: Auto-load role prompt at session start\nWhen an agent session starts under the \"developer\" role\nThen the MCP prompt for \"developer\" is returned\nAnd it embeds the \"testing\" and \"code-quality\" directives",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.2-mcp-prompts.feature",
+    "priority": "Critical",
+    "release": "v0.2",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.2"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-034"
+    ]
+  },
+  {
+    "id": "TASK-054",
+    "ref": "REQ-SYS-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-03 - Stateless state derivation",
+    "description": "Implement the Architecture constraint REQ-SYS-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-03 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-079"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-055",
+    "ref": "REQ-SYS-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-06 - include() composition, main/sub",
+    "description": "Implement the Architecture constraint REQ-SYS-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-06 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-067",
+      "TASK-068",
+      "TASK-082"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-056",
+    "ref": "REQ-SYS-07",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SYS-07 - Deterministic context assembly",
+    "description": "Implement the Architecture constraint REQ-SYS-07. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SYS-07 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Architecture",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Architecture"
+    ],
+    "related_stories": [
+      "TASK-094"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-057",
+    "ref": "REQ-PERF-01",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-01 - Agent context load time",
+    "description": "Implement the Performance constraint REQ-PERF-01. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-01 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-088",
+      "TASK-093"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-058",
+    "ref": "REQ-PERF-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-PERF-03 - workflow next latency",
+    "description": "Implement the Performance constraint REQ-PERF-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-PERF-03 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Performance",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Performance"
+    ],
+    "related_stories": [
+      "TASK-070"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-059",
+    "ref": "REQ-STATE-02",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-02 - State recomputability",
+    "description": "Implement the State constraint REQ-STATE-02. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-02 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-079"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-060",
+    "ref": "REQ-STATE-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-03 - Active context, multiple mains",
+    "description": "Implement the State constraint REQ-STATE-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-03 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-068",
+      "TASK-069"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-061",
+    "ref": "REQ-STATE-04",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-04 - Atomic step execution",
+    "description": "Implement the State constraint REQ-STATE-04. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-04 in the SARD.",
+    "priority": "Blocker",
+    "release": "v1.0",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-076"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-062",
+    "ref": "REQ-STATE-07",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-07 - include() iteration state",
+    "description": "Implement the State constraint REQ-STATE-07. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-07 in the SARD.",
+    "priority": "High",
+    "release": "v0.3",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-082"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-063",
+    "ref": "REQ-STATE-09",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-STATE-09 - Context determinism",
+    "description": "Implement the State constraint REQ-STATE-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-STATE-09 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "State",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "State"
+    ],
+    "related_stories": [
+      "TASK-094"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-064",
+    "ref": "REQ-INT-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-03 - MCP Tools state mutation",
+    "description": "Implement the Integrations constraint REQ-INT-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-03 in the SARD.",
+    "priority": "High",
+    "release": "v0.4",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-087"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-065",
+    "ref": "REQ-INT-06",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-06 - Git operations as actions",
+    "description": "Implement the Integrations constraint REQ-INT-06. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-06 in the SARD.",
+    "priority": "Blocker",
+    "release": "v1.0",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-076"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-066",
+    "ref": "REQ-INT-07",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-07 - Agent execution wrapper",
+    "description": "Implement the Integrations constraint REQ-INT-07. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-07 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.3",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-088",
+      "TASK-089"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-067",
+    "ref": "P4.1",
+    "type": "User Story",
+    "title": "Implement Project Workflow (configuration)",
+    "description": "As Morgan, deliver feature P4.1 (US-0A-15). See user story map US-0A-15 and BDD p4-workflow/P4.1-workflow-config.feature.",
+    "acceptance_criteria": "Scenario: Load a valid workflow configuration\nGiven \".wingfoil/workflows.yaml\" declares a workflow \"release-cycle\" with kind \"main\"\nWhen the workflow configuration is loaded\nThen \"release-cycle\" is registered as an independently startable main workflow",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.1-workflow-config.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-002",
+      "TASK-055"
+    ]
+  },
+  {
+    "id": "TASK-068",
+    "ref": "P4.2",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow start",
+    "description": "As Alex, deliver feature P4.2 (US-0A-16). See user story map US-0A-16 and BDD p4-workflow/P4.2-workflow-start.feature.",
+    "acceptance_criteria": "Scenario: Start a main workflow\nWhen I run \"wingfoil workflow start --name release-cycle\"\nThen \"release-cycle\" becomes the active workflow context\nAnd its first step is initialized\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.2-workflow-start.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-055",
+      "TASK-060"
+    ]
+  },
+  {
+    "id": "TASK-069",
+    "ref": "P4.3",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow end",
+    "description": "As Alex, deliver feature P4.3 (US-0A-17). See user story map US-0A-17 and BDD p4-workflow/P4.3-workflow-end.feature.",
+    "acceptance_criteria": "Scenario: End the active workflow\nWhen I run \"wingfoil workflow end\"\nThen \"release-cycle\" is closed\nAnd the active workflow context is cleared\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.3-workflow-end.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-060"
+    ]
+  },
+  {
+    "id": "TASK-070",
+    "ref": "P4.4",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow next",
+    "description": "As Alex, deliver feature P4.4 (US-1-01). See user story map US-1-01 and BDD p4-workflow/P4.4-workflow-next.feature.",
+    "acceptance_criteria": "Scenario: Show the next actionable step\nWhen I run \"wingfoil workflow next\"\nThen the output shows the next step name, its target element, the role, and role directives\nAnd the response is produced in under 1 second",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.4-workflow-next.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-058"
+    ]
+  },
+  {
+    "id": "TASK-071",
+    "ref": "P4.5",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow status",
+    "description": "As Sam, deliver feature P4.5 (US-2-01). See user story map US-2-01 and BDD p4-workflow/P4.5-workflow-status.feature.",
+    "acceptance_criteria": "Scenario: Show status of all open workflows\nWhen I run \"wingfoil workflow status\"\nThen both open workflows are listed\nAnd the active workflow is highlighted\nAnd the 1 pending approval is shown",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.5-workflow-status.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-011"
+    ]
+  },
+  {
+    "id": "TASK-072",
+    "ref": "P4.6",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow list",
+    "description": "As Alex, deliver feature P4.6 (US-0A-18). See user story map US-0A-18 and BDD p4-workflow/P4.6-workflow-list.feature.",
+    "acceptance_criteria": "Scenario: List only currently executable workflows\nWhen I run \"wingfoil workflow list\"\nThen \"release-cycle\" and \"report-bug\" are listed as startable\nAnd \"dev-loop\" is NOT listed because it is not the next step",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.6-workflow-list.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-073",
+    "ref": "P4.7",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow show",
+    "description": "As Alex, deliver feature P4.7 (US-0A-19). See user story map US-0A-19 and BDD p4-workflow/P4.7-workflow-show.feature.",
+    "acceptance_criteria": "Scenario: Show a workflow's structure\nWhen I run \"wingfoil workflow show --name release-cycle\"\nThen the output lists each phase, its steps, the role directives, and the Memory elements",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.7-workflow-show.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-074",
+    "ref": "P4.8",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow create",
+    "description": "As Morgan, deliver feature P4.8 (US-6-02). See user story map US-6-02 and BDD p4-workflow/P4.8-workflow-create.feature.",
+    "acceptance_criteria": "Scenario: Create a custom workflow via flags\nWhen I run \"wingfoil workflow create --name arch-review --kind main\"\nThen a workflow file \"arch-review\" is created under \".wingfoil/workflows/custom/\"\nAnd it is referenced by the main \".wingfoil/workflows.yaml\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.8-workflow-create.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-075",
+    "ref": "P4.9",
+    "type": "User Story",
+    "title": "Implement wingfoil workflow remove",
+    "description": "As Morgan, deliver feature P4.9 (US-6-11). See user story map US-6-11 and BDD p4-workflow/P4.9-workflow-remove.feature.",
+    "acceptance_criteria": "Scenario: Remove an unreferenced custom workflow\nGiven \"arch-review\" is not included by any other workflow\nWhen I run \"wingfoil workflow remove arch-review\"\nThen the workflow file is deleted and the removal is committed\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.9-workflow-remove.feature",
+    "priority": "Medium",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-037"
+    ]
+  },
+  {
+    "id": "TASK-076",
+    "ref": "P4.10",
+    "type": "User Story",
+    "title": "Implement Workflow Steps (atomic actions)",
+    "description": "As All, deliver feature P4.10 (US-0A-20). See user story map US-0A-20 and BDD p4-workflow/P4.10-workflow-steps.feature.",
+    "acceptance_criteria": "Scenario: Execute an atomic step action successfully\nWhen the step is executed\nThen a git branch named after the task id is created\nAnd the step is marked complete\nAnd the action is recorded in git history",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.10-workflow-steps.feature",
+    "priority": "Critical",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": [
+      "TASK-061",
+      "TASK-065"
+    ]
+  },
+  {
+    "id": "TASK-077",
+    "ref": "P4.11",
+    "type": "User Story",
+    "title": "Implement Deliverables (Memory + State)",
+    "description": "As Jordan, deliver feature P4.11 (US-4-08). See user story map US-4-08 and BDD p4-workflow/P4.11-deliverables.feature.",
+    "acceptance_criteria": "Scenario: Create a deliverable with initial state\nWhen I run \"wingfoil memory add --type task --title 'implement billing'\"\nThen a deliverable file is created with frontmatter \"status: draft\"\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.11-deliverables.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-003",
+      "TASK-031"
+    ]
+  },
+  {
+    "id": "TASK-078",
+    "ref": "P4.12",
+    "type": "User Story",
+    "title": "Implement Workflow Checks (pre/post)",
+    "description": "As Morgan, deliver feature P4.12 (US-6-03). See user story map US-6-03 and BDD p4-workflow/P4.12-workflow-checks.feature.",
+    "acceptance_criteria": "Scenario: Step passes when the check is satisfied\nGiven the measured test coverage is 85 percent\nWhen the post-check runs\nThen the check passes\nAnd the step is allowed to complete",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.12-workflow-checks.feature",
+    "priority": "Critical",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-079",
+    "ref": "P4.13",
+    "type": "User Story",
+    "title": "Implement Workflow State Deduction",
+    "description": "As All, deliver feature P4.13 (US-1-02). See user story map US-1-02 and BDD p4-workflow/P4.13-state-deduction.feature.",
+    "acceptance_criteria": "Scenario: Deduce task progress from frontmatter\nGiven a \"task\" file has frontmatter \"status: in-progress\"\nWhen workflow state is computed\nThen that task is reported as being implemented\nAnd the result is derived only from the Memory file, not a separate index",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.13-state-deduction.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-031",
+      "TASK-054",
+      "TASK-059"
+    ]
+  },
+  {
+    "id": "TASK-080",
+    "ref": "P4.14",
+    "type": "User Story",
+    "title": "Implement Approval Routing (role-based)",
+    "description": "As Morgan, deliver feature P4.14 (US-4-07). See user story map US-4-07 and BDD p4-workflow/P4.14-approval-routing.feature.",
+    "acceptance_criteria": "Scenario: Route a pending approval to the role holder\nWhen a deliverable reaches the approval step\nThen the approval request is routed to \"Morgan\"\nAnd \"Morgan\" is recorded as the responsible approver",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.14-approval-routing.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-029",
+      "TASK-035"
+    ]
+  },
+  {
+    "id": "TASK-081",
+    "ref": "P4.15",
+    "type": "User Story",
+    "title": "Implement Fallback on Rejection",
+    "description": "As Morgan, deliver feature P4.15 (US-4-12). See user story map US-4-12 and BDD p4-workflow/P4.15-fallback-on-rejection.feature.",
+    "acceptance_criteria": "Scenario: Reject jumps to the fallback step and sets state\nWhen \"task-101\" is rejected at the review step\nThen the workflow position moves to step \"red\"\nAnd \"task-101\" frontmatter becomes \"status: in-progress\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.15-fallback-on-rejection.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-082",
+    "ref": "P4.16",
+    "type": "User Story",
+    "title": "Implement Workflow include() Composition",
+    "description": "As Morgan, deliver feature P4.16 (US-6-04). See user story map US-6-04 and BDD p4-workflow/P4.16-include-composition.feature.",
+    "acceptance_criteria": "Scenario: Iterate the included sub once per matching element\nGiven 3 tasks have \"status: backlog\" and 1 task has \"status: done\"\nWhen the phase executes\nThen the sub \"dev-loop\" runs exactly 3 times, once per backlog task",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.16-include-composition.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-055",
+      "TASK-062"
+    ]
+  },
+  {
+    "id": "TASK-083",
+    "ref": "P4.17",
+    "type": "User Story",
+    "title": "Implement Built-in Workflow Templates (Task, Release)",
+    "description": "As Alex, deliver feature P4.17 (US-0A-21). See user story map US-0A-21 and BDD p4-workflow/P4.17-builtin-workflow-templates.feature.",
+    "acceptance_criteria": "Scenario: Built-in workflow templates are available after init\nWhen initialization completes\nThen a main workflow template \"release-cycle\" is available\nAnd an includable sub template \"task\" is available",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.17-builtin-workflow-templates.feature",
+    "priority": "High",
+    "release": "v1.0",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v1.0"
+    ],
+    "dependencies": [
+      "TASK-039"
+    ]
+  },
+  {
+    "id": "TASK-084",
+    "ref": "P4.18",
+    "type": "User Story",
+    "title": "Implement Reference Workflow Templates",
+    "description": "As Alex, deliver feature P4.18 (US-0A-10). See user story map US-0A-10 and BDD p4-workflow/P4.18-reference-workflow-templates.feature.",
+    "acceptance_criteria": "Scenario Outline: Select a reference methodology template\nWhen I select the \"<methodology>\" reference template during init\nThen a workflow configuration matching \"<methodology>\" is generated\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.18-reference-workflow-templates.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-085",
+    "ref": "P4.19",
+    "type": "User Story",
+    "title": "Implement Template Expansion",
+    "description": "As Alex, deliver feature P4.19 (US-0A-11). See user story map US-0A-11 and BDD p4-workflow/P4.19-template-expansion.feature.",
+    "acceptance_criteria": "Scenario: Expansion generates the full configuration set\nWhen the template is expanded\nThen workflow phases, role directives, and Memory sections are generated together\nAnd the generated artifacts are committed to git",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.19-template-expansion.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-086",
+    "ref": "P4.20",
+    "type": "User Story",
+    "title": "Implement Template Customization",
+    "description": "As Morgan, deliver feature P4.20 (US-0A-12). See user story map US-0A-12 and BDD p4-workflow/P4.20-template-customization.feature.",
+    "acceptance_criteria": "Scenario: Override a template default\nWhen I override the approval role to \"lead-architect\"\nThen the resulting workflow uses \"lead-architect\" as the approval role\nAnd the override is persisted in the custom workflow file",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p4-workflow/P4.20-template-customization.feature",
+    "priority": "Medium",
+    "release": "v0.3",
+    "pillar": "P4",
+    "tags": [
+      "MVP",
+      "P4",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-087",
+    "ref": "P5.2.3",
+    "type": "User Story",
+    "title": "Implement MCP Tools (state management)",
+    "description": "As Agents, deliver feature P5.2.3 (US-2-11). See user story map US-2-11 and BDD p5-interaction/P5.2.3-mcp-tools.feature.",
+    "acceptance_criteria": "Scenario: Submit a deliverable through an MCP tool\nWhen the agent invokes the MCP tool \"memory.submit\" for \"task-101\"\nThen \"task-101\" transitions to \"status: pending\"\nAnd the change is committed to git with the agent as author",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.3-mcp-tools.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-014",
+      "TASK-064"
+    ]
+  },
+  {
+    "id": "TASK-088",
+    "ref": "P5.3.1",
+    "type": "User Story",
+    "title": "Implement wingfoil agent execute [--next]",
+    "description": "As Alex, deliver feature P5.3.1 (US-1-03). See user story map US-1-03 and BDD p5-interaction/P5.3.1-agent-execute.feature.",
+    "acceptance_criteria": "Scenario: Launch agent resolving role and element from the step\nWhen I run \"wingfoil agent execute --next\"\nThen the agent starts with role \"developer\" and element \"task:101\"\nAnd DNA, Memory, and directives for that role are pre-loaded\nAnd the agent is ready within 30 seconds of launch",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.3.1-agent-execute.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-057",
+      "TASK-066"
+    ]
+  },
+  {
+    "id": "TASK-089",
+    "ref": "P5.3.2",
+    "type": "User Story",
+    "title": "Implement Agent Role Selection per Step",
+    "description": "As All, deliver feature P5.3.2 (US-2-07). See user story map US-2-07 and BDD p5-interaction/P5.3.2-agent-role-selection.feature.",
+    "acceptance_criteria": "Scenario: Role is selected from the current step\nWhen an agent executes the \"Code Review\" step\nThen the agent runs under role \"reviewer\"\nAnd reviewer directives are loaded",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.3.2-agent-role-selection.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-066"
+    ]
+  },
+  {
+    "id": "TASK-090",
+    "ref": "P5.3.3",
+    "type": "User Story",
+    "title": "Implement Relevance Filtering",
+    "description": "As Agents, deliver feature P5.3.3 (US-1-10). See user story map US-1-10 and BDD p5-interaction/P5.3.3-relevance-filtering.feature.",
+    "acceptance_criteria": "Scenario: Load only relevant documents\nWhen the agent assembles task context\nThen only the 5 relevant documents are loaded\nAnd the 95 unrelated documents are excluded",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.3.3-relevance-filtering.feature",
+    "priority": "Medium",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-030",
+      "TASK-033"
+    ]
+  },
+  {
+    "id": "TASK-091",
+    "ref": "P5.4.1",
+    "type": "User Story",
+    "title": "Implement Agent Role Definition",
+    "description": "As Morgan, deliver feature P5.4.1 (US-0A-13). See user story map US-0A-13 and BDD p5-interaction/P5.4.1-agent-role-definition.feature.",
+    "acceptance_criteria": "Scenario: Define a built-in agent role\nWhen I define the role \"reviewer\" in DNA\nThen \"reviewer\" is available for directive assignment and step routing",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.1-agent-role-definition.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-092",
+    "ref": "P5.4.2",
+    "type": "User Story",
+    "title": "Implement Agent Role -> Directives Binding",
+    "description": "As Morgan, deliver feature P5.4.2 (US-3-07). See user story map US-3-07 and BDD p5-interaction/P5.4.2-role-directives-binding.feature.",
+    "acceptance_criteria": "Scenario: Bound directives auto-load on agent execution\nWhen an agent executes under role \"developer\"\nThen the \"testing\" directive is loaded into the agent context automatically",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.2-role-directives-binding.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-029"
+    ]
+  },
+  {
+    "id": "TASK-093",
+    "ref": "P5.4.3",
+    "type": "User Story",
+    "title": "Implement Agent Context Pre-Loading",
+    "description": "As Agents, deliver feature P5.4.3 (US-1-04). See user story map US-1-04 and BDD p5-interaction/P5.4.3-context-preloading.feature.",
+    "acceptance_criteria": "Scenario: Pre-load context within the time budget\nWhen the agent initializes\nThen DNA, relevant Memory, and role directives are fetched automatically\nAnd pre-loading completes in under 30 seconds",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.3-context-preloading.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-032",
+      "TASK-057"
+    ]
+  },
+  {
+    "id": "TASK-094",
+    "ref": "P5.4.4",
+    "type": "User Story",
+    "title": "Implement Agent Execution Context",
+    "description": "As Agents, deliver feature P5.4.4 (US-1-05). See user story map US-1-05 and BDD p5-interaction/P5.4.4-execution-context.feature.",
+    "acceptance_criteria": "Scenario: Receive a structured execution context\nWhen the task starts\nThen the agent receives a context object containing distinct DNA, Memory, and Directives sections\nAnd each section is individually addressable",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.4-execution-context.feature",
+    "priority": "Critical",
+    "release": "v0.3",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-032",
+      "TASK-056",
+      "TASK-063"
+    ]
+  },
+  {
+    "id": "TASK-095",
+    "ref": "X1.1",
+    "type": "User Story",
+    "title": "Implement Human Needed Notifications",
+    "description": "As Morgan, deliver feature X1.1 (US-2-02). See user story map US-2-02 and BDD x1-notification/X1.1-human-needed-notifications.feature.",
+    "acceptance_criteria": "Scenario: Notify on a pending approval\nGiven a deliverable transitions to \"status: pending\" requiring approval\nWhen the notification system processes the event\nThen a \"human needed\" notification is emitted naming the required action and the document id",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/x1-notification/X1.1-human-needed-notifications.feature",
+    "priority": "High",
+    "release": "v0.3",
+    "pillar": "X1",
+    "tags": [
+      "MVP",
+      "X1",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-105",
+      "TASK-106"
+    ]
+  },
+  {
+    "id": "TASK-096",
+    "ref": "X1.2",
+    "type": "User Story",
+    "title": "Implement Notification Routing",
+    "description": "As Morgan, deliver feature X1.2 (US-2-03). See user story map US-2-03 and BDD x1-notification/X1.2-notification-routing.feature.",
+    "acceptance_criteria": "Scenario: Route an approval notification to the role holder\nGiven an approval requires the \"approver\" role\nWhen the notification is routed\nThen it is delivered to \"Morgan\"\nAnd it is NOT delivered to \"Casey\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/x1-notification/X1.2-notification-routing.feature",
+    "priority": "Medium",
+    "release": "v0.3",
+    "pillar": "X1",
+    "tags": [
+      "MVP",
+      "X1",
+      "v0.3"
+    ],
+    "dependencies": [
+      "TASK-106"
+    ]
+  },
+  {
+    "id": "TASK-097",
+    "ref": "REQ-INT-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-08 - Consistent CLI error format",
+    "description": "Implement the Integrations constraint REQ-INT-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-08 in the SARD.",
+    "priority": "High",
+    "release": "v0.4",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-103"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-098",
+    "ref": "REQ-SEC-09",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-09 - Human approval before inferred writes",
+    "description": "Implement the Security constraint REQ-SEC-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-09 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.4",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-100",
+      "TASK-101"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-099",
+    "ref": "P1.4",
+    "type": "User Story",
+    "title": "Implement wingfoil memory import",
+    "description": "As Alex, deliver feature P1.4 (US-0B-04). See user story map US-0B-04 and BDD p1-memory/P1.4-memory-import.feature.",
+    "acceptance_criteria": "Scenario: Import existing documents with extracted metadata\nWhen I run \"wingfoil memory import\" and confirm each proposed document\nThen 3 Memory files are created under \".wingfoil/memory/\"\nAnd each imported file has frontmatter with an extracted title and a \"status: draft\"\nAnd the command exits with code 0 reporting \"3 imported, 0 skipped\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.4-memory-import.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.4"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-100",
+    "ref": "P2.3",
+    "type": "User Story",
+    "title": "Implement wingfoil dna infer",
+    "description": "As Morgan, deliver feature P2.3 (US-0B-03). See user story map US-0B-03 and BDD p2-dna/P2.3-dna-infer.feature.",
+    "acceptance_criteria": "Scenario: Propose DNA from codebase, human approves\nWhen I run \"wingfoil dna infer\" and approve the proposal\nThen \".wingfoil/dna.yaml\" is updated with detected language \"python\"\nAnd the proposal was shown for review before being written\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.3-dna-infer.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-098"
+    ]
+  },
+  {
+    "id": "TASK-101",
+    "ref": "P5.1.2",
+    "type": "User Story",
+    "title": "Implement wingfoil init --mode infer",
+    "description": "As Morgan, deliver feature P5.1.2 (US-0B-02). See user story map US-0B-02 and BDD p5-interaction/P5.1.2-init-infer.feature.",
+    "acceptance_criteria": "Scenario: Initialize an existing project with inference\nWhen I run \"wingfoil init --mode infer\" and approve the inferred proposals\nThen a \".wingfoil/\" structure is created reflecting the inferred DNA and process\nAnd no existing source files are modified\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.2-init-infer.feature",
+    "priority": "Critical",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-098"
+    ]
+  },
+  {
+    "id": "TASK-102",
+    "ref": "P5.1.3",
+    "type": "User Story",
+    "title": "Implement wingfoil audit",
+    "description": "As Morgan, deliver feature P5.1.3 (US-0B-01). See user story map US-0B-01 and BDD p5-interaction/P5.1.3-audit.feature.",
+    "acceptance_criteria": "Scenario: Produce a state summary\nWhen I run \"wingfoil audit\"\nThen the output lists detected languages including \"python\" and \"javascript\"\nAnd it summarizes the directory structure and detected frameworks\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.3-audit.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ]
+  },
+  {
+    "id": "TASK-103",
+    "ref": "P5.1.4",
+    "type": "User Story",
+    "title": "Implement CLI UX Improvements",
+    "description": "As Alex, deliver feature P5.1.4 (US-0A-14). See user story map US-0A-14 and BDD p5-interaction/P5.1.4-cli-ux.feature.",
+    "acceptance_criteria": "Scenario: Help is available for every command\nWhen I run \"wingfoil <any-command> --help\"\nThen usage, options, and at least one example are printed\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.4-cli-ux.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-097"
+    ]
+  },
+  {
+    "id": "TASK-104",
+    "ref": "P5.4.5",
+    "type": "User Story",
+    "title": "Implement Agent-Assisted Init Wizard",
+    "description": "As Morgan, deliver feature P5.4.5 (US-0A-07). See user story map US-0A-07 and BDD p5-interaction/P5.4.5-agent-assisted-wizard.feature.",
+    "acceptance_criteria": "Scenario: Configure the project through conversation\nWhen I answer the agent's setup questions in natural language\nThen a \".wingfoil/\" configuration reflecting my answers is generated\nAnd the result is equivalent in structure to the wizard-mode output",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.5-agent-assisted-wizard.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-105",
+    "ref": "REQ-INT-09",
+    "type": "Technical Task",
+    "title": "REQ-INT-09: Notification delivery channel & failure contract",
+    "description": "Implement the Integrations constraint REQ-INT-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Fit Criterion: 100% of 'human-needed' events (approval/decision required) produce a notification record; on delivery failure the system logs \"notification delivery failed for event <id>\" and exits non-zero — asserted in test.",
+    "priority": "High",
+    "release": "v0.3",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-095"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-106",
+    "ref": "REQ-SEC-11",
+    "type": "Technical Task",
+    "title": "REQ-SEC-11: Notification routing authority by role/decision-type",
+    "description": "Implement the Security constraint REQ-SEC-11. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Fit Criterion: A notification is routed to exactly the roles/persons configured for its decision-type in dna.yaml; 0 notifications routed to unconfigured roles — asserted over a routing fixture.",
+    "priority": "High",
+    "release": "v0.3",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-095",
+      "TASK-096"
+    ],
+    "dependencies": []
+  }
+]

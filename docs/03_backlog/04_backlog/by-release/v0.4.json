@@ -1,0 +1,203 @@
+[
+  {
+    "id": "TASK-097",
+    "ref": "REQ-INT-08",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-08 - Consistent CLI error format",
+    "description": "Implement the Integrations constraint REQ-INT-08. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-08 in the SARD.",
+    "priority": "High",
+    "release": "v0.4",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-103"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-098",
+    "ref": "REQ-SEC-09",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-SEC-09 - Human approval before inferred writes",
+    "description": "Implement the Security constraint REQ-SEC-09. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-SEC-09 in the SARD.",
+    "priority": "Blocker",
+    "release": "v0.4",
+    "area": "Security",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Security"
+    ],
+    "related_stories": [
+      "TASK-100",
+      "TASK-101"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-099",
+    "ref": "P1.4",
+    "type": "User Story",
+    "title": "Implement wingfoil memory import",
+    "description": "As Alex, deliver feature P1.4 (US-0B-04). See user story map US-0B-04 and BDD p1-memory/P1.4-memory-import.feature.",
+    "acceptance_criteria": "Scenario: Import existing documents with extracted metadata\nWhen I run \"wingfoil memory import\" and confirm each proposed document\nThen 3 Memory files are created under \".wingfoil/memory/\"\nAnd each imported file has frontmatter with an extracted title and a \"status: draft\"\nAnd the command exits with code 0 reporting \"3 imported, 0 skipped\"",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p1-memory/P1.4-memory-import.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P1",
+    "tags": [
+      "MVP",
+      "P1",
+      "v0.4"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-100",
+    "ref": "P2.3",
+    "type": "User Story",
+    "title": "Implement wingfoil dna infer",
+    "description": "As Morgan, deliver feature P2.3 (US-0B-03). See user story map US-0B-03 and BDD p2-dna/P2.3-dna-infer.feature.",
+    "acceptance_criteria": "Scenario: Propose DNA from codebase, human approves\nWhen I run \"wingfoil dna infer\" and approve the proposal\nThen \".wingfoil/dna.yaml\" is updated with detected language \"python\"\nAnd the proposal was shown for review before being written\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p2-dna/P2.3-dna-infer.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P2",
+    "tags": [
+      "MVP",
+      "P2",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-098"
+    ]
+  },
+  {
+    "id": "TASK-101",
+    "ref": "P5.1.2",
+    "type": "User Story",
+    "title": "Implement wingfoil init --mode infer",
+    "description": "As Morgan, deliver feature P5.1.2 (US-0B-02). See user story map US-0B-02 and BDD p5-interaction/P5.1.2-init-infer.feature.",
+    "acceptance_criteria": "Scenario: Initialize an existing project with inference\nWhen I run \"wingfoil init --mode infer\" and approve the inferred proposals\nThen a \".wingfoil/\" structure is created reflecting the inferred DNA and process\nAnd no existing source files are modified\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.2-init-infer.feature",
+    "priority": "Critical",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-098"
+    ]
+  },
+  {
+    "id": "TASK-102",
+    "ref": "P5.1.3",
+    "type": "User Story",
+    "title": "Implement wingfoil audit",
+    "description": "As Morgan, deliver feature P5.1.3 (US-0B-01). See user story map US-0B-01 and BDD p5-interaction/P5.1.3-audit.feature.",
+    "acceptance_criteria": "Scenario: Produce a state summary\nWhen I run \"wingfoil audit\"\nThen the output lists detected languages including \"python\" and \"javascript\"\nAnd it summarizes the directory structure and detected frameworks\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.3-audit.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ]
+  },
+  {
+    "id": "TASK-103",
+    "ref": "P5.1.4",
+    "type": "User Story",
+    "title": "Implement CLI UX Improvements",
+    "description": "As Alex, deliver feature P5.1.4 (US-0A-14). See user story map US-0A-14 and BDD p5-interaction/P5.1.4-cli-ux.feature.",
+    "acceptance_criteria": "Scenario: Help is available for every command\nWhen I run \"wingfoil <any-command> --help\"\nThen usage, options, and at least one example are printed\nAnd the command exits with code 0",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.1.4-cli-ux.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-097"
+    ]
+  },
+  {
+    "id": "TASK-104",
+    "ref": "P5.4.5",
+    "type": "User Story",
+    "title": "Implement Agent-Assisted Init Wizard",
+    "description": "As Morgan, deliver feature P5.4.5 (US-0A-07). See user story map US-0A-07 and BDD p5-interaction/P5.4.5-agent-assisted-wizard.feature.",
+    "acceptance_criteria": "Scenario: Configure the project through conversation\nWhen I answer the agent's setup questions in natural language\nThen a \".wingfoil/\" configuration reflecting my answers is generated\nAnd the result is equivalent in structure to the wizard-mode output",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.4.5-agent-assisted-wizard.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-064",
+    "ref": "REQ-INT-03",
+    "type": "Technical Task",
+    "title": "Infrastructure: REQ-INT-03 - MCP Tools state mutation",
+    "description": "Implement the Integrations constraint REQ-INT-03. See SARD fit criterion in docs/02_requirements/03_sard/.",
+    "acceptance_criteria": "Satisfies the measurable Fit Criterion defined for REQ-INT-03 in the SARD.",
+    "priority": "High",
+    "release": "v0.4",
+    "area": "Integrations",
+    "tags": [
+      "MVP",
+      "Architecture",
+      "Integrations"
+    ],
+    "related_stories": [
+      "TASK-087"
+    ],
+    "dependencies": []
+  },
+  {
+    "id": "TASK-087",
+    "ref": "P5.2.3",
+    "type": "User Story",
+    "title": "Implement MCP Tools (state management)",
+    "description": "As Agents, deliver feature P5.2.3 (US-2-11). See user story map US-2-11 and BDD p5-interaction/P5.2.3-mcp-tools.feature.",
+    "acceptance_criteria": "Scenario: Submit a deliverable through an MCP tool\nWhen the agent invokes the MCP tool \"memory.submit\" for \"task-101\"\nThen \"task-101\" transitions to \"status: pending\"\nAnd the change is committed to git with the agent as author",
+    "acceptance_criteria_full": "docs/02_requirements/02_bdd/features/p5-interaction/P5.2.3-mcp-tools.feature",
+    "priority": "High",
+    "release": "v0.4",
+    "pillar": "P5",
+    "tags": [
+      "MVP",
+      "P5",
+      "v0.4"
+    ],
+    "dependencies": [
+      "TASK-004",
+      "TASK-014",
+      "TASK-064"
+    ]
+  }
+]
