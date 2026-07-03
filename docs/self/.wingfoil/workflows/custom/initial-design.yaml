@@ -53,8 +53,8 @@ phases:
     optional: true
     actions:
       - 'memory.add(type: decision-log)'  # one per product/process decision
-      - memory.submit                     # draft -> pending
-      - memory.approve                    # pending -> approved (approver role)
+      - memory.submit                     # draft -> in-discussion
+      - memory.approve                    # in-discussion -> ready (approver role)
     produces:
       - "docs/04_memory/design/dls/{id}.md"
     checks:

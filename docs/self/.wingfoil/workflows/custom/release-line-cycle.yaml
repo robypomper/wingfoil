@@ -22,7 +22,7 @@ phases:
     description: "Approve the release-line's scope so initial-design and delivery can begin."
     role: tech-lead
     actions:
-      - element.set_state(active)       # release-line: planning -> active
+      - memory.approve                  # release-line: planning -> active
     approval: { by_role: approver }
     fallback: { step: approve }         # reject -> stays for revision, re-submit for another approval pass
 

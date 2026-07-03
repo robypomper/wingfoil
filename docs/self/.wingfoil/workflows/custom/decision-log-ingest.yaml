@@ -25,6 +25,6 @@ phases:
     description: "Approve the decision (approval gate; reject = back to capture)."
     role: approver
     actions:
-      - element.set_state(approved)            # decision-log: pending -> approved
+      - memory.approve                         # decision-log: in-discussion -> ready
     approval: { by_role: approver }
     fallback: { step: capture }

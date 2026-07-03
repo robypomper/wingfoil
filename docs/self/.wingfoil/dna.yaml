@@ -1,14 +1,14 @@
 # WingFoil — Project DNA (P2.4)
-# Structural map of the project: modules, tech stack, team + roles, conventions, resource paths.
+# Structural map of the project: modules, stacks, team + roles, resource paths.
 # Authoritative project anatomy; lets agents navigate without full codebase scans.
 # Source: docs/01_vision/01_product-brief.md, docs/02_requirements/03_sard/01_architecture.md
 #
 # Field-provenance legend (human-audit aid):
 #   [SPEC]      = required or defined by the specifications (ref cited inline).
 #   [AUTHORING] = authoring addition: coherent with the specs but not mandated by them.
-# Spec-required top-level sections: modules, tech_stack, team, conventions (BDD P2.4-project-dna-config);
-# paths (P2.5). Sections/fields without a [SPEC] ref are [AUTHORING].
-version: 1.0                     # [AUTHORING] config-file format version (WingFoil convention)
+# Spec-required top-level sections: modules, stacks, team (BDD P2.4-project-dna-config); paths (P2.5).
+# Sections/fields without a [SPEC] ref are [AUTHORING].
+version: 1.1                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # [AUTHORING] section — not required by P2.4; identity/strategy values sourced from the Product Brief.
 project:
@@ -57,27 +57,56 @@ modules:
     path: src/mcp
 
 # ---------------------------------------------------------------------------
-# Tech stack — from Product Brief §Technical Stack   [SPEC: P2.4]
-# Section required by P2.4 and values [SPEC] from the brief; the nested key shape is [AUTHORING].
+# Stacks — technologies + methodologies in use   [SPEC: P2.4]
+# Section required by P2.4; technology values are [SPEC] from Product Brief §Technical Stack.
+# Generic, project-shape-agnostic form: flat lists of entries rather than fixed per-surface keys,
+# so the schema fits any project shape. The list shape, `category`/`phase` values (free strings,
+# not enums), and the `methodologies` list are [AUTHORING].
 # ---------------------------------------------------------------------------
-tech_stack:
-  language: TypeScript
-  runtime: Node.js 18+
-  package_manager: npm
-  cli:
-    framework: Commander.js
-    formatting: chalk
-  mcp:
-    protocol: Model Context Protocol
-    transport: stdio
-    sdk: Anthropic SDK
-  validation: Zod
-  testing:
-    framework: Jest
-    coverage_target: ">80%"
-  storage: git
-  distribution: npm registry (public)
-  versioning: semantic versioning
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+    - name: Node.js
+      category: runtime
+      version: "18+"
+    - name: npm
+      category: package-manager
+    - name: Commander.js
+      category: framework
+      notes: CLI command surface (P2 Interaction Layer)
+    - name: chalk
+      category: library
+      notes: CLI output formatting
+    - name: Model Context Protocol
+      category: protocol
+      notes: Agent interface; transport over stdio
+    - name: Anthropic SDK
+      category: sdk
+      notes: MCP server implementation
+    - name: Zod
+      category: validation
+    - name: Jest
+      category: testing
+      notes: coverage target >80%
+    - name: git
+      category: storage
+    - name: npm registry (public)
+      category: distribution
+    - name: semantic versioning
+      category: versioning
+  methodologies:
+    - name: Lean Inception
+      phase: inception
+    - name: User Story Mapping
+      phase: specification
+    - name: Specification by Example (BDD)
+      phase: specification
+    - name: SARD
+      phase: specification
+    - name: TDD
+      phase: delivery
+      notes: test-first; see the testing directive
 
 # ---------------------------------------------------------------------------
 # Team & roles — approval/directives bind to roles, never hardcoded people (REQ-SYS-08, P5.4.1)
@@ -114,23 +143,13 @@ team:
     - name: approver
       description: Holds approval authority for deliverables and releases.
 
-# ---------------------------------------------------------------------------
-# Conventions — "how we work" anchors (detailed rules live in .wingfoil/directives/)   [SPEC: P2.4]
-# Section required by P2.4; the nested key shape is [AUTHORING].
-# ---------------------------------------------------------------------------
-conventions:
-  documentation:
-    versioning: "Bump a doc's version only on the first edit after it is committed to git."
-    traceability: "Maintain cross-references feature -> user story -> BDD -> SARD -> tech-spec (when applicable) -> task."
-  engineering:
-    methodology: TDD / test-first
-    coverage: ">80% (Jest)"
-    versioning: semantic versioning
-  process:
-    release_cadence: "~1 release per week, each centered on a pillar (v0.1 -> v1.0)."
-    commits: conventional commits; every state change is a git commit with author + timestamp.
-    determinism: "Optimize for the Determinism Index (North Star)."
-
+# Conventions — the former `conventions:` section (documentation / engineering / process rules) was
+# removed in v1.1 and its rules relocated to .wingfoil/directives/custom/ (per spec-002 Consequences):
+#   documentation.versioning  → doc-versioning directive       engineering.methodology  → testing directive
+#   documentation.traceability → traceability directive          engineering.coverage     → testing directive
+#   engineering.versioning     → stacks.technologies (semver)    process.determinism      → determinism directive
+#   process.commits            → code-quality directive          process.release_cadence  → traceability directive
+#
 # ---------------------------------------------------------------------------
 # Resource paths — queried by `wingfoil paths [category]` (P2.5)   [SPEC: P2.5]
 # Category names (sources, tests, docs, config, governance) are [SPEC] (X_cli-cmds.md); entries are [AUTHORING].

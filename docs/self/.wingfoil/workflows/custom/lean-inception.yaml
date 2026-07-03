@@ -7,8 +7,6 @@ description: >-
   Product discovery via Lean Inception. Five sessions transform the Product Brief into
   the Vision Package (vision, is/is-not, personas, journeys, features, sequencer, MVP canvas).
 version: 1.0
-input: docs/01_vision/01_product-brief.md
-role: facilitator
 
 phases:
   - name: vision

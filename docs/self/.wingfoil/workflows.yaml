@@ -6,9 +6,12 @@
 # allows multiple open mains); every non-main is `kind: sub` (include-only, run when a phase
 # include()s it). See REQ-SYS-06.
 # Source: docs/01_vision/06_features.md (P4.x), docs/02_requirements/01_user_story_map/07_workflow-config.md
-version: 1.0
+version: 1.1
 
-includes:
+# `include:` (singular) is the canonical manifest key — matches the P4.1 prose and the `include:`
+# phase field of the per-file Workflow DSL, so the manifest key and the phase-composition key read
+# the same. Renamed from `includes:` (plural) per spec-003-workflows-yaml-schema (initial-design, rl-v1).
+include:
   # Startable main workflows (REQ-STATE-03 allows multiple open mains).
   - workflows/custom/sw-life-cycle.yaml        # the end-to-end software life cycle
   - workflows/custom/bug-ingest.yaml           # capture a bug

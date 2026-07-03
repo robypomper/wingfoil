@@ -8,12 +8,6 @@ description: >-
   Downcast the strategic vision into actionable engineering requirements:
   User Story Mapping -> Specification by Example (BDD) -> Volere Requirements (SARD) -> backlog.
 version: 1.0
-input:
-  - docs/01_vision/04_personas.md
-  - docs/01_vision/05_journeys.md
-  - docs/01_vision/06_features.md
-  - docs/01_vision/07_sequencer.md
-  - docs/01_vision/08_mvp-canvas.md
 
 phases:
   - name: user-story-mapping
