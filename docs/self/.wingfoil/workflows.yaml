@@ -1,0 +1,43 @@
+# WingFoil — Project Workflow main configuration (P4.1)
+# This is the MAIN config file. It does not inline every workflow; it include()s the
+# built-in and custom workflow files. Built-in templates live in workflows/built-in/,
+# custom workflows in workflows/custom/.
+# Kinds: several `kind: main` workflows are startable (sw-life-cycle + the ingest mains; REQ-STATE-03
+# allows multiple open mains); every non-main is `kind: sub` (include-only, run when a phase
+# include()s it). See REQ-SYS-06.
+# Source: docs/01_vision/06_features.md (P4.x), docs/02_requirements/01_user_story_map/07_workflow-config.md
+version: 1.0
+
+includes:
+  # Startable main workflows (REQ-STATE-03 allows multiple open mains).
+  - workflows/custom/sw-life-cycle.yaml        # the end-to-end software life cycle
+  - workflows/custom/bug-ingest.yaml           # capture a bug
+  - workflows/custom/decision-log-ingest.yaml  # capture a decision-log
+  - workflows/custom/adr-ingest.yaml           # capture an ADR
+
+  # Sub-workflows composed by sw-life-cycle (include-only; never started directly).
+  # --- Inception (DONE — modeled from docs/01_vision/X_lean-inception-plan.md) ---
+  - workflows/custom/lean-inception.yaml
+  # --- Specification downcast (DONE — modeled from docs/02_requirements/X_specs-downcast-plan.md) ---
+  - workflows/custom/specification-downcast.yaml
+  - workflows/custom/user-story-mapping.yaml
+  - workflows/custom/specification-by-examples.yaml
+  - workflows/custom/volere-requirements.yaml
+  - workflows/custom/backlog-export.yaml
+  # --- Init (bridge: specification -> delivery) ---
+  - workflows/custom/wingfoil-init.yaml
+  - workflows/custom/initial-design.yaml
+  # --- Delivery (best practice, adapted to WingFoil) ---
+  - workflows/custom/release-line-cycle.yaml
+  - workflows/custom/release-cycle.yaml
+  - workflows/custom/release-planning.yaml
+  - workflows/custom/dev-loop.yaml
+  - workflows/custom/release-submit.yaml
+  - workflows/custom/release-publishing.yaml
+  - workflows/custom/retrospective.yaml
+  # --- Sunset (best practice) ---
+  - workflows/custom/end-of-life.yaml
+
+# The active workflow context is set by `wingfoil workflow start sw-life-cycle`.
+# `workflow list` shows only what is executable now (startable mains + a sub when it is the
+# next executable step); `workflow list --all` shows every defined workflow.

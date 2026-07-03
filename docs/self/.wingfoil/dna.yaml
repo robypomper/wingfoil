@@ -1,0 +1,152 @@
+# WingFoil — Project DNA (P2.4)
+# Structural map of the project: modules, tech stack, team + roles, conventions, resource paths.
+# Authoritative project anatomy; lets agents navigate without full codebase scans.
+# Source: docs/01_vision/01_product-brief.md, docs/02_requirements/03_sard/01_architecture.md
+#
+# Field-provenance legend (human-audit aid):
+#   [SPEC]      = required or defined by the specifications (ref cited inline).
+#   [AUTHORING] = authoring addition: coherent with the specs but not mandated by them.
+# Spec-required top-level sections: modules, tech_stack, team, conventions (BDD P2.4-project-dna-config);
+# paths (P2.5). Sections/fields without a [SPEC] ref are [AUTHORING].
+version: 1.0                     # [AUTHORING] config-file format version (WingFoil convention)
+
+# [AUTHORING] section — not required by P2.4; identity/strategy values sourced from the Product Brief.
+project:
+  name: WingFoil
+  description: >-
+    Open-source harness for AI-assisted software development that makes the
+    process deterministic by giving humans and AI agents a structured,
+    authoritative interface to the project (Memory, DNA, Directives, Workflow,
+    Interaction Layer).
+  license: MIT
+  repository: WingFoil
+  methodology: custom            # see .wingfoil/workflows.yaml (main: sw-life-cycle)
+  # [SPEC] North Star metric ← Product Brief; formalized as REQ-SYS-07 (deterministic context).
+  north_star: >-
+    Determinism Index — two independent runs from the same specs + WingFoil
+    config using different AI agents produce substantially equivalent software.
+
+# ---------------------------------------------------------------------------
+# Modules — the parts of the system (anatomy for navigation)   [SPEC: P2.4]
+# Per-module `name` is [SPEC]; `description` and `path` are [AUTHORING] enrichment (navigation / `paths`).
+# ---------------------------------------------------------------------------
+modules:
+  - name: core
+    description: Shared domain logic; single behavior behind both CLI and MCP surfaces (REQ-SYS-05).
+    path: src/core
+  - name: storage
+    description: Git-backed file storage (YAML + Markdown); single source of truth (REQ-SYS-01).
+    path: src/storage
+  - name: memory
+    description: Project Memory pillar — git-backed documents with per-type state machines.
+    path: src/memory
+  - name: dna
+    description: Project DNA pillar — structured project map (this file's domain).
+    path: src/dna
+  - name: directives
+    description: Project Directives pillar — role-based rules (built-in + custom).
+    path: src/directives
+  - name: workflow
+    description: Project Workflow pillar — phases/steps/atomic actions, include() composition.
+    path: src/workflow
+  - name: cli
+    description: Human interface (Commander.js + chalk); `wingfoil` command surface.
+    path: src/cli
+  - name: mcp-server
+    description: Agent interface (MCP over stdio, Anthropic SDK); Resources, Prompts, Tools.
+    path: src/mcp
+
+# ---------------------------------------------------------------------------
+# Tech stack — from Product Brief §Technical Stack   [SPEC: P2.4]
+# Section required by P2.4 and values [SPEC] from the brief; the nested key shape is [AUTHORING].
+# ---------------------------------------------------------------------------
+tech_stack:
+  language: TypeScript
+  runtime: Node.js 18+
+  package_manager: npm
+  cli:
+    framework: Commander.js
+    formatting: chalk
+  mcp:
+    protocol: Model Context Protocol
+    transport: stdio
+    sdk: Anthropic SDK
+  validation: Zod
+  testing:
+    framework: Jest
+    coverage_target: ">80%"
+  storage: git
+  distribution: npm registry (public)
+  versioning: semantic versioning
+
+# ---------------------------------------------------------------------------
+# Team & roles — approval/directives bind to roles, never hardcoded people (REQ-SYS-08, P5.4.1)
+# [SPEC: P2.4 (team) / REQ-SYS-08 (role binding)]. `members` is [SPEC]; `agents` + `approval_authority` are [AUTHORING].
+# ---------------------------------------------------------------------------
+team:
+  members:
+    - name: Roberto Pompermaier
+      email: robypomper@gmail.com
+      roles: [ tech-lead, architect, developer, reviewer, product-owner, approver, facilitator, qa ]
+  # AI agents execute under a role (developer/reviewer/...) but never hold approval
+  # authority; approvals route to the `approver` role (Roberto).
+  agents:                        # [AUTHORING] agent execution model (concept ← REQ-SYS-08; field shape authoring)
+    - name: AI agent (Claude/Cursor/etc.)
+      executes_as: [ developer, reviewer, qa, architect ]
+      approval_authority: false
+  # Available agent roles (P5.4.1); nested under `team` so `dna show --section team` surfaces them.
+  # [SPEC: REQ-SYS-08 / BDD P4.20 "role '...' not defined in dna.yaml"]; per-role `description` is [AUTHORING].
+  roles:
+    - name: developer
+      description: Writes code and creates features; applies code-quality and testing directives.
+    - name: reviewer
+      description: Reviews code/docs against team standards; approves or rejects.
+    - name: qa
+      description: Tests features, validates acceptance criteria, runs checks.
+    - name: architect
+      description: Makes design decisions, records them as Memory decisions.
+    - name: product-owner
+      description: Owns scope, backlog, and release planning.
+    - name: tech-lead
+      description: Sets architecture, defines conventions, final approver.
+    - name: facilitator
+      description: Drives discovery/inception sessions (Lean Inception).
+    - name: approver
+      description: Holds approval authority for deliverables and releases.
+
+# ---------------------------------------------------------------------------
+# Conventions — "how we work" anchors (detailed rules live in .wingfoil/directives/)   [SPEC: P2.4]
+# Section required by P2.4; the nested key shape is [AUTHORING].
+# ---------------------------------------------------------------------------
+conventions:
+  documentation:
+    versioning: "Bump a doc's version only on the first edit after it is committed to git."
+    traceability: "Maintain cross-references feature -> user story -> BDD -> SARD -> tech-spec (when applicable) -> task."
+  engineering:
+    methodology: TDD / test-first
+    coverage: ">80% (Jest)"
+    versioning: semantic versioning
+  process:
+    release_cadence: "~1 release per week, each centered on a pillar (v0.1 -> v1.0)."
+    commits: conventional commits; every state change is a git commit with author + timestamp.
+    determinism: "Optimize for the Determinism Index (North Star)."
+
+# ---------------------------------------------------------------------------
+# Resource paths — queried by `wingfoil paths [category]` (P2.5)   [SPEC: P2.5]
+# Category names (sources, tests, docs, config, governance) are [SPEC] (X_cli-cmds.md); entries are [AUTHORING].
+# (sources/tests/config are planned locations; tool not yet implemented)
+# ---------------------------------------------------------------------------
+paths:
+  sources:
+    - src/                         # planned
+  tests:
+    - test/                        # planned
+  docs:
+    - docs/
+    - docs/01_vision/
+    - docs/02_requirements/
+  config:
+    - package.json                 # planned
+    - tsconfig.json                # planned
+  governance:
+    - docs/self/.wingfoil/         # this dogfooding configuration

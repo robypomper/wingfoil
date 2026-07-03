@@ -1,0 +1,49 @@
+# WingFoil — sw-life-cycle (MAIN workflow)
+# The end-to-end software life cycle for the WingFoil project itself: inception ->
+# specification -> delivery (per release) -> sunset. The primary startable main (see also the ingest mains).
+# Phase completion is deduced (REQ-SYS-03): Memory-backed phases from element status, and the inception/
+# specification/init phases from the existence of their `produces:` artifacts — no stored phase status.
+# Source: user-defined composition; sub-workflows modeled from the vision/requirements plans.
+name: sw-life-cycle
+kind: main
+description: >-
+  Full software life cycle for WingFoil: from product inception, through technical
+  specification downcast, iterative per-release delivery, to end-of-life.
+version: 1.0
+
+phases:
+  - name: inception
+    description: Product discovery (Lean Inception) — produces the Vision Package.
+    include: lean-inception
+
+  - name: specification
+    description: Downcast the vision into engineering specs (USM -> BDD -> SARD -> backlog).
+    include: specification-downcast
+
+  - name: init
+    description: "Initialize the WingFoil configuration (DNA, Memory schema, Directives, Workflows)."
+    include: wingfoil-init
+
+  - name: seed-first-release-line
+    description: "Create the first release-line (v1) so release-line-cycle has something to iterate."
+    role: product-owner
+    actions:
+      - 'memory.add(type: release-line, version: "v1")'
+      - memory.submit                                    # release-line: draft -> planning
+    produces:
+      - "docs/04_memory/planning/{id}.md"
+    checks:
+      post: ["frontmatter.required: [title, version]"]
+
+  - name: release-line-cycle
+    description: >-
+      Iterative delivery per major version — approve scope, generate its roadmap + initial ADRs/
+      DLs/tech-specs, run one release-cycle per minor release, then close it and self-seed the
+      next release-line (if planned).
+    include: release-line-cycle
+    iterate_over: release-line
+    where: { status: [planning, active] }
+
+  - name: sunset
+    description: Retire the product / a major line at end of life.
+    include: end-of-life

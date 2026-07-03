@@ -1,0 +1,78 @@
+# WingFoil — release-planning (SUB workflow)
+# Best practice adapted to WingFoil. Include-only.
+name: release-planning
+kind: sub
+description: >-
+  Plan a release: confirm the pillar focus and scope, identify and spec shared artefacts up
+  front, pull backlog tasks for the release, set the release element to `planning`.
+version: 1.0
+element: release
+
+phases:
+  - name: define-scope
+    description: "Confirm pillar focus + feature scope for the release (from the release Memory doc)."
+    role: product-owner
+    actions:
+      - element.set_state(planning)            # release: draft -> planning
+    produces:
+      - "docs/04_memory/planning/{release-line}/{release.id}.md"
+    checks:
+      post: ["frontmatter.required: [title, version, pillar, features, requirements, release-line]"]
+
+  - name: record-adrs
+    description: "Optionally record Architectural Decision Records for this release's scope."
+    role: architect
+    optional: true
+    actions:
+      - 'memory.add(type: adr)'
+      - memory.submit
+    produces:
+      - "docs/04_memory/design/adrs/{id}.md"
+    checks:
+      post: ["frontmatter.required: [title, sard_ref]"]
+
+  - name: identify-specs
+    description: >-
+      Survey the release scope for file formats, schemas, constant sets, and module APIs that
+      will be implemented by this release's tasks; scaffold a tech-spec for each one not yet
+      covered by an approved spec. Runs before tasks are created so build-backlog can reference
+      approved (or at least pending) specs instead of discovering gaps task-by-task.
+    role: architect
+    actions:
+      - agent.survey_specs             # enumerate artefacts implied by the release scope/features
+      - 'memory.add(type: tech-spec)'  # for each uncovered artefact: scaffold a new draft
+      - memory.submit                  # fill spec content; move each spec draft -> pending
+    produces:
+      - "docs/04_memory/design/specs/{id}.md"
+    checks:
+      post: ["frontmatter.required: [title, scope]"]
+    approval: { by_role: approver }    # specs approved before tasks referencing them reach backlog
+    fallback: { step: identify-specs }
+
+  - name: build-backlog
+    description: >-
+      Create/triage task deliverables for the release. For each selected triaged bug, create one
+      or more fix tasks (task.bug = the source bug's id) and schedule the bug into the release;
+      from here on the bug's own state tracks its derived task(s) automatically (dev-loop's
+      `bug.sync_state`, see dev-loop.yaml) — no separate fix workflow.
+    role: product-owner
+    actions:
+      - 'memory.add(type: task, tags: ["{release.version}"])'          # tasks created in draft
+      - memory.submit                                                 # task: draft -> pending
+      - 'memory.add(type: task, tags: ["{release.version}"], bug: "{bug.id}")'  # one or more fix tasks per selected triaged bug
+      - memory.submit                                                 # fix task(s): draft -> pending
+      - bug.set_state(planned)                                        # selected bugs: triaged -> planned (fix task(s) now exist)
+    produces:
+      - "docs/04_memory/{release}/{id}.md"
+    checks:
+      post: ["frontmatter.required: [title, release]"]
+
+  - name: commit-backlog
+    description: >-
+      Approve the planned tasks into the backlog so the dev-loop can pick them up, then move the
+      release into development.
+    role: tech-lead
+    actions:
+      - task.set_state(backlog)                # task: pending -> backlog (per planned task)
+      - release.set_state(in-development)       # release: planning -> in-development
+    approval: { by_role: approver }
