@@ -1,28 +1,39 @@
 ---
 id: "minor-v0.4"
 type: release
-title: ""              # REQUIRED — e.g. "WingFoil v0.1 — Memory & Storage"
-status: draft          # auto-set by wingfoil
-version: ""            # REQUIRED — e.g. "v0.1"
-pillar: ""             # REQUIRED — primary feature pillar, e.g. "P1"
-features: []           # REQUIRED — feature IDs covered by this release, e.g. [P1.1, P1.2, P1.13]
-requirements: ""       # REQUIRED — path to per-release backlog JSON, e.g. "docs/03_backlog/04_backlog/by-release/v0.1.json"
-release-line: ""       # REQUIRED — version of the parent release-line, e.g. "v1"; also the path folder for this file
-tmpl_version: 260703   # Orignal template version
+title: "WingFoil v0.4 - Interaction Layer + Polish"
+status: planning
+version: "v0.4"
+pillar: "P5"
+features: [P1.4, P2.3, P5.1.1, P5.1.2, P5.1.3, P5.1.4, P5.2.3, P5.4.5]
+requirements: "docs/03_backlog/04_backlog/by-release/v0.4.json"
+release-line: "v1"
+tmpl_version: 260703
 ---
 
 ## Scope
 
-<!-- What this release delivers: primary pillar focus, key features shipped. -->
+v0.4 completes the Interaction Layer (P5) with full MCP server support, migration tooling for existing projects, and CLI polish. This release delivers `wingfoil init --mode infer` for adoption by teams already in development, `wingfoil audit` to scan and summarize project state, `wingfoil dna infer` to auto-propose project structure, `wingfoil memory import` to ingest existing documentation, and MCP Tools for agents to submit deliverables and update workflow state. CLI help, error messages, and formatting are refined for intuitive user experience. The MCP server now exposes full Resources, Prompts, and Tools endpoints, completing the agent integration surface.
 
 ## Pillar Focus
 
-<!-- Describe the pillar and why it is the focus for this release wave. -->
+**Pillar 5 (Interaction Layer)** provides the dual interface — CLI for humans, MCP for agents — that makes WingFoil accessible and deterministic. v0.4 shifts focus from greenfield project setup (v0.1) to migration and adoption of existing projects. By inferring DNA from codebase structure, auto-importing scattered documentation, and exposing state mutations via MCP Tools, v0.4 removes friction from the onboarding journey. Polish to help text and error messages ensures the tool stays intuitive as feature surface grows.
 
 ## Success Criteria
 
-<!-- Measurable criteria that mark this release as complete.
-     Reference the MVP Canvas if applicable (docs/01_vision/08_mvp-canvas.md). -->
+Per `docs/01_vision/07_sequencer.md` (Week 4 Definition of Done):
+
+- All v0.3 features stable (no regressions)
+- `wingfoil init --mode infer` functional
+- `wingfoil audit` functional
+- `wingfoil dna infer` functional (or simplified fallback)
+- `wingfoil memory import` functional
+- MCP server stable (Resources + Tools + Prompts all working)
+- Reference workflow templates (Scrum, Kanban, Lean, Trunk-Based) functional
+- CLI help + error messages polished
+- >80% test coverage on all modules
+- npm package v0.4.0 published
+- Journey 5 (Casey - PM) and Journey 6 (Morgan - evolution) manually tested
 
 ## Execution Notes
 

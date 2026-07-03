@@ -1,28 +1,38 @@
 ---
 id: "minor-v0.2"
 type: release
-title: ""              # REQUIRED — e.g. "WingFoil v0.1 — Memory & Storage"
-status: draft          # auto-set by wingfoil
-version: ""            # REQUIRED — e.g. "v0.1"
-pillar: ""             # REQUIRED — primary feature pillar, e.g. "P1"
-features: []           # REQUIRED — feature IDs covered by this release, e.g. [P1.1, P1.2, P1.13]
-requirements: ""       # REQUIRED — path to per-release backlog JSON, e.g. "docs/03_backlog/04_backlog/by-release/v0.1.json"
-release-line: ""       # REQUIRED — version of the parent release-line, e.g. "v1"; also the path folder for this file
-tmpl_version: 260703   # Orignal template version
+title: "WingFoil v0.2 - Project Directives"
+status: planning
+version: "v0.2"
+pillar: "P3"
+features: [P1.6, P1.7, P1.8, P1.9, P1.10, P3.1, P3.2, P3.3, P3.4, P3.5, P3.6, P3.7, P3.8, P5.2.2]
+requirements: "docs/03_backlog/04_backlog/by-release/v0.2.json"
+release-line: "v1"
+tmpl_version: 260703
 ---
 
 ## Scope
 
-<!-- What this release delivers: primary pillar focus, key features shipped. -->
+v0.2 delivers the Project Directives pillar (P3), enabling teams to encode and enforce "how we work" rules that both humans and AI agents respect automatically. This release introduces custom and built-in directive templates (Code Quality, Testing, Code Review, Architecture, Security, Documentation), role-based directive assignment, and auto-load functionality. Alongside, Memory's approval workflow matures with `submit`, `approve`, `reject`, `deprecate`, and `history` commands, completing the governance infrastructure needed for workflow integration in v0.3.
 
 ## Pillar Focus
 
-<!-- Describe the pillar and why it is the focus for this release wave. -->
+**Pillar 3 (Project Directives)** is the governance layer that enforces consistency and quality across development. By binding directives to roles, WingFoil ensures that every developer, reviewer, and agent operates under the same rules without re-explaining expectations. This release makes explicit what was previously implicit, shifting from manual compliance checking to automated rule application. Directives are the difference between "hope people follow conventions" and "conventions are loaded automatically."
 
 ## Success Criteria
 
-<!-- Measurable criteria that mark this release as complete.
-     Reference the MVP Canvas if applicable (docs/01_vision/08_mvp-canvas.md). -->
+Per `docs/01_vision/07_sequencer.md` (Week 2 Definition of Done):
+
+- All v0.1 features stable (no regressions)
+- `wingfoil memory history` (audit trail) functional
+- Directive commands work (`create`, `assign`, `remove`, `list`)
+- Built-in directive templates (6 types: Code Quality, Testing, Code Review, Architecture, Security, Documentation)
+- Role-based directive auto-loading functional
+- MCP Prompts endpoint functional
+- >80% test coverage on directive module
+- Directive documentation + examples included
+- npm package v0.2.0 published
+- Journey 2 (Sam - review) and Journey 3 (Jordan - team dev) manually tested
 
 ## Execution Notes
 

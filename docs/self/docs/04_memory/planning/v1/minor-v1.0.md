@@ -1,28 +1,40 @@
 ---
 id: "minor-v1.0"
 type: release
-title: ""              # REQUIRED — e.g. "WingFoil v0.1 — Memory & Storage"
-status: draft          # auto-set by wingfoil
-version: ""            # REQUIRED — e.g. "v0.1"
-pillar: ""             # REQUIRED — primary feature pillar, e.g. "P1"
-features: []           # REQUIRED — feature IDs covered by this release, e.g. [P1.1, P1.2, P1.13]
-requirements: ""       # REQUIRED — path to per-release backlog JSON, e.g. "docs/03_backlog/04_backlog/by-release/v0.1.json"
-release-line: ""       # REQUIRED — version of the parent release-line, e.g. "v1"; also the path folder for this file
-tmpl_version: 260703   # Orignal template version
+title: "WingFoil v1.0 - MVP Complete"
+status: planning
+version: "v1.0"
+pillar: "P4"
+features: [P4.10, P4.12, P4.17]
+requirements: "docs/03_backlog/04_backlog/by-release/v1.0.json"
+release-line: "v1"
+tmpl_version: 260703
 ---
 
 ## Scope
 
-<!-- What this release delivers: primary pillar focus, key features shipped. -->
+v1.0 hardens and completes the Workflow pillar with atomic step execution (P4.10), comprehensive pre/post execution checks (P4.12), and refined built-in workflow templates for Task and Release patterns (P4.17). This final MVP release integrates all five pillars (Memory, DNA, Directives, Workflow, Interaction Layer) into a production-ready system, validates the Determinism Index (two independent runs from the same specs + config produce equivalent outputs), and publishes to npm. End-to-end testing covers all 8 user journeys; comprehensive documentation and troubleshooting guides enable early adopter onboarding.
 
 ## Pillar Focus
 
-<!-- Describe the pillar and why it is the focus for this release wave. -->
+**v1.0 is the MVP completion milestone**, not a single pillar focus. The riskier execution and validation machinery — atomic step execution and workflow checks — is hardened after v0.3's command surface stabilizes. Workflow steps can now execute memory operations, git commands (branch, worktree, merge, commit), and agent tasks; pre/post checks validate file existence, frontmatter completeness, git history, and test coverage. This release transforms WingFoil from a configuration tool into an execution engine while maintaining the determinism guarantee that sits at the project's north star.
 
 ## Success Criteria
 
-<!-- Measurable criteria that mark this release as complete.
-     Reference the MVP Canvas if applicable (docs/01_vision/08_mvp-canvas.md). -->
+Per `docs/01_vision/07_sequencer.md` (Week 5 Definition of Done) and `08_mvp-canvas.md` (MVP Success Criteria):
+
+- All v0.4 features stable (no regressions)
+- All 8 user journeys (0a, 0b, 1–6) executable and tested
+- Workflow checks (pre/post execution validation) working
+- Atomic workflow steps executing correctly (memory, agent, git operations)
+- Built-in workflow templates (Task, Release) functional and refined
+- Comprehensive documentation (API guide, workflow examples, troubleshooting)
+- Integration testing (end-to-end for all journeys) passing
+- Determinism validation: two independent runs from same specs produce equivalent outputs
+- Audit trail verified (all changes tracked to author + timestamp)
+- npm package v1.0.0 published with release notes
+- Security review completed (no secrets in repo, audit trail works)
+- Ready for early adopter onboarding
 
 ## Execution Notes
 
