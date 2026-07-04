@@ -146,3 +146,12 @@ reinvent parsing, error-code naming, and unknown-field handling.
   healthy — `warning.ts` 100% stmts / 93.1% branch / 100% funcs; suite: 43 tests, all green, plus
   `npm run build` and `npm run lint` clean. Task status unchanged (`in-review`) — this is an in-cycle
   addition on the existing branch/worktree, not a new submission.
+
+- **Follow-up, not yet done — `spec-009` §2's embedded code listing is now stale.** Roberto's "option
+  A" resolved the prose-vs-listing contradiction by making the *implementation* match the prose
+  (recursive diff), but `spec-009-validation-strategy.md` §2 still shows the old root-only
+  `emitUnknownFieldWarning` listing verbatim — it no longer matches `src/validation/warning.ts`.
+  Someone should update that listing (a content edit to an `approved` tech-spec — doc-versioning
+  directive applies: bump `version`/date on first edit since it was committed) so the spec stays an
+  accurate reference for `spec-001/002/003`'s consuming schemas. Not done as part of this task; raised
+  here as a reminder since this is where the gap was discovered and resolved.
