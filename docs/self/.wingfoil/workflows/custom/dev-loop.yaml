@@ -86,6 +86,6 @@ phases:
     role: developer
     actions:
       - memory.approve                         # task: in-review -> approved
-      - git.merge(to: main)
+      - 'git.merge(to: main)'
       - element.set_state(done)                # task: approved -> done
       - 'bug.sync_state(where: { id: task.bug })'   # keep the source bug in sync: in-review -> resolved -> closed (once all its fix tasks are done)

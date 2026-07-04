@@ -30,4 +30,4 @@ phases:
     description: "Final commit; freeze the repository line."
     role: tech-lead
     actions:
-      - git.commit("end-of-life: archive")
+      - 'git.commit("end-of-life: archive")'
