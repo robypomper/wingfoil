@@ -70,10 +70,13 @@ plan stays singular, and the task's own Memory file is the per-task adaptation s
   `git.create_worktree("task/{task.id}")`; `done` removes it via `git.remove_worktree`, after the
   merge and before the branch delete. *(`dev-loop.yaml` has no worktree action today; forced per
   `dl-014` G2, which exercises `REQ-INT-06`'s already-specified `create worktree` action.)*
-- **Merge — forced `--no-ff`.** `done` runs `git.merge(to: main, ff: false)` — always produces a
-  merge commit, even when the task branch could fast-forward. *(`dev-loop.yaml`/`dl-002` as currently
-  configured is a plain `git.merge(to: main)`; forced to `--no-ff` per `dl-014` G3, on the user's
-  explicit instruction, on top of the G1/G2 forcing already in place.)*
+- **Merge — forced `--no-ff`, and it happens last.** `done` first commits `approve` (`in-review →
+  approved`) and the `done` transition (`approved → done`) **on `task/{task.id}` itself**, then runs
+  `git.merge(to: main, ff: false)` — always produces a merge commit, even when the task branch could
+  fast-forward, and carries both state-transition commits into `main` in that single merge. *(See
+  §3.7 for the full ordering and why it changed. `dev-loop.yaml`/`dl-002` as currently configured is a
+  plain `git.merge(to: main)`; forced to `--no-ff` per `dl-014` G3, on the user's explicit instruction,
+  on top of the G1/G2 forcing already in place.)*
 - **On merge conflict:** unchanged — no bespoke procedure declared; `REQ-INT-06`'s fit criterion
   governs (conflict aborts the merge, working tree stays clean, `done` step marked `failed`).
   `dev-loop.yaml`'s `done` phase still has no `fallback:` (see §6 — flagged, not fixed/forced here);
@@ -170,14 +173,26 @@ Global (every phase): doc-versioning, documentation, security-secrets.
 
 ### 3.7 `done` — role: developer
 
-- `memory.approve` — task: `in-review → approved` (per CLAUDE.md §5.1: commit body needs
-  `Approver:`/`Reason:`).
-- `git.merge(to: main, ff: false)` — **forced `--no-ff`** (see §2, `dl-014` G3); the conflict/fallback
-  behavior is still currently undeclared (`dl-014` G4, not forced).
-- `git.remove_worktree` — **forced**, removes the task's worktree after the merge; see §2.
-- `git.branch.delete("task/{task.id}")` — the now-merged, `task/`-prefixed branch.
-- `element.set_state(done)` — task: `approved → done`.
-- `bug.sync_state(where: { id: task.bug })` — no-op for v0.1's 33 tasks.
+Both state-transition commits below (`approve` and the `done` transition) land **on the task's own
+`task/{task.id}` branch, before it is merged** — not on `main` after the fact. That way a single
+`--no-ff` merge carries both commits into `main` as part of the branch's own history, and the branch
+being merged is the one that actually reaches `done`, not a still-`approved` snapshot completed
+elsewhere. **This reorders the sequence from an earlier version of this plan**, which merged right
+after `approve` and then committed the `approved → done` transition separately on `main` once the
+branch was already gone — that put the `done` commit's authorship/history outside the task's own
+branch, which defeats the point of giving every task a dedicated branch in the first place.
+
+1. `memory.approve` — task: `in-review → approved`, **committed on `task/{task.id}`** (per CLAUDE.md
+   §5.1: commit body needs `Approver:`/`Reason:`).
+2. `element.set_state(done)` — task: `approved → done`, **also committed on `task/{task.id}`**,
+   immediately after the `approve` commit and still before any merge.
+3. `git.merge(to: main, ff: false)` — **forced `--no-ff`** (see §2, `dl-014` G3); carries both of the
+   above commits into `main` in one merge commit. The conflict/fallback behavior is still currently
+   undeclared (`dl-014` G4, not forced).
+4. `git.remove_worktree` — **forced**, removes the task's worktree after the merge; see §2.
+5. `git.branch.delete("task/{task.id}")` — the now-merged, `task/`-prefixed branch, already carrying
+   both the `approve` and `done` commits.
+6. `bug.sync_state(where: { id: task.bug })` — no-op for v0.1's 33 tasks.
 
 ---
 
