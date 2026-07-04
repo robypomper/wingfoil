@@ -196,20 +196,26 @@ Reason: v0.1 planning complete
 
 ## 4. Launch checklist
 
-- [ ] **2.1 define-scope** — verified already satisfied (no commit)
-- [ ] **2.2 record-adrs** — skipped (no gap found)
-- [ ] **2.3 identify-specs** — surveyed, no new spec needed (no commit)
-- [ ] **2.4 build-backlog**
-  - [ ] `memory.add(self): task-001..task-033 [status: draft]`
-  - [ ] `memory.submit(self): task-001..task-033 [draft → pending]`
-  - [ ] 33 files present, all `pending`, required frontmatter satisfied
-- [ ] **2.5 commit-backlog**
-  - [ ] `memory.approve(self): task-001..task-033 [pending → backlog]`
-  - [ ] `memory.approve(self): minor-v0.1 [planning → in-development]`
-  - [ ] Stop-check: `minor-v0.1` at `in-development`; all 33 tasks at `backlog`
+- [x] **2.1 define-scope** — verified already satisfied (no commit)
+- [x] **2.2 record-adrs** — skipped (no gap found)
+- [x] **2.3 identify-specs** — surveyed, no new spec needed (no commit)
+- [x] **2.4 build-backlog**
+  - [x] `wf(task): add task-001..task-033` (commit `b470456`)
+  - [x] `wf(task): submit task-001..task-033` (commit `ba3d76a`)
+  - [x] 33 files present, all `pending`, required frontmatter satisfied
+- [x] **2.5 commit-backlog**
+  - [x] `wf(task): approve task-001..task-033 [pending → backlog]` (commit `b77a32e`)
+  - [x] `wf(release): approve minor-v0.1 [planning → in-development]` (commit `05f9ff3`)
+  - [x] Stop-check: `minor-v0.1` at `in-development`; all 33 tasks at `backlog`
 
-Next: `release-cycle`'s `implementation` phase — one `dev-loop` per backlog task (out of scope
-here).
+All of the above executed on branch `design/release_planning_v0.1` (2026-07-04). **Not merged into
+`main`** — an earlier merge was reverted by the user, who chose to keep this work on the branch;
+merging into `main` was never part of this plan or of any workflow definition (no workflow yaml
+declares a git-branch/merge action for `release-planning`, and `dl-002-git-branching-trunk-based`
+scopes its rule to `dev-loop` per-task branches only) and is deferred to an explicit future decision.
+
+Next: `release-cycle`'s `implementation` phase — one `dev-loop` per backlog task, starting with
+`task-001`/`task-002` as prerequisites (out of scope here, not yet started).
 
 ---
 
