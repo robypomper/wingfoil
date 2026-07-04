@@ -177,7 +177,7 @@ config version that predates the `rl-v1` restructuring.
 
 | Wave | Started | Workflow run ID | Tasks → `in-review` | Approved | Merged to `main` | Notes |
 |---|---|---|---|---|---|---|
-| 0 (`task-001`) | — | — | — | — | — | |
+| 0 (`task-001`) | 2026-07-04 | — (direct `Agent` tool, not `Workflow` — single-task wave, §5.2 of the orchestration design) | `task-001` → in-review (dev agent: sonnet) | Approved by Roberto after independent review (opus): 2026-07-04 | `52cfc52` — real merge commit (`--no-ff`, `dl-014` G3, forced per this instruction), parents `7d823e3`+`faa8cea`; `task/task-001-nodejs-typescript-scaffold` branch deleted post-merge | History rewritten after the initial run (git commit hashes for this task's chain changed — the ones cited elsewhere in this doc's prose predate the rewrite); a pre-existing untracked `.gitignore` on `main` collided with the branch's tracked one at merge time, resolved by union, no entries lost |
 | 1 (`task-002`) | — | — | — | — | — | |
 | 2 (infra ×15) | — | — | — | — | — | |
 | 3 (feature ×13) | — | — | — | — | — | |
