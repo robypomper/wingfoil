@@ -101,3 +101,44 @@ whether `release-planning` work should live on a branch merged to `main` (as `in
 still undecided — an unprompted merge was tried once here and reverted by the approver; no workflow
 yaml or decision-log currently specifies branching for this phase (`dl-002` only covers `dev-loop`
 per-task branches).
+
+**`minor-v0.1` — `implementation` phase preparation (2026-07-04, on `main`):** before the phase's 33
+`dev-loop` runs start, two ad-hoc decision-logs and two plans were produced.
+
+`dl-013-documentation-process-gate` (add+submit, `in-discussion`) decides the text of two
+documentation rules — TSDoc/TypeDoc on every public/exported symbol, and user-facing docs
+(README/user-guide/CLI-reference/examples/CHANGELOG) written before `release-submit` — plus a new
+`user-docs` `release-cycle` phase between `implementation` and `submit` to enforce the second rule.
+Neither is wired into config yet.
+
+`dl-014-dev-loop-plan-deltas` (add+submit, `in-discussion`) went through two revisions the same day.
+Its first draft proposed a `task/` branch prefix, per-task git worktrees, and `--no-ff` merges for
+`dev-loop.yaml`, plus a `done`-phase merge-conflict fallback and wiring `dl-013`'s API-docs rule into
+`refactor.checks.post`. Checking it against `dl-002-git-branching-trunk-based` (already `ready`)
+found a direct conflict: `dl-002` explicitly names that same branch-prefix/worktree/`--no-ff` trio as
+"considered and deferred". The first fix dropped those three to avoid the conflict; the approver
+corrected that — the right resolution was to keep them and frame them as an explicit **supersession**
+of `dl-002` (new fact: `minor-v0.1`'s `implementation` phase needs to run tasks in parallel, which
+`dl-002` didn't anticipate), not a silent retreat. `dl-014` now proposes overriding `dl-002` on
+branch/worktree/merge-strategy specifically, with an Action to `memory.deprecate(dl-002, ...)` once
+`dl-014` itself is approved; `dl-002` remains the governing, `ready` decision until then.
+
+Two plans were written for the `implementation` phase, both citing content from abandoned,
+never-merged branches as prior art (re-derived against current config, not copied) without naming
+those branches inside the plans' own decision-adjacent sections:
+- `docs/05_plans/rl-v1/rel-v0.1/dev-loop-rel-v0.1-plan.md` — the per-task contract, mirroring all 7
+  `dev-loop.yaml` phases (`start/design/red/green/refactor/review/done`). On the approver's explicit
+  instruction, it **force-adopts** `task/{task.id}`-prefixed branches and per-task git worktrees ahead
+  of `dl-014`'s approval — a deliberate, flagged divergence from `dev-loop.yaml`/`dl-002` as currently
+  configured, not an oversight. Merge strategy and the conflict fallback were **not** forced.
+- `docs/05_plans/rl-v1/rel-v0.1/release-implementation-rel-v0.1-plan.md` — the orchestration layer
+  above it: 5 waves over the 33-task registry (0=`task-001`, 1=`task-002`, 2=`task-003..017` ×15,
+  3=`task-018..030` ×13, 4=`task-031..033` ×3), per-task model assignment, a human-checkpoint table
+  extracted from `dev-loop.yaml`/`release-submit.yaml`/`release-publishing.yaml`/`retrospective.yaml`,
+  and an illustrative (not executed) sketch of using Claude Code's own `Workflow` tool
+  (`agent()`/`parallel()`, `isolation: 'worktree'`) as the fleet-execution mechanism for running
+  multiple tasks' dev-loops concurrently — explicitly distinguished from the (still nonexistent)
+  `wingfoil` workflow engine.
+
+**Neither plan has been executed** — no task has moved past `backlog`; Wave 0
+(`task-001-nodejs-typescript-scaffold`) has not started.
