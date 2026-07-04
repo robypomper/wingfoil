@@ -55,13 +55,15 @@ original 32-task backlog — see §7.
 
 Every task in every wave runs exactly the phase sequence in `dev-loop-rel-v0.1-plan.md` §3
 (`start → design → red → green → refactor → review → done`), under the git conventions in its §2 —
-**including the forced `task/{task.id}` branch naming and per-task git worktree** (forced ahead of
-`dl-014-dev-loop-plan-deltas`'s approval, per the user's explicit instruction).
+**including the forced `task/{task.id}` branch naming, per-task git worktree, and `--no-ff` merge**
+(`dl-014-dev-loop-plan-deltas` G1–G3, forced ahead of its approval, per the user's explicit
+instruction).
 
-**This orchestration plan is the concrete reason that forcing was needed:** waves 2 and 3 run 15 and
-13 tasks respectively; without per-task worktree isolation, those tasks could not check out their
-branches concurrently on a single shared working tree. `dev-loop-rel-v0.1-plan.md`'s forcing note
-now has a load-bearing consumer, not just a hypothetical one.
+**This orchestration plan is the concrete reason the branch/worktree forcing was needed:** waves 2
+and 3 run 15 and 13 tasks respectively; without per-task worktree isolation, those tasks could not
+check out their branches concurrently on a single shared working tree. `dev-loop-rel-v0.1-plan.md`'s
+forcing note now has a load-bearing consumer, not just a hypothetical one. The `--no-ff` merge
+strategy (G3) was forced later, after Wave 0 had already run — see §7 and §8.
 
 **A dev agent never self-approves or merges.** It runs `start → design → red → green → refactor`
 autonomously, then `review`'s `tests.bdd.run` + `memory.submit` (`in-progress → in-review`) — and
@@ -167,7 +169,7 @@ config version that predates the `rl-v1` restructuring.
 | Wave sizes | 1 / 1 / 15 / 13 / 2 | 1 / 1 / 15 / 13 / **3** | Identical shape except Wave 4 — `task-033` (manual E2E validation) is a proactive addition not present in the old 32-task backlog |
 | Dev-loop phase model | `Phase 0..5` (plan-commit, start, red, green, refactor, review) — predates the `design` phase | 7 phases incl. `design` (`dev-loop-rel-v0.1-plan.md` §3) | `design`-phase-as-safety-net was added to `dev-loop.yaml` independently after this prior art was written |
 | Branch/worktree | `task/{task.id}` + worktree, stated as already-adopted convention | Same shape, but explicitly **forced** ahead of formal approval — `dl-002-git-branching-trunk-based` (`ready`) actually adopted the *opposite* (bare branch, no worktree); `dl-014-dev-loop-plan-deltas` (`in-discussion`) proposes superseding it | The prior-art plan predates `dl-002` entirely, so it never had to reconcile with it; this plan does (`dev-loop-rel-v0.1-plan.md` §2) |
-| Merge strategy | `git merge --no-ff task/{id}` | Plain `git.merge(to: main)` — **not** forced to `--no-ff` | The user's forcing instruction covered only branch naming + worktree, not merge strategy (`dev-loop-rel-v0.1-plan.md` §2) |
+| Merge strategy | `git merge --no-ff task/{id}` | Initially plain `git.merge(to: main)` (branch/worktree forcing only) — **`--no-ff` forced afterward** (`dl-014` G3), once Wave 0 had already run once under the plain strategy (§8) | The user's forcing instruction initially covered only branch naming + worktree; extended to `--no-ff` in a later instruction, so it converges back onto the prior-art shape (`dev-loop-rel-v0.1-plan.md` §2) |
 | Model assignments | Opus for cross-cutting/complex tasks (validation engine, schema validator, init wizard, MCP server), sonnet otherwise | Same 4 tasks flagged opus, remapped from old task IDs to current ones **by feature id** (`P1.13`, `P5.1.1`, `P5.2.1`, plus the validation/ID engine task) — raw task numbers are not stable across the two plans | Task numbering changed; feature id is the only reference stable across both |
 | Execution log | Wave 0 logged complete in a later commit (`e3e879b`) on the same prior-art branch | Empty — nothing has run yet in this lineage | This plan starts fresh; the prior art's Wave-0 log belongs to its own (abandoned) execution, not this one |
 

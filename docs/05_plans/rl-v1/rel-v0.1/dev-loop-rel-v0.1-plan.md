@@ -45,43 +45,45 @@ plan stays singular, and the task's own Memory file is the per-task adaptation s
 
 ## 2. Conventions
 
-### Branch, worktree & merge — branch naming and worktree creation are **forced** ahead of approval
+### Branch, worktree & merge — branch naming, worktree creation, and merge strategy are **forced** ahead of approval
 
 > **⚠ Forcing note — deliberate override, not yet formally approved.** `dev-loop.yaml`'s actual
 > `start`/`done` actions today are `git.create_branch("{task.id}")` (bare, no prefix) and
-> `git.merge(to: main)`, with **no worktree action at all** — that is exactly what
-> `dl-002-git-branching-trunk-based` (already `ready`) prescribes. **This plan force-adopts the
-> `task/`-prefixed branch name and per-task git worktree creation ahead of `dev-loop.yaml` and
-> `dl-002` being formally updated**, per the user's explicit instruction, on the authority of
-> `dl-014-dev-loop-plan-deltas` (`in-discussion`) — which proposes exactly these two changes as an
-> explicit **supersession** of `dl-002`, to support running the 33 `minor-v0.1` tasks' dev-loops in
-> parallel. `dl-002` remains the formally `ready` decision-log until `dl-014` is itself approved and
-> `dl-002` is deprecated per `dl-014`'s own Actions — so there is now a deliberate, temporary
-> divergence between **this plan** (forces the `dl-014` shape) and **`dev-loop.yaml`/`dl-002`** (still
-> the bare/no-worktree shape) until that config catches up. Do not read this forcing as `dl-014`
-> having been approved — it hasn't.
+> `git.merge(to: main)` (plain, fast-forwardable), with **no worktree action at all** — that is
+> exactly what `dl-002-git-branching-trunk-based` (already `ready`) prescribes. **This plan
+> force-adopts the `task/`-prefixed branch name, per-task git worktree creation, and `--no-ff` merge
+> ahead of `dev-loop.yaml` and `dl-002` being formally updated**, per the user's explicit instruction,
+> on the authority of `dl-014-dev-loop-plan-deltas` (`in-discussion`) — whose G1–G3 propose exactly
+> these three changes as an explicit **supersession** of `dl-002`, to support running the 33
+> `minor-v0.1` tasks' dev-loops in parallel and keep each one's history a distinct, revertible unit
+> even when a branch could fast-forward. `dl-002` remains the formally `ready` decision-log until
+> `dl-014` is itself approved and `dl-002` is deprecated per `dl-014`'s own Actions — so there is now
+> a deliberate, temporary divergence between **this plan** (forces the `dl-014` G1–G3 shape) and
+> **`dev-loop.yaml`/`dl-002`** (still the bare/no-worktree/plain-merge shape) until that config
+> catches up. Do not read this forcing as `dl-014` having been approved — it hasn't.
 
 - **Branch — forced `task/{task.id}`** (prefixed — e.g. `task/task-002-validation-id-engine`),
   created at `start` via `git.create_branch("task/{task.id}")`. *(Per `dl-002`/`dev-loop.yaml` as
   currently configured this would be the bare `{task.id}`; forced to the `task/`-prefixed form per
-  `dl-014`.)*
+  `dl-014` G1.)*
 - **Worktree — forced, per-task.** `start` also creates a dedicated git worktree for the task via
   `git.create_worktree("task/{task.id}")`; `done` removes it via `git.remove_worktree`, after the
   merge and before the branch delete. *(`dev-loop.yaml` has no worktree action today; forced per
-  `dl-014`, which exercises `REQ-INT-06`'s already-specified `create worktree` action.)*
-- **Merge — unchanged, per `dl-002`/`dev-loop.yaml` as configured.** Still `git.merge(to: main)` at
-  `done` — plain strategy, **not** forced to `--no-ff`. `dl-014` also proposes `--no-ff`, but the
-  user's forcing instruction covers only branch naming and worktree creation, so this plan does not
-  force the merge-strategy delta.
+  `dl-014` G2, which exercises `REQ-INT-06`'s already-specified `create worktree` action.)*
+- **Merge — forced `--no-ff`.** `done` runs `git.merge(to: main, ff: false)` — always produces a
+  merge commit, even when the task branch could fast-forward. *(`dev-loop.yaml`/`dl-002` as currently
+  configured is a plain `git.merge(to: main)`; forced to `--no-ff` per `dl-014` G3, on the user's
+  explicit instruction, on top of the G1/G2 forcing already in place.)*
 - **On merge conflict:** unchanged — no bespoke procedure declared; `REQ-INT-06`'s fit criterion
   governs (conflict aborts the merge, working tree stays clean, `done` step marked `failed`).
-  `dev-loop.yaml`'s `done` phase still has no `fallback:` (see §6 — flagged, not fixed/forced here).
+  `dev-loop.yaml`'s `done` phase still has no `fallback:` (see §6 — flagged, not fixed/forced here);
+  `dl-014` G4 proposes one but it is not part of this forcing.
 
 > **Open proposals, not yet in effect (and not forced by this plan):** `dl-013-documentation-process-gate`
-> (API-docs rule text + release-level `user-docs` phase) and the rest of `dl-014` (`--no-ff` merges +
-> a merge-conflict fallback + an API-docs check in `refactor`) remain `in-discussion`, unapproved, and
-> **not** anticipated here — only the branch-naming and worktree-creation pieces of `dl-014` are
-> forced, per the note above.
+> (API-docs rule text + release-level `user-docs` phase) and the remainder of `dl-014` — G4 (a
+> merge-conflict fallback) and G5 (an API-docs check in `refactor`) — remain `in-discussion`,
+> unapproved, and **not** anticipated here. Only G1–G3 (branch naming, worktree creation, and
+> `--no-ff` merge) are forced, per the note above.
 
 ### Commits
 
@@ -170,8 +172,8 @@ Global (every phase): doc-versioning, documentation, security-secrets.
 
 - `memory.approve` — task: `in-review → approved` (per CLAUDE.md §5.1: commit body needs
   `Approver:`/`Reason:`).
-- `git.merge(to: main)` — unchanged, plain strategy (see §2 — not forced to `--no-ff`, and the
-  conflict/fallback behavior is still currently undeclared).
+- `git.merge(to: main, ff: false)` — **forced `--no-ff`** (see §2, `dl-014` G3); the conflict/fallback
+  behavior is still currently undeclared (`dl-014` G4, not forced).
 - `git.remove_worktree` — **forced**, removes the task's worktree after the merge; see §2.
 - `git.branch.delete("task/{task.id}")` — the now-merged, `task/`-prefixed branch.
 - `element.set_state(done)` — task: `approved → done`.
@@ -217,16 +219,16 @@ Next: start with **`task-001-nodejs-typescript-scaffold`**, then **`task-002-val
 ## 6. Open items — one forced ahead of approval, others still just documented (not fixed here)
 
 - **Forced, not yet reconciled with config:** this plan force-adopts `dl-014-dev-loop-plan-deltas`'s
-  (`in-discussion`) `task/`-prefixed branch naming and per-task worktree creation (§2, §3.1, §3.7),
-  on the user's explicit instruction — but `dev-loop.yaml` itself still declares bare `{task.id}`
-  branches and no worktree action (per `dl-002-git-branching-trunk-based`, still `ready`), and
-  `dl-014` is not approved. This is a **deliberate, temporary divergence between this plan and the
-  actual workflow config**, not an error: it should be closed by (a) approving `dl-014`, (b)
-  deprecating `dl-002` per `dl-014`'s own Actions, and (c) updating `dev-loop.yaml` to match — until
-  then, running this plan produces branches/worktrees that `dev-loop.yaml` as written doesn't itself
-  create.
-- **Not forced, still just proposed:** the rest of `dl-014` — `--no-ff` merges and the `done`-phase
-  merge-conflict fallback (`fallback: { step: red, set_state: in-progress }`, mirroring `review`'s
-  shape; `REQ-INT-06` already defines the underlying abort-on-conflict behavior) — and all of
-  `dl-013`'s API-docs check wiring in `refactor`. Neither is forced here; this plan still follows
-  `dev-loop.yaml` as configured for those two points (plain merge, no fallback, no doc check).
+  (`in-discussion`) G1–G3 — `task/`-prefixed branch naming, per-task worktree creation, and `--no-ff`
+  merge (§2, §3.1, §3.7) — on the user's explicit instruction — but `dev-loop.yaml` itself still
+  declares bare `{task.id}` branches, no worktree action, and a plain merge (per
+  `dl-002-git-branching-trunk-based`, still `ready`), and `dl-014` is not approved. This is a
+  **deliberate, temporary divergence between this plan and the actual workflow config**, not an
+  error: it should be closed by (a) approving `dl-014`, (b) deprecating `dl-002` per `dl-014`'s own
+  Actions, and (c) updating `dev-loop.yaml` to match — until then, running this plan produces
+  branches/worktrees/merge-commits that `dev-loop.yaml` as written doesn't itself create.
+- **Not forced, still just proposed:** the rest of `dl-014` — G4, the `done`-phase merge-conflict
+  fallback (`fallback: { step: red, set_state: in-progress }`, mirroring `review`'s shape;
+  `REQ-INT-06` already defines the underlying abort-on-conflict behavior) — and G5, all of `dl-013`'s
+  API-docs check wiring in `refactor`. Neither is forced here; this plan still follows `dev-loop.yaml`
+  as configured for those two points (no fallback, no doc check).
