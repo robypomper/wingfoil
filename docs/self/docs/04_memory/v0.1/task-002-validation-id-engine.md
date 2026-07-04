@@ -120,3 +120,29 @@ reinvent parsing, error-code naming, and unknown-field handling.
   own tasks. Commit scope choice: code commits use the `core` module scope (dna.yaml has no
   `validation` module entry; `src/validation` is cross-cutting shared logic that `core` best fits).
   Task moved `in-progress → in-review`; approval gate + merge are the approver's, not performed here.
+
+- **in-review addition (recursive nested-passthrough warning).** The reviewer's `approve` verdict
+  flagged one real gap: `spec-009-validation-strategy` §2 states in prose that "the same diff is
+  applied recursively at each nesting level that itself has a `.passthrough()` schema, so unknown
+  fields inside nested config blocks are reported too, not only at the document root" — but §2's own
+  reference code listing (and hence the first implementation of `emitUnknownFieldWarning`) checked
+  **top-level keys only**. Since `memory.yaml` (per-type state-machine maps), `dna.yaml`, and
+  `workflows.yaml` (`phases:` — an array of phase objects, each with nested `checks`) all carry deep
+  nesting, an unknown field inside any nested block went undetected. Roberto authorized closing this
+  as **"option A" — extend the shared validation module now** rather than amending the spec to drop
+  the recursive-diff sentence. `emitUnknownFieldWarning` now recurses: for each *known* raw key whose
+  declared field schema is itself a Zod object schema (structurally: exposes `.shape`) and whose raw
+  value is a plain object, it re-applies the raw-vs-`shape` diff one level down; for a declared field
+  that is a Zod array whose element schema exposes `.shape` and whose raw value is an array, it
+  recurses into each object element. Nesting is detected purely structurally (`.shape` for objects,
+  `.element` for arrays — Zod 4 exposes both publicly; mutually exclusive, so `no-explicit-any`-clean
+  guards discriminate them), never by Zod-version-specific internals. Unknown fields are reported by
+  path: bare name at the root (`mysteryField`), dotted for nested (`block.mysteryNested`), and indexed
+  for array elements (`phases[1].bogusStep`) — extending, not replacing, the existing warning line
+  format. The **known-defective guard is untouched**: the base mechanism stays raw-vs-`shape` (never
+  raw-vs-parsed) at every level; recursion is layered on top of it. Added 4 warning tests (nested
+  block unknown by dotted path; nested block with only declared keys → silent; array-of-phases unknown
+  by indexed path; multi-level unknowns in one warning). Coverage over `src/validation/**` stays
+  healthy — `warning.ts` 100% stmts / 93.1% branch / 100% funcs; suite: 43 tests, all green, plus
+  `npm run build` and `npm run lint` clean. Task status unchanged (`in-review`) — this is an in-cycle
+  addition on the existing branch/worktree, not a new submission.
