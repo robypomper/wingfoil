@@ -2,7 +2,7 @@
 id: "minor-v0.1"
 type: release
 title: "WingFoil v0.1 - Project Memory + DNA"
-status: planning
+status: in-development
 version: "v0.1"
 pillar: "P1"
 features: [P1.1, P1.2, P1.3, P1.5, P1.11, P1.12, P1.13, P2.1, P2.2, P2.4, P2.5, P5.1.1, P5.2.1]

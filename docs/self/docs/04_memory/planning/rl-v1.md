@@ -80,3 +80,24 @@ approved** — held for human review before `memory.approve` runs (agents do not
 
 <!-- Cross-release patterns: recurring blockers, releases that slipped and why, whether the
      release roadmap seeded here needed revision mid-line. -->
+
+**`minor-v0.1` — `release-planning` (2026-07-04, plan:
+`docs/05_plans/rl-v1/rel-v0.1/release-planning-rel-v0.1-plan.md`, branch
+`design/release_planning_v0.1`):** `define-scope`/`record-adrs`/`identify-specs` all found nothing
+to add — this line's `initial-design` had already seeded enough (`seed-releases` submitted releases
+one step ahead of the model doc; `adr-001..008`/`spec-001..012` fully covered v0.1's scope). The
+substantive work was in `build-backlog`: 28 tasks derived from `v0.1.json`, renumbered
+`task-001..033` independent of the backlog JSON's own `TASK-NNN` numbering (backlog content/count is
+a suggestion, not authoritative — see auto-memory
+`feedback_backlog_json_not_authoritative`), plus 5 tasks added proactively (repo scaffold,
+validation/ID engine, `dna.yaml` sync, README/CLI docs, manual E2E journey validation) —
+cross-checked against a prior, abandoned attempt at this same phase (branch
+`design/rel_v0.1_planning`, commit `9d1752b…`) that had discovered the same scaffold/validation-
+engine gap only reactively, mid-planning, and had to invent two ad hoc SARD requirements
+(`REQ-SYS-10`/`11`) to justify it; this time `adr-005`/`spec-009` (already `accepted`/`approved`)
+justified the equivalent tasks directly, no new requirement needed. All 33 tasks approved into
+`backlog` and `minor-v0.1` approved `planning → in-development`. **Open point for future releases:**
+whether `release-planning` work should live on a branch merged to `main` (as `initial-design` did) is
+still undecided — an unprompted merge was tried once here and reverted by the approver; no workflow
+yaml or decision-log currently specifies branching for this phase (`dl-002` only covers `dev-loop`
+per-task branches).
