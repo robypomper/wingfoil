@@ -2,7 +2,7 @@
 id: "spec-013-directive-frontmatter-schema"
 type: tech-spec
 title: "Directive frontmatter schema: the Directives pillar's per-file YAML frontmatter shape"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/directives/**/*.md frontmatter (the Directives pillar file shape loaded by src/directives)"
 supersedes: ""
 tmpl_version: 260703
