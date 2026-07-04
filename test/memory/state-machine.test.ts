@@ -195,3 +195,19 @@ describe('resolveTransitionTarget — a state both `gates` and `waiting` (spec-0
     expect(() => resolveTransitionTarget(dualMachine, 'ready', 'submit')).toThrow(ValidationError);
   });
 });
+
+describe('resolveTransitionTarget — defensive edge case: a `gates` state with no next `sequence` entry', () => {
+  // None of the 7 real types construct a machine this way (every `gates` key has a following
+  // `sequence` entry) — this is a defensive guard against a malformed machine, not a case spec-001
+  // itself anticipates, but `approve` must still fail closed (never return `undefined` as a target)
+  // rather than writing an invalid state.
+  const terminalGateMachine = { sequence: ['draft', 'pending'], gates: { pending: { reject: 'draft' } } };
+
+  it('`approve` is illegal when the gate state is the last entry in `sequence`', () => {
+    expect(() => resolveTransitionTarget(terminalGateMachine, 'pending', 'approve')).toThrow(ValidationError);
+  });
+
+  it('`reject` remains legal regardless (its target is `gates.<state>.reject`, not `sequence`-derived)', () => {
+    expect(resolveTransitionTarget(terminalGateMachine, 'pending', 'reject')).toBe('draft');
+  });
+});
