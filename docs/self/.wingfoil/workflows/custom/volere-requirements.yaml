@@ -7,12 +7,6 @@ description: >-
   Extract and formalize infrastructure, business rules, and NFRs into the SARD using the Volere
   Requirement Shell (Description, Rationale, Traceability, Fit Criterion), grouped by macro-area.
 version: 1.0
-role: architect
-input:
-  - docs/02_requirements/01_user_story_map/
-  - docs/02_requirements/02_bdd/
-produces:
-  - docs/02_requirements/03_sard/          # one file per macro-area + 00_index
 
 phases:
   - name: extract-requirements

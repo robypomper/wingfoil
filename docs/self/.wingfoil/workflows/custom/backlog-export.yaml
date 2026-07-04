@@ -7,11 +7,6 @@ description: >-
   Consolidate the documentary chain (USM + BDD + SARD) into a single structured backlog,
   ready to sync into dev tools; partition tasks by release wave.
 version: 1.0
-role: product-owner
-input:
-  - docs/02_requirements/      # all generated requirement artifacts
-produces:
-  - docs/03_backlog/04_backlog/   # backlog.json, schema.json, by-release/*.json
 
 phases:
   - name: generate-records

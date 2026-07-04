@@ -13,7 +13,7 @@ phases:
     description: "Confirm pillar focus + feature scope for the release (from the release Memory doc)."
     role: product-owner
     actions:
-      - element.set_state(planning)            # release: draft -> planning
+      - memory.submit                          # release: draft -> planning
     produces:
       - "docs/04_memory/planning/{release-line}/{release.id}.md"
     checks:

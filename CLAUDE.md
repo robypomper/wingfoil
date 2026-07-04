@@ -50,7 +50,7 @@ move to the repository-root `.wingfoil/` once the tool can manage it). Memory **
 
 | File                                                       | Pillar                 | What it holds                                                                                                                                                                                        |
 |------------------------------------------------------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `docs/self/.wingfoil/dna.yaml`                             | DNA (P2.4)             | Modules, tech stack, **team & roles**, conventions, resource paths                                                                                                                                   |
+| `docs/self/.wingfoil/dna.yaml`                             | DNA (P2.4)             | Modules, **stacks** (technologies + methodologies), **team & roles**, resource paths (`conventions` removed in v1.1 — rules moved to `directives/custom/`; see spec-002)                              |
 | `docs/self/.wingfoil/memory.yaml`                          | Memory (P1.13)         | Element **types** (`release-line, release, task, adr, decision-log, tech-spec, bug`), per-type **state machines**, and per-type `template:` scaffolds                                                |
 | `docs/self/.wingfoil/memory/templates/`                    | Memory (P1.13)         | One Markdown scaffold per element type (`frontmatter.required` enforced on submit)                                                                                                                   |
 | `docs/self/docs/04_memory/planning/{id}.md`                | Memory (P1.11)         | The **release-line** roadmap (one file per major version, e.g. `rl-v1.md`)                                                                                                                           |
@@ -67,8 +67,9 @@ move to the repository-root `.wingfoil/` once the tool can manage it). Memory **
 ## 4. Project DNA — quick reference (`dna.yaml` is authoritative)
 
 - **Modules:** `core, storage, memory, dna, directives, workflow, cli, mcp-server` (under `src/`, planned).
-- **Tech stack:** TypeScript · Node.js 18+ · npm · Commander.js + chalk (CLI) · MCP over stdio + Anthropic SDK · Zod
-  (validation) · Jest (testing, coverage **>80%**) · git storage · semver.
+- **Stacks** (`stacks.technologies`): TypeScript · Node.js 18+ · npm · Commander.js + chalk (CLI) · MCP over stdio
+  + Anthropic SDK · Zod (validation) · Jest (testing, coverage **>80%**) · git storage · semver. **Methodologies**
+  (`stacks.methodologies`): Lean Inception · User Story Mapping · Specification by Example (BDD) · SARD · TDD.
 - **Roles:** `developer, reviewer, qa, architect, product-owner, tech-lead, facilitator, approver`.
   AI agents execute as `developer/reviewer/qa/architect` and **never hold approval authority** — all
   approvals route to the `approver` role (the human, Roberto).
@@ -81,15 +82,25 @@ move to the repository-root `.wingfoil/` once the tool can manage it). Memory **
 State is **derived from each document's frontmatter** — there is **no `.wingfoil/state/` index**
 (REQ-SYS-03). Every transition is validated against the type's state machine (REQ-STATE-01).
 
-| Type           | Path (under `docs/self/`)                        | State machine                                                     |
-|----------------|---------------------------------------------------|---------------------------------------------------------------------|
-| `release-line` | `docs/04_memory/planning/{id}.md`                | draft→planning→active→done (·→deprecated)                          |
-| `release`      | `docs/04_memory/planning/{release-line}/{id}.md` | draft→planning→in-development→releasing→released (·→deprecated)    |
-| `task`         | `docs/04_memory/{release}/{id}.md`               | draft→pending→backlog→in-progress→in-review→approved→done          |
-| `adr`          | `docs/04_memory/design/adrs/{id}.md`             | draft→pending→accepted/rejected→superseded                         |
-| `decision-log` | `docs/04_memory/design/dls/{id}.md`              | default (draft→pending→approved/rejected→deprecated)                |
-| `tech-spec`    | `docs/04_memory/design/specs/{id}.md`            | draft→pending→approved/rejected→superseded (mirrors `adr`)          |
-| `bug`          | `docs/04_memory/bugs/{id}.md`                    | draft→open→triaged→planned→in-progress→in-review→resolved→closed   |
+Each type's machine is encoded in `memory.yaml` as `sequence` (the ordered forward chain) + `gates`
+(per-state `{state: {reject: target}}`, meaning that state's forward edge needs `approve` rather than
+plain `submit`) + `waiting` (states advanced only by a workflow/engine action, no CLI verb) — see
+`spec-001-memory-yaml-schema` (initial-design, rl-v1) for the full schema. This replaced an earlier
+`transitions` dict-of-arrays encoding; the practical effect on the **default** machine and on `adr`/
+`tech-spec` is that `reject` now lands directly back on `draft` — there is **no separate `rejected`
+status** anymore anywhere (the rejection reason still lives in the git commit body, per P1.7, just not
+as a status value). `task` already worked this way; `decision-log` now has its own custom machine
+(previously it used the plain default) per `dl-012-decision-log-state-machine`.
+
+| Type           | Path (under `docs/self/`)                        | State machine (forward chain; `reject` targets in parentheses)                         |
+|----------------|---------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `release-line` | `docs/04_memory/planning/{id}.md`                | draft→planning(→draft)→active→done (·→deprecated)                                       |
+| `release`      | `docs/04_memory/planning/{release-line}/{id}.md` | draft→planning→in-development→releasing→released (·→deprecated)                          |
+| `task`         | `docs/04_memory/{release}/{id}.md`               | draft→pending(→draft)→backlog→in-progress→in-review(→in-progress)→approved→done          |
+| `adr`          | `docs/04_memory/design/adrs/{id}.md`             | draft→pending(→draft)→accepted→superseded                                                |
+| `decision-log` | `docs/04_memory/design/dls/{id}.md`              | draft→in-discussion(→draft)→ready→in-develop→done (·→deprecated)                         |
+| `tech-spec`    | `docs/04_memory/design/specs/{id}.md`            | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
+| `bug`          | `docs/04_memory/bugs/{id}.md`                    | draft→open(→closed)→triaged→planned→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
 
 ---
 
@@ -165,9 +176,15 @@ two must appear explicitly in the commit message.
 Same evidentiary requirement as `memory.approve` (P1.7): approver identity + reason, both explicit in
 the commit message (the timestamp comes from the git commit itself).
 
-1. Change **only** the `status` field to the type's reject target — e.g. `pending → rejected` for the
-   default machine and `adr`/`tech-spec`; `pending → draft` directly for `task` (no separate `rejected`
-   state there).
+1. Change the `status` field to the type's reject target, per `memory.yaml`'s `gates` block for
+   that state — e.g. `pending → draft` for the default machine, `task`, `adr`, and `tech-spec` alike
+   (none of them has a separate `rejected` status); `in-discussion → draft` for `decision-log`;
+   `open → closed` or `in-review/resolved → in-progress` for `bug` (§5 table). At the same time, set
+   the document's `rejection_reason` frontmatter field to the `--reason` text given to the reject
+   command — this is in addition to the reason already recorded in the commit body below; the
+   frontmatter copy is a convenience so the reason is visible without walking git history. A later
+   `memory.submit` on this document clears `rejection_reason` again (it reflects only the most recent
+   reject, not a history).
 2. Commit message format — subject + mandatory body:
    ```
    wf({type}): reject {id1}, {id2} [{old-state} → {new-state}]

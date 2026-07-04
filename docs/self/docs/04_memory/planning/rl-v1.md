@@ -43,8 +43,38 @@ From `docs/01_vision/08_mvp-canvas.md` ("MVP Success Criteria (v1.0)"):
 
 ### Initial Design (seed-adrs / seed-dls / seed-specs)
 
-<!-- Decisions/specs formalized up front for this release-line; anything discovered late that
-     should have been seeded here instead of during a release's identify-specs. -->
+Executed per `docs/05_plans/rl-v1/initial-design-rl-v1-plan.md` on 2026-07-03 (branch
+`design/initial-design`). Phase 1 (seed-releases): 5 release files created (`minor-v0.1`…`minor-v1.0`,
+`status: draft`). Phases 2–4: 8 ADRs, 12 Decision Logs, 12 Tech-Specs authored via 33 parallel
+sub-agents, cross-checking two unmerged prior-art sources (`_backup/` and branch
+`task/task-109-validation-id-engine`) against this line's current config rather than copying them
+verbatim — several factual corrections were needed (stale pre-release-line path examples, an
+`includes:`→`include:` rename). As part of `spec-001`/`spec-003`, `docs/self/.wingfoil/memory.yaml`
+was migrated from a `transitions` dict-of-arrays state encoding to `sequence`/`gates`/`waiting`
+(removes an approve/reject ambiguity; the default machine, `adr`, and `tech-spec` lose their separate
+`rejected` status as a result) and `decision-log` gained its own custom lifecycle
+(`draft→in-discussion→ready→in-develop→done`, per `dl-012`); `workflows.yaml`'s `includes:` key was
+renamed to `include:`, with downstream documentation updated to match. `spec-002` initially declined
+the branch's proposed `dna.yaml` restructuring (generic `stacks` list, dropped `conventions`, dropped
+`team.roles`) as out of scope; that decision was later reversed on explicit instruction — `dna.yaml`
+was restructured to the generic `stacks.technologies`/`stacks.methodologies` shape, `conventions`
+values were relocated into the matching `directives/custom/*.md` files (each relocation target listed
+in `spec-002`'s Consequences), and `team.roles` was kept as the canonical role catalogue (`roles.yaml`
+only binds directives to roles, it doesn't enumerate them). A later validation pass (subagent,
+comparing this line's `spec-001`/`spec-002`/`spec-003` against `task/task-109-validation-id-engine`'s
+own real `dna.yaml`/`memory.yaml`/`workflows.yaml`) found no defects in these specs — every divergence
+was either this line being ahead of that branch (`release-line`/`release` split, `decision-log`'s
+custom lifecycle, the `include:` rename) or a branch-only, unrelated authoring gap (its `bug` machine
+has no legal path to `closed`). A `rejection_reason` frontmatter field (optional, set by
+`memory.reject`, cleared by the next `memory.submit`) was also added to `spec-010`/`spec-001` and to
+the operational `memory.reject` procedure.
+
+All 32 ADR/DL/Tech-Spec documents are `submit`-ted (`status: pending`/`in-discussion`) but **not yet
+approved** — held for human review before `memory.approve` runs (agents do not self-approve; see
+`dna.yaml`'s team & roles section, REQ-SYS-08).
+
+<!-- Anything discovered late that should have been seeded here instead of during a release's
+     identify-specs. -->
 
 ### Delivery (per release)
 

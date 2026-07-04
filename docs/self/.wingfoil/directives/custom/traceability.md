@@ -18,6 +18,9 @@ Custom WingFoil rule. Applies to reviewers, architects, and product owners.
 - Every architecture decision references the SARD requirement(s) it implements.
 - Every tech-spec references the SARD requirement(s)/feature it specifies for.
 - Every task references its feature id and target release, and its tech-spec(s) when one exists.
+- Keep each task's target-release assignment consistent with the planned release cadence in
+  `docs/01_vision/07_sequencer.md` — roughly one release per week, each centered on a pillar
+  (v0.1 → v1.0). Relocated here from the former `dna.yaml` `conventions.process.release_cadence`.
 - A reviewer rejects work that breaks or omits a required cross-reference.
 
 > Rationale: traceability is what lets Casey/Morgan see how requirements flow to test and release,

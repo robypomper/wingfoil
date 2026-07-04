@@ -7,11 +7,6 @@ description: >-
   Translate MVP user stories into deterministic Gherkin scenarios (Given-When-Then),
   eliminating interpretive ambiguity. One happy path + one edge/error path per story.
 version: 1.0
-role: qa
-input:
-  - docs/02_requirements/01_user_story_map/
-produces:
-  - docs/02_requirements/02_bdd/         # 00_index.md + features/ (.feature files by pillar: p1..p5, x1)
 
 phases:
   - name: isolate-mvp

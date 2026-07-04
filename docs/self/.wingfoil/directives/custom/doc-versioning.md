@@ -6,7 +6,7 @@ kind: custom
 title: "Documentation versioning"
 tags: [custom, documentation, versioning]
 scope: global
-ref: [dna.yaml#conventions.documentation.versioning]   # pure WingFoil convention (no upstream feature/REQ)
+ref: []   # pure WingFoil convention (no upstream feature/REQ)
 ---
 
 # Directive — Documentation versioning

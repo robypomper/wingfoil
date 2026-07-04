@@ -21,5 +21,8 @@ Custom stand-in directive (TypeScript / Node.js). Applies to anyone writing code
 - No dead code, no commented-out blocks, no `any` without justification (TypeScript).
 - Match surrounding code style, naming, and idioms.
 - All public APIs typed; validate external input with Zod at boundaries.
+- Use conventional commit messages; every state change is a single git commit carrying author +
+  timestamp (REQ-SEC-02). Relocated here from the former `dna.yaml`
+  `conventions.process.commits`.
 
 > Source: Features §P3.8 (Code Quality). Auto-installed for the TS/Node tech stack.

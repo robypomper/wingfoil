@@ -45,19 +45,24 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.0                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.1                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
+# State-machine encoding: `sequence` (ordered chain) + `gates` (per-state approve/reject) +
+# `waiting` (workflow/engine-triggered edges, no CLI verb) — replaces the earlier `transitions`
+# dict-of-arrays format, which left ambiguous which of several legal targets from one state is the
+# `approve` outcome vs the `reject` outcome. See spec-001-memory-yaml-schema (initial-design, rl-v1)
+# for the full schema and rationale. NOTE: this collapses the old explicit `rejected` status into a
+# direct `pending -> draft` edge on reject — no document records `status: rejected` anymore; the
+# rejection reason still lives in the `wf(...): reject ...` git commit body (P1.7), just not as a
+# status value. `"deprecated"` is an implicit wildcard edge from any state, invoked via
+# `memory.deprecate`, and is never declared explicitly in `sequence`/`gates`/`waiting`.
 defaults:
   states:
-    values: [ draft, pending, approved, rejected, deprecated ]
-    initial: draft
-    transitions:
-      draft: [ pending ]
-      pending: [ approved, rejected ]
-      rejected: [ draft ]      # [AUTHORING] re-open a rejected item; extends REQ-STATE-08's literal "approved/rejected -> deprecated"
-      "*": [ deprecated ]
+    sequence: [ draft, pending, approved ]
+    gates:
+      pending: { reject: draft }   # [AUTHORING] reject sends straight back to draft (no separate "rejected" status — see above)
 
 # Types — per type, `path` and `states` (values/initial/transitions) are [SPEC] (P1.13 / REQ-SYS-04);
 # `name`, `description`, `tags` and the chosen state *vocabularies* are [AUTHORING]. (release is tagged
@@ -74,13 +79,10 @@ types:
         required: [ title, version ]
       file: ".wingfoil/memory/templates/release-line.md"
     states: # [AUTHORING] structure + vocabulary (release-line is not itself named by P1.13; modeled on the same shape)
-      values: [ draft, planning, active, done, deprecated ]
-      initial: draft
-      transitions:
-        draft: [ planning ]        # memory.submit
-        planning: [ active, draft ] # memory.approve / memory.reject
-        active: [ done ]           # trigger: every release under this release-line is `released`
-        "*": [ deprecated ]
+      sequence: [ draft, planning, active, done ]
+      gates:
+        planning: { reject: draft }   # approve: planning->active · reject: ->draft
+      waiting: [ active ]             # active->done: fires when every release under it is `released`
 
   release:
     path: "docs/04_memory/planning/{release-line}/{id}.md"     # [SPEC] path pattern (P1.13)
@@ -92,15 +94,10 @@ types:
       frontmatter:
         required: [ title, version, pillar, features, requirements, release-line ]
       file: ".wingfoil/memory/templates/release.md"
-    states: # [SPEC] structure (P1.13 / REQ-SYS-04); values below are [AUTHORING] vocabulary
-      values: [ draft, planning, in-development, releasing, released, deprecated ]
-      initial: draft            # [SPEC] (BDD P1.13: release exposes initial state 'draft')
-      transitions: # [SPEC] targets must be declared in `values` (BDD: undeclared target rejected)
-        draft: [ planning ]
-        planning: [ in-development ]
-        in-development: [ releasing ]
-        releasing: [ released ]
-        "*": [ deprecated ]
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding
+      sequence: [ draft, planning, in-development, releasing, released ]  # [SPEC] (BDD P1.13: release exposes initial state 'draft' = sequence[0])
+      # draft->planning: memory.submit; the rest are workflow-phase transitions (no CLI verb)
+      waiting: [ planning, in-development, releasing ]
 
   task:
     path: "docs/04_memory/{release}/{id}.md"
@@ -113,16 +110,12 @@ types:
         required: [ title, release ]
       file: ".wingfoil/memory/templates/task.md"
     states:
-      values: [ draft, pending, backlog, in-progress, in-review, approved, done, deprecated ]
-      initial: draft
-      transitions:
-        draft: [ pending ]
-        pending: [ backlog, draft ]
-        backlog: [ in-progress ]
-        in-progress: [ in-review ]
-        in-review: [ approved, in-progress ]
-        approved: [ done ]
-        "*": [ deprecated ]
+      sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
+      gates:
+        pending:   { reject: draft }        # approve: pending->backlog · reject: ->draft
+        in-review: { reject: in-progress }  # approve: in-review->approved · reject: ->in-progress
+      waiting: [ backlog, approved ]        # backlog->in-progress (dev-loop starts);
+                                            # approved->done (dev-loop finalizes)
 
   adr:
     path: "docs/04_memory/design/adrs/{id}.md"
@@ -134,15 +127,11 @@ types:
       frontmatter:
         required: [ title, sard_ref ]
       file: ".wingfoil/memory/templates/adr.md"
-    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] ADR vocabulary (accepted/superseded lifecycle)
-      values: [ draft, pending, accepted, rejected, superseded, deprecated ]
-      initial: draft
-      transitions:
-        draft: [ pending ]        # memory.submit
-        pending: [ accepted, rejected ]
-        rejected: [ draft ]       # re-open a rejected ADR
-        accepted: [ superseded ]  # a later ADR supersedes this one
-        "*": [ deprecated ]
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] ADR vocabulary+encoding (accepted/superseded lifecycle)
+      sequence: [ draft, pending, accepted, superseded ]
+      gates:
+        pending: { reject: draft }      # approve: pending->accepted · reject: ->draft
+      waiting: [ accepted ]             # accepted->superseded: triggered by a later ADR's `supersedes:`
 
   decision-log:
     path: "docs/04_memory/design/dls/{id}.md"
@@ -154,7 +143,13 @@ types:
       frontmatter:
         required: [ title ]
       file: ".wingfoil/memory/templates/decision-log.md"
-    # no `states` -> default machine (REQ-STATE-08)
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (discussion -> delivery lifecycle, per dl-012-decision-log-state-machine)
+      sequence: [ draft, in-discussion, ready, in-develop, done ]
+      gates:
+        in-discussion: { reject: draft }  # approve: in-discussion->ready · reject: ->draft
+      waiting: [ ready, in-develop ]      # ready->in-develop: release-planning converts the DL into
+                                          # task(s); in-develop->done: fires once every derived task
+                                          # back-referencing this DL is itself `done`
 
   tech-spec:
     path: "docs/04_memory/design/specs/{id}.md"
@@ -166,15 +161,11 @@ types:
       frontmatter:
         required: [ title, scope ]
       file: ".wingfoil/memory/templates/tech-spec.md"
-    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] tech-spec vocabulary (approved/superseded lifecycle, mirrors adr)
-      values: [ draft, pending, approved, rejected, superseded, deprecated ]
-      initial: draft
-      transitions:
-        draft: [ pending ]        # memory.submit
-        pending: [ approved, rejected ]
-        rejected: [ draft ]       # re-open a rejected spec
-        approved: [ superseded ]  # a later spec supersedes this one
-        "*": [ deprecated ]
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] tech-spec vocabulary+encoding (approved/superseded lifecycle, mirrors adr)
+      sequence: [ draft, pending, approved, superseded ]
+      gates:
+        pending: { reject: draft }      # approve: pending->approved · reject: ->draft
+      waiting: [ approved ]             # approved->superseded: triggered by a later spec's `supersedes:`
 
   bug:
     path: "docs/04_memory/bugs/{id}.md"
@@ -186,15 +177,11 @@ types:
       frontmatter:
         required: [ title, severity ]
       file: ".wingfoil/memory/templates/bug.md"
-    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] bug vocabulary (open -> triaged -> planned -> in-progress -> in-review -> resolved -> closed)
-      values: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed, deprecated ]
-      initial: draft
-      transitions:
-        draft: [ open ]                     # memory.submit = report/open the bug
-        open: [ triaged, closed ]           # memory.approve = valid, triage it; memory.reject = wontfix/duplicate, close immediately
-        triaged: [ planned ]                # trigger during release-planning: bug scheduled into a release
-        planned: [ in-progress ]            # trigger during dev-loop: work starts on the bug
-        in-progress: [ in-review ]          # memory.submit = fix ready for review
-        in-review: [ resolved, in-progress ] # memory.approve = fix confirmed; memory.reject = reopen, back to in-progress
-        resolved: [ closed, in-progress ]   # further close, or reopen if not actually fixed
-        "*": [ deprecated ]
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] bug vocabulary+encoding (open -> triaged -> planned -> in-progress -> in-review -> resolved -> closed)
+      sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
+      gates:
+        open:      { reject: closed }        # approve: open->triaged · reject: ->closed (wontfix/dup)
+        in-review: { reject: in-progress }   # approve: in-review->resolved · reject: reopen ->in-progress
+        resolved:  { reject: in-progress }   # approve: resolved->closed · reject: reopen ->in-progress
+      waiting: [ triaged, planned ]          # triaged->planned (release-planning schedules it);
+                                             # planned->in-progress (dev-loop starts the fix)

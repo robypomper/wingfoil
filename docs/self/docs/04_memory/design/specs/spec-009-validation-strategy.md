@@ -1,0 +1,209 @@
+---
+id: spec-009-validation-strategy
+type: tech-spec
+title: "Validation strategy: two-pass Zod pipeline, passthrough warnings, error codes"
+status: approved
+scope: "src/validation"
+supersedes: ""
+tmpl_version: 260703
+---
+
+## Context
+
+Every WingFoil-owned file — `dna.yaml`, `memory.yaml`, `workflows.yaml`, and every Memory
+document's frontmatter — is validated before WingFoil trusts or mutates it. Four other specs
+each own one artefact's schema: `spec-001-memory-yaml-schema` (`memory.yaml`),
+`spec-002-dna-yaml-schema` (`dna.yaml`), `spec-003-workflows-yaml-schema` (`workflows.yaml`),
+and `spec-008-cli-grammar` (CLI-level input/error conventions that validation errors must
+conform to). Without a single shared validation module those specs would each reinvent parsing,
+error-code naming, and unknown-field handling — producing divergent regexes, inconsistent exit
+codes, and copy-pasted bugs. `src/validation` is that shared module: it is consumed by every
+schema in `spec-001/002/003` (and by the not-yet-authored Memory-frontmatter schema spec) and by
+the CLI/MCP surfaces described in `spec-008`.
+
+`dna.yaml`'s `tech_stack.validation: Zod` (`docs/self/.wingfoil/dna.yaml`) fixes Zod as the only
+runtime validator project-wide — this spec assumes Zod throughout and does not evaluate
+alternatives.
+
+This spec defines **how** validation runs (the two-pass pipeline, trigger points, unknown-field
+policy, and error-code convention), not **what** each file's fields must contain — field-level
+constraints stay owned by `spec-001/002/003` and the frontmatter schema.
+
+## Specification
+
+### 1. Two-pass model
+
+Validation of any WingFoil-owned file or data structure runs in two ordered passes. Pass 2 never
+executes if Pass 1 fails.
+
+**Pass 1 — Structural (Zod schema, fatal on failure).** Type/shape/format checks with no
+knowledge of other files or runtime state:
+
+1. Parse the raw text as YAML. A parse failure never reaches Zod — see `E_YAML_PARSE_ERROR` below.
+2. Run `Schema.safeParse(raw)` for the file's Zod schema (owned by `spec-001/002/003` or the
+   frontmatter schema).
+3. Collect **all** Zod issues (`ZodError.issues`) — do not stop at the first failure.
+4. Map every issue to an `E_*` code (see "Error-code convention" below).
+5. Any mapped error ⇒ throw a `ValidationError` carrying the full list; **Pass 2 does not run**.
+
+Pass 1 answers questions a single file can answer on its own: "is `scope` a non-empty string?",
+"is `retention_days` a positive integer?", "does `id` match the id-character class?".
+
+**Pass 2 — Semantic / cross-field (fatal on failure, runs only after Pass 1 succeeds).**
+Checks that require either more than one field of the same document, or state loaded from
+elsewhere:
+
+- Cross-field, same document — e.g. (`workflows.yaml`) *"a phase's `gates` key must reference a
+  step name that is itself a member of that phase's `sequence` array"*: this cannot be expressed
+  as a per-field Zod `.regex()`/`.min()` because it compares one array's contents against
+  another's; it runs as a `.superRefine()` step (still inside the Zod schema, logically Pass 2)
+  or as a caller-supplied semantic-check function once Pass 1 has produced a typed object.
+- Cross-file — e.g. (Memory frontmatter) *"`wingfoil.type` must be a key registered in
+  `memory.yaml`"*, *"`wingfoil.status` must be a member of that type's `states.values`"*: these
+  require the caller to have already loaded `memory.yaml`, so they run as a list of
+  caller-supplied `SemanticCheck` functions executed by the validation pipeline after Pass 1.
+- Character-class checks that reference another artefact's rule set — e.g. (`memory.yaml`)
+  *"every literal character in a type's `id_pattern` (outside `{placeholder}` tokens) must be a
+  member of `[a-z0-9-.]`"* — is Pass 2 because it enforces a rule owned by the shared ID
+  constants (below), not by the `id_pattern` field's own type (`string`).
+
+Each Pass-2 check either passes silently or throws a single mapped `E_*` error; the caller decides
+whether to keep collecting after the first Pass-2 failure or to stop.
+
+```ts
+// src/validation/two-pass.ts
+import { ZodSchema } from 'zod'
+
+type SemanticCheck = () => void   // throws ValidationError on failure
+
+export function runValidation<T>(
+  schema: ZodSchema<T>,
+  raw: unknown,
+  filePath: string,
+  opts: { errorMap?: Record<string, string>; semanticChecks?: SemanticCheck[] } = {},
+): T {
+  const result = schema.safeParse(raw)
+  if (!result.success) {
+    throw toValidationError(result.error, filePath, opts.errorMap)   // Pass 1 fatal — Pass 2 never runs
+  }
+  emitUnknownFieldWarning(raw, schema, filePath)                     // see §2 — fires regardless of Pass 2 outcome
+  for (const check of opts.semanticChecks ?? []) check()             // Pass 2
+  return result.data
+}
+```
+
+### 2. Unknown-field warning policy (`.passthrough()`)
+
+Every schema in `spec-001/002/003` and the frontmatter schema uses `.passthrough()`, so an
+unrecognized key does not fail Pass 1 — it is preserved on the parsed object. That forward
+compatibility is only useful if the operator is actually told about the unknown key; the warning
+must fire, not silently pass.
+
+**Known-defective mechanism (do not reproduce).** A prior draft of this policy compared the keys
+of the *parsed* object against the keys of the *raw* input:
+
+```ts
+const unknown = Object.keys(raw).filter(k => !(k in parsed))   // WRONG — always []
+```
+
+Because `.passthrough()` copies every unknown key onto `parsed` (that is the entire point of
+`.passthrough()`), `parsed` always has a superset of `raw`'s keys, so this diff is always empty
+and the warning code path is dead — a no-op that never fires regardless of how many unknown
+fields are present.
+
+**Correct mechanism.** Unknown-ness must be decided against the schema's own known-key set, not
+against the passthrough output. Every schema module exports its top-level key list (Zod exposes
+this as `schema.shape`); the check diffs the *raw* keys against *that*, not against `parsed`:
+
+```ts
+// src/validation/warning.ts
+import { AnyZodObject } from 'zod'
+
+export function emitUnknownFieldWarning(
+  raw: Record<string, unknown>,
+  schema: AnyZodObject,
+  filePath: string,
+): void {
+  const known = new Set(Object.keys(schema.shape))
+  const unknown = Object.keys(raw).filter(k => !known.has(k))
+  if (unknown.length > 0) {
+    process.stderr.write(
+      `Warning: ${filePath}: unknown field(s) ignored: ${unknown.join(', ')}\n`,
+    )
+  }
+}
+```
+
+**Trigger point.** `emitUnknownFieldWarning` is called inside `runValidation`, immediately after
+`schema.safeParse(raw)` returns success and *before* any Pass-2 semantic check runs (see the
+`runValidation` listing above) — so the warning fires exactly once per successful Pass-1 parse,
+using the schema's own declared shape as ground truth, independent of what `.passthrough()` did
+to the output object. Nested objects: the same diff is applied recursively at each nesting level
+that itself has a `.passthrough()` schema, so unknown fields inside nested config blocks are
+reported too, not only at the document root.
+
+The warning always goes to stderr and is suppressed when the active output format is
+machine-readable (`--format json` / `--format yaml`), matching `spec-008`'s rule that diagnostic
+text never mixes into structured stdout.
+
+### 3. Shared error-code convention
+
+Three code families cover every validation failure; consuming specs (`spec-001/002/003`, the
+frontmatter schema) must reuse these families rather than invent parallel ones:
+
+| Family | Pattern | When | Owner |
+|---|---|---|---|
+| Schema-level structural failure | `E_INVALID_<SCHEMA>_SCHEMA` | Pass 1 fails for a whole-document schema, e.g. `E_INVALID_MEMORY_YAML_SCHEMA`, `E_INVALID_DNA_YAML_SCHEMA`, `E_INVALID_WORKFLOWS_YAML_SCHEMA` | `src/validation` names the family; the owning spec (`spec-001/002/003`) fixes the exact `<SCHEMA>` token |
+| Field/constraint-level failure | `E_INVALID_<X>` | A single named rule fails in Pass 1 or Pass 2, e.g. `E_INVALID_ID`, `E_INVALID_GATES_REF`, `E_INVALID_ID_PATTERN_CHARS` | The spec that defines rule `<X>` |
+| Pre-parse failure | `E_YAML_PARSE_ERROR` | `js-yaml` (or equivalent) cannot parse the file as YAML at all — Zod never runs | `src/validation` (this spec) |
+
+Generic fallback: any Zod issue whose dot-path has no explicit entry in the schema's `ErrorMap`
+maps to `E_VALIDATION` (owned by `src/validation`), carrying the path and the raw Zod message, so
+no failure is ever silently dropped for lack of a specific code.
+
+```ts
+// src/validation/error-mapper.ts
+export function toValidationError(
+  zodError: ZodError,
+  filePath: string,
+  errorMap: Record<string, string> = {},
+): ValidationError {
+  const issues = zodError.issues.map(issue => {
+    const path = issue.path.join('.')
+    const code = errorMap[path] ?? 'E_VALIDATION'
+    return { code, path, file: filePath, message: issue.message }
+  })
+  return new ValidationError(issues)
+}
+```
+
+`E_YAML_PARSE_ERROR` and the semantic/cross-field codes it triggers (Pass 1 pre-parse failure,
+Pass 2 cross-field failure) always exit `2`; a mapped `E_INVALID_*`/`E_INVALID_*_SCHEMA` failure
+exits `1`; the generic `E_VALIDATION` fallback also exits `1` — matching `spec-008`'s exit-code
+table (parse/system-integrity failures get the distinct `2`, all other validation failures get
+`1`).
+
+## Consequences
+
+- `spec-001-memory-yaml-schema`, `spec-002-dna-yaml-schema`, `spec-003-workflows-yaml-schema`, and
+  the not-yet-authored Memory-frontmatter schema spec must implement their Zod schemas as
+  `.passthrough()` objects, supply an `ErrorMap` keyed by dot-path, and route every field-level
+  code through the `E_INVALID_<X>` family defined here — they do not invent their own
+  warning/error plumbing.
+- Any future schema added to WingFoil (new config file or Memory type) must call
+  `runValidation()` rather than calling `schema.safeParse()` directly, so the unknown-field
+  warning and error-code mapping stay uniform.
+- If the unknown-field diff logic is ever changed, it must keep comparing against the schema's
+  declared shape (not the passthrough output) — reintroducing a `raw` vs `parsed` diff would
+  silently resurrect the no-op defect described above.
+- Revising the two-pass split (e.g. moving a currently-Pass-2 check into Pass 1, or vice versa)
+  is a change to this spec, not to the consuming schema specs, since the split itself — not just
+  its instances — is owned here.
+
+## Process Notes
+
+Authored proactively during `initial-design` to give `spec-001/002/003/008` a shared validation
+contract. The error-code family names (`E_INVALID_<SCHEMA>_SCHEMA`, `E_INVALID_<X>`,
+`E_YAML_PARSE_ERROR`) and schema/spec ownership mapping were cross-checked against the current
+`docs/self/docs/04_memory/design/specs/` catalog (spec-001/002/003/008) and
+`docs/self/.wingfoil/dna.yaml`'s `tech_stack.validation: Zod`.

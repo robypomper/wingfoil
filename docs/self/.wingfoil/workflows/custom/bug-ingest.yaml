@@ -25,6 +25,6 @@ phases:
     description: "Triage and accept the bug for work (approval gate; reject = back to capture)."
     role: tech-lead
     actions:
-      - element.set_state(triaged)             # bug: open -> triaged
+      - memory.approve                         # bug: open -> triaged
     approval: { by_role: approver }
     fallback: { step: capture }

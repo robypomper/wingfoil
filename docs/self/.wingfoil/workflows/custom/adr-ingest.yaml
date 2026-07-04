@@ -26,6 +26,6 @@ phases:
     description: "Accept the ADR (approval gate; reject = back to capture for revision)."
     role: approver
     actions:
-      - element.set_state(accepted)            # adr: pending -> accepted
+      - memory.approve                         # adr: pending -> accepted
     approval: { by_role: approver }
     fallback: { step: capture }
