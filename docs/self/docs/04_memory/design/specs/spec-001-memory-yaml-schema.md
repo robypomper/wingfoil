@@ -2,7 +2,7 @@
 id: spec-001-memory-yaml-schema
 type: tech-spec
 title: "memory.yaml schema (MemoryYaml): sequence/gates/waiting state machines"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/memory.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

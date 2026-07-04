@@ -2,7 +2,7 @@
 id: spec-002-dna-yaml-schema
 type: tech-spec
 title: "dna.yaml schema (DnaYaml)"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/dna.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

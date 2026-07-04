@@ -2,7 +2,7 @@
 id: spec-011-storage-layout
 type: tech-spec
 title: ".wingfoil/ directory layout and initialization detection"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/"
 supersedes: ""
 tmpl_version: 260703

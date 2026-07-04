@@ -2,7 +2,7 @@
 id: spec-007-secret-hygiene-patterns
 type: tech-spec
 title: "Secret-hygiene scan patterns and procedure"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/directives/custom/security-secrets.md"
 supersedes: ""
 tmpl_version: 260703

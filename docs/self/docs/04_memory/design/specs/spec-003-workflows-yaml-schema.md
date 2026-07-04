@@ -2,7 +2,7 @@
 id: spec-003-workflows-yaml-schema
 type: tech-spec
 title: "workflows.yaml manifest + Workflow DSL schema"
-status: pending
+status: approved
 scope: "docs/self/.wingfoil/workflows.yaml + docs/self/.wingfoil/workflows/**/*.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

@@ -2,7 +2,7 @@
 id: spec-008-cli-grammar
 type: tech-spec
 title: "CLI grammar & global options (src/cli)"
-status: pending
+status: approved
 scope: "src/cli"
 supersedes: ""
 tmpl_version: 260703

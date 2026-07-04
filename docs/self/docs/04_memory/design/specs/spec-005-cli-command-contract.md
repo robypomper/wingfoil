@@ -2,7 +2,7 @@
 id: spec-005-cli-command-contract
 type: tech-spec
 title: "CLI command contract — exit codes, output formats, error format"
-status: pending
+status: approved
 scope: "src/cli"
 supersedes: ""
 tmpl_version: 260703

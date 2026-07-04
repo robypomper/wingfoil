@@ -2,7 +2,7 @@
 id: spec-010-memory-frontmatter-schema
 type: tech-spec
 title: "Memory document base frontmatter schema"
-status: pending
+status: approved
 scope: "docs/self/docs/04_memory/**/*.md frontmatter"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

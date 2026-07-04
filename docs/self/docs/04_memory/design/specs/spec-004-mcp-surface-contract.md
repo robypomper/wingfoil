@@ -2,7 +2,7 @@
 id: spec-004-mcp-surface-contract
 type: tech-spec
 title: "MCP server surface contract (Resources, Prompts, Tools)"
-status: pending
+status: approved
 scope: "src/mcp"
 supersedes: ""
 tmpl_version: 260703

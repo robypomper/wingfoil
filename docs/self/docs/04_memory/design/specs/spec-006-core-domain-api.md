@@ -2,7 +2,7 @@
 id: spec-006-core-domain-api
 type: tech-spec
 title: "core domain API — shared function surface behind CLI and MCP"
-status: pending
+status: approved
 scope: "src/core"
 supersedes: ""
 tmpl_version: 260703

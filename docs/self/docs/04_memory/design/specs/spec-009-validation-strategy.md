@@ -2,7 +2,7 @@
 id: spec-009-validation-strategy
 type: tech-spec
 title: "Validation strategy: two-pass Zod pipeline, passthrough warnings, error codes"
-status: pending
+status: approved
 scope: "src/validation"
 supersedes: ""
 tmpl_version: 260703

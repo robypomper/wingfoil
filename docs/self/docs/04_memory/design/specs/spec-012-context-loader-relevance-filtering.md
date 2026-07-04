@@ -2,7 +2,7 @@
 id: spec-012-context-loader-relevance-filtering
 type: tech-spec
 title: "Agent Context Loader — deterministic assembly & relevance filtering"
-status: pending
+status: approved
 scope: "src/core"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version
