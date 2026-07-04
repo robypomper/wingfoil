@@ -2,7 +2,7 @@
 id: "task-005-per-type-state-machines"
 type: task
 title: "Infrastructure: REQ-SYS-04 — Configurable per-type state machines"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
