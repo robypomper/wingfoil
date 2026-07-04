@@ -145,14 +145,14 @@ all reach `status: approved`.
 ## Launch Checklist
 
 - [x] Input available: `rl-v1` is `active` (`release-line-cycle`'s `approve` phase ran — commit `aab96dd`).
-- [ ] **Phase 1 — seed-releases:** create 5 `release` files per the table above, `status: draft`.
-- [ ] **Phase 2 — seed-adrs:** create 8 ADR files per the table above; `memory.submit` → `memory.approve` each.
-- [ ] **Phase 3 — seed-dls:** create 12 Decision Log files per the table above; `memory.submit` → `memory.approve` each.
-- [ ] **Phase 4 — seed-specs:** create 12 Tech-Spec files per the table above; `memory.submit` → `memory.approve` each.
-- [ ] As part of `spec-001`/`spec-003`'s approval: migrate `docs/self/.wingfoil/memory.yaml` states from
+- [x] **Phase 1 — seed-releases:** create 5 `release` files per the table above, `status: draft`.
+- [x] **Phase 2 — seed-adrs:** create 8 ADR files per the table above; `memory.submit` → `memory.approve` each.
+- [x] **Phase 3 — seed-dls:** create 12 Decision Log files per the table above; `memory.submit` → `memory.approve` each.
+- [x] **Phase 4 — seed-specs:** create 12 Tech-Spec files per the table above; `memory.submit` → `memory.approve` each.
+- [x] As part of `spec-001`/`spec-003`'s approval: migrate `docs/self/.wingfoil/memory.yaml` states from
   `transitions` dict to `sequence`/`gates`/`waiting`, and rename `workflows.yaml`'s `includes:` → `include:`.
-- [ ] Update `rl-v1.md`'s "Execution Notes → Initial Design" section with a summary once all phases commit.
-- [ ] Update Claude Code auto-memory (MEMORY.md) once `rl-v1`'s initial-design content lands (CLAUDE.md §10 rule 9).
+- [x] Update `rl-v1.md`'s "Execution Notes → Initial Design" section with a summary once all phases commit.
+- [x] Update Claude Code auto-memory (MEMORY.md) once `rl-v1`'s initial-design content lands (CLAUDE.md §10 rule 9).
 
 Each `memory.add`/`memory.submit`/`memory.approve` is its own commit per CLAUDE.md §5.1 — **37 elements
 total** (5 releases + 8 ADRs + 12 DLs + 12 specs), batched by type/operation as usual (e.g. one `memory.add`
