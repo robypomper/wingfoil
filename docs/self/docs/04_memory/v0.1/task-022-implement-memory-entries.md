@@ -2,7 +2,7 @@
 id: "task-022-implement-memory-entries"
 type: task
 title: "Implement Memory Entries (git-backed) (P1.11)"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]

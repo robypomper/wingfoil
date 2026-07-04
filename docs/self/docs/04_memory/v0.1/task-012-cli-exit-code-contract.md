@@ -2,7 +2,7 @@
 id: "task-012-cli-exit-code-contract"
 type: task
 title: "Infrastructure: REQ-INT-04 — CLI exit-code contract"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Medium"
 tags: ["v0.1", "architecture"]

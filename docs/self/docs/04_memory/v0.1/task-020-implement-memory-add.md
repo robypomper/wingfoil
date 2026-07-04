@@ -2,7 +2,7 @@
 id: "task-020-implement-memory-add"
 type: task
 title: "Implement wingfoil memory add (P1.3)"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]

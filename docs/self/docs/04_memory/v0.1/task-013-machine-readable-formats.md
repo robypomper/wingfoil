@@ -2,7 +2,7 @@
 id: "task-013-machine-readable-formats"
 type: task
 title: "Infrastructure: REQ-INT-05 — Machine-readable output formats"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]

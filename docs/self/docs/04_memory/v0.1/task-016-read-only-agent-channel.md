@@ -2,7 +2,7 @@
 id: "task-016-read-only-agent-channel"
 type: task
 title: "Infrastructure: REQ-SEC-05 — Read-only agent read channel"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]

@@ -2,7 +2,7 @@
 id: "task-031-post-v01-dna-config-sync"
 type: task
 title: "Post-v0.1 dna.yaml config sync"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "High"
 tags: ["v0.1", "dna"]

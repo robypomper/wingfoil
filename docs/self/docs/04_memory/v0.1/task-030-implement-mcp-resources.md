@@ -2,7 +2,7 @@
 id: "task-030-implement-mcp-resources"
 type: task
 title: "Implement MCP Resources (DNA + Memory) (P5.2.1)"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "interaction"]

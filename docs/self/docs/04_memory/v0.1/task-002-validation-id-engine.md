@@ -2,7 +2,7 @@
 id: "task-002-validation-id-engine"
 type: task
 title: "Zod validation pipeline + ID generation engine"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1"]

@@ -2,7 +2,7 @@
 id: "task-033-manual-e2e-journey-validation"
 type: task
 title: "Manual E2E validation of Journey 0a + Journey 1"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "qa"]

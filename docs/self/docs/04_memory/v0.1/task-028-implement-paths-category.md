@@ -2,7 +2,7 @@
 id: "task-028-implement-paths-category"
 type: task
 title: "Implement wingfoil paths [category] (P2.5)"
-status: pending
+status: backlog
 release: "v0.1"
 priority: "High"
 tags: ["v0.1", "dna"]
