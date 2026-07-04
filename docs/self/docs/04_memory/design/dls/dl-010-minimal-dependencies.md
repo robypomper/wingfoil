@@ -2,7 +2,7 @@
 id: dl-010-minimal-dependencies
 type: decision-log
 title: "Keep production dependencies minimal (~10)"
-status: in-discussion
+status: ready
 context: scope
 release: ""
 tmpl_version: 260703

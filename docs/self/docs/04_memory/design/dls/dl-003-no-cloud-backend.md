@@ -2,7 +2,7 @@
 id: dl-003-no-cloud-backend
 type: decision-log
 title: "Local-first, no cloud backend — keep state in git only"
-status: in-discussion
+status: ready
 context: "architecture"
 release: ""
 tmpl_version: 260703

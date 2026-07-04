@@ -2,7 +2,7 @@
 id: dl-005-manual-approval-gates
 type: decision-log
 title: "Manual approval gates (no automated approval) in the MVP"
-status: in-discussion
+status: ready
 context: process
 release: ""
 tmpl_version: 260703

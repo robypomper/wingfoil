@@ -2,7 +2,7 @@
 id: dl-001-typescript-over-python
 type: decision-log
 title: "Reject Python; adopt TypeScript/Node.js for WingFoil implementation"
-status: in-discussion
+status: ready
 context: "scope"
 release: ""
 tmpl_version: 260703

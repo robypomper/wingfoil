@@ -2,7 +2,7 @@
 id: dl-007-single-project-scope
 type: decision-log
 title: "Single `.wingfoil/` per repository in MVP; multi-project deferred to v1+"
-status: in-discussion
+status: ready
 context: scope
 release: ""
 tmpl_version: 260703

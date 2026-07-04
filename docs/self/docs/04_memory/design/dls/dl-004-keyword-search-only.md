@@ -2,7 +2,7 @@
 id: dl-004-keyword-search-only
 type: decision-log
 title: "Keyword-only Memory search for rl-v1 MVP"
-status: in-discussion
+status: ready
 context: scope
 release: ""
 tmpl_version: 260703

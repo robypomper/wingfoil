@@ -2,7 +2,7 @@
 id: dl-008-cli-first-no-gui
 type: decision-log
 title: "CLI-first, no GUI or Dashboard in the MVP"
-status: in-discussion
+status: ready
 context: scope
 release: ""
 tmpl_version: 260703

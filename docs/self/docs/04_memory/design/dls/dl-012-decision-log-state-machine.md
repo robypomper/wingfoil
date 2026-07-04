@@ -2,7 +2,7 @@
 id: dl-012-decision-log-state-machine
 type: decision-log
 title: "Give decision-log its own state machine (discussion -> delivery lifecycle)"
-status: in-discussion
+status: ready
 context: planning
 release: ""
 tmpl_version: 260703   # Orignal template version

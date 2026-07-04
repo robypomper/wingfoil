@@ -2,7 +2,7 @@
 id: dl-011-git-derived-audit-trail
 type: decision-log
 title: "Derive the audit trail from git history (no separate log store)"
-status: in-discussion
+status: ready
 context: design
 release: ""
 tmpl_version: 260703

@@ -2,7 +2,7 @@
 id: dl-006-no-native-ide-plugin
 type: decision-log
 title: "No native IDE plugins in MVP—MCP-only approach"
-status: in-discussion
+status: ready
 context: "scope"
 release: ""
 tmpl_version: 260703

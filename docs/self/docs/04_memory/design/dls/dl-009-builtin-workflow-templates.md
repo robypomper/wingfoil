@@ -2,7 +2,7 @@
 id: dl-009-builtin-workflow-templates
 type: decision-log
 title: "Ship pre-built workflow templates instead of generating on-demand"
-status: in-discussion
+status: ready
 context: scope
 release: ""
 tmpl_version: 260703

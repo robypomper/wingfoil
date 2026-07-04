@@ -2,7 +2,7 @@
 id: dl-002-git-branching-trunk-based
 type: decision-log
 title: "Trunk-based development for rl-v1 delivery"
-status: in-discussion
+status: ready
 context: "process"
 release: ""
 tmpl_version: 260703
