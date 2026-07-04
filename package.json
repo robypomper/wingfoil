@@ -1,0 +1,39 @@
+{
+  "name": "wingfoil",
+  "version": "0.1.0",
+  "description": "Open-source harness for AI-assisted software development that makes the process deterministic — Project Memory, Project DNA, Project Directives, Project Workflow, and a CLI + MCP interaction layer.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "dist/core/index.js",
+  "types": "dist/core/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "wingfoil",
+    "ai-assisted-development",
+    "determinism"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^18.19.130",
+    "eslint": "^10.6.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chalk": "^4.1.2",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  }
+}
