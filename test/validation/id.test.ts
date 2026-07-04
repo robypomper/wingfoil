@@ -107,4 +107,39 @@ describe('generateId — rejects placeholder values that would produce invalid I
     expect(thrown).toBeInstanceOf(ValidationError);
     expect((thrown as ValidationError).issues.map((i) => i.code)).toContain('E_INVALID_ID');
   });
+
+  it('rejects a negative number for a numeric token (E_INVALID_ID)', () => {
+    let thrown: unknown;
+    try {
+      generateId('task-{n}-{slug}', { n: -1, slug: 'x' });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect((thrown as ValidationError).issues.map((i) => i.code)).toContain('E_INVALID_ID');
+  });
+
+  it('rejects a missing value for a declared token (E_INVALID_ID)', () => {
+    let thrown: unknown;
+    try {
+      generateId('task-{n}-{slug}', { n: 1 });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect((thrown as ValidationError).issues.map((i) => i.code)).toContain('E_INVALID_ID');
+  });
+
+  it('rejects a slug whose leading hyphen breaks the pattern shape (final safety net)', () => {
+    // "-x" is inside [a-z0-9-.] char-wise, but patternToRegExp forbids a leading hyphen in a token,
+    // so the assembled id fails the final pattern check rather than slipping through.
+    let thrown: unknown;
+    try {
+      generateId('task-{n}-{slug}', { n: 1, slug: '-x' });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect((thrown as ValidationError).issues.map((i) => i.code)).toContain('E_INVALID_ID');
+  });
 });
