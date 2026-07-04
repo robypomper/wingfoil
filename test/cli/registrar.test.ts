@@ -119,6 +119,13 @@ describe('CliCommand.run — dispatch behavior', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it('--format yaml renders a CoreResult.error as YAML on stderr and exits 1', async () => {
+    await findCommand(buildTestCommands(), 'memory', 'approve').run('yaml');
+    const written = stderrSpy.mock.calls[0][0] as string;
+    expect(written).toContain('illegal transition: draft to approved');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it('a successful mutating call still exits 0 and renders the value (commit metadata is not part of the payload)', async () => {
     await findCommand(buildTestCommands(), 'dna', 'set').run('json');
     expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ committed: true }) + '\n');
@@ -132,6 +139,16 @@ describe('CliCommand.run — dispatch behavior', () => {
     );
     await findCommand(commands, 'x', 'boom').run('console');
     expect(stderrSpy).toHaveBeenCalledWith('error: boom\n');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('an uncaught non-Error throw (e.g. a plain string) is still stringified and reported the same way', async () => {
+    const commands = buildCliCommands(
+      [{ name: 'x', operations: { xBoom: { name: 'xBoom', mutates: false, fn: async () => { throw 'boom-string'; } } } }],
+      { resolveRoot: () => '/fixture-root', buildParams: () => ({}) },
+    );
+    await findCommand(commands, 'x', 'boom').run('console');
+    expect(stderrSpy).toHaveBeenCalledWith('error: boom-string\n');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });
