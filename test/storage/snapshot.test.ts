@@ -6,8 +6,9 @@
  *   with no external data source; a state dump before and after clone is byte-identical."
  *
  * Acceptance Criteria covered (task-003-git-backed-sot.md):
- *  - Cloning to a fresh directory and snapshotting `.wingfoil/**` + every `docs/04_memory/**/*.md`
- *    frontmatter produces a byte-identical snapshot to the original working copy at the same commit.
+ *  - Cloning to a fresh directory and snapshotting ".wingfoil/" (recursively) plus every Memory
+ *    document's frontmatter under "docs/04_memory/" produces a byte-identical snapshot to the
+ *    original working copy at the same commit.
  *  - No file/directory outside the git-tracked tree is required to reconstruct state.
  *  - Deleting any in-process cache and recomputing from disk yields the same result.
  */
