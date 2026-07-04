@@ -2,7 +2,7 @@
 id: "task-001-nodejs-typescript-scaffold"
 type: task
 title: "Node.js/TypeScript project scaffold"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1"]
