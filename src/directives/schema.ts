@@ -15,6 +15,12 @@
  * as a hard STOP (design-gap) and the follow-up this leaves for the reviewer/approver (a candidate
  * `spec-013-directive-frontmatter-schema`).
  *
+ * `name` is REQUIRED, not merely observed: REQ-SYS-02's own traceability cites
+ * `p3-directives/P3.5-project-directives.feature`, whose "Error - a directive file missing required
+ * header fields" scenario is explicit ("Given a custom directive file lacks its required 'name'
+ * header ... Then loading reports the file as invalid") — the one piece of that BDD contract this
+ * schema honors even without a tech-spec of its own.
+ *
  * `.passthrough()` per spec-009-validation-strategy §2, matching every other pillar schema.
  */
 import { z } from 'zod';
@@ -22,7 +28,7 @@ import { z } from 'zod';
 export const DirectiveFrontmatter = z
   .object({
     id: z.string(),
-    name: z.string().optional(),
+    name: z.string(),
     type: z.literal('directive'),
     kind: z.string(),
     title: z.string(),

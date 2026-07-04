@@ -4,8 +4,10 @@
  * independently"). NOTE: unlike memory.yaml/dna.yaml/workflows.yaml, no dedicated tech-spec exists
  * yet for the directive file's own frontmatter shape (spec-010-memory-frontmatter-schema explicitly
  * scopes to `docs/self/docs/04_memory/**\/*.md`, not `.wingfoil/directives/**`). This schema is
- * grounded directly in the fields actually present on every current directive file — see this
- * task's Execution Notes for the design-gap this records.
+ * grounded directly in the fields actually present on every current directive file, plus one BDD
+ * contract requirement (`name` is required per `p3-directives/P3.5-project-directives.feature`'s
+ * "missing required header fields" scenario) — see this task's Execution Notes for the design-gap
+ * this records.
  */
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
@@ -34,13 +36,25 @@ describe('DirectiveFrontmatter — structural shape', () => {
   });
 
   it('rejects a document whose `type` is not "directive"', () => {
-    const result = DirectiveFrontmatter.safeParse({ id: 'x', type: 'task', kind: 'custom', title: 'x' });
+    const result = DirectiveFrontmatter.safeParse({
+      id: 'x',
+      name: 'X',
+      type: 'task',
+      kind: 'custom',
+      title: 'x',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a document missing `name` (BDD p3-directives/P3.5, "missing required header fields")', () => {
+    const result = DirectiveFrontmatter.safeParse({ id: 'x', type: 'directive', kind: 'custom', title: 'x' });
     expect(result.success).toBe(false);
   });
 
   it('preserves unknown fields (`.passthrough()`), e.g. `scope`', () => {
     const result = DirectiveFrontmatter.safeParse({
       id: 'doc-versioning',
+      name: 'Documentation versioning',
       type: 'directive',
       kind: 'custom',
       title: 'Documentation versioning',
