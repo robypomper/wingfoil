@@ -2,7 +2,7 @@
 id: "task-003-git-backed-sot"
 type: task
 title: "Infrastructure: REQ-SYS-01 — Git-backed single source of truth"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
