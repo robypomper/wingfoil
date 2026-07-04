@@ -43,7 +43,8 @@ describe('MemoryYaml — structural shape (spec-001)', () => {
   });
 
   it('rejects a document with no `types` key', () => {
-    const { types: _types, ...rest } = MINIMAL_VALID;
+    const rest: Record<string, unknown> = { ...MINIMAL_VALID };
+    delete rest.types;
     const result = MemoryYaml.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -150,7 +151,6 @@ describe('MemoryYaml — validates the real, live docs/self/.wingfoil/memory.yam
     const result = MemoryYaml.safeParse(data);
     expect(result.success).toBe(true);
     if (!result.success) {
-      // eslint-disable-next-line no-console
       console.error(result.error.issues);
     }
   });

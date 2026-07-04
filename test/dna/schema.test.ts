@@ -43,7 +43,8 @@ describe('DnaYaml — structural shape (spec-002)', () => {
   });
 
   it('rejects a document missing `modules`', () => {
-    const { modules: _modules, ...rest } = MINIMAL_VALID;
+    const rest: Record<string, unknown> = { ...MINIMAL_VALID };
+    delete rest.modules;
     const result = DnaYaml.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -101,7 +102,6 @@ describe('DnaYaml — validates the real, live docs/self/.wingfoil/dna.yaml', ()
     const result = DnaYaml.safeParse(data);
     expect(result.success).toBe(true);
     if (!result.success) {
-      // eslint-disable-next-line no-console
       console.error(result.error.issues);
     }
   });

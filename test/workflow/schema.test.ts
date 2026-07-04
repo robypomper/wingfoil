@@ -122,7 +122,6 @@ describe('WorkflowsYaml/Workflow — validates the real, live docs/self/.wingfoi
     const result = WorkflowsYaml.safeParse(load(raw));
     expect(result.success).toBe(true);
     if (!result.success) {
-      // eslint-disable-next-line no-console
       console.error(result.error.issues);
     }
   });
@@ -134,7 +133,6 @@ describe('WorkflowsYaml/Workflow — validates the real, live docs/self/.wingfoi
       const raw = readFileSync(join(wingfoilRoot, 'workflows', 'custom', file), 'utf-8');
       const result = Workflow.safeParse(load(raw));
       if (!result.success) {
-        // eslint-disable-next-line no-console
         console.error(file, result.error.issues);
       }
       expect(result.success).toBe(true);

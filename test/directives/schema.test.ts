@@ -66,7 +66,6 @@ describe('DirectiveFrontmatter — validates every real, live docs/self/.wingfoi
       const data = load(fm as string);
       const result = DirectiveFrontmatter.safeParse(data);
       if (!result.success) {
-        // eslint-disable-next-line no-console
         console.error(file, result.error.issues);
       }
       expect(result.success).toBe(true);
