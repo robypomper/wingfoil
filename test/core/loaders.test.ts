@@ -134,6 +134,17 @@ describe('per-pillar loaders — fixture repo', () => {
     expect(directives).toHaveLength(1);
     expect(directives[0]?.frontmatter.id).toBe('sample');
   });
+
+  it('loadDirectives throws E_MISSING_FRONTMATTER for a .md file with no frontmatter block', () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/no-frontmatter.md', '# Just a heading, no frontmatter\n');
+    expect(() => loadDirectives(repo)).toThrow(ValidationError);
+    try {
+      loadDirectives(repo);
+      fail('expected loadDirectives to throw');
+    } catch (err) {
+      expect((err as ValidationError).issues.map((i) => i.code)).toContain('E_MISSING_FRONTMATTER');
+    }
+  });
 });
 
 describe('per-pillar loaders — validate the real, live docs/self/.wingfoil config', () => {
