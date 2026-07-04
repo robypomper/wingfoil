@@ -2,7 +2,7 @@
 id: adr-003-declarative-workflow-engine
 type: adr
 title: "Declarative workflow engine: phases -> steps -> actions, composed via include()"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-06
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

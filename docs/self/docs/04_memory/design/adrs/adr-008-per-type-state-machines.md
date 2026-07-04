@@ -2,7 +2,7 @@
 id: adr-008-per-type-state-machines
 type: adr
 title: "Configurable per-type state machines"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-04
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

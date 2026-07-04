@@ -2,7 +2,7 @@
 id: adr-006-git-identity-role-based-authz
 type: adr
 title: "Git identity for attribution, role-based authority for approval"
-status: pending
+status: accepted
 sard_ref: REQ-SEC-01, REQ-SEC-03, REQ-SYS-08
 supersedes: ""
 tmpl_version: 260703

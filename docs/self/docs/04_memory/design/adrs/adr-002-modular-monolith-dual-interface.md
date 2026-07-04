@@ -2,7 +2,7 @@
 id: adr-002-modular-monolith-dual-interface
 type: adr
 title: "Modular monolith with a shared core, decoupled pillar configs, and dual CLI/MCP interfaces"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-05, REQ-SYS-02
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

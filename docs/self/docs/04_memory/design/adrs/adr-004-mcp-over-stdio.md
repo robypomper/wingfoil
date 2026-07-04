@@ -2,7 +2,7 @@
 id: adr-004-mcp-over-stdio
 type: adr
 title: "MCP over stdio as the agent-facing integration protocol"
-status: pending
+status: accepted
 sard_ref: "REQ-INT-01, REQ-INT-03, REQ-SYS-05"
 supersedes: ""
 tmpl_version: 260703

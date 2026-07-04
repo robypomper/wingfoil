@@ -2,7 +2,7 @@
 id: adr-007-stateless-state-derivation
 type: adr
 title: "Stateless state derivation (no state index)"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-03
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

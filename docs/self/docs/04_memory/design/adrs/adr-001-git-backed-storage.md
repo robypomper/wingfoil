@@ -2,7 +2,7 @@
 id: adr-001-git-backed-storage
 type: adr
 title: "Git-backed storage as the single source of truth"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-01
 supersedes: ""            # optional — id of the ADR this one replaces, e.g. "adr-002"
 tmpl_version: 260703   # Orignal template version
