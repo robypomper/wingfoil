@@ -1,0 +1,184 @@
+# Release Implementation — v0.1 Orchestration Plan
+
+## Context
+
+`minor-v0.1` is `in-development`; its `planning` phase is done — 33 backlog tasks (`task-001..033`,
+all `status: backlog`; `docs/05_plans/rl-v1/rel-v0.1/release-planning-rel-v0.1-plan.md`). Per
+`release-cycle`, the `implementation` phase runs `dev-loop` once per backlog task tagged `v0.1`
+(`iterate_over: task, where: { status: [backlog], tags: ["v0.1"] }`) — 33 runs.
+
+The **per-task mechanics** (phases, roles, checks, git conventions) are already fully specified in
+`docs/05_plans/rl-v1/rel-v0.1/dev-loop-rel-v0.1-plan.md` — this document does not re-derive them.
+This document is the **orchestration layer above it**: how to actually run 33 dev-loops — sequenced
+and parallelized in waves, using Claude Code's own **Workflow tool** (agent-fleet orchestration
+capability of this development session) as the execution mechanism — plus human checkpoints between
+waves and an execution log.
+
+> **Important distinction:** the Claude Code **Workflow tool** used here is *not* part of the
+> `wingfoil` product being designed (which has no workflow engine yet — CLAUDE.md §6/§10.7). It is a
+> separate, already-real capability of this dogfooding session, used purely as the vehicle to *drive*
+> `dev-loop`'s manually-simulated phases in parallel across many tasks. This plan only *describes* how
+> that tool would be invoked (§5) — it does not invoke it. Running it is a separate, later step.
+
+**Prior art:** `docs/05_plans/release-implementation-v0.1.md` (commit `86c549f2`, on the abandoned
+branch `fix/add_design_step_on_dev_loop`) proposed this exact shape — wave structure, per-task
+model assignment, human checkpoints, execution log — against an older config: 32 tasks
+(`task-001..028` + `task-107..110`), `dev-loop`'s pre-`design`-phase 6-step numbering (`Phase 0..5`),
+and `docs/05_plans/release-cycle-v0.1.md` as the authoritative plan. This document reuses that
+structure, fully re-derived against the **current** 33-task registry, the current 7-phase
+`dev-loop.yaml`, and `dev-loop-rel-v0.1-plan.md`. See §7 for the full comparison.
+
+---
+
+## 1. Wave structure
+
+The current 33-task registry (`docs/05_plans/rl-v1/rel-v0.1/dev-loop-rel-v0.1-plan.md` §4) splits
+into the same 5 waves as the prior-art plan, by dependency order:
+
+| Wave | Tasks | # | Precondition |
+|---|---|---|---|
+| 0 | `task-001` (Node.js/TS scaffold) | 1 | — (starting point) |
+| 1 | `task-002` (validation pipeline + ID engine) | 1 | Wave 0 approved + merged to `main` |
+| 2 | `task-003..017` (infra `REQ-*`/`REQ-PERF-*`/`REQ-STATE-08`/`REQ-INT-*`/`REQ-SEC-*`) | 15 | Wave 1 approved + merged |
+| 3 | `task-018..030` (feature `P1.*`/`P2.*`/`P5.*`) | 13 | Wave 2 approved + merged |
+| 4 | `task-031..033` (`dna.yaml` sync, README/CLI docs, manual E2E validation) | 3 | Wave 3 approved + merged |
+
+Wave 0/1 stay single-task (they are the two prerequisites every other task assumes). Waves 2 and 3
+group independent tasks that can run **concurrently** within the wave (each in its own worktree —
+§2). Wave 4 grows from 2 tasks (prior art) to 3: `release-planning-rel-v0.1-plan.md` added
+`task-033` (manual E2E validation of Journey 0a + Journey 1) as a proactive addition beyond the
+original 32-task backlog — see §7.
+
+---
+
+## 2. Per-task execution (delegates to `dev-loop-rel-v0.1-plan.md`)
+
+Every task in every wave runs exactly the phase sequence in `dev-loop-rel-v0.1-plan.md` §3
+(`start → design → red → green → refactor → review → done`), under the git conventions in its §2 —
+**including the forced `task/{task.id}` branch naming and per-task git worktree** (forced ahead of
+`dl-014-dev-loop-plan-deltas`'s approval, per the user's explicit instruction).
+
+**This orchestration plan is the concrete reason that forcing was needed:** waves 2 and 3 run 15 and
+13 tasks respectively; without per-task worktree isolation, those tasks could not check out their
+branches concurrently on a single shared working tree. `dev-loop-rel-v0.1-plan.md`'s forcing note
+now has a load-bearing consumer, not just a hypothetical one.
+
+**A dev agent never self-approves or merges.** It runs `start → design → red → green → refactor`
+autonomously, then `review`'s `tests.bdd.run` + `memory.submit` (`in-progress → in-review`) — and
+stops there. `design`'s and `review`'s approval gates are both `by_role: approver` in `dev-loop.yaml`
+— i.e. Roberto, not an agent (CLAUDE.md §4/§8: agents never self-approve).
+
+---
+
+## 3. Agent / model assignments
+
+Reviewer is uniformly `opus` (higher scrutiny for every merge into `main`). Dev-agent model follows
+task complexity — same assignments as the prior-art plan, **remapped by feature id** (task numbering
+changed between the two plans — see §7):
+
+| Task(s) | Dev agent | Review agent | Note |
+|---|---|---|---|
+| `task-001` | sonnet | opus | Standard TS/Node.js scaffold |
+| `task-002` | opus | opus | Cross-cutting: Zod validation pipeline + ID generation engine |
+| `task-003..017` (infra) | sonnet | opus | One `REQ-*` per task |
+| `task-018..021` (P1.1/P1.2/P1.3/P1.5) | sonnet | opus | Memory CRUD + CLI |
+| `task-022` (P1.11), `task-023` (P1.12) | sonnet | opus | Memory entries + keyword search |
+| `task-024` (P1.13 — memory element schema) | opus | opus | Multi-type state-machine engine |
+| `task-025..026` (P2.1/P2.2) | sonnet | opus | DNA CLI read/write |
+| `task-027` (P2.4 — project DNA config) | sonnet | opus | Structured config |
+| `task-028` (P2.5 — paths) | sonnet | opus | Path resolution |
+| `task-029` (P5.1.1 — `wingfoil init`) | opus | opus | Interactive multi-pillar wizard |
+| `task-030` (P5.2.1 — MCP Resources) | opus | opus | MCP protocol surface |
+| `task-031..032` (config sync, README/CLI docs) | sonnet | opus | |
+| `task-033` (manual E2E validation) | sonnet | opus | New vs. prior art (§7) — validation task, not a code deliverable |
+
+---
+
+## 4. Human checkpoints
+
+Extracted from `dev-loop.yaml`'s `approval:`/`fallback:` blocks and `release-cycle`'s later phases —
+none of this is invented, all of it cites the actual workflow config:
+
+| # | When | Roberto's action (`approver`) | Resulting commit / effect |
+|---|---|---|---|
+| conditional, per task | `design` phase finds a tech-spec gap (rare — most of the 33 tasks already cite an approved spec/ADR/REQ; `dev-loop-rel-v0.1-plan.md` §3.2) | Review + approve/reject the newly-scaffolded spec | `wf(tech-spec): approve {id} [pending → approved]`, or reject → `dev-loop.yaml`'s `design` fallback (`design` again) |
+| every task | Task reaches `in-review` (end of `review` phase) | Read the review-agent's verdict → approve or reject | Approve: `memory.approve(self): {id} [in-review → approved]` (Approver/Reason body, CLAUDE.md §5.1), then `done`'s `git.merge(to: main)` + worktree/branch cleanup + `element.set_state(done)`. Reject: `memory.submit(self): {id} [in-review → in-progress]` per `dev-loop.yaml`'s `review` fallback (`step: red`) |
+| once, after wave 4 | All 33 tasks `done` | QA full suite + coverage ≥ 80% gate, then `release-submit`'s `pre-release-checks` | No commit (automated check) |
+| once | `pre-release-checks` passes | Move release to `releasing`, then approve publishing | `release-submit`'s `enter-releasing` + `approve-release` (`by_role: approver`) |
+| once | Published | Approve the retrospective | `retrospective`'s `approve` phase (`by_role: approver`) |
+
+None of `dev-loop.yaml`'s actions are executed by a wave's dev/review agents themselves — every
+`memory.approve`/`memory.reject`/merge is performed by the orchestrator (this conversation) **only**
+on Roberto's explicit instruction, per CLAUDE.md §4/§8.
+
+---
+
+## 5. Workflow invocation sketch (illustrative only — not executed by this document)
+
+One wave = one `Workflow` tool script invocation. Each task in the wave is one `agent()` call, run
+concurrently via `parallel()`, isolated in its own worktree (mapping directly onto the forced
+convention in §2):
+
+```
+phase('Wave 2 — infra tasks')
+const results = await parallel(INFRA_TASKS.map(t => () =>
+  agent(devLoopPrompt(t), {
+    label: t.id,
+    model: t.model,              // sonnet per §3, opus for the few flagged tasks
+    isolation: 'worktree',       // one branch/worktree per task — dl-014 forcing, §2
+  })
+))
+// each agent runs start -> design -> red -> green -> refactor -> review, stops at in-review
+const reviewed = await parallel(results.map((r, i) => () =>
+  agent(reviewPrompt(INFRA_TASKS[i], r), { label: `review:${INFRA_TASKS[i].id}`, model: 'opus' })
+))
+// reviewed[] verdicts return to THIS conversation — Roberto checkpoints here (§4), not inside the script
+```
+
+This is a sketch to make the mapping concrete, not a script to run now. Per the `Workflow` tool's own
+usage rules, it is only invoked on the user's explicit opt-in (e.g. an explicit "run a workflow"
+request) — preparing this plan is not that request. Executing it is the next, separate step
+(`esegui piano per release implementation`, per the user's own roadmap notes).
+
+---
+
+## 6. Preconditions / launch checklist
+
+- [x] `minor-v0.1` — `status: in-development`.
+- [x] All 33 tasks — `status: backlog` (`release-planning-rel-v0.1-plan.md`).
+- [x] `dev-loop-rel-v0.1-plan.md` — written, covers per-task mechanics + forced branch/worktree convention.
+- [x] ADRs `adr-001..008` `accepted`, Decision Logs `dl-001..012` `ready`, tech-specs `spec-001..012`
+  `approved` — the `design` phase safety net should find no gaps for most tasks.
+- [ ] **Not yet run:** no wave has started; no task has moved past `backlog`.
+
+Next: Wave 0 (`task-001-nodejs-typescript-scaffold`) — the sole prerequisite before Wave 1
+(`task-002-validation-id-engine`), which everything else depends on.
+
+---
+
+## 7. Comparison vs. prior art (commit `86c549f2`, branch `fix/add_design_step_on_dev_loop`)
+
+**Not an ancestor of `main`** — an abandoned attempt at this same orchestration layer, against a
+config version that predates the `rl-v1` restructuring.
+
+| Aspect | Prior art (`86c549f2`) | This plan | Why it changed |
+|---|---|---|---|
+| Task count / numbering | 32 tasks: `task-001..028` (old flat numbering) + `task-107..110` (4 late additions) | 33 tasks: `task-001..033`, renumbered by intended execution order (`release-planning-rel-v0.1-plan.md` §5) | `rl-v1` restructuring + the user's explicit choice not to mirror `v0.1.json` numbering (`feedback_backlog_json_not_authoritative`) |
+| Wave sizes | 1 / 1 / 15 / 13 / 2 | 1 / 1 / 15 / 13 / **3** | Identical shape except Wave 4 — `task-033` (manual E2E validation) is a proactive addition not present in the old 32-task backlog |
+| Dev-loop phase model | `Phase 0..5` (plan-commit, start, red, green, refactor, review) — predates the `design` phase | 7 phases incl. `design` (`dev-loop-rel-v0.1-plan.md` §3) | `design`-phase-as-safety-net was added to `dev-loop.yaml` independently after this prior art was written |
+| Branch/worktree | `task/{task.id}` + worktree, stated as already-adopted convention | Same shape, but explicitly **forced** ahead of formal approval — `dl-002-git-branching-trunk-based` (`ready`) actually adopted the *opposite* (bare branch, no worktree); `dl-014-dev-loop-plan-deltas` (`in-discussion`) proposes superseding it | The prior-art plan predates `dl-002` entirely, so it never had to reconcile with it; this plan does (`dev-loop-rel-v0.1-plan.md` §2) |
+| Merge strategy | `git merge --no-ff task/{id}` | Plain `git.merge(to: main)` — **not** forced to `--no-ff` | The user's forcing instruction covered only branch naming + worktree, not merge strategy (`dev-loop-rel-v0.1-plan.md` §2) |
+| Model assignments | Opus for cross-cutting/complex tasks (validation engine, schema validator, init wizard, MCP server), sonnet otherwise | Same 4 tasks flagged opus, remapped from old task IDs to current ones **by feature id** (`P1.13`, `P5.1.1`, `P5.2.1`, plus the validation/ID engine task) — raw task numbers are not stable across the two plans | Task numbering changed; feature id is the only reference stable across both |
+| Execution log | Wave 0 logged complete in a later commit (`e3e879b`) on the same prior-art branch | Empty — nothing has run yet in this lineage | This plan starts fresh; the prior art's Wave-0 log belongs to its own (abandoned) execution, not this one |
+
+---
+
+## 8. Execution log
+
+| Wave | Started | Workflow run ID | Tasks → `in-review` | Approved | Merged to `main` | Notes |
+|---|---|---|---|---|---|---|
+| 0 (`task-001`) | — | — | — | — | — | |
+| 1 (`task-002`) | — | — | — | — | — | |
+| 2 (infra ×15) | — | — | — | — | — | |
+| 3 (feature ×13) | — | — | — | — | — | |
+| 4 (final ×3) | — | — | — | — | — | |
