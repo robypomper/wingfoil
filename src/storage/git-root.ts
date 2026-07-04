@@ -4,7 +4,7 @@
  * is operating against a resolved project root — this is where that root comes from.
  */
 import { existsSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 import { E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, StorageError } from './errors';
 
@@ -17,7 +17,7 @@ import { E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, StorageError } from './errors';
 export function findGitRoot(cwd: string): string | null {
   let dir = resolve(cwd);
   for (;;) {
-    if (existsSync(resolve(dir, '.git'))) return dir;
+    if (existsSync(join(dir, '.git'))) return dir;
     const parent = dirname(dir);
     if (parent === dir) return null; // reached the filesystem root without finding .git
     dir = parent;
