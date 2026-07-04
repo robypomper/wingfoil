@@ -16,7 +16,7 @@ describe('CORE_MODULES — production registry', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
-    expect(flat).toEqual(['dna.dnaShow', 'directives.directivesList', 'workflow.workflowList']);
+    expect(flat).toEqual(['directives.directivesList', 'dna.dnaShow', 'workflow.workflowList']);
   });
 
   it('every currently-registered operation is read-only (mutates: false) — no mutating op exists yet', () => {
