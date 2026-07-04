@@ -36,7 +36,9 @@ Per the SARD fit criterion (`docs/02_requirements/03_sard/01_architecture.md`, R
 > does not raise errors in the others (automated cross-pillar load test).
 
 Testable form:
-- `memory.yaml`, `dna.yaml`, `directives/*.yaml`, and `workflows.yaml` each validate against their own
+- `memory.yaml`, `dna.yaml`, `directives/*.md` (Markdown with YAML frontmatter — corrected from the
+  original `directives/*.yaml`, which was a literal error: directive files are `.md`, per
+  `spec-013-directive-frontmatter-schema`), and `workflows.yaml` each validate against their own
   Zod schema independently, with no cross-file schema dependency.
 - An automated test that edits `memory.yaml` (e.g. adds a new `type` entry) and reloads all four
   pillars reports zero validation errors in `dna.yaml`, `directives/`, or `workflows.yaml`.
