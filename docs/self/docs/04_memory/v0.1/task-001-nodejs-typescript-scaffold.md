@@ -2,7 +2,7 @@
 id: "task-001-nodejs-typescript-scaffold"
 type: task
 title: "Node.js/TypeScript project scaffold"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1"]
@@ -50,9 +50,55 @@ on any other v0.1 task (including `task-002`) has anywhere to live.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design:** Checked scope against `adr-005-typescript-node-stack` and `dna.yaml`. Both already pin
+  every scaffold decision this task needs (language, runtime floor, package manager, exact dependency
+  list, module layout, coverage target) — no gap found, no new `tech-spec` needed. Phase passed
+  straight through, as expected.
+- **red:** Bootstrapped just enough to make `npm test` runnable — `package.json` (name `wingfoil`,
+  scripts, `engines.node >=18.0.0`), `tsconfig.json`/`tsconfig.build.json`, `jest.config.js` (ts-jest
+  preset), `.gitignore` — then added `test/core/module-layout.test.ts` asserting the 8 `src/` module
+  directories from `dna.yaml`'s `modules:` list exist. Ran red (8/8 failing, `src/` didn't exist yet),
+  then committed.
+- **green:** Built the full scaffold: `src/{core,storage,memory,dna,directives,workflow,cli,mcp}`
+  (see path deviation below) with stub `index.ts` files; installed all `dna.yaml` dependencies
+  (`commander`, `zod`, `@modelcontextprotocol/sdk`, `@anthropic-ai/sdk`) and dev dependencies
+  (`typescript`, `jest`, `ts-jest`, `@types/jest`, `@types/node`), plus ESLint (`eslint`, `@eslint/js`,
+  `typescript-eslint`) since no lint tool was already implied anywhere and flat-config ESLint + the
+  `typescript-eslint` recommended ruleset is the standard choice for this stack. Ran
+  `npm install && npm run build && npm test && npm run lint` on a clean checkout (`rm -rf node_modules
+  dist coverage && npm install ...`) — all four passed. Deviations/judgement calls:
+  - **`mcp-server` module path.** The task's own Description prose lists `src/mcp-server`, but
+    `dna.yaml`'s `modules:` entry for that module sets `name: mcp-server` with `path: src/mcp`
+    explicitly. Followed `dna.yaml`'s literal `path:` field (the cited, authoritative source) rather
+    than the name-derived path implied by the prose — created `src/mcp/index.ts`, and the test
+    asserts `src/mcp`, not `src/mcp-server`. Documented on the stub file itself.
+  - **`chalk` pinned to `^4.1.2`, not latest (`^5.x`).** `chalk@5+` is ESM-only; this project's
+    `tsconfig.json` compiles to `module: Node16` and `package.json` has no `"type": "module"`, so a
+    `require('chalk')` at runtime (from compiled CommonJS output) would fail against `chalk@5`.
+    `chalk@4` is the last CJS-compatible major and keeps the whole toolchain on one module system
+    without forcing an ESM migration this task doesn't own.
+  - **`tsconfig.json` uses `module`/`moduleResolution: Node16`, not the classic `CommonJS`/`node`
+    pair.** TypeScript 6.0 (current on npm) deprecates `moduleResolution: node` (a.k.a. `node10`) as a
+    hard error without an explicit `ignoreDeprecations` escape hatch; `Node16` is the modern,
+    non-deprecated equivalent for a plain Node/CommonJS project. Added `isolatedModules: true`
+    alongside it — ts-jest otherwise warns (TS151002) that the `Node16` "hybrid module kind" requires
+    it.
+  - **`@types/node` pinned to `^18` (not latest `^2x`)**, matching the `engines.node >=18.0.0` floor,
+    so stub/future code doesn't typecheck against Node APIs newer than the minimum supported runtime.
+  - **Coverage threshold vs. the empty-stub problem** (per the acceptance criteria's explicit
+    allowance): `jest.config.js` declares `coverageThreshold.global` at 80/80/80/80 (satisfies the
+    "Jest is configured with a coverage threshold of >80%" criterion) and scopes
+    `collectCoverageFrom` to `src/**/*.ts` excluding `src/**/index.ts` (today's stub files are *all*
+    bare `index.ts` re-export placeholders with no real logic). Coverage collection itself is **not**
+    part of the default `npm test` script — it's opt-in via a separate `npm run test:coverage`
+    (`jest --coverage`) script — so `npm test` never spuriously fails on an empty suite. Verified
+    `npm run test:coverage` currently exits `0` (collectCoverageFrom matches zero files at this stage,
+    so the threshold is vacuously satisfied rather than actively enforced). As soon as a later task
+    adds real logic files under `src/**` with tests, both the scoping and the threshold become live.
+- **refactor:** Only cleanup found: dropped the empty `"author": ""` placeholder field `npm init`
+  left in `package.json` (dead/unset field). Re-ran `npm run build && npm test && npm run lint` — all
+  still green; no functional change.
+- **review:** Checked `docs/02_requirements/02_bdd/features/` — no BDD feature applies to this task
+  (it's pure infra/tooling scaffolding, not a user-facing behavior any P1–P5 feature scenario
+  exercises); not blocking. `npm install && npm run build && npm test && npm run lint` all pass on
+  HEAD of `task/task-001-nodejs-typescript-scaffold`. Moving to `in-review` for the `approver` gate.
