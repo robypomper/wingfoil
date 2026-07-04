@@ -112,24 +112,67 @@ and the warning code path is dead — a no-op that never fires regardless of how
 fields are present.
 
 **Correct mechanism.** Unknown-ness must be decided against the schema's own known-key set, not
-against the passthrough output. Every schema module exports its top-level key list (Zod exposes
-this as `schema.shape`); the check diffs the *raw* keys against *that*, not against `parsed`:
+against the passthrough output. Every schema module exports its declared key list (Zod exposes
+this as `schema.shape`); the check diffs the *raw* keys against *that*, not against `parsed`, and
+**recurses** into every nested key whose declared field is itself a passthrough object schema (or
+an array of them) so unknown fields inside nested config blocks are reported too — not only at the
+document root. The schema is typed *structurally* (only `.shape` / `.element` are read) rather than
+as `AnyZodObject`, because Zod 4 — the version pinned in `dna.yaml` / `package.json` — no longer
+exports that alias:
 
 ```ts
 // src/validation/warning.ts
-import { AnyZodObject } from 'zod'
+/** Structural view of a Zod object schema — only its declared `.shape` is read. */
+interface HasShape { readonly shape: Record<string, unknown> }
+/** Structural view of a Zod array schema — only its `.element` schema is read. */
+interface HasElement { readonly element: unknown }
+
+// (isHasShape / isHasElement / isPlainObject: the obvious structural type guards.)
+
+/**
+ * Recursively collect the paths of every raw key not declared in the schema's shape. Top-level
+ * unknowns are reported by bare name (`mysteryField`); nested unknowns carry a dotted / indexed
+ * path (`nested.field`, `phases[0].field`) so the operator can locate the offending block.
+ */
+function collectUnknownFields(
+  raw: Record<string, unknown>,
+  schema: HasShape,
+  prefix: string,
+): string[] {
+  const known = new Set(Object.keys(schema.shape))
+  const out: string[] = []
+  for (const key of Object.keys(raw)) {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (!known.has(key)) { out.push(path); continue }
+    // Known key: descend when the declared field is itself a passthrough object schema (or an
+    // array of them) AND the raw value has the matching shape. Anything else (scalars, records,
+    // mismatched raw shapes) is left to Pass-1's own field-level validation.
+    const fieldSchema = schema.shape[key]
+    const rawValue = raw[key]
+    if (isHasShape(fieldSchema) && isPlainObject(rawValue)) {
+      out.push(...collectUnknownFields(rawValue, fieldSchema, path))
+    } else if (isHasElement(fieldSchema) && Array.isArray(rawValue)) {
+      const elementSchema = fieldSchema.element
+      if (isHasShape(elementSchema)) {
+        rawValue.forEach((item, index) => {
+          if (isPlainObject(item)) {
+            out.push(...collectUnknownFields(item, elementSchema, `${path}[${index}]`))
+          }
+        })
+      }
+    }
+  }
+  return out
+}
 
 export function emitUnknownFieldWarning(
   raw: Record<string, unknown>,
-  schema: AnyZodObject,
+  schema: HasShape,
   filePath: string,
 ): void {
-  const known = new Set(Object.keys(schema.shape))
-  const unknown = Object.keys(raw).filter(k => !known.has(k))
+  const unknown = collectUnknownFields(raw, schema, '')
   if (unknown.length > 0) {
-    process.stderr.write(
-      `Warning: ${filePath}: unknown field(s) ignored: ${unknown.join(', ')}\n`,
-    )
+    process.stderr.write(`Warning: ${filePath}: unknown field(s) ignored: ${unknown.join(', ')}\n`)
   }
 }
 ```
