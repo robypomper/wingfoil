@@ -2,7 +2,7 @@
 id: "task-004-decoupled-pillars"
 type: task
 title: "Infrastructure: REQ-SYS-02 — Decoupled pillars as independent artifacts"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
