@@ -2,7 +2,7 @@
 id: "task-002-validation-id-engine"
 type: task
 title: "Zod validation pipeline + ID generation engine"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1"]
@@ -57,9 +57,101 @@ reinvent parsing, error-code naming, and unknown-field handling.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **start.** Branch `task/task-002-validation-id-engine` + dedicated worktree created from `main`
+  (forced `task/`-prefix + worktree convention, per dev-loop plan §2 / dl-014 G1–G2). Task moved
+  `backlog → in-progress`. `bug:` is empty, so `bug.sync_state` was a no-op.
+
+- **design (architect safety net).** No new tech-spec authored — design passed straight through, as
+  the plan expected. The task's `ref: spec-009-validation-strategy` (`approved`) literally specifies
+  the two-pass pipeline, passthrough-warning, and `E_*` error mapper (with code listings). The one
+  part spec-009 does not itself detail — the ID-generation engine — needs no new spec because
+  (a) `memory.yaml` already declares every type's `id_pattern` literally, (b) spec-009 §1 already
+  anchors the `[a-z0-9-.]` ID character class as a Pass-2 rule owned by "the shared ID constants",
+  and (c) `memory.yaml` explicitly declares numbering/padding "an ID-generation-engine detail, not
+  fixed here". ID generation is therefore mechanical pattern-matching against already-declared
+  patterns, not a new design decision.
+
+- **red.** Wrote 4 failing suites under `test/validation/` (28 tests): `two-pass` (Pass-2 never runs
+  when Pass 1 fails — asserted with a `jest.fn()` call-count spy, not just output; all Zod issues
+  collected; warning fires after Pass 1 and before Pass 2), `warning` (the known-defective trap —
+  see below), `error-mapper` (three `E_*` families + `E_VALIDATION` fallback + exit codes 1/2), and
+  `id` (each `memory.yaml` id_pattern renders to its expected ID + rejects invalid pattern chars).
+  Suites failed to resolve the not-yet-created modules — genuine red.
+
+- **green.** Implemented `src/validation/{errors,error-mapper,warning,two-pass,id}.ts` + a barrel
+  `index.ts`, matching spec-009's listings.
+  - `two-pass.ts`/`warning.ts`/`error-mapper.ts` follow spec-009 §1/§2/§3 verbatim in behavior.
+  - **Deviation (Zod 4 API).** spec-009's listings type the schema as `ZodSchema<T>` / `AnyZodObject`,
+    both of which `zod@4.4.3` (the version pinned in `dna.yaml`/`package.json`) no longer exports.
+    Used `ZodType<T>` for `runValidation` and a minimal structural `HasShape = { shape: Record<...> }`
+    for `emitUnknownFieldWarning` — same runtime behavior (`schema.safeParse`, `Object.keys(schema.shape)`),
+    version-robust, and no `any` (eslint `no-explicit-any` is an error here).
+  - **Known-defective trap (spec-009 §2).** `emitUnknownFieldWarning` diffs raw keys against
+    `schema.shape` (the schema's declared key set), NOT against the `.passthrough()`-parsed object.
+    `warning.test.ts` proves the avoidance: it parses a `.passthrough()` schema, shows the *defective*
+    `Object.keys(raw).filter(k => !(k in parsed))` diff is `[]` (passthrough copied the unknown key
+    onto `parsed`), then asserts the correct implementation still emits the warning naming the unknown
+    key. That test would fail if the raw-vs-parsed diff were ever reintroduced.
+  - **ID engine location.** Placed at `src/validation/id.ts` (not `src/core`) because spec-009 §1
+    co-locates the id character-class rule with the validation module; `ID_CHAR_CLASS` is exported
+    from here as the single source of truth a future Pass-2 id_pattern check will also consume.
+    `generateId(pattern, values)` is pattern-driven (caller supplies the pattern read from
+    `memory.yaml`); it does not itself parse `memory.yaml` — that stays the memory-config-loader
+    task's job. Padding: numeric `{n}` tokens zero-pad to `max(3, tokenWidth)` (→ `task-002`,
+    `spec-009`), never truncating wider numbers. Bad pattern literals → `E_INVALID_ID_PATTERN_CHARS`
+    (exit 2, per §1's Pass-2 classification); bad/missing values → `E_INVALID_ID` (exit 1).
+  - `npm install && npm run build && npm test && npm run lint` all green.
+
+- **refactor.** Added 4 id-engine edge tests (missing token value, negative number, non-numeric
+  value, leading-hyphen slug hitting the final pattern safety net) to exercise the value-rejection
+  branches. Coverage over `src/validation/**` (default `collectCoverageFrom: src/**/*.ts` minus
+  `index.ts` picks it up): **98.29% stmts, 89.83% branch, 100% funcs, 98.23% lines** — all above the
+  80% threshold; the two-pass branches (Pass-1-fail-skips-Pass-2, warning fire/no-fire, each error
+  family, ID match/reject) are all exercised. Remaining uncovered lines are trivial defensive
+  fallbacks (empty-issues message, `?? []` default).
+
+- **review (mechanical part).** No dedicated validation `.feature` file exists — `src/validation` is
+  a shared internal module, not a CLI-surface feature, so no BDD acceptance suite targets it directly
+  (and there is no BDD runner wired yet — the `.feature` files are contracts, not executable). The
+  related scenarios are owned by the *consuming* schema tasks that call this module: P2.4 "malformed
+  YAML in the DNA file" → this module's `E_YAML_PARSE_ERROR`/exit-2 family; P1.13 "transition
+  references an undeclared state" → a Pass-2 `E_INVALID_*` semantic check run via `runValidation`;
+  P4.1 "unknown workflow kind" → a field-level `E_INVALID_*`. Those wirings land in spec-001/002/003's
+  own tasks. Commit scope choice: code commits use the `core` module scope (dna.yaml has no
+  `validation` module entry; `src/validation` is cross-cutting shared logic that `core` best fits).
+  Task moved `in-progress → in-review`; approval gate + merge are the approver's, not performed here.
+
+- **in-review addition (recursive nested-passthrough warning).** The reviewer's `approve` verdict
+  flagged one real gap: `spec-009-validation-strategy` §2 states in prose that "the same diff is
+  applied recursively at each nesting level that itself has a `.passthrough()` schema, so unknown
+  fields inside nested config blocks are reported too, not only at the document root" — but §2's own
+  reference code listing (and hence the first implementation of `emitUnknownFieldWarning`) checked
+  **top-level keys only**. Since `memory.yaml` (per-type state-machine maps), `dna.yaml`, and
+  `workflows.yaml` (`phases:` — an array of phase objects, each with nested `checks`) all carry deep
+  nesting, an unknown field inside any nested block went undetected. Roberto authorized closing this
+  as **"option A" — extend the shared validation module now** rather than amending the spec to drop
+  the recursive-diff sentence. `emitUnknownFieldWarning` now recurses: for each *known* raw key whose
+  declared field schema is itself a Zod object schema (structurally: exposes `.shape`) and whose raw
+  value is a plain object, it re-applies the raw-vs-`shape` diff one level down; for a declared field
+  that is a Zod array whose element schema exposes `.shape` and whose raw value is an array, it
+  recurses into each object element. Nesting is detected purely structurally (`.shape` for objects,
+  `.element` for arrays — Zod 4 exposes both publicly; mutually exclusive, so `no-explicit-any`-clean
+  guards discriminate them), never by Zod-version-specific internals. Unknown fields are reported by
+  path: bare name at the root (`mysteryField`), dotted for nested (`block.mysteryNested`), and indexed
+  for array elements (`phases[1].bogusStep`) — extending, not replacing, the existing warning line
+  format. The **known-defective guard is untouched**: the base mechanism stays raw-vs-`shape` (never
+  raw-vs-parsed) at every level; recursion is layered on top of it. Added 4 warning tests (nested
+  block unknown by dotted path; nested block with only declared keys → silent; array-of-phases unknown
+  by indexed path; multi-level unknowns in one warning). Coverage over `src/validation/**` stays
+  healthy — `warning.ts` 100% stmts / 93.1% branch / 100% funcs; suite: 43 tests, all green, plus
+  `npm run build` and `npm run lint` clean. Task status unchanged (`in-review`) — this is an in-cycle
+  addition on the existing branch/worktree, not a new submission.
+
+- **Follow-up, not yet done — `spec-009` §2's embedded code listing is now stale.** Roberto's "option
+  A" resolved the prose-vs-listing contradiction by making the *implementation* match the prose
+  (recursive diff), but `spec-009-validation-strategy.md` §2 still shows the old root-only
+  `emitUnknownFieldWarning` listing verbatim — it no longer matches `src/validation/warning.ts`.
+  Someone should update that listing (a content edit to an `approved` tech-spec — doc-versioning
+  directive applies: bump `version`/date on first edit since it was committed) so the spec stays an
+  accurate reference for `spec-001/002/003`'s consuming schemas. Not done as part of this task; raised
+  here as a reminder since this is where the gap was discovered and resolved.
