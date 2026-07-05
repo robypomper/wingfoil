@@ -29,7 +29,7 @@ import { loadMemoryYaml } from '../core';
 import { findMemoryDocumentByTypeAndId, listMemoryDocumentsByType } from '../memory/query';
 import { readDocument } from '../storage';
 
-import { refuseIfWriteIntent, resourceNotFoundError } from './read-only';
+import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
 export interface RegisterMemoryResourcesOptions {
   readonly resolveRoot: () => string;
@@ -69,16 +69,7 @@ export function registerMemoryResources(server: McpServer, options: RegisterMemo
         tags,
       }));
 
-      const result = {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(summaries),
-          },
-        ],
-      };
-      return result;
+      return jsonResourceResult(uri, summaries);
     },
   );
 

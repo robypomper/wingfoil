@@ -1,8 +1,9 @@
 /**
- * Shared read-only-channel guarantee for every bespoke Resource this task registers (`memory-resource`,
- * `dna-resource`, `workflow-resource`) — spec-004-mcp-surface-contract §2.3's verbatim write-refusal
- * string, plus the standard MCP "resource not found" shape (§2.2) — factored once so every module
- * refuses/reports identically rather than re-deriving the same two strings per handler
+ * Shared conventions for every bespoke Resource this task registers (`memory-resource`,
+ * `dna-resource`, `workflow-resource`): the read-only-channel guarantee — spec-004-mcp-surface-contract
+ * §2.3's verbatim write-refusal string, plus the standard MCP "resource not found" shape (§2.2) — and
+ * the common JSON-bodied result envelope, factored once so every module refuses/reports/shapes
+ * identically rather than re-deriving the same strings/shape per handler
  * (task-011-mcp-resources-read-only, REQ-INT-01 / REQ-SEC-05).
  *
  * Two distinct write-attempt shapes must be refused (spec-004 §2.3):
@@ -49,6 +50,26 @@ export function refuseIfWriteIntent(meta: Record<string, unknown> | undefined): 
  * the BDD scenario (`P5.2.1-mcp-resources.feature`) `resource not found: {identifier}` format. */
 export function resourceNotFoundError(identifier: string): Error {
   return new Error(`resource not found: ${identifier}`);
+}
+
+/**
+ * The `ReadResourceResult` shape every JSON-bodied Resource in `memory-resource.ts` (collection
+ * listing), `dna-resource.ts`, and `workflow-resource.ts` returns — one `contents[]` entry,
+ * `mimeType: 'application/json'`, `value` serialized as its `text`. Factored here purely to avoid
+ * re-deriving the same three-line envelope at each of those four call sites; `memory-resource.ts`'s
+ * single-document read builds its own `text/markdown` + `metadata` result directly, since that shape
+ * differs (spec-004 §2.2).
+ */
+export function jsonResourceResult(uri: URL, value: unknown): { contents: [{ uri: string; mimeType: string; text: string }] } {
+  return {
+    contents: [
+      {
+        uri: uri.toString(),
+        mimeType: 'application/json',
+        text: JSON.stringify(value),
+      },
+    ],
+  };
 }
 
 /** The raw JSON-RPC shape of an (unsupported) `resources/write` request — just enough to extract the

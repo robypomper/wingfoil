@@ -23,7 +23,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadWorkflowsYaml } from '../core';
 
-import { refuseIfWriteIntent, resourceNotFoundError } from './read-only';
+import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
 export interface RegisterWorkflowResourcesOptions {
   readonly resolveRoot: () => string;
@@ -53,15 +53,7 @@ export function registerWorkflowResources(server: McpServer, options: RegisterWo
         .map(({ name, kind, description }) => ({ name, kind, description }))
         .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(summaries),
-          },
-        ],
-      };
+      return jsonResourceResult(uri, summaries);
     },
   );
 
@@ -81,15 +73,7 @@ export function registerWorkflowResources(server: McpServer, options: RegisterWo
       const workflow = workflows.find((candidate) => candidate.name === name);
       if (!workflow) throw resourceNotFoundError(`workflows/${name}`);
 
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(workflow),
-          },
-        ],
-      };
+      return jsonResourceResult(uri, workflow);
     },
   );
 }

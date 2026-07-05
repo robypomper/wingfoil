@@ -22,7 +22,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadDnaYaml } from '../core';
 
-import { refuseIfWriteIntent, resourceNotFoundError } from './read-only';
+import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
 export interface RegisterDnaResourcesOptions {
   readonly resolveRoot: () => string;
@@ -46,15 +46,7 @@ export function registerDnaResources(server: McpServer, options: RegisterDnaReso
       refuseIfWriteIntent(extra._meta);
       const root = options.resolveRoot();
       const dna = loadDnaYaml(root);
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(dna),
-          },
-        ],
-      };
+      return jsonResourceResult(uri, dna);
     },
   );
 
