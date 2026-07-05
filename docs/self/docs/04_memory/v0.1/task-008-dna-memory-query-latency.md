@@ -2,7 +2,7 @@
 id: "task-008-dna-memory-query-latency"
 type: task
 title: "Infrastructure: REQ-PERF-02 — DNA/Memory query latency"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
