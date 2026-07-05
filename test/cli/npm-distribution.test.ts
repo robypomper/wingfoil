@@ -21,7 +21,8 @@
  * own header comment for the same build-cost tradeoff already accepted there.
  */
 import { execFileSync, execSync } from 'child_process';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -52,10 +53,10 @@ function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
   return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
 }
 
-/** Spawn the compiled bin entrypoint and capture its real exit code/stdout/stderr. */
-function runBin(...args: readonly string[]): CliResult {
+/** Spawn the compiled bin entrypoint from `cwd` and capture its real exit code/stdout/stderr. */
+function runBinIn(cwd: string, ...args: readonly string[]): CliResult {
   try {
-    const stdout = execFileSync('node', [BIN_ENTRY, ...args], { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const stdout = execFileSync('node', [BIN_ENTRY, ...args], { cwd, encoding: 'utf-8' });
     return { status: 0, stdout, stderr: '' };
   } catch (error) {
     if (!isExecFileSyncError(error)) throw error;
@@ -65,6 +66,11 @@ function runBin(...args: readonly string[]): CliResult {
       stderr: error.stderr.toString(),
     };
   }
+}
+
+/** Spawn the compiled bin entrypoint from the repo root (a valid git root) — the common case. */
+function runBin(...args: readonly string[]): CliResult {
+  return runBinIn(REPO_ROOT, ...args);
 }
 
 describe('npm distribution (task-007) — bin entrypoint + package contents', () => {
@@ -83,6 +89,23 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
     expect(result.status).toBe(0);
     expect(result.stdout.toLowerCase()).toContain('wingfoil');
     expect(result.stderr).toBe('');
+  });
+
+  it('running a real command outside a git root emits a single `error:` line (no stack, no absolute paths) and exits 1 (bug-002)', () => {
+    const outsideGitRoot = mkdtempSync(join(tmpdir(), 'wingfoil-no-git-'));
+    try {
+      const result = runBinIn(outsideGitRoot, 'dna', 'show');
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe('');
+      // A single, clean diagnostic line — spec-005 §1/§3 — never a stack dump.
+      expect(result.stderr.startsWith('error: ')).toBe(true);
+      expect(result.stderr.trim().split('\n')).toHaveLength(1);
+      expect(result.stderr).not.toContain('    at '); // no stack frame
+      expect(result.stderr).not.toContain('StorageError:'); // not the raw dumped error
+      expect(result.stderr).not.toContain(REPO_ROOT); // no leaked absolute internal path
+    } finally {
+      rmSync(outsideGitRoot, { recursive: true, force: true });
+    }
   });
 
   it('`npm pack --dry-run --json` includes the compiled dist/ bin + README.md, and excludes docs/self/.wingfoil + test/', () => {

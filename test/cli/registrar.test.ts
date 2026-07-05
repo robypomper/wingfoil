@@ -11,6 +11,7 @@
 import type { CoreModule } from '../../src/core/registry';
 import { coreErr, coreOk } from '../../src/core/types';
 import { buildCliCommands, listRegisteredCliCommands, type CliCommand } from '../../src/cli/registrar';
+import { StorageError, E_NO_GIT_ROOT } from '../../src/storage/errors';
 
 const FIXTURE_MODULES: CoreModule[] = [
   {
@@ -140,6 +141,19 @@ describe('CliCommand.run — dispatch behavior', () => {
     await findCommand(commands, 'x', 'boom').run('console');
     expect(stderrSpy).toHaveBeenCalledWith('error: boom\n');
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('a resolveRoot() failure (no git root) is reported via emitError/exitWith(1), not an escaped throw (bug-002)', async () => {
+    const commands = buildCliCommands(FIXTURE_MODULES, {
+      resolveRoot: () => {
+        throw new StorageError(E_NO_GIT_ROOT, 'not inside a WingFoil project (no .git found)');
+      },
+      buildParams: (ctx) => ({ root: ctx.root }),
+    });
+    await findCommand(commands, 'dna', 'show').run('console');
+    expect(stderrSpy).toHaveBeenCalledWith('error: E_NO_GIT_ROOT: not inside a WingFoil project (no .git found)\n');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(stdoutSpy).not.toHaveBeenCalled();
   });
 
   it('an uncaught non-Error throw (e.g. a plain string) is still stringified and reported the same way', async () => {

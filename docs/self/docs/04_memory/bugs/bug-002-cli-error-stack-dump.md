@@ -2,7 +2,7 @@
 id: "bug-002-cli-error-stack-dump"
 type: bug
 title: "CLI stack-dumps StorageError outside a git root, bypassing the spec-005 exit/error contract"
-status: open
+status: closed
 severity: high
 release: "v0.1"
 feature: ""
@@ -67,3 +67,21 @@ top-level `catch` dumping `error.stack`, never routed through the CLI's `exitWit
   (`spec-005` §1/§3) on a very common path (wrong working directory), leaking stack traces and
   absolute paths from a published CLI. Exit code is already correct, so not critical, but it should be
   fixed before any real `npm publish`. Awaiting scheduling into a fix task.
+
+## Resolution
+
+Fixed on branch `fix/bug-002` (bug-centric flow, no separate fix task — see
+`docs/05_plans/X_fix-cli-bugs-plan.md`).
+
+- **`src/cli/registrar.ts`** — moved `options.buildParams({… root: options.resolveRoot() …})`
+  **inside** the per-command `try`, so a `StorageError` from `resolveRoot()` (e.g. `E_NO_GIT_ROOT`
+  outside a WingFoil project) is rendered via `emitError` + `exitWith(1)` — the single spec-005 §1
+  exit path — instead of escaping as an uncaught throw.
+- **`src/cli.ts`** — the last-resort top-level `.catch` now emits only `error: <message>` (no
+  `error.stack`), so a stack trace and absolute internal paths can never leak from the published CLI
+  (spec-005 §3).
+- **Tests** (test-first): `test/cli/registrar.test.ts` — a throwing `resolveRoot()` routes through
+  `emitError`/`exitWith(1)`, not an escaped throw; `test/cli/npm-distribution.test.ts` — a real
+  command spawned outside a git root emits a single `error:` line (no `at …` frame, no absolute
+  path) and exits 1. Full suite green (216 tests), coverage > 80%, `tsc -p tsconfig.build.json` clean.
+- Full spec-008 grammar (unknown-command suggestions, exit-2 precedence) remains out of scope.
