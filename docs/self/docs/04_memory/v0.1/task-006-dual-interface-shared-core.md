@@ -2,7 +2,7 @@
 id: "task-006-dual-interface-shared-core"
 type: task
 title: "Infrastructure: REQ-SYS-05 — Dual interface over a shared core"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
