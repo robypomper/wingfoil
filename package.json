@@ -8,8 +8,16 @@
   },
   "main": "dist/core/index.js",
   "types": "dist/core/index.d.ts",
+  "bin": {
+    "wingfoil": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "lint": "eslint .",
     "test": "jest",
     "test:coverage": "jest --coverage"
