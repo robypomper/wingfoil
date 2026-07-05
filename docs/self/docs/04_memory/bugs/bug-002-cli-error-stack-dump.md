@@ -2,7 +2,7 @@
 id: "bug-002-cli-error-stack-dump"
 type: bug
 title: "CLI stack-dumps StorageError outside a git root, bypassing the spec-005 exit/error contract"
-status: open
+status: triaged
 severity: high
 release: "v0.1"
 feature: ""
