@@ -47,6 +47,16 @@ describe('computeMemoryContentRoots — derived from memory.yaml path patterns (
   it('is empty for a registry with no types', () => {
     expect(computeMemoryContentRoots({ version: 1.1, types: {} })).toEqual([]);
   });
+
+  it('handles a placeholder-free path pattern (no `{...}` token at all)', () => {
+    const yaml: MemoryYaml = { version: 1.1, types: { singleton: { path: 'docs/04_memory/singleton.md' } } };
+    expect(computeMemoryContentRoots(yaml)).toEqual(['docs/04_memory']);
+  });
+
+  it('drops a type whose pattern has no directory portion at all (a bare `{id}.md`-style pattern)', () => {
+    const yaml: MemoryYaml = { version: 1.1, types: { root: { path: '{id}.md' } } };
+    expect(computeMemoryContentRoots(yaml)).toEqual([]);
+  });
 });
 
 function seedRepo(): string {
@@ -111,6 +121,17 @@ describe('listMemoryDocumentPaths — sorted, deterministic scan over the derive
     const second = listMemoryDocumentPaths(repo, MEMORY_YAML);
     expect(second).toEqual(first);
   });
+
+  it('ignores non-.md files under a content root', () => {
+    repo = seedRepo();
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/notes.txt', 'not a memory document');
+    expect(listMemoryDocumentPaths(repo, MEMORY_YAML)).not.toContain('docs/04_memory/v0.1/notes.txt');
+  });
+
+  it('returns [] for a derived content root that does not exist on disk (no types registered yet)', () => {
+    repo = makeTempGitRepo();
+    expect(listMemoryDocumentPaths(repo, MEMORY_YAML)).toEqual([]);
+  });
 });
 
 describe('loadMemoryDocumentSummary', () => {
@@ -125,6 +146,22 @@ describe('loadMemoryDocumentSummary', () => {
     expect(summary.frontmatter.title).toBe('API design');
     expect(summary.frontmatter.tags).toEqual(['architecture']);
     expect(summary.body).toContain('Body text with no special keyword.');
+  });
+
+  it('degrades to an empty frontmatter object (never throws) when the frontmatter block does not parse to an object', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/scalar.md', '---\njust a scalar string, not a mapping\n---\nBody\n');
+    const summary = loadMemoryDocumentSummary(repo, 'docs/04_memory/v0.1/scalar.md');
+    expect(summary.frontmatter).toEqual({});
+    expect(summary.body).toBe('Body\n');
+  });
+
+  it('degrades to an empty frontmatter object for a document with no frontmatter block at all', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/no-frontmatter.md', '# Just a heading\n');
+    const summary = loadMemoryDocumentSummary(repo, 'docs/04_memory/v0.1/no-frontmatter.md');
+    expect(summary.frontmatter).toEqual({});
+    expect(summary.body).toBe('# Just a heading\n');
   });
 });
 
@@ -166,5 +203,28 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     const first = searchMemoryDocuments(repo, MEMORY_YAML, 'a');
     const second = searchMemoryDocuments(repo, MEMORY_YAML, 'a');
     expect(second).toEqual(first);
+  });
+
+  it('matches on `id` (not just title/tags), and combines a keyword with a `tag` filter', () => {
+    repo = seedRepo();
+    writeFixtureFile(
+      repo,
+      'docs/04_memory/v0.1/uniquetoken-doc.md',
+      ['---', 'id: uniquetoken-doc', 'title: "Untitled"', 'tags: [ infra ]', 'status: draft', '---', '', 'body', ''].join('\n'),
+    );
+    const byId = searchMemoryDocuments(repo, MEMORY_YAML, 'uniquetoken');
+    expect(byId.map((m) => m.path)).toEqual(['docs/04_memory/v0.1/uniquetoken-doc.md']);
+
+    // Combining a keyword with a tag filter that excludes the only match -> zero results.
+    expect(searchMemoryDocuments(repo, MEMORY_YAML, 'uniquetoken', { tag: 'architecture' })).toEqual([]);
+    expect(searchMemoryDocuments(repo, MEMORY_YAML, 'uniquetoken', { tag: 'infra' })).toHaveLength(1);
+  });
+
+  it('breaks a same-tier tie by path when a document has no `id` frontmatter field', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/no-id-b.md', '---\ntitle: "shared"\n---\nshared\n');
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/no-id-a.md', '---\ntitle: "shared"\n---\nshared\n');
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'shared');
+    expect(matches.map((m) => m.path)).toEqual(['docs/04_memory/v0.1/no-id-a.md', 'docs/04_memory/v0.1/no-id-b.md']);
   });
 });

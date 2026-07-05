@@ -7,6 +7,10 @@
  * "state change" narrative from the commit body's `Approver:`/`Reason:` lines (CLAUDE.md §5.1) is
  * left to the feature task that renders `wingfoil memory history`'s output.
  */
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 import { getMemoryHistory } from '../../src/memory/history';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -69,6 +73,12 @@ describe('getMemoryHistory — git-log walk over one Memory document', () => {
     commitAll(repo, 'wf(task): add task-900-doc');
 
     expect(getMemoryHistory(repo, 'docs/04_memory/v0.1/does-not-exist.md')).toEqual([]);
+  });
+
+  it('returns an empty array (never throws) when `root` is not a git repository at all', () => {
+    repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+    writeDoc(repo, 'draft'); // plain file write, no `git init` — exercises getMemoryHistory's catch path
+    expect(getMemoryHistory(repo, DOC_PATH)).toEqual([]);
   });
 
   it('is deterministic — repeated calls over unchanged state produce the exact same result', () => {
