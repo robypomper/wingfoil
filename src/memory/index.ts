@@ -23,10 +23,18 @@ export {
 export type { TransitionOp } from './state-machine';
 export {
   computeMemoryContentRoots,
+  findMemoryDocumentById,
+  findMemoryDocumentByTypeAndId,
   listMemoryDocumentPaths,
+  listMemoryDocumentsByType,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
 } from './query';
-export type { MemoryDocumentSummary, MemorySearchMatch, MemorySearchOptions } from './query';
+export type {
+  MemoryDocumentFrontmatterSummary,
+  MemoryDocumentSummary,
+  MemorySearchMatch,
+  MemorySearchOptions,
+} from './query';
 export { getMemoryHistory } from './history';
 export type { MemoryHistoryEntry } from './history';
