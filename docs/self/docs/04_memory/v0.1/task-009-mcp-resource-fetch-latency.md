@@ -2,7 +2,7 @@
 id: "task-009-mcp-resource-fetch-latency"
 type: task
 title: "Infrastructure: REQ-PERF-04 — MCP resource fetch latency"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
