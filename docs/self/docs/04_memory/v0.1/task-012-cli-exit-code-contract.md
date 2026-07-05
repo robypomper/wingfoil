@@ -2,7 +2,7 @@
 id: "task-012-cli-exit-code-contract"
 type: task
 title: "Infrastructure: REQ-INT-04 — CLI exit-code contract"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Medium"
 tags: ["v0.1", "architecture"]
@@ -60,16 +60,33 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-012-cli-exit-code-contract` (dedicated worktree), in parallel with the
+task-agent on task-011 (MCP Resources). Plan: `docs/05_plans/X_task-012-plan.md`.
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design (scope finding):** the AC's headline examples are not exercisable today — `CORE_MODULES`
+  (`src/core/index.ts`) registers only three read-only ops (`dnaShow`, `directivesList`,
+  `workflowList`); there is no mutating op, no `--reason`/argument-bearing command, and unknown-command
+  → `2` is deferred to spec-008 grammar (per `program.integration.test.ts`'s own note). Approver
+  (Roberto) chose **"foundation + defer"**: deliver the REQ-INT-04 exit-code selection layer now, defer
+  the argument/grammar-dependent AC cases to their owning tasks (see **Deferred** below).
+- **green:** added `src/core/exit-code.ts` — `ExitCode` (canonical home) + `exitCodeForError`
+  (`Record<CoreErrorCode, ExitCode>`; all five domain codes are logic errors → `1`; the `Record`
+  forces exhaustiveness so a new code won't compile until its exit code is chosen) + `exitCodeForResult`
+  (`0`/`1`). Exported via `src/core/index.ts`. `src/cli/registrar.ts` now terminates via
+  `exitWith(exitCodeForResult(result))` instead of hardcoding `exitWith(0)`/`exitWith(1)`; `src/cli/exit.ts`
+  re-exports `ExitCode` from core and keeps `exitWith` (the process-exit mechanism). `2` (usage) stays
+  CLI-owned (invalid `--format`, pre-core).
+- **tests:** `test/core/exit-code.test.ts` (every `CoreErrorCode` → 1; success → 0) and a
+  `test/cli/registrar.test.ts` exit-code matrix (success → 0, each `CoreError` → 1 through dispatch,
+  invalid `--format` → 2). Integration coverage of the 0/1/2 matrix already exists from prior work
+  (`program.integration.test.ts` success→0 / invalid-format→2; `npm-distribution.test.ts` logic-error→1).
+- **checks:** full suite green (282 tests), `exit-code.ts` + `registrar.ts` 100% covered, overall
+  coverage 98.9% (> 80%), `tsc -p tsconfig.build.json` clean, eslint clean. Did NOT touch `src/mcp`
+  (task-011's area) — no cross-agent conflict expected beyond a possible trivial `src/core/index.ts`
+  export-line union at rebase.
+
+**Deferred (out of scope, traced):**
+- unknown-command → `2` + closest-command `hint:` (spec-005 §3.1 / spec-008 grammar) → a CLI-grammar task.
+- missing-required-argument → `2` (e.g. `--reason`) → arrives with the argument-bearing commands
+  (task-018+); the exit-code layer already returns `2` for the surface-detected usage-error class, so
+  those commands only need to route their arg-validation through `exitWith(2, …)`.

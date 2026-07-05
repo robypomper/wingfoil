@@ -10,6 +10,7 @@
  */
 import type { CoreModule } from '../../src/core/registry';
 import { coreErr, coreOk } from '../../src/core/types';
+import type { CoreErrorCode, CoreResult } from '../../src/core/types';
 import { buildCliCommands, listRegisteredCliCommands, type CliCommand } from '../../src/cli/registrar';
 import { StorageError, E_NO_GIT_ROOT } from '../../src/storage/errors';
 
@@ -164,5 +165,57 @@ describe('CliCommand.run — dispatch behavior', () => {
     await findCommand(commands, 'x', 'boom').run('console');
     expect(stderrSpy).toHaveBeenCalledWith('error: boom-string\n');
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('exit-code matrix (REQ-INT-04, task-012) — dispatch routes 0/1/2 through core selection', () => {
+  let exitSpy: jest.SpyInstance;
+  let stdoutSpy: jest.SpyInstance;
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
+  /** A one-operation module whose single op returns the given CoreResult, for driving `.run`. */
+  function commandReturning(result: CoreResult<unknown>): CliCommand {
+    const commands = buildCliCommands(
+      [{ name: 'x', operations: { xDo: { name: 'xDo', mutates: false, fn: async () => result } } }],
+      { resolveRoot: () => '/fixture-root', buildParams: () => ({}) },
+    );
+    return findCommand(commands, 'x', 'do');
+  }
+
+  it('success → exit 0', async () => {
+    await commandReturning(coreOk({ ok: true })).run('console');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  const LOGIC_ERROR_CODES: readonly CoreErrorCode[] = [
+    'NOT_FOUND',
+    'INVALID_TRANSITION',
+    'VALIDATION',
+    'CONFLICT',
+    'IO',
+  ];
+
+  it.each(LOGIC_ERROR_CODES)('a %s CoreResult.error → exit 1 (logic error)', async (code) => {
+    await commandReturning(coreErr({ code, message: `boom: ${code}` })).run('console');
+    expect(exitSpy).toHaveBeenLastCalledWith(1);
+    expect(stderrSpy).toHaveBeenCalledWith(`error: boom: ${code}\n`);
+  });
+
+  it('an invalid --format value → exit 2 (usage error, decided pre-core by the CLI)', async () => {
+    await commandReturning(coreOk({ ok: true })).run('xml');
+    expect(exitSpy).toHaveBeenCalledWith(2);
+    expect(stdoutSpy).not.toHaveBeenCalled();
   });
 });
