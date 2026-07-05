@@ -40,13 +40,14 @@
  * update this test alongside that change.
  */
 import { execFileSync, execSync } from 'child_process';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const DIST_DIR = join(REPO_ROOT, 'dist');
 const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
 const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
+const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
 
 interface CliResult {
   readonly status: number;
@@ -86,6 +87,13 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
     execSync('npx tsc -p tsconfig.build.json', { cwd: REPO_ROOT, stdio: 'pipe' });
     expect(existsSync(join(DIST_DIR, 'cli', 'program.js'))).toBe(true);
   }, 120_000);
+
+  it('`--version` prints the package.json version to stdout and exits 0 (bug-001)', () => {
+    const result = runCli('--version');
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(PKG_VERSION);
+    expect(result.stderr).toBe('');
+  });
 
   it('`dna show --format json` exits 0 and prints the fixture DnaYaml as compact JSON on stdout', () => {
     const result = runCli('dna', 'show', '--format', 'json');
