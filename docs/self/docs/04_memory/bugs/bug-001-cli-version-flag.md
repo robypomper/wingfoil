@@ -2,7 +2,7 @@
 id: "bug-001-cli-version-flag"
 type: bug
 title: "wingfoil --version errors instead of printing the version and exiting 0"
-status: in-review
+status: resolved
 severity: medium
 release: "v0.1"
 feature: ""
