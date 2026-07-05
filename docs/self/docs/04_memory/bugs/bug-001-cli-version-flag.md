@@ -2,7 +2,7 @@
 id: "bug-001-cli-version-flag"
 type: bug
 title: "wingfoil --version errors instead of printing the version and exiting 0"
-status: in-progress
+status: in-review
 severity: medium
 release: "v0.1"
 feature: ""
@@ -50,3 +50,20 @@ is not registered at all: `src/cli/program.ts`'s `buildProgram` never calls Comm
 - triage (bug-ingest, 2026-07-05): severity **medium** — a published-CLI convention (`--version`) is
   broken and committed code carries a false claim about it, but it is not on any acceptance-criteria
   path and has an obvious, low-risk fix. Awaiting triage/scheduling into a fix task.
+
+## Resolution
+
+Fixed on branch `fix/bug-001` (bug-centric flow, no separate fix task — see
+`docs/05_plans/X_fix-cli-bugs-plan.md`).
+
+- **`src/cli/program.ts`** — `buildProgram` now reads the version from `package.json`
+  deterministically (`readPackageVersion`, no wall-clock — REQ-SYS-07) and calls
+  `program.version(...)`, so `wingfoil --version` (and `-V`) prints the version and exits 0
+  (spec-008 §1). Commander handles it before any command handler runs, so no git root is needed.
+- **`src/cli.ts`** — corrected the module-doc claim that falsely stated `--version` was already
+  handled by commander (only `--help` was); it now accurately notes `--version` is registered by
+  `buildProgram`.
+- **Tests** (test-first): `test/cli/program.integration.test.ts` and `test/cli/npm-distribution.test.ts`
+  both assert `--version` → exit 0 + the `package.json` version on stdout, stderr empty. Full suite
+  green (216 tests), coverage > 80%, `tsc -p tsconfig.build.json` clean, eslint clean.
+- Full spec-008 grammar (unknown-command suggestions, exit-2 precedence) remains out of scope.
