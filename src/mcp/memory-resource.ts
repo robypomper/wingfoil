@@ -5,15 +5,25 @@
  * `CoreModule[]` registry (`src/core/registry.ts`): no `memoryShow`/`memoryGet` `CoreOperation`
  * exists in `src/core`'s production `CORE_MODULES` yet (see `src/core/index.ts`'s SCOPE note —
  * task-008 deliberately left its query primitives unregistered, and registering one here would
- * complete task-021/task-030's own acceptance criteria ahead of them). This module's only job is to
- * prove REQ-PERF-04's fit criterion against the real primitive the future feature task will wrap —
- * it is deliberately NOT the full spec-004-mcp-surface-contract §2.1 Resources surface: no
- * `wingfoil://memory/{type}` collection listing, no `wingfoil://dna/{section}` sub-resource
- * addressing, no `metadata` envelope field, and no `wingfoil://memory/{type}/{id}` two-segment
- * addressing (all deferred to task-030-implement-mcp-resources, which owns spec-004 §2.1's rich
- * sub-resource addressing — see task-009's Execution Notes for the full boundary reasoning). The
- * zero-argument `wingfoil://memory/{id}` form used here matches task-009's own Acceptance Criteria
- * wording verbatim.
+ * complete task-021/task-030's own acceptance criteria ahead of them). Hand-wiring
+ * `McpServer.registerResource` directly here, instead of adding a real `CoreOperation` and letting
+ * `registerCoreModules` register it, is a deliberate spec-006-core-domain-api §4 (Parity rule)
+ * deviation — acceptable only because this surface is test/benchmark-only today (no CLI or Tool
+ * counterpart exists or is claimed for it), to be reconciled by task-030-implement-mcp-resources.
+ *
+ * This module's only job is to prove REQ-PERF-04's fit criterion against the real primitive the
+ * future feature task will wrap. The URI it benchmarks is NOT a spec-004-mcp-surface-contract §2.1
+ * form: spec-004's actual scheme is `wingfoil://memory/{type}` (collection listing) and
+ * `wingfoil://memory/{type}/{id}` (single document) — there is no bare, single-segment
+ * `wingfoil://memory/{id}` address in spec-004 at all, and this `{id}` segment would semantically
+ * collide with spec-004's `{type}` segment (e.g. `wingfoil://memory/task` binds `id="task"` here,
+ * but `type="task"` there). This URI comes from REQ-PERF-04 / task-009's own Acceptance Criteria
+ * wording verbatim, not from spec-004 — see task-009's Execution Notes for the full boundary
+ * reasoning. The JSON body with no `metadata` envelope returned below also diverges from spec-004
+ * §2.2 (which wants `text/markdown` content plus an `id/type/status/title` metadata block). Both
+ * divergences mean task-030-implement-mcp-resources must REPLACE this adapter with a real
+ * `wingfoil://memory/{type}/{id}` Resource, not extend it — the URI collision rules out carrying
+ * this single-segment form forward.
  *
  * Structurally read-only (REQ-SEC-05): registered only via `McpServer.registerResource`, never as a
  * Tool — there is no write path here, mirroring `registerCoreModules`'s Resource half.
