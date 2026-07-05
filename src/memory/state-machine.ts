@@ -40,10 +40,13 @@
  *   a `sequence`-terminal state with no next entry) is illegal.
  *
  * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
- * `types.<name>.states ?? defaults.states`. The dedicated "type declares no `states` block at all,
- * falls back to `defaults`" fixture/coverage is intentionally NOT built here — that is
- * task-010-default-state-machine-fallback's scope; this task's own tests exercise the real 7 types
- * registered in `docs/self/.wingfoil/memory.yaml`, every one of which declares its own `states` block.
+ * `types.<name>.states ?? defaults.states`. task-005's own tests exercise only the real 7 types
+ * registered in `docs/self/.wingfoil/memory.yaml`, every one of which declares its own `states`
+ * block — so the fallback (`?? defaults.states`) and the "neither declares a machine" throw below
+ * were left genuinely uncovered by that task. task-010-default-state-machine-fallback closes that
+ * gap with a throwaway fixture type (declared with no `states:` key) in
+ * `test/memory/state-machine.test.ts`, proving the fallback end-to-end without any change needed
+ * here — the resolution logic below already implemented REQ-STATE-08 correctly.
  */
 import { ValidationError } from '../validation';
 
