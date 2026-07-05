@@ -1,0 +1,167 @@
+/**
+ * State-machine transition-legality engine (REQ-SYS-04, task-005-per-type-state-machines).
+ *
+ * task-004-decoupled-pillars already shipped the *structural* `StateMachine` Zod schema in
+ * `./schema.ts` — the `sequence`/`gates`/`waiting` shape plus a `.superRefine()` enforcing
+ * spec-001-memory-yaml-schema's "Semantic validation (post-parse)" rules (gates/waiting keys must be
+ * members of `sequence`, `"deprecated"` is reserved, etc.). This module does NOT re-validate any of
+ * that — it takes an already-parsed, already-structurally-valid `StateMachine` and answers a
+ * different question: **given a document's current `status` and a requested CLI verb
+ * (`submit`/`approve`/`reject`/`deprecate`), what is the legal target state, if any?**
+ *
+ * This is spec-009-validation-strategy §1's Pass 2 (semantic / cross-file): the transition rule
+ * needs the type's registered machine (loaded from `memory.yaml`) plus the document's own `status`
+ * field — neither is decidable from the document's frontmatter schema alone, matching spec-009's own
+ * worked example ("`wingfoil.status` must be a member of that type's `states.values`"). An illegal
+ * transition throws the shared `ValidationError` via `ValidationError.semantic(...)` (exit code 2,
+ * spec-009 §3) and — critically — throws *before* returning any target, so a caller can never reach
+ * the frontmatter-write step on an illegal transition (REQ-STATE-01: rejected before any file write).
+ * This module never touches a document or the filesystem itself; it is a pure function of
+ * (`machine`, `currentState`, `op`) → target-or-throw, and it is the caller's job to gate any actual
+ * write on this function returning normally.
+ *
+ * Rules implemented below (spec-001-memory-yaml-schema, "Sub-schema: StateMachine" +
+ * "Which verb drives each forward edge — fully determined by the schema" + "`deprecated` is
+ * implicit"):
+ *
+ * - `submit`: legal only from a state that is in `sequence`, is NOT a `gates` key, and is NOT in
+ *   `waiting`, and that has a next state in `sequence`. Target: the next state in `sequence`.
+ * - `approve`: legal only from a state that IS a `gates` key and is NOT also in `waiting` (a state
+ *   that is both is spec-001's explicit "verb-less" case: "its forward edge is verb-less (picked up
+ *   automatically)" — the manual `approve` verb does not apply, only the manual `reject` does).
+ *   Target: the next state in `sequence`.
+ * - `reject`: legal only from a state that IS a `gates` key (regardless of `waiting` membership —
+ *   spec-001: a gate+waiting state "still exposes a manual `reject`/decline path"). Target:
+ *   `gates[<state>].reject`, always taken verbatim (it need not be a `sequence` member).
+ * - `deprecate`: the implicit wildcard edge — always legal from any current state, target is the
+ *   reserved `"deprecated"` state. Never declared in `sequence`/`gates`/`waiting` (enforced
+ *   structurally by task-004's `.superRefine()`; this engine does not need to re-check it).
+ * - Anything else (state not a member of `sequence` at all, wrong verb for the state's category, or
+ *   a `sequence`-terminal state with no next entry) is illegal.
+ *
+ * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
+ * `types.<name>.states ?? defaults.states`. The dedicated "type declares no `states` block at all,
+ * falls back to `defaults`" fixture/coverage is intentionally NOT built here — that is
+ * task-010-default-state-machine-fallback's scope; this task's own tests exercise the real 7 types
+ * registered in `docs/self/.wingfoil/memory.yaml`, every one of which declares its own `states` block.
+ */
+import { ValidationError } from '../validation';
+
+import type { MemoryYaml, StateMachine } from './schema';
+
+/** The reserved implicit-wildcard target state (spec-001) — never declared explicitly anywhere. */
+export const DEPRECATED_STATE = 'deprecated';
+
+/** `E_INVALID_<X>` field-level code (spec-009 §3) for an illegal state transition. */
+export const E_INVALID_TRANSITION = 'E_INVALID_TRANSITION';
+
+/** The four CLI verbs a transition can be requested for (`memory.add` assigns `sequence[0]` directly, no verb). */
+export type TransitionOp = 'submit' | 'approve' | 'reject' | 'deprecate';
+
+/**
+ * Resolve the state machine that governs `typeName`, per REQ-STATE-08: the type's own `states`
+ * block if declared, else `defaults.states`. Throws a plain `Error` (not `ValidationError` — this is
+ * a caller-programming-error / config-integrity condition, not a document-transition failure) if the
+ * type is not registered at all, or if neither the type nor `defaults` declares a machine.
+ */
+export function resolveStateMachine(memoryYaml: MemoryYaml, typeName: string): StateMachine {
+  const typeEntry = memoryYaml.types[typeName];
+  if (!typeEntry) {
+    throw new Error(`memory.yaml has no type "${typeName}" registered`);
+  }
+  const resolved = typeEntry.states ?? memoryYaml.defaults?.states;
+  if (!resolved) {
+    throw new Error(
+      `type "${typeName}" declares no \`states\` block and \`defaults.states\` is not set (REQ-STATE-08)`,
+    );
+  }
+  return resolved;
+}
+
+/** Build one `E_INVALID_TRANSITION` `ValidationError` (Pass 2, spec-009 §3 — exits 2) and throw it. */
+function illegal(currentState: string, op: TransitionOp, message: string, filePath: string): never {
+  throw ValidationError.semantic([
+    {
+      code: E_INVALID_TRANSITION,
+      path: 'status',
+      file: filePath,
+      message: `illegal \`${op}\` from "${currentState}": ${message}`,
+    },
+  ]);
+}
+
+/**
+ * Compute the legal target state for `op` applied to `currentState` under `machine`. Returns the
+ * target state on success; throws `ValidationError` (never returns a target) when the transition is
+ * illegal, per REQ-STATE-01 — a caller must never write a document's `status` unless this function
+ * returns normally. `filePath` is only used to enrich the thrown error's `file` field (optional —
+ * defaults to `''` when no document is on hand, e.g. in pure unit tests).
+ */
+export function resolveTransitionTarget(
+  machine: StateMachine,
+  currentState: string,
+  op: TransitionOp,
+  filePath = '',
+): string {
+  if (op === 'deprecate') {
+    // Implicit wildcard edge from any state (spec-001) — always legal, never declared explicitly.
+    return DEPRECATED_STATE;
+  }
+
+  const index = machine.sequence.indexOf(currentState);
+  const gate = (machine.gates ?? {})[currentState];
+  const isWaiting = (machine.waiting ?? []).includes(currentState);
+
+  switch (op) {
+    case 'submit': {
+      if (index === -1) {
+        return illegal(currentState, op, "not a member of this type's `sequence`", filePath);
+      }
+      if (gate) {
+        return illegal(currentState, op, 'a `gates` state — its forward edge requires `approve`, not `submit`', filePath);
+      }
+      if (isWaiting) {
+        return illegal(
+          currentState,
+          op,
+          'a `waiting` state — its forward edge fires only via a Workflow action, not `submit`',
+          filePath,
+        );
+      }
+      const next = machine.sequence[index + 1];
+      if (next === undefined) {
+        return illegal(currentState, op, 'the last state in `sequence` — there is no forward edge', filePath);
+      }
+      return next;
+    }
+    case 'approve': {
+      if (!gate) {
+        return illegal(currentState, op, 'not a `gates` state — `approve` is only legal from a gate', filePath);
+      }
+      if (isWaiting) {
+        return illegal(
+          currentState,
+          op,
+          'both a `gates` and `waiting` state — its forward edge is verb-less (fires only via a Workflow action), not `approve`',
+          filePath,
+        );
+      }
+      const next = machine.sequence[index + 1];
+      if (next === undefined) {
+        return illegal(currentState, op, 'a `gates` state with no next `sequence` entry to approve into', filePath);
+      }
+      return next;
+    }
+    case 'reject': {
+      if (!gate) {
+        return illegal(currentState, op, 'not a `gates` state — `reject` is only legal from a gate', filePath);
+      }
+      // `reject` target is taken verbatim — need not be a `sequence` member (spec-001).
+      return gate.reject;
+    }
+    default: {
+      const exhaustive: never = op;
+      return illegal(currentState, exhaustive, 'unknown operation', filePath);
+    }
+  }
+}
