@@ -2,7 +2,7 @@
 id: "task-010-default-state-machine-fallback"
 type: task
 title: "Infrastructure: REQ-STATE-08 — Default state-machine fallback"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
