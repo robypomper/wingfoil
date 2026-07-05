@@ -2,7 +2,7 @@
 id: "task-007-npm-distribution"
 type: task
 title: "Infrastructure: REQ-SYS-09 — npm distribution"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Medium"
 tags: ["v0.1", "architecture"]
