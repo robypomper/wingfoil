@@ -2,9 +2,16 @@
  * State-machine transition-legality engine (spec-001-memory-yaml-schema, REQ-SYS-04,
  * task-005-per-type-state-machines). Exercises `resolveStateMachine` + `resolveTransitionTarget`
  * against the real 7 types registered in `docs/self/.wingfoil/memory.yaml` (per the task's
- * Acceptance Criteria) plus illegal-transition rejection. Does NOT exercise the "type declares no
- * `states` block, falls back to `defaults`" fixture — that is task-010-default-state-machine-fallback's
- * scope (see `src/memory/state-machine.ts`'s module doc).
+ * Acceptance Criteria) plus illegal-transition rejection.
+ *
+ * The final two `describe` blocks below (REQ-STATE-08) are task-010-default-state-machine-fallback's
+ * scope: a throwaway fixture `MemoryYaml` document (parsed in-test, never written to the real
+ * `docs/self/.wingfoil/memory.yaml` per that task's Implementation Notes) whose one declared type has
+ * NO `states:` key at all, proving `resolveStateMachine` falls back to `defaults.states` end-to-end
+ * (Pass-1 structural parse → Pass-2 semantic transition legality, spec-009-validation-strategy §1) and
+ * covering the two branches task-005 left genuinely unexercised in `resolveStateMachine` (see that
+ * function's own doc comment in `src/memory/state-machine.ts`): the `?? defaults.states` fallback
+ * itself, and the "neither the type nor `defaults` declares a machine" throw.
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -209,5 +216,107 @@ describe('resolveTransitionTarget — defensive edge case: a `gates` state with 
 
   it('`reject` remains legal regardless (its target is `gates.<state>.reject`, not `sequence`-derived)', () => {
     expect(resolveTransitionTarget(terminalGateMachine, 'pending', 'reject')).toBe('draft');
+  });
+});
+
+describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults.states` (task-010)', () => {
+  // Throwaway fixture — deliberately NOT added to the real `docs/self/.wingfoil/memory.yaml`
+  // (task-010's Implementation Notes are explicit: today all 7 real types declare their own
+  // `states:`, so this path has no live consumer and must be exercised by a dedicated fixture type
+  // here instead). Parsed through the real `MemoryYaml` schema (Pass 1, spec-009 §1) so this is a
+  // genuine end-to-end exercise of the fallback, not just a call into `resolveStateMachine` with a
+  // hand-built object.
+  const FALLBACK_FIXTURE_YAML = {
+    version: 1.1,
+    defaults: {
+      states: { sequence: ['draft', 'pending', 'approved'], gates: { pending: { reject: 'draft' } } },
+    },
+    types: {
+      'fixture-no-states': {
+        path: 'docs/04_memory/fixtures/{id}.md',
+        id_pattern: 'fixture-no-states-{n}',
+        // No `states:` key at all — this is exactly the REQ-STATE-08 condition under test.
+      },
+    },
+  };
+
+  const fixtureMemoryYaml = MemoryYaml.parse(FALLBACK_FIXTURE_YAML);
+
+  it('Pass 1: a type entry with no `states:` key is structurally valid (`states` is `.optional()`, spec-001)', () => {
+    expect(MemoryYaml.safeParse(FALLBACK_FIXTURE_YAML).success).toBe(true);
+    expect(fixtureMemoryYaml.types['fixture-no-states']!.states).toBeUndefined();
+  });
+
+  it('resolves to `defaults.states` itself (the previously-uncovered `?? defaults.states` branch)', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(machine).toBe(fixtureMemoryYaml.defaults!.states);
+  });
+
+  it('throws when neither the type nor `defaults` declares a machine (the other previously-uncovered branch)', () => {
+    const noDefaultsYaml = MemoryYaml.parse({
+      version: 1.1,
+      types: { 'fixture-no-states': { path: 'docs/04_memory/fixtures/{id}.md' } },
+    });
+    expect(() => resolveStateMachine(noDefaultsYaml, 'fixture-no-states')).toThrow(
+      /declares no `states` block and `defaults.states` is not set/,
+    );
+  });
+
+  it('`memory.add` chain head is `draft` (`sequence[0]`)', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(machine.sequence[0]).toBe('draft');
+  });
+
+  it('`memory.submit` moves draft → pending', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(resolveTransitionTarget(machine, 'draft', 'submit')).toBe('pending');
+  });
+
+  it('`memory.approve` moves pending → approved', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(resolveTransitionTarget(machine, 'pending', 'approve')).toBe('approved');
+  });
+
+  it('`memory.reject` moves pending → draft — no separate `rejected` status is ever written', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(resolveTransitionTarget(machine, 'pending', 'reject')).toBe('draft');
+    // The default machine's `sequence` never contains a `rejected` state at all (spec-001's
+    // reconciliation note, CLAUDE.md §5): confirms no such status could ever be written.
+    expect(machine.sequence).not.toContain('rejected');
+  });
+
+  it('any other transition (e.g. draft → approved directly) is rejected and leaves `status` unchanged', () => {
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    const doc = { status: 'draft' };
+    expect(() => {
+      const target = resolveTransitionTarget(machine, doc.status, 'approve');
+      doc.status = target;
+    }).toThrow(ValidationError);
+    expect(doc.status).toBe('draft');
+  });
+
+  it('REQ-SYS-04: removing a type\'s own `states:` block and reloading falls back to `defaults` with no code change', () => {
+    // Same fixture type, but this time WITH its own (different) `states:` block declared — proves
+    // `resolveStateMachine` picks the type's own machine when present, and reverts to `defaults` the
+    // moment that block is absent (as in `FALLBACK_FIXTURE_YAML` above), purely from config, with no
+    // change to `resolveStateMachine` itself.
+    const withOwnStatesYaml = MemoryYaml.parse({
+      ...FALLBACK_FIXTURE_YAML,
+      types: {
+        'fixture-no-states': {
+          ...FALLBACK_FIXTURE_YAML.types['fixture-no-states'],
+          states: { sequence: ['draft', 'live'] },
+        },
+      },
+    });
+
+    const ownMachine = resolveStateMachine(withOwnStatesYaml, 'fixture-no-states');
+    expect(ownMachine).toBe(withOwnStatesYaml.types['fixture-no-states']!.states);
+    expect(ownMachine.sequence).toEqual(['draft', 'live']);
+
+    // Remove the `states:` block (as `FALLBACK_FIXTURE_YAML` already does) — reload falls back.
+    const fallbackMachine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(fallbackMachine).toBe(fixtureMemoryYaml.defaults!.states);
+    expect(fallbackMachine.sequence).toEqual(['draft', 'pending', 'approved']);
   });
 });
