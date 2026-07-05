@@ -18,3 +18,4 @@ export type { HasShape } from './warning';
 export { runValidation } from './two-pass';
 export type { RunValidationOptions, SemanticCheck } from './two-pass';
 export { generateId, patternToRegExp, ID_CHAR_CLASS } from './id';
+export { parseYaml } from './yaml';
