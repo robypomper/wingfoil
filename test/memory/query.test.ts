@@ -7,6 +7,7 @@
  */
 import {
   computeMemoryContentRoots,
+  findMemoryDocumentById,
   listMemoryDocumentPaths,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
@@ -226,5 +227,28 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     writeFixtureFile(repo, 'docs/04_memory/v0.1/no-id-a.md', '---\ntitle: "shared"\n---\nshared\n');
     const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'shared');
     expect(matches.map((m) => m.path)).toEqual(['docs/04_memory/v0.1/no-id-a.md', 'docs/04_memory/v0.1/no-id-b.md']);
+  });
+});
+
+describe('findMemoryDocumentById — thin id -> document lookup (task-009-mcp-resource-fetch-latency, REQ-PERF-04)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  it('returns the document whose frontmatter `id` matches exactly', () => {
+    repo = seedRepo();
+    const doc = findMemoryDocumentById(repo, MEMORY_YAML, 'task-002-doc');
+    expect(doc?.path).toBe('docs/04_memory/v0.1/task-002-doc.md');
+    expect(doc?.frontmatter.title).toBe('Unrelated task');
+  });
+
+  it('returns undefined (never throws) when no document has a matching `id`', () => {
+    repo = seedRepo();
+    expect(findMemoryDocumentById(repo, MEMORY_YAML, 'no-such-id')).toBeUndefined();
+  });
+
+  it('does not partial-match — a substring of an id is not a match', () => {
+    repo = seedRepo();
+    expect(findMemoryDocumentById(repo, MEMORY_YAML, 'task-002')).toBeUndefined();
   });
 });
