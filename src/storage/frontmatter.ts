@@ -17,6 +17,24 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
  * (no leading `---` line).
  */
 export function extractFrontmatter(content: string): string | null {
+  return splitFrontmatter(content).frontmatter;
+}
+
+/** The result of {@link splitFrontmatter}: the raw frontmatter text (or `null`) plus the body. */
+export interface FrontmatterSplit {
+  readonly frontmatter: string | null;
+  readonly body: string;
+}
+
+/**
+ * Split a Memory document into its raw frontmatter text (see {@link extractFrontmatter}) and the
+ * body that follows it (task-008-dna-memory-query-latency: the query primitives need the body text
+ * for keyword matching, in the same read pass that already extracts frontmatter — no second parse).
+ * When there is no frontmatter block at all, `frontmatter` is `null` and `body` is the whole
+ * document, unchanged.
+ */
+export function splitFrontmatter(content: string): FrontmatterSplit {
   const match = FRONTMATTER_RE.exec(content);
-  return match ? (match[1] ?? '') : null;
+  if (!match) return { frontmatter: null, body: content };
+  return { frontmatter: match[1] ?? '', body: content.slice(match[0].length) };
 }
