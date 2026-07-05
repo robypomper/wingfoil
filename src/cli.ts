@@ -12,9 +12,11 @@
  * path, and the real `process.argv` is parsed instead of a synthetic one.
  *
  * `resolveRoot` is only invoked lazily, once per dispatched command (see `./cli/registrar.ts`'s
- * `run`) — `--help`/`--version` are handled by `commander` itself before any command handler runs, so
- * `wingfoil --help` exits `0` (spec-005-cli-command-contract §1) even outside a git repository; only
- * an actual `<noun> <verb>` invocation needs a resolvable git root.
+ * `run`) — `--help` (Commander built-in) and `--version` (registered by `buildProgram` via
+ * `.version()`, see `./cli/program.ts` — bug-001-cli-version-flag) are both handled by `commander`
+ * before any command handler runs, so `wingfoil --help` / `wingfoil --version` exit `0`
+ * (spec-005-cli-command-contract §1, spec-008-cli-grammar §1) even outside a git repository; only an
+ * actual `<noun> <verb>` invocation needs a resolvable git root.
  */
 import { buildProgram } from './cli/program';
 import { CORE_MODULES } from './core';
