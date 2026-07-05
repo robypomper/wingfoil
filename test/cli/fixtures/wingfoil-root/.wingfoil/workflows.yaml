@@ -1,0 +1,3 @@
+version: 1.0
+include:
+  - workflows/custom/main.yaml

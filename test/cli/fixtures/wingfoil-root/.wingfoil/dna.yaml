@@ -1,0 +1,16 @@
+version: 1.1
+modules:
+  - name: core
+    path: src/core
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+team:
+  members:
+    - name: Test User
+      roles: [ developer ]
+  roles:
+    - name: developer
+paths:
+  sources: [ src/ ]
