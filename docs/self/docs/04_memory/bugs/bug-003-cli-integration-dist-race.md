@@ -2,7 +2,7 @@
 id: "bug-003-cli-integration-dist-race"
 type: bug
 title: "CLI integration suites race on a shared dist/ rebuild, causing flaky jest failures"
-status: open
+status: closed
 severity: low
 release: "v0.1"
 feature: ""
@@ -61,3 +61,22 @@ on immediate re-run).
   or user impact, and a re-run is green. It does, however, weaken the CI signal and the determinism
   guarantee, so it is worth fixing (cheaply) before it masks a real regression. Awaiting the
   triage-acceptance gate (`open → triaged`).
+
+## Resolution
+
+Fixed on branch `fix/bug-003` (bug-centric flow, no separate fix task — see
+`docs/05_plans/X_fix-bug-003-plan.md`). Adopted option (a):
+
+- **`test/global-setup.cjs`** (new) — a jest `globalSetup` that `rmSync(dist)` + `tsc -p
+  tsconfig.build.json` **once**, before any worker starts.
+- **`jest.config.js`** — registers `globalSetup`.
+- **`test/cli/program.integration.test.ts`** — `beforeAll` no longer builds; it only asserts
+  `dist/cli/program.js` exists. Removed now-unused `execSync`/`rmSync` imports; header comment updated.
+- **`test/cli/npm-distribution.test.ts`** — dropped its build `beforeAll` entirely (the
+  `compiles a dist/cli.js bin entrypoint` case still asserts the product); removed the unused
+  `execSync` import; header comment updated.
+
+Effect: no shared-directory race (single pre-worker build) **and** one `tsc` build per run instead of
+two. Verified green across **3 consecutive full `npx jest` runs** (255 tests each), eslint + tsc clean.
+Accepted trade-off: `globalSetup` builds `dist/` on every `npx jest` invocation, including non-CLI-only
+runs that previously built nothing — a single ~second `tsc`, and full runs are now faster overall.
