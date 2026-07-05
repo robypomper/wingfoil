@@ -4,7 +4,7 @@
  * snapshot (src/storage/snapshot.ts) and future Memory-pillar code use to read it, without parsing
  * the YAML into a typed object (that's the validation module's job, spec-009/task-002).
  */
-import { extractFrontmatter } from '../../src/storage/frontmatter';
+import { extractFrontmatter, splitFrontmatter } from '../../src/storage/frontmatter';
 
 describe('extractFrontmatter', () => {
   it('extracts the raw YAML text between the first pair of --- delimiters', () => {
@@ -25,5 +25,27 @@ describe('extractFrontmatter', () => {
   it('handles CRLF line endings the same as LF', () => {
     const doc = '---\r\nid: x\r\nstatus: draft\r\n---\r\n\r\nBody\r\n';
     expect(extractFrontmatter(doc)).toBe('id: x\r\nstatus: draft');
+  });
+});
+
+describe('splitFrontmatter', () => {
+  it('splits a document into its frontmatter text and the body that follows (task-008)', () => {
+    const doc = ['---', 'id: x', 'status: draft', '---', '', '## Body', 'more text', ''].join('\n');
+    expect(splitFrontmatter(doc)).toEqual({
+      frontmatter: 'id: x\nstatus: draft',
+      body: '\n## Body\nmore text\n',
+    });
+  });
+
+  it('returns the whole document as body, with frontmatter null, when there is no frontmatter block', () => {
+    const doc = '## Just a heading\n\nNo frontmatter here.\n';
+    expect(splitFrontmatter(doc)).toEqual({ frontmatter: null, body: doc });
+  });
+
+  it('agrees with extractFrontmatter on the frontmatter half for every case extractFrontmatter covers', () => {
+    const withFrontmatter = '---\nid: x\n---\nbody\n';
+    const withoutFrontmatter = 'no frontmatter\n';
+    expect(splitFrontmatter(withFrontmatter).frontmatter).toBe(extractFrontmatter(withFrontmatter));
+    expect(splitFrontmatter(withoutFrontmatter).frontmatter).toBe(extractFrontmatter(withoutFrontmatter));
   });
 });
