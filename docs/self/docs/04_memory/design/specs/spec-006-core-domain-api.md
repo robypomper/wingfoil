@@ -108,62 +108,72 @@ is sufficient to make it reachable from both surfaces; no per-surface wiring is 
 Grouped by `CoreModule.name`. Each row: function name (camelCase, matches `{module}{Verb}` — e.g.
 `memoryApprove`), `mutates`, and the CLI command / MCP exposure it backs.
 
+> **MCP naming — authoritative source is `spec-004-mcp-surface-contract`.** The MCP column below uses
+> the wire-visible names defined by `spec-004` (`scope: src/mcp`): **Tool names are dot-form
+> `{module}.{verb}`** (`spec-004` §4.1), and **Resource URIs use the `wingfoil://{module}/{query}`
+> scheme** (`spec-004` §2.1). An earlier draft of this table used a `{module}_{verb}` snake-case Tool
+> form and a `{module}://{query}` URI form; those were **superseded** by `spec-004` and corrected here
+> (reconciled as a fast-follow to `task-006`, whose review surfaced the discrepancy — see Process
+> Notes). `spec-004` §2.1 owns the fuller sub-resource addressing (`wingfoil://memory/{type}/{id}`,
+> `wingfoil://dna/{section}`); the mechanical zero-argument `wingfoil://{module}/{verb}` form shown
+> here is what a read-only op with no parameter metadata resolves to today (`src/mcp/registrar.ts`).
+
 **`memory` module** (P1, `src/memory`):
 
 | function            | mutates | CLI                     | MCP                          |
 |----------------------|---------|--------------------------|-------------------------------|
-| `memoryAdd`          | true    | `wingfoil memory add`    | Tool `memory_add`             |
-| `memorySearch`       | false   | `wingfoil memory search` | Resource `memory://search`    |
-| `memoryImport`       | true    | `wingfoil memory import` | Tool `memory_import`          |
-| `memorySubmit`       | true    | `wingfoil memory submit` | Tool `memory_submit`          |
-| `memoryApprove`      | true    | `wingfoil memory approve`| Tool `memory_approve`         |
-| `memoryReject`       | true    | `wingfoil memory reject` | Tool `memory_reject`          |
-| `memoryDeprecate`    | true    | `wingfoil memory deprecate` | Tool `memory_deprecate`    |
-| `memoryHistory`      | false   | `wingfoil memory history`| Resource `memory://history/{id}` |
+| `memoryAdd`          | true    | `wingfoil memory add`    | Tool `memory.add`             |
+| `memorySearch`       | false   | `wingfoil memory search` | Resource `wingfoil://memory/search`    |
+| `memoryImport`       | true    | `wingfoil memory import` | Tool `memory.import`          |
+| `memorySubmit`       | true    | `wingfoil memory submit` | Tool `memory.submit`          |
+| `memoryApprove`      | true    | `wingfoil memory approve`| Tool `memory.approve`         |
+| `memoryReject`       | true    | `wingfoil memory reject` | Tool `memory.reject`          |
+| `memoryDeprecate`    | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
+| `memoryHistory`      | false   | `wingfoil memory history`| Resource `wingfoil://memory/history/{id}` |
 
 **`dna` module** (P2, `src/dna`):
 
 | function   | mutates | CLI                | MCP                     |
 |------------|---------|---------------------|--------------------------|
-| `dnaSet`   | true    | `wingfoil dna set`  | Tool `dna_set`           |
-| `dnaShow`  | false   | `wingfoil dna show` | Resource `dna://show`    |
-| `dnaInfer` | true    | `wingfoil dna infer`| Tool `dna_infer`         |
-| `pathsQuery` | false | `wingfoil paths`    | Resource `dna://paths`   |
+| `dnaSet`   | true    | `wingfoil dna set`  | Tool `dna.set`           |
+| `dnaShow`  | false   | `wingfoil dna show` | Resource `wingfoil://dna/show`    |
+| `dnaInfer` | true    | `wingfoil dna infer`| Tool `dna.infer`         |
+| `pathsQuery` | false | `wingfoil paths`    | Resource `wingfoil://dna/paths`   |
 
 **`directives` module** (P3, `src/directives`):
 
 | function            | mutates | CLI                        | MCP                          |
 |----------------------|---------|------------------------------|--------------------------------|
-| `directiveCreate`    | true    | `wingfoil directive create`  | Tool `directive_create`       |
-| `directiveAssign`    | true    | `wingfoil directive assign`  | Tool `directive_assign`       |
-| `directiveRemove`    | true    | `wingfoil directive remove`  | Tool `directive_remove`       |
-| `directivesList`     | false   | `wingfoil directives list`   | Resource `directives://list`  |
+| `directiveCreate`    | true    | `wingfoil directive create`  | Tool `directive.create`       |
+| `directiveAssign`    | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
+| `directiveRemove`    | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
+| `directivesList`     | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
 
 **`workflow` module** (P4, `src/workflow`):
 
 | function          | mutates | CLI                     | MCP                        |
 |--------------------|---------|--------------------------|------------------------------|
-| `workflowStatus`   | false   | `wingfoil workflow status` | Resource `workflow://status` |
-| `workflowNext`     | false   | `wingfoil workflow next`   | Resource `workflow://next`   |
-| `workflowStart`    | true    | `wingfoil workflow start`  | Tool `workflow_start`        |
-| `workflowEnd`      | true    | `wingfoil workflow end`    | Tool `workflow_end`          |
-| `workflowList`     | false   | `wingfoil workflow list`   | Resource `workflow://list`   |
-| `workflowShow`     | false   | `wingfoil workflow show`   | Resource `workflow://show/{name}` |
-| `workflowCreate`   | true    | `wingfoil workflow create` | Tool `workflow_create`       |
-| `workflowRemove`   | true    | `wingfoil workflow remove` | Tool `workflow_remove`       |
+| `workflowStatus`   | false   | `wingfoil workflow status` | Resource `wingfoil://workflow/status` |
+| `workflowNext`     | false   | `wingfoil workflow next`   | Resource `wingfoil://workflow/next`   |
+| `workflowStart`    | true    | `wingfoil workflow start`  | Tool `workflow.start`        |
+| `workflowEnd`      | true    | `wingfoil workflow end`    | Tool `workflow.end`          |
+| `workflowList`     | false   | `wingfoil workflow list`   | Resource `wingfoil://workflow/list`   |
+| `workflowShow`     | false   | `wingfoil workflow show`   | Resource `wingfoil://workflow/show/{name}` |
+| `workflowCreate`   | true    | `wingfoil workflow create` | Tool `workflow.create`       |
+| `workflowRemove`   | true    | `wingfoil workflow remove` | Tool `workflow.remove`       |
 
 **`init` module** (P5.1, `src/core` top-level, no dedicated pillar module):
 
 | function     | mutates | CLI              | MCP                    |
 |--------------|---------|-------------------|--------------------------|
-| `projectInit`| true    | `wingfoil init`   | Tool `project_init`      |
-| `projectAudit` | false | `wingfoil audit`  | Resource `project://audit` |
+| `projectInit`| true    | `wingfoil init`   | Tool `project.init`      |
+| `projectAudit` | false | `wingfoil audit`  | Resource `wingfoil://project/audit` |
 
 **`agent` module** (Agent Execution Commands, `src/core` top-level):
 
 | function        | mutates | CLI                     | MCP                      |
 |------------------|---------|---------------------------|----------------------------|
-| `agentExecute`   | true    | `wingfoil agent execute`  | Tool `agent_execute`      |
+| `agentExecute`   | true    | `wingfoil agent execute`  | Tool `agent.execute`      |
 
 `agentExecute` is `mutates: true` because it can advance the active workflow's step context as a side
 effect of `--next` resolution (per `X_cli-cmds.md`: "Pre-loads Memory context ... "), even though its
@@ -189,12 +199,22 @@ step-advance into two functions, this table is the record to update (§ Conseque
 ### 5. Naming and versioning conventions
 
 - Function names: `{module}{Verb}` camelCase (`memoryApprove`, `dnaSet`), matching the module +
-  first-noun-then-verb shape of the CLI command it backs (`wingfoil memory approve`).
-- MCP Tool names: `{module}_{verb}` snake_case (`memory_approve`) — mechanical transform of the core
-  function name, so a code-review can diff Tool name against function name for drift.
-- MCP Resource URIs: `{module}://{query}[/{id}]` — read-only, mirrors `pathsQuery`/`memorySearch`-style
-  queries; no Resource may accept a body that mutates state (enforced by `mutates: false` on the
-  backing `CoreOperation`).
+  first-noun-then-verb shape of the CLI command it backs (`wingfoil memory approve`). **This is the one
+  naming convention `spec-006` owns** — the core-function surface is `src/core`'s (this spec's) scope.
+- **MCP Tool names and Resource URIs are owned by `spec-004-mcp-surface-contract` (`scope: src/mcp`),
+  not by this spec.** `spec-004` is authoritative for anything wire-visible on the MCP surface; the
+  values in §3's MCP column follow it and are reproduced here only for the parity cross-reference:
+  - MCP **Tool** names: dot-form `{module}.{verb}` (`memory.approve`) — `spec-004` §4.1, a mechanical
+    transform of the CLI verb (space → `.`), so a code-review can still diff Tool name against the
+    CLI command / core function for drift.
+  - MCP **Resource** URIs: the `wingfoil://{module}/{query}[/{id}]` scheme — `spec-004` §2.1. Read-only;
+    no Resource may accept a body that mutates state (enforced by `mutates: false` on the backing
+    `CoreOperation`). The richer sub-resource addressing (`wingfoil://memory/{type}/{id}`,
+    `wingfoil://dna/{section}`) is `spec-004` §2.1's; the zero-argument `wingfoil://{module}/{verb}`
+    form is what an operation with no parameter metadata resolves to until a feature task adds it.
+  - *(A prior version of this section specified snake-case `{module}_{verb}` Tools and a
+    `{module}://{query}` URI scheme; both diverged from `spec-004` and were the source of the
+    `task-006` reconciliation — see Process Notes.)*
 - This table (§3) is the enumeration source for the REQ-SYS-05 parity test; when `X_cli-cmds.md` gains
   or removes a command, this spec is revised in the same change (§ Consequences).
 
@@ -227,3 +247,16 @@ criterion/traceability) and `docs/self/.wingfoil/dna.yaml` (`modules: core/cli/m
 and `path:` values); the §3 function/command enumeration cross-checks every row against
 `docs/01_vision/X_cli-cmds.md` (approved v1.2) so the operation table matches the currently-approved CLI
 surface rather than an invented one. No prior-art source was available or used.
+
+**Revision (2026-07-05) — MCP naming reconciled to `spec-004`, as a fast-follow to `task-006`.**
+`task-006-dual-interface-shared-core`'s independent review found that this spec's §3/§5 MCP naming
+(snake-case `{module}_{verb}` Tools, `{module}://{query}` Resource URIs) contradicted
+`spec-004-mcp-surface-contract` (dot-form `{module}.{verb}` Tools, `wingfoil://…` URIs). Because
+`spec-004` is the spec explicitly scoped to `src/mcp`, it is authoritative for the wire-visible MCP
+surface, and `task-006`'s shipped `src/mcp/registrar.ts` correctly followed it. This spec's §3 table
+and §5 conventions were the stale side and are now corrected to match — removing a traceability hazard
+before the MCP feature tasks (`task-011`, `task-030`, and the `memory`/`dna` CLI+MCP tasks) build on
+this table's enumeration. No core-function names (`{module}{Verb}`, §5 bullet 1 — the part `spec-006`
+actually owns) changed; only the MCP column, which merely reproduces `spec-004`'s naming for the
+parity cross-reference. Recorded per the user's decision to revise `spec-006` (rather than open a
+separate decision-log) to close the gap.
