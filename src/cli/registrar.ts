@@ -18,6 +18,7 @@
 import type { CoreModule, ParamsBuilder } from '../core/registry';
 import { enumerateOperations, deriveVerb } from '../core/registry';
 import type { CoreResult } from '../core/types';
+import { exitCodeForResult } from '../core/exit-code';
 
 import { emitError } from './error';
 import { exitWith } from './exit';
@@ -74,13 +75,15 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
           return;
         }
 
+        // Render the outcome, then terminate through the single exit function with the code core
+        // selects for this result (`0` success / `1` logic error) — the CLI does not re-decide the
+        // `0`/`1` mapping (task-012, spec-005 §1). `2` (usage error) is handled above, pre-core.
         if (result.ok) {
           process.stdout.write(renderSuccess(result.value, format));
-          exitWith(0);
         } else {
           emitError(result.error.message, { format });
-          exitWith(1);
         }
+        exitWith(exitCodeForResult(result));
       },
     };
   });
