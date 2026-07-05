@@ -104,7 +104,7 @@ Testable form:
   missing), wrote the failing-because-absent fixture test suite first: a throwaway `MemoryYaml` fixture
   document (parsed through the real Zod schema, never written to the real
   `docs/self/.wingfoil/memory.yaml`) whose one type, `fixture-no-states`, declares no `states:` key at
-  all. Added two `describe` blocks to `test/memory/state-machine.test.ts` covering every AC bullet:
+  all. Added one `describe` block to `test/memory/state-machine.test.ts` covering every AC bullet:
   Pass-1 structural validity of a states-less type entry; `resolveStateMachine` resolving to
   `defaults.states` (by-reference `toBe`); the `add→draft / submit draft→pending / approve
   pending→approved / reject pending→draft` chain with an explicit assertion that `'rejected'` never
@@ -113,7 +113,7 @@ Testable form:
   existing REQ-STATE-01 pattern already in this file); and a same-file "declare `states:`, then remove
   it and reload" pair proving the config→behavior link needs no code change (REQ-SYS-04). Also added a
   fixture-only test for the second uncovered branch (neither type nor `defaults` declares a machine →
-  throws). **Honest TDD note:** ran these tests immediately after writing them and all 8 passed on the
+  throws). **Honest TDD note:** ran these tests immediately after writing them and all 9 passed on the
   first run — task-005's `?? defaults.states` resolution and the surrounding `resolveTransitionTarget`
   legality engine were already fully correct, so there was no genuine "red" state to observe beyond the
   literal absence of the test file before this commit. Did not fabricate a failure or add any dead code
@@ -134,12 +134,12 @@ Testable form:
 
 - **review:** no BDD runner is wired into this repo yet (same finding as task-006/008/009 — the
   `docs/02_requirements/02_bdd/features/**/*.feature` files are contracts, not yet executable specs).
-  `npx jest` stands in: **264 tests passed, 0 failed** (was 256 before this task; +8 new fixture
+  `npx jest` stands in: **264 tests passed, 0 failed** (was 255 before this task; +9 new fixture
   tests), `npx tsc --noEmit` exit 0.
 
 - **Honest summary:** this was a "deferred coverage" task, not a bug fix. task-005's
   `resolveStateMachine`/`resolveTransitionTarget` production logic already satisfied REQ-STATE-08 in
-  full; task-010's entire contribution is the dedicated fixture type + the 8 new tests that exercise the
+  full; task-010's entire contribution is the dedicated fixture type + the 9 new tests that exercise the
   fallback path end-to-end (Pass 1 parse → Pass 2 transition legality) and close the two branches
   task-005 explicitly left open. No spec gaps, no deviations, no production code touched beyond one
   stale doc-comment correction.

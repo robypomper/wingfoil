@@ -4,7 +4,7 @@
  * against the real 7 types registered in `docs/self/.wingfoil/memory.yaml` (per the task's
  * Acceptance Criteria) plus illegal-transition rejection.
  *
- * The final two `describe` blocks below (REQ-STATE-08) are task-010-default-state-machine-fallback's
+ * The final `describe` block below (REQ-STATE-08) is task-010-default-state-machine-fallback's
  * scope: a throwaway fixture `MemoryYaml` document (parsed in-test, never written to the real
  * `docs/self/.wingfoil/memory.yaml` per that task's Implementation Notes) whose one declared type has
  * NO `states:` key at all, proving `resolveStateMachine` falls back to `defaults.states` end-to-end
