@@ -2,7 +2,7 @@
 id: "task-011-mcp-resources-read-only"
 type: task
 title: "Infrastructure: REQ-INT-01 — MCP Resources read-only"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
