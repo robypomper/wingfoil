@@ -10,19 +10,20 @@
  * mechanical wiring — registering global flags, deriving one `Command` per `{noun, verb}`, forwarding
  * to `command.run` — the exact thing task-006's reviewer verified by hand instead of by test.
  *
- * The fix here is compile-then-spawn, not import-then-call: `beforeAll` runs a real
- * `tsc -p tsconfig.build.json` build to produce `dist/` (CommonJS output — confirmed by inspecting
- * `dist/cli/program.js`), then every test case spawns `test/cli/fixtures/cli-harness.cjs` as a
- * separate `node` process (via `execFileSync`), which `require()`s the COMPILED `dist/cli/program.js`
- * and `dist/core/index.js` and drives `buildProgram` exactly like a real `bin/wingfoil` entrypoint
- * would. That sidesteps the Jest/ESM limitation entirely (the harness never touches `ts-jest`) and
- * gives `program.ts`'s Commander wiring a permanent, real regression guard.
+ * The fix here is compile-then-spawn, not import-then-call: the compiled `dist/` (CommonJS output —
+ * confirmed by inspecting `dist/cli/program.js`) is built once by jest's `globalSetup`
+ * (`test/global-setup.cjs`) before any worker starts, then every test case spawns
+ * `test/cli/fixtures/cli-harness.cjs` as a separate `node` process (via `execFileSync`), which
+ * `require()`s the COMPILED `dist/cli/program.js` and `dist/core/index.js` and drives `buildProgram`
+ * exactly like a real `bin/wingfoil` entrypoint would. That sidesteps the Jest/ESM limitation
+ * entirely (the harness never touches `ts-jest`) and gives `program.ts`'s Commander wiring a
+ * permanent, real regression guard.
  *
- * Build-cost tradeoff (intentional, per task instructions): this test triggers a full project
- * `tsc` build once per `npx jest` run, in `beforeAll`, which is slower than the rest of the suite
- * combined. That is accepted for now — `program.ts` has no other automated guard at all — but if
- * `npx jest` start-up cost becomes a problem later, the natural fix is a `pretest`/CI-level build
- * step and having this file skip rebuilding when `dist/` is already fresh, not deleting the test.
+ * Build ownership (bug-003-cli-integration-dist-race): the build lives in `globalSetup`, NOT in this
+ * file's `beforeAll`. Previously this suite and `npm-distribution.test.ts` each `rmSync`+rebuilt the
+ * same `dist/` in their own `beforeAll`, which raced across parallel jest workers; centralizing the
+ * build (once, pre-worker) removed both the race and the redundant second build. This `beforeAll`
+ * now only asserts the shared `dist/` is present.
  *
  * The fixture `.wingfoil` config lives at `test/cli/fixtures/wingfoil-root/` — a small, static,
  * committed config (not the evolving `docs/self/.wingfoil/` one), so this test's assertions never
@@ -39,8 +40,8 @@
  * behavior; if a future task implements spec-008's full grammar (closest-match suggestion, exit `2`),
  * update this test alongside that change.
  */
-import { execFileSync, execSync } from 'child_process';
-import { existsSync, readFileSync, rmSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -82,11 +83,10 @@ function runCli(...args: readonly string[]): CliResult {
 
 describe('program.ts — real commander wiring (compiled + spawned, out-of-process)', () => {
   beforeAll(() => {
-    // A clean build so a broken `program.ts` can never hide behind a stale `dist/` from a previous run.
-    rmSync(DIST_DIR, { recursive: true, force: true });
-    execSync('npx tsc -p tsconfig.build.json', { cwd: REPO_ROOT, stdio: 'pipe' });
+    // `dist/` is built once by jest's globalSetup (test/global-setup.cjs) before any worker starts —
+    // see bug-003-cli-integration-dist-race for why the per-suite rebuild was removed. Just assert it exists.
     expect(existsSync(join(DIST_DIR, 'cli', 'program.js'))).toBe(true);
-  }, 120_000);
+  });
 
   it('`--version` prints the package.json version to stdout and exits 0 (bug-001)', () => {
     const result = runCli('--version');

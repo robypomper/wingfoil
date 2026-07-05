@@ -7,20 +7,21 @@
  * practical to exercise in CI, so — mirroring `test/cli/program.integration.test.ts`'s
  * compile-then-spawn pattern — this file:
  *
- * 1. Builds the real `dist/` (a clean `tsc -p tsconfig.build.json`) and spawns the compiled `bin`
- *    entrypoint (`dist/cli.js`, mapped from `package.json`'s `"bin"` field) directly with `node`,
- *    asserting the real process exit code / stdout, exactly as npm's bin-shim would invoke it.
+ * 1. Spawns the compiled `bin` entrypoint (`dist/cli.js`, mapped from `package.json`'s `"bin"` field)
+ *    directly with `node`, asserting the real process exit code / stdout, exactly as npm's bin-shim
+ *    would invoke it.
  * 2. Runs `npm pack --dry-run --json` — the same file-selection logic `npm publish` uses — and
  *    asserts the resulting tarball file list includes the compiled `dist/` output and `README.md`,
  *    and excludes the dogfooding `docs/self/.wingfoil/` config (spec-011: project-local, not part of
  *    the shipped artifact) and the `test/` tree (source-only, not runtime).
  *
- * This file performs its own clean build in `beforeAll` rather than sharing `dist/` with
- * `program.integration.test.ts`'s build — Jest test files are independent units and a shared,
- * possibly-stale `dist/` between them would trade correctness for a modest speedup; see that file's
- * own header comment for the same build-cost tradeoff already accepted there.
+ * `dist/` is built once by jest's `globalSetup` (`test/global-setup.cjs`) before any worker starts.
+ * This file used to `rmSync`+rebuild `dist/` in its own `beforeAll` — as did
+ * `program.integration.test.ts` — but two suites clean-rebuilding the SAME `dist/` raced across
+ * parallel jest workers (bug-003-cli-integration-dist-race); the shared, pre-worker build removes the
+ * race and the redundant second build.
  */
-import { execFileSync, execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -75,12 +76,8 @@ function runBin(...args: readonly string[]): CliResult {
 }
 
 describe('npm distribution (task-007) — bin entrypoint + package contents', () => {
-  beforeAll(() => {
-    // A clean build so a stale `dist/` from an earlier run can never hide a broken bin entrypoint.
-    rmSync(DIST_DIR, { recursive: true, force: true });
-    execSync('npx tsc -p tsconfig.build.json', { cwd: REPO_ROOT, stdio: 'pipe' });
-  }, 120_000);
-
+  // `dist/` is built once by jest's globalSetup (test/global-setup.cjs) before any worker starts — no
+  // per-suite build here anymore (bug-003-cli-integration-dist-race); the first case asserts it exists.
   it('compiles a `dist/cli.js` bin entrypoint', () => {
     expect(existsSync(BIN_ENTRY)).toBe(true);
   });
