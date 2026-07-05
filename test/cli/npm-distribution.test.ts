@@ -21,13 +21,14 @@
  * own header comment for the same build-cost tradeoff already accepted there.
  */
 import { execFileSync, execSync } from 'child_process';
-import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const DIST_DIR = join(REPO_ROOT, 'dist');
 const BIN_ENTRY = join(DIST_DIR, 'cli.js');
+const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
 
 interface PackedFile {
   readonly path: string;
@@ -106,6 +107,13 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
     } finally {
       rmSync(outsideGitRoot, { recursive: true, force: true });
     }
+  });
+
+  it('`node dist/cli.js --version` prints the package version and exits 0 (bug-001)', () => {
+    const result = runBin('--version');
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(PKG_VERSION);
+    expect(result.stderr).toBe('');
   });
 
   it('`npm pack --dry-run --json` includes the compiled dist/ bin + README.md, and excludes docs/self/.wingfoil + test/', () => {

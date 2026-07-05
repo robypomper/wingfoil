@@ -24,6 +24,9 @@
  * `buildCliCommands`/`listRegisteredCliCommands` (`./registrar.ts`) carry 100% of the AC-relevant,
  * unit-tested behavior; this file adds no logic of its own beyond Commander's own API calls.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 // Type-only; commander is ESM-only, hence the explicit resolution-mode attribute — see module doc above.
 import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
@@ -31,9 +34,23 @@ import type { CoreModule } from '../core/registry';
 
 import { buildCliCommands, type BuildCommandsOptions } from './registrar';
 
+/**
+ * The CLI version, read from `package.json` deterministically (REQ-SYS-07 — no wall-clock, no
+ * inference): the manifest sits two levels up from this module in both the `src/cli/` source layout
+ * and the compiled `dist/cli/` layout, and npm always ships `package.json` at the package root, so
+ * the same relative path resolves for `wingfoil --version` after a global install.
+ */
+function readPackageVersion(): string {
+  const manifestPath = join(__dirname, '..', '..', 'package.json');
+  return (JSON.parse(readFileSync(manifestPath, 'utf-8')) as { version: string }).version;
+}
+
 export async function buildProgram(modules: readonly CoreModule[], options: BuildCommandsOptions): Promise<Command> {
   const { Command: CommandCtor } = await import('commander');
   const program = new CommandCtor('wingfoil');
+  // Register `-V, --version` so `wingfoil --version` prints the version and exits 0
+  // (spec-008-cli-grammar §1, bug-001-cli-version-flag) — Commander handles it before any command.
+  program.version(readPackageVersion());
   program
     .option('--format <format>', 'output format (console|json|yaml)', 'console')
     .option('--verbose', 'emit diagnostic logs to stderr')
