@@ -2,7 +2,7 @@
 id: "task-010-default-state-machine-fallback"
 type: task
 title: "Infrastructure: REQ-STATE-08 — Default state-machine fallback"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -79,9 +79,67 @@ Testable form:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design:** `agent.verify_specs` against `ref: REQ-STATE-08` and the two specs the task's
+  Implementation Notes cite (`spec-001-memory-yaml-schema`, `spec-009-validation-strategy`) — both
+  already `approved`, and both already document the exact shape this task exercises (`defaults.states`,
+  `types.<name>.states` as `.optional()`, the two-pass pipeline). No gap found; passed straight
+  through with no new tech-spec, matching this task's own Implementation Notes' expectation.
+
+- **Key finding (read this before the red/green split below):** task-005-per-type-state-machines
+  already shipped the *production* fallback-resolution logic in full —
+  `resolveStateMachine` (`src/memory/state-machine.ts` line 72) is exactly
+  `typeEntry.states ?? memoryYaml.defaults?.states`, with a throw when neither is set. Its own module
+  doc comment said in so many words that the "type declares no `states` block, falls back to
+  `defaults`" fixture/coverage was deliberately deferred to this task. Confirmed via `git blame`/reading
+  task-005's tests (`test/memory/state-machine.test.ts` pre-existing content) that every one of the 7
+  real registered types (`release-line, release, task, adr, decision-log, tech-spec, bug`) declares its
+  own `states:` block, so the fallback path had **zero live coverage**. Measured this precisely before
+  writing anything: `npx jest --coverage --collectCoverageFrom=src/memory/state-machine.ts
+  test/memory/state-machine.test.ts` showed 92.85%/90.9% branch, with the Istanbul branch map (dumped
+  via `coverage-final.json`) identifying exactly two uncovered branches: line 72's `??` right-hand side
+  (the fallback itself, 0 hits) and line 73's `if (!resolved)` throw (0 hits). This is a genuine,
+  precisely-located coverage gap — not a production-logic bug.
+
+- **red:** per the task's TDD nuance (production code already correct, only the fixture/coverage
+  missing), wrote the failing-because-absent fixture test suite first: a throwaway `MemoryYaml` fixture
+  document (parsed through the real Zod schema, never written to the real
+  `docs/self/.wingfoil/memory.yaml`) whose one type, `fixture-no-states`, declares no `states:` key at
+  all. Added two `describe` blocks to `test/memory/state-machine.test.ts` covering every AC bullet:
+  Pass-1 structural validity of a states-less type entry; `resolveStateMachine` resolving to
+  `defaults.states` (by-reference `toBe`); the `add→draft / submit draft→pending / approve
+  pending→approved / reject pending→draft` chain with an explicit assertion that `'rejected'` never
+  appears in the default `sequence`; an illegal `draft→approved` direct transition throwing
+  `ValidationError` with the document's `status` field observably unchanged afterward (mirrors the
+  existing REQ-STATE-01 pattern already in this file); and a same-file "declare `states:`, then remove
+  it and reload" pair proving the config→behavior link needs no code change (REQ-SYS-04). Also added a
+  fixture-only test for the second uncovered branch (neither type nor `defaults` declares a machine →
+  throws). **Honest TDD note:** ran these tests immediately after writing them and all 8 passed on the
+  first run — task-005's `?? defaults.states` resolution and the surrounding `resolveTransitionTarget`
+  legality engine were already fully correct, so there was no genuine "red" state to observe beyond the
+  literal absence of the test file before this commit. Did not fabricate a failure or add any dead code
+  to force one; this commit's value is exclusively the new fixture + the coverage of the two
+  previously-unexercised branches, not a bug fix.
+
+- **green:** no-op — no production-code change was needed. `resolveStateMachine` already implemented
+  REQ-STATE-08 correctly; folded a documentation-only edit (removing the now-stale "intentionally NOT
+  built here" sentence from `resolveStateMachine`'s own module doc comment, since this task now builds
+  it) into the red commit rather than opening a separate no-content `feat` commit.
+
+- **refactor:** no-op — nothing to refactor; no `refactor` commit created. Re-measured coverage after
+  the new tests: `src/memory/state-machine.ts` rose from 92.85%/90.9% to 95.23%/96.96% (stmts/branch);
+  the only remaining uncovered lines (166-167, the switch's exhaustive `default:` case) are an
+  unreachable TypeScript-exhaustiveness guard given `TransitionOp`'s closed union — not reachable via
+  any valid call, and out of this task's scope. Project-wide: 98.85% statements / 91.69% branches / 100%
+  functions / 99.3% lines, comfortably above the >80% Jest threshold.
+
+- **review:** no BDD runner is wired into this repo yet (same finding as task-006/008/009 — the
+  `docs/02_requirements/02_bdd/features/**/*.feature` files are contracts, not yet executable specs).
+  `npx jest` stands in: **264 tests passed, 0 failed** (was 256 before this task; +8 new fixture
+  tests), `npx tsc --noEmit` exit 0.
+
+- **Honest summary:** this was a "deferred coverage" task, not a bug fix. task-005's
+  `resolveStateMachine`/`resolveTransitionTarget` production logic already satisfied REQ-STATE-08 in
+  full; task-010's entire contribution is the dedicated fixture type + the 8 new tests that exercise the
+  fallback path end-to-end (Pass 1 parse → Pass 2 transition legality) and close the two branches
+  task-005 explicitly left open. No spec gaps, no deviations, no production code touched beyond one
+  stale doc-comment correction.
