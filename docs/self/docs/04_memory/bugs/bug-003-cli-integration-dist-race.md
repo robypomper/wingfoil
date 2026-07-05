@@ -2,7 +2,7 @@
 id: "bug-003-cli-integration-dist-race"
 type: bug
 title: "CLI integration suites race on a shared dist/ rebuild, causing flaky jest failures"
-status: triaged
+status: planned
 severity: low
 release: "v0.1"
 feature: ""
