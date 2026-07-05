@@ -49,10 +49,12 @@ export function registerMemoryDocumentResource(
     async (uri, variables) => {
       const root = options.resolveRoot();
       const memoryYaml = loadMemoryYaml(root);
-      const rawId = variables.id;
-      const id = Array.isArray(rawId) ? rawId[0] : rawId;
-      const doc = id ? findMemoryDocumentById(root, memoryYaml, id) : undefined;
-      if (!doc) throw new Error(`memory document not found: ${String(id)}`);
+      // `variables.id` is typed `string | string[]` (the SDK's generic `Variables` shape), but this
+      // template's `{id}` variable has no `*`/`+` explode modifier, so a match always binds it to a
+      // single string (see the SDK's `UriTemplate.match`) — the `string[]` case is unreachable here.
+      const id = variables.id as string;
+      const doc = findMemoryDocumentById(root, memoryYaml, id);
+      if (!doc) throw new Error(`memory document not found: ${id}`);
       return {
         contents: [
           {
