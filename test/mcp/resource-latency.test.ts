@@ -214,7 +214,8 @@ describe('REQ-PERF-04 — MCP resource fetch latency on a 1,000-Memory-document 
       samples.push(
         await timeAsync(async () => {
           const result = await client.readResource({ uri: `wingfoil://memory/${worstCaseId}` });
-          lastText = String(result.contents[0]?.text ?? '');
+          const content = result.contents[0];
+          lastText = content && 'text' in content ? content.text : '';
         }),
       );
     }

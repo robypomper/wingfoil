@@ -126,6 +126,28 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+/**
+ * Resolve a single Memory document by its `id` frontmatter value (spec-004-mcp-surface-contract
+ * §2.1's `wingfoil://memory/{id}` Resource addressing — task-009-mcp-resource-fetch-latency,
+ * REQ-PERF-04). A linear scan over every document {@link listMemoryDocumentPaths} returns, in its
+ * already-deterministic sorted order, stopping at the first document whose frontmatter `id` matches
+ * *exactly* (never a substring — that remains `searchMemoryDocuments`'/task-021's keyword-search
+ * surface, not this primitive's). Returns `undefined` — never throws — when no document matches;
+ * turning that into a protocol-level "resource not found" failure is the MCP Resource adapter's job
+ * (spec-004 §2.2), not this primitive's.
+ */
+export function findMemoryDocumentById(
+  root: string,
+  memoryYaml: MemoryYaml,
+  id: string,
+): MemoryDocumentSummary | undefined {
+  for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
+    const summary = loadMemoryDocumentSummary(root, path);
+    if (asString(summary.frontmatter.id) === id) return summary;
+  }
+  return undefined;
+}
+
 /** Optional filters/refinements for {@link searchMemoryDocuments}. */
 export interface MemorySearchOptions {
   /** Only include documents whose `tags:` frontmatter contains this exact tag. */
