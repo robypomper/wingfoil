@@ -65,15 +65,7 @@ export function registerDnaResources(server: McpServer, options: RegisterDnaReso
       const section = variables.section as string;
       if (!(section in dna)) throw resourceNotFoundError(`dna/${section}`);
 
-      return {
-        contents: [
-          {
-            uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(dna[section]),
-          },
-        ],
-      };
+      return jsonResourceResult(uri, dna[section]);
     },
   );
 }

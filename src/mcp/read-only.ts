@@ -56,7 +56,7 @@ export function resourceNotFoundError(identifier: string): Error {
  * The `ReadResourceResult` shape every JSON-bodied Resource in `memory-resource.ts` (collection
  * listing), `dna-resource.ts`, and `workflow-resource.ts` returns — one `contents[]` entry,
  * `mimeType: 'application/json'`, `value` serialized as its `text`. Factored here purely to avoid
- * re-deriving the same three-line envelope at each of those four call sites; `memory-resource.ts`'s
+ * re-deriving the same three-line envelope at each of those five call sites; `memory-resource.ts`'s
  * single-document read builds its own `text/markdown` + `metadata` result directly, since that shape
  * differs (spec-004 §2.2).
  */
