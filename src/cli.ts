@@ -26,7 +26,11 @@ buildProgram(CORE_MODULES, {
 })
   .then((program) => program.parseAsync(process.argv))
   .catch((error: unknown) => {
-    const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-    process.stderr.write(`wingfoil: unexpected error: ${message}\n`);
+    // Last-resort handler for anything that escapes the per-command spec-005 exit path. Emit only the
+    // message as a single `error:` line — never `error.stack`, which would leak a stack trace and
+    // absolute internal paths from a published CLI (bug-002-cli-error-stack-dump). The normal
+    // no-git-root path is already handled cleanly inside the registrar; this guards the unexpected.
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`error: ${message}\n`);
     process.exit(1);
   });

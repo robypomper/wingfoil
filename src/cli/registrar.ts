@@ -56,14 +56,17 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
         }
         const format = formatValue;
 
-        const params = options.buildParams({
-          moduleName: module.name,
-          operationName: operation.name,
-          root: options.resolveRoot(),
-        });
-
         let result: CoreResult<unknown>;
         try {
+          // `resolveRoot()` / `buildParams()` run INSIDE the try so an ambient failure — e.g. a
+          // `StorageError` from resolving the git root outside a WingFoil project — is rendered
+          // through the spec-005 §1 single-exit path (emitError + exitWith), never escaping as an
+          // uncaught throw that a top-level handler would stack-dump (bug-002-cli-error-stack-dump).
+          const params = options.buildParams({
+            moduleName: module.name,
+            operationName: operation.name,
+            root: options.resolveRoot(),
+          });
           result = await operation.fn(params);
         } catch (error) {
           emitError(error instanceof Error ? error.message : String(error), { format });
