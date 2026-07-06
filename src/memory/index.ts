@@ -10,6 +10,12 @@
  * *primitives* (REQ-PERF-02) `./query` and `./history` — the performance-bearing foundation
  * task-021/a-later-P1.10-task build their CLI/MCP surface on top of; see those modules' own doc
  * comments and the task's Execution Notes for the foundation/feature scoping decision.
+ *
+ * task-015-complete-audit-trail adds `./audit` (REQ-SEC-02) — the audit/verification layer built on
+ * `./history`'s raw git-log walk: attribution auditing (0 "unknown author"), `Approver:`/`Reason:`
+ * commit-body parsing, full transition reconstruction, and the frontmatter-vs-commit-message
+ * consistency check. It is deliberately read-only/verification-only — write-time git-identity
+ * enforcement is task-014-git-identity-required's (REQ-SEC-01) separate concern.
  */
 export const MODULE_NAME = 'memory' as const;
 
@@ -38,3 +44,11 @@ export type {
 } from './query';
 export { getMemoryHistory } from './history';
 export type { MemoryHistoryEntry } from './history';
+export {
+  auditAttribution,
+  isValidAttribution,
+  parseApprovalMetadata,
+  reconstructMemoryTransitions,
+  verifyTransitionConsistency,
+} from './audit';
+export type { AttributionEntry, ApprovalMetadata, MemoryTransition, ConsistencyMismatch } from './audit';

@@ -37,6 +37,29 @@ export function commitAll(root: string, message: string): void {
   git(root, ['commit', '--quiet', '-m', message]);
 }
 
+/**
+ * Stage and commit everything currently in the fixture repo's working tree, overriding the author/
+ * committer identity for this one commit via `GIT_AUTHOR_*`/`GIT_COMMITTER_*` env vars — the repo's
+ * own configured `user.name`/`user.email` (set by {@link makeTempGitRepo}) is left untouched.
+ * task-015-complete-audit-trail uses this to build fixtures with a deliberately placeholder-looking
+ * identity (e.g. a git-guessed `user@host.(none)` email, the shape git itself produces when it can't
+ * determine a real domain) so the attribution-audit primitive has something genuine to flag.
+ */
+export function commitAllAs(root: string, message: string, author: { name: string; email: string }): void {
+  git(root, ['add', '-A']);
+  execFileSync('git', ['commit', '--quiet', '-m', message], {
+    cwd: root,
+    encoding: 'utf-8',
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: author.name,
+      GIT_AUTHOR_EMAIL: author.email,
+      GIT_COMMITTER_NAME: author.name,
+      GIT_COMMITTER_EMAIL: author.email,
+    },
+  });
+}
+
 /** Clone a fixture repo (local, filesystem-only) into a second fresh temp directory. */
 export function cloneTempRepo(source: string): string {
   const dest = join(mkdtempSync(join(tmpdir(), 'wf-storage-clone-')), 'clone');
