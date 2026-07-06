@@ -2,7 +2,7 @@
 id: "task-013-machine-readable-formats"
 type: task
 title: "Infrastructure: REQ-INT-05 — Machine-readable output formats"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -57,16 +57,31 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-013-machine-readable-formats` (dedicated worktree), parallel to the
+task-agent (task-011 landed on `main` mid-work). Plan: `docs/05_plans/X_task-013-plan.md`.
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design (scope finding):** the REQ-INT-05 `--format` infrastructure already exists on `main` from
+  task-006 — `src/cli/output.ts` (`OutputFormat`, `isValidFormat`, `renderSuccess` json/yaml/console),
+  `--format` registered once on the root `Command` in `src/cli/program.ts` (default `console`,
+  inherited by every command), invalid-`--format` → exit `2` in the registrar, structured errors to
+  stderr under json/yaml (`emitError`). The AC's literal fit criterion targets `wingfoil paths` and
+  `wingfoil workflow status`, which do not exist yet (`CORE_MODULES` has only
+  `dnaShow`/`directivesList`/`workflowList`; `paths` is task-028). Approver (Roberto) chose
+  **"verify + defer"**.
+- **deliverable (no production code):** since the infrastructure is complete, this task delivers the
+  REQ-INT-05 **verification suite** (characterization, not red-first — the code under test already
+  passes):
+  - `test/cli/output.test.ts` — `isValidFormat` accept/reject; `renderSuccess` json parses via
+    `JSON.parse` to a single top-level value; yaml parses via `js-yaml` `load` to the **same**
+    structure as json; console = pretty-printed same structure.
+  - `test/cli/program.integration.test.ts` — end-to-end fit criterion against `dna show` (stand-in for
+    `paths`/`workflow status`): `--format json` ≡ `--format yaml` when both are parsed, `stderr` empty
+    (envelope rule: only the structured payload on stdout).
+- **checks:** full suite green (315 tests), `output.ts` 100% covered, overall 99% (> 80%), `tsc -p
+  tsconfig.build.json` clean, eslint clean. Touched only `src/cli` tests — not `src/mcp`/`src/core`.
+
+**Deferred (out of scope, traced):**
+- `wingfoil paths --format json|yaml` parse checks → task-028 (`paths` command).
+- `wingfoil workflow status --format json|yaml` parse checks → the `workflow status` command task.
+  Both inherit the shared `--format` envelope verified here; each owning task only adds its own payload
+  shape.
