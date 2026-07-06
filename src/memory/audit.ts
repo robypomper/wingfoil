@@ -7,9 +7,13 @@
  * rather than re-implementing it.
  *
  * This module deliberately does **not** enforce attribution at write time (checking that a commit
- * *can* be made) — that precondition belongs to task-014-git-identity-required (REQ-SEC-01), running
- * in parallel on its own branch. This module only ever reads commits that already exist and reports
- * on them; nothing here blocks or gates a write.
+ * *can* be made) — that precondition belongs to task-014-git-identity-required (REQ-SEC-01,
+ * `requireGitIdentity` in `src/core/git-identity.ts`). This module only ever reads commits that
+ * already exist and reports on them; nothing here blocks or gates a write. The base "non-empty
+ * name and non-empty email" rule the two share lives in exactly one place — the
+ * `isConfiguredIdentity` predicate exported by `src/core/git-identity.ts` — which
+ * {@link isValidAttribution} below consumes rather than re-deriving; see that function's
+ * doc-comment for the read-only augmentations it layers on top for historical commits.
  *
  * REQ-SEC-02's fit criterion, mapped to the functions below:
  *
@@ -27,6 +31,7 @@
  */
 import { execFileSync } from 'child_process';
 
+import { isConfiguredIdentity } from '../core';
 import { parseYaml } from '../validation';
 
 import { getMemoryHistory } from './history';
@@ -55,12 +60,29 @@ const GIT_GUESSED_DOMAIN_MARKER = '.(none)';
 
 /**
  * Whether `name`/`email` look like a real, deliberately-configured git identity rather than an
- * empty or git-guessed placeholder. Pure predicate — no filesystem/git access.
+ * empty or git-guessed placeholder, as recorded on a *historical* commit. The base check — non-empty
+ * `name` AND non-empty `email` — is NOT re-derived here: it delegates to
+ * {@link isConfiguredIdentity} from `src/core/git-identity.ts`, the single source of truth also used
+ * by `requireGitIdentity`'s write-time precondition (REQ-SEC-01). On top of that shared base, this
+ * audit (REQ-SEC-02) layers two read-only augmentations that only make sense when inspecting
+ * *historical* commits rather than live config — `requireGitIdentity` has no need for either, because
+ * it only ever looks at the identity a caller is about to write with:
+ *
+ *  - Rejects the `GIT_GUESSED_DOMAIN_MARKER` (`.(none)`): git appends this to an author email when it
+ *    fell back to a guessed identity at commit time. `requireGitIdentity` now PREVENTS this going
+ *    forward (task-014), but older history predating that guard can still carry it, so the read audit
+ *    must flag it — it is a legacy-history concern, not part of the live write-time rule.
+ *  - Rejects a non-empty-but-malformed email (`EMAIL_RE`): `requireGitIdentity` never needs this check
+ *    because it only reads a git config value (itself always syntactically well-formed or absent);
+ *    historical commit authors, however, can carry hand-edited or otherwise malformed values, so the
+ *    audit validates the shape too.
+ *
+ * Pure predicate — no filesystem/git access.
  */
 export function isValidAttribution(name: string, email: string): boolean {
   const trimmedName = name.trim();
   const trimmedEmail = email.trim();
-  if (!trimmedName || !trimmedEmail) return false;
+  if (!isConfiguredIdentity(trimmedName, trimmedEmail)) return false;
   if (trimmedEmail.includes(GIT_GUESSED_DOMAIN_MARKER)) return false;
   return EMAIL_RE.test(trimmedEmail);
 }

@@ -116,3 +116,29 @@ Testable breakdown:
   on branch coverage (~59%, all uncovered branches are unreachable destructuring-default fallbacks,
   the same pattern already present and already uncovered in task-011's `history.ts`) but does not
   drag the project-wide (global) threshold below 80%, which is what `jest.config.js` enforces.
+- **Reconciliation with task-014 (post-rebase):** this branch was built before task-014-git-identity-
+  required (REQ-SEC-01) landed on `main`. Once rebased, both tasks turned out to define their own
+  independent "is this an attributable identity" rule — task-014's `requireGitIdentity`
+  (`src/core/git-identity.ts`) inline-checked `name.length === 0 || email.length === 0` on live git
+  config, while this task's `isValidAttribution` (`src/memory/audit.ts`) re-derived the same
+  non-empty-name/non-empty-email base check on a historical commit's recorded author, then layered its
+  own `.(none)`/format rules on top. Per Roberto's explicit instruction the base rule now lives in
+  exactly one place: `src/core/git-identity.ts` exports a new pure predicate,
+  `isConfiguredIdentity(name, email): boolean`, holding task-014's exact original rule
+  (`name.length > 0 && email.length > 0`); `requireGitIdentity` was rewired to call it instead of
+  repeating the inline check (REQ-SEC-01's behavior and its `test/core/git-identity.test.ts` suite are
+  unchanged — all 4 cases still pass). `isValidAttribution` (REQ-SEC-02) now imports and calls
+  `isConfiguredIdentity` from `../core` for that same base check, instead of re-implementing it, and
+  keeps two read-only augmentations layered explicitly on top, each documented in `audit.ts` as
+  audit-only: (1) rejecting git's own guessed-domain marker `.(none)` — this can only appear on
+  commits made *before* task-014's write-time guard existed, so it is a legacy-history concern, not
+  part of the live write-time rule; (2) rejecting a non-empty-but-malformed email shape (`EMAIL_RE`) —
+  `requireGitIdentity` never needs this because a live git config value is always well-formed or
+  empty, but a historical commit author can carry a hand-edited/malformed one. Added a dedicated test
+  block (`test/memory/audit.test.ts`, "isValidAttribution reconciled with isConfiguredIdentity") that
+  asserts `isValidAttribution` agrees with `isConfiguredIdentity` for both a real identity and the
+  fully-empty case, and is strictly narrower than it only on the `.(none)` case — proving the shared
+  base plus documented delta rather than two independently-drifting rules. Full suite after
+  reconciliation: `npx tsc --noEmit` exit 0; `npx jest` 345/345 passing (342 pre-existing + 3 new).
+  Traceability: REQ-SEC-01 (task-014, write-time precondition) ↔ REQ-SEC-02 (task-015, read-time
+  audit) now share one base predicate; no other file changed.

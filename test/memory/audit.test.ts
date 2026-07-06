@@ -11,6 +11,7 @@ import {
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from '../../src/memory/audit';
+import { isConfiguredIdentity } from '../../src/core/git-identity';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -57,6 +58,32 @@ describe('isValidAttribution — pure predicate, no git involved', () => {
 
   it('rejects git\'s own guessed-identity domain marker "user@host.(none)"', () => {
     expect(isValidAttribution('root', 'root@buildhost.(none)')).toBe(false);
+  });
+});
+
+describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ task-015, REQ-SEC-01/REQ-SEC-02)', () => {
+  it('agrees with the shared isConfiguredIdentity base rule for a real, non-".(none)" identity', () => {
+    const name = 'Roberto Pompermaier';
+    const email = 'robypomper@gmail.com';
+    expect(isConfiguredIdentity(name, email)).toBe(true);
+    expect(isValidAttribution(name, email)).toBe(isConfiguredIdentity(name, email));
+  });
+
+  it('agrees with the shared isConfiguredIdentity base rule when both name and email are empty', () => {
+    expect(isConfiguredIdentity('', '')).toBe(false);
+    expect(isValidAttribution('', '')).toBe(isConfiguredIdentity('', ''));
+  });
+
+  it('is strictly narrower than isConfiguredIdentity only on the git-guessed ".(none)" case: same non-empty base, audit-only rejection layered on top', () => {
+    const name = 'root';
+    const email = 'root@buildhost.(none)';
+    // The shared base rule (task-014) considers this a "configured" identity — both fields are
+    // non-empty — because requireGitIdentity only ever checks *live* config, which git itself never
+    // populates with a ".(none)" marker going forward.
+    expect(isConfiguredIdentity(name, email)).toBe(true);
+    // The historical audit (task-015) is stricter: it additionally rejects git's own guessed-domain
+    // marker, which can only appear in commits made before task-014's write-time guard existed.
+    expect(isValidAttribution(name, email)).toBe(false);
   });
 });
 

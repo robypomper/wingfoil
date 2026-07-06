@@ -33,6 +33,19 @@ function readGitConfig(root: string, key: string): string {
 }
 
 /**
+ * The single source of truth for "a configured/attributable identity": non-empty `name` AND
+ * non-empty `email`. Both the write-time precondition below (`requireGitIdentity`, REQ-SEC-01,
+ * task-014-git-identity-required) and the read-time historical audit (`isValidAttribution` in
+ * `src/memory/audit.ts`, REQ-SEC-02, task-015-complete-audit-trail) build on this exact predicate for
+ * their shared base check — see `isValidAttribution`'s doc-comment for the audit-only augmentations
+ * it layers on top for historical commits (a concern this write-time check has no need for, since it
+ * only ever looks at the *current* live git config). Pure predicate — no git/filesystem access.
+ */
+export function isConfiguredIdentity(name: string, email: string): boolean {
+  return name.length > 0 && email.length > 0;
+}
+
+/**
  * Verify a git identity is configured at `root` before a state mutation. Returns a
  * `CoreResult.error` (code `VALIDATION` — a failed precondition, mapped to exit `1` by
  * `exitCodeForError`) carrying the exact REQ-SEC-01 message when either `user.name` or `user.email`
@@ -41,7 +54,7 @@ function readGitConfig(root: string, key: string): string {
 export function requireGitIdentity(root: string): CoreResult<void> {
   const name = readGitConfig(root, 'user.name');
   const email = readGitConfig(root, 'user.email');
-  if (name.length === 0 || email.length === 0) {
+  if (!isConfiguredIdentity(name, email)) {
     return coreErr({ code: 'VALIDATION', message: IDENTITY_ERROR });
   }
   return coreOk<void>(undefined);
