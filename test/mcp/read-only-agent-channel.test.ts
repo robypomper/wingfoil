@@ -1,0 +1,123 @@
+/**
+ * task-016-read-only-agent-channel — REQ-SEC-05, spec-004-mcp-surface-contract §1/§2.3/§4, BDD
+ * `p5-interaction/P5.2.1-mcp-resources.feature` + `P5.2.3-mcp-tools.feature`.
+ *
+ * The channel-enumeration guarantee: across the agent-facing MCP surface, **Tools are the only channel
+ * a state mutation is registered under** (`src/mcp/registrar.ts` — a `mutates: true` op can only be a
+ * Tool, a `mutates: false` op only a Resource), the Resources channel refuses every write and persists
+ * nothing (task-011), and there is no mutation-capable Prompts channel. The structural mechanisms
+ * already exist (task-006 registrar + task-011 resources); this suite asserts the REQ-SEC-05 property
+ * end-to-end over a real MCP `Client`. The remaining AC case — a *mutating* Tool call rejected on an
+ * illegal state-machine transition, identical to the CLI — awaits a real mutating operation (task-018+;
+ * `CORE_MODULES` is read-only today); the registrar's `isError` error-parity mechanism it depends on is
+ * proven here with a synthetic op. See this task's Execution Notes.
+ */
+import { coreErr, coreOk, CORE_MODULES, type CoreModule, type CoreResult } from '../../src/core';
+import { WRITE_REFUSAL_MESSAGE } from '../../src/mcp';
+import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
+
+import {
+  assertFilesUnchanged,
+  attemptEveryResourceWrite,
+  connectCoreModuleSurface,
+  connectReadOnlyClient,
+  snapshotFiles,
+} from './helpers/channel-enumeration';
+
+/** A one-module registry with one mutating op (`x.write`) and one read-only op (`x read`). */
+function syntheticModules(writeFn: () => Promise<CoreResult<unknown>>): CoreModule[] {
+  return [
+    {
+      name: 'x',
+      operations: {
+        xWrite: { name: 'xWrite', mutates: true, fn: writeFn },
+        xRead: { name: 'xRead', mutates: false, fn: async () => coreOk({ read: 'ok' }) },
+      },
+    },
+  ];
+}
+
+const UNUSED_ROOT = { resolveRoot: () => '/unused' } as const;
+
+describe('REQ-SEC-05 — Tools is the only channel a mutation is registered under (structural)', () => {
+  it('a mutating op is registered ONLY as a Tool; a read-only op ONLY as a Resource', async () => {
+    const { client } = await connectCoreModuleSurface(syntheticModules(async () => coreOk({ done: true })), UNUSED_ROOT);
+
+    const tools = (await client.listTools()).tools.map((tool) => tool.name);
+    const resources = (await client.listResources()).resources.map((resource) => resource.uri);
+
+    expect(tools).toContain('x.write');
+    expect(tools).not.toContain('x.read'); // a read-only op can NEVER surface as a Tool
+    expect(resources).toContain('wingfoil://x/read');
+    expect(resources).not.toContain('wingfoil://x/write'); // a mutating op can NEVER surface as a Resource
+  });
+
+  it('the only write path (a Tool) surfaces a CoreResult.error as isError — rejected unless it passes validation', async () => {
+    const { client } = await connectCoreModuleSurface(
+      syntheticModules(async () => coreErr({ code: 'INVALID_TRANSITION', message: 'illegal transition: draft to approved' })),
+      UNUSED_ROOT,
+    );
+
+    const result = await client.callTool({ name: 'x.write', arguments: {} });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('illegal transition: draft to approved');
+  });
+
+  it('a successful Tool call returns the value with no isError flag', async () => {
+    const { client } = await connectCoreModuleSurface(syntheticModules(async () => coreOk({ committed: true })), UNUSED_ROOT);
+
+    const result = await client.callTool({ name: 'x.write', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(JSON.stringify(result.content)).toContain('committed');
+  });
+});
+
+describe('REQ-SEC-05 — today the real surface exposes zero mutating Tools (no successful agent write path)', () => {
+  it('the Tools write-channel is advertised, but the real registry contributes zero mutating ops — an empty write path', async () => {
+    const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
+
+    // The sole write channel (Tools) is structurally present/advertised...
+    expect(client.getServerCapabilities()?.tools).toBeDefined();
+    // ...but no core operation mutates today, so nothing is registered under it — no successful agent
+    // write path exists at this release (the mutating ops arrive with task-018+).
+    const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
+    expect(mutatingOps).toEqual([]);
+  });
+
+  it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {
+    const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
+    expect(client.getServerCapabilities()?.prompts).toBeUndefined();
+  });
+});
+
+describe('REQ-SEC-05 — the Resources channel refuses every write and persists nothing (shared with REQ-INT-01)', () => {
+  let root: string;
+
+  const TRACKED_FILES = ['.wingfoil/dna.yaml', '.wingfoil/memory.yaml', 'docs/04_memory/v0.1/task-001-foo.md'];
+
+  beforeAll(() => {
+    root = makeTempGitRepo();
+    writeFixtureFile(root, '.wingfoil/dna.yaml', 'version: 1.1\nproject:\n  name: "Fx"\nmodules:\n  - name: core\n    path: src/core\n');
+    writeFixtureFile(root, '.wingfoil/memory.yaml', 'version: 1.1\ntypes:\n  task:\n    path: "docs/04_memory/{release}/{id}.md"\n');
+    writeFixtureFile(root, '.wingfoil/workflows.yaml', 'version: 1\ninclude: []\n');
+    writeFixtureFile(
+      root,
+      'docs/04_memory/v0.1/task-001-foo.md',
+      ['---', 'id: task-001-foo', 'type: task', 'title: "Foo"', 'status: in-progress', 'tags: [ t ]', '---', '', 'Body.', ''].join('\n'),
+    );
+    commitAll(root, 'seed task-016 REQ-SEC-05 write-refusal fixture');
+  });
+
+  afterAll(() => removeTempDir(root));
+
+  it('both write-shaped requests are refused with the exact message, and every tracked file is byte-for-byte unchanged', async () => {
+    const { client } = await connectReadOnlyClient(root);
+    const before = snapshotFiles(root, TRACKED_FILES);
+
+    const messages = await attemptEveryResourceWrite(client, 'wingfoil://memory/task/task-001-foo');
+
+    expect(messages).toHaveLength(2);
+    messages.forEach((message) => expect(message).toContain(WRITE_REFUSAL_MESSAGE));
+    assertFilesUnchanged(root, before);
+  });
+});

@@ -18,7 +18,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { registerReadOnlyResources } from '../../../src/mcp';
+import type { CoreModule } from '../../../src/core';
+import { registerCoreModules, registerReadOnlyResources } from '../../../src/mcp';
 import { WRITE_INTENT_META_KEY } from '../../../src/mcp/read-only';
 
 export interface ChannelEnumerationClient {
@@ -30,6 +31,28 @@ export interface ChannelEnumerationClient {
 export async function connectReadOnlyClient(root: string): Promise<ChannelEnumerationClient> {
   const server = new McpServer({ name: 'wingfoil-test', version: '0.0.0' });
   registerReadOnlyResources(server, { resolveRoot: () => root });
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'wingfoil-test-client', version: '0.0.0' });
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  return { client, server };
+}
+
+/**
+ * Connect a Client/Server pair with the operation-derived Tool/Resource surface wired on via
+ * `registerCoreModules(modules)` — a `mutates: true` op becomes a Tool, a `mutates: false` op a
+ * Resource (the structural half of REQ-SEC-05). task-011 established this fixture "to extend to Tools
+ * without rework"; this is that extension (task-016-read-only-agent-channel), letting a test enumerate
+ * the agent-facing channels over the SDK.
+ */
+export async function connectCoreModuleSurface(
+  modules: readonly CoreModule[],
+  options: { resolveRoot: () => string },
+): Promise<ChannelEnumerationClient> {
+  const server = new McpServer({ name: 'wingfoil-test', version: '0.0.0' });
+  registerCoreModules(server, modules, {
+    resolveRoot: options.resolveRoot,
+    buildParams: (ctx) => ({ root: ctx.root }),
+  });
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'wingfoil-test-client', version: '0.0.0' });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
