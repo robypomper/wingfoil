@@ -36,6 +36,7 @@ export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
 export * from './types';
 export * from './registry';
 export * from './exit-code';
+export * from './git-identity';
 
 /** Params shared by every operation registered today — all of them are a bare pillar-config read. */
 export interface RootParams {
