@@ -11,8 +11,12 @@
  * "state change" (e.g. "pending -> backlog") from the commit body's `Approver:`/`Reason:` lines
  * (CLAUDE.md §5.1) is the feature task's rendering concern, not this primitive's; the raw `body`
  * field already carries that text verbatim for a caller to parse.
+ *
+ * The `git log` walk/record-splitting plumbing itself lives in `./git-log` (factored out by
+ * task-015-complete-audit-trail, which needs the same plumbing for its own attribution audit) — this
+ * module owns only the `MemoryHistoryEntry` shape and the `--follow` single-document semantics.
  */
-import { execFileSync } from 'child_process';
+import { FIELD_SEP, walkGitLogFields } from './git-log';
 
 /** One commit touching a Memory document, in the shape `wingfoil memory history` will render from. */
 export interface MemoryHistoryEntry {
@@ -25,42 +29,26 @@ export interface MemoryHistoryEntry {
   readonly body: string;
 }
 
-// Unit/record separators (ASCII 0x1f/0x1e) — control characters a real commit subject/body never
-// contains, so splitting on them is unambiguous without escaping.
-const FIELD_SEP = '\x1f';
-const RECORD_SEP = '\x1e';
-const LOG_FORMAT = ['%H', '%an', '%ae', '%aI', '%s', '%b'].join(FIELD_SEP) + RECORD_SEP;
+const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
 
 /**
  * Walk every commit that touched `relativePath`, oldest first (P1.10-memory-history.feature: "lists
- * ... entries in chronological order") — `git log` itself returns newest-first, reversed here.
+ * ... entries in chronological order") — `git log` itself returns newest-first, reversed by
+ * {@link walkGitLogFields}.
  *
  * Returns `[]`, rather than throwing, both when `root` has no commits touching the path at all and
  * when `root` is not a git repository — "document not found" is a caller/feature-layer concern
  * (task-021/026-style CLI error rendering), not this primitive's.
  */
 export function getMemoryHistory(root: string, relativePath: string): MemoryHistoryEntry[] {
-  let stdout: string;
-  try {
-    stdout = execFileSync(
-      'git',
-      ['-C', root, 'log', '--follow', `--format=${LOG_FORMAT}`, '--', relativePath],
-      { encoding: 'utf-8' },
-    );
-  } catch {
-    return [];
-  }
+  const records = walkGitLogFields(root, LOG_FIELDS, [relativePath], ['--follow']);
 
-  const records = stdout
-    .split(RECORD_SEP)
-    .map((record) => record.replace(/^\n+/, ''))
-    .filter((record) => record.length > 0);
-
-  const entries = records.map((record): MemoryHistoryEntry => {
-    const [sha = '', authorName = '', authorEmail = '', date = '', subject = '', ...bodyParts] =
-      record.split(FIELD_SEP);
-    return { sha, authorName, authorEmail, date, subject, body: bodyParts.join(FIELD_SEP).trim() };
-  });
-
-  return entries.reverse();
+  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '', ...bodyParts]) => ({
+    sha,
+    authorName,
+    authorEmail,
+    date,
+    subject,
+    body: bodyParts.join(FIELD_SEP).trim(),
+  }));
 }

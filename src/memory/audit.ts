@@ -30,6 +30,7 @@ import { execFileSync } from 'child_process';
 import { parseYaml } from '../validation';
 
 import { getMemoryHistory } from './history';
+import { walkGitLogFields } from './git-log';
 import { splitFrontmatter } from '../storage';
 
 // --- Attribution audit -----------------------------------------------------------------------
@@ -64,11 +65,7 @@ export function isValidAttribution(name: string, email: string): boolean {
   return EMAIL_RE.test(trimmedEmail);
 }
 
-// Field separator matching history.ts's own convention (ASCII 0x1f) — a real commit subject never
-// contains it, so splitting is unambiguous without escaping.
-const FIELD_SEP = '\x1f';
-const RECORD_SEP = '\x1e';
-const AUDIT_LOG_FORMAT = ['%H', '%an', '%ae', '%aI', '%s'].join(FIELD_SEP) + RECORD_SEP;
+const AUDIT_LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s'];
 
 /**
  * Walk every commit touching any of `pathspecs` under `root`, oldest first, annotated with whether
@@ -81,28 +78,16 @@ const AUDIT_LOG_FORMAT = ['%H', '%an', '%ae', '%aI', '%s'].join(FIELD_SEP) + REC
  */
 export function auditAttribution(root: string, pathspecs: readonly string[]): AttributionEntry[] {
   const sortedPathspecs = [...pathspecs].sort();
-  let stdout: string;
-  try {
-    stdout = execFileSync(
-      'git',
-      ['-C', root, 'log', '--format=' + AUDIT_LOG_FORMAT, '--', ...sortedPathspecs],
-      { encoding: 'utf-8' },
-    );
-  } catch {
-    return [];
-  }
+  const records = walkGitLogFields(root, AUDIT_LOG_FIELDS, sortedPathspecs);
 
-  const records = stdout
-    .split(RECORD_SEP)
-    .map((record) => record.replace(/^\n+/, ''))
-    .filter((record) => record.length > 0);
-
-  const entries = records.map((record): AttributionEntry => {
-    const [sha = '', authorName = '', authorEmail = '', date = '', subject = ''] = record.split(FIELD_SEP);
-    return { sha, authorName, authorEmail, date, subject, valid: isValidAttribution(authorName, authorEmail) };
-  });
-
-  return entries.reverse();
+  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '']) => ({
+    sha,
+    authorName,
+    authorEmail,
+    date,
+    subject,
+    valid: isValidAttribution(authorName, authorEmail),
+  }));
 }
 
 // --- Approver/Reason parsing (CLAUDE.md §5.1) ------------------------------------------------
