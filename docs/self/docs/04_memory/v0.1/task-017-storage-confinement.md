@@ -2,7 +2,7 @@
 id: "task-017-storage-confinement"
 type: task
 title: "Infrastructure: REQ-SEC-06 — Storage confinement"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -26,13 +26,17 @@ whole truth" can never be silently violated by a write that lands elsewhere on d
 
 ## Acceptance Criteria
 
-Per REQ-SEC-06's fit criterion: "An attempt to write a Memory entry to a path outside
-`.wingfoil/memory/` is refused with `\"Memory entries must reside under .wingfoil/memory/\"`."
+Per REQ-SEC-06's fit criterion (**corrected**): "An attempt to write a Memory entry to a path outside
+**the project root** is refused with `\"Memory entries must reside within the project root\"`."
+*(The original AC/REQ-SEC-06 text said `.wingfoil/memory/`; corrected by the approver — Memory files
+must be confined to the WingFoil **project root**, the single git-tracked store per REQ-SYS-01, not to a
+`.wingfoil/memory/` subtree. The SARD REQ-SEC-06 fit-criterion string needs the same fix — flagged in
+Execution Notes as a spec-owner follow-up.)*
 
 Testable breakdown:
-- A path-resolution attempt that would escape the confined tree (e.g. via a crafted `id` containing
-  `../`, an absolute path, or any other traversal) is refused before any file is written, with a
-  message naming the confinement violation.
+- A path-resolution attempt that would escape the **project root** (e.g. via a crafted `id` containing
+  `../`, or any other traversal that normalizes outside the root) is refused before any file is written,
+  with the confinement message.
 - Legitimate writes — via each type's own `path` pattern in `memory.yaml` — succeed normally and land
   exactly where that pattern resolves to.
 - The confinement check runs identically for CLI-invoked and MCP-Tool-invoked mutations (shared
@@ -62,16 +66,34 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-017-storage-confinement` (dedicated worktree). Plan:
+`docs/05_plans/X_task-017-plan.md`. task-015 (REQ-SEC-02, `src/memory`) merged to `main` mid-session
+(disjoint module) — my branch includes it; rebase clean.
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design (AC correction, by Roberto):** the confinement boundary is the **project root**, NOT
+  `.wingfoil/memory/` — the AC (and REQ-SEC-06's SARD fit criterion) were wrong. Corrected the task's AC
+  above; the SARD REQ-SEC-06 fit-criterion string carries the same `.wingfoil/memory/` error and needs
+  the same fix — **spec-owner follow-up** (not edited unilaterally here). Real gap found: `resolveMemoryPath`
+  is `join(root, render(...))`, and `join`/`resolve` **normalize `../`**, so a crafted `id`/value could
+  steer a write outside the root today.
+- **green:** `src/storage/memory-path.ts` — added `resolveConfinedMemoryPath(root, pattern, values)`:
+  renders + resolves, then refuses (throwing `StorageError(E_PATH_ESCAPES_ROOT, 'Memory entries must
+  reside within the project root')`) when `path.relative(root, target)` is empty / `..` / `../…` /
+  absolute — i.e. the target is the root itself or escapes it. Pure resolver: it refuses **before**
+  returning a path, so a caller never writes on a refused attempt (the "no partial write" AC bullet holds
+  by construction). Added `E_PATH_ESCAPES_ROOT` to `src/storage/errors.ts`.
+- **message note:** `StorageError` prefixes its code (`E_PATH_ESCAPES_ROOT: <msg>`, like every storage
+  error — cf. `E_NO_GIT_ROOT` in bug-002), so `error.message` contains, but is not byte-equal to, the
+  exact AC string. The exact user-facing `Memory entries must reside within the project root` is produced
+  by the (deferred) `memory.add`/`submit` mapping of this `StorageError` to a `CoreError` — same pattern
+  as `wrapReadOnly`. Test asserts `.code` exact + `.message` contains the exact string.
+- **checks:** full suite green (356 tests), `memory-path.ts` + `errors.ts` 100% covered, overall 98.9%
+  (> 80%), `tsc -p tsconfig.build.json` clean, eslint clean. Touched only `src/storage` + its test.
+
+**Deferred (out of scope, traced):**
+- Wiring `resolveConfinedMemoryPath` into `memory.add`/`memory.submit` (map the `StorageError` to a
+  `CoreError` whose message is exactly the confinement string, so CLI + MCP surface it identically,
+  REQ-SYS-05) → the Memory-entries command tasks (task-022 / task-018+). None exist yet (`CORE_MODULES`
+  read-only), so the end-to-end "refused, nothing written" assertion belongs there; the resolver's own
+  confinement contract is proven here.
+- SARD reconciliation: fix REQ-SEC-06's `.wingfoil/memory/` fit-criterion text to "the project root".
