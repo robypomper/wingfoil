@@ -2,7 +2,7 @@
 id: "task-015-complete-audit-trail"
 type: task
 title: "Infrastructure: REQ-SEC-02 — Complete, attributable audit trail"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
