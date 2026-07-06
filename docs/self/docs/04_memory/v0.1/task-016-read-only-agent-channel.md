@@ -2,7 +2,7 @@
 id: "task-016-read-only-agent-channel"
 type: task
 title: "Infrastructure: REQ-SEC-05 — Read-only agent read channel"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -60,16 +60,39 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-016-read-only-agent-channel` (dedicated worktree), in parallel with another
+agent on task-015 (REQ-SEC-02 audit trail, `src/memory` — disjoint module). Plan:
+`docs/05_plans/X_task-016-plan.md`.
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design (scope):** REQ-SEC-05's structural mechanisms already exist on `main` — `src/mcp/registrar.ts`
+  `registerCoreModules` is explicitly "the structural half of REQ-SEC-05" (`mutates: true` → Tool,
+  `mutates: false` → Resource, never both; a `CoreResult.error` → Tool `isError: true`), and task-011's
+  read-only Resources channel + shared fixture `test/mcp/helpers/channel-enumeration.ts` were built
+  "to extend to Tools without rework". So this task is the REQ-SEC-05 **guarantee test** over the
+  existing structure — test-only. The one AC case that cannot run yet: a *mutating* Tool call rejected
+  on an illegal state-machine transition identical to the CLI — no mutating op exists (`CORE_MODULES`
+  is read-only; mutating ops are task-018+), Prompts are v0.2. Approver approved the "verify + defer"
+  scope.
+- **green (tests only):** extended the shared fixture with `connectCoreModuleSurface(modules)` (wires
+  `registerCoreModules` for Tool/Resource enumeration), and added `test/mcp/read-only-agent-channel.test.ts`:
+  (1) structural partition — a synthetic `mutates:true`/`mutates:false` module: `listTools` has only
+  `x.write`, `listResources` only `wingfoil://x/read`; (2) the write channel validates — the synthetic
+  Tool returns `isError: true` with the `CoreResult.error` message (a `coreOk` fn returns the value);
+  (3) real surface — the Tools capability is advertised but zero core ops mutate; (4) Resources refuse
+  both write-shaped requests (`resources are read-only`) with files byte-unchanged (task-011 fixture);
+  (5) no Prompts channel advertised.
+- **blocker (worth recording):** the SDK `McpServer` installs the `tools/list` request handler only on
+  the *first* `registerTool`; `registerCapabilities({ tools: {} })` advertises the capability but does
+  NOT wire the handler, so `client.listTools()` on a zero-tool server throws `-32601 Method not found`
+  (contradicting the registrar's own comment). Adjusted the "zero mutating tools today" assertion to
+  check the advertised `tools` capability + that `CORE_MODULES` has no `mutates: true` op, rather than
+  calling `listTools()` on the empty server.
+- **checks:** full suite green (325 tests), `tsc -p tsconfig.build.json` clean, eslint clean. Touched
+  only `test/mcp/` (+ the shared fixture) — no `src/`; task-011's own test unaffected by the additive
+  fixture change.
+
+**Deferred (out of scope, traced):**
+- A **mutating** MCP Tool call rejected on an illegal state-machine transition, asserted identical to
+  the CLI (same message, no partial write) → the tasks that implement mutating operations (task-018+) /
+  full Tools in v0.4. The registrar's `isError` error-parity mechanism is proven here with a synthetic op.
+- Prompts-channel content (spec-004 §3 / REQ-INT-02, v0.2) → its own task; here confirmed *absent*.
