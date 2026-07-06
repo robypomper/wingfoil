@@ -44,6 +44,8 @@ import { execFileSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
+import { load as yamlLoad } from 'js-yaml';
+
 const REPO_ROOT = join(__dirname, '..', '..');
 const DIST_DIR = join(REPO_ROOT, 'dist');
 const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
@@ -110,6 +112,24 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('version: 1.1');
     expect(result.stdout).toContain('name: core');
+  });
+
+  it('REQ-INT-05 fit criterion: `--format json` and `--format yaml` parse to the SAME structure, stderr empty (task-013)', () => {
+    // Stand-in for the AC's `wingfoil paths` / `wingfoil workflow status` cases (those commands do not
+    // exist yet — task-028+); `dna show` exercises the same shared --format envelope every command inherits.
+    const asJson = runCli('dna', 'show', '--format', 'json');
+    const asYaml = runCli('dna', 'show', '--format', 'yaml');
+
+    expect(asJson.status).toBe(0);
+    expect(asYaml.status).toBe(0);
+    // Both parse with a *standard* parser into a single top-level value...
+    const fromJson = JSON.parse(asJson.stdout) as unknown;
+    const fromYaml = yamlLoad(asYaml.stdout);
+    // ...and that value is identical across the two machine-readable formats.
+    expect(fromYaml).toEqual(fromJson);
+    // Envelope rule: the structured payload is the only thing on stdout — no diagnostics on stderr.
+    expect(asJson.stderr).toBe('');
+    expect(asYaml.stderr).toBe('');
   });
 
   it('a global flag placed BEFORE the noun/verb (`--format json dna show`) is honored the same way', () => {
