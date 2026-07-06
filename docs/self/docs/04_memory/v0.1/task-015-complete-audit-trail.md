@@ -111,11 +111,14 @@ Testable breakdown:
 - **red/green/refactor:** no blockers. All planned tests passed on first implementation; the only
   deviation from a literal first draft was the refactor step (extracting `./git-log`), done to avoid
   two near-identical git-log-parsing blocks in `history.ts` and `audit.ts`.
-- **review:** full suite (`npx jest`) 34 suites / 338 tests passing; `npx tsc --noEmit` exit 0;
-  `npx jest --coverage` global branch coverage 87.33% (>80% threshold); `audit.ts` itself sits lower
-  on branch coverage (~59%, all uncovered branches are unreachable destructuring-default fallbacks,
-  the same pattern already present and already uncovered in task-011's `history.ts`) but does not
-  drag the project-wide (global) threshold below 80%, which is what `jest.config.js` enforces.
+- **review:** full suite (`npx jest`) 34 suites / 338 tests passing at initial submit; `npx tsc
+  --noEmit` exit 0; `npx jest --coverage` global branch coverage 87.33% (>80% threshold); `audit.ts`
+  itself sits lower on branch coverage (~57%, all uncovered branches are unreachable
+  destructuring-default fallbacks, the same pattern already present and already uncovered in
+  task-011's `history.ts`) but does not drag the project-wide (global) threshold below 80%, which is
+  what `jest.config.js` enforces. *(Post-rebase + reconciliation below, the final branch state is 35
+  suites / 345 tests, global branch coverage 87.39% — the +7 vs 338 is task-014's own tests inherited
+  by the rebase plus this task's 3 new reconciliation-consistency tests.)*
 - **Reconciliation with task-014 (post-rebase):** this branch was built before task-014-git-identity-
   required (REQ-SEC-01) landed on `main`. Once rebased, both tasks turned out to define their own
   independent "is this an attributable identity" rule — task-014's `requireGitIdentity`

@@ -131,6 +131,12 @@ const REASON_LINE_RE = /^Reason:\s*(.+)$/m;
  * plain `add`/`submit` commit body, which carries neither by convention — rather than a
  * partially-filled object, so a caller never has to guess whether a `null` field means "absent" or
  * "empty string".
+ *
+ * Known limitation: `REASON_LINE_RE` captures only the FIRST line of the `Reason:` value (the `.` in
+ * `/^Reason:\s*(.+)$/m` does not cross newlines). This matches the single-line `Reason:` convention
+ * every WingFoil workflow commit uses (CLAUDE.md §5.1); a hypothetical multi-paragraph reason would be
+ * silently truncated to its first line here. Revisit if the commit convention ever allows a multiline
+ * reason body.
  */
 export function parseApprovalMetadata(body: string): ApprovalMetadata | null {
   const approverMatch = APPROVER_LINE_RE.exec(body);
@@ -198,6 +204,14 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
  * (ADR-007). This is the derivation a future `wingfoil memory history` CLI/MCP surface (P1.10, a
  * later feature task) renders; this function is the reconstruction itself, not that command's output
  * formatting.
+ *
+ * Known limitation: `getMemoryHistory` walks with `git log --follow` (rename-following), but
+ * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that predates
+ * a rename, the current path won't resolve at that `sha`, yielding a spurious `toState: null` for those
+ * pre-rename commits. Memory files are not renamed in practice (their path pattern is fixed by
+ * `memory.yaml`, spec-011), and the `null` toState is handled gracefully downstream, so this is a
+ * documented edge case, not a live defect; resolve by threading each commit's historical path (from
+ * `--name-status`/`--follow`) into `readStatusAt` if renames ever occur.
  */
 export function reconstructMemoryTransitions(root: string, relativePath: string): MemoryTransition[] {
   const history = getMemoryHistory(root, relativePath); // oldest first already
