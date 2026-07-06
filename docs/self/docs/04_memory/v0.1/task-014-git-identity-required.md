@@ -2,7 +2,7 @@
 id: "task-014-git-identity-required"
 type: task
 title: "Infrastructure: REQ-SEC-01 — Git identity required for state mutations"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -58,16 +58,37 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-014-git-identity-required` (dedicated worktree), parallel to the task-agent
+(task-011 already landed on `main`; task-012/013 done earlier this session). Plan:
+`docs/05_plans/X_task-014-plan.md`.
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design (scope):** the pre-flight check itself is fully implementable now (it only reads git
+  config); only *wiring* it into real mutating operations must wait, because none exist yet
+  (`CORE_MODULES` is read-only). Approver (Roberto) approved this scope: ship the shared `src/core`
+  check + unit test now (real production code), defer the wiring to the command tasks (task-019+). No
+  tech-spec for REQ-SEC-01 — backing is `adr-006` (accepted) + the AC's exact message; nothing found
+  missing at the design gate.
+- **green:** `src/core/git-identity.ts` — `requireGitIdentity(root)` reads `git -C <root> config
+  user.name`/`user.email` via `execFileSync` (mirroring `src/memory/history.ts`'s git primitive) and
+  returns `coreErr({ code: 'VALIDATION', message: 'git identity not configured (user.name/user.email)' })`
+  when either is empty/unset, else `coreOk`. Exported from `src/core/index.ts`. Code `VALIDATION` (a
+  failed precondition) → exit `1` via task-012's `exitCodeForError`.
+- **test blocker (worth recording):** the "unset" cases must be deterministic regardless of the dev
+  machine's own global git identity. Env isolation (`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` → empty
+  file, `GIT_CONFIG_NOSYSTEM=1`) works in plain Node but **NOT** under Jest: Jest gives each test
+  module a sandboxed `process.env` copy, and `child_process` spawned with no explicit `env` reads the
+  *outer* realm's env, so the mutated isolation vars never reach `git`. Fix: `readGitConfig` passes
+  `env: process.env` **explicitly** — a no-op in production (identical to the default) that makes the
+  sandboxed env authoritative for the child, so the test can scope git-config resolution
+  deterministically. Verified: with the explicit env, all four cases pass.
+- **checks:** full suite green (319 tests), `git-identity.ts` 100% covered, overall 99% (> 80%),
+  `tsc -p tsconfig.build.json` clean, eslint clean. Touched only `src/core` (+ one export line) and a
+  new test — not `src/cli`/`src/mcp`.
+
+**Deferred (out of scope, traced):**
+- Wiring `requireGitIdentity` into the actual mutating operations (`memory add/submit/approve/reject/
+  deprecate`, `workflow start/end/next`) → the tasks that implement those operations (task-019+). Each
+  mutation calls this check first and returns its `CoreResult.error` unchanged, so the CLI/MCP surfaces
+  render the exact message and write nothing (REQ-SEC-01 AC) with no per-command logic.
+- The CLI/MCP end-to-end "identity unset → refuse, nothing written" assertion belongs to those command
+  tasks (a command must exist to invoke); the shared check's own contract is proven here.
