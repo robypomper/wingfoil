@@ -127,14 +127,17 @@ function asString(value: unknown): string | undefined {
 }
 
 /**
- * Resolve a single Memory document by its `id` frontmatter value — REQ-PERF-04 /
+ * Resolve a single Memory document by its `id` frontmatter value alone — REQ-PERF-04 /
  * task-009-mcp-resource-fetch-latency's Acceptance Criteria, which name a `wingfoil://memory/{id}`
  * benchmark fetch. This is NOT spec-004-mcp-surface-contract §2.1's Resource addressing: spec-004's
  * actual scheme is `wingfoil://memory/{type}` (collection listing) and `wingfoil://memory/{type}/{id}`
  * (single document) — there is no bare, single-segment `wingfoil://memory/{id}` form there, and this
- * `{id}` segment would collide with spec-004's `{type}` segment. This is a perf-spike primitive that
- * task-030-implement-mcp-resources must REPLACE, not extend, once it builds the real
- * `wingfoil://memory/{type}/{id}` Resource — the URI collision rules out carrying this form forward.
+ * `{id}` segment would collide with spec-004's `{type}` segment. task-011-mcp-resources-read-only has
+ * since replaced the `wingfoil://memory/{id}` *Resource* this primitive originally backed with the
+ * conformant `wingfoil://memory/{type}/{id}` form (see {@link findMemoryDocumentByTypeAndId}) — this
+ * bare-id primitive itself is left in place (still covered by its own `test/memory/query.test.ts`
+ * unit tests and REQ-PERF-04's ported benchmark) as a generic, type-agnostic lookup; nothing in
+ * `src/mcp` calls it anymore.
  *
  * A linear scan over every document {@link listMemoryDocumentPaths} returns, in its
  * already-deterministic sorted order, stopping at the first document whose frontmatter `id` matches
@@ -151,6 +154,75 @@ export function findMemoryDocumentById(
   for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
     const summary = loadMemoryDocumentSummary(root, path);
     if (asString(summary.frontmatter.id) === id) return summary;
+  }
+  return undefined;
+}
+
+/** A Memory document's frontmatter-only summary — spec-004 §2.1's collection-listing shape
+ * (id, title, status, tags), deliberately omitting body content to keep listing calls cheap. */
+export interface MemoryDocumentFrontmatterSummary {
+  readonly path: string;
+  readonly id?: string;
+  readonly title?: string;
+  readonly status?: string;
+  readonly tags: readonly string[];
+}
+
+/**
+ * List every Memory document whose frontmatter `type:` field equals `type` (a `memory.yaml` `types:`
+ * key), as frontmatter-only summaries — spec-004 §2.1's `wingfoil://memory/{type}` collection
+ * addressing (task-011-mcp-resources-read-only, REQ-INT-01). Sorted by `id` (falling back to `path`
+ * when a document has no `id`) ascending (REQ-SYS-07 — deterministic, no unordered iteration).
+ *
+ * Membership is decided by each document's own frontmatter `type:` field, not by which directory it
+ * lives in: several types' `path` patterns collapse to the *same* static directory prefix (e.g.
+ * `release`/`release-line` both resolve to `docs/04_memory/planning`; `task`'s own pattern collapses
+ * all the way to `docs/04_memory` itself — see {@link computeMemoryContentRoots}'s doc comment), so a
+ * directory-only filter would wrongly fold sibling types' documents into this type's collection.
+ */
+export function listMemoryDocumentsByType(
+  root: string,
+  memoryYaml: MemoryYaml,
+  type: string,
+): MemoryDocumentFrontmatterSummary[] {
+  const out: MemoryDocumentFrontmatterSummary[] = [];
+  for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
+    const { frontmatter } = loadMemoryDocumentSummary(root, path);
+    if (asString(frontmatter.type) !== type) continue;
+    out.push({
+      path,
+      id: asString(frontmatter.id),
+      title: asString(frontmatter.title),
+      status: asString(frontmatter.status),
+      tags: asStringArray(frontmatter.tags),
+    });
+  }
+  return out.sort((a, b) => {
+    const keyA = a.id ?? a.path;
+    const keyB = b.id ?? b.path;
+    return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
+  });
+}
+
+/**
+ * Resolve a single Memory document by (`type`, `id`) — spec-004 §2.1's `wingfoil://memory/{type}/{id}`
+ * single-document addressing (task-011-mcp-resources-read-only, REQ-INT-01), the conformant
+ * replacement for task-009's bare-`{id}` `findMemoryDocumentById` Resource usage. Both `type` and `id`
+ * must match a document's own frontmatter — same directory-collision reasoning as
+ * {@link listMemoryDocumentsByType} — so this never returns a document of a *different* type merely
+ * because that type's path pattern happens to also resolve under the same directory. Returns
+ * `undefined` — never throws — when nothing matches; surfacing that as a protocol-level "resource not
+ * found" failure is the MCP Resource adapter's job (spec-004 §2.2), not this primitive's.
+ */
+export function findMemoryDocumentByTypeAndId(
+  root: string,
+  memoryYaml: MemoryYaml,
+  type: string,
+  id: string,
+): MemoryDocumentSummary | undefined {
+  for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
+    const summary = loadMemoryDocumentSummary(root, path);
+    if (asString(summary.frontmatter.type) === type && asString(summary.frontmatter.id) === id) return summary;
   }
   return undefined;
 }

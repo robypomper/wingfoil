@@ -1,79 +1,126 @@
 /**
- * `wingfoil://memory/{id}` Resource — task-009-mcp-resource-fetch-latency, REQ-PERF-04. A thin,
- * read-only adapter over `src/memory/query.ts`'s `findMemoryDocumentById` (wrapping task-008's
- * bounded scan primitives), registered directly here rather than through `registerCoreModules`'s
- * `CoreModule[]` registry (`src/core/registry.ts`): no `memoryShow`/`memoryGet` `CoreOperation`
- * exists in `src/core`'s production `CORE_MODULES` yet (see `src/core/index.ts`'s SCOPE note —
- * task-008 deliberately left its query primitives unregistered, and registering one here would
- * complete task-021/task-030's own acceptance criteria ahead of them). Hand-wiring
- * `McpServer.registerResource` directly here, instead of adding a real `CoreOperation` and letting
- * `registerCoreModules` register it, is a deliberate spec-006-core-domain-api §4 (Parity rule)
- * deviation — acceptable only because this surface is test/benchmark-only today (no CLI or Tool
- * counterpart exists or is claimed for it), to be reconciled by task-030-implement-mcp-resources.
+ * `wingfoil://memory/{type}` (collection) and `wingfoil://memory/{type}/{id}` (single document)
+ * Resources — task-011-mcp-resources-read-only, REQ-INT-01, spec-004-mcp-surface-contract §2.1/§2.2.
+ * This REPLACES task-009-mcp-resource-fetch-latency's placeholder `wingfoil://memory/{id}` adapter
+ * (that module's own doc-comment flagged itself as non-conformant and due for replacement, not
+ * extension, precisely because its single `{id}` segment collides with spec-004's `{type}` segment —
+ * see `src/memory/query.ts`'s `findMemoryDocumentById` doc comment for the full history). REQ-PERF-04
+ * coverage is ported forward onto this conformant URI, not dropped (`test/mcp/resource-latency.test.ts`).
  *
- * This module's only job is to prove REQ-PERF-04's fit criterion against the real primitive the
- * future feature task will wrap. The URI it benchmarks is NOT a spec-004-mcp-surface-contract §2.1
- * form: spec-004's actual scheme is `wingfoil://memory/{type}` (collection listing) and
- * `wingfoil://memory/{type}/{id}` (single document) — there is no bare, single-segment
- * `wingfoil://memory/{id}` address in spec-004 at all, and this `{id}` segment would semantically
- * collide with spec-004's `{type}` segment (e.g. `wingfoil://memory/task` binds `id="task"` here,
- * but `type="task"` there). This URI comes from REQ-PERF-04 / task-009's own Acceptance Criteria
- * wording verbatim, not from spec-004 — see task-009's Execution Notes for the full boundary
- * reasoning. The JSON body with no `metadata` envelope returned below also diverges from spec-004
- * §2.2 (which wants `text/markdown` content plus an `id/type/status/title` metadata block). Both
- * divergences mean task-030-implement-mcp-resources must REPLACE this adapter with a real
- * `wingfoil://memory/{type}/{id}` Resource, not extend it — the URI collision rules out carrying
- * this single-segment form forward.
- *
- * Structurally read-only (REQ-SEC-05): registered only via `McpServer.registerResource`, never as a
- * Tool — there is no write path here, mirroring `registerCoreModules`'s Resource half.
+ * Both handlers are thin adapters over `src/memory/query.ts`'s primitives
+ * (`listMemoryDocumentsByType`, `findMemoryDocumentByTypeAndId`, both new in this task) — no scanning
+ * logic lives here, only URI-variable extraction, the read-only guard (`./read-only`), and MCP
+ * envelope shaping. Registered directly via `McpServer.registerResource` rather than through
+ * `registerCoreModules`'s `CoreModule[]` registry (`src/core/registry.ts`): no `memoryShow`/`memoryList`
+ * `CoreOperation` exists in `src/core`'s production `CORE_MODULES` yet (see `src/core/index.ts`'s SCOPE
+ * note). This is the same spec-006-core-domain-api §4 (Parity rule) deviation task-009 already
+ * documented for this surface — acceptable because it is read-only and has no CLI/Tool counterpart to
+ * keep in parity with, to be reconciled (or re-confirmed as permanent) by
+ * task-030-implement-mcp-resources, which also wires a real `StdioServerTransport`/`wingfoil mcp`
+ * entry point around this registrar (out of this task's scope — see this task's Execution Notes for
+ * the task-011-vs-task-030 boundary).
  */
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { join } from 'path';
+
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadMemoryYaml } from '../core';
-import { findMemoryDocumentById } from '../memory/query';
+import { findMemoryDocumentByTypeAndId, listMemoryDocumentsByType } from '../memory/query';
+import { readDocument } from '../storage';
 
-export interface RegisterMemoryDocumentResourceOptions {
+import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
+
+export interface RegisterMemoryResourcesOptions {
   readonly resolveRoot: () => string;
 }
 
-/** `wingfoil://memory/{id}` — the URI form task-009's Acceptance Criteria names. */
-export const MEMORY_DOCUMENT_RESOURCE_URI_TEMPLATE = 'wingfoil://memory/{id}';
+/** spec-004 §2.1 — collection listing (frontmatter only, no `{id}`). */
+export const MEMORY_COLLECTION_URI_TEMPLATE = 'wingfoil://memory/{type}';
+/** spec-004 §2.1 — a single Memory document (full frontmatter + body). */
+export const MEMORY_DOCUMENT_URI_TEMPLATE = 'wingfoil://memory/{type}/{id}';
 
 /**
- * Register the `wingfoil://memory/{id}` Resource on `server`. Reads `.wingfoil/memory.yaml` fresh on
- * every request (no server-lifetime cache) — the same "no cold-start cost, but no stale-config
- * either" contract `registerCoreModules`'s existing Resources already have (REQ-PERF-04's "no
- * restart" requirement is about the *process*, not about caching config across requests).
+ * Register both Memory Resources on `server`. Reads `.wingfoil/memory.yaml` fresh on every request
+ * (no server-lifetime cache) — same "no cold-start cost, no stale-config either" contract the rest of
+ * `src/mcp`'s Resources already follow.
  */
-export function registerMemoryDocumentResource(
-  server: McpServer,
-  options: RegisterMemoryDocumentResourceOptions,
-): void {
-  const template = new ResourceTemplate(MEMORY_DOCUMENT_RESOURCE_URI_TEMPLATE, { list: undefined });
+export function registerMemoryResources(server: McpServer, options: RegisterMemoryResourcesOptions): void {
+  const collectionTemplate = new ResourceTemplate(MEMORY_COLLECTION_URI_TEMPLATE, { list: undefined });
   server.registerResource(
-    'memory.show',
-    template,
-    { description: 'memory document fetch by id (read-only)' },
-    async (uri, variables) => {
+    'memory.list',
+    collectionTemplate,
+    { description: 'Memory documents of one type, frontmatter only (read-only)' },
+    async (uri, variables, extra) => {
+      refuseIfWriteIntent(extra._meta);
       const root = options.resolveRoot();
       const memoryYaml = loadMemoryYaml(root);
-      // `variables.id` is typed `string | string[]` (the SDK's generic `Variables` shape), but this
-      // template's `{id}` variable has no `*`/`+` explode modifier, so a match always binds it to a
-      // single string (see the SDK's `UriTemplate.match`) — the `string[]` case is unreachable here.
+      // `variables.type` is typed `string | string[]` (the SDK's generic `Variables` shape), but
+      // this template's `{type}` variable has no `*`/`+` explode modifier, so a match always binds
+      // it to a single string (see the SDK's `UriTemplate.match`) — the `string[]` case is
+      // unreachable here (mirrors task-009's own `{id}` reasoning for this same SDK behaviour).
+      const type = variables.type as string;
+      if (!(type in memoryYaml.types)) throw resourceNotFoundError(`memory/${type}`);
+
+      const summaries = listMemoryDocumentsByType(root, memoryYaml, type).map(({ id, title, status, tags }) => ({
+        id,
+        title,
+        status,
+        tags,
+      }));
+
+      return jsonResourceResult(uri, summaries);
+    },
+  );
+
+  const documentTemplate = new ResourceTemplate(MEMORY_DOCUMENT_URI_TEMPLATE, { list: undefined });
+  server.registerResource(
+    'memory.show',
+    documentTemplate,
+    { description: 'one Memory document, full content + metadata (read-only)' },
+    async (uri, variables, extra) => {
+      refuseIfWriteIntent(extra._meta);
+      const root = options.resolveRoot();
+      const memoryYaml = loadMemoryYaml(root);
+      const type = variables.type as string;
       const id = variables.id as string;
-      const doc = findMemoryDocumentById(root, memoryYaml, id);
-      if (!doc) throw new Error(`memory document not found: ${id}`);
-      return {
+      if (!(type in memoryYaml.types)) throw resourceNotFoundError(`memory/${type}/${id}`);
+
+      const doc = findMemoryDocumentByTypeAndId(root, memoryYaml, type, id);
+      if (!doc) throw resourceNotFoundError(`memory/${type}/${id}`);
+
+      // spec-004 §2.2 wants the *full file content* (frontmatter + body), not the re-serialized
+      // parsed frontmatter `loadMemoryDocumentSummary` already split apart for the scan — so this
+      // re-reads the resolved path's raw bytes via `storage.readDocument` (still a read primitive
+      // reuse, not a reimplemented scan: the scan itself already happened inside
+      // `findMemoryDocumentByTypeAndId`).
+      const fullText = readDocument(join(root, doc.path));
+
+      // spec-004 §2.2 depicts `metadata` as a sibling of `uri`/`mimeType`/`text`, i.e. flat on the
+      // result — not nested inside a `contents[]` entry (whose shape the real MCP wire schema fixes
+      // to `{uri, mimeType, text|blob, _meta?}`, `ReadResourceResultSchema`'s `contents` union in the
+      // SDK's `types.d.ts`). The top-level `ReadResourceResultSchema` object itself is passthrough
+      // (`z.core.$loose`), so this extra top-level `metadata` key is preserved end to end (server ->
+      // wire -> client parse) without needing a non-standard content shape. Built via an
+      // untyped-at-the-literal `result` variable (assigned, not returned directly) so TypeScript's
+      // excess-property check — which only applies to object literals in a contextually-typed
+      // position — never triggers on this extra key.
+      const result = {
         contents: [
           {
             uri: uri.toString(),
-            mimeType: 'application/json',
-            text: JSON.stringify(doc),
+            mimeType: 'text/markdown',
+            text: fullText,
           },
         ],
+        metadata: {
+          id: doc.frontmatter.id,
+          type: doc.frontmatter.type,
+          status: doc.frontmatter.status,
+          title: doc.frontmatter.title,
+        },
       };
+      return result;
     },
   );
 }

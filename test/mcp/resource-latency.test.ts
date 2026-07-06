@@ -1,5 +1,8 @@
 /**
- * REQ-PERF-04 acceptance benchmark (task-009-mcp-resource-fetch-latency):
+ * REQ-PERF-04 acceptance benchmark (task-009-mcp-resource-fetch-latency, ported forward by
+ * task-011-mcp-resources-read-only onto the spec-004-conformant `wingfoil://memory/{type}/{id}` URI —
+ * task-009's own placeholder `wingfoil://memory/{id}` adapter no longer exists, see
+ * `src/mcp/memory-resource.ts`'s doc comment for the replacement history):
  *
  *   "A single MCP Resource fetch returns in < 1,000 ms (p95); the MCP server sustains queries for
  *   the duration of an agent session without restart."
@@ -8,10 +11,11 @@
  *
  * Exercised end-to-end over the MCP SDK's own in-memory transport + a real `Client` (mirroring
  * `test/mcp/registrar.test.ts`), against the REAL production registrar (`registerCoreModules` +
- * `CORE_MODULES` from `src/core`) plus this task's new `registerMemoryDocumentResource` — so this
- * measures exactly what an MCP client sees, not a private registration list. Two resources are
- * benchmarked: `wingfoil://dna/show` (task-006's already-registered `dnaShow` CoreOperation) and
- * `wingfoil://memory/{id}` (this task's thin adapter over task-008's `findMemoryDocumentById`).
+ * `CORE_MODULES` from `src/core`) plus task-011's new `registerMemoryResources` — so this measures
+ * exactly what an MCP client sees, not a private registration list. Two resources are benchmarked:
+ * `wingfoil://dna/show` (task-006's already-registered `dnaShow` CoreOperation) and
+ * `wingfoil://memory/{type}/{id}` (task-011's conformant adapter over
+ * `findMemoryDocumentByTypeAndId`, wrapping task-008's `listMemoryDocumentPaths` scan primitives).
  */
 import { performance } from 'perf_hooks';
 
@@ -20,7 +24,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { CORE_MODULES } from '../../src/core';
-import { registerMemoryDocumentResource } from '../../src/mcp/memory-resource';
+import { registerMemoryResources } from '../../src/mcp/memory-resource';
 import { registerCoreModules } from '../../src/mcp/registrar';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -85,32 +89,36 @@ function pad(n: number): string {
 interface FixtureDoc {
   readonly relativePath: string;
   readonly id: string;
+  /** The document's own frontmatter `type:` — task-011's `wingfoil://memory/{type}/{id}` addressing
+   * needs both segments, not just `id` (spec-004 §2.1). */
+  readonly type: string;
 }
 
 /**
- * Build 1,000 (path, id) pairs with **globally unique ids** (unlike task-008's own fixture, whose
- * task ids repeat per release — fine for a keyword scan, but ambiguous for this task's id -> document
- * lookup): 700 tasks across 7 releases (id includes the release number), + 100 each of adr/dl/spec.
+ * Build 1,000 (path, id, type) triples with **globally unique ids** (unlike task-008's own fixture,
+ * whose task ids repeat per release — fine for a keyword scan, but ambiguous for this task's
+ * (type, id) -> document lookup): 700 tasks across 7 releases (id includes the release number), +
+ * 100 each of adr/decision-log/tech-spec.
  */
 function planFixtureDocs(): FixtureDoc[] {
   const docs: FixtureDoc[] = [];
   for (let release = 1; release <= 7; release += 1) {
     for (let n = 0; n < 100; n += 1) {
       const id = `task-${pad(n)}-r${release}-doc`;
-      docs.push({ relativePath: `docs/04_memory/v0.${release}/${id}.md`, id });
+      docs.push({ relativePath: `docs/04_memory/v0.${release}/${id}.md`, id, type: 'task' });
     }
   }
   for (let n = 0; n < 100; n += 1) {
     const id = `adr-${pad(n)}-doc`;
-    docs.push({ relativePath: `docs/04_memory/design/adrs/${id}.md`, id });
+    docs.push({ relativePath: `docs/04_memory/design/adrs/${id}.md`, id, type: 'adr' });
   }
   for (let n = 0; n < 100; n += 1) {
     const id = `dl-${pad(n)}-doc`;
-    docs.push({ relativePath: `docs/04_memory/design/dls/${id}.md`, id });
+    docs.push({ relativePath: `docs/04_memory/design/dls/${id}.md`, id, type: 'decision-log' });
   }
   for (let n = 0; n < 100; n += 1) {
     const id = `spec-${pad(n)}-doc`;
-    docs.push({ relativePath: `docs/04_memory/design/specs/${id}.md`, id });
+    docs.push({ relativePath: `docs/04_memory/design/specs/${id}.md`, id, type: 'tech-spec' });
   }
   return docs;
 }
@@ -120,6 +128,7 @@ function docContent(doc: FixtureDoc, index: number, status: string): string {
   return [
     '---',
     `id: ${doc.id}`,
+    `type: ${doc.type}`,
     `title: "Document ${index}"`,
     `tags: [ ${tag} ]`,
     `status: ${status}`,
@@ -157,7 +166,7 @@ function seedReferenceRepo(): { root: string; docs: FixtureDoc[] } {
 async function connectedClient(root: string): Promise<{ client: Client; server: McpServer }> {
   const server = new McpServer({ name: 'wingfoil-test', version: '0.0.0' });
   registerCoreModules(server, CORE_MODULES, { resolveRoot: () => root, buildParams: () => ({ root }) });
-  registerMemoryDocumentResource(server, { resolveRoot: () => root });
+  registerMemoryResources(server, { resolveRoot: () => root });
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'wingfoil-test-client', version: '0.0.0' });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -184,15 +193,15 @@ function mean(samples: readonly number[]): number {
 describe('REQ-PERF-04 — MCP resource fetch latency on a 1,000-Memory-document reference repository', () => {
   let root: string;
   let client: Client;
-  let worstCaseId: string;
+  let worstCase: FixtureDoc;
 
   beforeAll(async () => {
     const seeded = seedReferenceRepo();
     root = seeded.root;
-    // Worst-case single-fetch scan position for the linear id lookup: the last document in
-    // listMemoryDocumentPaths' sorted scan order (docs/04_memory/v0.7/... sorts last).
-    const sortedPaths = [...seeded.docs].sort((a, b) => (a.relativePath < b.relativePath ? -1 : 1));
-    worstCaseId = sortedPaths[sortedPaths.length - 1]!.id;
+    // Worst-case single-fetch scan position for the linear (type, id) lookup: the last document in
+    // listMemoryDocumentPaths' sorted scan order (docs/04_memory/v0.7/... sorts last, type "task").
+    const sortedDocs = [...seeded.docs].sort((a, b) => (a.relativePath < b.relativePath ? -1 : 1));
+    worstCase = sortedDocs[sortedDocs.length - 1]!;
     ({ client } = await connectedClient(root));
   });
 
@@ -207,13 +216,13 @@ describe('REQ-PERF-04 — MCP resource fetch latency on a 1,000-Memory-document 
     expect(p95(samples)).toBeLessThan(P95_BUDGET_MS);
   });
 
-  it('`wingfoil://memory/{id}` resource fetch (worst-case scan position) stays under 1000ms at p95 over >= 20 runs', async () => {
+  it('`wingfoil://memory/{type}/{id}` resource fetch (worst-case scan position) stays under 1000ms at p95 over >= 20 runs', async () => {
     const samples: number[] = [];
     let lastText = '';
     for (let i = 0; i < RUNS; i += 1) {
       samples.push(
         await timeAsync(async () => {
-          const result = await client.readResource({ uri: `wingfoil://memory/${worstCaseId}` });
+          const result = await client.readResource({ uri: `wingfoil://memory/${worstCase.type}/${worstCase.id}` });
           const content = result.contents[0];
           lastText = content && 'text' in content ? content.text : '';
         }),
@@ -221,26 +230,25 @@ describe('REQ-PERF-04 — MCP resource fetch latency on a 1,000-Memory-document 
     }
     expect(samples).toHaveLength(RUNS);
     expect(p95(samples)).toBeLessThan(P95_BUDGET_MS);
-    const parsed = JSON.parse(lastText);
-    expect(parsed.frontmatter.id).toBe(worstCaseId);
+    expect(lastText).toContain(`id: ${worstCase.id}`);
   });
 
-  it('an unresolvable id surfaces as a protocol-level read failure, not a silent empty payload', async () => {
-    await expect(client.readResource({ uri: 'wingfoil://memory/no-such-id' })).rejects.toThrow(/not found/);
+  it('an unresolvable id (known type) surfaces as a protocol-level read failure, not a silent empty payload', async () => {
+    await expect(client.readResource({ uri: 'wingfoil://memory/task/no-such-id' })).rejects.toThrow(/not found/);
   });
 });
 
 describe('REQ-PERF-04 — sustained agent session: no restart, no dropped connection, no latency degradation', () => {
   let root: string;
   let client: Client;
-  let sampleIds: string[];
+  let sampleDocs: FixtureDoc[];
 
   beforeAll(async () => {
     const seeded = seedReferenceRepo();
     root = seeded.root;
-    // A handful of ids spread across the fixture (not just one hot document), simulating a real
-    // agent session's mixed fetch pattern.
-    sampleIds = [0, 150, 350, 550, 750, 999].map((i) => seeded.docs[i]!.id);
+    // A handful of documents spread across the fixture (not just one hot document, and spanning more
+    // than one type), simulating a real agent session's mixed fetch pattern.
+    sampleDocs = [0, 150, 350, 550, 750, 999].map((i) => seeded.docs[i]!);
     ({ client } = await connectedClient(root));
   });
 
@@ -250,7 +258,8 @@ describe('REQ-PERF-04 — sustained agent session: no restart, no dropped connec
     const ROUNDS = 200;
     const samples: number[] = [];
     for (let i = 0; i < ROUNDS; i += 1) {
-      const uri = i % 3 === 0 ? 'wingfoil://dna/show' : `wingfoil://memory/${sampleIds[i % sampleIds.length]}`;
+      const doc = sampleDocs[i % sampleDocs.length]!;
+      const uri = i % 3 === 0 ? 'wingfoil://dna/show' : `wingfoil://memory/${doc.type}/${doc.id}`;
       samples.push(await timeAsync(() => client.readResource({ uri })));
     }
     expect(samples).toHaveLength(ROUNDS);
