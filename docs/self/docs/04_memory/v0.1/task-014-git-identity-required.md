@@ -2,7 +2,7 @@
 id: "task-014-git-identity-required"
 type: task
 title: "Infrastructure: REQ-SEC-01 — Git identity required for state mutations"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
