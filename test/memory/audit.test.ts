@@ -11,6 +11,10 @@ import {
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from '../../src/memory/audit';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 import {
   commitAll,
   commitAllAs,
@@ -119,6 +123,12 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
     commitAll(repo, 'wf(task): add task-901-doc');
 
     expect(auditAttribution(repo, ['docs/04_memory/v0.1/does-not-exist.md'])).toEqual([]);
+  });
+
+  it('returns [] (never throws) when `root` is not a git repository at all', () => {
+    repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+    writeDoc(repo, DOC_PATH, 'draft'); // plain file write, no `git init`
+    expect(auditAttribution(repo, [DOC_PATH])).toEqual([]);
   });
 });
 
@@ -236,6 +246,19 @@ describe('reconstructMemoryTransitions — full history reconstructed from git l
     const first = reconstructMemoryTransitions(repo, DOC_PATH);
     const second = reconstructMemoryTransitions(repo, DOC_PATH);
     expect(second).toEqual(first);
+  });
+
+  it('yields toState null for a commit where the path no longer exists (e.g. deprecate-and-remove)', () => {
+    repo = makeTempGitRepo();
+    writeDoc(repo, DOC_PATH, 'draft');
+    commitAll(repo, 'wf(task): add task-901-doc');
+    rmSync(join(repo, DOC_PATH));
+    commitAll(repo, 'wf(task): deprecate task-901-doc [draft → deprecated]');
+
+    const transitions = reconstructMemoryTransitions(repo, DOC_PATH);
+
+    expect(transitions).toHaveLength(2);
+    expect(transitions[1]).toMatchObject({ fromState: 'draft', toState: null });
   });
 });
 
