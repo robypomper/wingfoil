@@ -2,7 +2,7 @@
 id: "task-015-complete-audit-trail"
 type: task
 title: "Infrastructure: REQ-SEC-02 — Complete, attributable audit trail"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
@@ -64,16 +64,55 @@ Testable breakdown:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
-
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design:** Verified REQ-SEC-02 against `adr-007-stateless-state-derivation` (accepted) and
+  `adr-001-git-backed-storage` (accepted) — both already ground this task's scope fully (state lives
+  in frontmatter, git history is the sole audit trail). No spec gap found; no new `tech-spec` needed.
+- **Scope boundary with task-014-git-identity-required (REQ-SEC-01), running in parallel on its own
+  branch:** this task builds only the READ/verify half of the audit trail — auditing and reconstructing
+  attribution/history from commits that already exist. It adds **no** git-identity enforcement (no
+  "require configured user.name/user.email before commit" check) anywhere; that write-time
+  precondition remains entirely task-014's deliverable. No file under `src/` was touched that
+  resembles identity-enforcement logic.
+- **Foundation reused, not duplicated:** every new function is built on task-011's
+  `getMemoryHistory` (`src/memory/history.ts`) — `reconstructMemoryTransitions` calls it directly;
+  `auditAttribution` shares its git-log-walk plumbing via a small extracted primitive
+  (`src/memory/git-log.ts#walkGitLogFields`), factored out in the refactor phase so the two
+  (`history.ts`'s single-document `--follow` walk and `audit.ts`'s multi-pathspec walk) stop
+  duplicating the same record-splitting logic. `history.ts`'s public API/behavior is unchanged —
+  `test/memory/history.test.ts` passes untouched.
+- **New module `src/memory/audit.ts`** implements the five REQ-SEC-02 deliverables from the task
+  brief:
+  a. `auditAttribution(root, pathspecs)` + `isValidAttribution(name, email)` — walks git log over the
+     given pathspecs and flags a commit as invalid ("unknown author") when its name/email is empty or
+     matches git's own guessed-identity domain marker (`user@host.(none)`, what git appends when it
+     can't determine a real domain for an unconfigured identity) — a verification check, not a
+     write-time gate.
+  b. Timestamp provenance: `AttributionEntry.date`/`MemoryHistoryEntry.date` are both sourced only
+     from `%aI` (git's own author-date format) — never read from file content; this was already true
+     of `getMemoryHistory` and is preserved, not re-derived, here.
+  c. `parseApprovalMetadata(body)` — parses the mandatory `Approver: Name <email> (role)` / `Reason:
+     ...` commit-body lines (CLAUDE.md §5.1); returns `null` (not a partial object) when either line
+     is missing, e.g. for a plain `add`/`submit` body.
+  d. `reconstructMemoryTransitions(root, relativePath)` — the `memory history` derivation: for every
+     commit from `getMemoryHistory`, reads the document's frontmatter `status:` at that commit (`git
+     show sha:path`, reusing `splitFrontmatter`/`parseYaml` rather than re-parsing YAML by hand) to
+     get `fromState`/`toState`, parses the `wf({type}): {verb}` subject for `operation`, and attaches
+     `parseApprovalMetadata` for the approval fields — entirely from git, no secondary log.
+  e. `verifyTransitionConsistency(root, relativePath)` — cross-checks, for every transition whose
+     subject carries CLAUDE.md's `[old → new]` bracket (approve/reject/deprecate), that the bracket's
+     declared states agree with the states independently derived from frontmatter
+     (`reconstructMemoryTransitions`); returns `[]` when there is no drift. Proven with both a
+     well-formed sequence (empty result) and a deliberately inconsistent fixture (bracket says
+     `pending → backlog`, frontmatter actually written is `approved` — reported as a mismatch).
+- **Assumed task-014 interface (for merge reconciliation):** none needed — this task never calls into
+  or assumes a "resolve current git identity" write-time helper; it only reads already-made commits.
+  If task-014 later adds a `resolveGitIdentity()`-style primitive, there is no overlap to reconcile:
+  task-014 gates writes, this task audits reads.
+- **red/green/refactor:** no blockers. All planned tests passed on first implementation; the only
+  deviation from a literal first draft was the refactor step (extracting `./git-log`), done to avoid
+  two near-identical git-log-parsing blocks in `history.ts` and `audit.ts`.
+- **review:** full suite (`npx jest`) 34 suites / 338 tests passing; `npx tsc --noEmit` exit 0;
+  `npx jest --coverage` global branch coverage 87.33% (>80% threshold); `audit.ts` itself sits lower
+  on branch coverage (~59%, all uncovered branches are unreachable destructuring-default fallbacks,
+  the same pattern already present and already uncovered in task-011's `history.ts`) but does not
+  drag the project-wide (global) threshold below 80%, which is what `jest.config.js` enforces.
