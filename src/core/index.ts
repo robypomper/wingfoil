@@ -11,8 +11,15 @@
  * memory/dna/directives/workflow domain-operation tables in spec-006 §3 (`memoryAdd`, `dnaSet`,
  * `directiveCreate`, ...) are feature work for task-018..030, not this task.
  */
-import { ValidationError } from '../validation';
-import type { DnaYaml, Paths } from '../dna/schema';
+import { join } from 'path';
+
+import { dump } from 'js-yaml';
+
+import { parseYaml, toValidationError, ValidationError } from '../validation';
+import type { Paths } from '../dna/schema';
+import { DnaYaml } from '../dna/schema';
+import { isValidKeyPath, setDnaValue } from '../dna/set';
+import { commitPaths, readDocument, writeDocument } from '../storage';
 
 import {
   loadDirectives,
@@ -21,6 +28,8 @@ import {
   type DirectiveFile,
   type WorkflowsLoadResult,
 } from './loaders';
+import { requireGitIdentity } from './git-identity';
+import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule } from './registry';
 import { coreErr, coreOk } from './types';
 import type { CoreResult } from './types';
@@ -38,6 +47,7 @@ export * from './types';
 export * from './registry';
 export * from './exit-code';
 export * from './git-identity';
+export * from './usage-error';
 export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
 
@@ -163,6 +173,85 @@ const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
 };
 
 /**
+ * `dna set <key> <value>` params (P2.1, task-025-implement-dna-set) — the first mutating operation.
+ * `positionals` is the full CLI positional list (`ParamsContext.positionals`, `core/registry.ts`'s
+ * additive seam this task adds): `positionals[0]` is the dotted key path, `positionals[1]` the value.
+ */
+export interface DnaSetParams {
+  readonly root: string;
+  readonly positionals?: readonly string[];
+}
+
+/**
+ * `dna set` `CoreOperation.fn` (P2.1, `mutates: true` — the FIRST mutating op in the whole system,
+ * spec-006-core-domain-api §3 dna table). The mutating-op template every later mutation follows:
+ *
+ * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ *    `user.name`/`user.email` are unset, returning its `CoreResult.error` unchanged (exit 1).
+ * 2. **Argument validation** — a missing `<key>`/`<value>`, or a malformed dotted key path (e.g. the
+ *    BDD's `..language`), is a usage error: `throw new UsageError(...)` → exit **2** with a clean
+ *    message (mapped by `exitCodeForThrow`, `./exit-code.ts`), per spec-005-cli-command-contract §1.
+ * 3. **Load + apply + re-serialize** — load the current `.wingfoil/dna.yaml` through the same two-pass
+ *    path `dnaShow` uses (a missing/invalid file → `NOT_FOUND`/`VALIDATION`, exit 1), set the value
+ *    (`src/dna`'s pure `setDnaValue`, incl. the `tech_stack`→`stacks` alias), and re-serialize
+ *    deterministically (REQ-SYS-07: js-yaml preserves key order, no wall-clock/random; `lineWidth: -1`
+ *    fixes the wrap width so the same input yields byte-identical output).
+ * 4. **Re-validate the written bytes** against `DnaYaml` (spec-002) BEFORE persisting — a schema-invalid
+ *    result is a logic error (`VALIDATION` → exit 1) and the file is left untouched (returned, not
+ *    thrown). Re-parsing the serialized form (not the in-memory object) is deliberate: it validates the
+ *    exact bytes about to be written, honouring YAML's own scalar coercion.
+ * 5. **Persist + commit** through the single storage primitives (task-018) — `writeDocument` then
+ *    `commitPaths` on the ONE scoped path `.wingfoil/dna.yaml`; the returned sha rides `CoreResult.commit`.
+ */
+const dnaSetFn: CoreFn<unknown, { key: string; value: string }> = async (params) => {
+  const { root, positionals } = params as DnaSetParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const keyPath = positionals?.[0];
+  const value = positionals?.[1];
+  if (keyPath === undefined || value === undefined) {
+    throw new UsageError('missing required argument: dna set <key> <value>');
+  }
+  if (!isValidKeyPath(keyPath)) {
+    throw new UsageError(`invalid key path: '${keyPath}'`);
+  }
+
+  const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const dna = loaded.value as Record<string, unknown>;
+  setDnaValue(dna, keyPath, value);
+  const dnaPath = join(root, '.wingfoil', 'dna.yaml');
+  const serialized = dump(dna, { lineWidth: -1 });
+
+  // Re-validate the exact bytes about to be written against DnaYaml (spec-002), via a SILENT
+  // `safeParse` — the unknown-field warning (spec-009 §2) belongs to the load path (`dna show`), not
+  // the write path, and re-parsing the serialized YAML (not the in-memory object) honours YAML's own
+  // scalar coercion. A schema failure is a logic error (VALIDATION → exit 1), returned NOT thrown, so
+  // nothing is written.
+  const parsed = DnaYaml.safeParse(parseYaml(serialized, dnaPath));
+  if (!parsed.success) {
+    const validationError = toValidationError(parsed.error, dnaPath);
+    return coreErr({ code: 'VALIDATION', message: validationError.message, details: { issues: validationError.issues } });
+  }
+
+  // Idempotent no-op: if the (normalized) bytes already match what is on disk, the value is unchanged —
+  // there is nothing to write or commit, so this succeeds without an empty commit (a set to the current
+  // value is idempotent success, not an error). REQ-SYS-07: `serialized` is a deterministic function of
+  // the input, so this comparison is stable across runs.
+  if (readDocument(dnaPath) === serialized) {
+    return coreOk({ key: keyPath, value });
+  }
+
+  writeDocument(dnaPath, serialized);
+  const message = `wf(dna): set ${keyPath}`;
+  const sha = commitPaths(root, ['.wingfoil/dna.yaml'], message);
+  return coreOk({ key: keyPath, value }, { sha, message });
+};
+
+/**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
  * `src/mcp`'s Tool/Resource registrar both import this exact array — see spec-006 §4.1: "no
  * duplicated or hand-copied operation list in either surface module".
@@ -179,17 +268,21 @@ const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
  * is deliberately NOT registered as a `memory` module operation: it loads the Memory *pillar's own
  * config* (`memory.yaml`'s types/state-machines), a different concept from spec-006 §3's `memory`
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
- * under a `memoryXxx` name would misrepresent it as the latter. There is intentionally zero
- * mutating operation in production today — none of spec-006 §3's actual mutating functions
- * (`memoryAdd`, `dnaSet`, `directiveCreate`, `workflowStart`, ...) are implemented yet; that is
- * task-018..030's scope, not this task's. The REQ-SYS-05 parity test in `test/core/parity.test.ts`
- * runs against this exact array, so it becomes a real regression guard the moment a mutating
- * operation is added here — today it legitimately reports 0 mutating ops on both surfaces.
+ * under a `memoryXxx` name would misrepresent it as the latter. As of
+ * task-025-implement-dna-set the registry has its FIRST mutating operation — `dna.dnaSet`
+ * (`mutates: true`, P2.1); the remaining spec-006 §3 mutating functions (`memoryAdd`,
+ * `directiveCreate`, `workflowStart`, ...) are still task-020..030's scope. The REQ-SYS-05 parity
+ * test in `test/core/parity.test.ts` runs against this exact array, so it is now a live regression
+ * guard: `dna set` must appear as both a CLI command and an MCP Tool, or the diff fails.
  */
 export const CORE_MODULES: readonly CoreModule[] = [
   {
     name: 'dna',
     operations: {
+      // The FIRST `mutates: true` operation in production (spec-006 §3 dna table) — by construction an
+      // MCP Tool (`dna.set`) + CLI command (`wingfoil dna set`), and the op the REQ-SYS-05 parity test
+      // now actually guards (task-025-implement-dna-set).
+      dnaSet: { name: 'dnaSet', mutates: true, fn: dnaSetFn },
       dnaShow: { name: 'dnaShow', mutates: false, fn: dnaShowFn },
     },
   },

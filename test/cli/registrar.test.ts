@@ -122,7 +122,7 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
       },
     });
     const flat = findCommand(commands, 'paths', '');
-    await flat.run('json', 'sources', { list: true });
+    await flat.run('json', ['sources'], { list: true });
     expect(seenPositional).toBe('sources');
     expect(seenFlags).toEqual({ list: true });
     expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ category: 'sources', paths: ['src/'] }) + '\n');
@@ -269,12 +269,12 @@ describe('positional argument threading (task-026-implement-dna-show — generic
     return findCommand(commands, 'x', 'echo');
   }
 
-  it('`CliCommand.run`\'s optional second argument reaches `buildParams` as `ctx.positional`, generically (not dna-specific)', async () => {
-    await echoCommand().run('json', 'some-section');
+  it('`CliCommand.run`\'s optional positional list reaches `buildParams` as `ctx.positional` (first element), generically (not dna-specific)', async () => {
+    await echoCommand().run('json', ['some-section']);
     expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ root: '/fixture-root', positional: 'some-section' }) + '\n');
   });
 
-  it('an omitted positional argument is threaded through as `undefined`', async () => {
+  it('an omitted positional list is threaded through as `undefined` (first element of an empty/absent list)', async () => {
     await echoCommand().run('json');
     expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ root: '/fixture-root' }) + '\n');
   });

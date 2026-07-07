@@ -72,16 +72,18 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — today the real surface exposes zero mutating Tools (no successful agent write path)', () => {
-  it('the Tools write-channel is advertised, but the real registry contributes zero mutating ops — an empty write path', async () => {
+describe('REQ-SEC-05 — the real surface exposes exactly one mutating Tool today (dna.set, task-025)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes exactly `dna.set` — the first mutating op', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
-    // ...but no core operation mutates today, so nothing is registered under it — no successful agent
-    // write path exists at this release (the mutating ops arrive with task-018+).
+    // ...and task-025-implement-dna-set adds the FIRST mutating core op (`dna.dnaSet`), so it — and
+    // only it — is registered under Tools (the remaining mutating ops arrive with task-020+).
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    expect(mutatingOps).toEqual([]);
+    expect(mutatingOps.map((op) => op.name)).toEqual(['dnaSet']);
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set']);
   });
 
   it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {

@@ -45,6 +45,18 @@ describe('setDnaValue (P2.1 AC(a)/(b))', () => {
     expect(dna).toEqual({ stacks: { language: 'go' } });
   });
 
+  it('creates a missing intermediate object when the path descends into an absent key', () => {
+    const dna: Record<string, unknown> = {};
+    setDnaValue(dna, 'project.name', 'WingFoil');
+    expect(dna).toEqual({ project: { name: 'WingFoil' } });
+  });
+
+  it('replaces a non-object encountered mid-path so the path can complete', () => {
+    const dna: Record<string, unknown> = { project: 'scalar' };
+    setDnaValue(dna, 'project.name', 'WingFoil');
+    expect(dna).toEqual({ project: { name: 'WingFoil' } });
+  });
+
   it('applies the tech_stack -> stacks first-segment alias (symmetric with `dna show`, spec-002)', () => {
     const dna: Record<string, unknown> = { stacks: { technologies: [] } };
     setDnaValue(dna, 'tech_stack.language', 'python');
