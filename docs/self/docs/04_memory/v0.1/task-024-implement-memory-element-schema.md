@@ -2,7 +2,7 @@
 id: "task-024-implement-memory-element-schema"
 type: task
 title: "Implement Memory Element Schema (memory.yaml) (P1.13)"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
