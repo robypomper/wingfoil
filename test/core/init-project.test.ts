@@ -49,15 +49,12 @@ describe('initWingfoilProject — success (P5.1.1 AC (a))', () => {
   });
 
   it('records the whole layout in a SINGLE commit (spec-011 / CLAUDE.md §5.1)', () => {
-    repo = makeTempGitRepo();
-    const before = execFileSync('git', ['-C', repo, 'rev-list', '--count', 'HEAD'], {
-      encoding: 'utf-8',
-    }).trim();
+    repo = makeTempGitRepo(); // fresh repo: no commits yet, so the init commit is the only one
     initWingfoilProject(repo, 'Kanban');
-    const after = execFileSync('git', ['-C', repo, 'rev-list', '--count', 'HEAD'], {
+    const count = execFileSync('git', ['-C', repo, 'rev-list', '--count', 'HEAD'], {
       encoding: 'utf-8',
     }).trim();
-    expect(Number(after) - Number(before)).toBe(1);
+    expect(count).toBe('1');
   });
 });
 
