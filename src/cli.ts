@@ -26,9 +26,10 @@ buildProgram(CORE_MODULES, {
   resolveRoot: () => resolveProjectRoot(process.cwd()),
   // task-026's single bare `positional` (`ctx.positional`, read by `dnaShowFn`/`pathsFn` as
   // section/category), task-025's full `positionals` list (read by `dnaSetFn` as `<key> <value>`),
-  // plus task-028's additive `flags` spread (e.g. `paths`'s `--list` -> `list: true`). A command with
-  // no positional/flags is unaffected.
-  buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, positionals: ctx.positionals, ...(ctx.flags ?? {}) }),
+  // task-028's additive `flags` spread (e.g. `paths`'s `--list` -> `list: true`), plus task-020's
+  // value-bearing `options` record (read by `memoryAddFn` as `type`/`title`/`tags`). A command with no
+  // positional/flags/options is unaffected.
+  buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, positionals: ctx.positionals, options: ctx.options, ...(ctx.flags ?? {}) }),
 })
   .then((program) => program.parseAsync(process.argv))
   .catch((error: unknown) => {

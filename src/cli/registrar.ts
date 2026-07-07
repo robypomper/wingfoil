@@ -15,7 +15,7 @@
  * unit-testable; wiring this command model onto a real `commander` `Command` tree is a separate,
  * thin, mechanical concern.
  */
-import type { CoreModule, ParamsBuilder } from '../core/registry';
+import type { CoreModule, CoreOption, ParamsBuilder } from '../core/registry';
 import { enumerateOperations, deriveVerb } from '../core/registry';
 import type { CoreResult } from '../core/types';
 import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
@@ -43,19 +43,26 @@ export interface CliCommand {
    * registers as Commander `--{name}` options for this command (empty/absent for every command
    * before task-028-implement-paths-category; `['list']` for `paths`). */
   readonly flags?: readonly string[];
+  /** Copied from `CoreOperation.options` (`../core/registry.ts`) — the value-bearing `--{name} <value>`
+   * options `program.ts` registers for this command (task-020-implement-memory-add; empty/absent for
+   * every command before it). */
+  readonly options?: readonly CoreOption[];
   /**
    * Execute this command given the resolved `--format` flag value (still unvalidated at this point),
    * the FULL list of bare positional arguments the invocation supplied (task-025-implement-dna-set's
    * additive `positionals` seam — e.g. `wingfoil dna set <key> <value>` -> `['<key>', '<value>']`;
-   * `wingfoil dna show tech_stack` -> `['tech_stack']`), and this command's own parsed `--{flag}`
-   * values (task-028, e.g. `{ list: true }`). All are additive/optional — a command that reads no
-   * positional and declares no flags is still called exactly as before: `run(format)`. The
-   * single-positional read ops (`dna show`, `paths`) read `positionals[0]` via `ParamsContext.positional`.
+   * `wingfoil dna show tech_stack` -> `['tech_stack']`), this command's own parsed `--{flag}`
+   * values (task-028, e.g. `{ list: true }`), and its parsed value-bearing `--{name} <value>` OPTIONS
+   * (task-020, e.g. `{ type: 'decision', title: 'Use PostgreSQL' }`). All are additive/optional — a
+   * command that reads no positional and declares no flags/options is still called exactly as before:
+   * `run(format)`. The single-positional read ops (`dna show`, `paths`) read `positionals[0]` via
+   * `ParamsContext.positional`.
    */
   readonly run: (
     formatValue: string,
     positionals?: readonly string[],
     flags?: Readonly<Record<string, boolean>>,
+    options?: Readonly<Record<string, string>>,
   ) => Promise<void>;
 }
 
@@ -71,10 +78,12 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
       verb,
       mutates: operation.mutates,
       flags: operation.flags,
+      options: operation.options,
       run: async (
         formatValue: string,
         positionals?: readonly string[],
         flags?: Readonly<Record<string, boolean>>,
+        optionValues?: Readonly<Record<string, string>>,
       ) => {
         if (!isValidFormat(formatValue)) {
           exitWith(2, `error: invalid --format value "${formatValue}", expected one of: console, json, yaml`);
@@ -97,6 +106,9 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
             positional: positionals?.[0],
             positionals,
             flags,
+            // Value-bearing `--{name} <value>` options a data-mutating op reads (task-020's `memoryAdd`
+            // reads `type`/`title`/`tags`). Undefined for every op declaring none.
+            options: optionValues,
           });
           result = await operation.fn(params);
         } catch (error) {
