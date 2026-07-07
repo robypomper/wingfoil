@@ -18,7 +18,7 @@ import { dump } from 'js-yaml';
 import { parseYaml, toValidationError, ValidationError } from '../validation';
 import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
-import { isValidKeyPath, setDnaValue } from '../dna/set';
+import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
 import { commitPaths, readDocument, writeDocument } from '../storage';
 
 import {
@@ -155,16 +155,15 @@ const pathsFn: CoreFn<unknown, PathsShowResult | Paths> = async (params) => {
  * wording). An unknown section is a domain `NOT_FOUND` (`CoreResult.error`, exit `1` via
  * `exit-code.ts` — never a thrown exception and never exit `2`, since a read-only command can only
  * exit `0`/`1` per spec-005-cli-command-contract §1), with the exact P2.2 message
- * `no DNA key named '<section>'`.
+ * `no DNA key named '<section>'`. The `tech_stack`→`stacks` alias is the shared `DNA_KEY_ALIASES`
+ * (`src/dna/set.ts`) — the single source of truth `dna set` uses too, so read and write stay symmetric.
  */
-const DNA_SHOW_SECTION_ALIASES: Readonly<Record<string, string>> = { tech_stack: 'stacks' };
-
 const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
   const { root, positional: section } = params as RootParams & { positional?: string };
   const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
   if (!loaded.ok || section === undefined) return loaded;
 
-  const key = DNA_SHOW_SECTION_ALIASES[section] ?? section;
+  const key = DNA_KEY_ALIASES[section] ?? section;
   const dna = loaded.value as Record<string, unknown>;
   if (!(key in dna)) {
     return coreErr({ code: 'NOT_FOUND', message: `no DNA key named '${section}'` });
