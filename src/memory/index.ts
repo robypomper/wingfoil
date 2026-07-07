@@ -16,6 +16,13 @@
  * commit-body parsing, full transition reconstruction, and the frontmatter-vs-commit-message
  * consistency check. It is deliberately read-only/verification-only — write-time git-identity
  * enforcement is task-014-git-identity-required's (REQ-SEC-01) separate concern.
+ *
+ * task-022-implement-memory-entries adds `./entry` (P1.11) — `writeMemoryEntry`, the reusable,
+ * throwing library primitive that composes `resolveConfinedMemoryPath` (task-017, REQ-SEC-06),
+ * `writeDocument`, and `commitPaths` (task-018) into the one "resolve confined path, write bytes,
+ * one commit" Memory-entry write path (REQ-SYS-01/REQ-SYS-03). `wingfoil memory add`/`submit`
+ * (task-020) wire this in behind a `CoreResult`; this module stays a plain, throwing composition,
+ * matching every other `src/storage` primitive it builds on.
  */
 export const MODULE_NAME = 'memory' as const;
 
@@ -44,6 +51,8 @@ export type {
 } from './query';
 export { getMemoryHistory } from './history';
 export type { MemoryHistoryEntry } from './history';
+export { writeMemoryEntry } from './entry';
+export type { MemoryEntryWrite } from './entry';
 export {
   auditAttribution,
   isValidAttribution,
