@@ -28,3 +28,9 @@ export const E_NOT_AT_GIT_ROOT = 'E_NOT_AT_GIT_ROOT';
 
 /** Raised by {@link renderMemoryPath} when a `{placeholder}` in a `path` pattern has no value. */
 export const E_MISSING_PATH_VALUE = 'E_MISSING_PATH_VALUE';
+
+/**
+ * Raised by {@link resolveConfinedMemoryPath} when a resolved Memory-entry path would land outside the
+ * project root — e.g. a crafted `id`/value containing `../` traversal (REQ-SEC-06 storage confinement).
+ */
+export const E_PATH_ESCAPES_ROOT = 'E_PATH_ESCAPES_ROOT';

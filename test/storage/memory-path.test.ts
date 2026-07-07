@@ -11,7 +11,7 @@
 import { join } from 'path';
 
 import { StorageError } from '../../src/storage/errors';
-import { renderMemoryPath, resolveMemoryPath } from '../../src/storage/memory-path';
+import { renderMemoryPath, resolveConfinedMemoryPath, resolveMemoryPath } from '../../src/storage/memory-path';
 
 describe('renderMemoryPath — per-type memory.yaml path patterns', () => {
   it('resolves a release-line path (no {release}/{release-line} nesting)', () => {
@@ -76,5 +76,64 @@ describe('resolveMemoryPath — joins a rendered path onto a project root', () =
       id: 'task-003-git-backed-sot',
     });
     expect(result).toBe(join('/repo', 'docs/04_memory/v0.1/task-003-git-backed-sot.md'));
+  });
+});
+
+describe('resolveConfinedMemoryPath — storage confinement to the project root (REQ-SEC-06)', () => {
+  const ROOT = '/repo';
+  const CONFINEMENT_MESSAGE = 'Memory entries must reside within the project root';
+
+  it('a legitimate id resolves to an absolute path under the project root', () => {
+    expect(
+      resolveConfinedMemoryPath(ROOT, 'docs/04_memory/{release}/{id}.md', {
+        release: 'v0.1',
+        id: 'task-017-storage-confinement',
+      }),
+    ).toBe(join('/repo', 'docs/04_memory/v0.1/task-017-storage-confinement.md'));
+  });
+
+  it('a crafted id with ../ traversal is refused with E_PATH_ESCAPES_ROOT before returning any path', () => {
+    let thrown: unknown;
+    try {
+      resolveConfinedMemoryPath(ROOT, 'docs/04_memory/{release}/{id}.md', {
+        release: 'v0.1',
+        id: '../../../../etc/passwd',
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(StorageError);
+    expect((thrown as StorageError).code).toBe('E_PATH_ESCAPES_ROOT');
+    // StorageError prefixes its code (`E_PATH_ESCAPES_ROOT: <msg>`), like every storage error; the
+    // exact REQ-SEC-06 string is carried verbatim and surfaced to the user by the (deferred) core
+    // mutation's StorageError -> CoreError mapping.
+    expect((thrown as StorageError).message).toContain(CONFINEMENT_MESSAGE);
+  });
+
+  it('traversal smuggled through any other placeholder value is refused the same way', () => {
+    expect(() =>
+      resolveConfinedMemoryPath(ROOT, 'docs/04_memory/{release}/{id}.md', {
+        release: '../../../../../tmp',
+        id: 'evil',
+      }),
+    ).toThrow(CONFINEMENT_MESSAGE);
+  });
+
+  it('an absolute-looking value cannot escape — path.join keeps it under the root', () => {
+    expect(
+      resolveConfinedMemoryPath(ROOT, 'docs/04_memory/{release}/{id}.md', {
+        release: 'v0.1',
+        id: '/etc/passwd',
+      }),
+    ).toBe(join('/repo', 'docs/04_memory/v0.1/etc/passwd.md'));
+  });
+
+  it('a harmless internal .. that still normalizes inside the root is allowed', () => {
+    expect(
+      resolveConfinedMemoryPath(ROOT, 'docs/04_memory/{release}/{id}.md', {
+        release: 'v0.1/sub/..',
+        id: 'task-017',
+      }),
+    ).toBe(join('/repo', 'docs/04_memory/v0.1/task-017.md'));
   });
 });
