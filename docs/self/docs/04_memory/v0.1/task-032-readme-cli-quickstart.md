@@ -2,7 +2,7 @@
 id: "task-032-readme-cli-quickstart"
 type: task
 title: "README.md and CLI quick-start docs"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "High"
 tags: ["v0.1", "documentation"]
