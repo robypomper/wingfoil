@@ -2,7 +2,7 @@
 id: "task-018-implement-git-backed-storage"
 type: task
 title: "Implement Git-Backed Storage (P1.1)"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
