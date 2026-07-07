@@ -16,7 +16,7 @@ import { DirectiveFrontmatter } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
 import { documentExists, extractFrontmatter, readDocument } from '../storage';
-import { parseYaml, runValidation, ValidationError } from '../validation';
+import { E_YAML_PARSE_ERROR, parseYaml, runValidation, ValidationError } from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
 
 /**
@@ -51,11 +51,41 @@ export function loadMemoryYaml(root: string): MemoryYaml {
   return runValidation(MemoryYaml, data, filePath);
 }
 
-/** Load and validate `.wingfoil/dna.yaml` in isolation (spec-002-dna-yaml-schema). */
+/**
+ * `js-yaml`'s `YAMLException#message` always embeds the failure position as `(<line>:<column>)`
+ * (1-indexed) right after the reason text, ahead of the multi-line context snippet — verified against
+ * every `load()` failure shape js-yaml produces (bad indentation, unclosed flow collection, block-
+ * mapping/key errors, tab-indentation). `parseYaml` (spec-009-validation-strategy §1) preserves this
+ * raw message verbatim in the single issue of the `E_YAML_PARSE_ERROR` `ValidationError` it throws.
+ * Returns `null` if the position marker isn't found (defensive — no known js-yaml failure omits it).
+ */
+function extractYamlErrorLine(message: string): number | null {
+  const match = /\((\d+):\d+\)/.exec(message);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Load and validate `.wingfoil/dna.yaml` in isolation (spec-002-dna-yaml-schema). On top of the
+ * shared two-pass pipeline every pillar loader uses, this re-wraps a YAML-syntax failure into P2.4's
+ * own fit criterion (BDD `P2.4-project-dna-config.feature` "Error - malformed YAML in the DNA file"):
+ * `invalid DNA: YAML parse error at line <n>`, rather than surfacing the generic `E_YAML_PARSE_ERROR`
+ * message every other pillar loader still uses as-is. DNA-scoped only — this does not change
+ * `parseYaml`/`ValidationError`'s shared behavior for `memory.yaml`/`workflows.yaml`/directives.
+ */
 export function loadDnaYaml(root: string): DnaYaml {
   const filePath = join(root, '.wingfoil', 'dna.yaml');
   const raw = readDocument(filePath);
-  const data = parseYaml(raw, filePath);
+  let data: unknown;
+  try {
+    data = parseYaml(raw, filePath);
+  } catch (err) {
+    if (err instanceof ValidationError && err.issues[0]?.code === E_YAML_PARSE_ERROR) {
+      const line = extractYamlErrorLine(err.issues[0].message);
+      const message = line !== null ? `invalid DNA: YAML parse error at line ${line}` : 'invalid DNA: YAML parse error';
+      throw new ValidationError([{ ...err.issues[0], message }], err.exitCode);
+    }
+    throw err;
+  }
   return runValidation(DnaYaml, data, filePath);
 }
 
