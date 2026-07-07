@@ -2,7 +2,7 @@
 id: "task-027-implement-project-dna"
 type: task
 title: "Implement Project DNA (structured config) (P2.4)"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "dna"]
