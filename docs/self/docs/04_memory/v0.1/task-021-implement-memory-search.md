@@ -2,7 +2,7 @@
 id: "task-021-implement-memory-search"
 type: task
 title: "Implement wingfoil memory search (P1.5)"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -106,3 +106,48 @@ needed:
 No spec was invented or edited; traceability: P1.5, P1.12, REQ-PERF-02, REQ-SYS-05, REQ-SYS-07,
 spec-004-mcp-surface-contract, spec-005-cli-command-contract, spec-006-core-domain-api,
 spec-008-cli-grammar, spec-010-memory-frontmatter-schema.
+
+### red
+
+Added `test/core/memory-search.test.ts` (the real registered `memory.memorySearch` op over throwaway
+temp repos — AC(a)/(b)/(c), the empty-query-vs-omitted-keyword distinction, `--type`/`--status`
+filters, determinism, missing-`memory.yaml` -> NOT_FOUND) + `test/memory/query.test.ts` characterization
+tests for the new `type` field on `MemorySearchMatch` + a `memory search` describe block in
+`test/cli/program.integration.test.ts` (real compiled-CLI spawn, mirroring the `dna set` e2e block).
+Updated `production-registry`/`parity` to expect `memory.memorySearch` alongside `memory.memoryAdd`, and
+re-pointed `test/core/query-latency.test.ts`'s REQ-PERF-02 `memory search` benchmark from the raw
+`searchMemoryDocuments` primitive onto the registered op (task-008's own deferred note). Confirmed every
+new/updated assertion failing for the right reason (operation not yet registered / field not yet
+projected) before writing any production code.
+
+### green
+
+`src/memory/query.ts`: added `type` to `MemorySearchMatch`/`searchMemoryDocuments` (additive, no
+scan/ranking change). `src/core/index.ts`: `memorySearchFn` + `memory.memorySearch` registration
+(`mutates: false`, optional `--tag`/`--status`/`--type` options, keyword on the generic `positional`
+seam). No deviation from the design-gate plan above.
+
+**One real bug found and fixed, outside this task's own new code:**
+`test/cli/fixtures/cli-harness.cjs`'s `buildParams` predated task-020's `options` seam and never spread
+`ctx.options` — every CLI-integration-harness invocation silently passed `options: undefined` regardless
+of what `--type`/`--tag`/etc. was typed on the command line. Nothing caught this because no CLI
+integration test exercised a value-option before this task (`memory add` has no e2e test; only its
+CoreFn-level `test/core/memory-add.test.ts` exists). Found because the new `memory search --tag
+architecture` e2e assertion kept returning BOTH documents instead of the tagged one; fixed by adding
+`options: ctx.options` to the harness's `buildParams`, back in lockstep with the real `src/cli.ts`
+production wiring. Recorded as its own `fix(cli)` commit, separate from this task's `memorySearch`
+feature commit, since it is a pre-existing test-fixture gap, not new-task logic.
+
+### review
+
+`npx tsc --noEmit` clean. `npx jest` 536/536 green (18 net-new `it()` cases — 12 in the new
+`test/core/memory-search.test.ts`, 2 added to `test/memory/query.test.ts`, 4 added to
+`test/cli/program.integration.test.ts`'s `memory search` block — plus updated expectations in
+`test/core/production-registry.test.ts`, `test/core/parity.test.ts`, `test/core/query-latency.test.ts`
+(re-pointed, not net-new), `test/mcp/read-only-agent-channel.test.ts` (comment only), and
+`test/cli/fixtures/cli-harness.cjs` (harness fix, not a test)). New-code coverage: `src/memory/query.ts` 100%
+stmts/100% funcs/100% lines; `src/core/index.ts` 97.27% stmts (uncovered lines are pre-existing
+generic-rethrow branches in `loadOrError`/`memoryAddFn`, not this task's new code). REQ-SYS-05 parity
+confirmed: `wingfoil://memory/search` now among the MCP Resources; `dna.set` + `memory.add` remain the
+ONLY two Tools (`memorySearch` is `mutates: false`, so it never appears as a Tool). `git ls-tree HEAD --
+node_modules` empty throughout.
