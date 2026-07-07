@@ -56,6 +56,15 @@ export type { MemoryHistoryEntry } from './history';
 export { writeMemoryEntry } from './entry';
 export type { MemoryEntryWrite } from './entry';
 export {
+  hasNumericToken,
+  nextSequenceNumber,
+  parseTags,
+  renderAddDocument,
+  resolveTypeDirectory,
+  slugifyTitle,
+} from './add';
+export type { AddDocumentFields } from './add';
+export {
   auditAttribution,
   isValidAttribution,
   parseApprovalMetadata,
