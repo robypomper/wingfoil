@@ -83,8 +83,8 @@ describe('Persisting a pillar state file produces exactly one tracked change (P1
     // A later pillar writes a state file under .wingfoil/ (writeDocument = bytes; commitPaths = commit).
     const rel = '.wingfoil/directives/custom/testing.md';
     writeDocument(join(repo, rel), '# testing directive\n');
-    // Before committing it is the ONLY untracked change.
-    expect(git(repo, ['status', '--porcelain']).trim()).toBe(`?? ${rel}`);
+    // Before committing it is the ONLY untracked change (--untracked-files=all expands the new dir).
+    expect(git(repo, ['status', '--porcelain', '--untracked-files=all']).trim()).toBe(`?? ${rel}`);
 
     // Commit just that file (the pillar's own single-commit operation).
     require('../../src/storage').commitPaths(repo, [rel], 'feat(directives): add testing');

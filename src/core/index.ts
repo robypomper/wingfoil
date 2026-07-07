@@ -37,6 +37,8 @@ export * from './types';
 export * from './registry';
 export * from './exit-code';
 export * from './git-identity';
+export { initWingfoilStorage } from './init';
+export type { InitStorageValue } from './init';
 
 /** Params shared by every operation registered today — all of them are a bare pillar-config read. */
 export interface RootParams {
