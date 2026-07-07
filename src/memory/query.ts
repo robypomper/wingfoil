@@ -1,12 +1,15 @@
 /**
- * Memory query primitives (task-008-dna-memory-query-latency, REQ-PERF-02) — the performance-bearing
- * foundation `wingfoil memory search` (task-021-implement-memory-search, P1.5) builds its CLI/MCP
- * surface on top of. Deliberately NOT wired into `src/core`'s `CORE_MODULES` registry yet (see the
- * task's Execution Notes for the scoping decision): this module ships the scan + keyword/frontmatter
- * relevance primitives, not the `--tag` CLI grammar, output rendering, or the "no documents matched"
- * exit-code contract, which are task-021's own scope.
+ * Memory query primitives (task-008-dna-memory-query-latency, REQ-PERF-02; match/rank algorithm and
+ * empty-query validation hardened by task-023-implement-keyword-search, P1.12) — the performance-
+ * bearing foundation `wingfoil memory search` (task-021-implement-memory-search, P1.5) builds its
+ * CLI/MCP surface on top of. Deliberately NOT wired into `src/core`'s `CORE_MODULES` registry yet
+ * (see the task's Execution Notes for the scoping decision): this module ships the scan +
+ * keyword/frontmatter relevance primitives plus the query-validation guard, not the `--tag` CLI
+ * grammar, output rendering, or the "no documents matched" exit-code contract, which are task-021's
+ * own scope.
  *
- * Two things keep this fast at the 1,000-Memory-document reference scale (REQ-PERF-02):
+ * Three things keep this fast and correct at the 1,000-Memory-document reference scale (REQ-PERF-02)
+ * and satisfy P1.12's fit criteria:
  *
  * - **Path-pattern-derived scan roots** (spec-011-storage-layout): rather than walking the whole
  *   project tree, {@link computeMemoryContentRoots} derives the minimal set of directories to scan
@@ -16,14 +19,20 @@
  * - **Deterministic keyword/frontmatter relevance, not full-text/semantic search**
  *   (spec-012-context-loader-relevance-filtering's discipline, applied here to `memory search`
  *   rather than the Agent Context Loader spec-012 itself defines): a metadata match (title/id/tag)
- *   ranks above a body-only match (P1.12-keyword-search.feature), case-insensitive substring
- *   matching, sorted with a total, deterministic order (REQ-SYS-07: no unordered iteration in a
- *   query-building path).
+ *   ranks above a body-only match (P1.12-keyword-search.feature Scenario 1), case-insensitive
+ *   substring matching (Scenario 2), sorted with a total, deterministic order (REQ-SYS-07: no
+ *   unordered iteration in a query-building path). Both were already satisfied by
+ *   {@link searchMemoryDocuments} as shipped by task-008 — task-023 verified this against P1.12's
+ *   fit criteria and added characterization tests, no algorithm change was needed.
+ * - **Empty-query rejection** ({@link validateSearchQuery}, P1.12-keyword-search.feature Scenario 3):
+ *   a genuine gap task-008 left open (an empty query previously matched every document instead of
+ *   being rejected) — task-023 closed it with a `ValidationError.semantic` guard a caller runs before
+ *   invoking {@link searchMemoryDocuments}, exiting 2 with message "empty search query".
  */
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-import { parseYaml } from '../validation';
+import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
 import { readDocument, splitFrontmatter } from '../storage';
@@ -244,6 +253,33 @@ export interface MemorySearchMatch {
   readonly metadataMatch: boolean;
   /** Query matched somewhere in the document body. */
   readonly bodyMatch: boolean;
+}
+
+/** `E_EMPTY_SEARCH_QUERY` field-level code (spec-009-validation-strategy §3) for a rejected empty
+ * or whitespace-only `wingfoil memory search` query. */
+export const E_EMPTY_SEARCH_QUERY = 'E_EMPTY_SEARCH_QUERY';
+
+/**
+ * Reject an empty or whitespace-only search query (P1.12 BDD Scenario "Error - empty query string":
+ * "no search is performed" and exit code 2, message "empty search query"). Mirrors
+ * `resolveTransitionTarget`'s `ValidationError.semantic` pattern (`./state-machine.ts`) so the shared
+ * exit-code mapping (spec-009 §3) surfaces this as exit 2 without a bespoke error path; task-021's
+ * `wingfoil memory search` CLI/MCP surface calls this on the user-supplied query string before it
+ * ever reaches {@link searchMemoryDocuments}.
+ *
+ * Deliberately a separate guard, not a change to `searchMemoryDocuments`'s own signature/behavior:
+ * `searchMemoryDocuments(root, memoryYaml, '', { tag })` remains a legitimate "browse by tag alone,
+ * no keyword" call (task-008's own characterization test) — the empty-query rejection is this task's
+ * (P1.12's) algorithm-level validation concern, applied at the point a *user-facing* query string is
+ * about to be searched, not baked into the lower-level scan primitive that also serves tag-only
+ * listing.
+ */
+export function validateSearchQuery(query: string): void {
+  if (query.trim().length === 0) {
+    throw ValidationError.semantic([
+      { code: E_EMPTY_SEARCH_QUERY, path: '', file: '', message: 'empty search query' },
+    ]);
+  }
 }
 
 /**
