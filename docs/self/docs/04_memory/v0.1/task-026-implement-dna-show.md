@@ -2,7 +2,7 @@
 id: "task-026-implement-dna-show"
 type: task
 title: "Implement wingfoil dna show (P2.2)"
-status: approved
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "dna"]
