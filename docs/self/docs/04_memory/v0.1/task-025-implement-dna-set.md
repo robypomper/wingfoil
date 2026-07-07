@@ -2,7 +2,7 @@
 id: "task-025-implement-dna-set"
 type: task
 title: "Implement wingfoil dna set (P2.1)"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "dna"]
