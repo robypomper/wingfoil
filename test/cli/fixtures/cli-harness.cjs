@@ -35,9 +35,12 @@ function main() {
     resolveRoot: () => fixtureRoot,
     // Mirrors the real `src/cli.ts` production wiring: main's single bare `positional`
     // (task-026-implement-dna-show's seam), task-025's full `positionals` list (`dna set <key> <value>`),
-    // plus task-028's additive `flags` spread (e.g. `paths`'s `--list`) — this harness must stay in
-    // lockstep with `cli.ts`'s own buildParams.
-    buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, positionals: ctx.positionals, ...(ctx.flags ?? {}) }),
+    // task-028's additive `flags` spread (e.g. `paths`'s `--list`), plus task-020's value-bearing
+    // `options` record (e.g. `memory add --type/--title/--tags`, `memory search --tag/--status/--type`
+    // — task-021) — this harness must stay in lockstep with `cli.ts`'s own buildParams. Previously
+    // missing `options: ctx.options` here meant NO CLI integration test could ever exercise a
+    // value-option end-to-end (task-021 found this while writing the `memory search --tag` e2e test).
+    buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, positionals: ctx.positionals, options: ctx.options, ...(ctx.flags ?? {}) }),
   }).then((program) => program.parseAsync(['node', 'wingfoil', ...cliArgs]));
 }
 
