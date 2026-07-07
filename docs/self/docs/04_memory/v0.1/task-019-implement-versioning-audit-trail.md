@@ -2,7 +2,7 @@
 id: "task-019-implement-versioning-audit-trail"
 type: task
 title: "Implement Versioning & Audit Trail (P1.2)"
-status: approved
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
