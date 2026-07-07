@@ -33,6 +33,9 @@ import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 import type { CoreModule } from '../core/registry';
 
 import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
+import { runInit, createReadlinePrompt } from './init-command';
+import { emitError } from './error';
+import { exitWith } from './exit';
 
 /**
  * The CLI version, read from `package.json` deterministically (REQ-SYS-07 — no wall-clock, no
@@ -56,6 +59,31 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     .option('--verbose', 'emit diagnostic logs to stderr')
     .option('--no-color', 'disable ANSI colors')
     .option('--no-interactive', 'fail on missing args instead of prompting');
+
+  // `wingfoil init` is a SPECIAL bootstrap command (task-029, P5.1.1): it runs BEFORE config exists,
+  // so it is NOT a `CORE_MODULES` noun-verb op — it is wired directly here and drives `runInit`
+  // (./init-command.ts). The wizard/`--template`/prompt-matrix logic is fully unit-tested in
+  // ./init-command.ts; this registration is the same thin, un-unit-tested `commander` seam as the
+  // rest of this file (see the module doc).
+  program
+    .command('init')
+    .description('initialize WingFoil in the current git repository')
+    .option('--template <name>', 'methodology template to initialize with (non-interactive)')
+    .action(async (localOpts: { template?: string }) => {
+      const globalOpts = program.opts<{ format: string; interactive: boolean }>();
+      let root: string;
+      try {
+        root = options.resolveRoot();
+      } catch (error) {
+        emitError(error instanceof Error ? error.message : String(error), { format: 'console' });
+        exitWith(1);
+        return;
+      }
+      await runInit(
+        { template: localOpts.template, interactive: globalOpts.interactive, format: globalOpts.format },
+        { root, isTTY: Boolean(process.stdout.isTTY), prompt: createReadlinePrompt() },
+      );
+    });
 
   const nounCommands = new Map<string, Command>();
   for (const command of buildCliCommands(modules, options)) {

@@ -19,13 +19,29 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { INIT_COMMIT_MESSAGE, initStorage, scaffoldFiles } from '../storage';
+import {
+  INIT_COMMIT_MESSAGE,
+  detectInitState,
+  initProjectCommitMessage,
+  initStorage,
+  resolveTemplate,
+  scaffoldFiles,
+  templateScaffold,
+} from '../storage';
 
 import { requireGitIdentity } from './git-identity';
 import { coreErr, coreOk, type CoreResult } from './types';
 
 /** Exact refusal message required by P1.1-git-backed-storage.feature scenario 3 — do not reword. */
 const NOT_A_GIT_REPO = "not a git repository: run 'git init' first";
+
+/**
+ * Exact message required by P5.1.1-init.feature scenario "Error - initializing an already-initialized
+ * project" — do not reword. Rendered by the CLI as `error: <message>` (spec-005 §3) and mapped to exit
+ * 1 (a well-formed invocation that failed on business logic, spec-005 §1) by `exitCodeForError`.
+ */
+export const WINGFOIL_ALREADY_INITIALIZED =
+  'WingFoil already initialized (use a migration command to change config)';
 
 /** What a successful init reports: the resolved root and the root-relative paths it created. */
 export interface InitStorageValue {
@@ -57,6 +73,57 @@ export function initWingfoilStorage(root: string): CoreResult<InitStorageValue> 
     return coreOk<InitStorageValue>(
       { root, files: scaffoldFiles().map((file) => file.path) },
       { sha, message: INIT_COMMIT_MESSAGE },
+    );
+  } catch (error) {
+    return coreErr({ code: 'IO', message: (error as Error).message });
+  }
+}
+
+/** What a successful `wingfoil init` reports: the root, the chosen template, and the created paths. */
+export interface InitProjectValue {
+  readonly root: string;
+  readonly template: string;
+  readonly files: readonly string[];
+}
+
+/**
+ * `wingfoil init` (task-029, P5.1.1): scaffold the COMPLETE spec-011 `.wingfoil/` layout for the
+ * `templateName` methodology template and stage it as a single commit — the CoreResult flow both the
+ * CLI wizard and the MCP surface drive (REQ-SYS-05). Config pillars ONLY (DNA/Directives/Workflow) —
+ * never Memory content (the `sw-life-cycle` workflow's `init`→`wingfoil-init` phase populates config
+ * pillars only, REQ-SYS-02); Memory documents are seeded later by `seed-first-release-line`.
+ *
+ * Guards, in the order their message must win:
+ *   1. `root` is a git repository (same exact message + no-write guarantee as {@link initWingfoilStorage}).
+ *   2. NOT already initialized (spec-011 `detectInitState` === 'initialized') → returns
+ *      {@link WINGFOIL_ALREADY_INITIALIZED} and overwrites NOTHING (returns before any write) — P5.1.1
+ *      scenario "Error - initializing an already-initialized project", exit 1.
+ *   3. `templateName` resolves to a known template (defense-in-depth; the CLI rejects an unknown
+ *      `--template` value as a usage error / exit 2 before reaching here).
+ *   4. git identity is configured (REQ-SEC-01, {@link requireGitIdentity}) — refuse an unattributable commit.
+ */
+export function initWingfoilProject(root: string, templateName: string): CoreResult<InitProjectValue> {
+  if (!existsSync(join(root, '.git'))) {
+    return coreErr({ code: 'VALIDATION', message: NOT_A_GIT_REPO });
+  }
+  if (detectInitState(root) === 'initialized') {
+    return coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
+  }
+  const template = resolveTemplate(templateName);
+  if (!template) {
+    return coreErr({ code: 'VALIDATION', message: `unknown template "${templateName}"` });
+  }
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity as CoreResult<InitProjectValue>;
+
+  try {
+    const files = templateScaffold(template);
+    const message = initProjectCommitMessage(template);
+    const sha = initStorage(root, files, message);
+    return coreOk<InitProjectValue>(
+      { root, template: template.name, files: files.map((file) => file.path) },
+      { sha, message },
     );
   } catch (error) {
     return coreErr({ code: 'IO', message: (error as Error).message });
