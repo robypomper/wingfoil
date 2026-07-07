@@ -64,6 +64,78 @@ describe('buildCliCommands — command derivation (spec-006 §4: CLI exposes eve
   });
 });
 
+describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1, task-028: `wingfoil paths [category]`)', () => {
+  let exitSpy: jest.SpyInstance;
+  let stdoutSpy: jest.SpyInstance;
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
+  // Unified seam (reconciled onto task-026's merged `ParamsContext.positional?: string`): `paths` is a
+  // flat, self-named op that declares only `flags: ['list']`; its `category` rides the SAME generic
+  // single bare positional `dna show`'s `section` does (no per-op positional metadata).
+  const FLAT_MODULES: CoreModule[] = [
+    {
+      name: 'paths',
+      operations: {
+        paths: {
+          name: 'paths',
+          mutates: false,
+          flags: ['list'],
+          fn: async () => coreOk({ category: 'sources', paths: ['src/'] }),
+        },
+      },
+    },
+  ];
+
+  it('a "self-named" operation (module name === operation name) derives an empty verb, not a subcommand', () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    const flat = findCommand(commands, 'paths', '');
+    expect(flat.verb).toBe('');
+    expect(flat.flags).toEqual(['list']);
+  });
+
+  it('`listRegisteredCliCommands` renders a flat command as the bare noun, not "noun " with a trailing space', () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    expect(listRegisteredCliCommands(commands)).toEqual(['paths']);
+  });
+
+  it('`run` forwards the single positional value and the parsed flags into `buildParams` via `ParamsContext`', async () => {
+    let seenPositional: unknown;
+    let seenFlags: unknown;
+    const commands = buildCliCommands(FLAT_MODULES, {
+      resolveRoot: () => '/fixture-root',
+      buildParams: (ctx) => {
+        seenPositional = ctx.positional;
+        seenFlags = ctx.flags;
+        return { root: ctx.root, positional: ctx.positional, ...(ctx.flags ?? {}) };
+      },
+    });
+    const flat = findCommand(commands, 'paths', '');
+    await flat.run('json', 'sources', { list: true });
+    expect(seenPositional).toBe('sources');
+    expect(seenFlags).toEqual({ list: true });
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ category: 'sources', paths: ['src/'] }) + '\n');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('`run` still works with no positional/flags supplied (backward compatible with the 1-arg call shape)', async () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    const flat = findCommand(commands, 'paths', '');
+    await expect(flat.run('console')).resolves.toBeUndefined();
+  });
+});
+
 describe('CliCommand.run — dispatch behavior', () => {
   let exitSpy: jest.SpyInstance;
   let stdoutSpy: jest.SpyInstance;

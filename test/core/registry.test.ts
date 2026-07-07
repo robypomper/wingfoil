@@ -48,6 +48,10 @@ describe('deriveVerb — mechanical {module}{Verb} camelCase -> verb derivation 
   it('falls back to the full (kebab-cased) operation name when it does not start with the module name', () => {
     expect(deriveVerb('dna', 'projectInit')).toBe('project-init');
   });
+
+  it('returns the empty string for a "self-named" operation (module name === operation name) — the flat/no-verb command form (spec-008-cli-grammar §1, e.g. `paths`)', () => {
+    expect(deriveVerb('paths', 'paths')).toBe('');
+  });
 });
 
 describe('enumerateOperations — deterministic, sorted flattening (REQ-SYS-07)', () => {

@@ -65,6 +65,20 @@ describe('registerCoreModules — channel split (REQ-SEC-05: only Tools mutate)'
     expect(tools.map((t) => t.name)).not.toContain('dna.show');
     expect(tools.map((t) => t.name)).not.toContain('memory.search');
   });
+
+  it('a "self-named" operation (flat/no-verb CLI command, task-028 `wingfoil paths`) registers under the bare-noun URI, not a trailing-slash one', async () => {
+    const FLAT_MODULES: CoreModule[] = [
+      {
+        name: 'paths',
+        operations: {
+          paths: { name: 'paths', mutates: false, fn: async () => coreOk({ category: 'sources', paths: ['src/'] }) },
+        },
+      },
+    ];
+    const { client } = await connectedClient(FLAT_MODULES);
+    const { resources } = await client.listResources();
+    expect(resources.map((r) => r.uri)).toEqual(['wingfoil://paths']);
+  });
 });
 
 describe('registerCoreModules — Tool dispatch', () => {

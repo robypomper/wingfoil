@@ -138,7 +138,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
-  it('every production operation is exposed as a Resource on the MCP side (all 3 are read-only today)', async () => {
+  it('every production operation is exposed as a Resource on the MCP side (all 4 are read-only today, task-028 adds `paths`)', async () => {
     const server = new McpServer({ name: 'parity-test-prod', version: '0.0.0' });
     registerCoreModules(server, CORE_MODULES as CoreModule[], {
       resolveRoot: () => '/fixture-root',
@@ -151,6 +151,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(resources.map((r) => r.uri).sort()).toEqual([
       'wingfoil://directives/list',
       'wingfoil://dna/show',
+      'wingfoil://paths',
       'wingfoil://workflow/list',
     ]);
     // 0 mutating ops in production today (see task-006 scope notes) — no `tools/list` handler is

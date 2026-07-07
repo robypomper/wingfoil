@@ -18,6 +18,18 @@ export interface CoreOperation<P = unknown, R = unknown> {
   /** `true` => MCP Tool only; `false` => MCP Resource only. CLI exposes both regardless (§2). */
   readonly mutates: boolean;
   readonly fn: CoreFn<P, R>;
+  /**
+   * Boolean CLI flag names this operation accepts beyond the global flags (spec-008-cli-grammar §2)
+   * — e.g. `['list']` for `paths`'s `--list` drill-down flag (task-028-implement-paths-category,
+   * P2.5). Additive and optional: an operation that declares none keeps exactly the bare-`{ root }`
+   * (+ generic `positional`) shape task-026 established. The bare positional argument itself is NOT
+   * declared here — it stays the single generic `[positional]` `src/cli/program.ts` registers on
+   * every command (task-026's seam, {@link ParamsContext.positional}); only extra `--{name}` flags
+   * are per-operation, since Commander rejects an unknown option so each must be registered
+   * explicitly. `src/cli/program.ts` registers one `--{name}` option per entry and threads the
+   * parsed boolean into {@link ParamsContext.flags}.
+   */
+  readonly flags?: readonly string[];
 }
 
 export interface CoreModule {
@@ -67,6 +79,13 @@ function camelToKebab(value: string): string {
  * cannot crash an adapter's entire registration pass.
  */
 export function deriveVerb(moduleName: string, operationName: string): string {
+  // A "self-named" operation — its name is EXACTLY the module name (e.g. module `paths`, operation
+  // `paths`) — derives the empty string, not a verb: this is spec-008-cli-grammar §1's flat/no-verb
+  // command form (`wingfoil <noun> [args] [flags]`, e.g. `wingfoil paths [category]`), as opposed to
+  // the `<noun> <verb>` form every other operation today derives (`wingfoil dna show`). Both
+  // `src/cli/program.ts` and `src/mcp/registrar.ts` special-case an empty verb to skip the
+  // subcommand/URI-segment nesting they otherwise add (task-028-implement-paths-category).
+  if (operationName === moduleName) return '';
   const startsWithModule = operationName.startsWith(moduleName) && operationName.length > moduleName.length;
   const suffix = startsWithModule ? operationName.slice(moduleName.length) : operationName;
   const withLeadingLower = suffix.length > 0 ? suffix[0]!.toLowerCase() + suffix.slice(1) : suffix;
@@ -77,29 +96,41 @@ export function deriveVerb(moduleName: string, operationName: string): string {
  * What a surface adapter (`src/cli`, `src/mcp`) knows about the call it is about to make — enough
  * for a caller-supplied {@link ParamsBuilder} to construct that operation's actual typed params.
  * Neither adapter hardcodes per-operation argv/Tool-input parsing here (that is each future
- * operation's own CLI-command / Tool-input-schema spec, per spec-005's own scope note) — today's registered
- * operations (see `src/core/index.ts` `CORE_MODULES`) all take a bare `{ root }`, so both adapters
- * are wired with a `buildParams` that returns exactly that; the seam exists so a later, richer
- * operation only requires a richer `buildParams`, not a registrar change.
+ * operation's own CLI-command / Tool-input-schema spec, per spec-005's own scope note) — every
+ * operation registered through task-006/task-027 took a bare `{ root }`; task-028-implement-paths-category
+ * is the first to need more, and does so exactly the way this interface's doc comment always
+ * anticipated: a richer `buildParams`, not a registrar change. `positional` is registered
+ * generically as a single `[positional]` on every derived CLI command (`src/cli/program.ts`) and
+ * threaded through `command.run` into `ctx.positional`; `flags` is populated from the matching
+ * operation's `CoreOperation.flags` declaration (`./registry.ts`). The MCP adapter's own mechanical,
+ * zero-argument Resource/Tool registration (`src/mcp/registrar.ts`) never populates either — a
+ * `buildParams` that ignores both (every `ParamsBuilder` before this task) keeps working unchanged.
  */
 export interface ParamsContext {
   readonly moduleName: string;
   readonly operationName: string;
   readonly root: string;
   /**
-   * The bare CLI positional argument following `<noun> <verb>`, if the invocation supplied one
-   * (e.g. `wingfoil dna show tech_stack` -> `"tech_stack"`) — task-026-implement-dna-show's
-   * generic extension of this seam. Deliberately untyped beyond `string | undefined` and
-   * deliberately singular: it is not `dna`-specific (any operation's `buildParams` may read it
-   * under whatever param name that operation's own `CoreFn` expects, e.g. `dnaShow`'s `section`
-   * lookup) and not itself validated here — an operation that needs a *required* positional (or
-   * more than one) still owns that validation in its own `CoreFn`, this seam only carries the raw
+   * The bare CLI positional argument following `<noun> <verb>` (or `<noun>` for a flat command),
+   * if the invocation supplied one (e.g. `wingfoil dna show tech_stack` -> `"tech_stack"`,
+   * `wingfoil paths sources` -> `"sources"`) — task-026-implement-dna-show's generic seam, kept as
+   * the single source of truth. Deliberately singular and untyped beyond `string | undefined`: any
+   * operation's `buildParams` reads it under whatever param name that operation's own `CoreFn`
+   * expects (`dnaShow`'s `section`, `paths`'s `category`), and an operation needing a *required*
+   * positional still owns that validation in its own `CoreFn` — this seam only carries the raw
    * value from the CLI adapter through to `buildParams`. The MCP surface has no equivalent
    * mechanical concept today (a zero-argument Resource template can't carry one — spec-004 §2.1's
    * own `wingfoil://dna/{section}` addressing is the MCP-side answer, wired independently in
    * `src/mcp/dna-resource.ts`), so an MCP `buildParams` simply never sets this field.
    */
   readonly positional?: string;
+  /**
+   * This operation's declared {@link CoreOperation.flags} names mapped to their parsed boolean
+   * values (task-028-implement-paths-category — e.g. `{ list: true }` for `wingfoil paths sources
+   * --list`). Additive alongside `positional`: an operation declaring no flags never has this set,
+   * and the MCP surface never populates it (same rationale as `positional`).
+   */
+  readonly flags?: Readonly<Record<string, boolean>>;
 }
 
 export type ParamsBuilder = (ctx: ParamsContext) => unknown;

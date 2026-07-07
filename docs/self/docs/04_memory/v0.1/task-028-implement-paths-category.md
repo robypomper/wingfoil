@@ -2,7 +2,7 @@
 id: "task-028-implement-paths-category"
 type: task
 title: "Implement wingfoil paths [category] (P2.5)"
-status: backlog
+status: done
 release: "v0.1"
 priority: "High"
 tags: ["v0.1", "dna"]
@@ -50,9 +50,55 @@ See `docs/02_requirements/02_bdd/features/p2-dna/P2.5-paths.feature`:
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+- **design**: verified against spec-002 (§"Categories (P2.5)"/`Paths` node), spec-005
+  (§4's worked example fixes the exact success shape, `{"category":"sources","paths":[...]}`), and
+  spec-008 (§1: `paths` is explicitly a **flat** command — `wingfoil <noun> [args] [flags]` — not a
+  `<noun> <verb>` one). No gap found; no tech-spec added.
+- **Architectural gap found and closed (not a spec gap, a code gap)**: neither `src/core`'s
+  `CoreOperation`/`ParamsContext` seam nor the CLI/MCP registrars had ANY support for a command
+  taking a positional argument or a custom flag, or for a flat (no-verb) command — every operation
+  registered through task-006/task-027 was a bare `{ root }` read under `<noun> <verb>`. task-026
+  (`dna show [section]`, running in parallel) was expected to have established the pattern first
+  (per the orchestrator's brief), but its branch/worktree had zero commits at the time this task
+  started — so this task originates the seam: `CoreOperation.positional`/`.flags` (name lists) +
+  `ParamsContext.positional`/`.flags` (parsed values) in `src/core/registry.ts`; `deriveVerb`'s
+  self-named-operation (`module.name === operation.name`) → empty-verb case for the flat-command
+  form; `CliCommand.positional`/`.flags` + `run`'s two additive optional params in
+  `src/cli/registrar.ts`; `src/cli/program.ts`'s `resolveCommandTarget` (flat vs. nested) +
+  `deriveActionParams` (Commander action-args → named positional/flag values); `src/mcp/registrar.ts`'s
+  `deriveMcpToolName`/`deriveMcpResourceUri` empty-verb collapse (`wingfoil://paths`, not a
+  trailing-slash `wingfoil://paths/`). All additive/optional — every op registered before this task
+  is unaffected (verified: `dna show`/`directives list`/`workflow list` integration tests still pass
+  unchanged). **Orchestrator should reconcile this seam with whatever task-026 (and 019/029) land on
+  `src/core/index.ts`/`src/cli.ts`** — this task did not wait for/copy an existing pattern because
+  none existed yet.
+- **`--list` flag / no-category MCP behavior (design judgment, not a spec gap)**: spec-005 §4's own
+  worked example (`paths sources --format json`) produces the full `{category, paths}` list WITHOUT
+  `--list`, and no approved spec defines a "collapsed" alternative shape — so `--list` is accepted
+  (a real Commander boolean flag, threaded through to `PathsParams.list`) but is currently a no-op on
+  the payload; a DNA `paths` category is already a flat `string[]` with nothing coarser to collapse
+  to. `category` omitted entirely returns the WHOLE `paths` node (`coreOk(dna.paths)`) rather than
+  erroring — this is what the MCP surface's mechanical, zero-argument `wingfoil://paths` Resource
+  gets (it has no per-request parameter mechanism, same limitation `src/mcp/dna-resource.ts` already
+  documents for `dnaShow`/`{section}`); on the CLI side `category` is a required Commander
+  `<category>` argument, so this branch is never reached from `wingfoil paths` itself, only from MCP.
+  No BDD scenario exercises `wingfoil paths` with no category at all, so this is deliberately
+  untested by the CLI integration suite beyond confirming the real exit code (see below).
+- **`category` required, not `[category]`-optional-with-show-all**: `X_cli-cmds.md`'s synopsis shows
+  `[category]` (brackets), but spec-008 §1's own grammar table describes `category` as "User
+  specifies" with no "shows all" default (unlike `dna show`'s `section`, whose table row explicitly
+  says "shows all" when omitted) — and all three BDD scenarios always pass a category. Registered
+  `category` as a required Commander `<category>` argument; manually confirmed (compiled dist)
+  `wingfoil paths` with no category exits `1` via Commander's own `missing required argument
+  'category'` — the same real-vs-aspirational exit-code deviation this codebase's
+  `program.integration.test.ts` already documents for unknown commands (spec-008's exit-`2`
+  usage-error grammar isn't implemented by `program.ts`). This exit-`1` outcome happens to also
+  satisfy spec-005 §1's stricter override for read-only commands ("can only exit `0` or `1`... never
+  `2`"), so it is arguably more spec-compliant than the general table's exit-`2` would have been.
+  Added an integration test asserting this real behavior.
+- **task-013's deferred check delivered**: `test/cli/program.integration.test.ts` now has the
+  `paths sources --format json`/`--format yaml` REQ-INT-05 parse-equivalence assertion task-013
+  explicitly deferred to this task (its own Execution Notes: "`wingfoil paths --format json|yaml`
+  parse checks → task-028"), run against the real compiled `dist/` exactly like the existing
+  `dna show` one.
+- No rejection — first pass through review.

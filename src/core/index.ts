@@ -12,7 +12,7 @@
  * `directiveCreate`, ...) are feature work for task-018..030, not this task.
  */
 import { ValidationError } from '../validation';
-import type { DnaYaml } from '../dna/schema';
+import type { DnaYaml, Paths } from '../dna/schema';
 
 import {
   loadDirectives,
@@ -52,8 +52,8 @@ export interface RootParams {
  * becomes `VALIDATION`, a missing file (Node's `ENOENT`) becomes `NOT_FOUND`; anything else
  * propagates as a genuine thrown exception (a programmer bug, not a domain failure — spec-006 §2's
  * "no function throws for *expected* domain failures" implies unexpected ones still may). Factored
- * out of `wrapReadOnly` so `dnaShowFn` below can reuse the exact same mapping for its own richer,
- * section-aware body instead of duplicating it.
+ * out of `wrapReadOnly` so both `dnaShowFn` (task-026) and `pathsFn` (task-028) reuse the exact
+ * same mapping for their own richer, argument-aware bodies instead of duplicating it.
  */
 function loadOrError<R>(loader: () => R): CoreResult<R> {
   try {
@@ -77,6 +77,63 @@ function wrapReadOnly<R>(loader: (root: string) => R): CoreFn<unknown, R> {
     return loadOrError(() => loader(root));
   };
 }
+
+/**
+ * `wingfoil paths [category]` params (task-028-implement-paths-category) — the same generic seam
+ * `dnaShowFn` reads: `positional` is the bare CLI positional (`ParamsContext.positional`,
+ * `core/registry.ts` — task-026's single source of truth), interpreted here as the resource-path
+ * **category**; `list` is the parsed `--list` flag (`ParamsContext.flags.list`, spread into params by
+ * `buildParams`). `category`/`--list` are optional: an omitted category returns the whole `paths`
+ * node (what the MCP surface's mechanical zero-argument `wingfoil://paths` Resource gets — it has no
+ * per-request parameter, the same limitation `src/mcp/dna-resource.ts` documents for `dnaShow`).
+ * `--list` is accepted (spec-008/X_cli-cmds.md's "drill-down") but currently a no-op on the returned
+ * value: a DNA `paths` category is already a flat `string[]` with nothing coarser to collapse to, and
+ * spec-005-cli-command-contract §4's own worked example (`paths sources --format json` ->
+ * `{"category":"sources","paths":[...]}`) shows the full list without `--list` either — so there is
+ * no approved "collapsed" shape to switch away from. */
+export interface PathsParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly list?: boolean;
+}
+
+/** `wingfoil paths <category>` success shape — spec-005-cli-command-contract §4's worked example,
+ * verbatim (`{"category":"sources","paths":["src/cli","src/core"]}`). */
+export interface PathsShowResult {
+  readonly category: string;
+  readonly paths: readonly string[];
+}
+
+/**
+ * `paths` `CoreOperation.fn` (P2.5, spec-002-dna-yaml-schema's `Paths` node) —
+ * task-028-implement-paths-category. Loads `.wingfoil/dna.yaml` via the same `loadOrError` +
+ * `loadDnaYaml` path `dnaShowFn` uses, then narrows to one category (the bare positional):
+ *
+ * - category given and mapped (a non-empty array) -> `coreOk({category, paths})` (spec-005 §4 shape).
+ * - category given but absent/empty in `paths:` -> `coreErr(NOT_FOUND, "no paths mapped for
+ *   category '<category>'")` — the exact BDD `P2.5-paths.feature` "Error - querying an undefined
+ *   category" wording (exit `1` via `exit-code.ts`, never a throw, never exit `2` — a read-only
+ *   command, spec-005 §1; symmetric with `dnaShowFn`'s own unknown-section `NOT_FOUND`).
+ * - category omitted -> `coreOk(<whole paths node>)` (see {@link PathsParams}'s doc comment on why;
+ *   symmetric with `dna show` returning the whole DNA when no section is given).
+ *
+ * `dna.paths` is `.passthrough()` (spec-002), so an entry beyond the five named categories is still a
+ * plain object property here, not necessarily an array — `Array.isArray` guards that case rather than
+ * assuming the shape.
+ */
+const pathsFn: CoreFn<unknown, PathsShowResult | Paths> = async (params) => {
+  const { root, positional: category } = params as PathsParams;
+  const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
+  if (!loaded.ok) return loaded;
+  if (category === undefined) return coreOk(loaded.value.paths);
+
+  const raw = (loaded.value.paths as Record<string, unknown>)[category];
+  const entries = Array.isArray(raw) ? (raw as string[]) : undefined;
+  if (!entries || entries.length === 0) {
+    return coreErr({ code: 'NOT_FOUND', message: `no paths mapped for category '${category}'` });
+  }
+  return coreOk({ category, paths: entries });
+};
 
 /**
  * `dna show [section]` (P2.2-implement-dna-show, task-026): resolves `ParamsContext.positional`
@@ -113,8 +170,13 @@ const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
  * SCOPE (task-006-dual-interface-shared-core, see the task's Execution Notes for the full
  * rationale): only the core functions that already legitimately exist are wired in here today —
  * task-004's three read-only per-pillar loaders that have a natural spec-006 §3 counterpart
- * (`dnaShow`, `directivesList`, `workflowList` — all `mutates: false`). `loadMemoryYaml` is
- * deliberately NOT registered as a `memory` module operation: it loads the Memory *pillar's own
+ * (`dnaShow`, `directivesList`, `workflowList` — all `mutates: false`), plus
+ * task-028-implement-paths-category's `paths` (P2.5, `wingfoil paths [category]`) — the first FLAT,
+ * no-verb command (`deriveVerb('paths', 'paths') === ''`, spec-008-cli-grammar §1) and the first to
+ * declare a `--list` flag (`CoreOperation.flags`, `./registry.ts`); its `category` rides the same
+ * generic bare-positional seam `dna show`'s `section` does (task-026's `ParamsContext.positional`),
+ * so no per-operation positional metadata is needed here. `loadMemoryYaml`
+ * is deliberately NOT registered as a `memory` module operation: it loads the Memory *pillar's own
  * config* (`memory.yaml`'s types/state-machines), a different concept from spec-006 §3's `memory`
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
  * under a `memoryXxx` name would misrepresent it as the latter. There is intentionally zero
@@ -139,6 +201,15 @@ export const CORE_MODULES: readonly CoreModule[] = [
         mutates: false,
         fn: wrapReadOnly<DirectiveFile[]>(loadDirectives),
       },
+    },
+  },
+  {
+    name: 'paths',
+    operations: {
+      // Self-named (operation name === module name) — the flat/no-verb `wingfoil paths [category]`
+      // form (see `deriveVerb`, `./registry.ts`), not `wingfoil paths paths`. `category` rides the
+      // generic bare positional (task-026's seam); only `--list` is declared here.
+      paths: { name: 'paths', mutates: false, flags: ['list'], fn: pathsFn },
     },
   },
   {

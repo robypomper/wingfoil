@@ -32,7 +32,7 @@ import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
 import type { CoreModule } from '../core/registry';
 
-import { buildCliCommands, type BuildCommandsOptions } from './registrar';
+import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
 
 /**
  * The CLI version, read from `package.json` deterministically (REQ-SYS-07 — no wall-clock, no
@@ -59,24 +59,65 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
 
   const nounCommands = new Map<string, Command>();
   for (const command of buildCliCommands(modules, options)) {
-    let nounCommand = nounCommands.get(command.noun);
-    if (!nounCommand) {
-      nounCommand = program.command(command.noun);
-      nounCommands.set(command.noun, nounCommand);
+    const target = resolveCommandTarget(program, nounCommands, command);
+
+    // A single optional bare positional (task-026-implement-dna-show's generic seam,
+    // `../core/registry.ts`'s `ParamsContext.positional`) — registered on every command regardless
+    // of whether its operation reads it (harmless if ignored), so `dna show [section]` and
+    // `paths [category]` share ONE positional mechanism. Plus this command's own `--{flag}` options
+    // (task-028-implement-paths-category's `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander
+    // rejects an unknown option, so each declared flag must be registered explicitly.
+    target.argument('[positional]', 'optional positional argument (e.g. a section/category name)');
+    for (const name of command.flags ?? []) {
+      target.option(`--${name}`, `${name} flag`);
     }
-    nounCommand
-      .command(command.verb)
-      // A single optional bare positional (task-026-implement-dna-show's generic seam, `../core/registry.ts`'s
-      // `ParamsContext.positional`) — registered on every derived command regardless of whether its
-      // own operation reads it, since this thin adapter has no per-operation argument metadata to
-      // register conditionally (spec-006 §2's `CoreOperation` shape is just `{name, mutates, fn}`).
-      // Harmless for a command that ignores it (`buildParams` simply never forwards it).
-      .argument('[positional]', 'optional positional argument (e.g. a section/category name)')
-      .action(async (positional: string | undefined) => {
-        const globalOpts = program.opts<{ format: string }>();
-        await command.run(globalOpts.format, positional);
-      });
+
+    // Commander's action callback for a `[positional]` + options command is `(positionalValue,
+    // optionsObject, commandObject)`. Forward the positional as-is (task-026) and collapse this
+    // command's declared flags into a `{ name: boolean }` record (task-028) for `command.run`.
+    target.action(async (positional: string | undefined, options: Record<string, unknown> = {}) => {
+      const globalOpts = program.opts<{ format: string }>();
+      await command.run(globalOpts.format, positional, buildFlagValues(command, options));
+    });
   }
 
   return program;
+}
+
+/**
+ * The Commander `Command` a `CliCommand` registers itself on: a flat, no-verb command
+ * (`command.verb === ''` — `deriveVerb`'s self-named-operation case, spec-008-cli-grammar §1's
+ * `wingfoil <noun> [args] [flags]` form, e.g. `wingfoil paths [category]` —
+ * task-028-implement-paths-category) registers directly on the noun `Command` itself; every other
+ * (`<noun> <verb>`) command keeps nesting under it exactly as before task-028.
+ */
+function resolveCommandTarget(program: Command, nounCommands: Map<string, Command>, command: CliCommand): Command {
+  if (!command.verb) return program.command(command.noun);
+
+  let nounCommand = nounCommands.get(command.noun);
+  if (!nounCommand) {
+    nounCommand = program.command(command.noun);
+    nounCommands.set(command.noun, nounCommand);
+  }
+  return nounCommand.command(command.verb);
+}
+
+/**
+ * Collapse this command's declared `CoreOperation.flags` names (`./registrar.ts`'s `CliCommand.flags`)
+ * into a `{ name: boolean }` record read from Commander's parsed options object, so `command.run`
+ * (Commander-independent) never has to know Commander's option-object shape. Returns `undefined` when
+ * the command declares no flags (every command before task-028-implement-paths-category), matching
+ * `CliCommand.run`'s already-optional `flags` parameter.
+ */
+function buildFlagValues(
+  command: CliCommand,
+  options: Record<string, unknown>,
+): Readonly<Record<string, boolean>> | undefined {
+  const flagNames = command.flags ?? [];
+  if (flagNames.length === 0) return undefined;
+  const flagValues: Record<string, boolean> = {};
+  for (const name of flagNames) {
+    flagValues[name] = Boolean(options[name]);
+  }
+  return flagValues;
 }

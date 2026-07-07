@@ -115,8 +115,9 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
   });
 
   it('REQ-INT-05 fit criterion: `--format json` and `--format yaml` parse to the SAME structure, stderr empty (task-013)', () => {
-    // Stand-in for the AC's `wingfoil paths` / `wingfoil workflow status` cases (those commands do not
-    // exist yet — task-028+); `dna show` exercises the same shared --format envelope every command inherits.
+    // Stand-in for the AC's `wingfoil paths` / `wingfoil workflow status` cases; the `paths` case
+    // itself is now covered directly below (task-028) — `dna show` still exercises the same shared
+    // --format envelope every command inherits, `workflow status` remains its own owning task's job.
     const asJson = runCli('dna', 'show', '--format', 'json');
     const asYaml = runCli('dna', 'show', '--format', 'yaml');
 
@@ -181,6 +182,75 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
     expect(result.status).toBe(1);
     expect(result.stderr).toBe("error: no DNA key named 'nonexistent_section'\n");
     expect(result.stdout).toBe('');
+  });
+
+  // task-028-implement-paths-category (P2.5, BDD `p2-dna/P2.5-paths.feature`). `paths` is registered
+  // as a FLAT command (spec-008-cli-grammar §1: `wingfoil <noun> [args] [flags]`, no verb segment) —
+  // these assertions exercise the real `program.ts` flat-command wiring, not just `registrar.ts`'s
+  // Commander-independent model (already covered by `test/cli/registrar.test.ts`). The fixture DNA
+  // (`test/cli/fixtures/wingfoil-root/.wingfoil/dna.yaml`) maps only `paths.sources: [src/]` — no
+  // `governance` — matching the BDD "undefined category" scenario exactly.
+  describe('`paths [category]` — flat command (task-028, P2.5)', () => {
+    it('`paths sources --list` outputs the mapped entries and exits 0 (BDD "List paths for a category")', () => {
+      const result = runCli('paths', 'sources', '--list');
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('src/');
+    });
+
+    it('`paths sources --format json` exits 0 and prints spec-005 §4\'s exact worked-example shape', () => {
+      const result = runCli('paths', 'sources', '--format', 'json');
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ category: 'sources', paths: ['src/'] });
+      expect(result.stderr).toBe('');
+    });
+
+    it('`paths sources --format yaml` exits 0 and prints the same structure as YAML', () => {
+      const result = runCli('paths', 'sources', '--format', 'yaml');
+      expect(result.status).toBe(0);
+      expect(yamlLoad(result.stdout)).toEqual({ category: 'sources', paths: ['src/'] });
+      expect(result.stderr).toBe('');
+    });
+
+    it('REQ-INT-05 fit criterion (task-013\'s deferred check, delivered here): `--format json`/`--format yaml` parse to the SAME structure for `paths`, stderr empty', () => {
+      const asJson = runCli('paths', 'sources', '--format', 'json');
+      const asYaml = runCli('paths', 'sources', '--format', 'yaml');
+
+      expect(asJson.status).toBe(0);
+      expect(asYaml.status).toBe(0);
+      expect(yamlLoad(asYaml.stdout)).toEqual(JSON.parse(asJson.stdout));
+      expect(asJson.stderr).toBe('');
+      expect(asYaml.stderr).toBe('');
+    });
+
+    it('`paths sources` (console, default format) also contains the mapped entry, --list not required for it to appear', () => {
+      const result = runCli('paths', 'sources');
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('src/');
+    });
+
+    it('`paths governance` (unmapped category) exits 1 with the exact BDD error message (P2.5 "Error - querying an undefined category")', () => {
+      const result = runCli('paths', 'governance');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: no paths mapped for category 'governance'\n");
+      expect(result.stdout).toBe('');
+    });
+
+    it('`paths governance --format json` reports the same error, structured, on stderr', () => {
+      const result = runCli('paths', 'governance', '--format', 'json');
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stderr)).toEqual({ error: "no paths mapped for category 'governance'" });
+      expect(result.stdout).toBe('');
+    });
+
+    it('`paths` with no `category` returns the whole `paths` node and exits 0 — symmetric with `dna show` (no section = full DNA), per task-026\'s shared optional `[positional]` seam', () => {
+      // Reconciled onto task-026's generic OPTIONAL `[positional]` (`X_cli-cmds.md`'s `[category]`
+      // synopsis is bracketed = optional); an omitted category is not an error, it drills up to the
+      // full `paths` map — exit 0, never exit 2 (read-only command, spec-005 §1).
+      const result = runCli('paths', '--format', 'json');
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ sources: ['src/'] });
+      expect(result.stderr).toBe('');
+    });
   });
 
   it('an invalid --format value exits 2 with the usage-error message on stderr, never touching stdout', () => {
