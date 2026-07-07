@@ -90,7 +90,8 @@ export interface InitProjectValue {
  * `wingfoil init` (task-029, P5.1.1): scaffold the COMPLETE spec-011 `.wingfoil/` layout for the
  * `templateName` methodology template and stage it as a single commit — the CoreResult flow both the
  * CLI wizard and the MCP surface drive (REQ-SYS-05). Config pillars ONLY (DNA/Directives/Workflow) —
- * never Memory content (CLAUDE.md §6); Memory documents are seeded later by `seed-first-release-line`.
+ * never Memory content (the `sw-life-cycle` workflow's `init`→`wingfoil-init` phase populates config
+ * pillars only, REQ-SYS-02); Memory documents are seeded later by `seed-first-release-line`.
  *
  * Guards, in the order their message must win:
  *   1. `root` is a git repository (same exact message + no-write guarantee as {@link initWingfoilStorage}).

@@ -48,7 +48,7 @@ describe('initWingfoilProject — success (P5.1.1 AC (a))', () => {
     expect(existsSync(join(repo, '.wingfoil', 'workflows', 'custom', 'sw-life-cycle.yaml'))).toBe(true);
   });
 
-  it('records the whole layout in a SINGLE commit (spec-011 / CLAUDE.md §5.1)', () => {
+  it('records the whole layout in a SINGLE commit (spec-011 / P1.1 git-backed storage)', () => {
     repo = makeTempGitRepo(); // fresh repo: no commits yet, so the init commit is the only one
     initWingfoilProject(repo, 'Kanban');
     const count = execFileSync('git', ['-C', repo, 'rev-list', '--count', 'HEAD'], {
