@@ -126,8 +126,11 @@ describe('task-030 — production MCP server (createMcpServer), spec-014 §2', (
 
     const messages = await attemptEveryResourceWrite(client, 'wingfoil://memory/decision-log/decision-12');
 
+    // The refusal string is byte-exact; over the JSON-RPC transport the SDK envelopes a thrown error
+    // as `MCP error -32603: <message>`, so the exact spec-004 §2.3 string is carried verbatim inside
+    // it (same `.toContain` convention as task-011's read-only-resources.test.ts).
     expect(messages).toHaveLength(2);
-    messages.forEach((message) => expect(message).toBe(WRITE_REFUSAL_MESSAGE));
+    messages.forEach((message) => expect(message).toContain(WRITE_REFUSAL_MESSAGE));
     assertFilesUnchanged(root, before);
   });
 
