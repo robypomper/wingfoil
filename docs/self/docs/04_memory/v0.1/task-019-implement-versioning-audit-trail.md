@@ -2,7 +2,7 @@
 id: "task-019-implement-versioning-audit-trail"
 type: task
 title: "Implement Versioning & Audit Trail (P1.2)"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -54,9 +54,34 @@ they are committed.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Worked on branch `task/task-019-implement-versioning-audit-trail` (dedicated worktree), parallel to
+Batch-B siblings (task-026/028/029).
+
+- **design (scope finding):** checked P1.2 against `spec-011-storage-layout` (approved; describes
+  `.wingfoil/` layout, not touched by this task) and CLAUDE.md §5.1 (the commit-format convention).
+  No gap: the commit-per-state-change + attribution contract P1.2 asks for is already fully built —
+  `commitPaths` (task-018, `src/storage/commit.ts`) is the "one state change = one scoped, attributable
+  commit" mechanism; `requireGitIdentity` (task-014, `src/core/git-identity.ts`) is the write-time
+  precondition with the exact REQ-SEC-01 refusal message; `auditAttribution`/
+  `reconstructMemoryTransitions` (task-015, `src/memory/audit.ts`) are the read-time "0 unknown
+  author" / transition-reconstruction verification. No new tech-spec needed.
+- **ADR-007 cross-check:** the BDD scenario's "commit message references the document id and new
+  state" is satisfied differently per CLAUDE.md §5.1's actual convention: `add`/`submit` subjects
+  carry only the doc id (no `[old → new]` bracket — that's reserved for `approve`/`reject`/
+  `deprecate`); the new state is derived from the frontmatter actually committed, never from the
+  subject text (already documented in `audit.ts`'s module doc, ADR-007). Verified rather than
+  re-litigated.
+- **red/green (honest TDD note, like task-013):** since every piece already exists and is already
+  covered by task-014/015/018's own unit suites, there was no failing state to drive — the value add
+  here is a genuinely new **integration** suite,
+  `test/memory/versioning-audit-trail.test.ts`, that exercises all three P1.2 BDD scenarios
+  end-to-end (real temp git repos, real `commitPaths`/`requireGitIdentity`/`auditAttribution` calls)
+  in one place, which didn't exist before (the existing suites test each primitive in isolation, never
+  composed together against the literal BDD scenario text). All 4 new tests passed on the first run —
+  a characterization/verification suite, not a red→green cycle. No production code change; no
+  refactor phase (nothing to refactor).
+- **checks:** full suite green (389 tests, up from 385), `npx tsc --noEmit` exit 0, coverage 98.73%
+  lines / 87.68% branches overall (> 80% threshold; no new production code, so coverage is
+  unaffected by this task).
+- **deviations:** none from the plan. P1.2 is a verification-only close, same shape as task-013
+  (REQ-INT-05).
