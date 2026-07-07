@@ -63,3 +63,18 @@ engine), whose ID/type validation this schema engine drives.
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+- **design**: No spec gap. `spec-001-memory-yaml-schema` (approved) already mandates the P1.13
+  behaviour end-to-end: the `sequence`/`gates`/`waiting` `StateMachine` sub-schema (initial state =
+  `sequence[0]`, spec-001 "Consequences: `initial:` is retired"), the `defaults.states` fallback
+  (REQ-STATE-08), and "Semantic validation (post-parse): every key in `gates` and every entry in
+  `waiting` MUST be a member of `sequence`". AC (a) and AC (b) are already implemented by
+  task-004 (`src/memory/schema.ts`) + task-005/010 (`src/memory/state-machine.ts`) and were only
+  *verified* here. AC (c) — the undeclared-transition-target rejection — is already rejected
+  structurally by task-004's `StateMachine.superRefine` (`gates` key / `waiting` entry not in
+  `sequence`), but NOT with P1.13's exact type-contextualized wording
+  (`transition target '<state>' not in declared states for type '<type>'`); the `StateMachine`
+  sub-schema cannot name the owning type. Added a `MemoryYaml`-level `.superRefine` (the only layer
+  that knows the type name) emitting that message. `gates.<state>.reject` targets are deliberately
+  NOT checked — spec-001 explicitly permits off-chain reject targets ("need **not** be a member of
+  `sequence` ... e.g. `bug`'s `open: { reject: closed }`").
