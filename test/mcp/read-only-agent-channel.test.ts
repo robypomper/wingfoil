@@ -72,18 +72,18 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes exactly one mutating Tool today (dna.set, task-025)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes exactly `dna.set` — the first mutating op', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dna.set, memory.add — task-025/020)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes `dna.set` + `memory.add` — the mutating ops', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
-    // ...and task-025-implement-dna-set adds the FIRST mutating core op (`dna.dnaSet`), so it — and
-    // only it — is registered under Tools (the remaining mutating ops arrive with task-020+).
+    // ...and task-025 (`dna.dnaSet`) + task-020 (`memory.memoryAdd`) are the mutating core ops, so they
+    // — and only they — are registered under Tools (the remaining mutating ops arrive with task-021+).
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    expect(mutatingOps.map((op) => op.name)).toEqual(['dnaSet']);
+    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['dnaSet', 'memoryAdd']);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set', 'memory.add']);
   });
 
   it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {
