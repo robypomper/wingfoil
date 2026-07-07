@@ -64,10 +64,18 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
       nounCommand = program.command(command.noun);
       nounCommands.set(command.noun, nounCommand);
     }
-    nounCommand.command(command.verb).action(async () => {
-      const globalOpts = program.opts<{ format: string }>();
-      await command.run(globalOpts.format);
-    });
+    nounCommand
+      .command(command.verb)
+      // A single optional bare positional (task-026-implement-dna-show's generic seam, `../core/registry.ts`'s
+      // `ParamsContext.positional`) — registered on every derived command regardless of whether its
+      // own operation reads it, since this thin adapter has no per-operation argument metadata to
+      // register conditionally (spec-006 §2's `CoreOperation` shape is just `{name, mutates, fn}`).
+      // Harmless for a command that ignores it (`buildParams` simply never forwards it).
+      .argument('[positional]', 'optional positional argument (e.g. a section/category name)')
+      .action(async (positional: string | undefined) => {
+        const globalOpts = program.opts<{ format: string }>();
+        await command.run(globalOpts.format, positional);
+      });
   }
 
   return program;

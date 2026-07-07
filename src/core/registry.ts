@@ -86,6 +86,20 @@ export interface ParamsContext {
   readonly moduleName: string;
   readonly operationName: string;
   readonly root: string;
+  /**
+   * The bare CLI positional argument following `<noun> <verb>`, if the invocation supplied one
+   * (e.g. `wingfoil dna show tech_stack` -> `"tech_stack"`) — task-026-implement-dna-show's
+   * generic extension of this seam. Deliberately untyped beyond `string | undefined` and
+   * deliberately singular: it is not `dna`-specific (any operation's `buildParams` may read it
+   * under whatever param name that operation's own `CoreFn` expects, e.g. `dnaShow`'s `section`
+   * lookup) and not itself validated here — an operation that needs a *required* positional (or
+   * more than one) still owns that validation in its own `CoreFn`, this seam only carries the raw
+   * value from the CLI adapter through to `buildParams`. The MCP surface has no equivalent
+   * mechanical concept today (a zero-argument Resource template can't carry one — spec-004 §2.1's
+   * own `wingfoil://dna/{section}` addressing is the MCP-side answer, wired independently in
+   * `src/mcp/dna-resource.ts`), so an MCP `buildParams` simply never sets this field.
+   */
+  readonly positional?: string;
 }
 
 export type ParamsBuilder = (ctx: ParamsContext) => unknown;

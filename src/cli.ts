@@ -24,7 +24,7 @@ import { resolveProjectRoot } from './storage/git-root';
 
 buildProgram(CORE_MODULES, {
   resolveRoot: () => resolveProjectRoot(process.cwd()),
-  buildParams: (ctx) => ({ root: ctx.root }),
+  buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional }),
 })
   .then((program) => program.parseAsync(process.argv))
   .catch((error: unknown) => {

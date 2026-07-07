@@ -33,7 +33,7 @@ function main() {
 
   return buildProgram(CORE_MODULES, {
     resolveRoot: () => fixtureRoot,
-    buildParams: (ctx) => ({ root: ctx.root }),
+    buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional }),
   }).then((program) => program.parseAsync(['node', 'wingfoil', ...cliArgs]));
 }
 

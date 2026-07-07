@@ -159,6 +159,30 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
     expect(value.workflows).toEqual([expect.objectContaining({ name: 'main', kind: 'main' })]);
   });
 
+  it('`dna show team --format json` prints only the "team" subtree (P2.2, task-026)', () => {
+    const result = runCli('dna', 'show', 'team', '--format', 'json');
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      members: [{ name: 'Test User', roles: ['developer'] }],
+      roles: [{ name: 'developer' }],
+    });
+    expect(result.stderr).toBe('');
+  });
+
+  it('`dna show tech_stack --format json` resolves the BDD-compat alias to the "stacks" subtree (P2.2, spec-002, task-026)', () => {
+    const full = runCli('dna', 'show', '--format', 'json');
+    const aliased = runCli('dna', 'show', 'tech_stack', '--format', 'json');
+    expect(aliased.status).toBe(0);
+    expect(JSON.parse(aliased.stdout)).toEqual((JSON.parse(full.stdout) as { stacks: unknown }).stacks);
+  });
+
+  it('`dna show nonexistent_section` exits 1 with the exact P2.2 error message, never exit 2 (read-only command, task-026)', () => {
+    const result = runCli('dna', 'show', 'nonexistent_section');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("error: no DNA key named 'nonexistent_section'\n");
+    expect(result.stdout).toBe('');
+  });
+
   it('an invalid --format value exits 2 with the usage-error message on stderr, never touching stdout', () => {
     const result = runCli('dna', 'show', '--format', 'xml');
     expect(result.status).toBe(2);

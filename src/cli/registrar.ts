@@ -35,8 +35,14 @@ export interface CliCommand {
   readonly noun: string;
   readonly verb: string;
   readonly mutates: boolean;
-  /** Execute this command given the resolved `--format` flag value (still unvalidated at this point). */
-  readonly run: (formatValue: string) => Promise<void>;
+  /**
+   * Execute this command given the resolved `--format` flag value (still unvalidated at this
+   * point) and, optionally, the single bare positional argument the invocation supplied after
+   * `<noun> <verb>` (e.g. `wingfoil dna show tech_stack` -> `"tech_stack"` —
+   * task-026-implement-dna-show's generic seam, `core/registry.ts`'s `ParamsContext.positional`).
+   * Commands that don't need one simply never read it from `buildParams`.
+   */
+  readonly run: (formatValue: string, positional?: string) => Promise<void>;
 }
 
 /**
@@ -50,7 +56,7 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
       noun: module.name,
       verb,
       mutates: operation.mutates,
-      run: async (formatValue: string) => {
+      run: async (formatValue: string, positional?: string) => {
         if (!isValidFormat(formatValue)) {
           exitWith(2, `error: invalid --format value "${formatValue}", expected one of: console, json, yaml`);
           return;
@@ -67,6 +73,7 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
             moduleName: module.name,
             operationName: operation.name,
             root: options.resolveRoot(),
+            positional,
           });
           result = await operation.fn(params);
         } catch (error) {
