@@ -2,7 +2,7 @@
 id: "task-018-implement-git-backed-storage"
 type: task
 title: "Implement Git-Backed Storage (P1.1)"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -57,3 +57,18 @@ written into this structure.
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+- **design:** scope confirmed as a storage-layer contract against `spec-011-storage-layout` (approved).
+  No spec gap — spec-011 itself names `wingfoil init` (task-029) as the eventual producer of the full
+  layout, so this task delivers the reusable primitives + the minimal committed skeleton and DEFERS the
+  full spec-011 layout population and the CLI wizard to task-029. No new `CORE_MODULES` op (no distinct
+  verb beyond `init`).
+- **green:** KEYSTONE `commitPaths(root, paths, message, options?): string` in `src/storage/commit.ts`
+  (scoped `git add -- <paths>`, one commit, returns sha; `execFileSync` + explicit `env`, mirrors
+  `src/memory/git-log.ts`). `initStorage(root, files?, message?)` + `scaffoldFiles()` + `WINGFOIL_DIR`
+  in `src/storage/layout.ts` (write+commit mechanism; `files` override is task-029's wizard hook).
+  `initWingfoilStorage(root): CoreResult` in `src/core/init.ts` wires not-a-git-repo → VALIDATION
+  (exact msg `not a git repository: run 'git init' first`) → exit 1, plus the REQ-SEC-01 identity
+  pre-flight. All exported from the storage/core barrels.
+- **review:** `tsc --noEmit` clean; full suite 370 pass (+14); new-code coverage 100% branch/func,
+  ~97% stmts. `git ls-tree HEAD -- node_modules` empty (only scoped `git add`, never `-A`).
