@@ -12,11 +12,11 @@ import { CORE_MODULES } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('CORE_MODULES — production registry', () => {
-  it('registers exactly the three currently-existing read-only pillar-loader operations', () => {
+  it('registers exactly the four currently-existing read-only operations (task-028 adds `paths`)', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
-    expect(flat).toEqual(['directives.directivesList', 'dna.dnaShow', 'workflow.workflowList']);
+    expect(flat).toEqual(['directives.directivesList', 'dna.dnaShow', 'paths.paths', 'workflow.workflowList']);
   });
 
   it('every currently-registered operation is read-only (mutates: false) — no mutating op exists yet', () => {
@@ -144,6 +144,38 @@ phases:
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('VALIDATION');
+    }
+  });
+
+  // task-028-implement-paths-category (P2.5): `paths` queries the same `.wingfoil/dna.yaml` `paths`
+  // node dnaShow reads, filtered to one category — spec-005-cli-command-contract §4's worked example
+  // fixes the exact success shape: `{"category":"sources","paths":["src/cli","src/core"]}`.
+  it('paths returns coreOk({category, paths}) for a mapped category (spec-005 §4 worked-example shape)', async () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
+    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'sources' });
+    expect(result).toEqual({ ok: true, value: { category: 'sources', paths: ['src/'] } });
+  });
+
+  it("paths returns coreErr(NOT_FOUND, \"no paths mapped for category '<category>'\") for an unmapped category (BDD P2.5)", async () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
+    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'governance' });
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'NOT_FOUND', message: "no paths mapped for category 'governance'" },
+    });
+  });
+
+  it('paths returns coreOk(<whole paths node>) when no category is given (the MCP mechanical zero-arg Resource case)', async () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
+    const result = await findOperation('paths', 'paths').fn({ root: repo });
+    expect(result).toEqual({ ok: true, value: { sources: ['src/'] } });
+  });
+
+  it('paths returns coreErr(NOT_FOUND) when .wingfoil/dna.yaml is missing, same as dnaShow', async () => {
+    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'sources' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('NOT_FOUND');
     }
   });
 });

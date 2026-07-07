@@ -64,6 +64,59 @@ describe('buildCliCommands — command derivation (spec-006 §4: CLI exposes eve
   });
 });
 
+describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1, task-028: `wingfoil paths [category]`)', () => {
+  const FLAT_MODULES: CoreModule[] = [
+    {
+      name: 'paths',
+      operations: {
+        paths: {
+          name: 'paths',
+          mutates: false,
+          positional: ['category'],
+          flags: ['list'],
+          fn: async () => coreOk({ category: 'sources', paths: ['src/'] }),
+        },
+      },
+    },
+  ];
+
+  it('a "self-named" operation (module name === operation name) derives an empty verb, not a subcommand', () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    const flat = findCommand(commands, 'paths', '');
+    expect(flat.verb).toBe('');
+    expect(flat.positional).toEqual(['category']);
+    expect(flat.flags).toEqual(['list']);
+  });
+
+  it('`listRegisteredCliCommands` renders a flat command as the bare noun, not "noun " with a trailing space', () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    expect(listRegisteredCliCommands(commands)).toEqual(['paths']);
+  });
+
+  it('`run` forwards positional/flag values into `buildParams` via `ParamsContext`', async () => {
+    let seenPositional: unknown;
+    let seenFlags: unknown;
+    const commands = buildCliCommands(FLAT_MODULES, {
+      resolveRoot: () => '/fixture-root',
+      buildParams: (ctx) => {
+        seenPositional = ctx.positional;
+        seenFlags = ctx.flags;
+        return { root: ctx.root, ...(ctx.positional ?? {}), ...(ctx.flags ?? {}) };
+      },
+    });
+    const flat = findCommand(commands, 'paths', '');
+    await flat.run('json', { category: 'sources' }, { list: true });
+    expect(seenPositional).toEqual({ category: 'sources' });
+    expect(seenFlags).toEqual({ list: true });
+  });
+
+  it('`run` still works with no positional/flags supplied (backward compatible with the 1-arg call shape)', async () => {
+    const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    const flat = findCommand(commands, 'paths', '');
+    await expect(flat.run('console')).resolves.toBeUndefined();
+  });
+});
+
 describe('CliCommand.run — dispatch behavior', () => {
   let exitSpy: jest.SpyInstance;
   let stdoutSpy: jest.SpyInstance;
