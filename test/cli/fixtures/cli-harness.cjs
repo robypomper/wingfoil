@@ -34,9 +34,10 @@ function main() {
   return buildProgram(CORE_MODULES, {
     resolveRoot: () => fixtureRoot,
     // Mirrors the real `src/cli.ts` production wiring: main's single bare `positional`
-    // (task-026-implement-dna-show's seam) plus task-028's additive `flags` spread (e.g. `paths`'s
-    // `--list`) — this harness must stay in lockstep with `cli.ts`'s own buildParams.
-    buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, ...(ctx.flags ?? {}) }),
+    // (task-026-implement-dna-show's seam), task-025's full `positionals` list (`dna set <key> <value>`),
+    // plus task-028's additive `flags` spread (e.g. `paths`'s `--list`) — this harness must stay in
+    // lockstep with `cli.ts`'s own buildParams.
+    buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, positionals: ctx.positionals, ...(ctx.flags ?? {}) }),
   }).then((program) => program.parseAsync(['node', 'wingfoil', ...cliArgs]));
 }
 

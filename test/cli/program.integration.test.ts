@@ -46,6 +46,8 @@ import { join } from 'path';
 
 import { load as yamlLoad } from 'js-yaml';
 
+import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../storage/helpers/git-fixture';
+
 const REPO_ROOT = join(__dirname, '..', '..');
 const DIST_DIR = join(REPO_ROOT, 'dist');
 const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
@@ -68,10 +70,10 @@ function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
   return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
 }
 
-/** Spawn the real, compiled CLI wiring as a subprocess and capture its real exit code/stdout/stderr. */
-function runCli(...args: readonly string[]): CliResult {
+/** Spawn the real, compiled CLI wiring against a given project root and capture exit code/stdout/stderr. */
+function runCliInRoot(root: string, ...args: readonly string[]): CliResult {
   try {
-    const stdout = execFileSync('node', [HARNESS, DIST_DIR, FIXTURE_ROOT, ...args], { encoding: 'utf-8' });
+    const stdout = execFileSync('node', [HARNESS, DIST_DIR, root, ...args], { encoding: 'utf-8' });
     return { status: 0, stdout, stderr: '' };
   } catch (error) {
     if (!isExecFileSyncError(error)) throw error;
@@ -81,6 +83,11 @@ function runCli(...args: readonly string[]): CliResult {
       stderr: error.stderr.toString(),
     };
   }
+}
+
+/** Spawn the real, compiled CLI wiring against the static read-only fixture root. */
+function runCli(...args: readonly string[]): CliResult {
+  return runCliInRoot(FIXTURE_ROOT, ...args);
 }
 
 describe('program.ts — real commander wiring (compiled + spawned, out-of-process)', () => {
@@ -250,6 +257,58 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
       expect(result.status).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual({ sources: ['src/'] });
       expect(result.stderr).toBe('');
+    });
+  });
+
+  // task-025-implement-dna-set (P2.1, BDD `p2-dna/P2.1-dna-set.feature`) — the FIRST mutating command,
+  // driven end-to-end through real `commander` (variadic positionals + UsageError -> exit 2). Writes
+  // land in a THROWAWAY temp git repo (with its own identity), never the static fixture root above.
+  describe('`dna set <key> <value>` — first mutating command (task-025, P2.1)', () => {
+    const DNA_FIXTURE = `version: 1.1
+modules:
+  - name: core
+    path: src/core
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+team:
+  members:
+    - name: Test User
+      roles: [ developer ]
+  roles:
+    - name: developer
+paths:
+  sources: [ src/ ]
+`;
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_FIXTURE);
+      commitAll(repo, 'seed dna.yaml');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('sets a field, writes it under stacks (tech_stack alias), commits, and exits 0 (AC(a))', () => {
+      const result = runCliInRoot(repo, 'dna', 'set', 'tech_stack.language', 'python');
+      expect(result.status).toBe(0);
+      const dna = yamlLoad(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')) as {
+        stacks: { language?: string };
+      };
+      expect(dna.stacks.language).toBe('python');
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(dna): set tech_stack.language');
+    });
+
+    it('an invalid dotted key path exits 2 with the exact BDD message, leaving the file unchanged (AC(c))', () => {
+      const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
+      const result = runCliInRoot(repo, 'dna', 'set', '..language', 'python');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe("error: invalid key path: '..language'\n");
+      expect(result.stdout).toBe('');
+      expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
     });
   });
 

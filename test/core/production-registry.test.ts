@@ -12,17 +12,22 @@ import { CORE_MODULES } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('CORE_MODULES — production registry', () => {
-  it('registers exactly the four currently-existing read-only operations (task-028 adds `paths`)', () => {
+  it('registers the currently-existing operations, incl. the first mutating op `dna.dnaSet` (task-025)', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
-    expect(flat).toEqual(['directives.directivesList', 'dna.dnaShow', 'paths.paths', 'workflow.workflowList']);
+    expect(flat).toEqual([
+      'directives.directivesList',
+      'dna.dnaSet',
+      'dna.dnaShow',
+      'paths.paths',
+      'workflow.workflowList',
+    ]);
   });
 
-  it('every currently-registered operation is read-only (mutates: false) — no mutating op exists yet', () => {
-    for (const { operation } of enumerateOperations(CORE_MODULES)) {
-      expect(operation.mutates).toBe(false);
-    }
+  it('exactly one operation mutates today — `dna.dnaSet` (P2.1); the rest are read-only', () => {
+    const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
+    expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual(['dna.dnaSet']);
   });
 });
 

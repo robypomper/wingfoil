@@ -125,6 +125,18 @@ export interface ParamsContext {
    */
   readonly positional?: string;
   /**
+   * The FULL list of bare CLI positional arguments following `<noun> <verb>` (or `<noun>` for a flat
+   * command) — task-025-implement-dna-set's additive extension of the single-`positional` seam, needed
+   * by the first operation taking two data inputs (`dna set <key> <value>` -> `['<key>', '<value>']`).
+   * {@link positional} is exactly `positionals?.[0]` and is kept unchanged for the single-positional
+   * read ops that predate this (`dna show [section]`, `paths [category]`), so their `buildParams` and
+   * `CoreFn`s are untouched; a multi-input op (`dnaSet`, and task-020's `memoryAdd`) reads `positionals`
+   * instead. Same additive contract as {@link positional}/{@link flags}: the MCP surface never
+   * populates it (a zero-argument Tool/Resource template carries no positional — see {@link positional}),
+   * so an MCP `buildParams` simply never sets it.
+   */
+  readonly positionals?: readonly string[];
+  /**
    * This operation's declared {@link CoreOperation.flags} names mapped to their parsed boolean
    * values (task-028-implement-paths-category — e.g. `{ list: true }` for `wingfoil paths sources
    * --list`). Additive alongside `positional`: an operation declaring no flags never has this set,

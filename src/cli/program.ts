@@ -89,23 +89,24 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   for (const command of buildCliCommands(modules, options)) {
     const target = resolveCommandTarget(program, nounCommands, command);
 
-    // A single optional bare positional (task-026-implement-dna-show's generic seam,
-    // `../core/registry.ts`'s `ParamsContext.positional`) — registered on every command regardless
-    // of whether its operation reads it (harmless if ignored), so `dna show [section]` and
-    // `paths [category]` share ONE positional mechanism. Plus this command's own `--{flag}` options
-    // (task-028-implement-paths-category's `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander
-    // rejects an unknown option, so each declared flag must be registered explicitly.
-    target.argument('[positional]', 'optional positional argument (e.g. a section/category name)');
+    // A variadic optional bare positional list (task-025-implement-dna-set's `positionals` seam,
+    // generalizing task-026's single `[positional]`) — registered on every command regardless of how
+    // many positionals its operation reads (harmless if ignored), so `dna show [section]` /
+    // `paths [category]` (one) and `dna set <key> <value>` (two) share ONE positional mechanism.
+    // Plus this command's own `--{flag}` options (task-028-implement-paths-category's
+    // `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander rejects an unknown option, so each
+    // declared flag must be registered explicitly.
+    target.argument('[positionals...]', 'optional positional arguments (e.g. a section/category name, or `dna set <key> <value>`)');
     for (const name of command.flags ?? []) {
       target.option(`--${name}`, `${name} flag`);
     }
 
-    // Commander's action callback for a `[positional]` + options command is `(positionalValue,
-    // optionsObject, commandObject)`. Forward the positional as-is (task-026) and collapse this
-    // command's declared flags into a `{ name: boolean }` record (task-028) for `command.run`.
-    target.action(async (positional: string | undefined, options: Record<string, unknown> = {}) => {
+    // Commander's action callback for a `[positionals...]` variadic + options command is
+    // `(positionalsArray, optionsObject, commandObject)`. Forward the whole array (task-025) and
+    // collapse this command's declared flags into a `{ name: boolean }` record (task-028) for `run`.
+    target.action(async (positionals: string[] = [], options: Record<string, unknown> = {}) => {
       const globalOpts = program.opts<{ format: string }>();
-      await command.run(globalOpts.format, positional, buildFlagValues(command, options));
+      await command.run(globalOpts.format, positionals, buildFlagValues(command, options));
     });
   }
 

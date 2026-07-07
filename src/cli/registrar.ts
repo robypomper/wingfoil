@@ -18,7 +18,7 @@
 import type { CoreModule, ParamsBuilder } from '../core/registry';
 import { enumerateOperations, deriveVerb } from '../core/registry';
 import type { CoreResult } from '../core/types';
-import { exitCodeForResult } from '../core/exit-code';
+import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
 
 import { emitError } from './error';
 import { exitWith } from './exit';
@@ -45,15 +45,16 @@ export interface CliCommand {
   readonly flags?: readonly string[];
   /**
    * Execute this command given the resolved `--format` flag value (still unvalidated at this point),
-   * the single bare positional argument the invocation supplied (task-026-implement-dna-show's
-   * generic seam, `core/registry.ts`'s `ParamsContext.positional` — e.g. `wingfoil dna show
-   * tech_stack` / `wingfoil paths sources`), and this command's own parsed `--{flag}` values
-   * (task-028, e.g. `{ list: true }`). All three are additive/optional — a command that reads no
-   * positional and declares no flags is still called exactly as before: `run(format)`.
+   * the FULL list of bare positional arguments the invocation supplied (task-025-implement-dna-set's
+   * additive `positionals` seam — e.g. `wingfoil dna set <key> <value>` -> `['<key>', '<value>']`;
+   * `wingfoil dna show tech_stack` -> `['tech_stack']`), and this command's own parsed `--{flag}`
+   * values (task-028, e.g. `{ list: true }`). All are additive/optional — a command that reads no
+   * positional and declares no flags is still called exactly as before: `run(format)`. The
+   * single-positional read ops (`dna show`, `paths`) read `positionals[0]` via `ParamsContext.positional`.
    */
   readonly run: (
     formatValue: string,
-    positional?: string,
+    positionals?: readonly string[],
     flags?: Readonly<Record<string, boolean>>,
   ) => Promise<void>;
 }
@@ -72,7 +73,7 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
       flags: operation.flags,
       run: async (
         formatValue: string,
-        positional?: string,
+        positionals?: readonly string[],
         flags?: Readonly<Record<string, boolean>>,
       ) => {
         if (!isValidFormat(formatValue)) {
@@ -91,13 +92,20 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
             moduleName: module.name,
             operationName: operation.name,
             root: options.resolveRoot(),
-            positional,
+            // `positional` stays the first positional (single-positional read ops read it); `positionals`
+            // is the full list a multi-input op (`dnaSet`) reads (task-025-implement-dna-set).
+            positional: positionals?.[0],
+            positionals,
             flags,
           });
           result = await operation.fn(params);
         } catch (error) {
-          emitError(error instanceof Error ? error.message : String(error), { format });
-          exitWith(1);
+          // Core owns exit-code selection for a thrown error too (spec-008 Consequences): a UsageError
+          // (a malformed argument, e.g. `dna set`'s invalid key path) surfaces as exit 2, everything
+          // else as 1 — never a bare crash (bug-002-cli-error-stack-dump). task-025-implement-dna-set.
+          const { reason, exitCode } = exitCodeForThrow(error);
+          emitError(reason, { format });
+          exitWith(exitCode);
           return;
         }
 

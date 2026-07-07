@@ -19,3 +19,5 @@ export {
   Team,
   Paths,
 } from './schema';
+
+export { isValidKeyPath, setDnaValue, DNA_KEY_ALIASES } from './set';
