@@ -61,3 +61,14 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.1.1-init.feature`:
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+- **design (no spec gap):** Verified against the three approved specs. `spec-011-storage-layout`
+  fully fixes the target `.wingfoil/` tree (top-level `dna/memory/roles/workflows.yaml` +
+  `directives/{built-in,custom}/`, `memory/templates/`, `workflows/{built-in,custom}/`) and the
+  `detectInitState` init-marker used for the already-initialized guard; `spec-008-cli-grammar` §4
+  fixes the wizard-vs-`--template` / non-interactive prompt matrix; `spec-005-cli-command-contract`
+  §1 fixes exit codes (0 success / 1 logic / 2 usage). The methodology "template" (Scrum/Kanban, from
+  the BDD's `e.g.`) maps to `dna.yaml` `stacks.methodologies` + a methodology-flavored delivery
+  workflow — AUTHORING starter content, not a spec-mandated schema, so **no new tech-spec** required.
+  Build on task-018's `initStorage(root, files, message)` (its `files` override was left for exactly
+  this) rather than writing a second commit path.
