@@ -2,7 +2,7 @@
 id: "task-029-implement-wingfoil-init"
 type: task
 title: "Implement wingfoil init (P5.1.1)"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "interaction"]
