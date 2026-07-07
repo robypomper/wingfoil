@@ -24,3 +24,5 @@ export type { OutputFormat } from './output';
 export { emitError } from './error';
 export { runInit, createReadlinePrompt } from './init-command';
 export type { InitCliOptions, InitCliDeps } from './init-command';
+export { runMcp } from './mcp-command';
+export type { McpCliDeps } from './mcp-command';

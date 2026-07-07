@@ -71,3 +71,10 @@ export function registerReadOnlyResources(server: McpServer, options: RegisterRe
   registerDnaResources(server, options);
   registerWorkflowResources(server, options);
 }
+
+// The production stdio entry point (task-030-implement-mcp-resources, spec-014-mcp-server-entry-point):
+// `createMcpServer` builds a real `McpServer` with the v0.1 read-only Resources channel above wired on,
+// `startMcpServer` connects it over `StdioServerTransport`. Exported here so the `bin`/`wingfoil mcp`
+// seam imports the whole `src/mcp` surface from one module.
+export { createMcpServer, startMcpServer } from './server';
+export type { McpServerOptions } from './server';

@@ -2,7 +2,7 @@
 id: "task-030-implement-mcp-resources"
 type: task
 title: "Implement MCP Resources (DNA + Memory) (P5.2.1)"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "interaction"]
@@ -59,3 +59,35 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.2.1-mcp-resources.fe
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+- **design (spec gap authored):** Neither `spec-004-mcp-surface-contract` (which describes only the
+  *channel surface a connected client sees*) nor `spec-008-cli-grammar` §1 (nouns `memory/dna/directive/
+  workflow/agent` + flat `init/paths/audit`) nor `X_cli-cmds.md` documented a command that *starts* the
+  MCP server or the stdio process entry point. Authored `spec-014-mcp-server-entry-point`
+  (`memory.add` → `memory.submit`, `draft → pending`) covering the `wingfoil mcp` flat command, the
+  `src/mcp/server.ts` stdio entry point, and the v0.1 read-only-only channel scope. Left at `pending`
+  for the orchestrator to bless `pending → approved` under standing authorization — NOT self-approved.
+- **scope call (read-only-only):** `createMcpServer` registers ONLY `registerReadOnlyResources`
+  (spec-004 §2), NOT `registerCoreModules(CORE_MODULES)`. The latter would advertise the task-025
+  `dna.set` **mutating Tool** — Tools are P5.2.3/v0.4 scope, explicitly out of scope for the P5.2.1
+  read-only skeleton (spec-004 §Consequences; spec-014 §3). Pinned by `server.test.ts`'s scope
+  assertion (`getServerCapabilities().tools` undefined). Prompts (P5.2.2) / Tools (P5.2.3) grow the
+  channel set inside `createMcpServer` later; the entry point is unchanged.
+- **green (productionization, not reimplementation):** task-011 built + proved the read-only Resources
+  CHANNEL (test-only, in-memory transport). This task added the FIRST production `McpServer`:
+  `src/mcp/server.ts` `createMcpServer` (testable construction) + `startMcpServer` (the thin
+  `StdioServerTransport().connect()` seam), the `wingfoil mcp` special command in `src/cli/program.ts`
+  (wired directly like `init`, not a `CORE_MODULES` op), and the injectable `runMcp` handler
+  (`src/cli/mcp-command.ts`, mirroring `init-command.ts`'s `runInit`) for the fail-fast root-resolution
+  pre-flight (exit 1). Much of AC a/b/c is characterization over task-011's channel — the added value is
+  proving it through the real production `McpServer`.
+- **AC(c) identifier form (deviation noted):** the BDD's bare `resource not found: decision-999` surfaces
+  from task-011's channel as the type-qualified `resource not found: memory/decision-log/decision-999`
+  (ids are not unique across types — see `src/mcp/memory-resource.ts`). Not reimplemented (that would
+  break task-011's committed tests); the `resource not found:` prefix + the missing id are both verbatim.
+- **review:** `tsc --noEmit` exit 0; full suite 464/464 green (49 suites); global coverage
+  97.73% stmts / 87.36% branch (≥80% gate met). New code: `mcp-command.ts` 100%, `server.ts`
+  `createMcpServer` 100% — only `startMcpServer`'s stdio `.connect()` seam is un-unit-tested (the same
+  accepted precedent as `program.ts`/`init-command`'s readline seam), verified instead by a real
+  child-process stdio drive (`wingfoil mcp` in a throwaway temp repo: AC a/b/c + read-only scope + the
+  exit-1 no-git-root path all confirmed).

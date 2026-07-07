@@ -34,8 +34,10 @@ import type { CoreModule } from '../core/registry';
 
 import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
 import { runInit, createReadlinePrompt } from './init-command';
+import { runMcp } from './mcp-command';
 import { emitError } from './error';
 import { exitWith } from './exit';
+import { isValidFormat } from './output';
 
 /**
  * The CLI version, read from `package.json` deterministically (REQ-SYS-07 — no wall-clock, no
@@ -83,6 +85,21 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
         { template: localOpts.template, interactive: globalOpts.interactive, format: globalOpts.format },
         { root, isTTY: Boolean(process.stdout.isTTY), prompt: createReadlinePrompt() },
       );
+    });
+
+  // `wingfoil mcp` is a SPECIAL command (task-030, P5.2.1, spec-014-mcp-server-entry-point §1): it
+  // starts the long-running production MCP server over stdio rather than wrapping a `CORE_MODULES`
+  // noun-verb op, so — like `init` above — it is wired directly here and drives `runMcp`
+  // (./mcp-command.ts). The pre-flight (resolve-root / error / exit 1) is unit-tested in
+  // ./mcp-command.ts with an injected server-start; this registration is the same thin, un-unit-tested
+  // `commander` seam as the rest of this file (see the module doc).
+  program
+    .command('mcp')
+    .description('start the WingFoil MCP server (read-only Resources) over stdio')
+    .action(async () => {
+      const globalOpts = program.opts<{ format: string }>();
+      const format = isValidFormat(globalOpts.format) ? globalOpts.format : 'console';
+      await runMcp({ resolveRoot: options.resolveRoot, version: readPackageVersion(), format });
     });
 
   const nounCommands = new Map<string, Command>();
