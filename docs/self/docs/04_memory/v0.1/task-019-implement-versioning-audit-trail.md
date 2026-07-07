@@ -24,8 +24,9 @@ with author, timestamp, and commit message so the audit trail is complete withou
 Concretely this task implements the commit-per-state-change mechanism that every `wingfoil`
 mutation goes through: whenever a document's frontmatter `status` changes (or any pillar file is
 written), the change is committed as its own git commit, with the git commit's own timestamp
-supplying the ISO-8601 time and the commit author supplying identity (per the commit-format
-convention in CLAUDE.md §5.1). It must also fail cleanly rather than silently skip committing when
+supplying the ISO-8601 time and the commit author supplying identity (per the memory-operation
+commit-format convention — P1.7 approver-identity/timestamp/reason, REQ-SEC-02 attributable audit
+trail). It must also fail cleanly rather than silently skip committing when
 git identity is not configured.
 
 ## Acceptance Criteria
@@ -58,7 +59,8 @@ Worked on branch `task/task-019-implement-versioning-audit-trail` (dedicated wor
 Batch-B siblings (task-026/028/029).
 
 - **design (scope finding):** checked P1.2 against `spec-011-storage-layout` (approved; describes
-  `.wingfoil/` layout, not touched by this task) and CLAUDE.md §5.1 (the commit-format convention).
+  `.wingfoil/` layout, not touched by this task) and the memory-operation commit-format convention
+  (P1.7 / REQ-SEC-02).
   No gap: the commit-per-state-change + attribution contract P1.2 asks for is already fully built —
   `commitPaths` (task-018, `src/storage/commit.ts`) is the "one state change = one scoped, attributable
   commit" mechanism; `requireGitIdentity` (task-014, `src/core/git-identity.ts`) is the write-time
@@ -66,7 +68,8 @@ Batch-B siblings (task-026/028/029).
   `reconstructMemoryTransitions` (task-015, `src/memory/audit.ts`) are the read-time "0 unknown
   author" / transition-reconstruction verification. No new tech-spec needed.
 - **ADR-007 cross-check:** the BDD scenario's "commit message references the document id and new
-  state" is satisfied differently per CLAUDE.md §5.1's actual convention: `add`/`submit` subjects
+  state" is satisfied differently per the memory-operation commit-format convention (P1.7 / ADR-007):
+  `add`/`submit` subjects
   carry only the doc id (no `[old → new]` bracket — that's reserved for `approve`/`reject`/
   `deprecate`); the new state is derived from the frontmatter actually committed, never from the
   subject text (already documented in `audit.ts`'s module doc, ADR-007). Verified rather than

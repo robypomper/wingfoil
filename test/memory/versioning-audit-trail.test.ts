@@ -11,8 +11,9 @@
  * temp git repos and real commits (never mocked git).
  *
  * ADR-007 note (see `src/memory/audit.ts`'s module doc): a commit's "reference" to the new state is
- * NOT the commit-message subject text for `add`/`submit` (CLAUDE.md §5.1 only puts an `[old → new]`
- * bracket on `approve`/`reject`/`deprecate` subjects) — state lives in the committed frontmatter
+ * NOT the commit-message subject text for `add`/`submit` (the memory-operation commit-format
+ * convention puts an `[old → new]` bracket only on `approve`/`reject`/`deprecate` subjects, per
+ * P1.7 / ADR-007) — state lives in the committed frontmatter
  * content itself, derived by `reconstructMemoryTransitions`. The scenario below verifies both halves:
  * the doc id in the subject text, and the new state via the frontmatter actually committed.
  */
