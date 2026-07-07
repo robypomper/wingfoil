@@ -11,8 +11,10 @@ import {
   listMemoryDocumentPaths,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
+  validateSearchQuery,
 } from '../../src/memory/query';
 import type { MemoryYaml } from '../../src/memory/schema';
+import { EXIT_INTEGRITY, ValidationError } from '../../src/validation';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const MEMORY_YAML: MemoryYaml = {
@@ -227,6 +229,77 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     writeFixtureFile(repo, 'docs/04_memory/v0.1/no-id-a.md', '---\ntitle: "shared"\n---\nshared\n');
     const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'shared');
     expect(matches.map((m) => m.path)).toEqual(['docs/04_memory/v0.1/no-id-a.md', 'docs/04_memory/v0.1/no-id-b.md']);
+  });
+});
+
+describe('P1.12 acceptance criteria — keyword match/rank + empty-query validation', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  function seedCachingRepo(): string {
+    const r = makeTempGitRepo();
+    // Doc "A" (BDD Background): body mentions "caching", no tag/title match.
+    writeFixtureFile(
+      r,
+      'docs/04_memory/v0.1/doc-a-body-only.md',
+      ['---', 'id: doc-a-body-only', 'title: "Untitled"', 'status: draft', '---', '', 'This document discusses a caching strategy in depth.', ''].join(
+        '\n',
+      ),
+    );
+    // Doc "B" (BDD Background): tagged "caching", body has no mention of the term.
+    writeFixtureFile(
+      r,
+      'docs/04_memory/v0.1/doc-b-tag-match.md',
+      ['---', 'id: doc-b-tag-match', 'title: "Untitled"', 'tags: [ caching ]', 'status: draft', '---', '', 'No mention of the keyword here.', ''].join(
+        '\n',
+      ),
+    );
+    return r;
+  }
+
+  it('AC(a) — "caching" returns both A (body match) and B (tag match), with B ranked before A (P1.12 Scenario 1)', () => {
+    repo = seedCachingRepo();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'caching');
+    const paths = matches.map((m) => m.path);
+    expect(paths).toEqual(
+      expect.arrayContaining(['docs/04_memory/v0.1/doc-a-body-only.md', 'docs/04_memory/v0.1/doc-b-tag-match.md']),
+    );
+    expect(paths.indexOf('docs/04_memory/v0.1/doc-b-tag-match.md')).toBeLessThan(
+      paths.indexOf('docs/04_memory/v0.1/doc-a-body-only.md'),
+    );
+  });
+
+  it('AC(b) — "CACHING" (upper-case) still returns both A and B (P1.12 Scenario 2, case-insensitive)', () => {
+    repo = seedCachingRepo();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'CACHING');
+    expect(matches.map((m) => m.path).sort()).toEqual([
+      'docs/04_memory/v0.1/doc-a-body-only.md',
+      'docs/04_memory/v0.1/doc-b-tag-match.md',
+    ]);
+  });
+
+  it('AC(c) — an empty query is rejected: ValidationError, exit code 2, message "empty search query" (P1.12 Scenario 3)', () => {
+    expect(() => validateSearchQuery('')).toThrow(ValidationError);
+    expect(() => validateSearchQuery('')).toThrow('empty search query');
+  });
+
+  it('AC(c) — a whitespace-only query is rejected the same as a fully empty one', () => {
+    expect(() => validateSearchQuery('   ')).toThrow('empty search query');
+  });
+
+  it('AC(c) — the thrown error carries EXIT_INTEGRITY (exit code 2), matching the BDD "exit code 2" wording', () => {
+    try {
+      validateSearchQuery('');
+      throw new Error('expected validateSearchQuery to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError);
+      expect((err as ValidationError).exitCode).toBe(EXIT_INTEGRITY);
+    }
+  });
+
+  it('does NOT reject a non-empty query, even a single character', () => {
+    expect(() => validateSearchQuery('a')).not.toThrow();
   });
 });
 

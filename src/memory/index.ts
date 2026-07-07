@@ -36,12 +36,14 @@ export {
 export type { TransitionOp } from './state-machine';
 export {
   computeMemoryContentRoots,
+  E_EMPTY_SEARCH_QUERY,
   findMemoryDocumentById,
   findMemoryDocumentByTypeAndId,
   listMemoryDocumentPaths,
   listMemoryDocumentsByType,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
+  validateSearchQuery,
 } from './query';
 export type {
   MemoryDocumentFrontmatterSummary,

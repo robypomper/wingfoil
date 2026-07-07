@@ -2,7 +2,7 @@
 id: "task-023-implement-keyword-search"
 type: task
 title: "Implement Keyword Memory Search (P1.12)"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -49,9 +49,48 @@ entries), since this algorithm scans the files that task establishes.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+**design**: Verified against `spec-006-core-domain-api` and `spec-010-memory-frontmatter-schema` —
+no gap. `spec-006` places `src/memory` (this task's `src/memory/query.ts`) strictly *underneath*
+`src/core`, never imported directly by `src/cli`/`src/mcp` — consistent with this task staying
+library-level and *not* wiring `memorySearch` into `src/core`'s `CORE_MODULES` registry (that
+remains task-021's scope, per `query.ts`'s own module doc). `spec-010`'s base frontmatter fields
+(`title`, `id`, `tags`) are exactly the metadata fields task-008's `searchMemoryDocuments` already
+uses for the metadata-match/rank check — no new field needed. No tech-spec change required.
+
+**red/green**: `searchMemoryDocuments` (task-008-dna-memory-query-latency, REQ-PERF-02) already
+implemented the metadata-before-body ranking and case-insensitive substring matching this task's
+AC(a)/AC(b) require — verified with new, explicit P1.12-scenario tests
+(`test/memory/query.test.ts`, "P1.12 acceptance criteria" describe block) that pass against the
+unmodified implementation, i.e. these are characterization tests, not new coverage of new behavior.
+Honest TDD note: no red step for AC(a)/(b) — they were already green.
+
+AC(c) (empty query -> exit 2, "empty search query") was a genuine gap: `searchMemoryDocuments('', …)`
+previously treated an empty needle as "match everything" (used intentionally by task-008's own
+tag-only-browse test, `searchMemoryDocuments(root, yaml, '', { tag })`), never rejecting it. Added a
+new, separate exported guard `validateSearchQuery(query: string): void` in `src/memory/query.ts`
+(also exported from `src/memory/index.ts`) that throws `ValidationError.semantic([...])` — mirroring
+`resolveTransitionTarget`'s pattern in `./state-machine.ts` — with message `"empty search query"` and
+`exitCode` `EXIT_INTEGRITY` (2) for an empty or whitespace-only query. Deliberately did **not**
+change `searchMemoryDocuments`'s own signature/behavior, to avoid breaking task-008's legitimate
+tag-only-browse characterization test (`test/memory/query.test.ts` line ~193, `searchMemoryDocuments(repo, MEMORY_YAML, '', { tag: 'architecture' })`).
+`validateSearchQuery` is a thin, separate validation step task-021's CLI/MCP surface is expected to
+call on the raw user-supplied query string before invoking `searchMemoryDocuments`, per this task's
+scope boundary ("task-023 owns ... the empty-query VALIDATION" at the algorithm level; task-021 owns
+surfacing it as CLI exit code 2).
+
+No refactor phase — the added guard is small and self-contained; nothing else needed cleanup.
+
+**review**: `npx tsc --noEmit` exits 0. Full `npx jest` suite: 44 suites / 407 tests, all green.
+Coverage for `src/memory/query.ts` across the full suite: 100% statements/lines/functions, 93.24%
+branch — well above the >80% bar; the new `validateSearchQuery` code is fully exercised by the new
+P1.12 tests. No regression in any other suite (task-008's own `test/core/query-latency.test.ts` and
+the pre-existing `test/memory/query.test.ts` cases unchanged and still green).
+
+**What the reviewer should scrutinize**: (1) whether keeping `searchMemoryDocuments` itself
+permissive on empty query (rather than making it throw directly) is the right scope split with
+task-021 — the alternative was baking the guard into `searchMemoryDocuments` and giving the
+tag-only-browse case its own explicit "list" entry point instead, which would have been a larger,
+task-021-adjacent redesign; (2) that `validateSearchQuery` is presently uncalled by any production
+code path (by design — task-021 is the wiring task) — a reviewer should confirm this is an
+acceptable, temporarily-dead-but-exported library primitive rather than a wiring gap that belongs to
+this task.
