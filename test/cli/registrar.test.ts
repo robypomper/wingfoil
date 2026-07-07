@@ -65,6 +65,22 @@ describe('buildCliCommands — command derivation (spec-006 §4: CLI exposes eve
 });
 
 describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1, task-028: `wingfoil paths [category]`)', () => {
+  let exitSpy: jest.SpyInstance;
+  let stdoutSpy: jest.SpyInstance;
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
   const FLAT_MODULES: CoreModule[] = [
     {
       name: 'paths',
@@ -108,6 +124,8 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
     await flat.run('json', { category: 'sources' }, { list: true });
     expect(seenPositional).toEqual({ category: 'sources' });
     expect(seenFlags).toEqual({ list: true });
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ category: 'sources', paths: ['src/'] }) + '\n');
+    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
   it('`run` still works with no positional/flags supplied (backward compatible with the 1-arg call shape)', async () => {
