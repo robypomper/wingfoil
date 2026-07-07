@@ -99,11 +99,12 @@ export function deriveVerb(moduleName: string, operationName: string): string {
  * operation's own CLI-command / Tool-input-schema spec, per spec-005's own scope note) — every
  * operation registered through task-006/task-027 took a bare `{ root }`; task-028-implement-paths-category
  * is the first to need more, and does so exactly the way this interface's doc comment always
- * anticipated: a richer `buildParams`, not a registrar change. `positional`/`flags` are populated
- * from the matching operation's `CoreOperation.positional`/`.flags` declarations (`./registry.ts`)
- * by `src/cli/registrar.ts`'s `buildCliCommands`; the MCP adapter's own mechanical, zero-argument
- * Resource/Tool registration (`src/mcp/registrar.ts`) never populates them — a `buildParams` that
- * ignores both (every `ParamsBuilder` before this task) keeps working unchanged.
+ * anticipated: a richer `buildParams`, not a registrar change. `positional` is registered
+ * generically as a single `[positional]` on every derived CLI command (`src/cli/program.ts`) and
+ * threaded through `command.run` into `ctx.positional`; `flags` is populated from the matching
+ * operation's `CoreOperation.flags` declaration (`./registry.ts`). The MCP adapter's own mechanical,
+ * zero-argument Resource/Tool registration (`src/mcp/registrar.ts`) never populates either — a
+ * `buildParams` that ignores both (every `ParamsBuilder` before this task) keeps working unchanged.
  */
 export interface ParamsContext {
   readonly moduleName: string;
