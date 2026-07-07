@@ -280,6 +280,70 @@ describe('positional argument threading (task-026-implement-dna-show — generic
   });
 });
 
+describe('value-bearing option threading (task-020-implement-memory-add — `--type`/`--title`/`--tags` seam reused by task-021)', () => {
+  let exitSpy: jest.SpyInstance;
+  let stdoutSpy: jest.SpyInstance;
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
+  /** A one-op module declaring value options; its fn echoes back the params it received. */
+  const OPTION_MODULES: CoreModule[] = [
+    {
+      name: 'memory',
+      operations: {
+        memoryAdd: {
+          name: 'memoryAdd',
+          mutates: true,
+          options: [
+            { name: 'type', required: true },
+            { name: 'title', required: true },
+            { name: 'tags' },
+          ],
+          fn: async (params) => coreOk(params),
+        },
+      },
+    },
+  ];
+
+  it('copies `CoreOperation.options` onto the derived `CliCommand` (so program.ts can register `--<name> <value>`)', () => {
+    const commands = buildCliCommands(OPTION_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
+    const add = findCommand(commands, 'memory', 'add');
+    expect(add.options).toEqual([{ name: 'type', required: true }, { name: 'title', required: true }, { name: 'tags' }]);
+  });
+
+  it('`run` threads the parsed value options into `buildParams` as `ctx.options`', async () => {
+    let seenOptions: unknown;
+    const commands = buildCliCommands(OPTION_MODULES, {
+      resolveRoot: () => '/fixture-root',
+      buildParams: (ctx) => {
+        seenOptions = ctx.options;
+        return { root: ctx.root, options: ctx.options };
+      },
+    });
+    const add = findCommand(commands, 'memory', 'add');
+    await add.run('json', [], undefined, { type: 'decision', title: 'Use PostgreSQL' });
+    expect(seenOptions).toEqual({ type: 'decision', title: 'Use PostgreSQL' });
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('the option seam is additive: a command that reads no options is unaffected (dna show still 0-arg)', async () => {
+    await findCommand(buildTestCommands(), 'dna', 'show').run('json');
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ hello: 'world' }) + '\n');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+});
+
 describe('exit-code matrix (REQ-INT-04, task-012) — dispatch routes 0/1/2 through core selection', () => {
   let exitSpy: jest.SpyInstance;
   let stdoutSpy: jest.SpyInstance;

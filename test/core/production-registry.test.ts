@@ -12,7 +12,7 @@ import { CORE_MODULES } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('CORE_MODULES — production registry', () => {
-  it('registers the currently-existing operations, incl. the first mutating op `dna.dnaSet` (task-025)', () => {
+  it('registers the currently-existing operations, incl. the mutating ops `dna.dnaSet` (task-025) + `memory.memoryAdd` (task-020)', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
@@ -20,14 +20,18 @@ describe('CORE_MODULES — production registry', () => {
       'directives.directivesList',
       'dna.dnaSet',
       'dna.dnaShow',
+      'memory.memoryAdd',
       'paths.paths',
       'workflow.workflowList',
     ]);
   });
 
-  it('exactly one operation mutates today — `dna.dnaSet` (P2.1); the rest are read-only', () => {
+  it('two operations mutate today — `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
-    expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual(['dna.dnaSet']);
+    expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
+      'dna.dnaSet',
+      'memory.memoryAdd',
+    ]);
   });
 });
 

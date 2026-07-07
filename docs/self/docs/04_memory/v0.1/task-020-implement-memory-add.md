@@ -2,7 +2,7 @@
 id: "task-020-implement-memory-add"
 type: task
 title: "Implement wingfoil memory add (P1.3)"
-status: backlog
+status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -25,7 +25,7 @@ Concretely this task implements the `memory.add` domain operation and its CLI ve
 requested `type` against `memory.yaml`'s type registry, generate the document's path from the
 type's `path` pattern and a new `id` from its `id_pattern`, copy the type's `template.file`
 scaffold verbatim, set `status` to the type's initial state (`draft`), stage only that new file,
-and commit it as `wf({type}): add {id}` per the CLAUDE.md §5.1 commit-format convention. Unknown
+and commit it as `wf({type}): add {id}` per the memory-operation commit-format convention (P1.7). Unknown
 types and missing required arguments must be rejected before any file is written.
 
 ## Acceptance Criteria
@@ -58,3 +58,31 @@ git commit).
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+- **design**: verified against approved specs — spec-006 (`memoryAdd` `mutates: true` → CLI `memory add`
+  + Tool `memory.add`), spec-001 (type registry supplies `path`/`id_pattern`/`template`), spec-010
+  (base fields `id/type/title/status/tmpl_version`; add sets `id` from `id_pattern`, `status: draft`,
+  `title` from `--title`; `tmpl_version` copied from scaffold, never touched), spec-005/spec-008
+  (unknown type → exit 1 `unknown memory type '<t>' (not defined in memory.yaml)`; missing `--title` →
+  exit 2 `error: missing required argument: --title`). No missing/wrong approved tech-spec — no new
+  tech-spec created. `decision`/`decision-log`: the BDD's `--type decision` is a fixture placeholder
+  (its Background declares a type literally named `decision`); `add` resolves `--type` verbatim against
+  the project's `memory.yaml` `types` registry, so it is type-agnostic (no hardcoded mapping).
+  Observed cross-task divergence (NOTE for orchestrator, not this task's fix): task-029's init scaffold
+  `memoryTemplateMd` omits `tmpl_version` and uses `id: ""` where spec-010 says the raw scaffold holds
+  `id: "{auto}"`; `memory.add` copies whatever scaffold exists verbatim (P1.3 / spec-001 template), so it stays
+  correct on its own axis — the scaffold content is init/spec-010's concern.
+- **red**: added `test/core/memory-add.test.ts` (real registered `memory.memoryAdd` op over throwaway
+  temp repos) + `test/memory/add.test.ts` (pure helpers) + a value-option seam test in
+  `test/cli/registrar.test.ts`; updated `parity`/`production-registry`/`read-only-agent-channel` to
+  expect `memory.add` ALONGSIDE `dna.set`. Confirmed failing for the right reason (op not registered).
+- **green**: `src/memory/add.ts` (slug/sequence/render helpers); `memoryAddFn` + `memory` module
+  registration in `src/core/index.ts`; the additive value-option seam (`CoreOption` +
+  `CoreOperation.options` + `ParamsContext.options`, threaded through `registrar.run`/`program.ts`/
+  `src/cli.ts`). No deviation from the plan. Id generation supports the id engine's numeric `{n}`
+  token via a deterministic counter (count of committed siblings + 1) plus the title `{slug}`; a
+  `{version}`-only pattern (release-line/release) is out of CLI-add scope (workflow-seeded) and
+  surfaces as a VALIDATION error, not a crash.
+- **review**: `npx tsc --noEmit` clean; `npx jest` 510/510 green (was 507 before this task's 3 net-new
+  suites/assertions). New-code coverage: `src/memory/add.ts` 100% stmts / 95% branch, `src/cli/registrar.ts`
+  100%, `memoryAddFn` AC + error-mapping paths covered. `git ls-tree HEAD -- node_modules` empty.

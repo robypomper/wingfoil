@@ -12,6 +12,21 @@ import type { CoreResult } from './types';
 
 export type CoreFn<P, R> = (params: P) => Promise<CoreResult<R>>;
 
+/**
+ * One value-bearing CLI option an operation accepts (task-020-implement-memory-add) — e.g.
+ * `--type <value>`, `--title <value>`, `--tags <value>` for `memory add`. Distinct from
+ * {@link CoreOperation.flags}, which are BOOLEAN presence flags (`--list`): an option carries a
+ * string VALUE (`.option('--<name> <value>')`). `required` is declarative metadata: the operation's
+ * own `CoreFn` enforces it (throwing a `UsageError` → exit 2, consistent with `dna set`'s in-fn arg
+ * validation, task-025); it is surfaced here so `src/cli/program.ts` (and, later, the MCP Tool
+ * input schema) can describe the option without duplicating that knowledge. task-021's
+ * `memory submit`/etc. reuse this exact mechanism — the ONE value-option seam, not a parallel one.
+ */
+export interface CoreOption {
+  readonly name: string;
+  readonly required?: boolean;
+}
+
 export interface CoreOperation<P = unknown, R = unknown> {
   /** camelCase, `{module}{Verb}` (spec-006 §5) — e.g. `memoryApprove`, `dnaShow`. */
   readonly name: string;
@@ -30,6 +45,16 @@ export interface CoreOperation<P = unknown, R = unknown> {
    * parsed boolean into {@link ParamsContext.flags}.
    */
   readonly flags?: readonly string[];
+  /**
+   * Value-bearing CLI options this operation accepts beyond the global options
+   * (task-020-implement-memory-add — e.g. `[{name:'type',required:true}, {name:'title',required:true},
+   * {name:'tags'}]` for `memory add`). Additive alongside {@link flags}: an operation declaring none
+   * keeps exactly the bare shape it had before. `src/cli/program.ts` registers one
+   * `--{name} <value>` Commander option per entry and threads the parsed values into
+   * {@link ParamsContext.options}; the MCP surface never populates them (task-030 wires the Tool input
+   * schema). See {@link CoreOption}.
+   */
+  readonly options?: readonly CoreOption[];
 }
 
 export interface CoreModule {
@@ -143,6 +168,16 @@ export interface ParamsContext {
    * and the MCP surface never populates it (same rationale as `positional`).
    */
   readonly flags?: Readonly<Record<string, boolean>>;
+  /**
+   * This operation's declared {@link CoreOperation.options} names mapped to their parsed string
+   * VALUES (task-020-implement-memory-add — e.g. `{ type: 'decision', title: 'Use PostgreSQL' }` for
+   * `wingfoil memory add --type decision --title 'Use PostgreSQL'`). Additive alongside `flags`: an
+   * operation declaring no value options never has this set, and the MCP surface never populates it
+   * (a zero-argument Tool template carries none — same rationale as `positional`/`flags`; task-030
+   * wires the MCP Tool input schema separately). An absent optional option is simply omitted from the
+   * record rather than present-as-`undefined`.
+   */
+  readonly options?: Readonly<Record<string, string>>;
 }
 
 export type ParamsBuilder = (ctx: ParamsContext) => unknown;

@@ -129,18 +129,18 @@ describe('REQ-SYS-05 parity — fixture registry (representative mutating + read
 });
 
 describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODULES)', () => {
-  it('reports 0 unmatched operations — the first mutating op `dna set` is on BOTH surfaces (task-025)', async () => {
+  it('reports 0 unmatched operations — the mutating ops `dna set` + `memory add` are on BOTH surfaces (task-025/020)', async () => {
     const cli = actualMutatingCliCommands(CORE_MODULES).sort();
     const tools = (await actualMcpToolsAsCliForm(CORE_MODULES)).sort();
 
-    // task-025-implement-dna-set makes this a LIVE parity guard (not vacuously-empty): `dna set` must
-    // be reachable as a CLI command AND an MCP Tool, with 0 unmatched either way.
-    expect(cli).toEqual(['dna set']);
-    expect(tools).toEqual(['dna set']);
+    // task-025-implement-dna-set + task-020-implement-memory-add make this a LIVE parity guard (not
+    // vacuously-empty): each mutating op must be reachable as a CLI command AND an MCP Tool, 0 unmatched.
+    expect(cli).toEqual(['dna set', 'memory add']);
+    expect(tools).toEqual(['dna set', 'memory add']);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
-  it('the read-only production operations are Resources, the one mutating op (`dna set`) is a Tool, never both', async () => {
+  it('the read-only production operations are Resources, the mutating ops (`dna set`, `memory add`) are Tools, never both', async () => {
     const server = new McpServer({ name: 'parity-test-prod', version: '0.0.0' });
     registerCoreModules(server, CORE_MODULES as CoreModule[], {
       resolveRoot: () => '/fixture-root',
@@ -157,11 +157,12 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'wingfoil://paths',
       'wingfoil://workflow/list',
     ]);
-    // `dna.dnaSet` is `mutates: true` → registered ONLY as a Tool (never a Resource), so it does NOT
-    // appear above; it is the single Tool the surface now advertises.
+    // `dna.dnaSet` + `memory.memoryAdd` are `mutates: true` → registered ONLY as Tools (never
+    // Resources), so they do NOT appear above; they are the Tools the surface now advertises.
     expect(hasAnyMutatingOperation(CORE_MODULES)).toBe(true);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set', 'memory.add']);
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://dna/set');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/add');
   });
 });

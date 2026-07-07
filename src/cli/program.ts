@@ -117,13 +117,20 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     for (const name of command.flags ?? []) {
       target.option(`--${name}`, `${name} flag`);
     }
+    // Value-bearing `--{name} <value>` options (task-020-implement-memory-add's `memory add
+    // --type/--title/--tags`): Commander rejects an unknown option, so each declared option must be
+    // registered explicitly with a `<value>` operand (distinguishing it from a boolean `--flag`).
+    for (const option of command.options ?? []) {
+      target.option(`--${option.name} <value>`, `${option.name} value`);
+    }
 
     // Commander's action callback for a `[positionals...]` variadic + options command is
-    // `(positionalsArray, optionsObject, commandObject)`. Forward the whole array (task-025) and
-    // collapse this command's declared flags into a `{ name: boolean }` record (task-028) for `run`.
+    // `(positionalsArray, optionsObject, commandObject)`. Forward the whole array (task-025),
+    // collapse this command's declared flags into a `{ name: boolean }` record (task-028) and its
+    // declared value options into a `{ name: value }` record (task-020) for `run`.
     target.action(async (positionals: string[] = [], options: Record<string, unknown> = {}) => {
       const globalOpts = program.opts<{ format: string }>();
-      await command.run(globalOpts.format, positionals, buildFlagValues(command, options));
+      await command.run(globalOpts.format, positionals, buildFlagValues(command, options), buildOptionValues(command, options));
     });
   }
 
@@ -166,4 +173,26 @@ function buildFlagValues(
     flagValues[name] = Boolean(options[name]);
   }
   return flagValues;
+}
+
+/**
+ * Collapse this command's declared `CoreOperation.options` (`./registrar.ts`'s `CliCommand.options`)
+ * into a `{ name: value }` record read from Commander's parsed options object (task-020), so
+ * `command.run` never has to know Commander's option-object shape. An option the invocation omitted is
+ * simply absent from the record (not present-as-`undefined`), so a core op can distinguish "not given"
+ * from an empty string. Returns `undefined` when the command declares no value options (every command
+ * before task-020-implement-memory-add), matching `CliCommand.run`'s already-optional `options` param.
+ */
+function buildOptionValues(
+  command: CliCommand,
+  options: Record<string, unknown>,
+): Readonly<Record<string, string>> | undefined {
+  const declared = command.options ?? [];
+  if (declared.length === 0) return undefined;
+  const optionValues: Record<string, string> = {};
+  for (const { name } of declared) {
+    const value = options[name];
+    if (typeof value === 'string') optionValues[name] = value;
+  }
+  return optionValues;
 }

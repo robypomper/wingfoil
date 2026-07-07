@@ -11,23 +11,34 @@
  * memory/dna/directives/workflow domain-operation tables in spec-006 §3 (`memoryAdd`, `dnaSet`,
  * `directiveCreate`, ...) are feature work for task-018..030, not this task.
  */
-import { join } from 'path';
+import { join, relative } from 'path';
 
 import { dump } from 'js-yaml';
 
-import { parseYaml, toValidationError, ValidationError } from '../validation';
+import { generateId, parseYaml, toValidationError, ValidationError } from '../validation';
 import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
 import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
-import { commitPaths, readDocument, writeDocument } from '../storage';
+import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
+import {
+  hasNumericToken,
+  nextSequenceNumber,
+  parseTags,
+  renderAddDocument,
+  resolveTypeDirectory,
+  slugifyTitle,
+  writeMemoryEntry,
+} from '../memory';
 
 import {
   loadDirectives,
   loadDnaYaml,
+  loadMemoryYaml,
   loadWorkflowsYaml,
   type DirectiveFile,
   type WorkflowsLoadResult,
 } from './loaders';
+import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule } from './registry';
@@ -251,6 +262,91 @@ const dnaSetFn: CoreFn<unknown, { key: string; value: string }> = async (params)
 };
 
 /**
+ * `wingfoil memory add` params (P1.3, task-020-implement-memory-add) — the FIRST Memory-document
+ * mutation. `options` is the value-bearing-option seam this task establishes
+ * (`ParamsContext.options`, `core/registry.ts`), read as `--type`/`--title`/`--tags`. The MCP surface
+ * never populates it (task-030 wires the Tool input schema); a call with no options simply has all
+ * three absent, which the required checks below reject as usage errors.
+ */
+export interface MemoryAddParams {
+  readonly root: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/**
+ * `memory add` `CoreOperation.fn` (P1.3, `mutates: true` — the first Memory-document mutation and the
+ * pattern for all Memory CRUD; spec-006-core-domain-api §3 memory table). Follows `dna set`'s
+ * mutating-op template (task-025) exactly, over the Memory store instead of `dna.yaml`:
+ *
+ * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
+ * 2. **Argument validation** — a missing `--type`/`--title` is a usage error: `throw new UsageError`
+ *    → exit **2** with the exact `missing required argument: --<name>` message
+ *    (spec-008-cli-grammar §5, mapped by `exitCodeForThrow`), same classification as `dna set`'s
+ *    missing positional.
+ * 3. **Resolve `--type` against the `memory.yaml` type registry** (spec-001-memory-yaml-schema) via
+ *    `loadMemoryYaml` — an unknown type is a domain `NOT_FOUND` (exit 1) with the exact P1.3 message
+ *    `unknown memory type '<t>' (not defined in memory.yaml)`, returned BEFORE any write.
+ * 4. **Generate the id** deterministically from the type's `id_pattern` (task-002's `generateId`,
+ *    REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence
+ *    counter derived from the committed on-disk siblings (`src/memory/add.ts`; no wall-clock/random).
+ * 5. **Copy the type's `template.file` scaffold verbatim** (`.wingfoil/<file>`) and fill only the
+ *    `id`/`status: draft`/`--title`/`--tags` skeleton (P1.3; spec-010-memory-frontmatter-schema),
+ *    then **write + commit** through task-022's confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write
+ *    + one scoped commit `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
+ *
+ * A thrown `StorageError` (e.g. a confinement violation, an unresolved path placeholder for a
+ * workflow-seeded type) or a `ValidationError` (a malformed `id_pattern`) is a logic error mapped to a
+ * `CoreResult.error` (exit 1) so nothing escapes as an uncaught throw — the usage errors above are the
+ * only exit-2 path and are thrown before this try.
+ */
+const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params) => {
+  const { root, options } = params as MemoryAddParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const type = options?.type;
+  if (type === undefined) throw new UsageError('missing required argument: --type');
+  const title = options?.title;
+  if (title === undefined) throw new UsageError('missing required argument: --title');
+  const tags = parseTags(options?.tags);
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const entry = loaded.value.types[type];
+  if (!entry) {
+    return coreErr({ code: 'NOT_FOUND', message: `unknown memory type '${type}' (not defined in memory.yaml)` });
+  }
+  const { path: pathPattern, id_pattern: idPattern, template } = entry;
+  if (idPattern === undefined || template === undefined) {
+    return coreErr({ code: 'VALIDATION', message: `memory type '${type}' has no id_pattern/template in memory.yaml` });
+  }
+
+  try {
+    const sequence = hasNumericToken(idPattern)
+      ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern), idPattern)
+      : 0;
+    const id = generateId(idPattern, { slug: slugifyTitle(title), n: sequence });
+    const scaffold = readDocument(join(root, '.wingfoil', template.file));
+    const content = renderAddDocument(scaffold, { id, title, tags });
+    const message = `wf(${type}): add ${id}`;
+    const { path, sha } = writeMemoryEntry(root, pathPattern, { id }, content, message);
+    return coreOk({ id, path: relative(root, path) }, { sha, message });
+  } catch (error) {
+    if (error instanceof StorageError) {
+      return coreErr({ code: 'IO', message: error.message });
+    }
+    if (error instanceof ValidationError) {
+      const reason = error.issues.length > 0 ? error.issues.map((issue) => issue.message).join('; ') : error.message;
+      return coreErr({ code: 'VALIDATION', message: reason });
+    }
+    throw error;
+  }
+};
+
+/**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
  * `src/mcp`'s Tool/Resource registrar both import this exact array — see spec-006 §4.1: "no
  * duplicated or hand-copied operation list in either surface module".
@@ -283,6 +379,27 @@ export const CORE_MODULES: readonly CoreModule[] = [
       // now actually guards (task-025-implement-dna-set).
       dnaSet: { name: 'dnaSet', mutates: true, fn: dnaSetFn },
       dnaShow: { name: 'dnaShow', mutates: false, fn: dnaShowFn },
+    },
+  },
+  {
+    name: 'memory',
+    operations: {
+      // The FIRST Memory-document mutation (P1.3, spec-006 §3 memory table) — `mutates: true`, so by
+      // construction an MCP Tool (`memory.add`) + CLI command (`wingfoil memory add`), and the second
+      // op the REQ-SYS-05 parity test now guards (alongside `dna.set`). It declares the value-bearing
+      // `--type`/`--title`/`--tags` options (task-020's `CoreOperation.options` seam, reused by
+      // task-021). `loadMemoryYaml` (the Memory *pillar config* loader) is deliberately NOT registered
+      // here — it is a different concept from this `memory` module, which operates on Memory *documents*.
+      memoryAdd: {
+        name: 'memoryAdd',
+        mutates: true,
+        options: [
+          { name: 'type', required: true },
+          { name: 'title', required: true },
+          { name: 'tags' },
+        ],
+        fn: memoryAddFn,
+      },
     },
   },
   {
