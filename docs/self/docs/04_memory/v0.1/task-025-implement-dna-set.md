@@ -2,7 +2,7 @@
 id: "task-025-implement-dna-set"
 type: task
 title: "Implement wingfoil dna set (P2.1)"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "dna"]
@@ -98,3 +98,25 @@ was invented or edited here.
 3. **First real `mutates: true` op**: registering `dnaSet` in `CORE_MODULES` flips the production parity /
    MCP "zero mutating ops today" tests (task-006/011/016 wrote them as placeholders that, by their own
    comments, activate "with task-018+") — those are updated to expect the `dna.set` Tool.
+
+### red / green / refactor / review
+
+- **red** — new failing tests only, existing suite left green: `test/dna/set.test.ts` (pure key-path
+  validator + setter), `test/core/dna-set.test.ts` (dnaSet: write+commit+exit0, idempotent, invalid
+  key path→UsageError/exit2 + file unchanged, git-identity-missing→exit1, schema-invalid→exit1),
+  `test/core/exit-code-throw.test.ts` (`exitCodeForThrow`), `test/cli/usage-error-dispatch.test.ts`
+  (UsageError→exit2 dispatch + `positionals` threading).
+- **green** — `src/dna/set.ts` (pure), `src/core/usage-error.ts` + `exitCodeForThrow`, additive
+  `ParamsContext.positionals`, `dnaSetFn` registered `mutates: true`, CLI variadic `[positionals...]` +
+  thrown-error routing. Reconciled the placeholder "0 mutating ops" tests (parity / production-registry /
+  MCP read-only-agent-channel) to the `dna.set` Tool; added an end-to-end integration test.
+- **Scope surprise (handled, documented):** setting a key to its *current* value produces no git diff,
+  which made `commitPaths` fail ("nothing to commit"). Resolved by making an unchanged value an
+  **idempotent no-op** — exit 0, no empty commit — rather than an error (matches the AC's "idempotent
+  write" intent). Also switched the write-path re-validation to a SILENT `safeParse` so the spec-009
+  unknown-field warning (a load-path concern, e.g. `dna show`) does not leak onto `dna set`'s stderr.
+- **refactor** — unified the `tech_stack`→`stacks` alias onto the single `DNA_KEY_ALIASES`
+  (`src/dna/set.ts`); `dnaShow` now reads it too (removed its duplicate local copy).
+- **review** — `npx tsc --noEmit` exit 0; `npx jest` 477/477 green (incl. REQ-SYS-05 parity + all MCP
+  tests); project coverage 98% (new code ≥94%). BDD P2.1 is exercised end-to-end by the real-commander
+  integration block (`test/cli/program.integration.test.ts`), there being no cucumber runner yet.
