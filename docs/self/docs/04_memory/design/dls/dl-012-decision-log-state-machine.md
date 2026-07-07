@@ -8,6 +8,13 @@ release: ""
 tmpl_version: 260703   # Orignal template version
 ---
 
+> **Amendment under discussion (`dl-017-decision-log-remove-delivery-states`):** the delivery states
+> `in-develop`/`done` decided here presuppose a task→DL back-reference that was never implemented (the
+> `task` template has no `dl:` field), so they are unreachable. dl-017 proposes removing them, reducing
+> this machine to `draft → in-discussion → ready (→ deprecated)`. The custom-machine decision below
+> still stands; only its delivery lifecycle is being retired. See dl-017 before relying on
+> `in-develop`/`done`.
+
 ## Context
 
 `docs/self/.wingfoil/memory.yaml` currently declares **no `states` block** for the `decision-log`
