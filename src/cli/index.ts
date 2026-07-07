@@ -22,3 +22,5 @@ export type { ExitCode } from './exit';
 export { isValidFormat, renderSuccess } from './output';
 export type { OutputFormat } from './output';
 export { emitError } from './error';
+export { runInit, createReadlinePrompt } from './init-command';
+export type { InitCliOptions, InitCliDeps } from './init-command';

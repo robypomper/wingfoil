@@ -75,6 +75,15 @@ describe('runInit — wizard + --template (P5.1.1)', () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
+  it('an unknown answer typed into the wizard is a usage error, exit 2, never calls core', async () => {
+    const prompt = jest.fn(async () => 'Waterfallish');
+    await runInit({ template: undefined, interactive: true, format: 'console' }, deps({ isTTY: true, prompt }));
+    expect(exitSpy).toHaveBeenCalledWith(2);
+    expect(initCalls).toHaveLength(0);
+    const written = stderrSpy.mock.calls.map((c) => c[0]).join('');
+    expect(written).toContain('Waterfallish');
+  });
+
   it('spec-008 §4: no --template + not a TTY fails with exit 2, missing-arg message, never calls core', async () => {
     await runInit({ template: undefined, interactive: true, format: 'console' }, deps({ isTTY: false }));
     expect(stderrSpy).toHaveBeenCalledWith('error: missing required argument: --template\n');
