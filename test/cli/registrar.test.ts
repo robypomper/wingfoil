@@ -168,6 +168,46 @@ describe('CliCommand.run — dispatch behavior', () => {
   });
 });
 
+describe('positional argument threading (task-026-implement-dna-show — generic seam reused by task-025/028)', () => {
+  let exitSpy: jest.SpyInstance;
+  let stdoutSpy: jest.SpyInstance;
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+  });
+
+  /** A one-operation module whose core fn just echoes back whatever params it received. */
+  function echoCommand(): CliCommand {
+    const commands = buildCliCommands(
+      [{ name: 'x', operations: { xEcho: { name: 'xEcho', mutates: false, fn: async (params) => coreOk(params) } } }],
+      {
+        resolveRoot: () => '/fixture-root',
+        buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional }),
+      },
+    );
+    return findCommand(commands, 'x', 'echo');
+  }
+
+  it('`CliCommand.run`\'s optional second argument reaches `buildParams` as `ctx.positional`, generically (not dna-specific)', async () => {
+    await echoCommand().run('json', 'some-section');
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ root: '/fixture-root', positional: 'some-section' }) + '\n');
+  });
+
+  it('an omitted positional argument is threaded through as `undefined`', async () => {
+    await echoCommand().run('json');
+    expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ root: '/fixture-root' }) + '\n');
+  });
+});
+
 describe('exit-code matrix (REQ-INT-04, task-012) — dispatch routes 0/1/2 through core selection', () => {
   let exitSpy: jest.SpyInstance;
   let stdoutSpy: jest.SpyInstance;
