@@ -154,6 +154,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(resources.map((r) => r.uri).sort()).toEqual([
       'wingfoil://directives/list',
       'wingfoil://dna/show',
+      'wingfoil://memory/search',
       'wingfoil://paths',
       'wingfoil://workflow/list',
     ]);

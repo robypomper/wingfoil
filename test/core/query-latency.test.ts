@@ -8,20 +8,34 @@
  *
  * This benchmarks the query-path *primitives* task-008 is scoped to build (see the task's Execution
  * Notes for the foundation/feature scoping decision) — `src/core`'s existing `loadDnaYaml` (already
- * wired as the `dnaShow` CoreOperation, task-006) and `src/memory`'s new `searchMemoryDocuments` /
- * `getMemoryHistory` — not the full CLI commands (argv grammar, `--tag` filtering, console/json/yaml
- * rendering, exit-code messaging), which are task-021 (memory search) / task-026 (dna show) / a
- * later, not-yet-scheduled P1.10 task (memory history) feature work.
+ * wired as the `dnaShow` CoreOperation, task-006) and `src/memory`'s `getMemoryHistory` — not the
+ * full CLI commands (argv grammar, console/json/yaml rendering, exit-code messaging), which are
+ * task-026 (dna show) / a later, not-yet-scheduled P1.10 task (memory history) feature work.
+ *
+ * **`memory search` is the one exception, re-pointed by task-021-implement-memory-search**: it now
+ * measures the REAL, REGISTERED `CORE_MODULES` `memory.memorySearch` `CoreFn` (`--tag`/`--status`/
+ * `--type` filtering, the empty-query guard, and the exit-0/message envelope included) rather than
+ * calling `searchMemoryDocuments` directly — the exact same call both `wingfoil memory search` and
+ * the MCP `wingfoil://memory/search` Resource make, so this is the REQ-PERF-02 guarantee task-021's
+ * Acceptance Criteria actually needs (AC(a): "returning in under 1 second").
  *
  * Each timed run redoes the full pillar-config load + scan a real CLI invocation would redo (no
  * warm in-process cache carried across runs), so the measurement reflects one command's real cost.
  */
 import { performance } from 'perf_hooks';
 
-import { loadDnaYaml, loadMemoryYaml } from '../../src/core';
+import { loadDnaYaml, CORE_MODULES } from '../../src/core';
+import type { CoreFn } from '../../src/core/registry';
 import { getMemoryHistory } from '../../src/memory/history';
-import { searchMemoryDocuments, type MemorySearchMatch } from '../../src/memory/query';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
+
+/** The real, registered `memory.memorySearch` `CoreFn` (task-021) — fails loudly if a future change
+ * un-registers it, rather than silently benchmarking a stale/wrong function. */
+function memorySearchFn(): CoreFn<unknown, { matches: readonly unknown[] }> {
+  const operation = CORE_MODULES.find((module) => module.name === 'memory')?.operations.memorySearch;
+  if (!operation) throw new Error('fixture bug: "memorySearch" operation not registered on the memory module');
+  return operation.fn as CoreFn<unknown, { matches: readonly unknown[] }>;
+}
 
 jest.setTimeout(60_000);
 
@@ -188,20 +202,22 @@ describe('REQ-PERF-02 — DNA/Memory query latency on a 1,000-Memory-document re
     expect(p95(samples)).toBeLessThan(P95_BUDGET_MS);
   });
 
-  it('`memory search`\'s keyword/frontmatter scan over 1,000 documents stays under 1000ms at p95 over >= 20 runs', () => {
-    let lastMatches: MemorySearchMatch[] = [];
-    const samples = Array.from({ length: RUNS }, () =>
-      timeSync(() => {
-        const memoryYaml = loadMemoryYaml(root);
-        lastMatches = searchMemoryDocuments(root, memoryYaml, KEYWORD);
-      }),
-    );
+  it("`memory search`'s keyword/frontmatter scan over 1,000 documents stays under 1000ms at p95 over >= 20 runs (measured through the REGISTERED memory.memorySearch op, task-021)", async () => {
+    const fn = memorySearchFn();
+    let lastMatches: readonly unknown[] = [];
+    const samples: number[] = [];
+    for (let i = 0; i < RUNS; i += 1) {
+      const start = performance.now();
+      const outcome = await fn({ root, positional: KEYWORD });
+      samples.push(performance.now() - start);
+      if (outcome.ok) lastMatches = outcome.value.matches;
+    }
     expect(samples).toHaveLength(RUNS);
     expect(p95(samples)).toBeLessThan(P95_BUDGET_MS);
-    // Sanity: the fixture exercises a real, non-trivial match set spanning both ranking tiers.
+    // Sanity: the fixture exercises a real, non-trivial match set (both metadata- and body-only hits
+    // per `seedReferenceRepo`'s `index % 13`/`index % 7` construction) through the full registered op
+    // — id/frontmatter-projection included, not just the raw scan primitive.
     expect(lastMatches.length).toBeGreaterThan(0);
-    expect(lastMatches.some((m) => m.metadataMatch)).toBe(true);
-    expect(lastMatches.some((m) => m.bodyMatch && !m.metadataMatch)).toBe(true);
   });
 
   it('`memory history`\'s git-log walk stays under 1000ms at p95 over >= 20 runs', () => {
