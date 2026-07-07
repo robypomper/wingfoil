@@ -31,14 +31,22 @@ export interface RegisterCoreModulesOptions {
   readonly buildParams: ParamsBuilder;
 }
 
-/** `{module}.{verb}` — spec-004 §4.1's Tool naming convention (mechanical transform of the CLI verb). */
+/**
+ * `{module}.{verb}` — spec-004 §4.1's Tool naming convention (mechanical transform of the CLI verb).
+ * An empty `verb` (`deriveVerb`'s flat/no-verb form, task-028-implement-paths-category) collapses to
+ * the bare module name — there is no verb segment to append a `.` before.
+ */
 export function deriveMcpToolName(moduleName: string, verb: string): string {
-  return `${moduleName}.${verb}`;
+  return verb ? `${moduleName}.${verb}` : moduleName;
 }
 
-/** `wingfoil://{module}/{verb}` — spec-004 §2.1's URI scheme, applied mechanically (see module doc). */
+/**
+ * `wingfoil://{module}/{verb}` — spec-004 §2.1's URI scheme, applied mechanically (see module doc).
+ * Same empty-verb collapse as {@link deriveMcpToolName}: `wingfoil://{module}`, not a trailing-slash
+ * `wingfoil://{module}/`.
+ */
 export function deriveMcpResourceUri(moduleName: string, verb: string): string {
-  return `wingfoil://${moduleName}/${verb}`;
+  return verb ? `wingfoil://${moduleName}/${verb}` : `wingfoil://${moduleName}`;
 }
 
 /**
