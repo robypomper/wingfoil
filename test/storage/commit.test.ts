@@ -68,6 +68,16 @@ describe('commitPaths — scoped, single-commit git primitive (task-018, P1.1)',
     expect(() => commitPaths(repo, ['x.txt'], 'feat: x')).not.toThrow();
     expect(readdirSync(repo)).toContain('x.txt');
   });
+
+  it('merges an options.env override over process.env (task-029 wizard author override path)', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'y.txt', 'Y');
+    commitPaths(repo, ['y.txt'], 'feat: y', {
+      env: { GIT_AUTHOR_NAME: 'Override Dev', GIT_AUTHOR_EMAIL: 'override@example.invalid' },
+    });
+    expect(git(repo, ['log', '-1', '--format=%an']).trim()).toBe('Override Dev');
+    expect(git(repo, ['log', '-1', '--format=%ae']).trim()).toBe('override@example.invalid');
+  });
 });
 
 // Local seed helper: commit the seed file without depending on commitPaths' own contract.
