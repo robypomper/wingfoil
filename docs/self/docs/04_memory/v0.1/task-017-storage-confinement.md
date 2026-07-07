@@ -2,7 +2,7 @@
 id: "task-017-storage-confinement"
 type: task
 title: "Infrastructure: REQ-SEC-06 — Storage confinement"
-status: approved
+status: done
 release: "v0.1"
 priority: "Blocker"
 tags: ["v0.1", "architecture"]
