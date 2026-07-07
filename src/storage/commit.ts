@@ -18,7 +18,7 @@
  */
 import { execFileSync } from 'child_process';
 
-/** Options for {@link commitPaths} — reserved for future author/date overrides; empty today. */
+/** Options for {@link commitPaths} — carries the git-author/env override used by callers (e.g. task-029's wizard). */
 export interface CommitOptions {
   /** Additional environment for the git invocations (merged over `process.env`). */
   readonly env?: NodeJS.ProcessEnv;
