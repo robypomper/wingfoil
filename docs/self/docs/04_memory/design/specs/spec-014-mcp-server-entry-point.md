@@ -2,7 +2,7 @@
 id: "spec-014-mcp-server-entry-point"
 type: tech-spec
 title: "MCP server entry point — the `wingfoil mcp` command & stdio transport"
-status: pending
+status: approved
 scope: "src/mcp/server.ts, src/cli (the `wingfoil mcp` command)"
 supersedes: ""
 tmpl_version: 260703
