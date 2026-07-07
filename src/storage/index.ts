@@ -19,5 +19,14 @@ export { commitPaths } from './commit';
 export type { CommitOptions } from './commit';
 export { initStorage, scaffoldFiles, WINGFOIL_DIR, INIT_COMMIT_MESSAGE } from './layout';
 export type { ScaffoldFile } from './layout';
+export {
+  TEMPLATES,
+  TEMPLATE_NAMES,
+  DEFAULT_TEMPLATE,
+  resolveTemplate,
+  templateScaffold,
+  initProjectCommitMessage,
+} from './templates';
+export type { TemplateDefinition } from './templates';
 export { computeStateSnapshot, serializeSnapshot } from './snapshot';
 export type { SnapshotEntry } from './snapshot';
