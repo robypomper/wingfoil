@@ -124,5 +124,45 @@ export const MemoryYaml = z
     defaults: z.object({ states: StateMachine }).passthrough().optional(),
     types: z.record(z.string(), MemoryTypeEntry),
   })
-  .passthrough();
+  .passthrough()
+  /**
+   * Type-contextualized restatement of spec-001's "Semantic validation (post-parse)" membership rule
+   * — the P1.13 acceptance contract (task-024-implement-memory-element-schema): a state referenced by
+   * a type's machine (a `gates` key or a `waiting` entry) that is NOT one of that type's declared
+   * states (`sequence`) is a malformed schema and must be rejected at load time, **before any document
+   * of that type can be created or transitioned** (REQ-STATE-01). The `StateMachine` sub-schema's own
+   * `.superRefine` already flags the same structural violation, but only this top-level refinement
+   * knows the *owning type name*, so P1.13's required wording
+   * (`transition target '<state>' not in declared states for type '<type>'`) can only be produced
+   * here. `defaults.states` (which has no owning type) is left to the `StateMachine`-level check.
+   *
+   * `gates.<state>.reject` targets are intentionally NOT checked: spec-001 explicitly allows them to
+   * be off-chain ("need **not** be a member of `sequence` ... e.g. `bug`'s `open: { reject: closed }`").
+   * Iteration is over insertion-ordered `Object.entries`/`Object.keys` only — no wall-clock, no
+   * randomness, no set ordering (REQ-SYS-07 determinism).
+   */
+  .superRefine((value, ctx) => {
+    for (const [typeName, entry] of Object.entries(value.types)) {
+      const machine = entry.states;
+      if (!machine) continue; // no own machine ⇒ `defaults.states` applies (REQ-STATE-08)
+      const sequenceSet = new Set(machine.sequence);
+
+      const flag = (state: string, path: (string | number)[]) => {
+        if (state !== RESERVED_STATE && !sequenceSet.has(state)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `transition target '${state}' not in declared states for type '${typeName}'`,
+            path: ['types', typeName, 'states', ...path],
+          });
+        }
+      };
+
+      for (const gateState of Object.keys(machine.gates ?? {})) {
+        flag(gateState, ['gates', gateState]);
+      }
+      (machine.waiting ?? []).forEach((waitState, index) => {
+        flag(waitState, ['waiting', index]);
+      });
+    }
+  });
 export type MemoryYaml = z.infer<typeof MemoryYaml>;
