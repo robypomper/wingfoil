@@ -1,9 +1,9 @@
 ---
 id: "bug-004-dna-set-strips-yaml-comments"
 type: bug
-title: ""
-status: draft
-severity: ""
+title: "wingfoil dna set strips YAML comments (loses [SPEC]/[AUTHORING] provenance)"
+status: open
+severity: "medium"
 release: "v0.1"
 feature: "P2.1"
 tmpl_version: 260703
@@ -11,24 +11,43 @@ tmpl_version: 260703
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`wingfoil dna set <key> <value>` re-serializes `.wingfoil/dna.yaml` via `js-yaml` `dump()`, which
+drops all comments and reformats the file — so a single `dna set` on a comment-rich `dna.yaml` (such
+as WingFoil's own dogfooding config) silently deletes every inline `[SPEC]`/`[AUTHORING]` provenance
+annotation (the field-provenance convention, CLAUDE.md §9 / documented in `dna.yaml` itself).
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug. -->
+1. On a `.wingfoil/dna.yaml` that carries inline comments (e.g. `[SPEC]`/`[AUTHORING]` annotations).
+2. Run `wingfoil dna set project.name "Example"` (any valid key/value).
+3. Inspect the committed `dna.yaml`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The set value is updated in place and all unrelated content — including comments and formatting — is
+preserved (a minimal, comment-preserving edit).
 
 ## Actual Behavior
 
-<!-- What actually happens. -->
+The whole file is rewritten by `js-yaml` `dump(dna, { lineWidth: -1 })`: every comment is gone and
+formatting is normalized. The value change is correct and deterministic, but the provenance
+annotations are lost.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Surfaced by the independent review of **task-025** (P2.1, first mutating op) — see that task's
+  Execution Notes. The AC (P2.1 / `P2.1-dna-set.feature`) does not require comment preservation, so
+  task-025 was merged as-is (`686ffc7`) and this follow-up was opened to track the real gap.
+- Root cause: comment loss is inherent to `js-yaml`'s object → YAML `dump` (it parses to a plain JS
+  object, discarding comment tokens). A fix needs either a comment-preserving YAML round-trip
+  (e.g. an AST/CST-based editor such as the `yaml` package's `Document` API) or a scoped
+  line-level edit of only the target key.
+- Matters most for WingFoil's **own** dogfooding config, whose determinism/traceability story leans on
+  the `[SPEC]`/`[AUTHORING]` annotations; a greenfield user project without comments is unaffected.
+- Determinism (REQ-SYS-07) is not regressed — the rewrite is byte-stable; only comments/formatting
+  are lost.
 
 ## Triage & Execution Notes
 
-<!-- Running log. -->
+- 2026-07-07 (open): raised from task-025 review as a `medium`-severity follow-up. Not yet triaged
+  into a fix task; no `bug:`-linked task exists yet. Candidate fix approaches noted above.
