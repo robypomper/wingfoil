@@ -23,6 +23,7 @@ import {
 } from './loaders';
 import type { CoreFn, CoreModule } from './registry';
 import { coreErr, coreOk } from './types';
+import type { CoreResult } from './types';
 
 export const MODULE_NAME = 'core' as const;
 
@@ -46,29 +47,63 @@ export interface RootParams {
 }
 
 /**
- * Adapt a synchronous, throwing pillar loader (task-004's `load*` functions) into a `CoreFn`
- * (spec-006 §2): expected failures (`ValidationError` from the shared two-pass pipeline; a missing
- * file, surfaced by Node as `ENOENT`) become `CoreResult.error`; anything else propagates as a
- * genuine thrown exception (a programmer bug, not a domain failure — spec-006 §2's "no function
- * throws for *expected* domain failures" implies unexpected ones still may).
+ * Run a synchronous, throwing pillar loader (task-004's `load*` functions) and map its expected
+ * failures onto a `CoreResult` (spec-006 §2): a `ValidationError` from the shared two-pass pipeline
+ * becomes `VALIDATION`, a missing file (Node's `ENOENT`) becomes `NOT_FOUND`; anything else
+ * propagates as a genuine thrown exception (a programmer bug, not a domain failure — spec-006 §2's
+ * "no function throws for *expected* domain failures" implies unexpected ones still may). Factored
+ * out of `wrapReadOnly` so `dnaShowFn` below can reuse the exact same mapping for its own richer,
+ * section-aware body instead of duplicating it.
  */
+function loadOrError<R>(loader: () => R): CoreResult<R> {
+  try {
+    return coreOk(loader());
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return coreErr({ code: 'VALIDATION', message: error.message, details: { issues: error.issues } });
+    }
+    const errno = error as NodeJS.ErrnoException;
+    if (errno && errno.code === 'ENOENT') {
+      return coreErr({ code: 'NOT_FOUND', message: errno.message });
+    }
+    throw error;
+  }
+}
+
+/** Adapt a synchronous, throwing pillar loader into a `CoreFn` taking just `{ root }` (spec-006 §2). */
 function wrapReadOnly<R>(loader: (root: string) => R): CoreFn<unknown, R> {
   return async (params) => {
     const { root } = params as RootParams;
-    try {
-      return coreOk(loader(root));
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        return coreErr({ code: 'VALIDATION', message: error.message, details: { issues: error.issues } });
-      }
-      const errno = error as NodeJS.ErrnoException;
-      if (errno && errno.code === 'ENOENT') {
-        return coreErr({ code: 'NOT_FOUND', message: errno.message });
-      }
-      throw error;
-    }
+    return loadOrError(() => loader(root));
   };
 }
+
+/**
+ * `dna show [section]` (P2.2-implement-dna-show, task-026): resolves `ParamsContext.positional`
+ * (`core/registry.ts` — the generic CLI-positional seam this task adds) as an optional DNA section
+ * name. No `positional` -> the whole parsed `DnaYaml` (unchanged behavior, what the MCP
+ * `wingfoil://dna/show` Resource still gets, since the MCP surface never sets this field — see
+ * `ParamsContext.positional`'s own doc comment). `tech_stack` resolves as a BDD-compatibility alias
+ * for `stacks` (spec-002-dna-yaml-schema Consequences: the schema renamed the BDD's `tech_stack`
+ * wording). An unknown section is a domain `NOT_FOUND` (`CoreResult.error`, exit `1` via
+ * `exit-code.ts` — never a thrown exception and never exit `2`, since a read-only command can only
+ * exit `0`/`1` per spec-005-cli-command-contract §1), with the exact P2.2 message
+ * `no DNA key named '<section>'`.
+ */
+const DNA_SHOW_SECTION_ALIASES: Readonly<Record<string, string>> = { tech_stack: 'stacks' };
+
+const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
+  const { root, positional: section } = params as RootParams & { positional?: string };
+  const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
+  if (!loaded.ok || section === undefined) return loaded;
+
+  const key = DNA_SHOW_SECTION_ALIASES[section] ?? section;
+  const dna = loaded.value as Record<string, unknown>;
+  if (!(key in dna)) {
+    return coreErr({ code: 'NOT_FOUND', message: `no DNA key named '${section}'` });
+  }
+  return coreOk(dna[key]);
+};
 
 /**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
@@ -93,7 +128,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
   {
     name: 'dna',
     operations: {
-      dnaShow: { name: 'dnaShow', mutates: false, fn: wrapReadOnly<DnaYaml>(loadDnaYaml) },
+      dnaShow: { name: 'dnaShow', mutates: false, fn: dnaShowFn },
     },
   },
   {
