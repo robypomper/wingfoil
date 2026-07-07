@@ -43,6 +43,22 @@ types:
       file: "memory/templates/note.md"
       frontmatter:
         required: [id, type, title, status]
+  needs-version:
+    path: "docs/memory/nv/{id}.md"
+    id_pattern: "nv-{version}"
+    template:
+      file: "memory/templates/note.md"
+      frontmatter:
+        required: [id, type, title, status]
+  unresolved-path:
+    path: "docs/memory/{release}/{id}.md"
+    id_pattern: "up-{slug}"
+    template:
+      file: "memory/templates/note.md"
+      frontmatter:
+        required: [id, type, title, status]
+  bare:
+    path: "docs/memory/bare/{id}.md"
 `;
 
 const DECISION_TEMPLATE = `---
@@ -120,10 +136,10 @@ describe('CORE_MODULES memory.memoryAdd — P1.3 fit criteria (repo with a confi
     expect(content).toContain('title: "Use PostgreSQL"');
     // tmpl_version copied from the scaffold verbatim (spec-010: not touched by add).
     expect(content).toContain('tmpl_version: 260101');
-    // Body placeholder copied verbatim (CLAUDE.md §5.1).
+    // Body placeholder copied verbatim (P1.3 memory.add).
     expect(content).toContain('<!-- decision body.');
 
-    // Exactly one commit, scoped to the one new file, subject `wf(<type>): add <id>` (CLAUDE.md §5.1).
+    // Exactly one commit, scoped to the one new file, subject `wf(<type>): add <id>` (memory-op commit convention, P1.7).
     expect(result.commit?.sha).toMatch(/^[0-9a-f]{40}$/);
     expect(result.commit?.sha).toBe(head(repo));
     expect(head(repo)).not.toBe(before);
@@ -191,6 +207,38 @@ describe('CORE_MODULES memory.memoryAdd — P1.3 fit criteria (repo with a confi
     }
     expect(head(repo)).toBe(before);
     expect(existsSync(join(repo, 'docs/memory/decision'))).toBe(false);
+  });
+
+  it('an id_pattern the title cannot satisfy is a logic error (ValidationError -> VALIDATION, exit 1), not a crash', async () => {
+    // `nv-{version}` needs a `{version}` value `memory add` does not supply from a title — `generateId`
+    // throws a ValidationError, which the op maps to a CoreResult.error (exit 1), never an escaped throw.
+    const before = head(repo);
+    const result = await memoryAddFn()({ root: repo, options: { type: 'needs-version', title: 'X' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('VALIDATION');
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(head(repo)).toBe(before);
+  });
+
+  it('an unresolved path placeholder (a workflow-seeded type) is a StorageError -> IO (exit 1), writing nothing', async () => {
+    // `docs/memory/{release}/{id}.md` needs a `{release}` the bare CLI add cannot supply — the confined
+    // path resolver throws a StorageError, mapped to a CoreResult.error (exit 1), before any write.
+    const before = head(repo);
+    const result = await memoryAddFn()({ root: repo, options: { type: 'unresolved-path', title: 'X' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('IO');
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(head(repo)).toBe(before);
+  });
+
+  it('a type declared without an id_pattern/template is a config VALIDATION error (exit 1), not a crash', async () => {
+    const result = await memoryAddFn()({ root: repo, options: { type: 'bare', title: 'X' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('VALIDATION');
+    expect(exitCodeForResult(result)).toBe(1);
   });
 
   it('a missing --type is likewise a usage error (exit 2), before any registry lookup', async () => {
