@@ -2,7 +2,7 @@
 id: "task-023-implement-keyword-search"
 type: task
 title: "Implement Keyword Memory Search (P1.12)"
-status: in-review
+status: approved
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
