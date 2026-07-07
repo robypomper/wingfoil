@@ -34,6 +34,9 @@ modules:
   - name: core
     description: Shared domain logic; single behavior behind both CLI and MCP surfaces (REQ-SYS-05).
     path: src/core
+  - name: validation
+    description: Shared validation & ID-generation engine (spec-009); single two-pass Zod entry point every schema and surface calls.
+    path: src/validation
   - name: storage
     description: Git-backed file storage (YAML + Markdown); single source of truth (REQ-SYS-01).
     path: src/storage
@@ -53,7 +56,7 @@ modules:
     description: Human interface (Commander.js + chalk); `wingfoil` command surface.
     path: src/cli
   - name: mcp-server
-    description: Agent interface (MCP over stdio, Anthropic SDK); Resources, Prompts, Tools.
+    description: Agent interface (MCP over stdio, @modelcontextprotocol/sdk); Resources, Tools (Prompts v0.2).
     path: src/mcp
 
 # ---------------------------------------------------------------------------
@@ -80,10 +83,13 @@ stacks:
       notes: CLI output formatting
     - name: Model Context Protocol
       category: protocol
-      notes: Agent interface; transport over stdio
+      notes: Agent interface; transport over stdio; implemented in src/mcp via the @modelcontextprotocol/sdk package (ADR-004)
     - name: Anthropic SDK
       category: sdk
-      notes: MCP server implementation
+      notes: declared in package.json dependencies; not yet imported by any src/ module — the MCP server (src/mcp) is built on @modelcontextprotocol/sdk instead (drifted from ADR-004's original framing)
+    - name: js-yaml
+      category: library
+      notes: YAML parse/dump for all git-backed storage files (src/validation/yaml.ts, src/core/loaders.ts)
     - name: Zod
       category: validation
     - name: Jest
@@ -153,19 +159,18 @@ team:
 # ---------------------------------------------------------------------------
 # Resource paths — queried by `wingfoil paths [category]` (P2.5)   [SPEC: P2.5]
 # Category names (sources, tests, docs, config, governance) are [SPEC] (X_cli-cmds.md); entries are [AUTHORING].
-# (sources/tests/config are planned locations; tool not yet implemented)
 # ---------------------------------------------------------------------------
 paths:
   sources:
-    - src/                         # planned
+    - src/
   tests:
-    - test/                        # planned
+    - test/
   docs:
     - docs/
     - docs/01_vision/
     - docs/02_requirements/
   config:
-    - package.json                 # planned
-    - tsconfig.json                # planned
+    - package.json
+    - tsconfig.json
   governance:
     - docs/self/.wingfoil/         # this dogfooding configuration
