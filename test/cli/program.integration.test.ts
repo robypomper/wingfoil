@@ -242,11 +242,14 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
       expect(result.stdout).toBe('');
     });
 
-    it('`paths` with no `category` at all exits 1 via commander\'s own required-argument enforcement, never touching stdout (confirmed by hand against the compiled dist, same real/aspirational exit-code deviation this file already documents for unknown commands — spec-008\'s exit-2 grammar for a missing argument is not implemented; commander\'s default `missingArgument` exits 1, which happens to also satisfy spec-005 §1\'s stricter "read-only commands exit 0 or 1 only" rule)', () => {
-      const result = runCli('paths');
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("missing required argument 'category'");
-      expect(result.stdout).toBe('');
+    it('`paths` with no `category` returns the whole `paths` node and exits 0 — symmetric with `dna show` (no section = full DNA), per task-026\'s shared optional `[positional]` seam', () => {
+      // Reconciled onto task-026's generic OPTIONAL `[positional]` (`X_cli-cmds.md`'s `[category]`
+      // synopsis is bracketed = optional); an omitted category is not an error, it drills up to the
+      // full `paths` map — exit 0, never exit 2 (read-only command, spec-005 §1).
+      const result = runCli('paths', '--format', 'json');
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ sources: ['src/'] });
+      expect(result.stderr).toBe('');
     });
   });
 

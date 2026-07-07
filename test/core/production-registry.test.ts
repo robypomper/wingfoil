@@ -148,31 +148,32 @@ phases:
   });
 
   // task-028-implement-paths-category (P2.5): `paths` queries the same `.wingfoil/dna.yaml` `paths`
-  // node dnaShow reads, filtered to one category — spec-005-cli-command-contract §4's worked example
-  // fixes the exact success shape: `{"category":"sources","paths":["src/cli","src/core"]}`.
+  // node dnaShow reads, filtered to one category — the category rides task-026's generic bare
+  // `positional` seam (same field `dnaShowFn`'s section uses). spec-005-cli-command-contract §4's
+  // worked example fixes the exact success shape: `{"category":"sources","paths":["src/cli","src/core"]}`.
   it('paths returns coreOk({category, paths}) for a mapped category (spec-005 §4 worked-example shape)', async () => {
     writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
-    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'sources' });
+    const result = await findOperation('paths', 'paths').fn({ root: repo, positional: 'sources' });
     expect(result).toEqual({ ok: true, value: { category: 'sources', paths: ['src/'] } });
   });
 
   it("paths returns coreErr(NOT_FOUND, \"no paths mapped for category '<category>'\") for an unmapped category (BDD P2.5)", async () => {
     writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
-    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'governance' });
+    const result = await findOperation('paths', 'paths').fn({ root: repo, positional: 'governance' });
     expect(result).toEqual({
       ok: false,
       error: { code: 'NOT_FOUND', message: "no paths mapped for category 'governance'" },
     });
   });
 
-  it('paths returns coreOk(<whole paths node>) when no category is given (the MCP mechanical zero-arg Resource case)', async () => {
+  it('paths returns coreOk(<whole paths node>) when no category (positional) is given — symmetric with dna show, and the MCP mechanical zero-arg Resource case', async () => {
     writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
     const result = await findOperation('paths', 'paths').fn({ root: repo });
     expect(result).toEqual({ ok: true, value: { sources: ['src/'] } });
   });
 
   it('paths returns coreErr(NOT_FOUND) when .wingfoil/dna.yaml is missing, same as dnaShow', async () => {
-    const result = await findOperation('paths', 'paths').fn({ root: repo, category: 'sources' });
+    const result = await findOperation('paths', 'paths').fn({ root: repo, positional: 'sources' });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('NOT_FOUND');

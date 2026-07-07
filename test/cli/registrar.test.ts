@@ -81,6 +81,9 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
     stderrSpy.mockRestore();
   });
 
+  // Unified seam (reconciled onto task-026's merged `ParamsContext.positional?: string`): `paths` is a
+  // flat, self-named op that declares only `flags: ['list']`; its `category` rides the SAME generic
+  // single bare positional `dna show`'s `section` does (no per-op positional metadata).
   const FLAT_MODULES: CoreModule[] = [
     {
       name: 'paths',
@@ -88,7 +91,6 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
         paths: {
           name: 'paths',
           mutates: false,
-          positional: ['category'],
           flags: ['list'],
           fn: async () => coreOk({ category: 'sources', paths: ['src/'] }),
         },
@@ -100,7 +102,6 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
     const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
     const flat = findCommand(commands, 'paths', '');
     expect(flat.verb).toBe('');
-    expect(flat.positional).toEqual(['category']);
     expect(flat.flags).toEqual(['list']);
   });
 
@@ -109,7 +110,7 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
     expect(listRegisteredCliCommands(commands)).toEqual(['paths']);
   });
 
-  it('`run` forwards positional/flag values into `buildParams` via `ParamsContext`', async () => {
+  it('`run` forwards the single positional value and the parsed flags into `buildParams` via `ParamsContext`', async () => {
     let seenPositional: unknown;
     let seenFlags: unknown;
     const commands = buildCliCommands(FLAT_MODULES, {
@@ -117,12 +118,12 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
       buildParams: (ctx) => {
         seenPositional = ctx.positional;
         seenFlags = ctx.flags;
-        return { root: ctx.root, ...(ctx.positional ?? {}), ...(ctx.flags ?? {}) };
+        return { root: ctx.root, positional: ctx.positional, ...(ctx.flags ?? {}) };
       },
     });
     const flat = findCommand(commands, 'paths', '');
-    await flat.run('json', { category: 'sources' }, { list: true });
-    expect(seenPositional).toEqual({ category: 'sources' });
+    await flat.run('json', 'sources', { list: true });
+    expect(seenPositional).toBe('sources');
     expect(seenFlags).toEqual({ list: true });
     expect(stdoutSpy).toHaveBeenCalledWith(JSON.stringify({ category: 'sources', paths: ['src/'] }) + '\n');
     expect(exitSpy).toHaveBeenCalledWith(0);
