@@ -2,7 +2,7 @@
 id: "task-029-implement-wingfoil-init"
 type: task
 title: "Implement wingfoil init (P5.1.1)"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "interaction"]
@@ -72,3 +72,15 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.1.1-init.feature`:
   workflow — AUTHORING starter content, not a spec-mandated schema, so **no new tech-spec** required.
   Build on task-018's `initStorage(root, files, message)` (its `files` override was left for exactly
   this) rather than writing a second commit path.
+
+- **red/green:** Added `src/storage/templates.ts` (methodology templates Scrum/Kanban → complete
+  28-file spec-011 layout, deterministic), `src/core/init.ts` `initWingfoilProject` (git-repo →
+  already-initialized guard → template → identity → single-commit write), and `src/cli/init-command.ts`
+  `runInit` (spec-008 §4 prompt matrix with an injectable wizard prompt) wired as a dedicated `init`
+  command in `program.ts`. No spec gap; the "template" is AUTHORING starter content. Tests: 21 new
+  (storage/core/cli). One self-inflicted test fix (fresh repo has no `HEAD` → assert post-init commit
+  count == 1). `createReadlinePrompt` left uncovered by design (same un-unit-tested seam as the
+  `commander` wiring). End-to-end drive of the built `dist/cli.js` confirmed all three ACs.
+- **review:** `tsc --noEmit` exit 0; `jest` 416/416 green; new-code line coverage ≥80% (templates 100%,
+  core init 94%, init-command 87%). `init` deliberately NOT added to `CORE_MODULES` (it is a
+  pre-config bootstrap command), so the REQ-SYS-05 parity invariant is untouched.
