@@ -26,7 +26,9 @@ import {
   parseTags,
   renderAddDocument,
   resolveTypeDirectory,
+  searchMemoryDocuments,
   slugifyTitle,
+  validateSearchQuery,
   writeMemoryEntry,
 } from '../memory';
 
@@ -347,6 +349,108 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
 };
 
 /**
+ * `wingfoil memory search [keyword]` params (P1.5, task-021-implement-memory-search) — reuses
+ * task-026's generic bare `ParamsContext.positional` seam for the free-text keyword (mirroring
+ * `dna show`'s `section`/`paths`'s `category`) and task-020's value-bearing `ParamsContext.options`
+ * seam for the `--tag`/`--status`/`--type` metadata filters (mirroring `memoryAdd`'s `--type`/
+ * `--title`/`--tags`). The MCP surface's mechanical zero-argument `wingfoil://memory/search` Resource
+ * (spec-006 §3) never populates either field (see `ParamsContext.positional`/`.options`'s own doc
+ * comments) — reading it degenerates to the "browse everything, no filter" call {@link memorySearchFn}
+ * already treats an omitted keyword as; see this task's Execution Notes for why that is the correct
+ * reading of spec-006's already-approved `memorySearch` row, not a workaround.
+ */
+export interface MemorySearchParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/**
+ * One `wingfoil memory search` result entry — the fields a CLI/MCP consumer needs to identify and
+ * open the matched document, without re-reading the file (P1.5; spec-010-memory-frontmatter-schema's
+ * base fields). Deliberately drops `searchMemoryDocuments`'s internal `metadataMatch`/`bodyMatch`
+ * ranking flags: those exist to DRIVE this task's ordering (REQ-SYS-07), not to be part of its public
+ * result shape.
+ */
+export interface MemorySearchResultItem {
+  readonly path: string;
+  readonly id?: string;
+  readonly title?: string;
+  readonly type?: string;
+  readonly status?: string;
+  readonly tags: readonly string[];
+}
+
+/**
+ * `memory search` success shape: always the resolved `query` + the ranked `matches`, plus a `message`
+ * ONLY when `matches` is empty (P1.5 BDD "Error - query with no matches": zero results is still
+ * `coreOk` — exit 0, never a `CoreResult.error` — carrying the exact message "no documents matched the
+ * query"). A non-empty result carries no `message` field at all (not an empty string), so a
+ * `json`/`yaml` consumer can branch on its mere presence.
+ */
+export interface MemorySearchResult {
+  readonly query: string;
+  readonly matches: readonly MemorySearchResultItem[];
+  readonly message?: string;
+}
+
+const NO_MEMORY_SEARCH_MATCHES_MESSAGE = 'no documents matched the query';
+
+/**
+ * `memory search` `CoreOperation.fn` (P1.5, `mutates: false` — the FIRST Memory-document READ
+ * operation registered in `CORE_MODULES`; spec-006-core-domain-api §3 memory table pins its MCP
+ * exposure to the mechanical zero-argument Resource `wingfoil://memory/search` verbatim, so no gap
+ * exists to fill with a richer Resource template — see this task's Execution Notes). Wraps
+ * task-008/023's `src/memory/query.ts` primitives — no scan/ranking/validation logic is
+ * reimplemented here:
+ *
+ * 1. **Empty-query guard** ({@link validateSearchQuery}, task-023/P1.12) runs ONLY when the caller
+ *    actually supplied a keyword positional (`positional !== undefined`): an explicit empty or
+ *    whitespace-only string (e.g. `wingfoil memory search ""`) throws `ValidationError.semantic`
+ *    (exit 2, message "empty search query" — `exitCodeForThrow` maps its `exitCode: 2` straight
+ *    through, the same throw-path precedent `dnaSetFn`'s `UsageError` set). An OMITTED keyword
+ *    (`wingfoil memory search --tag architecture`, P1.5 BDD Scenario "Filter results by metadata
+ *    tag") is a DIFFERENT, legitimate case — a tag-only browse, per `searchMemoryDocuments`'s own doc
+ *    comment ("browse by tag alone, no keyword" is not an empty query) — so it never reaches the
+ *    guard at all, and resolves to `''` below.
+ * 2. **Load `memory.yaml`** via the same `loadOrError` + `loadMemoryYaml` path every other read op uses.
+ * 3. **Scan + rank** via {@link searchMemoryDocuments} (task-008: deterministic metadata-before-body
+ *    ranking, REQ-SYS-07), narrowed by `--tag` through its own `MemorySearchOptions.tag` — the ONE
+ *    filter the scan primitive itself understands.
+ * 4. **`--type`/`--status` narrow the already-ranked result** — a plain array filter, not a second
+ *    scan pass: both are base frontmatter fields every Memory document carries
+ *    (spec-010-memory-frontmatter-schema), and `searchMemoryDocuments` already projects both onto
+ *    each match (task-021 added `type` alongside the pre-existing `status`), so no extra file read is
+ *    needed.
+ * 5. **Zero matches is `coreOk`, never `coreErr`** (P1.5 BDD "Error - query with no matches" — the
+ *    scenario's own title says "Error" but its assertion is exit `0`, so this is deliberately a
+ *    successful, empty result carrying the exact message, per spec-005-cli-command-contract §1: a
+ *    read-only command can only exit `0`/`1`).
+ */
+const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
+  const { root, positional, options } = params as MemorySearchParams;
+
+  if (positional !== undefined) validateSearchQuery(positional);
+  const query = positional ?? '';
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const tag = options?.tag;
+  const type = options?.type;
+  const status = options?.status;
+
+  const scanned = searchMemoryDocuments(root, loaded.value, query, tag !== undefined ? { tag } : {});
+  const matches: MemorySearchResultItem[] = scanned
+    .filter((match) => (type === undefined || match.type === type) && (status === undefined || match.status === status))
+    .map(({ path, id, title, type: docType, status: docStatus, tags }) => ({ path, id, title, type: docType, status: docStatus, tags }));
+
+  return matches.length === 0
+    ? coreOk({ query, matches, message: NO_MEMORY_SEARCH_MATCHES_MESSAGE })
+    : coreOk({ query, matches });
+};
+
+/**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
  * `src/mcp`'s Tool/Resource registrar both import this exact array — see spec-006 §4.1: "no
  * duplicated or hand-copied operation list in either surface module".
@@ -399,6 +503,18 @@ export const CORE_MODULES: readonly CoreModule[] = [
           { name: 'tags' },
         ],
         fn: memoryAddFn,
+      },
+      // The FIRST Memory-document READ operation (P1.5, spec-006 §3 memory table) — `mutates: false`,
+      // so by construction an MCP Resource (`wingfoil://memory/search`, the mechanical zero-argument
+      // form spec-006 §3 pins verbatim) + CLI command (`wingfoil memory search`). Its keyword rides the
+      // generic bare `positional` seam (task-026); `--tag`/`--status`/`--type` are OPTIONAL value
+      // options (task-020's seam) — none is `required`, since the AC/BDD only mandate the bare keyword
+      // form and the `--tag` filter (task-021-implement-memory-search's Execution Notes).
+      memorySearch: {
+        name: 'memorySearch',
+        mutates: false,
+        options: [{ name: 'tag' }, { name: 'status' }, { name: 'type' }],
+        fn: memorySearchFn,
       },
     },
   },

@@ -79,7 +79,9 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dna.
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
     // ...and task-025 (`dna.dnaSet`) + task-020 (`memory.memoryAdd`) are the mutating core ops, so they
-    // — and only they — are registered under Tools (the remaining mutating ops arrive with task-021+).
+    // — and only they — are registered under Tools. task-021's `memory.memorySearch` is `mutates:
+    // false` (a read, per spec-006 §3), so it registers as a Resource, not a Tool, and does not widen
+    // this list; the next mutating op arrives with a later task-022+.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
     expect(mutatingOps.map((op) => op.name).sort()).toEqual(['dnaSet', 'memoryAdd']);
     const { tools } = await client.listTools();
