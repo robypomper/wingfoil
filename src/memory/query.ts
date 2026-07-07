@@ -249,6 +249,10 @@ export interface MemorySearchMatch {
   readonly title?: string;
   readonly tags: readonly string[];
   readonly status?: string;
+  /** The document's frontmatter `type:` field (spec-010-memory-frontmatter-schema base field) —
+   * projected here (task-021-implement-memory-search) alongside `status`/`tags` so `memorySearch`'s
+   * `--type` filter can narrow an already-ranked result without a second file read per match. */
+  readonly type?: string;
   /** Query matched the title, id, or a tag (P1.12: ranks above a body-only match). */
   readonly metadataMatch: boolean;
   /** Query matched somewhere in the document body. */
@@ -310,6 +314,7 @@ export function searchMemoryDocuments(
     const title = asString(frontmatter.title);
     const id = asString(frontmatter.id);
     const status = asString(frontmatter.status);
+    const type = asString(frontmatter.type);
 
     let metadataMatch = false;
     let bodyMatch = false;
@@ -322,7 +327,7 @@ export function searchMemoryDocuments(
       if (!metadataMatch && !bodyMatch) continue;
     }
 
-    matches.push({ path, id, title, tags, status, metadataMatch, bodyMatch });
+    matches.push({ path, id, title, tags, status, type, metadataMatch, bodyMatch });
   }
 
   return matches.sort((a, b) => {
