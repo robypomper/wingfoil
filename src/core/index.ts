@@ -291,7 +291,7 @@ export interface MemoryAddParams {
  *    REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence
  *    counter derived from the committed on-disk siblings (`src/memory/add.ts`; no wall-clock/random).
  * 5. **Copy the type's `template.file` scaffold verbatim** (`.wingfoil/<file>`) and fill only the
- *    `id`/`status: draft`/`--title`/`--tags` skeleton (CLAUDE.md §5.1, spec-010-memory-frontmatter-schema),
+ *    `id`/`status: draft`/`--title`/`--tags` skeleton (P1.3; spec-010-memory-frontmatter-schema),
  *    then **write + commit** through task-022's confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write
  *    + one scoped commit `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
  *

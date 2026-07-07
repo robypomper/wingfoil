@@ -80,7 +80,7 @@ export function nextSequenceNumber(dir: string, idPattern: string): number {
   return count + 1;
 }
 
-/** The fields `memory.add` pins on the freshly-created draft document (CLAUDE.md §5.1 / spec-010). */
+/** The fields `memory.add` pins on the freshly-created draft document (P1.3 memory.add / spec-010). */
 export interface AddDocumentFields {
   readonly id: string;
   readonly title: string;
@@ -96,7 +96,7 @@ function escapeRegExp(value: string): string {
 /**
  * Set one frontmatter field on the raw frontmatter text, line-based: replace the value on the existing
  * `^<indent>key:` line if present (preserving the scaffold's ordering, comments and other fields
- * verbatim — CLAUDE.md §5.1 "copies the scaffold verbatim"), otherwise append the field. `valueYaml`
+ * verbatim — the P1.3 memory.add contract copies the scaffold verbatim), otherwise append the field. `valueYaml`
  * is the already-serialized YAML scalar/flow value (e.g. a JSON-quoted string, a flow sequence).
  */
 function setFrontmatterField(frontmatter: string, key: string, valueYaml: string): string {
@@ -109,7 +109,7 @@ function setFrontmatterField(frontmatter: string, key: string, valueYaml: string
 
 /**
  * Copy a type's `template.file` scaffold verbatim and fill only the frontmatter skeleton `memory.add`
- * pins (CLAUDE.md §5.1, spec-010-memory-frontmatter-schema): the generated `id`, the `--title`, the
+ * pins (P1.3; spec-010-memory-frontmatter-schema): the generated `id`, the `--title`, the
  * initial `status: draft`, and — when `--tags` was supplied — the `tags` flow sequence. Every other
  * field (notably `type` and `tmpl_version`, spec-010: not touched by add) and the whole body are left
  * exactly as the scaffold had them. `title`/`tags` are JSON-quoted (valid YAML double-quoted scalars /
