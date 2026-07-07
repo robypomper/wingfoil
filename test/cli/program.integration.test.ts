@@ -312,6 +312,73 @@ paths:
     });
   });
 
+  // task-021-implement-memory-search (P1.5, BDD `p1-memory/P1.5-memory-search.feature` +
+  // `p1-memory/P1.12-keyword-search.feature`) — the first Memory-document READ command driven
+  // end-to-end through real `commander` (bare positional keyword + `--tag` value option). Reads a
+  // THROWAWAY temp git repo seeded with two Memory documents, never the static fixture root above.
+  describe('`memory search [keyword]` — first Memory-document read command (task-021, P1.5)', () => {
+    const MEMORY_YAML = `version: 1
+types:
+  task:
+    path: "docs/04_memory/{release}/{id}.md"
+`;
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeFixtureFile(
+        repo,
+        'docs/04_memory/v0.1/task-001-api-design.md',
+        ['---', 'id: task-001-api-design', 'type: task', 'title: "API design"', 'status: draft', 'tags: [ architecture ]', '---', '', 'REST surface.', ''].join(
+          '\n',
+        ),
+      );
+      writeFixtureFile(
+        repo,
+        'docs/04_memory/v0.1/task-002-unrelated.md',
+        ['---', 'id: task-002-unrelated', 'type: task', 'title: "Unrelated"', 'status: draft', 'tags: [ infra ]', '---', '', 'Nothing relevant.', ''].join(
+          '\n',
+        ),
+      );
+      commitAll(repo, 'seed memory.yaml + two documents');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('`memory search api` finds the "API design" document, under 1 second, exit 0 (BDD "Find a decision by keyword")', () => {
+      const start = Date.now();
+      const result = runCliInRoot(repo, 'memory', 'search', 'api', '--format', 'json');
+      expect(Date.now() - start).toBeLessThan(1000);
+      expect(result.status).toBe(0);
+      const parsed = JSON.parse(result.stdout) as { matches: { id?: string }[] };
+      expect(parsed.matches.map((m) => m.id)).toContain('task-001-api-design');
+    });
+
+    it('`memory search --tag architecture` (no keyword) returns only the tagged document (BDD "Filter results by metadata tag")', () => {
+      const result = runCliInRoot(repo, 'memory', 'search', '--tag', 'architecture', '--format', 'json');
+      expect(result.status).toBe(0);
+      const parsed = JSON.parse(result.stdout) as { matches: { id?: string; tags: string[] }[] };
+      expect(parsed.matches.map((m) => m.id)).toEqual(['task-001-api-design']);
+      parsed.matches.forEach((m) => expect(m.tags).toContain('architecture'));
+    });
+
+    it('`memory search nonexistentkeyword` exits 0 with the exact "no documents matched the query" message (BDD "Error - query with no matches")', () => {
+      const result = runCliInRoot(repo, 'memory', 'search', 'nonexistentkeyword', '--format', 'json');
+      expect(result.status).toBe(0);
+      const parsed = JSON.parse(result.stdout) as { matches: unknown[]; message?: string };
+      expect(parsed.matches).toEqual([]);
+      expect(parsed.message).toBe('no documents matched the query');
+    });
+
+    it('`memory search ""` (explicit empty query) exits 2 with the exact "empty search query" message (P1.12 "Error - empty query string")', () => {
+      const result = runCliInRoot(repo, 'memory', 'search', '');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: empty search query\n');
+      expect(result.stdout).toBe('');
+    });
+  });
+
   it('an invalid --format value exits 2 with the usage-error message on stderr, never touching stdout', () => {
     const result = runCli('dna', 'show', '--format', 'xml');
     expect(result.status).toBe(2);
