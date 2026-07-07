@@ -2,7 +2,7 @@
 id: "task-024-implement-memory-element-schema"
 type: task
 title: "Implement Memory Element Schema (memory.yaml) (P1.13)"
-status: in-progress
+status: in-review
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
@@ -78,3 +78,17 @@ engine), whose ID/type validation this schema engine drives.
   that knows the type name) emitting that message. `gates.<state>.reject` targets are deliberately
   NOT checked — spec-001 explicitly permits off-chain reject targets ("need **not** be a member of
   `sequence` ... e.g. `bug`'s `open: { reject: closed }`").
+- **red**: Added `test/memory/element-schema.test.ts` (11 tests, one per P1.13 AC scenario). AC(c)'s
+  two exact-message assertions genuinely failed (current output was
+  `` `gates` key "shipped" must be a member of `sequence` `` — no type name); the other 9 (AC(a)
+  well-formed `release`/initial `draft`, AC(b) no-`states` fallback, and the off-chain-reject guard)
+  passed on first run — honest verification-only, no fabricated red for the pre-satisfied criteria.
+- **green**: Added the `MemoryYaml`-level `.superRefine` in `src/memory/schema.ts`. All 11 pass.
+  Note: a malformed type now yields TWO issues — the `StateMachine`-level structural message AND the
+  type-contextualized P1.13 message — because both layers legitimately flag the same root cause at
+  different abstraction levels (standalone `StateMachine` reuse vs. the type-registry contract). The
+  AC test asserts the required message is *present* among the issues.
+- **refactor**: none — implementation is minimal; no genuine refactor (honest no-op).
+- **review**: full `npx tsc --noEmit` exit 0; full `npx jest` 367/367 green; `src/memory/schema.ts`
+  100% stmts/branch/funcs/lines. Real `docs/self/.wingfoil/memory.yaml` still parses cleanly through
+  the new refinement (all 7 types have in-`sequence` gate keys/waiting entries).
