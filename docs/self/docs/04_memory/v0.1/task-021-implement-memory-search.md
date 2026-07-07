@@ -2,7 +2,7 @@
 id: "task-021-implement-memory-search"
 type: task
 title: "Implement wingfoil memory search (P1.5)"
-status: backlog
+status: in-progress
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "memory"]
