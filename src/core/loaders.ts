@@ -53,9 +53,10 @@ export function loadMemoryYaml(root: string): MemoryYaml {
 
 /**
  * `js-yaml`'s `YAMLException#message` always embeds the failure position as `(<line>:<column>)`
- * (1-indexed) right after the reason text, ahead of the multi-line context snippet — verified against
- * every `load()` failure shape js-yaml produces (bad indentation, unclosed flow collection, block-
- * mapping/key errors, tab-indentation). `parseYaml` (spec-009-validation-strategy §1) preserves this
+ * (1-indexed) right after the reason text, ahead of the multi-line context snippet — verified across
+ * the common `load()` failure shapes (bad indentation, unclosed flow collection, block-mapping/key
+ * errors, tab-indentation), with a defensive `null` fallback for any that omit it.
+ * `parseYaml` (spec-009-validation-strategy §1) preserves this
  * raw message verbatim in the single issue of the `E_YAML_PARSE_ERROR` `ValidationError` it throws.
  * Returns `null` if the position marker isn't found (defensive — no known js-yaml failure omits it).
  */
