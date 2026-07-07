@@ -102,12 +102,17 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
     expect(text).not.toContain('language: python');
   });
 
-  it('re-serialization is deterministic: setting the same key/value twice yields byte-identical files', async () => {
-    await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
-    const first = dnaText(repo);
-    await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
-    const second = dnaText(repo);
-    expect(second).toBe(first);
+  it('re-setting a key to its current value is a deterministic, idempotent no-op: exit 0, no new commit, byte-identical file', async () => {
+    const firstResult = await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
+    expect(firstResult.ok).toBe(true);
+    const afterFirst = dnaText(repo);
+    const headAfterFirst = head(repo);
+
+    const secondResult = await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
+    expect(secondResult.ok).toBe(true);
+    if (secondResult.ok) expect(secondResult.commit).toBeUndefined(); // no-op: no new commit
+    expect(dnaText(repo)).toBe(afterFirst); // re-serialization is stable (REQ-SYS-07)
+    expect(head(repo)).toBe(headAfterFirst);
   });
 
   it('AC(c): an invalid key path throws a UsageError (exit 2), leaving the file unchanged and making no commit', async () => {
