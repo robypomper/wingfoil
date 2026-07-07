@@ -59,20 +59,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
 
   const nounCommands = new Map<string, Command>();
   for (const command of buildCliCommands(modules, options)) {
-    // A flat, no-verb command (`command.verb === ''` — `deriveVerb`'s self-named-operation case,
-    // spec-008-cli-grammar §1's `wingfoil <noun> [args] [flags]` form, e.g. `wingfoil paths
-    // [category]` — task-028-implement-paths-category) registers directly on the noun `Command`
-    // itself; every other (`<noun> <verb>`) command keeps nesting under it exactly as before.
-    const target: Command = command.verb
-      ? (() => {
-          let nounCommand = nounCommands.get(command.noun);
-          if (!nounCommand) {
-            nounCommand = program.command(command.noun);
-            nounCommands.set(command.noun, nounCommand);
-          }
-          return nounCommand.command(command.verb);
-        })()
-      : program.command(command.noun);
+    const target = resolveCommandTarget(program, nounCommands, command);
 
     // A single optional bare positional (task-026-implement-dna-show's generic seam,
     // `../core/registry.ts`'s `ParamsContext.positional`) — registered on every command regardless
@@ -95,6 +82,24 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   }
 
   return program;
+}
+
+/**
+ * The Commander `Command` a `CliCommand` registers itself on: a flat, no-verb command
+ * (`command.verb === ''` — `deriveVerb`'s self-named-operation case, spec-008-cli-grammar §1's
+ * `wingfoil <noun> [args] [flags]` form, e.g. `wingfoil paths [category]` —
+ * task-028-implement-paths-category) registers directly on the noun `Command` itself; every other
+ * (`<noun> <verb>`) command keeps nesting under it exactly as before task-028.
+ */
+function resolveCommandTarget(program: Command, nounCommands: Map<string, Command>, command: CliCommand): Command {
+  if (!command.verb) return program.command(command.noun);
+
+  let nounCommand = nounCommands.get(command.noun);
+  if (!nounCommand) {
+    nounCommand = program.command(command.noun);
+    nounCommands.set(command.noun, nounCommand);
+  }
+  return nounCommand.command(command.verb);
 }
 
 /**
