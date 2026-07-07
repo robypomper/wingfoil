@@ -24,7 +24,10 @@ import { resolveProjectRoot } from './storage/git-root';
 
 buildProgram(CORE_MODULES, {
   resolveRoot: () => resolveProjectRoot(process.cwd()),
-  buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional }),
+  // task-026's single bare `positional` (`ctx.positional`, read by `dnaShowFn`/`pathsFn` as
+  // section/category) plus task-028's additive `flags` spread (e.g. `paths`'s `--list` -> `list:
+  // true`, read by `pathsFn`). A command with no positional/flags is unaffected.
+  buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional, ...(ctx.flags ?? {}) }),
 })
   .then((program) => program.parseAsync(process.argv))
   .catch((error: unknown) => {

@@ -30,19 +30,32 @@ export interface BuildCommandsOptions {
   readonly buildParams: ParamsBuilder;
 }
 
-/** One derived `wingfoil <noun> <verb>` command: its dispatch is a pure function of the ambient `--format` value. */
+/**
+ * One derived `wingfoil <noun> <verb>` command (or, when `verb === ''`, a flat `wingfoil <noun>`
+ * command — spec-008-cli-grammar §1, task-028-implement-paths-category): its dispatch is a pure
+ * function of the ambient `--format` value plus this operation's own positional/flag values, if any.
+ */
 export interface CliCommand {
   readonly noun: string;
   readonly verb: string;
   readonly mutates: boolean;
+  /** Copied from `CoreOperation.flags` (`../core/registry.ts`) — the boolean flag names `program.ts`
+   * registers as Commander `--{name}` options for this command (empty/absent for every command
+   * before task-028-implement-paths-category; `['list']` for `paths`). */
+  readonly flags?: readonly string[];
   /**
-   * Execute this command given the resolved `--format` flag value (still unvalidated at this
-   * point) and, optionally, the single bare positional argument the invocation supplied after
-   * `<noun> <verb>` (e.g. `wingfoil dna show tech_stack` -> `"tech_stack"` —
-   * task-026-implement-dna-show's generic seam, `core/registry.ts`'s `ParamsContext.positional`).
-   * Commands that don't need one simply never read it from `buildParams`.
+   * Execute this command given the resolved `--format` flag value (still unvalidated at this point),
+   * the single bare positional argument the invocation supplied (task-026-implement-dna-show's
+   * generic seam, `core/registry.ts`'s `ParamsContext.positional` — e.g. `wingfoil dna show
+   * tech_stack` / `wingfoil paths sources`), and this command's own parsed `--{flag}` values
+   * (task-028, e.g. `{ list: true }`). All three are additive/optional — a command that reads no
+   * positional and declares no flags is still called exactly as before: `run(format)`.
    */
-  readonly run: (formatValue: string, positional?: string) => Promise<void>;
+  readonly run: (
+    formatValue: string,
+    positional?: string,
+    flags?: Readonly<Record<string, boolean>>,
+  ) => Promise<void>;
 }
 
 /**
@@ -56,7 +69,12 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
       noun: module.name,
       verb,
       mutates: operation.mutates,
-      run: async (formatValue: string, positional?: string) => {
+      flags: operation.flags,
+      run: async (
+        formatValue: string,
+        positional?: string,
+        flags?: Readonly<Record<string, boolean>>,
+      ) => {
         if (!isValidFormat(formatValue)) {
           exitWith(2, `error: invalid --format value "${formatValue}", expected one of: console, json, yaml`);
           return;
@@ -74,6 +92,7 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
             operationName: operation.name,
             root: options.resolveRoot(),
             positional,
+            flags,
           });
           result = await operation.fn(params);
         } catch (error) {
@@ -99,8 +118,9 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
 /**
  * Every `"{noun} {verb}"` command derived from `commands`, sorted (REQ-SYS-07) — the CLI-side
  * enumeration the REQ-SYS-05 parity test (`test/core/parity.test.ts`) diffs against the MCP Tool
- * list.
+ * list. A flat, no-verb command (`verb === ''`, task-028-implement-paths-category) renders as the
+ * bare noun (`"paths"`), not `"paths "` with a trailing space.
  */
 export function listRegisteredCliCommands(commands: readonly CliCommand[]): string[] {
-  return commands.map((command) => `${command.noun} ${command.verb}`).sort();
+  return commands.map((command) => (command.verb ? `${command.noun} ${command.verb}` : command.noun)).sort();
 }
