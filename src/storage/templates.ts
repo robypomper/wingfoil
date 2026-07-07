@@ -74,6 +74,24 @@ const wf = (relative: string): string => `${WINGFOIL_DIR}/${relative}`;
 const MEMORY_TYPES = ['adr', 'bug', 'decision-log', 'release', 'release-line', 'task', 'tech-spec'] as const;
 
 /**
+ * Default `id_pattern` per scaffolded type (task-002-validation-id-engine's `{n}`/`{slug}` token
+ * grammar, `src/validation/id.ts`) — required by `memoryAdd` (`src/core/index.ts`) even though
+ * `memory.yaml`'s own schema only marks the field `.optional()` (bug-005-init-scaffold-fails-schema-validation:
+ * without this, a freshly-`init`'d project's `wingfoil memory add` fails on every type). Mirrors this
+ * repository's own dogfooded `docs/self/.wingfoil/memory.yaml` scheme, a sensible [AUTHORING] default
+ * a user is free to change.
+ */
+const MEMORY_ID_PATTERNS: Readonly<Record<(typeof MEMORY_TYPES)[number], string>> = {
+  adr: 'adr-{n}-{slug}',
+  bug: 'bug-{n}-{slug}',
+  'decision-log': 'dl-{n}-{slug}',
+  release: 'release-{n}',
+  'release-line': 'rl-{n}',
+  task: 'task-{n}-{slug}',
+  'tech-spec': 'spec-{n}-{slug}',
+};
+
+/**
  * The role-based directives every starter project gets. The six P3.8 categories carry `ref: [P3.8]`;
  * the four cross-cutting rules are AUTHORING starters the user tailors.
  */
@@ -91,7 +109,14 @@ const DIRECTIVES: ReadonlyArray<{ name: string; title: string; summary: string; 
 ];
 
 function dnaYaml(def: TemplateDefinition): string {
-  const methodologies = def.methodologies.map((m) => `    - ${m}`).join('\n');
+  // `stacks.methodologies` / `team.roles` are `MethodologyEntry`/`RoleEntry` OBJECT arrays
+  // (`{name, ...}`) per `spec-002-dna-yaml-schema`'s `DnaYaml` schema (`src/dna/schema.ts`) — a bare
+  // string list here fails `DnaYaml.safeParse` the moment `dna show`/`dna set`/`paths` load this file
+  // (bug-005-init-scaffold-fails-schema-validation). `team.members` is a REQUIRED (if possibly empty)
+  // array too; an empty list is schema-valid (the `Team` schema's role cross-check is vacuous over no
+  // members) and is the right default for a fresh, person-less scaffold — the user adds real members
+  // via `dna set` once the project has a team.
+  const methodologies = def.methodologies.map((m) => `    - name: ${m}`).join('\n');
   return `# Project DNA (P2.4) — scaffolded by \`wingfoil init\` (${def.name} template).
 # Structural map of the project: modules, stacks, team + roles, resource paths. Customize freely.
 version: 1
@@ -112,14 +137,15 @@ ${methodologies}
 
 # Team & roles — AI agents execute as developer/reviewer/qa/architect and never hold approval authority.
 team:
+  members: []
   roles:
-    - developer
-    - reviewer
-    - qa
-    - architect
-    - product-owner
-    - tech-lead
-    - approver
+    - name: developer
+    - name: reviewer
+    - name: qa
+    - name: architect
+    - name: product-owner
+    - name: tech-lead
+    - name: approver
 
 # Resource paths — query categories used to navigate the project.
 paths:
@@ -135,6 +161,7 @@ function memoryYaml(): string {
   const types = MEMORY_TYPES.map(
     (type) => `  ${type}:
     path: docs/memory/${type}/{id}.md
+    id_pattern: "${MEMORY_ID_PATTERNS[type]}"
     template:
       file: memory/templates/${type}.md
       frontmatter:
