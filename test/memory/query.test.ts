@@ -230,6 +230,26 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'shared');
     expect(matches.map((m) => m.path)).toEqual(['docs/04_memory/v0.1/no-id-a.md', 'docs/04_memory/v0.1/no-id-b.md']);
   });
+
+  // task-021-implement-memory-search (P1.5): `type` is a spec-010-memory-frontmatter-schema base
+  // field, projected onto `MemorySearchMatch` (alongside the pre-existing `status`) so `memorySearch`'s
+  // `--type` filter can narrow the already-ranked result without a second file read per match.
+  it('projects the document\'s frontmatter `type` onto the match (task-021\'s `--type` filter reads it)', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(
+      repo,
+      'docs/04_memory/v0.1/typed-doc.md',
+      ['---', 'id: typed-doc', 'type: task', 'title: "API design"', 'status: draft', '---', '', 'body', ''].join('\n'),
+    );
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'API');
+    expect(matches.map((m) => m.type)).toEqual(['task']);
+  });
+
+  it('leaves `type` undefined (not a crash) for a document with no `type` frontmatter field', () => {
+    repo = seedRepo(); // seedRepo's fixtures declare no `type:` field
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'API');
+    expect(matches[0]?.type).toBeUndefined();
+  });
 });
 
 describe('P1.12 acceptance criteria — keyword match/rank + empty-query validation', () => {
