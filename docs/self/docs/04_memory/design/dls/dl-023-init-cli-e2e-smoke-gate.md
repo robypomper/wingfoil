@@ -2,7 +2,7 @@
 id: "dl-023-init-cli-e2e-smoke-gate"
 type: decision-log
 title: "Standing fresh-init + CLI end-to-end smoke gate before release-submit"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

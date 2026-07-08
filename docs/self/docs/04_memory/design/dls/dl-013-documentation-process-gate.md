@@ -2,7 +2,7 @@
 id: "dl-013-documentation-process-gate"
 type: decision-log
 title: "Adopt documentation-process gate: TSDoc/TypeDoc code docs + release-end user-facing docs"
-status: in-discussion
+status: ready
 context: "process"
 release: ""
 tmpl_version: 260703   # Orignal template version

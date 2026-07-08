@@ -2,7 +2,7 @@
 id: "dl-015-inter-task-dependency-notes"
 type: decision-log
 title: "Make inter-task dependency notes deterministic in dev-loop (structured depends_on + design-phase read)"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

@@ -2,7 +2,7 @@
 id: "dl-014-dev-loop-plan-deltas"
 type: decision-log
 title: "Dev-loop git ergonomics (branch/worktree/merge) + API-docs enforcement — supersedes dl-002 on branching/merge"
-status: in-discussion
+status: ready
 context: "process"
 release: ""
 tmpl_version: 260703   # Orignal template version

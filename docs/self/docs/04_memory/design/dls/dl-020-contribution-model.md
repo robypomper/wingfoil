@@ -2,7 +2,7 @@
 id: "dl-020-contribution-model"
 type: decision-log
 title: "AI-mediated contribution model: contribute via Bug/DL/ADR/TechSpec, credit the contributor"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

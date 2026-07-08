@@ -2,7 +2,7 @@
 id: "dl-022-spec-review-gate"
 type: decision-log
 title: "Spec-review gate: a tech-spec/ADR must pass a consistency review before approval"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

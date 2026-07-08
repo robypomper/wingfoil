@@ -2,7 +2,7 @@
 id: "dl-019-plans-as-memory-element"
 type: decision-log
 title: "Treat phase plans (docs/05_plans/) as a first-class Memory element type"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

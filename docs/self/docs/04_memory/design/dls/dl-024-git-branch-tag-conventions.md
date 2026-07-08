@@ -2,7 +2,7 @@
 id: "dl-024-git-branch-tag-conventions"
 type: decision-log
 title: "Git conventions: one branch per phase; version tag created on main"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703
