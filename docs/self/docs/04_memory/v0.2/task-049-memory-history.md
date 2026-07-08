@@ -1,12 +1,12 @@
 ---
 id: "task-049-memory-history"
 type: task
-title: ""
-status: draft
+title: "Implement `wingfoil memory history`"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "High"
+tags: ["v0.2", "p1"]
+ref: "P1.10"
 bug: ""
 depends_on: []
 tmpl_version: 260703
@@ -14,23 +14,19 @@ tmpl_version: 260703
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+As Casey, deliver feature **P1.10** (US-5-08): view the full audit trail of a document (author, ISO-8601 timestamp, state change, reason per entry) in chronological order.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+See `docs/02_requirements/02_bdd/features/p1-memory/P1.10-memory-history.feature`.
+
+Key scenario: `wingfoil memory history decision-12` → chronological entries, each with author/timestamp/state-change/reason; query < 1s.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Reads the git-derived audit trail (`dl-011`, P1.10). Surfaces the `Approver:`/`Reason:` commit-body convention.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

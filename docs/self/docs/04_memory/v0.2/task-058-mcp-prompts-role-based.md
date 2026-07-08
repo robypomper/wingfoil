@@ -1,36 +1,32 @@
 ---
 id: "task-058-mcp-prompts-role-based"
 type: task
-title: ""
-status: draft
+title: "Implement MCP Prompts (role-based)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "Critical"
+tags: ["v0.2", "p5"]
+ref: "P5.2.2"
 bug: ""
-depends_on: []
+depends_on: ["task-039-mcp-prompts-role-based-infra"]
 tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+As an Agent, deliver feature **P5.2.2** (US-1-06): auto-load the role prompt at MCP session start, embedding the role's directives.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+See `docs/02_requirements/02_bdd/features/p5-interaction/P5.2.2-mcp-prompts.feature`.
+
+Key scenario: session under `developer` → MCP prompt for `developer` returned, embedding `testing` + `code-quality`.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Depends on REQ-INT-02 infra (`task-039`). MCP surface per `spec-004`.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

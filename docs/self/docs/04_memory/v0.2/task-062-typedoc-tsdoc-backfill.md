@@ -1,12 +1,12 @@
 ---
 id: "task-062-typedoc-tsdoc-backfill"
 type: task
-title: ""
-status: draft
+title: "TypeDoc/TSDoc backfill + flip docs.api.* review gate to hard-reject (dl-014)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "Medium"
+tags: ["v0.2", "docs"]
+ref: "dl-014-dev-loop-plan-deltas"
 bug: ""
 depends_on: []
 tmpl_version: 260703
@@ -14,23 +14,21 @@ tmpl_version: 260703
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Carry the **dl-014 B-DECISION Option 2** deferred work: backfill TSDoc across all existing v0.1 public exports, wire TypeDoc + doc-coverage tooling, then flip the `dev-loop` review-gate checks `docs.api.public-complete` / `docs.api.build` from **warn** to **hard-reject** once green.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+Acceptance:
+- Every public/exported symbol in `src/` carries TSDoc; `typedoc` builds clean.
+- Doc-coverage tooling wired into the `refactor.checks.post` gate.
+- `docs.api.*` checks flipped from warn to hard-reject (`dev-loop.yaml`); the `documentation` directive updated accordingly.
+- Suite green, `tsc` 0.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Source: `dl-014` B-DECISION Option 2 (staged posture recorded in the config-bootstrap). Until this lands, `docs.api.*` stay warn-only so v0.2 dev-loops are not blocked from day one. TypeDoc is now in `dna.yaml` stacks.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

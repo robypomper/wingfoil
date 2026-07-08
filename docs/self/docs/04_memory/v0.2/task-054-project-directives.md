@@ -1,12 +1,12 @@
 ---
 id: "task-054-project-directives"
 type: task
-title: ""
-status: draft
+title: "Implement Project Directives (custom + built-in storage layout)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "Critical"
+tags: ["v0.2", "p3"]
+ref: "P3.5"
 bug: ""
 depends_on: []
 tmpl_version: 260703
@@ -14,23 +14,19 @@ tmpl_version: 260703
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+As Morgan, deliver feature **P3.5** (US-4-03): the directive storage layout (`built-in/` + `custom/`) exists after init and is git-tracked.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+See `docs/02_requirements/02_bdd/features/p3-directives/P3.5-project-directives.feature`.
+
+Key scenario: `.wingfoil/directives/` contains `built-in/` and `custom/`, both git-tracked.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Layout per `spec-011`. Core of the Directives pillar.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

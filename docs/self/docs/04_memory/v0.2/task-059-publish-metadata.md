@@ -1,12 +1,12 @@
 ---
 id: "task-059-publish-metadata"
 type: task
-title: ""
-status: draft
+title: "Publish metadata: complete package.json publish surface (dl-018 T1)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "High"
+tags: ["v0.2", "release"]
+ref: "dl-018-release-publishing-strategy"
 bug: ""
 depends_on: []
 tmpl_version: 260703
@@ -14,23 +14,21 @@ tmpl_version: 260703
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Deliver **dl-018 T1**: add the npm publish metadata `package.json` currently lacks so the package is publishable (not just packable). Implements `spec-015` §1.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+Per `spec-015` §1:
+- Add `repository`, `author`, `homepage`, `bugs`.
+- Add `publishConfig: { registry, access: public, provenance: true }`.
+- Review `files` (stays `[dist, README.md]` + `LICENSE`/`COLLABORATION.md` if intended); **no** `.npmignore`.
+- `npm pack` manifest = exactly `dist` + docs.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Source: `dl-018` `## Actions` T1; governed by `spec-015` (approved) + `adr-009`; requirement REQ-SYS-09. First publishing task (others depend on it).
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

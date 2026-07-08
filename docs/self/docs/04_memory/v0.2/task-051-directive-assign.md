@@ -1,36 +1,32 @@
 ---
 id: "task-051-directive-assign"
 type: task
-title: ""
-status: draft
+title: "Implement `wingfoil directive assign`"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "High"
+tags: ["v0.2", "p3"]
+ref: "P3.2"
 bug: ""
-depends_on: []
+depends_on: ["task-034-role-based-binding"]
 tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+As Morgan, deliver feature **P3.2** (US-4-05): assign a directive to a role.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+See `docs/02_requirements/02_bdd/features/p3-directives/P3.2-directive-assign.feature`.
+
+Key scenario: `wingfoil directive assign --directive testing --role developer` → role lists `testing`; exit 0.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Depends on REQ-SYS-08 role-based binding (`task-034`). Writes `roles.yaml`.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

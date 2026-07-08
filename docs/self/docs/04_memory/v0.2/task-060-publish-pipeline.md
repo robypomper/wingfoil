@@ -1,36 +1,34 @@
 ---
 id: "task-060-publish-pipeline"
 type: task
-title: ""
-status: draft
+title: "Publish flow: GitHub Actions CI/CD + ephemeral Verdaccio staging (dl-018 T3)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "High"
+tags: ["v0.2", "release"]
+ref: "dl-018-release-publishing-strategy"
 bug: ""
-depends_on: []
+depends_on: ["task-059-publish-metadata"]
 tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Deliver **dl-018 T3**: implement the publish pipeline per `adr-009` — `prepublishOnly` + `npm publish --dry-run` gate, a local-first `publish:staging` script (Verdaccio) reused as the CI staging smoke, then promote to npm with provenance/OIDC. Implements `spec-015` §2–§4.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+Per `spec-015` §2–§4 + `adr-009`:
+- `prepublishOnly = build && test && lint`.
+- `publish:staging` script: publish to ephemeral Verdaccio → `npm install -g wingfoil` from it → run the `dl-023` init+CLI e2e smoke → teardown.
+- `.github/workflows/publish.yml`: gate → stage → smoke → promote (provenance via OIDC) on `vX.Y.Z` tag on `main`.
+- Document local `act` run to avoid CI-debug commit churn.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Source: `dl-018` T3; architecture fixed by `adr-009`; contract in `spec-015`; requirement REQ-SYS-09. Reuses the `dl-023` smoke sub-workflow.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

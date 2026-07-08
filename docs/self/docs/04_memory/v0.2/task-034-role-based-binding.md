@@ -1,12 +1,12 @@
 ---
 id: "task-034-role-based-binding"
 type: task
-title: ""
-status: draft
+title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "Blocker"
+tags: ["v0.2", "architecture"]
+ref: "REQ-SYS-08"
 bug: ""
 depends_on: []
 tmpl_version: 260703
@@ -14,23 +14,17 @@ tmpl_version: 260703
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Implement the Architecture constraint **REQ-SYS-08** (role-based binding: directives and approval authority reference roles, never named persons). Foundation for the Directives pillar (P3) and the memory approval verbs.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+Satisfies the measurable Fit Criterion for **REQ-SYS-08** in `docs/02_requirements/03_sard/01_architecture.md`.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Grounds `adr-006` (git identity + role-based authority). Enables P3.2/P3.7 assignment and P1.7 approval gating.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

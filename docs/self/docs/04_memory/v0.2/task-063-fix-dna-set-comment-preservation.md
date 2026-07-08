@@ -1,36 +1,33 @@
 ---
 id: "task-063-fix-dna-set-comment-preservation"
 type: task
-title: ""
-status: draft
+title: "Fix bug-004: `dna set` must preserve YAML comments ([SPEC]/[AUTHORING])"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
-bug: ""
+priority: "Medium"
+tags: ["v0.2", "dna"]
+ref: "P2.1"
+bug: "bug-004-dna-set-strips-yaml-comments"
 depends_on: []
 tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Fix **bug-004**: `wingfoil dna set` re-serializes `dna.yaml` via `js-yaml dump()`, stripping all comments and losing the `[SPEC]`/`[AUTHORING]` provenance annotations. Make `dna set` a minimal, comment-preserving in-place edit.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+From `bug-004`:
+- `wingfoil dna set <key> <value>` on a comment-rich `dna.yaml` updates only the target value.
+- All unrelated content — comments (incl. `[SPEC]`/`[AUTHORING]`) and formatting — is preserved.
+- Deterministic output; existing `dna set` tests still green.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Source: `bug-004` (triaged). Surfaced by task-025 review. Likely needs a comment-preserving YAML editor (e.g. `yaml`/eemeli) instead of `js-yaml dump`. dev-loop keeps the bug state in sync via `bug: bug-004`.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->

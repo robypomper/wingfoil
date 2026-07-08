@@ -1,36 +1,32 @@
 ---
 id: "task-057-builtin-directive-templates"
 type: task
-title: ""
-status: draft
+title: "Implement Built-in Directive Templates (6 types)"
+status: pending
 release: "v0.2"
-priority: ""
-tags: ["v0.2"]
-ref: ""
+priority: "High"
+tags: ["v0.2", "p3"]
+ref: "P3.8"
 bug: ""
-depends_on: []
+depends_on: ["task-043-secret-credential-hygiene", "task-044-builtin-template-integrity"]
 tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+As Alex, deliver feature **P3.8** (US-0A-09): install exactly 6 built-in directive templates during init (code-quality, testing, code-review, architecture, security, documentation).
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+See `docs/02_requirements/02_bdd/features/p3-directives/P3.8-builtin-directive-templates.feature`.
+
+Key scenario: after init, `.wingfoil/directives/built-in/` contains exactly the 6-template set.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+Depends on REQ-SEC-08/10 (`task-043`/`task-044`). Replaces the interim `custom/` stand-ins (see CLAUDE.md §3). `directives/built-in/` is empty today.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
+     after the fact. Raw material for the release Execution Notes / retrospective. -->
