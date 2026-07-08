@@ -6,8 +6,8 @@ name: release-cycle
 kind: sub
 description: >-
   Deliver one release: plan scope -> run a TDD dev-loop per backlog task (including bug-fix
-  tasks) -> submit -> publish to npm -> retrospective.
-version: 1.0
+  tasks) -> align user-facing docs -> submit -> publish to npm -> retrospective.
+version: 1.1                     # dl-013: added user-docs phase between implementation and submit
 element: release        # the iterated element provided by sw-life-cycle (iterate_over: release)
 
 phases:
@@ -23,6 +23,12 @@ phases:
     include: dev-loop
     iterate_over: task
     where: { status: [backlog], tags: ["{release.version}"] }
+
+  - name: user-docs                          # dl-013 — user-facing docs gate before submit
+    description: >-
+      Write/align README, user guide, CLI reference, examples, and CHANGELOG to the shipped surface
+      before the release is assembled. Hard release blocker (dl-013).
+    include: user-docs
 
   - name: submit
     description: "Assemble the release, run checks, request approval."
