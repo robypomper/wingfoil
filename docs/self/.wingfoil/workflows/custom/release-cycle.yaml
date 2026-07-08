@@ -2,6 +2,8 @@
 # One iteration per release wave (v0.1 .. v1.0). Composes planning, per-task dev loops,
 # submission, publishing, and retrospective. Best practice adapted to WingFoil's weekly,
 # per-pillar cadence. Include-only; sw-life-cycle iterates it over `release`.
+# Git conventions (dl-024): one branch per phase (`design/<phase>_<version>`), --ff=false merge to
+# main; the release tag is created on `main` after merge, not on a phase branch. See sw-life-cycle.yaml.
 name: release-cycle
 kind: sub
 description: >-
