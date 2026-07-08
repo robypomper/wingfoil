@@ -59,6 +59,7 @@ phases:
     produces:
       - "docs/04_memory/design/adrs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before accept
       post: ["frontmatter.required: [title, sard_ref]"]
     approval: { by_role: approver }
 
@@ -76,6 +77,7 @@ phases:
     produces:
       - "docs/04_memory/design/specs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before approve
       post: ["frontmatter.required: [title, scope]"]
     approval: { by_role: approver }    # specs approved before tasks referencing them reach backlog
     fallback: { step: identify-specs }

@@ -45,6 +45,7 @@ phases:
     produces:
       - "docs/04_memory/design/adrs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before accept
       post: ["frontmatter.required: [title, sard_ref]"]
 
   - name: seed-dls
@@ -75,4 +76,5 @@ phases:
     produces:
       - "docs/04_memory/design/specs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before approve
       post: ["frontmatter.required: [title, scope]"]
