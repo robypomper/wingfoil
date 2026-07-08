@@ -2,7 +2,7 @@
 id: "bug-005-init-scaffold-fails-schema-validation"
 type: bug
 title: "wingfoil init scaffolds a dna.yaml/memory.yaml that immediately fail their own schemas — dna show/set, paths, and memory add all error on a freshly-initialized project"
-status: open
+status: triaged
 severity: "critical"
 release: "v0.1"
 feature: "P5.1.1"
@@ -100,3 +100,8 @@ the missing `team.members: []` array, or `memory.yaml`'s missing `id_pattern` ke
   project, on every template, with no available workaround. Fixed inline in the same branch as
   `task-032` (see that task's Execution Notes for the commit); this record exists for traceability
   and so the reviewer can independently assess the scope decision.
+- 2026-07-08 (triaged): confirmed **critical**. Retroactive `bug.sync_state` catch-up — the fix
+  was made opportunistically inside `task-032` (a docs task with no `bug:` binding), so dev-loop's
+  `bug.sync_state` never fired and the per-phase bug transition commits were missed at the time.
+  Re-emitting the lifecycle now (`open → triaged → planned → in-progress → in-review → resolved`)
+  so the audit trail is complete; `resolved → closed` left to the approver.
