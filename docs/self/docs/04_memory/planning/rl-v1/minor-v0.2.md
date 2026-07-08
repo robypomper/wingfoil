@@ -2,7 +2,7 @@
 id: "minor-v0.2"
 type: release
 title: "WingFoil v0.2 - Project Directives"
-status: planning
+status: in-development
 version: "v0.2"
 pillar: "P3"
 features: [P1.6, P1.7, P1.8, P1.9, P1.10, P3.1, P3.2, P3.3, P3.4, P3.5, P3.6, P3.7, P3.8, P5.2.2]
