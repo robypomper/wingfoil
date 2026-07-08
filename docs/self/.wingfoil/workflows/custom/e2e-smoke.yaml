@@ -1,0 +1,44 @@
+# WingFoil — e2e-smoke (SUB workflow)
+# dl-023 — standing fresh-init + CLI end-to-end smoke gate before release-submit. Include-only.
+name: e2e-smoke
+kind: sub
+description: >-
+  Black-box release gate: run a real `wingfoil init` into a throwaway project, then drive the
+  scaffolded project through the CLI surface, asserting correct exit codes and schema-valid
+  scaffolded artifacts. Would have caught bug-005 at release time instead of at the last task.
+  STAGED per the dl-014 B-DECISION (Option 2): warn on failure until the gate runs green for a
+  release, then flip to hard-reject.
+version: 1.0
+element: release
+
+phases:
+  - name: fresh-init
+    description: "Run `wingfoil init` (each supported template) into a throwaway directory."
+    role: qa
+    actions:
+      - 'cli.run("wingfoil init")'
+    checks:
+      post: ["exit-code-zero", "scaffolded dna.yaml/memory.yaml/directives round-trip their own loaders (schema-valid)"]
+
+  - name: drive-cli
+    description: >-
+      Exercise the scaffolded project through the CLI surface — dna show/set, memory add/submit,
+      paths, directives list — against spec-005-cli-command-contract.
+    role: qa
+    actions:
+      - 'cli.run("dna show")'
+      - 'cli.run("dna set <key> <value>")'
+      - 'cli.run("memory add ...; memory submit ...")'
+      - 'cli.run("paths <category>")'
+      - 'cli.run("directives list")'
+    checks:
+      post: ["exit-codes match spec-005-cli-command-contract", "no schema-invalid artifact produced by any command"]
+
+  - name: gate
+    description: >-
+      Report smoke results. STAGED (dl-023 / B-DECISION Option 2): warn on failure until the gate runs
+      green for a release, then flip to hard-reject so it blocks release-submit.
+    role: qa
+    checks:
+      post: ["e2e-smoke-passed (staged: warn until green for a release, then hard-reject)"]
+    approval: { by_role: approver }

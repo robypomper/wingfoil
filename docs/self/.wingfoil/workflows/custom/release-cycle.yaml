@@ -30,6 +30,12 @@ phases:
       before the release is assembled. Hard release blocker (dl-013).
     include: user-docs
 
+  - name: e2e-smoke                          # dl-023 — fresh-init + CLI end-to-end smoke gate before submit (staged warn->reject)
+    description: >-
+      Run a real `wingfoil init` + drive the CLI surface, asserting exit codes + schema-valid
+      scaffolded artifacts, before the release is assembled.
+    include: e2e-smoke
+
   - name: submit
     description: "Assemble the release, run checks, request approval."
     include: release-submit
