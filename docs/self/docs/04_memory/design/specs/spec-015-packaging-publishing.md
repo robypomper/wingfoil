@@ -5,7 +5,7 @@ title: "npm packaging & publishing pipeline (package.json publish surface + CI p
 status: approved
 scope: "package.json (publish metadata + scripts) and .github/workflows/publish.yml + scripts/publish-staging"
 supersedes: ""
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
