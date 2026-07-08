@@ -6,7 +6,7 @@ status: done
 release: "v0.1"
 priority: "Critical"
 tags: ["v0.1", "qa"]
-ref: "docs/self/docs/04_memory/planning/v1/minor-v0.1.md"
+ref: "docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md"
 bug: ""                # optional — source bug id, when this task is a fix derived from a bug (e.g. "bug-003-null-deref");
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
 tmpl_version: 260703   # Orignal template version
@@ -14,7 +14,7 @@ tmpl_version: 260703   # Orignal template version
 
 ## Description
 
-`docs/self/docs/04_memory/planning/v1/minor-v0.1.md`'s Success Criteria explicitly requires "Journey
+`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`'s Success Criteria explicitly requires "Journey
 0a (new project) and Journey 1 (Alex) manually tested end-to-end" before v0.1 can be considered done —
 no BDD scenario or unit test substitutes for actually walking a human through the real CLI. This task
 performs that manual walkthrough once every other v0.1 task is implemented, against **Journey 0a —
@@ -75,7 +75,7 @@ release blocker.
 
 ### design (architect) — no tech-spec gap
 
-Verified this task's scope against `docs/self/docs/04_memory/planning/v1/minor-v0.1.md` (Scope, Pillar
+Verified this task's scope against `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` (Scope, Pillar
 Focus: P1 Memory + P2 DNA only, Success Criteria) and `docs/01_vision/05_journeys.md` (Journey 0a,
 Journey 1). This task's own `ref` already cites `minor-v0.1.md` directly and every command surface it
 exercises (`init`, `dna show/set`, `memory add/search`, `paths`, `mcp`) is already covered by an

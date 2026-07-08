@@ -27,7 +27,7 @@ contract: `0`/`1`/`2`; `--format console|json|yaml`; `error: <reason>` on stderr
 `spec-008-cli-grammar` (`wingfoil <noun> <verb> [args] [flags]` invocation form, global flags
 `--format`/`--reason`/`--verbose`/`--color`/`--interactive`, element-ref syntax `<type>:<id>`), not an
 idealized or aspirational one. This is also one of v0.1's explicit Success Criteria in
-`docs/self/docs/04_memory/planning/v1/minor-v0.1.md` ("README + quickstart guide documented").
+`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` ("README + quickstart guide documented").
 
 ## Acceptance Criteria
 

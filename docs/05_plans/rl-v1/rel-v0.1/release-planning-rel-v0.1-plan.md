@@ -25,7 +25,7 @@ changed, and folds in that gap fix proactively per the user's decision (see §5)
 ## 1. Preconditions (verified against current repo state)
 
 - `rl-v1` — `status: active`.
-- `minor-v0.1` (`docs/self/docs/04_memory/planning/v1/minor-v0.1.md`) — `status: planning`
+- `minor-v0.1` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`) — `status: planning`
   **already** (moved there by `initial-design`'s `seed-releases`, not by this phase — see §2.1).
   All required frontmatter (`title, version, pillar, features, requirements, release-line`) and
   body (Scope / Pillar Focus / Success Criteria) already filled.
@@ -135,7 +135,7 @@ end-to-end"), which none of the other 32 tasks exercise.
 | 30 | `task-030-implement-mcp-resources` | Implement MCP Resources (DNA + Memory) | Critical | P5.2.1 | `v0.1.json` |
 | 31 | `task-031-post-v01-dna-config-sync` | Post-v0.1 `dna.yaml` config sync | High | `spec-002-dna-yaml-schema` | New (from abandoned branch) |
 | 32 | `task-032-readme-cli-quickstart` | README.md and CLI quick-start docs | High | `spec-005-cli-command-contract` | New (from abandoned branch) |
-| 33 | `task-033-manual-e2e-journey-validation` | Manual E2E validation of Journey 0a + Journey 1 against `minor-v0.1` Success Criteria | Critical | `docs/self/docs/04_memory/planning/v1/minor-v0.1.md` (Success Criteria) | New (this pass) |
+| 33 | `task-033-manual-e2e-journey-validation` | Manual E2E validation of Journey 0a + Journey 1 against `minor-v0.1` Success Criteria | Critical | `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` (Success Criteria) | New (this pass) |
 
 None of the 5 new tasks are added to `v0.1.json` (per user decision, §5) — their `ref` points
 directly at the ADR/spec/Memory doc that justifies them.

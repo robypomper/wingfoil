@@ -1,7 +1,7 @@
 /**
  * task-033-manual-e2e-journey-validation — executable regression of the MANUAL Journey 0a walkthrough
  * (`docs/self/docs/04_memory/v0.1/task-033-manual-e2e-journey-validation.md`, `docs/01_vision/05_journeys.md`
- * "Journey 0a — Initialize WingFoil on a New Project", `docs/self/docs/04_memory/planning/v1/minor-v0.1.md`
+ * "Journey 0a — Initialize WingFoil on a New Project", `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`
  * Success Criteria).
  *
  * This is a value-add, not the primary deliverable: the primary deliverable is the WRITTEN walkthrough

@@ -43,7 +43,7 @@ is then reconciled *normally* by that updated v0.2 `release-planning`.
 8. **T1 (test strategy)** folded into `dl-014` + the `testing` directive — classify each AC as
    red-first vs characterization (step B4).
 9. **`bug-007`** filed for the commander-ESM-under-Jest test-harness limitation (A1 finding T7b); v0.2.
-10. **T11 path normalization** — rename `planning/v1/` → `planning/rl-v1/` (step B12).
+10. **T11 path normalization** — rename `planning/rl-v1/` → `planning/rl-v1/` (step B12).
 11. **Codifying (1)+(2) into `retrospective.yaml`** so every future retrospective carries them (B11).
 
 > **Per-DL approval for THIS retrospective (not a new global rule).** For the DL batch this plan
@@ -116,7 +116,7 @@ friction — the raw evidence base for the retrospective. **Read-only, no state 
 
 - **Sources swept (exhaustive):** all 33 `docs/self/docs/04_memory/v0.1/task-*.md` (Execution Notes);
   the bug files `docs/self/docs/04_memory/bugs/bug-*.md`; the six governance DLs (`dl-013..018`); the
-  `minor-v0.1` release doc `docs/self/docs/04_memory/planning/v1/minor-v0.1.md` *(dir normalized to
+  `minor-v0.1` release doc `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` *(dir normalized to
   `rl-v1/` in B12 — T11)*; the outcome sections of `docs/05_plans/rl-v1/rel-v0.1/*`.
 - **Extracted:** plan deviations, blockers, scope surprises, review rejection reasons, honest-TDD notes,
   tooling immaturity/verification-only work, forward-reference / inter-task dependency friction,
@@ -130,7 +130,7 @@ not an approval-gated transition** (no commit). Resolved this run:
 - Promote to new DLs: **T2 → `dl-022`** (spec-review gate); **T5+T7 → `dl-023`** (init+CLI e2e smoke gate).
 - **T1 → fold into `dl-014`** + the `testing` directive (not a new DL).
 - Roberto's git rules **N1/N2 → `dl-024`** (branch per phase; tag on main).
-- **T7b → `bug-007`** (commander-ESM-under-Jest); **T11 → rename** `planning/v1/`→`rl-v1/`.
+- **T7b → `bug-007`** (commander-ESM-under-Jest); **T11 → rename** `planning/rl-v1/`→`rl-v1/`.
 - **Dropped for this retrospective:** the "submit adds content" point (former `dl-021`) — deferred.
 
 ### A3 · capture — role: facilitator
@@ -337,7 +337,7 @@ applies to `dl-023`'s smoke gate.)*
   `dl-023`, `dl-024`). To stop v0.2 `build-backlog` re-deriving tasks for them, **stamp `release: v0.2`**
   on all ten + a one-line Action note ("implemented out-of-flow in the config-bootstrap; no further task
   derivation").
-- **T11 rename:** `git mv docs/self/docs/04_memory/planning/v1/ → planning/rl-v1/` so the memory tree
+- **T11 rename:** `git mv docs/self/docs/04_memory/planning/rl-v1/ → planning/rl-v1/` so the memory tree
   matches `{release-line}`=id (`rl-v1`) and the `docs/05_plans/rl-v1/` tree; update any references.
 - Include on the branch: `COLLABORATION.md`, the `plan` template, the spec-review directive, the
   e2e-smoke workflow, the git-convention edits, `retrospective.yaml`, the T11 rename.
