@@ -2,11 +2,11 @@
 id: "bug-004-dna-set-strips-yaml-comments"
 type: bug
 title: "wingfoil dna set strips YAML comments (loses [SPEC]/[AUTHORING] provenance)"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.1"
-release: ""
-note: release_origin=v0.1, release_assigned=?
+release: "v0.2"
+note: release_origin=v0.1, release_assigned=v0.2
 feature: "P2.1"
 tmpl_version: 260703
 ---
