@@ -98,7 +98,7 @@ as a status value). `task` already worked this way; `decision-log` now has its o
 | `release`      | `docs/04_memory/planning/{release-line}/{id}.md` | draft→planning→in-development→releasing→released (·→deprecated)                          |
 | `task`         | `docs/04_memory/{release}/{id}.md`               | draft→pending(→draft)→backlog→in-progress→in-review(→in-progress)→approved→done          |
 | `adr`          | `docs/04_memory/design/adrs/{id}.md`             | draft→pending(→draft)→accepted→superseded                                                |
-| `decision-log` | `docs/04_memory/design/dls/{id}.md`              | draft→in-discussion(→draft)→ready→in-develop→done (·→deprecated)                         |
+| `decision-log` | `docs/04_memory/design/dls/{id}.md`              | draft→in-discussion(→draft)→ready (·→deprecated)  [in-develop/done removed per dl-017]   |
 | `tech-spec`    | `docs/04_memory/design/specs/{id}.md`            | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
 | `bug`          | `docs/04_memory/bugs/{id}.md`                    | draft→open(→closed)→triaged→planned→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
 

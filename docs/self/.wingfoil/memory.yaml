@@ -143,13 +143,13 @@ types:
       frontmatter:
         required: [ title ]
       file: ".wingfoil/memory/templates/decision-log.md"
-    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (discussion -> delivery lifecycle, per dl-012-decision-log-state-machine)
-      sequence: [ draft, in-discussion, ready, in-develop, done ]
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (record-with-approval lifecycle, per dl-012 + dl-017-decision-log-remove-delivery-states)
+      sequence: [ draft, in-discussion, ready ]
       gates:
         in-discussion: { reject: draft }  # approve: in-discussion->ready · reject: ->draft
-      waiting: [ ready, in-develop ]      # ready->in-develop: release-planning converts the DL into
-                                          # task(s); in-develop->done: fires once every derived task
-                                          # back-referencing this DL is itself `done`
+      waiting: [ ]                         # `ready` is terminal — a decision is settled once accepted (mirrors adr/tech-spec).
+                                          # in-develop/done removed per dl-017 (the task->DL back-reference they
+                                          # presupposed was never implemented). deprecated stays a memory.deprecate target.
 
   tech-spec:
     path: "docs/04_memory/design/specs/{id}.md"

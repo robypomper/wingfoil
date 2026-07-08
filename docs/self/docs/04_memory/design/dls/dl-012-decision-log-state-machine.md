@@ -8,12 +8,12 @@ release: ""
 tmpl_version: 260703   # Orignal template version
 ---
 
-> **Amendment under discussion (`dl-017-decision-log-remove-delivery-states`):** the delivery states
-> `in-develop`/`done` decided here presuppose a task→DL back-reference that was never implemented (the
-> `task` template has no `dl:` field), so they are unreachable. dl-017 proposes removing them, reducing
-> this machine to `draft → in-discussion → ready (→ deprecated)`. The custom-machine decision below
-> still stands; only its delivery lifecycle is being retired. See dl-017 before relying on
-> `in-develop`/`done`.
+> **Partially superseded by `dl-017-decision-log-remove-delivery-states` (approved 2026-07-08).** The
+> delivery states `in-develop`/`done` decided here presupposed a task→DL back-reference that was never
+> implemented (the `task` template has no `dl:` field), so they were unreachable. `dl-017` **removed**
+> them: the machine is now `draft → in-discussion → ready (→ deprecated)`. The custom-machine decision
+> below still stands; **only its delivery lifecycle (the `in-develop`/`done` rows and the
+> `ready → in-develop → done` transitions) is retired** — read those below as historical, not current.
 
 ## Context
 
@@ -40,9 +40,9 @@ fallback with the following:
 |-----------------|----------------------------------------------------------------------------|----------------------------------------|
 | `draft`         | just created — bare scaffold                                              | `in-discussion`                        |
 | `in-discussion` | filled in and under discussion                                            | `ready` (accepted) · `draft` (rework)   |
-| `ready`         | accepted; **holds here** until `release-planning` converts it into task(s) of a release | `in-develop`                            |
-| `in-develop`    | held here while all tasks derived from this DL are implemented             | `done`                                  |
-| `done`          | reached once **all** derived tasks are `done`                            | — (terminal)                            |
+| `ready`         | accepted; **terminal resting state** (a settled decision) — reduced by dl-017 | — (terminal)                        |
+| ~~`in-develop`~~ | ~~held while all derived tasks are implemented~~ — **removed (dl-017)**   | ~~`done`~~                              |
+| ~~`done`~~      | ~~reached once all derived tasks are `done`~~ — **removed (dl-017)**       | —                                       |
 | `deprecated`    | rejected or superseded, from any state                                    | — (terminal)                            |
 
 Proposed `memory.yaml` block for the `decision-log` type (replacing the current
@@ -57,8 +57,8 @@ Proposed `memory.yaml` block for the `decision-log` type (replacing the current
       transitions:
         draft: [ in-discussion ]
         in-discussion: [ ready, draft ]     # ready = accepted · draft = needs rework
-        ready: [ in-develop ]
-        in-develop: [ done ]
+        # ready: [ in-develop ]             # REMOVED by dl-017 — `ready` is terminal
+        # in-develop: [ done ]              # REMOVED by dl-017
         "*": [ deprecated ]                 # rejected (from in-discussion) / superseded (from any state)
 ```
 
@@ -79,8 +79,8 @@ If this DL is **not** adopted, `decision-log` keeps the shared default machine
   and `bug` all already declare custom machines under REQ-STATE-04; opting `decision-log` out of the
   default fallback follows the same, already-established pattern rather than special-casing it.
 - **Determinism / traceability.** Encoding the lifecycle as declared config (not convention) keeps
-  every transition validated (REQ-STATE-01) and lets a task's frontmatter back-reference the DL that
-  spawned it.
+  every transition validated (REQ-STATE-01). *(The task→DL back-reference this originally cited was
+  never implemented and is retired with the delivery states — see `dl-017`.)*
 - **Alternative considered.** Keep the default machine — rejected: it cannot express "accepted, then
   converted into a release's backlog tasks, then done once those tasks are done", which is the actual
   usage pattern this project needs `spec-001` to document now.
