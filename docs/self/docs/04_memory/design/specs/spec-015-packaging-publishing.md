@@ -2,7 +2,7 @@
 id: spec-015-packaging-publishing
 type: tech-spec
 title: "npm packaging & publishing pipeline (package.json publish surface + CI publish flow)"
-status: pending
+status: approved
 scope: "package.json (publish metadata + scripts) and .github/workflows/publish.yml + scripts/publish-staging"
 supersedes: ""
 release: ""
