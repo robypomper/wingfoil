@@ -2,7 +2,7 @@
 id: "dl-017-decision-log-remove-delivery-states"
 type: decision-log
 title: "Remove the delivery states (in-develop, done) from decision-log; DL returns to draft → in-discussion → ready (→ deprecated)"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703

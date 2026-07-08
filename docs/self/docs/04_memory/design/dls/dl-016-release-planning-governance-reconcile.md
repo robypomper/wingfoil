@@ -2,7 +2,7 @@
 id: "dl-016-release-planning-governance-reconcile"
 type: decision-log
 title: "Reconcile accumulated governance elements at release-planning (triage-bugs + reconcile-governance phases; uniform `release` assignment)"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.1"
 tmpl_version: 260703
