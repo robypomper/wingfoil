@@ -5,7 +5,7 @@ title: "npm publishing pipeline: GitHub Actions CI/CD with ephemeral Verdaccio s
 status: accepted
 sard_ref: REQ-SYS-09
 supersedes: ""
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
