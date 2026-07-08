@@ -101,6 +101,7 @@ as a status value). `task` already worked this way; `decision-log` now has its o
 | `decision-log` | `docs/04_memory/design/dls/{id}.md`              | draft→in-discussion(→draft)→ready (·→deprecated)  [in-develop/done removed per dl-017]   |
 | `tech-spec`    | `docs/04_memory/design/specs/{id}.md`            | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
 | `bug`          | `docs/04_memory/bugs/{id}.md`                    | draft→open(→closed)→triaged→planned→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
+| `plan`         | `docs/05_plans/{scope}/{id}.md`                  | draft→active→done (·→deprecated)  [dl-019 — phase-plan execution scaffold; `X_*` grandfathered]        |
 
 ---
 
@@ -243,6 +244,10 @@ spec/doc phases from the existence of their `produces:` artifacts.
 > that is coherent with that workflow definition — its phases, roles, `actions`, `produces:`, and `checks` —
 > then execute against that plan. Use `docs/self/X_wingfoil-init-plan.md` (for `wingfoil-init`) or
 > `docs/self/X_initial-design-plan.md` (for `initial-design`) as the model.
+>
+> Since `dl-019`, a phase plan is itself a **`plan` Memory element** (`memory.yaml` `plan` type; path
+> `docs/05_plans/{scope}/{id}.md`; `draft → active → done`) — register it with `memory.add(type: plan)`
+> when a phase starts. Existing `X_*` ad-hoc plans are grandfathered (no frontmatter required).
 
 ---
 

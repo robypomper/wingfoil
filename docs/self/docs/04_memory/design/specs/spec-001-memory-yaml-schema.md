@@ -11,7 +11,8 @@ tmpl_version: 260703   # Orignal template version
 ## Context
 
 `memory.yaml` is the **Project Memory type registry** (feature **P1.13**). It declares every Memory
-element type — `release-line, release, task, adr, decision-log, tech-spec, bug` — giving each a path
+element type — `release-line, release, task, adr, decision-log, tech-spec, bug, plan` (the eighth,
+`plan`, added by `dl-019-plans-as-memory-element`) — giving each a path
 pattern, an id pattern, human metadata, a template scaffold, and a state machine. It is consumed by
 every `wingfoil memory *` command (add/submit/approve/reject/deprecate/show/search/history), by the
 Workflow pillar (to resolve `element:` type declarations), by the ID-generation engine (reads

@@ -185,3 +185,17 @@ types:
         resolved:  { reject: in-progress }   # approve: resolved->closed · reject: reopen ->in-progress
       waiting: [ triaged, planned ]          # triaged->planned (release-planning schedules it);
                                              # planned->in-progress (dev-loop starts the fix)
+
+  plan:
+    path: "docs/05_plans/{scope}/{id}.md"       # [AUTHORING] dl-019 — phase plans live OUTSIDE docs/04_memory/ (execution scaffolds); {scope} = the release-line/release nesting (e.g. rl-v1/rel-v0.1); X_* ad-hoc plans grandfathered
+    id_pattern: "{workflow}-{phase}-plan"       # [AUTHORING] e.g. dev-loop-rel-v0.1-plan
+    name: Phase plan          # [AUTHORING]
+    description: The executable plan for one workflow phase — the interim substitute for the not-yet-built workflow engine (Workflow pillar P4) — whenever a workflow phase is started its plan is authored under docs/05_plans/ and executed against. Workflow — produced by the phase that runs it (memory.add type plan). See dl-019-plans-as-memory-element.   # [AUTHORING]
+    tags: [ plan, process, workflow ]    # [AUTHORING]
+    template:                   # [AUTHORING] scaffold for `wingfoil memory add --type plan`
+      frontmatter:
+        required: [ title, workflow, phase ]
+      file: ".wingfoil/memory/templates/plan.md"
+    states: # [AUTHORING] dl-019 — no spec mandates a plan type; simple author->execute->complete lifecycle
+      sequence: [ draft, active, done ]
+      waiting: [ active ]        # active->done: fires once the phase's produces:/checks are satisfied. deprecated/superseded via memory.deprecate.
