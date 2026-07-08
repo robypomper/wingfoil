@@ -5,6 +5,7 @@ title: "wingfoil dna set strips YAML comments (loses [SPEC]/[AUTHORING] provenan
 status: open
 severity: "medium"
 release: "v0.1"
+note: release_origin=v0.1, release_assigned=?
 feature: "P2.1"
 tmpl_version: 260703
 ---
@@ -51,3 +52,9 @@ annotations are lost.
 
 - 2026-07-07 (open): raised from task-025 review as a `medium`-severity follow-up. Not yet triaged
   into a fix task; no `bug:`-linked task exists yet. Candidate fix approaches noted above.
+- 2026-07-08 (triaged, DEFERRED): assessed **medium**. Does NOT fail any v0.1 journey — a greenfield
+  project's `dna.yaml` carries no `[SPEC]`/`[AUTHORING]` comments to strip, and the hand-edit
+  workaround exists (task-031 used exactly that on WingFoil's own comment-rich config). **Explicitly
+  deferred by the approver from the v0.1 release** — not a release blocker; scheduled for a v0.2/patch
+  (comment-preserving `dna set` via a CST/AST YAML editor). To be surfaced in v0.1 release notes as a
+  known limitation.

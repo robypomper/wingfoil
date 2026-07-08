@@ -5,6 +5,7 @@ title: "wingfoil init scaffolds directive .md files that fail the directives sch
 status: open
 severity: "low"
 release: "v0.1"
+note: release_origin=v0.1, release_assigned=?
 feature: "P5.1.1"
 tmpl_version: 260703
 ---
@@ -49,3 +50,8 @@ directives list` errors `E_VALIDATION` (exit 1) on every freshly-initialized pro
 
 - 2026-07-07 (open): raised from task-032's review as a deferred `low`-severity sibling of
   bug-005. Out of v0.1 documented scope; no fix task scheduled.
+- 2026-07-08 (triaged, DEFERRED): assessed **low**. `directives list` is a Directives-pillar (P3)
+  command OUT of v0.1 scope (Pillar Focus = P1 Memory + P2 DNA) and deliberately undocumented in the
+  README, so it blocks no documented v0.1 command. **Explicitly deferred by the approver from the v0.1
+  release** — not a blocker; to be fixed in the release that ships the Directives CLI, alongside a
+  directive-scaffold schema round-trip test (mirroring the bug-005 fix).
