@@ -2,7 +2,7 @@
 id: adr-009-npm-publishing-pipeline
 type: adr
 title: "npm publishing pipeline: GitHub Actions CI/CD with ephemeral Verdaccio staging"
-status: pending
+status: accepted
 sard_ref: REQ-SYS-09
 supersedes: ""
 release: ""
