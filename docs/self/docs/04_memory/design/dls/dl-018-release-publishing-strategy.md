@@ -2,7 +2,7 @@
 id: "dl-018-release-publishing-strategy"
 type: decision-log
 title: "Defer release-publishing to v0.2 and define the publishing pipeline there"
-status: in-discussion
+status: ready
 context: "release-publishing"
 release: "v0.2"
 tmpl_version: 260703

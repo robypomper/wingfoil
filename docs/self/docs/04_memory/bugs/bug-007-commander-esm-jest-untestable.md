@@ -2,10 +2,10 @@
 id: "bug-007-commander-esm-jest-untestable"
 type: bug
 title: "commander v15 is ESM-only → CLI wiring untestable under the Jest CommonJS runtime"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.1"
-release: ""
+release: "v0.2"
 feature: "P5.1"
 tmpl_version: 260703
 ---
