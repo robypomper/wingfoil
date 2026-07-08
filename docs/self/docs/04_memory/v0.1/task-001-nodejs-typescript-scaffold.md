@@ -47,6 +47,9 @@ on any other v0.1 task (including `task-002`) has anywhere to live.
 - Keep the module boundaries in `src/` aligned with `dna.yaml`'s `modules:` list from the start, so
   later tasks (e.g. `task-002`'s `src/validation`) drop into an already-coherent layout rather than
   forcing a restructure.
+- **TypeDoc + doc-coverage tooling (`dl-014` follow-up):** this scaffold predates the API-docs gate;
+  wiring TypeDoc + a public-symbol doc-coverage check (and backfilling TSDoc across existing exports)
+  is a **v0.2 task**, staged per the `dl-014` B-DECISION (Option 2) — not retrofitted here.
 
 ## Execution Notes
 
