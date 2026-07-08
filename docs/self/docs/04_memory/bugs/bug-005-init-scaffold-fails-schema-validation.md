@@ -2,7 +2,7 @@
 id: "bug-005-init-scaffold-fails-schema-validation"
 type: bug
 title: "wingfoil init scaffolds a dna.yaml/memory.yaml that immediately fail their own schemas — dna show/set, paths, and memory add all error on a freshly-initialized project"
-status: in-progress
+status: in-review
 severity: "critical"
 release: "v0.1"
 feature: "P5.1.1"
