@@ -4,7 +4,7 @@ type: decision-log
 title: "Standing fresh-init + CLI end-to-end smoke gate before release-submit"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -87,3 +87,5 @@ run every release, before `release-submit`:
   `bug-004`, `bug-005`, `bug-006`, or `bug-007` — each keeps its own lifecycle.
 - [ ] Cross-reference from `bug-006`'s Execution Notes once the gate exists, so re-opening `bug-006`'s
   fix can use the gate to verify it.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

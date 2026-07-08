@@ -4,7 +4,7 @@ type: decision-log
 title: "Dev-loop git ergonomics (branch/worktree/merge) + API-docs enforcement — supersedes dl-002 on branching/merge"
 status: ready
 context: "process"
-release: ""
+release: "v0.2"
 tmpl_version: 260703   # Orignal template version
 ---
 
@@ -108,3 +108,5 @@ touch anything `dl-002` decided:**
 - [ ] This DL advances `ready → in-develop` when `release-planning` derives the task(s) implementing
   the actions above, and `in-develop → done` once those tasks are `done` — per `decision-log`'s own
   state machine (`dl-012-decision-log-state-machine`).
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

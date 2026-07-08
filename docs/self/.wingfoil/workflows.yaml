@@ -35,6 +35,8 @@ include:
   - workflows/custom/release-cycle.yaml
   - workflows/custom/release-planning.yaml
   - workflows/custom/dev-loop.yaml
+  - workflows/custom/user-docs.yaml            # dl-013 — user-facing docs gate (between implementation and submit)
+  - workflows/custom/e2e-smoke.yaml            # dl-023 — fresh-init + CLI end-to-end smoke gate (before submit)
   - workflows/custom/release-submit.yaml
   - workflows/custom/release-publishing.yaml
   - workflows/custom/retrospective.yaml

@@ -4,7 +4,7 @@ type: decision-log
 title: "Git conventions: one branch per phase; version tag created on main"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -90,3 +90,5 @@ Concretely:
 - [ ] On `ready`: add the tag-on-`main` step to `release-publishing.yaml`, after the final merge
   action.
 - [ ] Delete the stray tag: `git tag -d 1`.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

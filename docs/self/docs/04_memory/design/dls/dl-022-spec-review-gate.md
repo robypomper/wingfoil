@@ -4,7 +4,7 @@ type: decision-log
 title: "Spec-review gate: a tech-spec/ADR must pass a consistency review before approval"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -92,3 +92,5 @@ approver-identity + reason evidence in the commit (§5.1).
   its `release-planning` phase wiring overlaps.
 - [ ] No `memory.yaml` schema change required — this is a process precondition on an existing
   transition, not a new state.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

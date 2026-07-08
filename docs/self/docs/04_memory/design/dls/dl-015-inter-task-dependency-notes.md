@@ -4,7 +4,7 @@ type: decision-log
 title: "Make inter-task dependency notes deterministic in dev-loop (structured depends_on + design-phase read)"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -82,3 +82,5 @@ discovered during `design`?
   (c) extend the `traceability` directive.
 - [ ] Backfill `depends_on` for the known v0.1 forward-references: task-016→task-011;
   task-021→task-008; task-026→task-008; task-030→task-009, task-011; task-032→task-007.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

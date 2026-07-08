@@ -4,8 +4,11 @@ type: bug
 title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
 status: draft          # auto-set by wingfoil; memory.submit → open
 severity: ""           # REQUIRED — critical | high | medium | low
-release: ""            # optional — release where the bug was found, e.g. "v0.1"
+release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
+release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
 feature: ""            # optional — related feature ID, e.g. "P1.6"
+contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
+credit: ""             # optional — free-text credit note (dl-020)
 tmpl_version: 260703   # Orignal template version
 ---
 

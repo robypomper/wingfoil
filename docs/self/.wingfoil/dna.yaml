@@ -95,6 +95,9 @@ stacks:
     - name: Jest
       category: testing
       notes: coverage target >80%
+    - name: TypeDoc                            # [AUTHORING] dl-014/dl-013 — API-docs build + public-symbol coverage gate
+      category: documentation
+      notes: public-symbol TSDoc coverage gate (dev-loop refactor checks), staged per dl-014 B-DECISION Option 2
     - name: git
       category: storage
     - name: npm registry (public)

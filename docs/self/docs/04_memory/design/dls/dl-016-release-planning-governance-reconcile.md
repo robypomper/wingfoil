@@ -4,7 +4,7 @@ type: decision-log
 title: "Reconcile accumulated governance elements at release-planning (triage-bugs + reconcile-governance phases; uniform `release` assignment)"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -157,3 +157,5 @@ swept in `reconcile-governance`.
   to `dl-015-inter-task-dependency-notes`; out of scope here.
 - [ ] Backlog check: the open DLs (dl-013, dl-014, dl-015) and any `open` bug become the first real
   inputs these phases would reconcile at the next planning cycle.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

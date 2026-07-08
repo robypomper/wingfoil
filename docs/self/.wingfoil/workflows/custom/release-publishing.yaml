@@ -10,11 +10,16 @@ element: release
 
 phases:
   - name: tag
-    description: "Create the semver git tag for the release."
+    description: >-
+      Create the semver git tag for the release ON `main`, after the release branch has merged —
+      never on a phase branch (dl-024). The tag must be a stable ref reachable from main's permanent
+      history so it survives phase-branch cleanup.
     role: tech-lead
+    checks:
+      pre: ["on-branch-is-main", "release-branch-merged-to-main"]   # dl-024
     actions:
-      - git.commit("release {release.version}")
-      - git.tag("{release.version}")
+      - 'git.commit("release {release.version}")'
+      - 'git.tag("{release.version}", on: main)'      # dl-024 — tag on main, not on a design/release_* branch
 
   - name: publish
     description: "Build and publish the package to npm."

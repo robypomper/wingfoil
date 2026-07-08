@@ -15,7 +15,7 @@ kind: sub
 description: >-
   Test-first development loop for a single task: design -> red -> green -> refactor -> review.
   On review rejection, fall back to `red` and return the task to in-progress.
-version: 1.0
+version: 1.1                     # dl-014 git ergonomics (branch/worktree/merge) + docs-api checks; T1 test-strategy classification
 element: task          # the iterated element provided by release-cycle
 
 phases:
@@ -23,7 +23,8 @@ phases:
     description: "Pick up the task; create a feature branch; move it to in-progress."
     role: developer
     actions:
-      - git.create_branch("{task.id}")
+      - git.create_branch("task/{task.id}")               # dl-014 G1 — namespaced branch
+      - git.create_worktree("task/{task.id}")             # dl-014 G2 — per-task worktree (enables parallel dev-loops; REQ-INT-06)
       - element.set_state(in-progress)        # task: backlog -> in-progress
       - 'bug.sync_state(where: { id: task.bug })'   # keep the source bug in sync: planned -> in-progress
 
@@ -35,13 +36,15 @@ phases:
       approved state. For each still-missing spec: memory.add then memory.submit (draft -> pending).
     role: architect
     actions:
+      - agent.classify_acs             # T1 (dl-014 + testing directive): classify each AC as red-first (new behavior) or characterization (behavior pre-exists); record in the task's Execution Notes
+      - agent.read_related             # dl-015 — load the Execution Notes of every `depends_on` task; HARD gate (blocks `red` until acknowledged)
       - agent.verify_specs             # check task scope against existing tech-spec elements
       - 'memory.add(type: tech-spec)'  # for each still-missing artefact: scaffold a new draft
       - memory.submit                  # draft -> pending
     produces:
       - "docs/04_memory/design/specs/{id}.md"
     checks:
-      post: ["frontmatter.required: [title, scope]", "tech-spec.approved"]  # any newly-scaffolded spec + all relevant specs approved
+      post: ["frontmatter.required: [title, scope]", "tech-spec.approved", "depends_on.acknowledged"]  # specs approved + dl-015 hard gate: every depends_on task's Execution Notes read before red
     approval: { by_role: approver }    # newly-scaffolded specs need approval before red begins
     fallback: { step: design }         # reject -> revise the spec and re-verify
 
@@ -51,7 +54,7 @@ phases:
     actions:
       - agent.execute
     checks:
-      post: ["tests.exist", "tests.failing"]   # a new test exists and fails
+      post: ["tests.exist", "tests.failing(for: red-first ACs)"]   # red-first ACs: a new test exists and fails; characterization ACs (T1) are exempt — no fabricated red, no dead code to force one
 
   - name: green
     description: "Implement the minimum code to make the test pass."
@@ -67,7 +70,7 @@ phases:
     actions:
       - agent.execute
     checks:
-      post: ["tests.passing", "tests.coverage(min: 80)"]
+      post: ["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build"]   # dl-014 G5 / dl-013 — STAGED per B-DECISION Option 2: docs.api.* run as warn / new-code-only until the v0.2 TSDoc-backfill task, then flip to hard-reject
 
   - name: review
     description: "Quality gate runs the BDD acceptance tests, then the reviewer approves or rejects."
@@ -86,6 +89,8 @@ phases:
     role: developer
     actions:
       - memory.approve                         # task: in-review -> approved
-      - 'git.merge(to: main)'
+      - 'git.merge(to: main, ff: false)'       # dl-014 G3 — always a merge commit (a revertible unit per parallel task)
+      - git.remove_worktree                    # dl-014 G2 — remove the per-task worktree after merge, before branch delete
       - element.set_state(done)                # task: approved -> done
       - 'bug.sync_state(where: { id: task.bug })'   # keep the source bug in sync: in-review -> resolved -> closed (once all its fix tasks are done)
+    fallback: { step: red, set_state: in-progress }   # dl-014 G4 — a conflicted/failed merge (REQ-INT-06: abort clean, mark failed) routes back to red

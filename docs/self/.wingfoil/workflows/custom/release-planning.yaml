@@ -3,10 +3,16 @@
 name: release-planning
 kind: sub
 description: >-
-  Plan a release: confirm the pillar focus and scope, identify and spec shared artefacts up
-  front, pull backlog tasks for the release, set the release element to `planning`.
-version: 1.0
+  Plan a release: confirm the pillar focus and scope, triage bugs and reconcile accumulated
+  governance into their gated states, identify and spec shared artefacts up front, pull backlog
+  tasks for the release, and stamp each included element with its `release`. Set the release
+  element to `planning` then `in-development`.
+version: 1.1                     # dl-016: added triage-bugs + reconcile-governance, record-adrs approve, build-backlog release-stamping
 element: release
+
+# Selection filter (dl-016 §1) — every phase that considers accumulated elements picks those whose
+# `release` is EMPTY or == the release in planning. This re-offers approved-but-unassigned elements and
+# never re-pulls ones already assigned elsewhere. Assignment (`release=`) happens only in build-backlog.
 
 phases:
   - name: define-scope
@@ -19,17 +25,43 @@ phases:
     checks:
       post: ["frontmatter.required: [title, version, pillar, features, requirements, release-line]"]
 
+  - name: triage-bugs                          # dl-016 §2 phase 2 (new)
+    description: >-
+      Select in-scope `open` bugs (selection filter: release empty or == {release in planning}) and
+      triage them so downstream phases see only `triaged` bugs. Not-selected bugs are left untouched.
+    role: tech-lead
+    where: { type: bug, status: [open], release: ["", "{release.version}"] }
+    actions:
+      - memory.approve                         # selected bugs: open -> triaged
+    approval: { by_role: approver }
+    fallback: { step: triage-bugs, set_state: closed }   # reject (incomplete/wontfix/dup): open -> closed
+
+  - name: reconcile-governance                 # dl-016 §2 phase 3 (new)
+    description: >-
+      Sweep accumulated not-ready in-scope governance into its gated state so build-backlog/identify-specs
+      never silently skip it. Idempotent — acts only on pre-gate elements (selection filter: release empty
+      or == {release in planning}). Not-selected elements are left untouched.
+    role: product-owner
+    where: { type: [decision-log, adr], status: [in-discussion, pending], release: ["", "{release.version}"] }
+    actions:
+      - memory.approve                         # decision-log: in-discussion -> ready; adr (optional sweep, dl-016 open-q (a)=yes): pending -> accepted
+    approval: { by_role: approver }
+    fallback: { step: reconcile-governance, set_state: draft }   # reject (element incomplete): -> draft
+
   - name: record-adrs
-    description: "Optionally record Architectural Decision Records for this release's scope."
+    description: "Optionally record + approve Architectural Decision Records for this release's scope."
     role: architect
     optional: true
     actions:
       - 'memory.add(type: adr)'
-      - memory.submit
+      - memory.submit                          # adr: draft -> pending
+      - memory.approve                         # adr: pending -> accepted (dl-016 — tasks never cite an unaccepted ADR)
     produces:
       - "docs/04_memory/design/adrs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before accept
       post: ["frontmatter.required: [title, sard_ref]"]
+    approval: { by_role: approver }
 
   - name: identify-specs
     description: >-
@@ -45,23 +77,30 @@ phases:
     produces:
       - "docs/04_memory/design/specs/{id}.md"
     checks:
+      pre: ["spec-review.passed"]     # dl-022 — internal + cross-spec + BDD/vision + traceability review before approve
       post: ["frontmatter.required: [title, scope]"]
     approval: { by_role: approver }    # specs approved before tasks referencing them reach backlog
     fallback: { step: identify-specs }
 
   - name: build-backlog
     description: >-
-      Create/triage task deliverables for the release. For each selected triaged bug, create one
-      or more fix tasks (task.bug = the source bug's id) and schedule the bug into the release;
-      from here on the bug's own state tracks its derived task(s) automatically (dev-loop's
-      `bug.sync_state`, see dev-loop.yaml) — no separate fix workflow.
+      Create/triage task deliverables for the release, convert reconciled governance into tasks, and
+      stamp the `release` assignment on every included element. For each in-scope `ready` DL, create
+      the task(s) it implies (the DL STAYS `ready` — dl-017, no ready->in-develop). For each selected
+      `triaged` bug, create one or more fix tasks (task.bug = the source bug's id) and schedule the bug
+      into the release; from here the bug's own state tracks its derived task(s) automatically
+      (dev-loop's `bug.sync_state`). Assignment (dl-016 §4): stamp `release = {release.version}` on
+      every included decision-log, bug, tech-spec, adr, and task.
     role: product-owner
     actions:
-      - 'memory.add(type: task, tags: ["{release.version}"])'          # tasks created in draft
-      - memory.submit                                                 # task: draft -> pending
+      - 'memory.add(type: task, tags: ["{release.version}"])'                   # tasks created in draft
+      - memory.submit                                                          # task: draft -> pending
+      - 'memory.add(type: task, tags: ["{release.version}"], dl: "{dl.id}")'    # task(s) derived from each in-scope `ready` DL (DL stays ready — dl-017)
+      - memory.submit
       - 'memory.add(type: task, tags: ["{release.version}"], bug: "{bug.id}")'  # one or more fix tasks per selected triaged bug
-      - memory.submit                                                 # fix task(s): draft -> pending
-      - bug.set_state(planned)                                        # selected bugs: triaged -> planned (fix task(s) now exist)
+      - memory.submit                                                          # fix task(s): draft -> pending
+      - bug.set_state(planned)                                                 # selected bugs: triaged -> planned (fix task(s) now exist)
+      - element.set_release("{release.version}")                               # stamp `release` on every included DL, bug, tech-spec, adr, task (dl-016 §4)
     produces:
       - "docs/04_memory/{release}/{id}.md"
     checks:

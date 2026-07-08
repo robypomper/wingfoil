@@ -4,6 +4,10 @@
 # Phase completion is deduced (REQ-SYS-03): Memory-backed phases from element status, and the inception/
 # specification/init phases from the existence of their `produces:` artifacts — no stored phase status.
 # Source: user-defined composition; sub-workflows modeled from the vision/requirements plans.
+#
+# Git conventions (dl-024): every phase runs on its OWN branch named `design/<phase>_<version>` (and
+# `task/task-NNN-slug` for dev-loop tasks), merged to `main` with `git merge --ff=false`. The release
+# `vX.Y` tag is created on `main` after the release branch merges — never on a phase branch.
 name: sw-life-cycle
 kind: main
 description: >-

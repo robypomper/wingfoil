@@ -9,6 +9,7 @@ tags: []               # optional — additional labels, e.g. [architecture, bac
 ref: ""                # optional — backlog item ID, e.g. "TASK-001"
 bug: ""                # optional — source bug id, when this task is a fix derived from a bug (e.g. "bug-003-null-deref");
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
+depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
 tmpl_version: 260703   # Orignal template version
 ---
 

@@ -2,7 +2,7 @@
 
 ## Context
 
-`minor-v0.1` (`docs/self/docs/04_memory/planning/v1/minor-v0.1.md`) is `in-development`; its
+`minor-v0.1` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`) is `in-development`; its
 `dev-loop` is complete — all 33 tasks `done`, suite green (548/548). Per `release-cycle`
 (`docs/self/.wingfoil/workflows/custom/release-cycle.yaml`), the phase after `implementation`
 (`dev-loop`) is `submit`, i.e. the **`release-submit`** sub-workflow
@@ -82,7 +82,7 @@ commit body (§5.1). `fallback: { step: pre-release-checks }` — a reject re-ru
 
 - `npm run test:coverage` green, coverage ≥80% (captured in §2.1).
 - `git log` shows one commit `wf(release): submit minor-v0.1`.
-- `grep "^status:" docs/self/docs/04_memory/planning/v1/minor-v0.1.md` → `releasing`.
+- `grep "^status:" docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` → `releasing`.
 - No changes to bug files; no other element touched.
 
 ---

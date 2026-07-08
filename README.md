@@ -379,7 +379,9 @@ Early feedback is welcome. Please open issues on GitHub to share:
 - Feature requests
 - Bug reports
 
-See `CONTRIBUTING.md` for development setup (coming soon).
+See **[`COLLABORATION.md`](COLLABORATION.md)** — how to contribute through Memory artifacts
+(Bug / Decision-Log / ADR / Tech-Spec) instead of code, with credit for the AI-generated work
+derived from your contribution.
 
 ---
 

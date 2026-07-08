@@ -4,7 +4,7 @@ type: decision-log
 title: "Remove the delivery states (in-develop, done) from decision-log; DL returns to draft → in-discussion → ready (→ deprecated)"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -81,3 +81,5 @@ kept as future work (see `dl-016` note on coupling DL/tech-spec/ADR to tasks, an
   leaves the DL at `ready` (no `ready → in-develop`).
 - [ ] Partially supersedes `dl-012-decision-log-state-machine` (keeps the custom machine, removes the
   delivery lifecycle).
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

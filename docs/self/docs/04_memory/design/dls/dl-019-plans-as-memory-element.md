@@ -4,7 +4,7 @@ type: decision-log
 title: "Treat phase plans (docs/05_plans/) as a first-class Memory element type"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -101,3 +101,5 @@ Concretely:
         list `plan` as an eighth type.
 - [ ] Track frontmatter backfill of existing `docs/05_plans/` files as an optional, non-blocking
       follow-up (not required for adoption).
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.

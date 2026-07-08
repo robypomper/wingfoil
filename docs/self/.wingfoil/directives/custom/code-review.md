@@ -18,6 +18,8 @@ Custom stand-in directive. Applies to reviewers (and the approver gate).
 
 - Review checklist: correctness, tests present + passing, adherence to other directives, no secrets.
 - Verify the change matches its task/deliverable acceptance criteria.
+- When reviewing a `tech-spec` or `adr` for approval, apply the **spec-review gate** from the
+  `architecture` directive (`dl-022`): internal + cross-spec + BDD/vision + traceability consistency.
 - Approve via `wingfoil memory approve` (records reason); reject via `wingfoil memory reject`
   (returns to the workflow `fallback` step with feedback).
 - Approval binds to the `reviewer`/`approver` role, not a person.

@@ -4,6 +4,7 @@ type: bug
 title: "CLI integration suites race on a shared dist/ rebuild, causing flaky jest failures"
 status: closed
 severity: low
+release-origin: "v0.1"
 release: "v0.1"
 feature: ""
 tmpl_version: 260703

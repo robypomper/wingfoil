@@ -28,5 +28,13 @@ Custom stand-in directive. Applies to architects and the tech lead.
   (once per release-line, before its delivery starts), release-scoped ones in
   `release-planning/identify-specs`; `dev-loop/design` is only the reactive fallback for artefacts
   discovered mid-task.
+- **Spec-review gate before approval (`dl-022`):** before a `tech-spec` moves `pending → approved` or
+  an `adr` moves `pending → accepted`, confirm it passes four checks — (1) **internal** consistency
+  (prose agrees with its own code listings/examples), (2) **cross-spec** consistency (no naming,
+  URI/field-scheme, or terminology conflict with sibling already-approved specs), (3) **spec ↔
+  BDD/vision** alignment (command grammar and field names match the acceptance contracts), (4)
+  **traceability** (cites the REQ(s)/feature it serves, accurately). Enforced at
+  `initial-design/seed-specs`+`seed-adrs`, `release-planning/identify-specs`, and
+  `release-planning/record-adrs`; also checked by reviewers under the `code-review` directive.
 
 > Source: Features §P3.8 (Architecture); SARD `docs/02_requirements/03_sard/01_architecture.md`.

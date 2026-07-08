@@ -9,6 +9,7 @@ tags: ["v0.1", "dna"]
 ref: "P2.2"
 bug: ""                # optional — source bug id, when this task is a fix derived from a bug (e.g. "bug-003-null-deref");
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
+depends_on: ["task-008-dna-memory-query-latency"]
 tmpl_version: 260703   # Orignal template version
 ---
 

@@ -11,7 +11,8 @@ tmpl_version: 260703   # Orignal template version
 ## Context
 
 `memory.yaml` is the **Project Memory type registry** (feature **P1.13**). It declares every Memory
-element type — `release-line, release, task, adr, decision-log, tech-spec, bug` — giving each a path
+element type — `release-line, release, task, adr, decision-log, tech-spec, bug, plan` (the eighth,
+`plan`, added by `dl-019-plans-as-memory-element`) — giving each a path
 pattern, an id pattern, human metadata, a template scaffold, and a state machine. It is consumed by
 every `wingfoil memory *` command (add/submit/approve/reject/deprecate/show/search/history), by the
 Workflow pillar (to resolve `element:` type declarations), by the ID-generation engine (reads
@@ -209,12 +210,11 @@ types:
     path: "docs/04_memory/design/dls/{id}.md"
     id_pattern: "dl-{n}-{slug}"
     states:
-      sequence: [ draft, in-discussion, ready, in-develop, done ]
+      sequence: [ draft, in-discussion, ready ]
       gates:
         in-discussion: { reject: draft }  # approve: in-discussion→ready · reject: →draft
-      waiting: [ ready, in-develop ]      # ready→in-develop: release-planning converts the DL into
-                                          # task(s); in-develop→done: fires once every derived task
-                                          # back-referencing this DL is itself `done`
+      waiting: [ ]                         # `ready` is terminal (record-with-approval, mirrors adr/tech-spec).
+                                          # in-develop/done removed per dl-017 (task→DL back-reference never implemented)
 
   tech-spec:
     path: "docs/04_memory/design/specs/{id}.md"
@@ -270,11 +270,11 @@ multi-target cases the old graph left ambiguous: old `task in-review: [ approved
   `sequence`/`gates`/`waiting` instead of `transitions`), the ID engine (unchanged — still reads
   `path` + `id_pattern`), and `memory.yaml` itself (rewritten to this encoding). Any doc citing the
   old `transitions` shape (REQ-STATE-08, the P1.8 BDD) is downstream of this spec.
-- **`decision-log`'s worked example is conditional on `dl-012-decision-log-state-machine`.** Its
-  `sequence`/`gates`/`waiting` block above is `dl-012`'s proposed transition table translated into this
-  spec's format; it was reconciled against `dl-012` once that decision-log's content confirmed the
-  recommendation is to **adopt** the custom lifecycle. If `dl-012` is rejected or its recommendation
-  changes before approval, this spec's `decision-log` worked example must be revisited to match.
+- **`decision-log`'s worked example follows `dl-012-decision-log-state-machine` as reduced by
+  `dl-017-decision-log-remove-delivery-states`.** `dl-012` gave the DL its own machine; `dl-017`
+  (approved) removed the `in-develop`/`done` delivery states — the task→DL back-reference they
+  presupposed was never implemented — leaving `draft → in-discussion → ready (→ deprecated)`, a
+  record-with-approval lifecycle mirroring `adr`/`tech-spec`. The block above reflects the reduced machine.
 
 ## Process Notes
 

@@ -57,7 +57,7 @@ Close v0.1 with this retrospective and, in the same window, **exceptionally appr
 - **T9 — governance debt accumulated, never reconciled** (`dl-013`/`dl-016`/`dl-017`/`dl-018`).
 - **T10 — paper release** (`dl-018`); the planning branch's 33 tasks were also never merged to `main`
   (`release-planning-rel-v0.1-plan.md`).
-- **T11 — path/naming inconsistencies** (`planning/v1/` vs the `rl-v1` id + the `docs/05_plans/rl-v1/`
+- **T11 — path/naming inconsistencies** (`planning/rl-v1/` vs the `rl-v1` id + the `docs/05_plans/rl-v1/`
   tree; scaffold `id`/`tmpl_version` `task-020`; module mislabel `task-003`).
 - **T12 — `submit` only flips status, adds no content** — *deferred; not acted on this retrospective.*
 
@@ -71,7 +71,7 @@ Close v0.1 with this retrospective and, in the same window, **exceptionally appr
 | T7b | commander-ESM-under-Jest white-box fix | **`bug-007`** (→ v0.2) |
 | T5/T6 defects | leave `open`, v0.2 `triage-bugs` | `bug-004`, `bug-006` |
 | N1/N2 (git rules) | one branch per phase; tag on `main` | **`dl-024`** |
-| T11 | normalize `planning/v1/` → `planning/rl-v1/` | bootstrap close-out |
+| T11 | normalize `planning/rl-v1/` → `planning/rl-v1/` | bootstrap close-out |
 | — (plans as Memory) | phase plans become a Memory type | **`dl-019`** |
 | — (contribution) | contribute via Memory artifacts; credit the contributor | **`dl-020`** + `COLLABORATION.md` |
 | T12 | deferred — not this retrospective | — |

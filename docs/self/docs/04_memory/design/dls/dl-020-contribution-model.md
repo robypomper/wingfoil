@@ -4,7 +4,7 @@ type: decision-log
 title: "AI-mediated contribution model: contribute via Bug/DL/ADR/TechSpec, credit the contributor"
 status: ready
 context: "process"
-release: "v0.1"
+release: "v0.2"
 tmpl_version: 260703
 ---
 
@@ -98,3 +98,5 @@ in a new repo-root `COLLABORATION.md`:
   and drop the "`CONTRIBUTING.md` (coming soon)" pointer at `README.md:382`.
 - [ ] Cross-check `adr-006-git-identity-role-based-authz`'s Consequences section for a note that this
   DL layers contributor credit on top of, not in place of, its attribution mechanism.
+
+> **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.
