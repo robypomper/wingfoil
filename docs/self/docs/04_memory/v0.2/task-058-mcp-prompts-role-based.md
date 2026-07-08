@@ -2,7 +2,7 @@
 id: "task-058-mcp-prompts-role-based"
 type: task
 title: "Implement MCP Prompts (role-based)"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p5"]

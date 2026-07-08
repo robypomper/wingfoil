@@ -2,7 +2,7 @@
 id: "task-053-directives-list"
 type: task
 title: "Implement `wingfoil directives list`"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p3"]

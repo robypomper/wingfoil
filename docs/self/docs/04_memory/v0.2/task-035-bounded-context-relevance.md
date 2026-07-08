@@ -2,7 +2,7 @@
 id: "task-035-bounded-context-relevance"
 type: task
 title: "Infrastructure: REQ-PERF-05 — bounded context via relevance"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "performance"]

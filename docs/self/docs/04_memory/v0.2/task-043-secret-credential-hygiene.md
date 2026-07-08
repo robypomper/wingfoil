@@ -2,7 +2,7 @@
 id: "task-043-secret-credential-hygiene"
 type: task
 title: "Infrastructure: REQ-SEC-08 — secret/credential hygiene"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "security"]

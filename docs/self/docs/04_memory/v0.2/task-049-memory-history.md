@@ -2,7 +2,7 @@
 id: "task-049-memory-history"
 type: task
 title: "Implement `wingfoil memory history`"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p1"]

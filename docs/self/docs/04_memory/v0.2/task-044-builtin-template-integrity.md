@@ -2,7 +2,7 @@
 id: "task-044-builtin-template-integrity"
 type: task
 title: "Infrastructure: REQ-SEC-10 — built-in template integrity"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "security"]

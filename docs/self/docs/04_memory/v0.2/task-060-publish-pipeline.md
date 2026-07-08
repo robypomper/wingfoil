@@ -2,7 +2,7 @@
 id: "task-060-publish-pipeline"
 type: task
 title: "Publish flow: GitHub Actions CI/CD + ephemeral Verdaccio staging (dl-018 T3)"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
