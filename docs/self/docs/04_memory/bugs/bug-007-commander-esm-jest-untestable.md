@@ -4,7 +4,8 @@ type: bug
 title: "commander v15 is ESM-only → CLI wiring untestable under the Jest CommonJS runtime"
 status: open
 severity: "medium"
-release: "v0.1"
+release-origin: "v0.1"
+release: ""
 feature: "P5.1"
 tmpl_version: 260703
 ---

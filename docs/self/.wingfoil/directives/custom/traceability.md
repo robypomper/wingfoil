@@ -21,6 +21,10 @@ Custom WingFoil rule. Applies to reviewers, architects, and product owners.
 - Keep each task's target-release assignment consistent with the planned release cadence in
   `docs/01_vision/07_sequencer.md` — roughly one release per week, each centered on a pillar
   (v0.1 → v1.0). Relocated here from the former `dna.yaml` `conventions.process.release_cadence`.
+- Every base document (adr, decision-log, tech-spec, bug) carries a `release` field with the uniform
+  meaning "the release this element's implementation is assigned to" (== `task.release`), stamped by
+  `release-planning`'s `build-backlog` (`dl-016`). A bug additionally carries `release-origin` — the
+  release it was *found in* — which must not be conflated with its fix `release`.
 - A reviewer rejects work that breaks or omits a required cross-reference.
 
 > Rationale: traceability is what lets Casey/Morgan see how requirements flow to test and release,

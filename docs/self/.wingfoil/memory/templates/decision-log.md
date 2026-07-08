@@ -4,7 +4,7 @@ type: decision-log
 title: ""              # REQUIRED — e.g. "Retrospective v0.1" or "Use Jest for unit testing"
 status: draft          # auto-set by wingfoil
 context: ""            # optional — short label for the context, e.g. "retrospective", "planning", "ad-hoc"
-release: ""            # optional — related release version, e.g. "v0.1"
+release: ""            # optional — implementation release this DL is assigned to (stamped at release-planning/build-backlog, dl-016), e.g. "v0.1"
 tmpl_version: 260703   # Orignal template version
 ---
 

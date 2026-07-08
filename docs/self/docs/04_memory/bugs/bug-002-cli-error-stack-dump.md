@@ -4,6 +4,7 @@ type: bug
 title: "CLI stack-dumps StorageError outside a git root, bypassing the spec-005 exit/error contract"
 status: closed
 severity: high
+release-origin: "v0.1"
 release: "v0.1"
 feature: ""
 tmpl_version: 260703

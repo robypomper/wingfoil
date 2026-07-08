@@ -4,7 +4,8 @@ type: bug
 title: "wingfoil init scaffolds directive .md files that fail the directives schema"
 status: open
 severity: "low"
-release: "v0.1"
+release-origin: "v0.1"
+release: ""
 note: release_origin=v0.1, release_assigned=?
 feature: "P5.1.1"
 tmpl_version: 260703

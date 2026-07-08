@@ -4,6 +4,7 @@ type: bug
 title: "wingfoil --version errors instead of printing the version and exiting 0"
 status: closed
 severity: medium
+release-origin: "v0.1"
 release: "v0.1"
 feature: ""
 tmpl_version: 260703

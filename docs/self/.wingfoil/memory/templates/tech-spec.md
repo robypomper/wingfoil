@@ -5,6 +5,7 @@ title: ""              # REQUIRED — e.g. "workflows.yaml schema"
 status: draft          # auto-set by wingfoil
 scope: ""              # REQUIRED — the artefact this spec covers: file format, schema, constant set, or module API, e.g. "docs/self/.wingfoil/workflows.yaml"
 supersedes: ""         # optional — id of the tech-spec this one replaces, e.g. "spec-002"
+release: ""            # optional — implementation release this spec is assigned to (stamped by release-planning/build-backlog, dl-016), e.g. "v0.1"
 tmpl_version: 260703   # Orignal template version
 ---
 

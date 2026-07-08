@@ -5,6 +5,7 @@ title: ""              # REQUIRED — e.g. "Git-backed storage as single source 
 status: draft          # auto-set by wingfoil
 sard_ref: ""           # REQUIRED — REQ-* code or feature ID, e.g. "REQ-SYS-01"
 supersedes: ""         # optional — id of the ADR this one replaces, e.g. "adr-002"
+release: ""            # optional — implementation release this ADR is assigned to (stamped by release-planning/build-backlog, dl-016), e.g. "v0.1"
 tmpl_version: 260703   # Orignal template version
 ---
 

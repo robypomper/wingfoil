@@ -4,6 +4,7 @@ type: bug
 title: "wingfoil init scaffolds a dna.yaml/memory.yaml that immediately fail their own schemas — dna show/set, paths, and memory add all error on a freshly-initialized project"
 status: resolved
 severity: "critical"
+release-origin: "v0.1"
 release: "v0.1"
 feature: "P5.1.1"
 tmpl_version: 260703

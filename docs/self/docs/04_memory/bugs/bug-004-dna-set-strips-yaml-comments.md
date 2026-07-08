@@ -4,7 +4,8 @@ type: bug
 title: "wingfoil dna set strips YAML comments (loses [SPEC]/[AUTHORING] provenance)"
 status: open
 severity: "medium"
-release: "v0.1"
+release-origin: "v0.1"
+release: ""
 note: release_origin=v0.1, release_assigned=?
 feature: "P2.1"
 tmpl_version: 260703
