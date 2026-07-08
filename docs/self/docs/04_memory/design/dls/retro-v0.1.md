@@ -2,7 +2,7 @@
 id: "retro-v0.1"
 type: decision-log
 title: "Retrospective v0.1"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.1"
 tmpl_version: 260703
