@@ -37,13 +37,14 @@ phases:
     role: architect
     actions:
       - agent.classify_acs             # T1 (dl-014 + testing directive): classify each AC as red-first (new behavior) or characterization (behavior pre-exists); record in the task's Execution Notes
+      - agent.read_related             # dl-015 — load the Execution Notes of every `depends_on` task; HARD gate (blocks `red` until acknowledged)
       - agent.verify_specs             # check task scope against existing tech-spec elements
       - 'memory.add(type: tech-spec)'  # for each still-missing artefact: scaffold a new draft
       - memory.submit                  # draft -> pending
     produces:
       - "docs/04_memory/design/specs/{id}.md"
     checks:
-      post: ["frontmatter.required: [title, scope]", "tech-spec.approved"]  # any newly-scaffolded spec + all relevant specs approved
+      post: ["frontmatter.required: [title, scope]", "tech-spec.approved", "depends_on.acknowledged"]  # specs approved + dl-015 hard gate: every depends_on task's Execution Notes read before red
     approval: { by_role: approver }    # newly-scaffolded specs need approval before red begins
     fallback: { step: design }         # reject -> revise the spec and re-verify
 

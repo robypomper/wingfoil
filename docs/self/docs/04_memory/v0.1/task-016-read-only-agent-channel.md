@@ -9,6 +9,7 @@ tags: ["v0.1", "architecture"]
 ref: "REQ-SEC-05"
 bug: ""                # optional — source bug id, when this task is a fix derived from a bug (e.g. "bug-003-null-deref");
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
+depends_on: ["task-011-mcp-resources-read-only"]
 tmpl_version: 260703   # Orignal template version
 ---
 

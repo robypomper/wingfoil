@@ -25,6 +25,8 @@ Custom WingFoil rule. Applies to reviewers, architects, and product owners.
   meaning "the release this element's implementation is assigned to" (== `task.release`), stamped by
   `release-planning`'s `build-backlog` (`dl-016`). A bug additionally carries `release-origin` — the
   release it was *found in* — which must not be conflated with its fix `release`.
+- A task's `depends_on` obligations (`dl-015`) are a required cross-reference: the `dev-loop` review
+  gate rejects a task that ignored a declared upstream task's Execution-Notes constraint.
 - A reviewer rejects work that breaks or omits a required cross-reference.
 
 > Rationale: traceability is what lets Casey/Morgan see how requirements flow to test and release,

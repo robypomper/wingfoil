@@ -9,6 +9,7 @@ tags: ["v0.1", "documentation"]
 ref: "spec-005-cli-command-contract"
 bug: ""                # optional — source bug id, when this task is a fix derived from a bug (e.g. "bug-003-null-deref");
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
+depends_on: ["task-007-npm-distribution"]
 tmpl_version: 260703   # Orignal template version
 ---
 
