@@ -61,47 +61,44 @@ real-time tracking of project state.
 
 ---
 
-## Key Features (MVP - v0.1 through v1.0)
+## Key Features
 
-### Five Pillars
+### Five Pillars — v0.1 status
 
-- ✓ **Project Memory** — Git-backed document storage with versioning and audit trail
-- ✓ **Project DNA** — Structured config: modules, tech stack, conventions
-- ✓ **Project Directives** — Custom and built-in rules, scoped by role
-- ✓ **Workflow State Management** — Track and communicate project status, progress, and blockers
-- ✓ **Interaction Layer** — CLI for humans, MCP Server for agents
+- ✓ **Project Memory** — Git-backed document storage with versioning and audit trail (**shipped, v0.1**)
+- ✓ **Project DNA** — Structured config: modules, tech stack, team & roles, resource paths (**shipped, v0.1**)
+- ✓ **Interaction Layer** — CLI for humans (**shipped, v0.1**); MCP Server for agents, read-only Resources
+  (**shipped, v0.1**)
+- **Project Directives** — role-scoped rules (planned, v0.2)
+- **Workflow State Management** — track and communicate project status/progress/blockers (planned, v0.3)
 
-### CLI Commands
+### CLI commands (v0.1)
+
+Every command below is real, implemented, and covered by the walkthrough in
+[Quick Start](#quick-start). `directive`/`workflow` CLI verbs beyond config inspection land in v0.2/v0.3.
 
 ```bash
-wingfoil init                    # Start a new WingFoil project
-wingfoil init --from-existing    # Set up WingFoil on an existing codebase
-wingfoil audit                   # Scan and summarize current project state
+wingfoil init [--template <Scrum|Kanban>]   # Bootstrap .wingfoil/ in the current git repo
 
-wingfoil dna set                 # Define project structure
-wingfoil dna infer               # Auto-scan codebase and propose DNA
-wingfoil dna show                # Query project structure
+wingfoil dna show [section]                 # Query project structure (whole file, or one top-level key)
+wingfoil dna set <key> <value>              # Set a single dotted key path (e.g. project.name)
 
-wingfoil directive create        # Write custom rules
-wingfoil directive add           # Add built-in rule templates
-wingfoil directive assign        # Bind rules to roles
+wingfoil memory add --type <t> --title <t> [--tags <t1,t2>]      # Create a Memory document (draft)
+wingfoil memory search [keyword] [--tag <t>] [--type <t>] [--status <s>]  # Find docs by keyword/metadata
 
-wingfoil memory add              # Create project memory documents
-wingfoil memory import           # Import existing docs into Memory
-wingfoil memory search           # Find docs by keyword
-wingfoil memory history          # View audit trail of decisions
+wingfoil paths [category]                   # Query resource paths (sources/tests/docs/config/governance)
 
-wingfoil workflow status         # Check current project state
-wingfoil workflow update         # Record progress, blockers, decisions
-wingfoil workflow history        # View state changes over time
+wingfoil mcp                                # Start the MCP server (read-only Resources) over stdio
 ```
+
+Global flags, accepted by every command: `--format <console|json|yaml>` (default `console`), `--verbose`,
+`--no-color`, `--no-interactive`, `-h/--help`, `-V/--version`.
 
 ### For AI Agents (MCP Server)
 
-- ✓ **MCP Resources** — Agents efficiently fetch DNA and Memory (read-only)
-- ✓ **MCP Prompts** — Auto-load role-specific directives at session start
-- ✓ **Keyword Search** — Find relevant docs; filter out noise
-- ✓ **Read-Only Access** — Humans remain the source of truth; agents cannot write
+- ✓ **MCP Resources** — Agents fetch DNA and Memory over stdio, read-only (`wingfoil mcp`)
+- ✓ **Keyword Search** — Find relevant docs; filter out noise (`memory search`, keyword-only in v0.1)
+- ✓ **Read-Only Access** — Humans remain the source of truth; the MCP surface exposes no mutating Tool
 
 ---
 
@@ -115,43 +112,143 @@ wingfoil workflow history        # View state changes over time
 npm install -g wingfoil
 ```
 
-### Initialize WingFoil on a New Project
+This installs the `wingfoil` binary (Node.js 18+ required). Verify it:
 
 ```bash
-wingfoil init
+wingfoil --version
 ```
 
-This creates:
+### Quick Start
 
-- `.wingfoil/` — Configuration directory
-- `.wingfoil/dna.json` — Project structure and conventions
-- `.wingfoil/directives/` — Rules for the team
-- `.wingfoil/memory/` — Decisions and artifacts (git-tracked)
+A complete, verified walkthrough: bootstrap a project, inspect and edit its DNA, create and find a
+Memory document, and query resource paths. Run this from an empty **git repository** (`wingfoil` reads
+and writes under its git root; `git init` first if you don't have one yet).
 
-### On an Existing Project
+**1. Initialize WingFoil**
 
 ```bash
-wingfoil init --from-existing
-wingfoil audit          # Scan and understand current state
-wingfoil dna infer      # Auto-propose project structure (review and approve)
-wingfoil memory import  # Pull in existing docs (README, design docs, etc.)
+$ wingfoil init --template Scrum
 ```
 
-### Add a Directive
+`--template` selects a starter methodology (`Scrum` or `Kanban` — pick whichever fits, or answer the
+interactive prompt if you omit `--template` in a terminal). This scaffolds `.wingfoil/` — DNA, Memory
+schema + templates, directives, and workflow config — and commits it. On success (exit `0`) it prints
+the list of files it created.
+
+**2. Inspect the project's DNA**
 
 ```bash
-wingfoil directive add <template>  # Copy a built-in rule (e.g., "testing", "api-design")
-wingfoil directive assign <role>   # Bind it to a role (e.g., "tech-lead", "agent")
+$ wingfoil dna show
 ```
 
-### Create Project Memory
+Prints the whole `dna.yaml` structure (project info, modules, tech/methodology stacks, team & roles,
+resource paths), or narrow it to one top-level section:
 
 ```bash
-wingfoil memory add --title "Why we chose Rust" --author "Morgan"
-# Opens your editor; saves to `.wingfoil/memory/`
-
-wingfoil memory search "Rust"  # Find it later by keyword
+$ wingfoil dna show project
+{
+  "name": "",
+  "description": "",
+  "methodology": "Scrum"
+}
 ```
+
+**3. Edit a DNA field**
+
+```bash
+$ wingfoil dna set project.name "My Project"
+{
+  "key": "project.name",
+  "value": "My Project"
+}
+```
+
+`dna set <key> <value>` writes one dotted key path and commits the change (`wf(dna): set project.name`).
+Confirm it stuck:
+
+```bash
+$ wingfoil dna show project
+{
+  "name": "My Project",
+  "description": "",
+  "methodology": "Scrum"
+}
+```
+
+**4. Create a Memory document**
+
+```bash
+$ wingfoil memory add --type task --title "My first task" --tags "demo,quickstart"
+{
+  "id": "task-001-my-first-task",
+  "path": "docs/memory/task/task-001-my-first-task.md"
+}
+```
+
+`memory add` generates a document ID from the type's `id_pattern` (`.wingfoil/memory.yaml`), copies that
+type's scaffold, fills in the frontmatter, and commits it (`draft` status — see `.wingfoil/memory.yaml`
+for each type's states). `--type` must be one already declared in `memory.yaml` (the starter templates
+declare `adr`, `bug`, `decision-log`, `release`, `release-line`, `task`, `tech-spec`).
+
+**5. Find it again**
+
+```bash
+$ wingfoil memory search first
+{
+  "query": "first",
+  "matches": [
+    {
+      "path": "docs/memory/task/task-001-my-first-task.md",
+      "id": "task-001-my-first-task",
+      "title": "My first task",
+      "type": "task",
+      "status": "draft",
+      "tags": ["demo", "quickstart"]
+    }
+  ]
+}
+```
+
+`memory search` also takes `--tag`/`--type`/`--status` filters instead of (or alongside) a keyword; an
+empty/omitted keyword with a filter browses by that metadata alone. A query that matches nothing is
+still a success (exit `0`), with an explicit `message: "no documents matched the query"`.
+
+**6. Query resource paths**
+
+```bash
+$ wingfoil paths config
+{
+  "category": "config",
+  "paths": [".wingfoil"]
+}
+```
+
+`paths [category]` reads the `dna.yaml` `paths:` map (`sources`/`tests`/`docs`/`config`/`governance`);
+omit `category` to get the whole map.
+
+### Machine-readable output & the exit-code contract
+
+Every command accepts `--format console|json|yaml` (`console` — human console output — is the default;
+the examples above show the raw JSON payload). `json`/`yaml` write only the structured result to
+stdout — no banners mixed in — so scripts and CI can parse it directly:
+
+```bash
+$ wingfoil dna show project --format yaml
+name: My Project
+description: ''
+methodology: Scrum
+```
+
+Every invocation ends in exactly one of three exit codes:
+
+| Code | Meaning                | Example                                                                 |
+|------|------------------------|--------------------------------------------------------------------------|
+| `0`  | Success                 | `wingfoil paths config` above                                            |
+| `1`  | User/logic error        | `wingfoil dna show nonexistent_section` → `error: no DNA key named 'nonexistent_section'` |
+| `2`  | Usage/argument error    | `wingfoil memory add --type task` (missing `--title`) → `error: missing required argument: --title` |
+
+A non-zero exit always carries an `error: <reason>` line on stderr (or `{"error": "<reason>"}` under
+`--format json`/`yaml`) — never a bare failure with no message.
 
 ---
 

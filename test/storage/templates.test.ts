@@ -4,6 +4,8 @@
  * skeleton and deferred the full spec-011 layout (roles.yaml, the `built-in`/`custom` splits,
  * `memory/templates/`) here; these tests pin that full layout + its determinism (REQ-SYS-07).
  */
+import { load as loadYaml } from 'js-yaml';
+
 import {
   DEFAULT_TEMPLATE,
   TEMPLATES,
@@ -14,6 +16,7 @@ import {
   type TemplateDefinition,
 } from '../../src/storage/templates';
 import type { ScaffoldFile } from '../../src/storage/layout';
+import { DnaYaml } from '../../src/dna/schema';
 
 function pathsOf(files: readonly ScaffoldFile[]): string[] {
   return files.map((f) => f.path);
@@ -129,4 +132,31 @@ describe('template selection differentiates generated content (P5.1.1 AC (a)/(b)
       );
     }
   });
+});
+
+/**
+ * bug-005-init-scaffold-fails-schema-validation: `templateScaffold`'s generated `dna.yaml`/
+ * `memory.yaml` must actually satisfy the schemas/consumers `dna show`/`dna set`/`paths`/
+ * `memory add` enforce on them — task-018/task-029 never asserted this, only that the files were
+ * non-empty and template-differentiated (the tests above). Discovered via task-032's manual CLI
+ * walkthrough: a freshly-`init`'d project errored on every one of those four commands.
+ */
+describe('templateScaffold output satisfies its consumers’ real schemas (bug-005)', () => {
+  for (const def of TEMPLATES) {
+    it(`${def.name}: generated dna.yaml round-trips through the real DnaYaml schema`, () => {
+      const dnaYamlText = templateScaffold(def).find((f) => f.path === '.wingfoil/dna.yaml')!.content;
+      const parsed = loadYaml(dnaYamlText);
+      const result = DnaYaml.safeParse(parsed);
+      expect(result.success).toBe(true);
+    });
+
+    it(`${def.name}: every scaffolded memory.yaml type declares an id_pattern (memoryAdd requires one)`, () => {
+      const memoryYamlText = templateScaffold(def).find((f) => f.path === '.wingfoil/memory.yaml')!.content;
+      const parsed = loadYaml(memoryYamlText) as { types: Record<string, { id_pattern?: string; template?: unknown }> };
+      for (const [type, entry] of Object.entries(parsed.types)) {
+        expect([type, entry.id_pattern]).toEqual([type, expect.any(String)]);
+        expect([type, entry.template]).toEqual([type, expect.anything()]);
+      }
+    });
+  }
 });
