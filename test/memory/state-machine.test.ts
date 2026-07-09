@@ -20,9 +20,11 @@ import { load } from 'js-yaml';
 import { MemoryYaml } from '../../src/memory/schema';
 import {
   DEPRECATED_STATE,
+  E_INVALID_STATE,
   E_INVALID_TRANSITION,
   resolveStateMachine,
   resolveTransitionTarget,
+  validateFrontmatterState,
 } from '../../src/memory/state-machine';
 import { ValidationError } from '../../src/validation';
 
@@ -318,5 +320,67 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
     const fallbackMachine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
     expect(fallbackMachine).toBe(fixtureMemoryYaml.defaults!.states);
     expect(fallbackMachine.sequence).toEqual(['draft', 'pending', 'approved']);
+  });
+});
+
+describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status` membership (task-036, BDD P4.11/P4.13)', () => {
+  it('passes silently (returns undefined, does not throw) for every state in a real type\'s declared `sequence`', () => {
+    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      for (const state of machine.sequence) {
+        expect(validateFrontmatterState(machine, typeName, state)).toBeUndefined();
+      }
+    }
+  });
+
+  it('passes silently for the implicit "deprecated" state on every real type, even though it is never declared in `sequence`', () => {
+    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      expect(machine.sequence).not.toContain(DEPRECATED_STATE);
+      expect(() => validateFrontmatterState(machine, typeName, DEPRECATED_STATE)).not.toThrow();
+    }
+  });
+
+  it('BDD P4.11 scenario 3: "shipped" is not a valid task state — throws with the exact message "invalid state \'shipped\' for type \'task\'"', () => {
+    const machine = resolveStateMachine(memoryYaml, 'task');
+    expect(() => validateFrontmatterState(machine, 'task', 'shipped')).toThrow(ValidationError);
+    try {
+      validateFrontmatterState(machine, 'task', 'shipped');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError);
+      const validationError = err as ValidationError;
+      expect(validationError.issues).toHaveLength(1);
+      expect(validationError.issues[0]?.code).toBe(E_INVALID_STATE);
+      expect(validationError.issues[0]?.path).toBe('status');
+      expect(validationError.issues[0]?.message).toBe("invalid state 'shipped' for type 'task'");
+    }
+  });
+
+  it('BDD P4.13 scenario 3: "releasing" (a valid `release` state) is NOT a valid `task` state — rejected per-type, and `file` is threaded through when supplied', () => {
+    const releaseMachine = resolveStateMachine(memoryYaml, 'release');
+    expect(() => validateFrontmatterState(releaseMachine, 'release', 'releasing')).not.toThrow();
+
+    const taskMachine = resolveStateMachine(memoryYaml, 'task');
+    expect(() => validateFrontmatterState(taskMachine, 'task', 'releasing', 'docs/04_memory/v0.2/task-101.md')).toThrow(
+      /invalid state 'releasing' for type 'task'/,
+    );
+    try {
+      validateFrontmatterState(taskMachine, 'task', 'releasing', 'docs/04_memory/v0.2/task-101.md');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      const validationError = err as ValidationError;
+      expect(validationError.issues[0]?.file).toBe('docs/04_memory/v0.2/task-101.md');
+    }
+  });
+
+  it('exits `2` (EXIT_INTEGRITY) — a cross-file/system-integrity failure per spec-009 §3, matching `resolveTransitionTarget`\'s illegal-transition exit code', () => {
+    const machine = resolveStateMachine(memoryYaml, 'task');
+    try {
+      validateFrontmatterState(machine, 'task', 'nonexistent-state');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      expect((err as ValidationError).exitCode).toBe(2);
+    }
   });
 });
