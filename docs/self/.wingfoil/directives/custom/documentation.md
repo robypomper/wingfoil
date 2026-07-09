@@ -21,10 +21,14 @@ Custom stand-in directive. Applies to all roles.
   decisions), not scattered across the codebase.
 - Keep cross-references intact (see the custom `traceability` directive).
 - Update the relevant `docs/` artifact in the same change that alters behavior.
-- **Code-level API docs (`dl-013`):** every public/exported symbol carries a TSDoc comment and
+- **Code-level API docs (`dl-013`):** every public/exported declaration carries a TSDoc comment and
   `TypeDoc` must build clean; the `dev-loop` review gate rejects undocumented public elements.
-  *Staged per the `dl-014` B-DECISION (Option 2): the `docs.api.*` checks run as warn / new-code-only
-  until the v0.2 TSDoc-backfill task lands, then flip to hard-reject.*
+  **Enforced (`ACTIVE`) as of `task-062-typedoc-tsdoc-backfill`** (which closed the `dl-014` B-DECISION
+  Option 2 warn / new-code-only ramp): the `docs.api.public-complete` / `docs.api.build` `refactor`
+  checks are now **hard-reject** — an undocumented exported declaration fails the gate. The check is
+  `typedoc.json` (`validation.notDocumented: true` + `treatWarningsAsErrors: true`, scoped to exported
+  declarations via `requiredToBeDocumented`), run through `npm run docs:api` and asserted by
+  `test/docs/api-docs.test.ts`.
 - **User-facing docs before release (`dl-013`):** `README.md`, the user guide, CLI reference, working
   examples, and `CHANGELOG` are written/aligned before `release-submit` — enforced by the `user-docs`
   phase in `release-cycle.yaml` (between `implementation` and `submit`).

@@ -70,7 +70,7 @@ phases:
     actions:
       - agent.execute
     checks:
-      post: ["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build"]   # dl-014 G5 / dl-013 — STAGED per B-DECISION Option 2: docs.api.* run as warn / new-code-only until the v0.2 TSDoc-backfill task, then flip to hard-reject
+      post: ["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build"]   # dl-014 G5 / dl-013 — ACTIVE hard-reject (as of task-062-typedoc-tsdoc-backfill, which closed the B-DECISION Option 2 ramp): docs.api.* enforce via TypeDoc `notDocumented` + `treatWarningsAsErrors` (`typedoc.json`, `npm run docs:api`, asserted by `test/docs/api-docs.test.ts`); an undocumented exported declaration fails `refactor`
 
   - name: review
     description: "Quality gate runs the BDD acceptance tests, then the reviewer approves or rejects."
