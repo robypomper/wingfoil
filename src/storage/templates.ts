@@ -65,6 +65,42 @@ export function initProjectCommitMessage(def: TemplateDefinition): string {
   return `chore(wingfoil): initialize .wingfoil/ with the ${def.name} template (P5.1.1)`;
 }
 
+// --- Built-in template asset registry (task-044-builtin-template-integrity, REQ-SEC-10) -----------
+
+/**
+ * Which pillar a {@link BuiltinTemplateSource} belongs to — `directive` for a P3.8 built-in directive
+ * `.md` file, `workflow` for a P4.17 built-in workflow `.yaml` file. Drives which pillar schema
+ * `core/builtin-integrity.ts`'s `verifyBuiltinTemplates` checks the source against, and which of
+ * REQ-SEC-10's two exact abort-message shapes a failure produces.
+ */
+export type BuiltinTemplateKind = 'directive' | 'workflow';
+
+/**
+ * One shipped built-in template asset, as raw content — a directive's full `.md` text (frontmatter +
+ * body) or a workflow's full `.yaml` text, exactly as it would be written under `.wingfoil/directives/
+ * built-in/` or `.wingfoil/workflows/built-in/`. This is the pure DATA shape only; `name`/`kind` are
+ * enough to identify and classify a source, and pillar-schema validation itself is a cross-pillar
+ * concern that lives in `core/builtin-integrity.ts` (this module never imports a pillar schema —
+ * REQ-SYS-02 keeps `storage` decoupled from `directives`/`workflow`).
+ */
+export interface BuiltinTemplateSource {
+  readonly name: string;
+  readonly kind: BuiltinTemplateKind;
+  readonly content: string;
+}
+
+/**
+ * The built-in template assets `wingfoil init` ships and `verifyBuiltinTemplates` integrity-checks
+ * before writing (REQ-SEC-10). Empty today: `templateScaffold` (above) still only reserves the
+ * `directives/built-in/` and `workflows/built-in/` directories (a `.gitkeep` placeholder each) — no
+ * real built-in directive content exists until `task-057-builtin-directive-templates` (P3.8) or a
+ * later P4.17 task populates real workflow content; this task's scope is the integrity-check
+ * MECHANISM and its `initWingfoilProject` wiring, ready for that content the moment it ships (see
+ * this task's Execution Notes). Kept `readonly` + typed as `BuiltinTemplateSource[]` (not a `const`
+ * literal) so a later task appends real entries here without touching the check or the wiring.
+ */
+export const BUILTIN_TEMPLATE_SOURCES: readonly BuiltinTemplateSource[] = [];
+
 // --- Content generators -----------------------------------------------------------------------
 // Every generator is a pure function of its inputs (REQ-SYS-07): fixed strings only, no Date/random.
 
