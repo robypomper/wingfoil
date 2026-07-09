@@ -20,6 +20,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+/** This module's `dna.yaml` name (`mcp-server`) — the stable identifier surfaces and tests key it by. */
 export const MODULE_NAME = 'mcp-server' as const;
 
 export { registerCoreModules, deriveMcpToolName, deriveMcpResourceUri } from './registrar';
@@ -55,7 +56,9 @@ import { registerMemoryResources } from './memory-resource';
 import { registerWriteRefusalHandler } from './read-only';
 import { registerWorkflowResources } from './workflow-resource';
 
+/** Options for {@link registerReadOnlyResources}. */
 export interface RegisterReadOnlyResourcesOptions {
+  /** Resolves the project root each Resource read is served from (an ambient concern, not a request parameter). */
   readonly resolveRoot: () => string;
 }
 

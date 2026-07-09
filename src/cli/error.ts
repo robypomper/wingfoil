@@ -6,6 +6,11 @@ import { dump as yamlDump } from 'js-yaml';
 
 import type { OutputFormat } from './output';
 
+/**
+ * Write an error to stderr in the consistent spec-005 §3 format for the active `--format`: a
+ * `{error, hint?}` object for `json`/`yaml`, or `error: <reason>` (+ optional `hint:` line) for
+ * `console`. Writes only; the caller terminates via {@link exitWith}.
+ */
 export function emitError(reason: string, opts: { format: OutputFormat; hint?: string }): void {
   if (opts.format === 'json') {
     process.stderr.write(JSON.stringify({ error: reason, ...(opts.hint ? { hint: opts.hint } : {}) }) + '\n');

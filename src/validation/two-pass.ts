@@ -13,6 +13,7 @@ import { emitUnknownFieldWarning, HasShape } from './warning';
 /** A Pass-2 semantic / cross-field check: returns silently on success, throws on failure. */
 export type SemanticCheck = () => void;
 
+/** Optional inputs to {@link runValidation}: the Pass-1 error-code map and the ordered Pass-2 checks. */
 export interface RunValidationOptions {
   /** Dot-path → `E_*` code map for Pass-1 issues (spec-009 §3). */
   errorMap?: Record<string, string>;
@@ -20,6 +21,11 @@ export interface RunValidationOptions {
   semanticChecks?: SemanticCheck[];
 }
 
+/**
+ * Run the two-pass pipeline (spec-009 §1) for one file: Pass 1 is `schema.safeParse` (fatal on
+ * failure, mapped via {@link toValidationError}); on success the unknown-field warning fires once,
+ * then every `semanticChecks` entry runs in order. Returns the typed, parsed data.
+ */
 export function runValidation<T>(
   schema: ZodType<T>,
   raw: unknown,

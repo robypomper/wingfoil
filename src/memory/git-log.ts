@@ -7,9 +7,15 @@
  */
 import { execFileSync } from 'child_process';
 
-// Unit/record separators (ASCII 0x1f/0x1e) — control characters a real commit subject/body never
-// contains, so splitting on them is unambiguous without escaping.
+/**
+ * Field separator (ASCII unit separator, `0x1f`) between the `--format` fields of one commit — a
+ * control character a real commit subject/body never contains, so splitting on it needs no escaping.
+ */
 export const FIELD_SEP = '\x1f';
+/**
+ * Record separator (ASCII record separator, `0x1e`) between commits in the `git log` output — same
+ * "never appears in real commit text" guarantee as {@link FIELD_SEP}.
+ */
 export const RECORD_SEP = '\x1e';
 
 /**

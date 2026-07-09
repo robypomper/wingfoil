@@ -50,6 +50,13 @@ function readPackageVersion(): string {
   return (JSON.parse(readFileSync(manifestPath, 'utf-8')) as { version: string }).version;
 }
 
+/**
+ * Build the root `commander` program: register the global flags, the special `init`/`mcp` bootstrap
+ * commands, and one `wingfoil <noun> <verb>` (or flat `<noun>`) command per `CoreModule` operation
+ * derived through {@link BuildCommandsOptions}. Async because `commander` is imported dynamically
+ * (see the module doc). The command *behaviour* lives in `./registrar.ts`; this only wires it onto
+ * Commander.
+ */
 export async function buildProgram(modules: readonly CoreModule[], options: BuildCommandsOptions): Promise<Command> {
   const { Command: CommandCtor } = await import('commander');
   const program = new CommandCtor('wingfoil');

@@ -24,7 +24,9 @@ import { loadDnaYaml } from '../core';
 
 import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
+/** Options for {@link registerDnaResources}. */
 export interface RegisterDnaResourcesOptions {
+  /** Resolves the project root each DNA Resource read is served from (an ambient concern, not a request parameter). */
   readonly resolveRoot: () => string;
 }
 
