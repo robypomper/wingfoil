@@ -39,6 +39,19 @@
  * - Anything else (state not a member of `sequence` at all, wrong verb for the state's category, or
  *   a `sequence`-terminal state with no next entry) is illegal.
  *
+ * task-036-frontmatter-lifecycle-validation adds {@link validateFrontmatterState} — a distinct check
+ * from the transition engine above: REQ-STATE-01's "document state derived from frontmatter" half,
+ * independent of any transition attempt. `resolveTransitionTarget` only answers "is verb `op` legal
+ * FROM `currentState`"; it never asserts that an arbitrary `status` string read off a document's
+ * frontmatter is itself a member of the type's declared state set at all — the check
+ * spec-010-memory-frontmatter-schema's "Validation rules" table names ("`status` must be a value in
+ * the type's `states.values`" → failure "invalid state for type") and BDD
+ * `P4.11-deliverables.feature`/`P4.13-state-deduction.feature` both exercise (`"invalid state
+ * 'shipped' for type 'task'"`). A state is legal for a type iff it is a member of that type's
+ * `sequence`, or is the reserved implicit `"deprecated"` state (never declared in `sequence` itself,
+ * per the `StateMachine` schema's own `.superRefine()`, but always a legal transition target via
+ * `memory.deprecate` — see `resolveTransitionTarget`'s `deprecate` case above).
+ *
  * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
  * `types.<name>.states ?? defaults.states`. task-005's own tests exercise only the real 7 types
  * registered in `docs/self/.wingfoil/memory.yaml`, every one of which declares its own `states`
@@ -57,6 +70,14 @@ export const DEPRECATED_STATE = 'deprecated';
 
 /** `E_INVALID_<X>` field-level code (spec-009 §3) for an illegal state transition. */
 export const E_INVALID_TRANSITION = 'E_INVALID_TRANSITION';
+
+/**
+ * `E_INVALID_<X>` field-level code (spec-009 §3, spec-010-memory-frontmatter-schema "Validation
+ * rules") for a document frontmatter `status` value that is not a legal state for its declared type
+ * at all — as opposed to {@link E_INVALID_TRANSITION}, which flags an illegal *transition attempt*
+ * (verb + current state), not the current state's bare legality. See {@link validateFrontmatterState}.
+ */
+export const E_INVALID_STATE = 'E_INVALID_STATE';
 
 /** The four CLI verbs a transition can be requested for (`memory.add` assigns `sequence[0]` directly, no verb). */
 export type TransitionOp = 'submit' | 'approve' | 'reject' | 'deprecate';
@@ -167,4 +188,44 @@ export function resolveTransitionTarget(
       return illegal(currentState, exhaustive, 'unknown operation', filePath);
     }
   }
+}
+
+/**
+ * Assert that `status` — a value read straight off a document's frontmatter — is a legal state for
+ * `typeName` under `machine` (REQ-STATE-01: state is derived from frontmatter; spec-010's "Validation
+ * rules": *"`status` must be a value in the type's `states.values`"*). A state is legal iff it is a
+ * member of `machine.sequence`, or is the reserved implicit {@link DEPRECATED_STATE} — every type
+ * accepts `deprecated` via `memory.deprecate` (see {@link resolveTransitionTarget}'s `deprecate` case)
+ * even though `"deprecated"` is never itself declared in any type's `sequence` (the `StateMachine`
+ * schema's own `.superRefine()` forbids it from being).
+ *
+ * This is a distinct check from {@link resolveTransitionTarget}: that function asks "is verb `op`
+ * legal FROM `currentState`", assuming `currentState` is already known-legal; this function asks
+ * whether an arbitrary `status` string is itself a legal state for the type at all — independent of
+ * any transition attempt, e.g. when validating a document's frontmatter as read (BDD
+ * `P4.11-deliverables.feature` scenario 3, `P4.13-state-deduction.feature` scenario 3).
+ *
+ * @throws {@link ../validation.ValidationError} `E_INVALID_STATE` (exit 2, spec-009 §3 Pass-2
+ *   semantic/cross-field failure) with the message `` invalid state '<status>' for type '<typeName>' ``
+ *   when `status` is not a legal state for `typeName`. `filePath` is only used to enrich the thrown
+ *   error's `file` field (optional — defaults to `''` when no document is on hand, e.g. in pure unit
+ *   tests), mirroring {@link resolveTransitionTarget}'s own `filePath` parameter.
+ */
+export function validateFrontmatterState(
+  machine: StateMachine,
+  typeName: string,
+  status: string,
+  filePath = '',
+): void {
+  if (status === DEPRECATED_STATE || machine.sequence.includes(status)) {
+    return;
+  }
+  throw ValidationError.semantic([
+    {
+      code: E_INVALID_STATE,
+      path: 'status',
+      file: filePath,
+      message: `invalid state '${status}' for type '${typeName}'`,
+    },
+  ]);
 }
