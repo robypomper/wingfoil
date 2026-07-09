@@ -2,7 +2,7 @@
 id: "task-062-typedoc-tsdoc-backfill"
 type: task
 title: "TypeDoc/TSDoc backfill + flip docs.api.* review gate to hard-reject (dl-014)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "docs"]
@@ -64,3 +64,53 @@ expand` over `src/` still validates **every file's** exported declarations (not 
 `disableSources`/`readme: none` keep the run deterministic and warning-free apart from real coverage
 gaps. `invalidLink` validation is left off to keep this task scoped to doc *coverage* (pre-existing
 cross-module `{@link}` targets to non-exported symbols are a separate concern).
+
+No approver gate: `design` passed through (no new spec).
+
+### red (developer) — 2026-07-09
+
+Installed **`typedoc@0.28.20`** (`--save-dev`; TypeScript 6.0.3). Added `typedoc.json` (the gate config:
+`entryPointStrategy: expand` over `src/`, `tsconfig.build.json`, `validation.notDocumented: true`,
+`treatWarningsAsErrors: true`, `requiredToBeDocumented` = exported-declaration kinds, `emit: none`,
+`disableSources`/`readme: none` for a deterministic, warning-free run apart from real gaps) and
+`test/docs/api-docs.test.ts` (spawns the exact `typedoc --options typedoc.json` invocation
+out-of-process and asserts exit 0). The test **failed** as required — **48** undocumented exported
+declarations across `src/`. Verified the gate actually catches gaps by injecting a throwaway
+undocumented export (caught) before removing it. `test(docs)` commit.
+
+### green (developer) — 2026-07-09
+
+Backfilled TSDoc on all **48** previously-undocumented exported declarations, across **21 source
+files**: `cli/{error,exit,output,program,registrar}.ts`, `core/{index,registry,types}.ts`,
+`directives/schema.ts`, `dna/schema.ts` (7 Zod schema const+type pairs), `workflow/schema.ts` (`Phase`),
+`validation/{error-mapper,two-pass,warning}.ts`, `memory/git-log.ts`, and
+`mcp/{index,registrar,dna-resource,memory-resource,workflow-resource}.ts` (the `Register*Options`
+option bags + their `resolveRoot`). Comments match the existing altitude/style and cite the same
+specs/tasks the surrounding code does; no fabricated behaviour. Added the `docs:api` npm script +
+`typedoc` devDependency. Gate now clean (`typedoc` exit 0), `npm run docs:api` exit 0, **full suite
+549/549 green**. `feat(docs)` commit (source + `package.json`/`package-lock.json`).
+
+### refactor (developer) — 2026-07-09
+
+Flipped the staged check to active: `dev-loop.yaml` `refactor.checks.post` `docs.api.*` annotation and
+the `documentation` directive now state the checks **enforce as hard-reject** (closing the `dl-014`
+B-DECISION Option 2 warn/new-code-only ramp). No `version:` bump on the `documentation` directive —
+no custom directive file carries a `version:`/date field, and the `doc-versioning` directive applies
+only to docs that carry one; adding one would break the established convention. `dev-loop.yaml`
+`version` left at 1.1 (this is the planned activation the v1.1 annotation already anticipated, not a
+new workflow revision). Verified: `tsc -p tsconfig.build.json` exit **0**, `npm run test:coverage`
+**97.91% branches / 98.33% lines** (≥ 80), suite green, `docs.api` build + public-complete pass.
+`refactor(docs)` commit.
+
+### review (reviewer) — 2026-07-09
+
+No dedicated BDD `.feature` exists for this docs-tooling task (`ref: dl-014`); the executable
+acceptance surface is the full Jest suite (**549/549 passing**), which now includes the doc-coverage
+gate test. Final numbers: `tsc` = 0, coverage 97.91% br / 98.33% ln, `npm run docs:api` = 0. All four
+ACs met (AC3/AC4 verified by inspection + the checks above). Task moved `in-progress → in-review`.
+
+**Out-of-scope note for reviewer/approver:** `npx eslint .` reports one **pre-existing**
+`@typescript-eslint/no-require-imports` error in `test/storage/git-backed-storage.test.ts:90` (a file
+this task never touched; present on the branch base). Not fixed here — eslint is not part of the
+`dev-loop` `refactor` gate and the issue is unrelated to task-062. Candidate for a follow-up
+lint-hygiene bug.
