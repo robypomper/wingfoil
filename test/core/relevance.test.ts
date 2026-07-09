@@ -179,8 +179,9 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
       const root = makeTempGitRepo();
       try {
         // Two docs share the exact same score (both T4-only, 1 tag overlap) — tie-break must be
-        // type ASC then id ASC, not insertion/scan order.
-        writeTaskDoc(root, 'v0.2', 'task-900-b', { index: 0, tags: ['performance'], status: 'backlog' });
+        // type ASC then id ASC, not insertion/scan order. `task-900-b` is deliberately under a
+        // DIFFERENT release than the element (T2 must NOT also fire for it, or the tie breaks early).
+        writeTaskDoc(root, 'v0.9', 'task-900-b', { index: 0, tags: ['performance'], status: 'backlog' });
         writeFixtureFile(
           root,
           'docs/04_memory/design/adrs/adr-900-a.md',
@@ -262,8 +263,8 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
         commitAll(root, 'seed maxBytes-bounding fixture');
 
         const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.9', depends_on: ids } };
-        // Each body is well over 100 bytes; a 150-byte cap admits exactly one document.
-        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element, { maxDocs: DEFAULT_CONTEXT_LIMITS.maxDocs, maxBytes: 150 });
+        // Each filler body is ~251 bytes; a 300-byte cap admits exactly one document (two would be ~502).
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element, { maxDocs: DEFAULT_CONTEXT_LIMITS.maxDocs, maxBytes: 300 });
 
         expect(result.documents.map((doc) => doc.id)).toEqual(['task-810-a']);
       } finally {
