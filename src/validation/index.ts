@@ -19,3 +19,23 @@ export { runValidation } from './two-pass';
 export type { RunValidationOptions, SemanticCheck } from './two-pass';
 export { generateId, patternToRegExp, ID_CHAR_CLASS } from './id';
 export { parseYaml } from './yaml';
+export {
+  SECRET_PATTERNS,
+  SCAN_SURFACE_ROOTS,
+  DEFAULT_IGNORE_FILE,
+  scanText,
+  scanProjectSurface,
+  isBinaryContent,
+  loadIgnoreGlobs,
+  matchesIgnoreGlob,
+} from './secret-scan';
+export type {
+  SecretSeverity,
+  SecretPattern,
+  ExemptReason,
+  SecretFinding,
+  ExemptFinding,
+  ScanResult,
+  ScanTextOptions,
+  ScanProjectOptions,
+} from './secret-scan';
