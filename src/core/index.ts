@@ -61,6 +61,7 @@ export * from './types';
 export * from './registry';
 export * from './exit-code';
 export * from './git-identity';
+export * from './require-reason';
 export * from './usage-error';
 export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
