@@ -2,7 +2,7 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
@@ -69,3 +69,39 @@ Side observation (not actioned — out of this task's scope, config already comm
 dna.yaml)" almost verbatim, so this reads as a stale/mistyped BDD citation in the DNA config comment,
 not a functional gap. Flagged for the approver; not corrected here since it is a citation typo in an
 already-`accepted`-adjacent config file, not part of this task's AC.
+
+### red
+
+Added `test/dna/roles.test.ts` (11 cases across the three ACs: `isRoleDefined`/`assertRoleDefined`,
+`resolveRoleHolders` incl. the Fit-Criterion reassignment case, `resolveApprover`). Confirmed failing —
+`Cannot find module '../../src/dna/roles'` (the resolver did not exist yet). Committed `test(dna): …`.
+
+### green
+
+Added `src/dna/roles.ts` — the DNA-only resolver: `isRoleDefined`/`assertRoleDefined` (undefined role
+→ `UnknownRoleError`, exact P5.4.2 message), `resolveRoleHolders` (filters `team.members`/`team.agents`
+by role, empty lists when nobody holds a defined role), `resolveApprover` (first member else first
+agent, else `NoRoleHolderError` with the exact P4.14 message). Every function reads only the parsed
+`DnaYaml` — no directive/workflow file — so the REQ-SYS-08 Fit Criterion holds by construction. Wired
+the six symbols + `RoleHolders` type through `src/dna/index.ts`. All 11 new tests green; `tsc` clean.
+Committed `feat(dna): …`. No `CORE_MODULES` operation registered (pure primitive; CLI/MCP wiring is
+task-040/046/051/056's scope).
+
+### refactor
+
+Collapsed `resolveRoleHolders` to a single-expression object return (no behavior change); tests stayed
+green. Committed `refactor(dna): …`.
+
+### review — gate results (final)
+
+- `npm test` — **560/560 passing** (59 suites). One transient failure surfaced in the first parallel
+  full run: `test/cli/program.integration.test.ts` "memory search api … under 1 second" measured
+  4859ms vs the 1000ms wall-clock assertion. Confirmed a pre-existing timing flake, not a regression —
+  it passes in ~1.1s in isolation and in the (less-parallel) coverage run; it exercises the spawned
+  compiled CLI, a path this task does not touch (my only production file is `src/dna/roles.ts`).
+- `tsc -p tsconfig.build.json` — **exit 0**.
+- `npm run test:coverage` — **97.96% statements overall** (≥ 80); `src/dna/roles.ts` 100% stmt/func/line,
+  87.5% branch (the single uncovered branch is the `agents[0]` fallback ordering in `resolveApprover`,
+  not a behavior gap).
+- `npm run docs:api` — **exit 0** (TSDoc present on all new exported declarations; ACTIVE hard-reject
+  gate satisfied).
