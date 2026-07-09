@@ -42,9 +42,11 @@ export function resolveRoleDirectives(
   role: string,
 ): DirectiveFile[] {
   const allowedIds = new Set<string>([...(rolesYaml.assignments[role] ?? []), ...rolesYaml.global]);
+  // `.filter` already returns a fresh array, so the subsequent in-place `.sort` never mutates the
+  // caller's `directiveFiles`. Sort ascending by directive id (spec-012 §5 / REQ-SYS-07): the output
+  // order must not depend on `roles.yaml` listing order or file-system enumeration order.
   return directiveFiles
     .filter((file) => allowedIds.has(file.frontmatter.id))
-    .slice()
     .sort((a, b) => (a.frontmatter.id < b.frontmatter.id ? -1 : a.frontmatter.id > b.frontmatter.id ? 1 : 0));
 }
 
