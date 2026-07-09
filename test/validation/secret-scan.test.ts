@@ -9,6 +9,8 @@ import {
   isBinaryContent,
   scanText,
   scanProjectSurface,
+  loadIgnoreGlobs,
+  matchesIgnoreGlob,
 } from '../../src/validation/secret-scan';
 import { git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -259,6 +261,59 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
     git(repo, ['commit', '--quiet', '-m', 'seed']);
 
     expect(() => scanProjectSurface(repo)).not.toThrow();
+  });
+});
+
+describe('matchesIgnoreGlob — security-ignore glob semantics (spec-007 §3)', () => {
+  it('matches an exact path with no wildcards', () => {
+    expect(matchesIgnoreGlob('.wingfoil/fixtures/known.md', ['.wingfoil/fixtures/known.md'])).toBe(
+      true,
+    );
+    expect(matchesIgnoreGlob('.wingfoil/other.md', ['.wingfoil/fixtures/known.md'])).toBe(false);
+  });
+
+  it('treats a single `*` as a single-segment (non-separator-crossing) wildcard', () => {
+    expect(matchesIgnoreGlob('.wingfoil/leak.md', ['.wingfoil/*.md'])).toBe(true);
+    // A single `*` must NOT cross a `/` separator.
+    expect(matchesIgnoreGlob('.wingfoil/sub/leak.md', ['.wingfoil/*.md'])).toBe(false);
+  });
+
+  it('treats `**` as a multi-segment (separator-crossing) wildcard', () => {
+    expect(matchesIgnoreGlob('.wingfoil/a/b/leak.md', ['.wingfoil/**'])).toBe(true);
+  });
+
+  it('treats `?` as a single non-separator character', () => {
+    expect(matchesIgnoreGlob('.wingfoil/a.md', ['.wingfoil/?.md'])).toBe(true);
+    expect(matchesIgnoreGlob('.wingfoil/ab.md', ['.wingfoil/?.md'])).toBe(false);
+  });
+
+  it('returns false against an empty glob list', () => {
+    expect(matchesIgnoreGlob('.wingfoil/anything.md', [])).toBe(false);
+  });
+});
+
+describe('loadIgnoreGlobs — security-ignore file parsing (spec-007 §3)', () => {
+  let repo: string;
+  afterEach(() => removeTempDir(repo));
+
+  it('returns [] when the ignore file does not exist', () => {
+    repo = makeTempGitRepo();
+    const { join } = require('path') as typeof import('path');
+    expect(loadIgnoreGlobs(join(repo, '.wingfoil/security-ignore'))).toEqual([]);
+  });
+
+  it('skips blank lines and #-comments, trims each glob', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(
+      repo,
+      '.wingfoil/security-ignore',
+      ['# a comment', '', '  .wingfoil/fixtures/**  ', 'docs/self/**', ''].join('\n'),
+    );
+    const { join } = require('path') as typeof import('path');
+    expect(loadIgnoreGlobs(join(repo, '.wingfoil/security-ignore'))).toEqual([
+      '.wingfoil/fixtures/**',
+      'docs/self/**',
+    ]);
   });
 });
 
