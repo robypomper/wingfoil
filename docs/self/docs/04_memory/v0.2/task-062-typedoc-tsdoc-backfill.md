@@ -2,7 +2,7 @@
 id: "task-062-typedoc-tsdoc-backfill"
 type: task
 title: "TypeDoc/TSDoc backfill + flip docs.api.* review gate to hard-reject (dl-014)"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "docs"]
