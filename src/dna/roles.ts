@@ -73,9 +73,10 @@ export interface RoleHolders {
  */
 export function resolveRoleHolders(dna: DnaYaml, role: string): RoleHolders {
   assertRoleDefined(dna, role);
-  const members = dna.team.members.filter((member) => member.roles.includes(role));
-  const agents = (dna.team.agents ?? []).filter((agent) => agent.executes_as.includes(role));
-  return { members, agents };
+  return {
+    members: dna.team.members.filter((member) => member.roles.includes(role)),
+    agents: (dna.team.agents ?? []).filter((agent) => agent.executes_as.includes(role)),
+  };
 }
 
 /**
