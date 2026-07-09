@@ -28,6 +28,14 @@
  *   a genuine gap task-008 left open (an empty query previously matched every document instead of
  *   being rejected) — task-023 closed it with a `ValidationError.semantic` guard a caller runs before
  *   invoking {@link searchMemoryDocuments}, exiting 2 with message "empty search query".
+ *
+ * **Deprecated-exclusion (REQ-STATE-06, task-038-deprecated-excluded-from-context):**
+ * {@link searchMemoryDocuments} excludes `status: deprecated` documents from its default result — a
+ * deprecated document "never appears in … default `memory search` results" (the SARD Fit Criterion)
+ * while staying present on disk and in git history. {@link isDeprecatedStatus} is the single shared
+ * check (reusing `state-machine.ts`'s reserved `DEPRECATED_STATE`), so the future Agent Context Loader
+ * relevance-filter (spec-012 §6, `task-035-bounded-context-relevance`) wraps the same primitive rather
+ * than re-deciding what "deprecated" means. `includeDeprecated: true` is the explicit opt-out.
  */
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
