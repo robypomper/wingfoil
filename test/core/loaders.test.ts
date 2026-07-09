@@ -5,7 +5,7 @@
  */
 import { join } from 'path';
 
-import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadWorkflowsYaml } from '../../src/core/loaders';
+import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml, loadWorkflowsYaml } from '../../src/core/loaders';
 import { ValidationError } from '../../src/validation';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -72,12 +72,21 @@ ref: []
 # Directive — Sample
 `;
 
+const ROLES_YAML = `
+version: 1.0
+assignments:
+  developer:
+    - sample
+global: []
+`;
+
 function writeAllFourPillars(root: string): void {
   writeFixtureFile(root, '.wingfoil/memory.yaml', MEMORY_YAML);
   writeFixtureFile(root, '.wingfoil/dna.yaml', DNA_YAML);
   writeFixtureFile(root, '.wingfoil/workflows.yaml', WORKFLOWS_YAML);
   writeFixtureFile(root, '.wingfoil/workflows/custom/main.yaml', MAIN_WORKFLOW_YAML);
   writeFixtureFile(root, '.wingfoil/directives/custom/sample.md', DIRECTIVE_MD);
+  writeFixtureFile(root, '.wingfoil/roles.yaml', ROLES_YAML);
 }
 
 describe('per-pillar loaders — fixture repo', () => {
@@ -145,6 +154,17 @@ describe('per-pillar loaders — fixture repo', () => {
       expect((err as ValidationError).issues.map((i) => i.code)).toContain('E_MISSING_FRONTMATTER');
     }
   });
+
+  it('loadRolesYaml parses the fixture roles.yaml (task-037, REQ-STATE-05 directive-loader)', () => {
+    const roles = loadRolesYaml(repo);
+    expect(roles.assignments.developer).toEqual(['sample']);
+    expect(roles.global).toEqual([]);
+  });
+
+  it('loadRolesYaml throws ValidationError when `assignments` is missing', () => {
+    writeFixtureFile(repo, '.wingfoil/roles.yaml', 'version: 1.0\nglobal: []\n');
+    expect(() => loadRolesYaml(repo)).toThrow(ValidationError);
+  });
 });
 
 describe('per-pillar loaders — validate the real, live docs/self/.wingfoil config', () => {
@@ -160,5 +180,11 @@ describe('per-pillar loaders — validate the real, live docs/self/.wingfoil con
   it('loadDirectives finds every real directive under directives/custom/', () => {
     const directives = loadDirectives(liveRoot);
     expect(directives.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('loadRolesYaml parses the real, live docs/self/.wingfoil/roles.yaml', () => {
+    expect(() => loadRolesYaml(liveRoot)).not.toThrow();
+    const roles = loadRolesYaml(liveRoot);
+    expect(roles.assignments.developer).toEqual(['code-quality', 'testing', 'determinism']);
   });
 });
