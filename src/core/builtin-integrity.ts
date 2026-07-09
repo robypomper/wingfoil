@@ -36,16 +36,6 @@ export interface BuiltinIntegrityFailure {
   readonly message: string;
 }
 
-/** Exact P3.8 BDD wording ("Error - a built-in template fails its integrity check") — do not reword. */
-function directiveIntegrityMessage(name: string): string {
-  return `built-in directive template integrity check failed: ${name}`;
-}
-
-/** Exact P4.17 BDD wording ("Error - a built-in workflow template is structurally invalid") — do not reword. */
-function workflowIntegrityMessage(name: string): string {
-  return `built-in workflow template invalid: ${name}`;
-}
-
 /**
  * `true` iff `source.content` parses as a `.md` document with a frontmatter block that validates
  * against `DirectiveFrontmatter` (the same schema `core/loaders.ts`'s `loadDirectives` runs custom
@@ -80,6 +70,26 @@ function isValidWorkflowSource(source: BuiltinTemplateSource): boolean {
 }
 
 /**
+ * Per-kind integrity policy: the `isValid` predicate to apply and the exact REQ-SEC-10 abort-message
+ * builder to use when it fails. Keyed by {@link BuiltinTemplateKind} so each kind's validator and its
+ * BDD wording live together and `verifyBuiltinTemplates` branches on `kind` exactly once. The message
+ * strings are verbatim BDD contracts — P3.8 "Error - a built-in template fails its integrity check"
+ * and P4.17 "Error - a built-in workflow template is structurally invalid" — do not reword.
+ */
+const INTEGRITY_POLICY: Readonly<
+  Record<BuiltinTemplateKind, { isValid: (s: BuiltinTemplateSource) => boolean; message: (name: string) => string }>
+> = {
+  directive: {
+    isValid: isValidDirectiveSource,
+    message: (name) => `built-in directive template integrity check failed: ${name}`,
+  },
+  workflow: {
+    isValid: isValidWorkflowSource,
+    message: (name) => `built-in workflow template invalid: ${name}`,
+  },
+};
+
+/**
  * Integrity/schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no
  * unordered iteration), and return the FIRST one that fails — or `null` when every source is valid
  * (including the trivial, always-passing case of an empty list, today's shipped default: no built-in
@@ -94,11 +104,9 @@ export function verifyBuiltinTemplates(
   sources: readonly BuiltinTemplateSource[],
 ): BuiltinIntegrityFailure | null {
   for (const source of sources) {
-    const valid = source.kind === 'directive' ? isValidDirectiveSource(source) : isValidWorkflowSource(source);
-    if (!valid) {
-      const message =
-        source.kind === 'directive' ? directiveIntegrityMessage(source.name) : workflowIntegrityMessage(source.name);
-      return { name: source.name, kind: source.kind, message };
+    const policy = INTEGRITY_POLICY[source.kind];
+    if (!policy.isValid(source)) {
+      return { name: source.name, kind: source.kind, message: policy.message(source.name) };
     }
   }
   return null;
