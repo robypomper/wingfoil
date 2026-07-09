@@ -44,3 +44,27 @@ export const DirectiveFrontmatter = z
   .passthrough();
 /** Parsed shape of the {@link DirectiveFrontmatter} schema. */
 export type DirectiveFrontmatter = z.infer<typeof DirectiveFrontmatter>;
+
+/**
+ * `.wingfoil/roles.yaml` schema (task-037-role-task-scoped-context, REQ-STATE-05's
+ * `directive-loader`, P3.2/P3.7) — the role → directive binding config
+ * `resolveRoleDirectives`/`assembleExecutionContext` (`src/core/context.ts`) resolve against. Same
+ * [AUTHORING]-level rationale as {@link DirectiveFrontmatter}: no dedicated tech-spec covers this
+ * pillar's own file shapes yet (spec-012-context-loader-relevance-filtering §5 describes the
+ * `directive-loader`'s *behavior* — "look up the request role in `roles.yaml`" — but not roles.yaml's
+ * own schema), so this is grounded directly in the fields the real, live
+ * `docs/self/.wingfoil/roles.yaml` file carries: `version`, `assignments` (role name -> directive id
+ * array), and `global` (directive ids applied to every role). `assignments` keys are role names
+ * (validated against `dna.yaml`'s `team.roles` catalogue elsewhere, by REQ-SYS-08/task-034 — NOT here,
+ * to keep this pillar's schema independent per REQ-SYS-02); `assignments` values and `global` entries
+ * are directive **ids** (`DirectiveFrontmatter.id`), not `name`s. `.passthrough()` per spec-009 §2.
+ */
+export const RolesYaml = z
+  .object({
+    version: z.number().optional(),
+    assignments: z.record(z.string(), z.array(z.string())),
+    global: z.array(z.string()).default([]),
+  })
+  .passthrough();
+/** Parsed shape of the {@link RolesYaml} schema. */
+export type RolesYaml = z.infer<typeof RolesYaml>;

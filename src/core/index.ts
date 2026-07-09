@@ -54,9 +54,12 @@ export {
   loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
+  loadRolesYaml,
   loadWorkflowsYaml,
 } from './loaders';
 export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
+export { assembleExecutionContext, resolveRoleDirectives } from './context';
+export type { ExecutionContext, ExecutionContextElement, ExecutionContextInputs } from './context';
 export * from './types';
 export * from './registry';
 export * from './exit-code';

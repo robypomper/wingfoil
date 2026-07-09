@@ -7,4 +7,4 @@
  */
 export const MODULE_NAME = 'directives' as const;
 
-export { DirectiveFrontmatter } from './schema';
+export { DirectiveFrontmatter, RolesYaml } from './schema';
