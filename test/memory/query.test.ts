@@ -5,10 +5,15 @@
  * `path` patterns (spec-011-storage-layout), plus keyword/frontmatter relevance filtering
  * (spec-012-context-loader-relevance-filtering's discipline — no full-text/semantic index).
  */
+import { existsSync } from 'fs';
+import { join } from 'path';
+
 import {
   computeMemoryContentRoots,
   findMemoryDocumentById,
+  isDeprecatedStatus,
   listMemoryDocumentPaths,
+  listMemoryDocumentsByType,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
   validateSearchQuery,
@@ -249,6 +254,94 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     repo = seedRepo(); // seedRepo's fixtures declare no `type:` field
     const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'API');
     expect(matches[0]?.type).toBeUndefined();
+  });
+});
+
+describe('REQ-STATE-06 — deprecated documents excluded from default search (task-038)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  function seedRepoWithDeprecated(): string {
+    const seeded = seedRepo();
+    writeFixtureFile(
+      seeded,
+      'docs/04_memory/v0.1/task-003-deprecated-doc.md',
+      [
+        '---',
+        'id: task-003-deprecated-doc',
+        'type: task',
+        'title: "API deprecated doc"',
+        'tags: [ architecture ]',
+        'status: deprecated',
+        '---',
+        '',
+        'Deprecated body that also mentions the api keyword.',
+        '',
+      ].join('\n'),
+    );
+    return seeded;
+  }
+
+  it('AC1 (red-first) — a deprecated document is excluded from a default keyword search that would otherwise match it', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api');
+    expect(matches.map((m) => m.path)).not.toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+    // Non-deprecated matches are unaffected.
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+  });
+
+  it('AC1 (red-first) — a deprecated document is excluded from a default no-keyword tag browse', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, '', { tag: 'architecture' });
+    expect(matches.map((m) => m.path)).not.toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+  });
+
+  it('AC1 (red-first) — `includeDeprecated: true` is an explicit opt-in that still finds it', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeDeprecated: true });
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+  });
+
+  it('AC1 — a non-deprecated document (e.g. `status: draft`) is never affected by the exclusion', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, '');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-002-doc.md');
+  });
+
+  it('AC2 (characterization) — an explicit id lookup still resolves a deprecated document', () => {
+    repo = seedRepoWithDeprecated();
+    const doc = findMemoryDocumentById(repo, MEMORY_YAML, 'task-003-deprecated-doc');
+    expect(doc?.frontmatter.status).toBe('deprecated');
+  });
+
+  it('AC2 (characterization) — `listMemoryDocumentsByType` browsing still includes a deprecated document', () => {
+    repo = seedRepoWithDeprecated();
+    const tasks = listMemoryDocumentsByType(repo, MEMORY_YAML, 'task');
+    expect(tasks.map((t) => t.id)).toContain('task-003-deprecated-doc');
+  });
+
+  it('AC2 (characterization) — the deprecated document remains present on disk, never deleted', () => {
+    repo = seedRepoWithDeprecated();
+    expect(existsSync(join(repo, 'docs/04_memory/v0.1/task-003-deprecated-doc.md'))).toBe(true);
+  });
+
+  describe('isDeprecatedStatus — the shared exclusion primitive', () => {
+    it('is true for `status: deprecated`', () => {
+      expect(isDeprecatedStatus({ status: 'deprecated' })).toBe(true);
+    });
+
+    it('is false for any other status', () => {
+      expect(isDeprecatedStatus({ status: 'draft' })).toBe(false);
+      expect(isDeprecatedStatus({ status: 'approved' })).toBe(false);
+    });
+
+    it('is false when `status` is absent or not a string', () => {
+      expect(isDeprecatedStatus({})).toBe(false);
+      expect(isDeprecatedStatus({ status: 42 })).toBe(false);
+    });
   });
 });
 
