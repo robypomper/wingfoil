@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { exitCodeForResult } from '../../src/core';
+import type { BuiltinTemplateSource } from '../../src/core/builtin-integrity';
 import {
   WINGFOIL_ALREADY_INITIALIZED,
   initWingfoilProject,
@@ -105,6 +106,68 @@ describe('initWingfoilProject — guards inherited from the write path', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe('VALIDATION');
       expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+});
+
+/**
+ * task-044-builtin-template-integrity (REQ-SEC-10) — `initWingfoilProject`'s optional 3rd
+ * `builtinTemplates` param (defaulting to `BUILTIN_TEMPLATE_SOURCES`, currently `[]` — no real
+ * built-in template content ships until task-057/a future P4.17 task populates the registry) is the
+ * seam `verifyBuiltinTemplates` (src/core/builtin-integrity.ts) plugs into: a corrupted/schema-invalid
+ * source must abort `init` before ANY file is written, exit 1, naming the failing template — BDD
+ * P3.8 "Error - a built-in template fails its integrity check" / P4.17 "Error - a built-in workflow
+ * template is structurally invalid".
+ */
+describe('initWingfoilProject — REQ-SEC-10 built-in template integrity', () => {
+  it('aborts before writing anything when a built-in directive template is corrupted', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const corrupted: readonly BuiltinTemplateSource[] = [
+        { name: 'security', kind: 'directive', content: 'not a frontmatter document\n' },
+      ];
+      const result = initWingfoilProject(repo, 'Scrum', corrupted);
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'built-in directive template integrity check failed: security',
+        },
+      });
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+
+  it('aborts before writing anything when a built-in workflow template is structurally invalid', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const invalid: readonly BuiltinTemplateSource[] = [
+        { name: 'task', kind: 'workflow', content: 'name: task\nkind: sub\n' }, // missing `phases`
+      ];
+      const result = initWingfoilProject(repo, 'Scrum', invalid);
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: 'VALIDATION', message: 'built-in workflow template invalid: task' },
+      });
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+
+  it('still succeeds with the default (empty) registry — no behavior change until built-in content ships', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const result = initWingfoilProject(repo, 'Scrum');
+      expect(result.ok).toBe(true);
     } finally {
       removeTempDir(repo);
     }
