@@ -2,7 +2,7 @@
 id: "task-035-bounded-context-relevance"
 type: task
 title: "Infrastructure: REQ-PERF-05 — bounded context via relevance"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "performance"]
@@ -26,5 +26,8 @@ Relates to the context loader (`spec-012`). Consumed by role/task-scoped context
 
 ## Execution Notes
 
-<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
-     after the fact. Raw material for the release Execution Notes / retrospective. -->
+### start
+
+`depends_on: []`, `bug: ""` — no `bug.sync_state`. Branch `task/task-035-bounded-context-relevance`,
+worktree `/home/robypomper/Workspaces/.wf2-wt/task-035-bounded-context-relevance`. Status
+`backlog → in-progress`.
