@@ -272,4 +272,78 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
       }
     });
   });
+
+  describe('defensive edge cases (frontmatter completeness)', () => {
+    it('scores an element that declares no release (T2 never fires) purely on T3/T4', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeTaskDoc(root, 'v0.2', 'task-700-tag', { index: 0, tags: ['performance'], status: 'backlog' });
+        writeTaskDoc(root, 'v0.5', 'task-701-tag', { index: 1, tags: ['performance'], status: 'backlog' });
+        writeTaskDoc(root, 'v0.5', 'task-702-noise', { index: 2, tags: ['unrelated'], status: 'backlog' });
+        commitAll(root, 'seed no-release-element fixture');
+
+        // No `release` in the element frontmatter → `isSameReleaseScope` short-circuits to false for
+        // every candidate; only the shared-tag (T4) docs survive, regardless of which release they live under.
+        const element = { type: 'task', id: 'task-active', frontmatter: { tags: ['performance'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(new Set(result.documents.map((doc) => doc.id))).toEqual(new Set(['task-700-tag', 'task-701-tag']));
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('sorts a relevant document that has no `id` frontmatter by its path (tie-break fallback)', () => {
+      const root = makeTempGitRepo();
+      try {
+        // A well-formed doc (has id) and a malformed one (no id) both match on the same tag → equal
+        // score. The id-less doc must still sort deterministically via its path fallback, never throw.
+        writeFixtureFile(
+          root,
+          'docs/04_memory/v0.2/task-600-has-id.md',
+          ['---', 'id: task-600-has-id', 'type: task', 'release: "v0.9"', 'status: backlog', 'tags: [performance]', '---', '', fillerBody(0), ''].join('\n'),
+        );
+        writeFixtureFile(
+          root,
+          'docs/04_memory/v0.2/zzz-no-id.md',
+          ['---', 'type: task', 'release: "v0.9"', 'status: backlog', 'tags: [performance]', '---', '', fillerBody(1), ''].join('\n'),
+        );
+        commitAll(root, 'seed missing-id fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.9', tags: ['performance'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        // Same score → tie-break on `id ?? path`. The id-less doc falls back to its path
+        // ("docs/…"), which sorts BEFORE the id "task-600-has-id" ('d' < 't'); the key point is the
+        // order is total and never throws on the missing id.
+        expect(result.documents.map((doc) => doc.id ?? doc.path)).toEqual([
+          'docs/04_memory/v0.2/zzz-no-id.md',
+          'task-600-has-id',
+        ]);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('matches T3 traceability keys that appear in a candidate\'s tags array, not just its ref string', () => {
+      const root = makeTempGitRepo();
+      try {
+        // The candidate carries the shared REQ token inside its `tags:` ARRAY (not a scalar `ref`), so
+        // this exercises collectTraceabilityKeys' array branch. Different release, no tag/keyword overlap.
+        writeFixtureFile(
+          root,
+          'docs/04_memory/v0.5/task-500-array-req.md',
+          ['---', 'id: task-500-array-req', 'type: task', 'release: "v0.5"', 'status: backlog', 'tags: ["REQ-PERF-05"]', '---', '', fillerBody(0), ''].join('\n'),
+        );
+        commitAll(root, 'seed array-traceability fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.9', ref: 'REQ-PERF-05' } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents.map((doc) => doc.id)).toEqual(['task-500-array-req']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
 });
