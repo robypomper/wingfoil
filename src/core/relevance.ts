@@ -10,9 +10,17 @@
  * spec-012 defines (`dna-loader`, `directive-loader`, `relevance-filter`, `context-builder`) — the
  * other three, and the canonical serialized envelope (§7), belong to
  * task-037-role-task-scoped-context (REQ-STATE-05, the `context-builder`/envelope task) and
- * task-038-deprecated-excluded-from-context (REQ-STATE-06). It wraps, not reimplements,
- * `src/memory/query.ts`'s scan primitives (task-008) — no second directory walk or frontmatter
- * parser — and is placed in `src/core` per spec-012 §1 ("folded into the `core` module").
+ * task-038-deprecated-excluded-from-context (REQ-STATE-06). For the document scan itself it wraps, not
+ * reimplements, `src/memory/query.ts`'s scan primitives (task-008) — no second directory walk or
+ * frontmatter parser — and is placed in `src/core` per spec-012 §1 ("folded into the `core` module").
+ *
+ * FOLLOW-UP (deprecated-exclusion duplication): the deprecated/draft exclusion below
+ * ({@link EXCLUDED_STATUSES}) is implemented LOCALLY here. task-038-deprecated-excluded-from-context
+ * (REQ-STATE-06), developed on a sibling branch not yet on `main`, has since shipped a shared
+ * `isDeprecatedStatus` helper reusing `memory`'s `DEPRECATED_STATE` constant. Those cannot be imported
+ * from here yet (not on `main`). Once task-038 merges, this local status set MUST be reconciled onto
+ * that shared helper so deprecated-exclusion has a single definition — recorded as a follow-up in this
+ * task's Execution Notes for the coordinator.
  *
  * Determinism (REQ-SYS-07): no wall-clock, no randomness, no unordered map/set iteration in any
  * output-affecting path. Selection and ordering are a pure function of `(root@stateRef, memoryYaml,
@@ -93,10 +101,20 @@ const TIER_3_TRACEABILITY = 10;
 /** Frontmatter fields spec-012 §6 T1 treats as explicit single-id links. */
 const LINK_FRONTMATTER_FIELDS = ['adr', 'spec', 'dl', 'bug'] as const;
 
-/** Document `status:` values excluded from relevance regardless of score (spec-012 §6: "Documents in
- * states draft/rejected/deprecated are excluded"). Per CLAUDE.md §5 there is no longer a distinct
- * `rejected` status anywhere in `memory.yaml` (reject lands back on `draft`) — kept here defensively,
- * matching the spec text verbatim, but it never fires against the current state machines. */
+/**
+ * Document `status:` values excluded from relevance regardless of score, per
+ * spec-012-context-loader-relevance-filtering §6 verbatim: "Documents in states
+ * draft/rejected/deprecated are excluded".
+ *
+ * SPEC CONFLICT (specs win — the vestigial `'rejected'` is retained deliberately, NOT dropped): the
+ * later, also-approved spec-001-memory-yaml-schema removed the `rejected` status entirely from the
+ * Memory model ("no document records `status: rejected` anymore" — a `reject` transition now lands
+ * back on `draft`). So `'rejected'` here can never match a real document — it is vestigial but
+ * harmless. It is kept because spec-012 §6 (this module's governing spec) still enumerates it, and a
+ * `[SPEC]`-cited value may not be removed without first changing the governing spec. The two approved
+ * specs therefore conflict on this point; spec-012 §6 needs reconciliation against spec-001 — recorded
+ * as a spec-gap for the approver in this task's Execution Notes.
+ */
 const EXCLUDED_STATUSES = new Set(['draft', 'deprecated', 'rejected']);
 
 /** A traceability token: a feature id (`P5.3.3`, `P1.9`, ...) or a SARD requirement id

@@ -81,9 +81,10 @@ filterRelevantMemoryDocuments(root, memoryYaml, element: {type, id, frontmatter}
 this primitive does not itself resolve the element document (that is `context-builder`'s
 `resolve-element` stage, §3 stage 1, out of this task's scope), keeping it a pure `(state) -> selection`
 function per REQ-SYS-07. Excludes the element's own document, and any candidate whose `status` is
-`draft`/`deprecated` (spec-012 §6: "Documents in states draft/rejected/deprecated are excluded"; per
-CLAUDE.md §5 there is no longer a distinct `rejected` status anywhere in `memory.yaml`, so this
-collapses to `draft`/`deprecated` today — `rejected` kept in the excluded set defensively/harmlessly).
+`draft`/`deprecated` (spec-012 §6: "Documents in states draft/rejected/deprecated are excluded"; the
+later `spec-001-memory-yaml-schema` removed the `rejected` status entirely — "no document records
+`status: rejected` anymore" — so that entry is vestigial-but-harmless and this collapses to
+`draft`/`deprecated` today; see the spec-gap note below).
 A candidate with `score <= 0` (no tier hit at all) is excluded — this is the relevance *threshold* the
 BDD's "no relevant documents" edge case needs. Returns `note: "no relevant Memory found for task"`
 (P5.3.3 BDD Scenario 3, verbatim) only when the bounded result is empty.
