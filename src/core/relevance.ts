@@ -79,6 +79,17 @@ export interface RelevantMemoryResult {
   readonly note?: string;
 }
 
+/**
+ * spec-012 §6's per-tier score weights, isolated as named constants so the scoring formula
+ * (`1000*T1 + 100*T2 + 10*T3 + overlapCount(T4)`) reads as tiers, not magic numbers. Each weight is a
+ * strict order of magnitude above the next so any T(n) hit outranks every combination of lower tiers
+ * (a single doc can carry at most a handful of T4 overlaps, far below `TIER_3_TRACEABILITY = 10`).
+ */
+const TIER_1_EXPLICIT_LINK = 1000;
+const TIER_2_RELEASE_SCOPE = 100;
+const TIER_3_TRACEABILITY = 10;
+// T4 (keyword/tag overlap) contributes its raw overlap count, weight 1 — spec-012 §6.
+
 /** Frontmatter fields spec-012 §6 T1 treats as explicit single-id links. */
 const LINK_FRONTMATTER_FIELDS = ['adr', 'spec', 'dl', 'bug'] as const;
 
@@ -212,7 +223,11 @@ export function filterRelevantMemoryDocuments(
     const t3 = hasIntersection(elementTraceability, collectTraceabilityKeys(frontmatter, body));
     const t4OverlapCount = intersectionSize(elementKeywords, collectKeywords(frontmatter));
 
-    const score = (t1 ? 1000 : 0) + (t2 ? 100 : 0) + (t3 ? 10 : 0) + t4OverlapCount;
+    const score =
+      (t1 ? TIER_1_EXPLICIT_LINK : 0) +
+      (t2 ? TIER_2_RELEASE_SCOPE : 0) +
+      (t3 ? TIER_3_TRACEABILITY : 0) +
+      t4OverlapCount;
     if (score <= 0) continue;
 
     scored.push({ path, type, id, title: asString(frontmatter.title), status, frontmatter, body, score });
