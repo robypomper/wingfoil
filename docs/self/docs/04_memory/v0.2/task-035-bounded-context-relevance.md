@@ -2,7 +2,7 @@
 id: "task-035-bounded-context-relevance"
 type: task
 title: "Infrastructure: REQ-PERF-05 — bounded context via relevance"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "performance"]
@@ -91,3 +91,56 @@ BDD's "no relevant documents" edge case needs. Returns `note: "no relevant Memor
 
 **Checks (post).** `frontmatter.required`/`depends_on.acknowledged` — N/A (no new spec, no deps).
 `tech-spec.approved` — satisfied (spec-012 `approved`).
+
+### red
+
+New failing test `test/core/relevance.test.ts` for `src/core/relevance.ts`'s
+`filterRelevantMemoryDocuments` (the one red-first AC — the REQ-PERF-05 Fit Criterion at 1,000-document
+scale — plus the three P5.3.3-relevance-filtering.feature BDD scenarios and tier scoring/ordering/
+bounding). Confirmed red: `Cannot find module '../../src/core/relevance'` (module absent). Commit
+`5304d31`.
+
+### green
+
+Implemented `src/core/relevance.ts` (module `core`) — spec-012 §6 `relevance-filter`:
+`filterRelevantMemoryDocuments(root, memoryYaml, element, limits?)`. Wraps `src/memory/query.ts`'s
+`listMemoryDocumentPaths`/`loadMemoryDocumentSummary` for the scan (no reimplementation). Tiered scoring
+`1000*T1 + 100*T2 + 10*T3 + overlapCount(T4)` (T1 explicit links `adr/spec/dl/bug/depends_on`; T2 same
+release scope; T3 shared `P*`/`REQ-*` traceability keys; T4 keyword/tag overlap), order `score DESC,
+type ASC, id ASC`, bounded by `ContextLimits {maxDocs:40, maxBytes:262144}`, `score<=0` dropped
+(relevance threshold), element's own doc + `draft`/`deprecated`/`rejected`-status docs excluded, empty
+result → `note: "no relevant Memory found for task"`. Determinism (REQ-SYS-07): no wall-clock/random,
+all iteration over sorted paths + total-order sort. 9/9 relevance tests green. Commit `fd86e29`.
+
+### refactor
+
+1. Named the spec-012 §6 tier weights as constants (`TIER_1_EXPLICIT_LINK` …) so the formula reads as
+   tiers, not magic numbers — commit `48548b0`.
+2. Coverage-closing tests for defensive edge cases (no-release element, id-less doc path-fallback,
+   array-valued traceability keys) — 12/12 relevance tests green — commit `ab18ccb`.
+3. Doc/comment corrections (commit `566b446`): dropped a CLAUDE.md citation (cite
+   `spec-001-memory-yaml-schema` instead), corrected the module doc, and documented the two items below.
+
+### review
+
+**Final gate numbers (worktree, machine idle):** `npm test` **561/561 GREEN** (58→59 suites; +12 new
+relevance tests over the ~549 baseline; the previously-flaky `test/cli/program.integration.test.ts`
+"under 1 second" wall-clock test passes at low load, untouched). `npm run test:coverage` **≥80%** —
+global 98% stmts / 87.52% branch / 97.7% funcs / 98.45% lines; `relevance.ts` 98.98 / 84.5 / 100 / 100.
+`tsc -p tsconfig.build.json` exit **0**. `npm run docs:api` exit **0** (TSDoc on every exported
+declaration in `relevance.ts`). Scope delivered: spec-012 §6 `relevance-filter` only — a standalone,
+reusable primitive; NOT wired into `src/core/index.ts`'s `CORE_MODULES` (no CLI/MCP surface, matching
+task-008's "primitive now, surface later" split). No `bug.sync_state` (`bug: ""`).
+
+**Follow-up 1 (coordinator) — deprecated-exclusion duplication.** `EXCLUDED_STATUSES` is defined
+locally here. Sibling branch task-038-deprecated-excluded-from-context (REQ-STATE-06, not yet on
+`main`) ships a shared `isDeprecatedStatus` + `memory`'s `DEPRECATED_STATE`. They can't be imported
+until task-038 merges; once it does, this local set MUST be reconciled onto the shared helper so
+deprecated-exclusion has one definition.
+
+**Follow-up 2 (spec-gap, for the approver) — spec-012 §6 vs spec-001 conflict.**
+`spec-012-context-loader-relevance-filtering` §6 (approved) enumerates `draft`/`rejected`/`deprecated`
+as excluded; the later `spec-001-memory-yaml-schema` (approved) removed the `rejected` status entirely.
+The `'rejected'` entry is therefore vestigial-but-harmless (can never match). Kept deliberately (specs
+win — a `[SPEC]`-cited value is not silently dropped); spec-012 §6 needs reconciliation against
+spec-001 to drop `rejected`.
