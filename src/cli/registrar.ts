@@ -24,9 +24,11 @@ import { emitError } from './error';
 import { exitWith } from './exit';
 import { isValidFormat, renderSuccess } from './output';
 
+/** Ambient dependencies {@link buildCliCommands} needs: how to resolve the project root and how to shape each operation's params. */
 export interface BuildCommandsOptions {
   /** Resolves the project root a core call needs — an ambient/environment concern, not a CLI flag. */
   readonly resolveRoot: () => string;
+  /** Turns a `ParamsContext` into one operation's typed params (`../core/registry.ts`'s {@link ParamsBuilder}). */
   readonly buildParams: ParamsBuilder;
 }
 

@@ -11,12 +11,22 @@
 /** The fixed `CoreError.code` enumeration (spec-006 §2, verbatim). */
 export type CoreErrorCode = 'NOT_FOUND' | 'INVALID_TRANSITION' | 'VALIDATION' | 'CONFLICT' | 'IO';
 
+/**
+ * An expected domain failure carried by a failed {@link CoreResult} (spec-006 §2): a fixed
+ * {@link CoreErrorCode}, a human-readable `message`, and optional structured `details`. The single
+ * shape both surfaces map to an exit code / MCP error response.
+ */
 export interface CoreError {
   readonly code: CoreErrorCode;
   readonly message: string;
   readonly details?: Record<string, unknown>;
 }
 
+/**
+ * The discriminated-union return of every {@link CoreFn} (spec-006 §2): `ok: true` with the operation's
+ * `value` (and, for a mutation, the `commit` it produced), or `ok: false` with a {@link CoreError}.
+ * Expected domain failures travel here, never as a thrown exception.
+ */
 export type CoreResult<T> =
   | {
       readonly ok: true;

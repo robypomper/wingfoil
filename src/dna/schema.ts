@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 
+/** `project:` — free-form project-identity block (name, description, license, north-star, ...); every field optional. */
 export const Project = z
   .object({
     name: z.string().optional(),
@@ -19,8 +20,10 @@ export const Project = z
     north_star: z.string().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link Project} schema. */
 export type Project = z.infer<typeof Project>;
 
+/** One `modules[]` entry — a source module (`name`, optional `description`/`path`). */
 export const Module = z
   .object({
     name: z.string(),
@@ -28,6 +31,7 @@ export const Module = z
     path: z.string().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link Module} schema. */
 export type Module = z.infer<typeof Module>;
 
 /** `category` is a free string, not a fixed enum (spec-002) — keeps the schema project-shape-agnostic. */
@@ -41,6 +45,7 @@ export const TechEntry = z
   .passthrough();
 export type TechEntry = z.infer<typeof TechEntry>;
 
+/** One `stacks.methodologies[]` entry — a development methodology (`name`, optional `phase`/`notes`). */
 export const MethodologyEntry = z
   .object({
     name: z.string(),
@@ -48,6 +53,7 @@ export const MethodologyEntry = z
     notes: z.string().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link MethodologyEntry} schema. */
 export type MethodologyEntry = z.infer<typeof MethodologyEntry>;
 
 /** Replaces the old fixed-key `tech_stack` object with two flat, generically-shaped lists. */
@@ -59,6 +65,7 @@ export const Stacks = z
   .passthrough();
 export type Stacks = z.infer<typeof Stacks>;
 
+/** One `team.members[]` entry — a human contributor and the `roles` they hold (validated against `team.roles`). */
 export const TeamMember = z
   .object({
     name: z.string(),
@@ -66,8 +73,10 @@ export const TeamMember = z
     roles: z.array(z.string()),
   })
   .passthrough();
+/** Parsed shape of the {@link TeamMember} schema. */
 export type TeamMember = z.infer<typeof TeamMember>;
 
+/** One `team.agents[]` entry — an AI agent, the roles it `executes_as`, and whether it may hold `approval_authority` (REQ-SEC-03). */
 export const AgentEntry = z
   .object({
     name: z.string(),
@@ -75,14 +84,17 @@ export const AgentEntry = z
     approval_authority: z.boolean().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link AgentEntry} schema. */
 export type AgentEntry = z.infer<typeof AgentEntry>;
 
+/** One `team.roles[]` entry — a role in the canonical role catalogue (REQ-SYS-08). */
 export const RoleEntry = z
   .object({
     name: z.string(),
     description: z.string().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link RoleEntry} schema. */
 export type RoleEntry = z.infer<typeof RoleEntry>;
 
 /**
@@ -140,6 +152,7 @@ export const Paths = z
   .passthrough();
 export type Paths = z.infer<typeof Paths>;
 
+/** The whole `.wingfoil/dna.yaml` document (P2.4, spec-002) — the Project DNA structural map's root schema. */
 export const DnaYaml = z
   .object({
     version: z.number().positive(),
@@ -150,4 +163,5 @@ export const DnaYaml = z
     paths: Paths,
   })
   .passthrough();
+/** Parsed shape of the {@link DnaYaml} schema — the type every DNA reader (`loadDnaYaml`, `dna show`) returns. */
 export type DnaYaml = z.infer<typeof DnaYaml>;

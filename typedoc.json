@@ -1,0 +1,20 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "tsconfig": "tsconfig.build.json",
+  "emit": "none",
+  "disableSources": true,
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "requiredToBeDocumented": ["Enum", "Variable", "Function", "Class", "Interface", "TypeAlias", "CallSignature"],
+  "validation": {
+    "notDocumented": true,
+    "invalidLink": false,
+    "notExported": false,
+    "rewrittenLink": false,
+    "unusedMergeModuleWith": false
+  },
+  "treatWarningsAsErrors": true
+}

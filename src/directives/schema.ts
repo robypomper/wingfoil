@@ -25,6 +25,12 @@
  */
 import { z } from 'zod';
 
+/**
+ * The YAML frontmatter of a `.wingfoil/directives/**\/*.md` file — the minimal [AUTHORING] shape
+ * grounded in the fields the real custom directive files carry (see the module doc for why there is
+ * no dedicated tech-spec). `name` is required per REQ-SYS-08's BDD contract. `.passthrough()` per
+ * spec-009 §2.
+ */
 export const DirectiveFrontmatter = z
   .object({
     id: z.string(),
@@ -36,4 +42,5 @@ export const DirectiveFrontmatter = z
     ref: z.array(z.string()).optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link DirectiveFrontmatter} schema. */
 export type DirectiveFrontmatter = z.infer<typeof DirectiveFrontmatter>;

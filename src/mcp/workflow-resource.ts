@@ -25,7 +25,9 @@ import { loadWorkflowsYaml } from '../core';
 
 import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
+/** Options for {@link registerWorkflowResources}. */
 export interface RegisterWorkflowResourcesOptions {
+  /** Resolves the project root each Workflow Resource read is served from (an ambient concern, not a request parameter). */
   readonly resolveRoot: () => string;
 }
 

@@ -26,8 +26,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CoreModule, ParamsBuilder } from '../core/registry';
 import { deriveVerb, enumerateOperations } from '../core/registry';
 
+/** Ambient dependencies {@link registerCoreModules} needs: how to resolve the project root and how to shape each operation's params. */
 export interface RegisterCoreModulesOptions {
+  /** Resolves the project root a core call is served from (an ambient concern, not a Tool/Resource argument). */
   readonly resolveRoot: () => string;
+  /** Turns a `ParamsContext` into one operation's typed params (`../core/registry.ts`'s {@link ParamsBuilder}). */
   readonly buildParams: ParamsBuilder;
 }
 

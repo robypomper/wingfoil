@@ -37,6 +37,11 @@ const WhereValue = z.union([
   z.array(z.union([z.string(), z.number(), z.boolean()])),
 ]);
 
+/**
+ * One `phases[]` entry of a Layer-2 workflow definition (spec-003) — a named step with its optional
+ * `role`, `actions`, `include`, `iterate_over`/`where`, `produces`, `checks`, `approval`, and
+ * `fallback`. `.passthrough()` per spec-009 §2.
+ */
 export const Phase = z
   .object({
     name: z.string(),
@@ -56,6 +61,7 @@ export const Phase = z
     fallback: z.object({ step: z.string(), set_state: z.string().optional() }).passthrough().optional(),
   })
   .passthrough();
+/** Parsed shape of the {@link Phase} schema. */
 export type Phase = z.infer<typeof Phase>;
 
 /** Layer 2 — one workflow-definition file (`.wingfoil/workflows/**\/*.yaml`). */

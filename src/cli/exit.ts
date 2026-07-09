@@ -12,6 +12,11 @@ import type { ExitCode } from '../core';
 
 export type { ExitCode };
 
+/**
+ * The single process-exit mechanism for the CLI (spec-005 §1, REQ-INT-04): optionally write
+ * `message` to stderr, then `process.exit(code)`. Every invocation terminates through here so the
+ * `0`/`1`/`2` contract cannot be bypassed. Returns `never`.
+ */
 export function exitWith(code: ExitCode, message?: string): never {
   if (message) process.stderr.write(message + '\n');
   process.exit(code);

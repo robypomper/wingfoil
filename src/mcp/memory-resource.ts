@@ -31,7 +31,9 @@ import { readDocument } from '../storage';
 
 import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
 
+/** Options for {@link registerMemoryResources}. */
 export interface RegisterMemoryResourcesOptions {
+  /** Resolves the project root each Memory Resource read is served from (an ambient concern, not a request parameter). */
   readonly resolveRoot: () => string;
 }
 

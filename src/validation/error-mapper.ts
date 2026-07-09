@@ -9,6 +9,11 @@ import type { ZodError } from 'zod';
 
 import { E_VALIDATION, ValidationError, ValidationIssue } from './errors';
 
+/**
+ * Map a Zod parse failure to a {@link ValidationError} (spec-009 §3): each issue's dot-path is looked
+ * up in `errorMap` for its `E_*` code, falling back to `E_VALIDATION` so no issue is dropped. `filePath`
+ * is attached to every issue for operator-facing messages.
+ */
 export function toValidationError(
   zodError: ZodError,
   filePath: string,

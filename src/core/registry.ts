@@ -10,6 +10,10 @@
  */
 import type { CoreResult } from './types';
 
+/**
+ * The signature every core operation implements (spec-006 §2): an async function from typed params
+ * `P` to a `CoreResult<R>` — never a thrown error for an expected domain failure (see {@link CoreResult}).
+ */
 export type CoreFn<P, R> = (params: P) => Promise<CoreResult<R>>;
 
 /**
@@ -27,6 +31,11 @@ export interface CoreOption {
   readonly required?: boolean;
 }
 
+/**
+ * One domain operation both surfaces derive from (spec-006 §2): its camelCase `name`, whether it
+ * `mutates` (Tool vs Resource / write vs read), its `fn`, and its optional declarative CLI `flags`
+ * and value-bearing `options`. The single source of truth `src/cli` and `src/mcp` register from.
+ */
 export interface CoreOperation<P = unknown, R = unknown> {
   /** camelCase, `{module}{Verb}` (spec-006 §5) — e.g. `memoryApprove`, `dnaShow`. */
   readonly name: string;
@@ -57,9 +66,11 @@ export interface CoreOperation<P = unknown, R = unknown> {
   readonly options?: readonly CoreOption[];
 }
 
+/** One pillar's operation group (spec-006 §2) — a `name` (the `wingfoil <noun>` segment) and its operations. */
 export interface CoreModule {
   /** e.g. `"memory"`, `"dna"`, `"workflow"`, `"directives"` — the `wingfoil <noun>` segment. */
   readonly name: string;
+  /** This module's operations, keyed by camelCase operation name (see {@link CoreOperation}). */
   readonly operations: Readonly<Record<string, CoreOperation>>;
 }
 
@@ -180,6 +191,11 @@ export interface ParamsContext {
   readonly options?: Readonly<Record<string, string>>;
 }
 
+/**
+ * A surface-supplied function that turns a {@link ParamsContext} into the typed params one operation's
+ * {@link CoreFn} expects — the single per-surface seam where CLI/MCP-specific argument shaping lives,
+ * so the registrars stay operation-agnostic (spec-006 §2).
+ */
 export type ParamsBuilder = (ctx: ParamsContext) => unknown;
 
 /** The result of {@link computeParityDiff}: entries present on only one side, each sorted. */

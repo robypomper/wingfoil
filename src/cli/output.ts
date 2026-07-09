@@ -4,8 +4,10 @@
  */
 import { dump as yamlDump } from 'js-yaml';
 
+/** The accepted `--format` values (spec-005 §2); `console` is the default when the flag is omitted. */
 export type OutputFormat = 'console' | 'json' | 'yaml';
 
+/** Type guard: `true` (narrowing to {@link OutputFormat}) when `value` is one of the accepted `--format` values. */
 export function isValidFormat(value: string): value is OutputFormat {
   return value === 'console' || value === 'json' || value === 'yaml';
 }

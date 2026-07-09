@@ -19,6 +19,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "lint": "eslint .",
+    "docs:api": "typedoc --options typedoc.json",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },
@@ -35,6 +36,7 @@
     "eslint": "^10.6.0",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1"
   },

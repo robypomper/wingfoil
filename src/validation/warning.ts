@@ -94,6 +94,11 @@ function collectUnknownFields(
   return out;
 }
 
+/**
+ * Emit one stderr warning (spec-009 §2) listing every raw key not declared in `schema`'s shape,
+ * recursively through nested passthrough object/array-of-object schemas. Writes nothing when there
+ * are no unknown fields.
+ */
 export function emitUnknownFieldWarning(
   raw: Record<string, unknown>,
   schema: HasShape,

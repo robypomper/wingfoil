@@ -47,6 +47,7 @@ import type { CoreFn, CoreModule } from './registry';
 import { coreErr, coreOk } from './types';
 import type { CoreResult } from './types';
 
+/** This module's `dna.yaml` name (`core`) — the stable identifier surfaces and tests key it by. */
 export const MODULE_NAME = 'core' as const;
 
 export {
