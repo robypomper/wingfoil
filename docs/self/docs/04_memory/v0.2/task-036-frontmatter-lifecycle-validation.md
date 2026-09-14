@@ -2,7 +2,8 @@
 id: "task-036-frontmatter-lifecycle-validation"
 type: task
 title: "Infrastructure: REQ-STATE-01 — frontmatter lifecycle, per-type validated"
-status: in-review
+status: in-progress
+rejection_reason: "validateFrontmatterState treats the legal state set as sequence plus deprecated and omits off-chain gates.<state>.reject targets, which spec-001 explicitly permits and which resolveTransitionTarget already returns verbatim. A custom type with gates.pending.reject = cancelled is written status cancelled by the reject verb and then rejected as invalid by the tool itself, leaving the document unmovable - breaking REQ-SYS-04 for a config shape spec-001 names by example. Add the gates-reject arm plus a red-first test over a synthetic machine. Also correct the Execution Notes claim that no downstream task depends on the literal old wording: P5.2.3-mcp-tools.feature line 18 pins that exact string. The message and exit-code divergence itself belongs to dl-032, not to this task."
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "state"]
