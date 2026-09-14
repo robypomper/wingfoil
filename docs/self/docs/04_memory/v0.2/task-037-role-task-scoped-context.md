@@ -2,7 +2,8 @@
 id: "task-037-role-task-scoped-context"
 type: task
 title: "Infrastructure: REQ-STATE-05 — role/task-scoped context"
-status: in-review
+status: in-progress
+rejection_reason: "resolveRoleDirectives reads rolesYaml.assignments[role] through Object.prototype, so a role named toString, constructor, valueOf or hasOwnProperty resolves to an inherited function and the spread throws TypeError - contradicting the function own documented contract that an absent role resolves to the globals and never errors. Fix with a hasOwnProperty guard or a null-prototype record. Also correct three TSDoc claims that do not hold: deduplicated by directive id (no dedup of directive files occurs - the Set holds roles.yaml ids), memory is a single deterministic lookup never a scan (findMemoryDocumentByTypeAndId walks and YAML-parses every Memory document), and the never-throws contract (it throws ValidationError on any malformed frontmatter anywhere in the tree). The P3.6 edge-scenario citation is also wrong - see dl-029, which owns that reconciliation."
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "state"]
