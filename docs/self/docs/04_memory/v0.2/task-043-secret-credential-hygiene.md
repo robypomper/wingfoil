@@ -2,7 +2,8 @@
 id: "task-043-secret-credential-hygiene"
 type: task
 title: "Infrastructure: REQ-SEC-08 — secret/credential hygiene"
-status: in-review
+status: in-progress
+rejection_reason: "Two defects. First, four new @typescript-eslint/no-require-imports errors in test/validation/secret-scan.test.ts take npm run lint from 1 error to 5, against the code-quality directive requirement of no errors; replace the require() calls with ES imports as the rest of the file already uses. Second, the task own design sub-AC 5 - a scanProjectSurface entry point run against this repository tracked content asserting blocking length 0 - is not implemented: all five call sites in the suite pass makeTempGitRepo fixtures. The Execution Notes state both that ESLint is clean and that the test runs against this actual repository; both claims are false. The remedy is cheap and green on first run: scanProjectSurface over the worktree root returns 0 findings across 173 tracked files."
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "security"]
