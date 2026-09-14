@@ -28,6 +28,14 @@
  *   a genuine gap task-008 left open (an empty query previously matched every document instead of
  *   being rejected) — task-023 closed it with a `ValidationError.semantic` guard a caller runs before
  *   invoking {@link searchMemoryDocuments}, exiting 2 with message "empty search query".
+ *
+ * **Deprecated-exclusion (REQ-STATE-06, task-038-deprecated-excluded-from-context):**
+ * {@link searchMemoryDocuments} excludes `status: deprecated` documents from its default result — a
+ * deprecated document "never appears in … default `memory search` results" (the SARD Fit Criterion)
+ * while staying present on disk and in git history. {@link isDeprecatedStatus} is the single shared
+ * check (reusing `state-machine.ts`'s reserved `DEPRECATED_STATE`), so the future Agent Context Loader
+ * relevance-filter (spec-012 §6, `task-035-bounded-context-relevance`) wraps the same primitive rather
+ * than re-deciding what "deprecated" means. `includeDeprecated: true` is the explicit opt-out.
  */
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
@@ -35,6 +43,7 @@ import { join } from 'path';
 import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
+import { DEPRECATED_STATE } from './state-machine';
 import { readDocument, splitFrontmatter } from '../storage';
 
 /**
@@ -133,6 +142,20 @@ function asStringArray(value: unknown): string[] {
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * True when a Memory document's frontmatter `status` is the reserved {@link DEPRECATED_STATE}
+ * (`./state-machine.ts` — the single source of truth for that literal, per REQ-STATE-08's reserved
+ * transition target). REQ-STATE-06's Fit Criterion ("a `deprecated` document never appears in an
+ * assembled agent context nor in default `memory search` results") names exactly this frontmatter
+ * field, so this primitive is the one shared check both {@link searchMemoryDocuments} (below) and any
+ * future Agent Context Loader relevance-filter (spec-012-context-loader-relevance-filtering §6,
+ * `task-035-bounded-context-relevance`'s scope) apply — no second, drifting definition of "deprecated"
+ * anywhere else in the codebase.
+ */
+export function isDeprecatedStatus(frontmatter: Record<string, unknown>): boolean {
+  return asString(frontmatter.status) === DEPRECATED_STATE;
 }
 
 /**
@@ -240,6 +263,14 @@ export function findMemoryDocumentByTypeAndId(
 export interface MemorySearchOptions {
   /** Only include documents whose `tags:` frontmatter contains this exact tag. */
   readonly tag?: string;
+  /**
+   * Opt back into a `status: deprecated` document appearing in the result (REQ-STATE-06:
+   * `searchMemoryDocuments` excludes them by default — "default … results" in the Fit Criterion).
+   * Set this only for an explicit, intentional request to see deprecated documents (e.g. an
+   * `--status deprecated` narrow); never as the default for a general keyword/tag search.
+   * Defaults to `false`.
+   */
+  readonly includeDeprecated?: boolean;
 }
 
 /** One ranked search result — enough for a future CLI/MCP surface to render without re-reading the file. */
@@ -296,6 +327,12 @@ export function validateSearchQuery(query: string): void {
  * Ordering is a total, deterministic order (REQ-SYS-07): metadata matches before body-only matches,
  * then by `id` (falling back to `path` when a document has no `id`) ascending — so calling this
  * twice against unchanged state always returns the exact same array.
+ *
+ * **REQ-STATE-06:** a document whose frontmatter `status` is `deprecated` ({@link isDeprecatedStatus})
+ * is excluded by default — it never appears in these "default `memory search` results", matching the
+ * Fit Criterion verbatim, while the file itself is untouched on disk and in git history (`memory
+ * deprecate`, P1.9, never deletes it). Pass `options.includeDeprecated: true` for the one legitimate
+ * exception: an explicit, intentional request to see deprecated documents too.
  */
 export function searchMemoryDocuments(
   root: string,
@@ -308,6 +345,7 @@ export function searchMemoryDocuments(
 
   for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
     const { frontmatter, body } = loadMemoryDocumentSummary(root, path);
+    if (!options.includeDeprecated && isDeprecatedStatus(frontmatter)) continue;
     const tags = asStringArray(frontmatter.tags);
     if (options.tag && !tags.includes(options.tag)) continue;
 

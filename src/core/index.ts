@@ -21,6 +21,7 @@ import { DnaYaml } from '../dna/schema';
 import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
 import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
 import {
+  DEPRECATED_STATE,
   hasNumericToken,
   nextSequenceNumber,
   parseTags,
@@ -427,6 +428,12 @@ const NO_MEMORY_SEARCH_MATCHES_MESSAGE = 'no documents matched the query';
  *    scenario's own title says "Error" but its assertion is exit `0`, so this is deliberately a
  *    successful, empty result carrying the exact message, per spec-005-cli-command-contract §1: a
  *    read-only command can only exit `0`/`1`).
+ *
+ * **REQ-STATE-06 (task-038):** `searchMemoryDocuments` excludes `status: deprecated` documents by
+ * default (the "default … `memory search` results" half of the Fit Criterion) — this function passes
+ * `includeDeprecated: true` through to the scan ONLY when the caller's own `--status deprecated`
+ * narrow is explicit, so that intentional request still resolves; every other query (no `--status`,
+ * or any other `--status` value) stays under the default exclusion.
  */
 const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
   const { root, positional, options } = params as MemorySearchParams;
@@ -441,7 +448,10 @@ const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
   const type = options?.type;
   const status = options?.status;
 
-  const scanned = searchMemoryDocuments(root, loaded.value, query, tag !== undefined ? { tag } : {});
+  const scanned = searchMemoryDocuments(root, loaded.value, query, {
+    ...(tag !== undefined ? { tag } : {}),
+    ...(status === DEPRECATED_STATE ? { includeDeprecated: true } : {}),
+  });
   const matches: MemorySearchResultItem[] = scanned
     .filter((match) => (type === undefined || match.type === type) && (status === undefined || match.status === status))
     .map(({ path, id, title, type: docType, status: docStatus, tags }) => ({ path, id, title, type: docType, status: docStatus, tags }));
