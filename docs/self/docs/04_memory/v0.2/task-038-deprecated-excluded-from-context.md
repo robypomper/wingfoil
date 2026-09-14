@@ -2,7 +2,7 @@
 id: "task-038-deprecated-excluded-from-context"
 type: task
 title: "Infrastructure: REQ-STATE-06 — deprecated excluded from context"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "state"]
