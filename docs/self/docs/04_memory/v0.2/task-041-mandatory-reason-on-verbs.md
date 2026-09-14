@@ -2,7 +2,7 @@
 id: "task-041-mandatory-reason-on-verbs"
 type: task
 title: "Infrastructure: REQ-SEC-04 — mandatory reason on approval/reject verbs"
-status: approved
+status: done
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "security"]
