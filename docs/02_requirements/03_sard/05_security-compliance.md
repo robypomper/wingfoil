@@ -92,15 +92,17 @@
 * **Traceability:** Feature P2.3 (US-0B-03, BDD `p2-dna/P2.3-dna-infer.feature`); Feature P5.1.2 (US-0B-02,
   BDD `p5-interaction/P5.1.2-init-infer.feature`).
 
-### REQ-SEC-10 — Integrity checks on built-in templates
+### REQ-SEC-10 — Schema checks on built-in templates
 
-* **Description:** Built-in directive and workflow templates are integrity/schema-checked before installation during
+* **Description:** Built-in directive and workflow templates are schema-checked before installation during
   `init`.
 * **Rationale:** A corrupted baseline must not partially install.
 * **Fit Criterion:** A corrupted or schema-invalid built-in template aborts `init` before writing partial assets, with a
   message naming the failing template.
 * **Traceability:** Feature P3.8 (US-0A-09, BDD `p3-directives/P3.8-builtin-directive-templates.feature`); Feature P4.17
-  (US-0A-21, BDD `p4-workflow/P4.17-builtin-workflow-templates.feature`).
+  (US-0A-21, BDD `p4-workflow/P4.17-builtin-workflow-templates.feature`). Scoped to schema validation by
+  `dl-031-req-sec-10-integrity-depth`: the threat addressed is accidental corruption, not post-install
+  tampering — distribution-channel assurance lives in `adr-009`/`spec-015` (npm provenance).
 
 ### REQ-SEC-11 — Notification routing authority by role / decision-type
 
