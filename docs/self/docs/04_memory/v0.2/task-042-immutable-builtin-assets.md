@@ -2,7 +2,8 @@
 id: "task-042-immutable-builtin-assets"
 type: task
 title: "Infrastructure: REQ-SEC-07 — immutable built-in assets"
-status: in-review
+status: in-progress
+rejection_reason: "isBuiltInAssetPath is a fail-open deny-list rather than the allow-list its name implies: it splits on forward slash only and normalises nothing, so it returns ok for every shape it does not positively recognise. This is reachable, not hypothetical - src/core/loaders.ts line 181 builds directive paths with platform join, so on Windows a built-in classifies as custom and directive remove would delete it; a symlinked custom directory aliasing built-in does the same. Invert to an allow-list on the custom segment and add red-first tests for the separator, casing and traversal shapes. Also correct the Execution Notes, which assert the REQ-SEC-07 Fit Criterion is satisfied without recording that clause (b), still-referenced custom assets, is out of scope - see dl-030 - and tighten the spec-011 citation, which does not support the sentence it is attached to."
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "security"]
