@@ -2,7 +2,7 @@
 id: "task-040-role-based-approval-authority"
 type: task
 title: "Infrastructure: REQ-SEC-03 — role-based approval authority"
-status: approved
+status: done
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "security"]
