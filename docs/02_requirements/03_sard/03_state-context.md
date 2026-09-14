@@ -12,8 +12,13 @@
 * **Description:** Each deliverable's state lives in its Memory frontmatter; every transition is validated against the
   element type's state machine.
 * **Rationale:** State close to the deliverable; illegal lifecycle moves blocked.
-* **Fit Criterion:** A transition not present in the type's `transitions` graph is rejected with
-  `"illegal transition <from> -> <to> for type '<type>'"` and leaves the state unchanged.
+* **Fit Criterion:** A transition not permitted by the type's `sequence`/`gates`/`waiting` state machine
+  (`spec-001-memory-yaml-schema`) is rejected with `"illegal transition <from> -> <to> for type '<type>'"` and
+  leaves the state unchanged. Per `dl-032-illegal-transition-message-contract` (option c) that string is the
+  message; any explanatory text (e.g. "a `gates` state — its forward edge requires `approve`, not `submit`")
+  rides as the issue's detail rather than replacing it. **The exit code is not settled:** BDD P1.6 pins `1`,
+  the shipped code exits `2`, and `spec-009` §3 licenses both — that contradiction must be resolved in
+  `spec-009` before the message change lands in code.
 * **Traceability:** Feature P1.6 (US-3-09, BDD `p1-memory/P1.6-memory-submit.feature`); Feature P4.11 (US-4-08,
   BDD `p4-workflow/P4.11-deliverables.feature`); Feature P4.13 (US-1-02, BDD `p4-workflow/P4.13-state-deduction.feature`).
 
