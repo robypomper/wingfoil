@@ -2,7 +2,7 @@
 id: "dl-031-req-sec-10-integrity-depth"
 type: decision-log
 title: "REQ-SEC-10 'integrity checks': is schema validation the contract, or is tamper-evidence required?"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""

@@ -2,7 +2,7 @@
 id: "dl-028-archived-states-excluded-from-context"
 type: decision-log
 title: "Which statuses count as archived for context exclusion? REQ-STATE-06 names only `deprecated`, but `superseded` is equally archived"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""

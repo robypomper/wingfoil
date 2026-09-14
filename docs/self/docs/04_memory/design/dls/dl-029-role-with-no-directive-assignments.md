@@ -2,7 +2,7 @@
 id: "dl-029-role-with-no-directive-assignments"
 type: decision-log
 title: "A role with no directive assignments: globals-only (spec-012) or zero directives plus a warning (BDD P3.6)?"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""

@@ -2,7 +2,7 @@
 id: "dl-030-req-sec-07-referenced-asset-ownership"
 type: decision-log
 title: "REQ-SEC-07's second clause (still-referenced custom assets) has no owner for the workflow half"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
