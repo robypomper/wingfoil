@@ -2,7 +2,8 @@
 id: "task-035-bounded-context-relevance"
 type: task
 title: "Infrastructure: REQ-PERF-05 — bounded context via relevance"
-status: in-review
+status: in-progress
+rejection_reason: "src/core/relevance.ts is not re-exported from src/core/index.ts, so the deliverable is unreachable through the module public API; the Execution Notes justify this as matching task-008 primitive-now-surface-later split, which is false - task-008 query.ts IS re-exported from src/memory/index.ts. Also fix: NO_RELEVANT_MEMORY_NOTE is emitted when the bounded result is empty rather than the scored result, so it can assert no relevant Memory found while relevant documents existed and were bounded out; and the module doc describes the function as pure over (root@stateRef, ...) when stateRef is not an input and the live working tree is read."
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "performance"]
