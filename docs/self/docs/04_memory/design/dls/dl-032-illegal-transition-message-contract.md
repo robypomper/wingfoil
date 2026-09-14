@@ -2,7 +2,7 @@
 id: "dl-032-illegal-transition-message-contract"
 type: decision-log
 title: "The illegal-transition error: REQ-STATE-01 and two BDD features pin a message and exit code the shipped code does not use"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""

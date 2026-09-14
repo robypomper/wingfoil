@@ -2,7 +2,7 @@
 id: "dl-027-req-sec-04-deprecate-reason-scope"
 type: decision-log
 title: "Is --reason mandatory on `memory deprecate`? REQ-SEC-04 says yes, spec-008 and BDD P1.9 say no"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
