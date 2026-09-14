@@ -2,7 +2,8 @@
 id: "task-044-builtin-template-integrity"
 type: task
 title: "Infrastructure: REQ-SEC-10 — built-in template integrity"
-status: in-review
+status: in-progress
+rejection_reason: "Two fail-open shapes. First, verifyBuiltinTemplates indexes INTEGRITY_POLICY by kind with no default, so an out-of-union kind throws a TypeError; because the call sits outside initWingfoilProject try/catch it escapes as an uncaught exception instead of a VALIDATION result and exit 1 - add a fail-closed default. Second, BUILTIN_TEMPLATE_SOURCES is entirely decoupled from templateScaffold, so a later task can install a built-in template the check never sees and every existing test still passes; derive the sources from the scaffold output or add a coupling test. Also record in the Execution Notes the verified ordering hazard - populating the registry with the current directiveMd shape before task-064 lands makes wingfoil init abort for every user - and correct the claim that the module is ready for that content with no further change."
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "security"]
