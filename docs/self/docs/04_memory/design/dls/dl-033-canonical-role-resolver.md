@@ -2,7 +2,7 @@
 id: "dl-033-canonical-role-resolver"
 type: decision-log
 title: "Two role resolvers, two answers: does an AI agent hold the `approver` role? (task-034 vs task-040)"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
