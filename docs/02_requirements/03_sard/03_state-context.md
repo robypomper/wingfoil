@@ -54,15 +54,16 @@
   (US-1-05, BDD `p5-interaction/P5.4.4-execution-context.feature`); Feature P3.6 (US-3-06,
   BDD `p3-directives/P3.6-auto-load-by-role.feature`).
 
-### REQ-STATE-06 — Deprecated content excluded from context
+### REQ-STATE-06 — Archived content excluded from context
 
-* **Description:** Documents in `deprecated` state remain in the repo but are excluded from agent context and default
-  searches.
+* **Description:** Documents in an archived state — `deprecated` on any type, and `superseded` on `adr`/`tech-spec` —
+  remain in the repo but are excluded from agent context and default searches.
 * **Rationale:** Distinguish active from archived decisions.
-* **Fit Criterion:** A `deprecated` document never appears in an assembled agent context nor in default `memory search`
-  results, while remaining present on disk and in git history.
+* **Fit Criterion:** A `deprecated` or `superseded` document never appears in an assembled agent context nor in default
+  `memory search` results, while remaining present on disk and in git history.
 * **Traceability:** Feature P1.9 (US-5-04, BDD `p1-memory/P1.9-memory-deprecate.feature`); Feature P5.3.3 (US-1-10,
-  BDD `p5-interaction/P5.3.3-relevance-filtering.feature`).
+  BDD `p5-interaction/P5.3.3-relevance-filtering.feature`). Archived set ratified by
+  `dl-028-archived-states-excluded-from-context`.
 
 ### REQ-STATE-07 — Iteration state for include() composition
 
