@@ -2,7 +2,8 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: in-review
+status: in-progress
+rejection_reason: "resolveApprover falls back to agents[0] without consulting approval_authority, so with the approver role held by no human member it routes an approval to an AI agent - contradicting adr-006, CLAUDE.md section 4, and BDD P4.14 whose error scenario the TSDoc claims to implement; the path has no test. Per dl-033 (ready, option b): do not patch it - remove resolveApprover and NoRoleHolderError from this task scope, keep isRoleDefined/assertRoleDefined/resolveRoleHolders for P5.4.2 directive binding, and leave P4.14 routing to task-046 on the authority module. Also correct the TSDoc claim that P4.14 no-member-in-DNA is implemented, and the Execution Notes misattribution of the uncovered branch (it is the agents fallback in resolveRoleHolders, not resolveApprover)."
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
