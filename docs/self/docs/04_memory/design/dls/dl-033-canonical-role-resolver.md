@@ -4,7 +4,7 @@ type: decision-log
 title: "Two role resolvers, two answers: does an AI agent hold the `approver` role? (task-034 vs task-040)"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703
