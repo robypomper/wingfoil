@@ -8,7 +8,7 @@ priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.6"
 bug: ""
-depends_on: ["task-037-role-task-scoped-context", "task-039-mcp-prompts-role-based-infra"]
+depends_on: ["task-037-role-task-scoped-context", "task-039-mcp-prompts-role-based-infra", "task-069-fix-archived-excluded-from-agent-context"]
 tmpl_version: 260703
 ---
 
