@@ -2,7 +2,7 @@
 id: "task-042-immutable-builtin-assets"
 type: task
 title: "Infrastructure: REQ-SEC-07 — immutable built-in assets"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "security"]
