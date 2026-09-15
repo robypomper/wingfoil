@@ -264,5 +264,8 @@ Commit `0987fe9`.
   `spec-009` §3 no longer supports as a blanket rule. It is stale prose in `src/validation/` —
   `task-043`'s area this pass — and is left for whoever owns that file next. Flagged here rather than
   silently corrected across a task boundary.
-- REQ-STATE-01's Fit Criterion still says "`transitions` graph", the encoding `spec-001` replaced.
+- ~~REQ-STATE-01's Fit Criterion still says "`transitions` graph", the encoding `spec-001` replaced.~~
+  **Already done** — `dl-032`'s amendment landed on `main` before this pass and arrived here with the
+  branch sync; the Fit Criterion now reads "the type's `sequence`/`gates`/`waiting` state machine".
+  Corrected after review: this bullet claimed residual work that no longer existed.
   `dl-032` assigns that amendment ("not contentious") to its own Actions list, not to this task.

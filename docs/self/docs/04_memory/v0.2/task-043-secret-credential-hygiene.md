@@ -18,7 +18,17 @@ Implement the Security constraint **REQ-SEC-08** (no secrets/credentials committ
 
 ## Acceptance Criteria
 
-Satisfies the Fit Criterion for **REQ-SEC-08** in `docs/02_requirements/03_sard/05_security-compliance.md`.
+Satisfies **clause (b)** of the Fit Criterion for **REQ-SEC-08** in
+`docs/02_requirements/03_sard/05_security-compliance.md` — *"a scan of committed `.wingfoil/` content
+matches 0 known secret patterns"*.
+
+**Clause (a)** — *"After `init`, the built-in `security` directive is present"* — is **not** this
+task's: it belongs to `task-057-builtin-directive-templates` (`ref: P3.8`, `depends_on` this task),
+which ships the built-in directive set. REQ-SEC-08 is therefore not fully closed when this task is
+done. Scoping added after review, which found the unqualified wording read as if it were.
+
+See also `dl-036-secret-scan-warn-severity-vs-req-sec-08`: three of spec-007's ten patterns can only
+produce warnings, so what clause (b) enforces in practice is "0 **blocking** matches".
 
 ## Implementation Notes
 
