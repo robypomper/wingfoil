@@ -2,10 +2,10 @@
 id: "bug-012-mcp-latency-single-sample"
 type: bug
 title: "REQ-PERF-04's MCP budget is a single wall-clock sample, the one timing shape left that can flake"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.2.1"
 contributor: ""
 credit: ""

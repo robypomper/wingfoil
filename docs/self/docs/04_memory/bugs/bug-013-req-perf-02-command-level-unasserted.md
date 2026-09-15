@@ -2,10 +2,10 @@
 id: "bug-013-req-perf-02-command-level-unasserted"
 type: bug
 title: "REQ-PERF-02's Fit Criterion is worded against the commands, and nothing asserts memory search at that level any more"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.5"
 contributor: ""
 credit: ""
