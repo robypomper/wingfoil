@@ -34,7 +34,7 @@ software) rather than a cosmetic issue.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Extend the `dl-013` documentation gate so it owns
+Extend the `dl-013` documentation gate so it owns
 **agent-facing** documentation alongside user-facing documentation.
 
 Concretely, two candidate shapes (choose at ratification):

@@ -43,7 +43,7 @@ a dependency this design renders vacuous.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (a): narrow REQ-SEC-04 to the approval
+**Option (a): narrow REQ-SEC-04 to the approval
 gates.** Amend its Description and Fit Criterion to name `approve`/`reject` only, and drop P1.9 from
 its Traceability line. `memory deprecate` keeps `--reason` optional-but-encouraged, as CLAUDE.md
 §5.1 already describes.

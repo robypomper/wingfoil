@@ -26,7 +26,7 @@ building more of it.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Version a `.mcp.json` at the repository root registering
+Version a `.mcp.json` at the repository root registering
 `wingfoil` → `node dist/cli.js mcp`, so any agent session opened in a clone gets the read-only channel
 with no per-developer setup.
 

@@ -29,7 +29,7 @@ each plan file's prose by hand — there is no frontmatter field to grep.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Make `plan` a first-class Memory element type, on par
+Make `plan` a first-class Memory element type, on par
 with the existing seven, rather than leaving `docs/05_plans/` as informal scaffolding.
 
 Concretely:

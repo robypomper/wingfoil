@@ -37,7 +37,7 @@ done, while half of its Fit Criterion remains unimplemented and untracked.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (b): record REQ-SEC-07 as partially satisfied
+**Option (b): record REQ-SEC-07 as partially satisfied
 and route P4.9 through release-planning rather than widening v0.2 mid-flight.** Concretely: write
 clause (b) explicitly into `task-052-directive-remove`'s acceptance criteria for the directive half,
 and register the workflow half as an unscheduled obligation for the next `release-planning` run to

@@ -39,7 +39,6 @@ will actually produce — `task-035`'s first pass measured a baseline that no lo
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)*
 
 1. **Merge `main` into the task branch. Never rebase a branch carrying `wf(*)` commits.**
    `git merge --no-edit main` from inside the task's worktree; the resulting merge commit stays on the

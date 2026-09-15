@@ -41,7 +41,7 @@ accidental artifact with no semantic meaning, not attached to any release.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Codify, as an explicit git convention (not just
+Codify, as an explicit git convention (not just
 practice), two rules:
 
 1. **One branch per phase.** Every `sw-life-cycle` / `release-cycle` phase runs on its own branch

@@ -32,7 +32,7 @@ the conflict as an unresolved BDD failure unless it is settled first.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (c), the hybrid: globals always, plus the
+**Option (c), the hybrid: globals always, plus the
 warning.** Keep `spec-012` §5's invariant that global directives are unconditional, and adopt P3.6's
 operator signal by emitting `no directives assigned to role 'intern'` whenever a role contributes no
 assignments of its own. Amend the P3.6 edge scenario's "zero directives" line accordingly.

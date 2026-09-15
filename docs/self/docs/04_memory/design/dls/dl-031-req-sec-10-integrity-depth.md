@@ -34,7 +34,7 @@ The question is whether that is the requirement, or a partial implementation of 
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (a): the Fit Criterion is the contract.**
+**Option (a): the Fit Criterion is the contract.**
 Schema validation satisfies REQ-SEC-10. Amend the title and Description to say "schema-checked"
 rather than "integrity/schema-checked", so the requirement stops implying a control it does not
 specify.

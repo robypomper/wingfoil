@@ -43,7 +43,7 @@ explicit `SPEC-CONFLICT` comment. Neither can be fixed by changing code — only
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (a): make the archived set explicit and
+**Option (a): make the archived set explicit and
 canonical as `{deprecated, superseded}`.** Amend REQ-STATE-06's Description and Fit Criterion to name
 both; amend `spec-012` §6 to exclude `{deprecated, superseded}` and drop the vestigial `rejected`;
 land a single shared predicate (`isArchivedStatus`, superseding `task-038`'s `isDeprecatedStatus`)
