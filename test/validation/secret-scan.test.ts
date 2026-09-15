@@ -4,6 +4,8 @@
  * procedure (§4). Every fixture "secret" below is an obviously-fake value (per the global
  * security-secrets directive) — none are real credentials.
  */
+import { mkdirSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import {
   SECRET_PATTERNS,
   isBinaryContent,
@@ -12,7 +14,6 @@ import {
   loadIgnoreGlobs,
   matchesIgnoreGlob,
 } from '../../src/validation/secret-scan';
-import { join } from 'path';
 import { git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('SECRET_PATTERNS — canonical pattern set (spec-007 §2)', () => {
@@ -347,7 +348,6 @@ describe('loadIgnoreGlobs — security-ignore file parsing (spec-007 §3)', () =
 
   it('returns [] when the ignore file does not exist', () => {
     repo = makeTempGitRepo();
-    const { join } = require('path') as typeof import('path');
     expect(loadIgnoreGlobs(join(repo, '.wingfoil/security-ignore'))).toEqual([]);
   });
 
@@ -358,7 +358,6 @@ describe('loadIgnoreGlobs — security-ignore file parsing (spec-007 §3)', () =
       '.wingfoil/security-ignore',
       ['# a comment', '', '  .wingfoil/fixtures/**  ', 'docs/self/**', ''].join('\n'),
     );
-    const { join } = require('path') as typeof import('path');
     expect(loadIgnoreGlobs(join(repo, '.wingfoil/security-ignore'))).toEqual([
       '.wingfoil/fixtures/**',
       'docs/self/**',
@@ -368,8 +367,6 @@ describe('loadIgnoreGlobs — security-ignore file parsing (spec-007 §3)', () =
 
 /** Write a binary fixture file (parent dirs created) — {@link writeFixtureFile} is utf-8-text-only. */
 function writeFixtureBinaryFile(root: string, relativePath: string, content: Buffer): void {
-  const { writeFileSync, mkdirSync } = require('fs') as typeof import('fs');
-  const { join, dirname } = require('path') as typeof import('path');
   const absolute = join(root, relativePath);
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, content);
