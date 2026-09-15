@@ -142,3 +142,27 @@ set by the equivalent `docs:api` gate test, whose own commit is
 `test(docs): task-062-typedoc-tsdoc-backfill — failing test for doc-coverage gate …` (`9b016b9`) —
 i.e. scope named after the gate/test directory, not a `src/` module. Hence `test(lint):`, with the
 test at `test/lint/`.
+
+### `green` — developer
+
+Minimum change, exactly as `dl-034` Actions and AC-2 specify — two lines in
+`test/storage/git-backed-storage.test.ts`:
+
+- line 15 — `commitPaths` added to the file's existing top-of-file named import from
+  `'../../src/storage'` (the idiom already used there for `initStorage`, `scaffoldFiles`,
+  `writeDocument`, `WINGFOIL_DIR`);
+- line 90 — `require('../../src/storage').commitPaths(repo, …)` → `commitPaths(repo, …)`.
+
+No assertion, fixture, or test name was touched; the `require()` resolved the same module the
+top-of-file import already resolves, so this is a pure import-style change with no behavioural
+difference (AC-2's "no behavioural edit").
+
+**Observed green:** `npx eslint .` → exit **0**, no output.
+`npx jest test/lint/lint-clean.test.ts test/storage/git-backed-storage.test.ts` →
+`Test Suites: 2 passed, 2 total / Tests: 6 passed, 6 total`.
+
+**Deviation from plan §2's commit table (noted as instructed).** The table prescribes
+`feat({module})` for `green`. This task adds no feature — it repairs a defect (`bug-009`), and its
+own frontmatter carries `bug:`. `fix(storage):` is the truthful conventional-commit type for a
+bug-fix change, so `green` is committed as `fix(storage): …`. `storage` is a real `dna.yaml` module
+and names the suite that was edited.
