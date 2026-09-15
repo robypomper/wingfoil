@@ -2,7 +2,7 @@
 id: "task-066-fix-eslint-baseline-and-lint-gate"
 type: task
 title: "Fix: restore a clean lint baseline and wire the lint gate into dev-loop's refactor phase"
-status: backlog
+status: done
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "tooling", "quality-gate"]
@@ -56,4 +56,192 @@ two bugs would leave the second permanently unsynced (`dl-034` Decision point 5)
 
 ## Execution Notes
 
-<!-- Running log, filled in incrementally per phase. -->
+### `design` — architect
+
+**`agent.read_related` (`dl-015` hard gate).** `depends_on: []` — no upstream task Execution Notes to
+load. The gate is a **no-op** for this task; nothing blocks `red`.
+
+**`agent.classify_acs` (T1, `dl-014` + `testing` directive).**
+
+| AC | Classification | Why |
+|---|---|---|
+| 1 — `npx eslint .` exits 0 | **red-first** | Observed failing today: `npx eslint .` exits **1** with `test/storage/git-backed-storage.test.ts 90:5 error A \`require()\` style import is forbidden @typescript-eslint/no-require-imports`, `✖ 1 problem (1 error, 0 warnings)`. The new gate test (AC-5) is the executable form of this AC and fails before the fix. |
+| 2 — `require()` → top-of-file ES import, suite unchanged | **split.** The lint half is **red-first** (same failing command as AC-1). The "suite still passes unchanged" half is **characterization** — `test/storage/git-backed-storage.test.ts` is green today and must stay green; it is pinned by the existing suite, no new test is written for it. |
+| 3 — `lint.clean` in `dev-loop.yaml` `refactor.checks.post`, `version` bumped, `dl-034` cited | **neither red-first nor characterization — config/doc change with no runtime surface.** `dev-loop.yaml` is workflow configuration for a workflow engine that does not exist yet (CLAUDE.md §6 interim); nothing executes it, so no test can observe the entry. It *is* schema-validated: `test/workflow/schema.test.ts` parses every file under `.wingfoil/workflows/custom/` against `src/workflow/schema`, which is the existing regression net for this edit. Verified additionally by diff inspection. Per the `testing` directive's "never fabricate a red", no artificial test is added for a YAML comment. |
+| 4 — hard-reject from the start, no warn-only ramp | **same as AC-3** — a property of the wording/absence of a ramp clause in that same config entry. Verified by inspection of the committed `dev-loop.yaml` diff. |
+| 5 — a test asserts the gate is real (`npm run lint` / eslint exits 0 over the repo) | **red-first** | The test does not exist; when written against today's tree it fails (1 error). This is the genuine red of this task. |
+| 6 — full suite green, coverage ≥ 80, `npm run docs:api` exits 0 | **characterization** | All three already hold on `main`; this AC pins that the change does not regress them. No new test; verified by running the gates in `refactor`/`review` and recording the observed numbers below. |
+
+**`agent.verify_specs`.** Nothing is missing; **no `tech-spec` is scaffolded**. Reasoning:
+
+- The task's two artefacts are (a) an edit to an existing test file and (b) one entry in an existing
+  list in `dev-loop.yaml`. Neither introduces a file format, schema, constant set, or module API —
+  the four triggers `dev-loop.yaml`'s `design` phase names.
+- The workflow-file format the edit touches is already covered by
+  `spec-003-workflows-yaml-schema` (`approved`). Checked its `checks.pre`/`checks.post` clause: check
+  expressions are **free-form assertion strings** (`Check` is a plain string in the spec's Zod
+  excerpt and in `src/workflow/schema.ts`), and the spec's list of check forms is explicitly
+  introduced as *"Observed forms"* — descriptive, not a closed vocabulary. `lint.clean` is therefore
+  already schema-legal and needs no spec amendment. `version` is likewise typed as a positive number,
+  so 1.1 → 1.2 is in-contract.
+- The decision content itself (gate placement in `refactor`, hard-reject, no ramp) is ratified in
+  `dl-034-lint-gate-in-dev-loop` (`ready`), which is this task's `ref`. A `tech-spec` restating it
+  would duplicate an already-approved design input.
+
+**Checks (post).** `frontmatter.required: [title, scope]` — the `task` template requires `title`
+(present); `scope` is not a field of the `task` type (it belongs to `tech-spec`), and no spec was
+scaffolded, so it is vacuous here. `tech-spec.approved` — the one relevant spec, `spec-003`, is
+`approved`. `depends_on.acknowledged` — vacuously satisfied (`depends_on: []`).
+
+**Approval.** `design`'s `approval: { by_role: approver }` applies *"only when a new spec was
+scaffolded"* (plan §3.2); none was, so this phase is **pass-through** — no approver action requested.
+
+### `red` — developer
+
+New test `test/lint/lint-clean.test.ts`, modelled on `test/docs/api-docs.test.ts` (same shape:
+resolve the tool's CLI via `require.resolve('<pkg>/package.json')`, run it out-of-process with
+`execFileSync(process.execPath, …, { cwd: repoRoot, stdio: 'pipe' })`, rethrow captured
+stdout+stderr on failure, assert exit 0). It runs the same invocation as the `lint` npm script
+(`eslint .`) so the test and the script cannot drift.
+
+**Observed red** — `npx jest test/lint/lint-clean.test.ts`, before any fix, on a clean tree:
+
+```
+FAIL test/lint/lint-clean.test.ts
+  ● ESLint baseline (task-066-fix-eslint-baseline-and-lint-gate) › eslint reports zero errors over the repository
+
+    eslint lint-clean gate failed:
+
+    /…/test/storage/git-backed-storage.test.ts
+      90:5  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+    ✖ 1 problem (1 error, 0 warnings)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+```
+
+This is a real red, not a fabricated one: the failure is the pre-existing `bug-009` error, reported
+by the tool itself.
+
+**Two deliberate departures from `api-docs.test.ts`'s idiom**, both recorded here rather than left
+implicit:
+
+1. **Explicit `it` timeout (`LINT_TIMEOUT_MS = 120_000`).** A full-repo lint takes ~3.5 s wall-clock
+   standalone on this machine and competes with the other suites under `--maxWorkers`; Jest's 5 s
+   default would make the gate report machine load instead of lint status — the exact failure mode
+   `bug-011` describes for the CLI latency assertion. The budget is a fixed ceiling, not a measured
+   assertion, so it introduces no wall-clock dependency into the verdict (`determinism` directive).
+2. **Commit scope.** Each phase's Execution-Notes entry is committed together with that phase's code
+   change, so the running log is atomic with the work it describes. `design` got its own
+   `docs(self):` commit only because it produced no code.
+
+**Commit subject `{module}`.** `dna.yaml`'s module list (`core, storage, memory, dna, directives,
+workflow, cli, mcp, validation`) has no entry for a repo-level tooling gate. Followed the precedent
+set by the equivalent `docs:api` gate test, whose own commit is
+`test(docs): task-062-typedoc-tsdoc-backfill — failing test for doc-coverage gate …` (`9b016b9`) —
+i.e. scope named after the gate/test directory, not a `src/` module. Hence `test(lint):`, with the
+test at `test/lint/`.
+
+### `green` — developer
+
+Minimum change, exactly as `dl-034` Actions and AC-2 specify — two lines in
+`test/storage/git-backed-storage.test.ts`:
+
+- line 15 — `commitPaths` added to the file's existing top-of-file named import from
+  `'../../src/storage'` (the idiom already used there for `initStorage`, `scaffoldFiles`,
+  `writeDocument`, `WINGFOIL_DIR`);
+- line 90 — `require('../../src/storage').commitPaths(repo, …)` → `commitPaths(repo, …)`.
+
+No assertion, fixture, or test name was touched; the `require()` resolved the same module the
+top-of-file import already resolves, so this is a pure import-style change with no behavioural
+difference (AC-2's "no behavioural edit").
+
+**Observed green:** `npx eslint .` → exit **0**, no output.
+`npx jest test/lint/lint-clean.test.ts test/storage/git-backed-storage.test.ts` →
+`Test Suites: 2 passed, 2 total / Tests: 6 passed, 6 total`.
+
+**Deviation from plan §2's commit table (noted as instructed).** The table prescribes
+`feat({module})` for `green`. This task adds no feature — it repairs a defect (`bug-009`), and its
+own frontmatter carries `bug:`. `fix(storage):` is the truthful conventional-commit type for a
+bug-fix change, so `green` is committed as `fix(storage): …`. `storage` is a real `dna.yaml` module
+and names the suite that was edited.
+
+### `refactor` — developer
+
+Landed AC-3/AC-4 in `.wingfoil/workflows/custom/dev-loop.yaml`:
+
+- `refactor.checks.post` now reads
+  `["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build", "lint.clean"]`
+  — `lint.clean` appended, the four existing entries untouched.
+- `version: 1.1 → 1.2`, its trailing comment naming `dl-034` as the reason and preserving the 1.1
+  rationale.
+- `dl-034` cited inline in the style of the neighbouring `docs.api.*` citation — same elements: the
+  DL id, the task that made the check ACTIVE, the enforcement mechanism (`eslint.config.js`,
+  `npm run lint`), the test that asserts it (`test/lint/lint-clean.test.ts`), and the failure
+  condition. It is one comment line below the `post:` line rather than appended to that line's
+  already-long trailing comment, because the two checks now need two distinct rationales; the
+  `docs.api.*` comment is preserved byte-for-byte.
+- The comment records AC-4 explicitly — **hard-reject from the start, no warn-only ramp** — with
+  `dl-034` Decision 2's justification, and `dl-034` Decision 3's reason for `refactor` over `review`.
+
+Schema safety: `test/workflow/schema.test.ts` parses every file under `.wingfoil/workflows/custom/`
+against `src/workflow/schema`; it passes with the edit (check expressions are free-form strings and
+`version` is a positive number — see the `design` note above).
+
+**Gates observed at the end of `refactor`** (each command run in this worktree, exit code read, not
+predicted):
+
+| Gate | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **61/61 suites, 577/577 tests passed**, exit 0 |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **97.96 % stmts / 88.22 % branch / 97.65 % funcs / 98.38 % lines**, exit 0 |
+| `docs.api.public-complete` + `docs.api.build` | `npm run docs:api` | exit **0** |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (new) | `npx eslint .` | exit **0**, no output |
+
+`bug-011`'s flaky wall-clock assertion (`test/cli/program.integration.test.ts:352`) did **not** fire
+in either the plain or the coverage run at `--maxWorkers=2`; no re-run in isolation was needed, and
+that file was not modified.
+
+### `review` — developer side (`memory.submit` + `bug.sync_state`)
+
+**Final gate run** — `npx jest --coverage --maxWorkers=2`, then each tooling gate, all executed on
+this branch at commit `6183918` with a clean working tree. These are observed exit codes and
+observed counters, not projections:
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=2` | **577 / 577 tests passed, 61 / 61 suites**, exit 0 |
+| coverage (≥ 80 global) | same run | **stmts 97.96 · branch 88.22 · funcs 97.65 · lines 98.38** — all four above the 80 threshold, exit 0 |
+| `lint.clean` | `npx eslint .` | exit **0**, no output |
+| `docs.api.*` | `npm run docs:api` | exit **0** |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+
+Suite count moved 60 → 61 and test count 576 → 577: exactly the one new suite
+(`test/lint/lint-clean.test.ts`) with its one test. No existing test changed its result.
+
+**`tests.bdd.run` (`review` `checks.pre`).** The project has no separate BDD runner — the `.feature`
+files under `docs/02_requirements/02_bdd/features/` are executed as the traced Jest suites (each
+suite's docblock cites its scenarios), so the full run above **is** the BDD run. This task adds no
+new BDD scenario: it is a harness/tooling fix whose contract is the `dl-034` decision, not a product
+behaviour. Stating that plainly rather than claiming a BDD suite that does not exist.
+
+**Acceptance criteria.**
+
+| AC | Verdict | Evidence |
+|---|---|---|
+| 1 | **MET** | `npx eslint .` → exit 0, no output, clean working tree. |
+| 2 | **MET** | `test/storage/git-backed-storage.test.ts` line 15 import extended with `commitPaths`, line 90 call de-`require()`d; no other line touched (`git diff bb89e39~1 bb89e39` is 2 lines ±). Suite passes: 4/4 tests. |
+| 3 | **MET** | `dev-loop.yaml` `refactor.checks.post` now carries `lint.clean` alongside the four existing checks; `version: 1.1 → 1.2`; `dl-034` cited inline in a comment mirroring the `docs.api.*` one. |
+| 4 | **MET** | The comment states "ACTIVE hard-reject FROM THE START, no warn-only ramp" and carries `dl-034` Decision 2's justification. No ramp clause, no staged wording, no follow-up task implied — contrast §2 of the v0.2 dev-loop plan, which had to describe the `docs.api.*` ramp. |
+| 5 | **MET** | `test/lint/lint-clean.test.ts` runs the same `eslint .` invocation as `npm run lint` out-of-process and requires exit 0. Proven executable by its recorded red (see `red` above) and its green after the fix. |
+| 6 | **MET** | 577/577 tests, 61/61 suites; coverage 97.96 / 88.22 / 97.65 / 98.38 (≥ 80); `npm run docs:api` exit 0. |
+
+**`bug.sync_state`.** `bug-009-eslint-baseline-require-imports` is moved `in-progress → in-review` in
+the same commit as this task's `in-progress → in-review`. `task-066` is its only fix task
+(`dl-034` Decision 5), so the aggregate rule collapses to 1:1 and the two states move together.
+
+**Stop point.** The dev-loop halts here. `memory.approve`, the merge to `main`, worktree removal and
+branch deletion are the `approver`'s (`done` phase) — agents hold no approval authority (CLAUDE.md
+§4/§8).

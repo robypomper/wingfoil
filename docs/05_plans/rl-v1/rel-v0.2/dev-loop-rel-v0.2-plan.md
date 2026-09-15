@@ -18,7 +18,7 @@ tmpl_version: 260703
 (`task-034..065`, `docs/self/docs/04_memory/v0.2/`), all `status: backlog`, tag `v0.2`. Per
 `release-cycle` (`.wingfoil/workflows/custom/release-cycle.yaml` v1.1) the next phase is
 **`implementation`**: one `dev-loop` sub-workflow run
-(`.wingfoil/workflows/custom/dev-loop.yaml` **v1.1**, `element: task`) per backlog task tagged
+(`.wingfoil/workflows/custom/dev-loop.yaml` **v1.2**, `element: task`) per backlog task tagged
 `v0.2`, `where: { status: [backlog], tags: ["v0.2"] }`. Per CLAUDE.md §6-interim + §10.7 (no
 workflow engine yet) and `dl-019`, this `plan` element is that phase's coherent, reusable execution
 scaffold.
@@ -32,7 +32,7 @@ Notes** section (see §1). This mirrors `X_wingfoil-init-plan.md` and the v0.1 d
 > because `dl-013` (doc gate), `dl-014` (dev-loop plan deltas: `task/` branches, per-task worktree,
 > `--no-ff` merge, G4 merge-conflict fallback, G5 API-docs check, T1 AC classification) and `dl-015`
 > (inter-task dependency notes) were all `in-discussion`. **All three are now `ready`, and
-> `dev-loop.yaml` is at v1.1 with them absorbed.** So this plan simply *follows `dev-loop.yaml` v1.1
+> `dev-loop.yaml` is at v1.2 with them absorbed.** So this plan simply *follows `dev-loop.yaml` v1.2
 > as configured* — there is nothing to force. The only staged item remaining is the `docs.api.*`
 > check ramp, closed by `task-062` (see §2).
 
@@ -71,7 +71,7 @@ is created (same rationale as the v0.1 dev-loop plan).
 
 ## 2. Conventions
 
-### Branch, worktree & merge (`dl-014` G1–G4, `dl-024` — all `ready`; matches `dev-loop.yaml` v1.1)
+### Branch, worktree & merge (`dl-014` G1–G4, `dl-024` — all `ready`; matches `dev-loop.yaml` v1.2)
 
 - **Branch — `task/{task.id}`** (e.g. `task/task-034-role-based-binding`), created from `main` at
   `start` via `git.create_branch("task/{task.id}")` (`dl-014` G1).
@@ -111,7 +111,7 @@ is created (same rationale as the v0.1 dev-loop plan).
 
 Global (every phase): doc-versioning, documentation, security-secrets.
 
-### `docs.api.*` check ramp (`dl-014` B-DECISION Option 2) — the one staged item
+### Quality-gate checks on `refactor` — `docs.api.*` (ramp closed) and `lint.clean` (`dl-034`)
 
 `refactor`'s `docs.api.public-complete` / `docs.api.build` checks run **warn / new-code-only** until
 **`task-062-typedoc-tsdoc-backfill`** lands the TypeDoc/TSDoc backfill + build wiring; from the task
@@ -135,7 +135,7 @@ Each bug has exactly **one** fix task, so the aggregate rule collapses to 1:1: t
 
 ---
 
-## 3. Phase-by-phase plan (mirrors `dev-loop.yaml` v1.1 exactly)
+## 3. Phase-by-phase plan (mirrors `dev-loop.yaml` v1.2 exactly)
 
 ### 3.1 `start` — role: developer
 
@@ -176,7 +176,12 @@ Each bug has exactly **one** fix task, so the aggregate rule collapses to 1:1: t
 
 - `agent.execute` — refactor with tests green.
 - **Checks (post):** `tests.passing`; `tests.coverage(min: 80)`; `docs.api.public-complete`,
-  `docs.api.build` — **staged** per §2 (warn/new-code-only through `task-062`, hard-reject after).
+  `docs.api.build`; **`lint.clean`**.
+- `docs.api.*` is **ACTIVE hard-reject** since `task-062` closed its ramp (§2). `lint.clean` is
+  **ACTIVE hard-reject from the start** — no ramp — per `dl-034-lint-gate-in-dev-loop`, added to
+  `dev-loop.yaml` v1.2 by `task-066-fix-eslint-baseline-and-lint-gate`. It is backed by
+  `npm run lint` exiting 0 and asserted by `test/lint/lint-clean.test.ts`; an eslint error in any
+  file fails `refactor`.
 
 ### 3.6 `review` — role: reviewer
 
@@ -253,8 +258,9 @@ topological order.
 
 ## 6. Open items
 
-- **`docs.api.*` flip (staged, in-plan):** warn/new-code-only until `task-062`, hard-reject after (§2)
-  — the only staged check; not a divergence from config.
+- **`docs.api.*` flip — CLOSED.** `task-062` landed the backfill and flipped the checks to ACTIVE
+  hard-reject; no staged check remains in this plan.
+- **`lint.clean` — ACTIVE** since `task-066` (`dl-034`), hard-reject from the start, no ramp.
 - **`user-docs` / `e2e-smoke` (release-cycle phases, not this plan):** dl-013's `user-docs` gate and
   dl-023's `e2e-smoke` gate run **after** `implementation` completes, before `submit`. They are
   separate `release-cycle` phases with their own plans — out of scope here.
