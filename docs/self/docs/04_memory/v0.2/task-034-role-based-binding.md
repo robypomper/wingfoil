@@ -2,8 +2,7 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: in-progress
-rejection_reason: "resolveApprover falls back to agents[0] without consulting approval_authority, so with the approver role held by no human member it routes an approval to an AI agent - contradicting adr-006, CLAUDE.md section 4, and BDD P4.14 whose error scenario the TSDoc claims to implement; the path has no test. Per dl-033 (ready, option b): do not patch it - remove resolveApprover and NoRoleHolderError from this task scope, keep isRoleDefined/assertRoleDefined/resolveRoleHolders for P5.4.2 directive binding, and leave P4.14 routing to task-046 on the authority module. Also correct the TSDoc claim that P4.14 no-member-in-DNA is implemented, and the Execution Notes misattribution of the uncovered branch (it is the agents fallback in resolveRoleHolders, not resolveApprover)."
+status: in-review
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
@@ -155,3 +154,108 @@ nothing — no replacement had to be invented.
 `agent.verify_specs` — still no new `tech-spec`: the pass is a deletion plus a coverage case over the
 already-`spec-002-dna-yaml-schema`-approved shapes. `depends_on: []` → `agent.read_related` remains a
 no-op (`dl-015`).
+
+### red (second pass)
+
+Rewrote `test/dna/roles.test.ts`'s AC-3 block as a **module-surface** assertion (a removal has no
+behaviour to call, so the failing test has to pin the surface itself), and added one AC-2 case:
+
+- `describe('module surface (AC-3, dl-033-canonical-role-resolver option b)')` — three cases:
+  `Object.keys(rolesModule).sort()` equals exactly
+  `['UnknownRoleError', 'assertRoleDefined', 'isRoleDefined', 'resolveRoleHolders']`; the `dna` barrel
+  has neither `resolveApprover` nor `NoRoleHolderError`; the barrel still re-exports all four kept
+  symbols. Namespace imports (`import * as …`) are used deliberately so the test compiles both before
+  and after the removal — the failure is an assertion, not a missing-module compile error.
+- **AC-2, characterization (T1 — exempt from red-first, and it did pass on the first run as expected):**
+  `resolveRoleHolders` against a `DnaYaml` with **no `team.agents` key at all** (`agents` is
+  `z.array(AgentEntry).optional()` in `src/dna/schema.ts`, so this is real, valid config — a solo
+  maintainer with no AI agents). This closes the one branch the first pass left uncovered.
+
+**Observed red, verbatim** (`npx jest test/dna/roles.test.ts` — 2 failed, 10 passed, 12 total):
+
+```
+● module surface (AC-3, dl-033-canonical-role-resolver option b) › exports only the P5.4.2 directive-binding primitives — no approval-routing symbol
+    "UnknownRoleError",
+    "assertRoleDefined",
+    "isRoleDefined",
++   "resolveApprover",
+    "resolveRoleHolders",
+
+● module surface (AC-3, dl-033-canonical-role-resolver option b) › does not re-export any approval-routing symbol from the dna module barrel
+    expect(received).not.toHaveProperty(path)
+    Expected path: not "resolveApprover"
+    Received value: [Function resolveApprover]
+```
+
+Committed `test(dna): …`.
+
+### green (second pass)
+
+- Deleted `resolveApprover` and `NoRoleHolderError` from `src/dna/roles.ts`; removed both from
+  `src/dna/index.ts`'s re-export list. `isRoleDefined`/`assertRoleDefined`/`resolveRoleHolders`/
+  `UnknownRoleError`/`RoleHolders` are untouched and keep their tests.
+- **TSDoc corrected** (the second half of the rejection): the module header no longer claims approval
+  routing (P1.7/P4.14) builds on this file. It now states the dl-033 boundary explicitly — agents hold
+  `developer`/`reviewer` via `executes_as`, which is correct for binding and wrong for approval; the
+  authority question is answered by `src/core/approval-authority.ts` (task-040) and P4.14's routing
+  scenarios belong to `task-046-memory-approve`. `resolveRoleHolders`'s own TSDoc now says in so many
+  words that including agents is **not** an authority check. Nothing in the file claims to implement
+  P4.14 any more. `src/dna/index.ts`'s module header got the same correction.
+- All 12 cases in `test/dna/roles.test.ts` green; `npx tsc -p tsconfig.build.json` exit 0.
+
+Committed `feat(dna): …`.
+
+### refactor (second pass)
+
+Documentation-only, no behaviour change: `test/dna/roles.test.ts`'s module header now records *why*
+the surface block exists (an approval-routing export reappearing in `src/dna` is a regression, not an
+addition), so the constraint survives the next reader. Tests stayed green; `npx eslint .` exit 0.
+
+Committed `refactor(dna): …`.
+
+### review (second pass) — gate results, as observed
+
+- `npx jest --maxWorkers=2` — **693/693 passing, 64/64 suites**. No flake this run (the first pass's
+  transient `program.integration.test.ts` latency assertion did not recur; it is separately tracked as
+  `bug-011`/`bug-013`/`bug-014`).
+- `npx jest --coverage --maxWorkers=2` — **98.08% statements / 87.89% branches / 98.51% lines global**
+  (≥ 80). **`src/dna/roles.ts` is now 100% statements / 100% branches / 100% functions / 100% lines** —
+  the no-`agents:`-key fixture closed the last branch, so the module has no uncovered path left.
+- `npx tsc -p tsconfig.build.json` — exit 0.
+- `npm run docs:api` — exit 0 (ACTIVE hard-reject, TypeDoc resolves every link in the rewritten TSDoc).
+- `npx eslint .` — **exit 0** (`lint.clean`, ACTIVE hard-reject since `dl-034`/`dev-loop.yaml` v1.2,
+  asserted by `test/lint/lint-clean.test.ts`, which is part of the 64 suites above).
+
+### corrections to the first-pass Execution Notes
+
+Two first-pass claims were wrong and are corrected here rather than edited in place (the first-pass
+sections are left as written, as the audit record of what was actually claimed):
+
+1. **Misattributed uncovered branch.** The first pass's *review* section said the single uncovered
+   branch was "the `agents[0]` fallback ordering in `resolveApprover`, not a behavior gap". Both
+   halves were wrong. The uncovered branch was the **`dna.team.agents ?? []` nullish-coalescing in
+   `resolveRoleHolders`** — the `undefined` side of it, i.e. a `dna.yaml` with no `agents:` key, which
+   `src/dna/schema.ts` explicitly permits (`agents: z.array(AgentEntry).optional()`). That is real,
+   supported config, so it *was* a genuine coverage gap over a reachable path, not an artefact. It is
+   closed by the AC-2 characterization case added this pass. Separately, the `agents[0]` fallback in
+   `resolveApprover` was not merely uncovered — it was the **defect** the review gate rejected the
+   task for; describing it as "not a behavior gap" was the opposite of true, since that line is
+   exactly what routed an approval to an AI agent in violation of ADR-006/REQ-SEC-03.
+2. **Fit Criterion overstated as holding "by construction".** The first pass's *green* section wrote
+   that because every function reads only the parsed `DnaYaml`, "the REQ-SYS-08 Fit Criterion holds by
+   construction" — stated over the whole module. Reading only `DnaYaml` is necessary but not
+   sufficient: the Fit Criterion is about *role reassignment in DNA changing effective directives and
+   approval authority*, and the module's approval half resolved authority in a way ADR-006 forbids, so
+   "by construction" papered over the very function that broke the requirement's intent. The accurate
+   statement, and the one this pass makes: the **directive-binding** half of REQ-SYS-08 is satisfied
+   here, demonstrated by one explicit test (`'reassigning a role in DNA alone changes the resolved
+   holders — zero directive/workflow edits'`), not by construction; REQ-SYS-08's **approval-authority**
+   half is satisfied elsewhere, in `src/core/approval-authority.ts` (task-040), and is verified there.
+
+### scope handed off (dl-033 Actions)
+
+`task-046-memory-approve` now owns BDD `p4-workflow/P4.14-approval-routing.feature` in full — "Route a
+pending approval to the role holder", "Error - the approval role has no member in DNA", and the
+`by_person` override — implemented over `src/core/approval-authority.ts`, not over this module. That
+task's `depends_on` (`task-040`, `task-041`) already points at the right foundation; no edit to it was
+made from this branch.
