@@ -113,13 +113,14 @@ describe('initWingfoilProject — guards inherited from the write path', () => {
 });
 
 /**
- * task-044-builtin-template-integrity (REQ-SEC-10) — `initWingfoilProject`'s optional 3rd
- * `builtinTemplates` param (defaulting to `BUILTIN_TEMPLATE_SOURCES`, currently `[]` — no real
- * built-in template content ships until task-057/a future P4.17 task populates the registry) is the
- * seam `verifyBuiltinTemplates` (src/core/builtin-integrity.ts) plugs into: a corrupted/schema-invalid
- * source must abort `init` before ANY file is written, exit 1, naming the failing template — BDD
- * P3.8 "Error - a built-in template fails its integrity check" / P4.17 "Error - a built-in workflow
- * template is structurally invalid".
+ * task-044-builtin-template-integrity (REQ-SEC-10) — guard 5. In production the checked sources are
+ * DERIVED from this run's `templateScaffold(template)` output (`builtinTemplateSources`,
+ * src/storage/templates.ts), so the checked set cannot drift from the written set; the optional 3rd
+ * `builtinTemplates` param is the TEST-ONLY override that exercises the abort path without real
+ * built-in content on disk (today's scaffold reserves both built-in directories with a `.gitkeep`
+ * only, so the derived set is empty). A corrupted/schema-invalid source must abort `init` before ANY
+ * file is written, exit 1, naming the failing template — BDD P3.8 "Error - a built-in template fails
+ * its integrity check" / P4.17 "Error - a built-in workflow template is structurally invalid".
  */
 describe('initWingfoilProject — REQ-SEC-10 built-in template integrity', () => {
   it('aborts before writing anything when a built-in directive template is corrupted', () => {

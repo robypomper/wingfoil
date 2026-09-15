@@ -96,25 +96,26 @@ export const BUILTIN_DIRECTIVES_DIR = `${WINGFOIL_DIR}/directives/built-in`;
 export const BUILTIN_WORKFLOWS_DIR = `${WINGFOIL_DIR}/workflows/built-in`;
 
 /**
- * Which built-in kind a scaffold path belongs to, by the directory that holds it — or `null` when the
- * path is not a built-in asset at all. Directory-based (not extension-based) on purpose: an
- * unexpected file shape under a built-in directory is then still CHECKED (and fails) rather than
- * silently skipped by an extension filter. Dotfile placeholders (`.gitkeep`, which reserve an empty
- * directory in git and carry no template content) are the single exclusion.
+ * The built-in source one scaffold file contributes, or `null` when the file is not a built-in
+ * template asset.
+ *
+ * Kind comes from the DIRECTORY holding the file, never from its extension: an unexpected file shape
+ * under a built-in directory is then still CHECKED (and fails, naming itself) instead of being waved
+ * through by an extension filter — the fail-closed reading. `name` is the basename with its final
+ * extension stripped. Dotfile placeholders (`.gitkeep`, which reserve an empty directory in git and
+ * carry no template content) are the single exclusion.
  */
-function builtinKindOf(path: string): BuiltinTemplateKind | null {
-  const base = path.slice(path.lastIndexOf('/') + 1);
+function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
+  const base = file.path.slice(file.path.lastIndexOf('/') + 1);
   if (base === '' || base.startsWith('.')) return null;
-  if (path.startsWith(`${BUILTIN_DIRECTIVES_DIR}/`)) return 'directive';
-  if (path.startsWith(`${BUILTIN_WORKFLOWS_DIR}/`)) return 'workflow';
-  return null;
-}
 
-/** `name` for a built-in scaffold path: its basename with the final extension (if any) stripped. */
-function builtinNameOf(path: string): string {
-  const base = path.slice(path.lastIndexOf('/') + 1);
+  let kind: BuiltinTemplateKind;
+  if (file.path.startsWith(`${BUILTIN_DIRECTIVES_DIR}/`)) kind = 'directive';
+  else if (file.path.startsWith(`${BUILTIN_WORKFLOWS_DIR}/`)) kind = 'workflow';
+  else return null;
+
   const dot = base.lastIndexOf('.');
-  return dot > 0 ? base.slice(0, dot) : base;
+  return { name: dot > 0 ? base.slice(0, dot) : base, kind, content: file.content };
 }
 
 /**
@@ -142,9 +143,8 @@ function builtinNameOf(path: string): string {
 export function builtinTemplateSources(files: readonly ScaffoldFile[]): BuiltinTemplateSource[] {
   const sources: BuiltinTemplateSource[] = [];
   for (const file of files) {
-    const kind = builtinKindOf(file.path);
-    if (kind === null) continue;
-    sources.push({ name: builtinNameOf(file.path), kind, content: file.content });
+    const source = builtinSourceOf(file);
+    if (source !== null) sources.push(source);
   }
   return sources;
 }

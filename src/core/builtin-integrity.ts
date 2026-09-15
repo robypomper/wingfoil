@@ -1,8 +1,17 @@
 /**
- * Built-in template integrity check (task-044-builtin-template-integrity, REQ-SEC-10): "Built-in
- * directive and workflow templates are integrity/schema-checked before installation during `init`...
- * A corrupted or schema-invalid built-in template aborts `init` before writing partial assets, with a
- * message naming the failing template" (docs/02_requirements/03_sard/05_security-compliance.md).
+ * Built-in template schema check (task-044-builtin-template-integrity, REQ-SEC-10 "Schema checks on
+ * built-in templates"): "Built-in directive and workflow templates are schema-checked before
+ * installation during `init`... A corrupted or schema-invalid built-in template aborts `init` before
+ * writing partial assets, with a message naming the failing template"
+ * (docs/02_requirements/03_sard/05_security-compliance.md).
+ *
+ * SCOPE, per `dl-031-req-sec-10-integrity-depth` (`ready`), which retitled the requirement: schema
+ * validation IS the REQ-SEC-10 contract. There is deliberately NO digest and NO manifest here — the
+ * threat the requirement's rationale names is accidental corruption (truncated file, bad merge), not
+ * post-install tampering; a manifest shipped inside the same package is no control against an
+ * adversary who can rewrite a template; and a content hash would add a line-ending / encoding /
+ * ordering determinism surface against REQ-SYS-07. Distribution-channel assurance lives in `adr-009`
+ * / `spec-015` (npm provenance) instead. Do not "strengthen" this module with hashing.
  *
  * A cross-pillar concern by construction — checking a directive source needs the Directives pillar's
  * `DirectiveFrontmatter` schema, checking a workflow source needs the Workflow pillar's `Workflow`
