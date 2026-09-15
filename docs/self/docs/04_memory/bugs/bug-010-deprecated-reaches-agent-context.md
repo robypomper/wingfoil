@@ -46,8 +46,10 @@ A second surface is arriving. `task-037-role-task-scoped-context` (`in-review`) 
 `assembleExecutionContext`, which resolves the target element's Memory document with no deprecated
 filter; once it merges alongside `task-038`, an element at `status: deprecated` will be returned in
 `context.memory`. The two surfaces are the same defect and should be fixed together — the shared
-predicate from `task-038` (`isDeprecatedStatus`, `src/memory/query.ts`) is the intended primitive for
-both.
+predicate to call is **`isArchivedStatus`** (`src/memory/state-machine.ts`, exported from
+`src/memory`). It supersedes `task-038`'s `isDeprecatedStatus`, which `task-035` removed outright when
+it implemented `dl-028`: the archived set is now `{deprecated, superseded}`, so this fix must exclude
+both, not only `deprecated`.
 
 Related decision: **`dl-028-archived-states-excluded-from-context`** is deciding *which statuses*
 count as archived (whether `superseded` joins `deprecated`). That DL settles the set; this bug fixes
