@@ -7,6 +7,19 @@
  * see `src/memory/query.ts`'s `findMemoryDocumentById` doc comment for the full history). REQ-PERF-04
  * coverage is ported forward onto this conformant URI, not dropped (`test/mcp/resource-latency.test.ts`).
  *
+ * The two handlers differ deliberately on **archived content** (REQ-STATE-06, the set ratified by
+ * `dl-028-archived-states-excluded-from-context`, fixed by
+ * `task-069-fix-archived-excluded-from-agent-context` for `bug-010-deprecated-reaches-agent-context`).
+ * The **collection** withholds documents whose `status` is archived (`{deprecated, superseded}`), so
+ * an agent browsing a type is never handed a replaced or retired decision as if it were current — the
+ * same guarantee `wingfoil://memory/search` and default `memory search` already give. The
+ * **single-document** Resource does **not** filter: addressing a document by its id is explicit
+ * retrieval, which REQ-STATE-06 preserves ("remaining present on disk and in git history"). It is the
+ * MCP counterpart of `memory search --status deprecated` on the CLI, whose own opt-in
+ * (`memorySearchFn`, `src/core/index.ts`) is gated on the same `isArchivedStatus`. `draft` is not
+ * archived and is withheld by neither handler; only the *context* path (`src/core/relevance.ts`)
+ * excludes it as well.
+ *
  * Both handlers are thin adapters over `src/memory/query.ts`'s primitives
  * (`listMemoryDocumentsByType`, `findMemoryDocumentByTypeAndId`, both new in this task) — no scanning
  * logic lives here, only URI-variable extraction, the read-only guard (`./read-only`), and MCP
@@ -27,6 +40,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { loadMemoryYaml } from '../core';
 import { findMemoryDocumentByTypeAndId, listMemoryDocumentsByType } from '../memory/query';
+import { isArchivedStatus } from '../memory/state-machine';
 import { readDocument } from '../storage';
 
 import { jsonResourceResult, refuseIfWriteIntent, resourceNotFoundError } from './read-only';
@@ -64,12 +78,23 @@ export function registerMemoryResources(server: McpServer, options: RegisterMemo
       const type = variables.type as string;
       if (!(type in memoryYaml.types)) throw resourceNotFoundError(`memory/${type}`);
 
-      const summaries = listMemoryDocumentsByType(root, memoryYaml, type).map(({ id, title, status, tags }) => ({
-        id,
-        title,
-        status,
-        tags,
-      }));
+      // REQ-STATE-06 / `dl-028-archived-states-excluded-from-context` (`bug-010`): this collection is
+      // an agent-facing read path, so archived documents — `{deprecated, superseded}`, per the shared
+      // `isArchivedStatus` — are withheld here. The filter sits at this call site rather than inside
+      // `listMemoryDocumentsByType` because that primitive also serves the single-document Resource's
+      // consumers, which must still see archived content; the *policy* belongs to the surface, while
+      // the *definition* of "archived" stays single, as dl-028 requires. `status` is already
+      // projected to `string | undefined` by the primitive — the shape `isArchivedStatus` takes — so
+      // a non-string frontmatter `status` is never archived. `filter` preserves the primitive's
+      // id-ascending order (REQ-SYS-07).
+      const summaries = listMemoryDocumentsByType(root, memoryYaml, type)
+        .filter(({ status }) => !isArchivedStatus(status))
+        .map(({ id, title, status, tags }) => ({
+          id,
+          title,
+          status,
+          tags,
+        }));
 
       return jsonResourceResult(uri, summaries);
     },
