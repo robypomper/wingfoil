@@ -12,8 +12,13 @@
 * **Description:** Each deliverable's state lives in its Memory frontmatter; every transition is validated against the
   element type's state machine.
 * **Rationale:** State close to the deliverable; illegal lifecycle moves blocked.
-* **Fit Criterion:** A transition not present in the type's `transitions` graph is rejected with
-  `"illegal transition <from> -> <to> for type '<type>'"` and leaves the state unchanged.
+* **Fit Criterion:** A transition not permitted by the type's `sequence`/`gates`/`waiting` state machine
+  (`spec-001-memory-yaml-schema`) is rejected with `"illegal transition <from> -> <to> for type '<type>'"` and
+  leaves the state unchanged. Per `dl-032-illegal-transition-message-contract` (option c) that string is the
+  message; any explanatory text (e.g. "a `gates` state — its forward edge requires `approve`, not `submit`")
+  rides as the issue's detail rather than replacing it. The exit code is **`1`**, per BDD P1.6 and
+  REQ-INT-04 (an illegal transition is a logic error, not a usage/argument error); `spec-009` §3 has been
+  rewritten to key exit codes on the nature of the failure rather than on the detecting pass.
 * **Traceability:** Feature P1.6 (US-3-09, BDD `p1-memory/P1.6-memory-submit.feature`); Feature P4.11 (US-4-08,
   BDD `p4-workflow/P4.11-deliverables.feature`); Feature P4.13 (US-1-02, BDD `p4-workflow/P4.13-state-deduction.feature`).
 
@@ -54,15 +59,16 @@
   (US-1-05, BDD `p5-interaction/P5.4.4-execution-context.feature`); Feature P3.6 (US-3-06,
   BDD `p3-directives/P3.6-auto-load-by-role.feature`).
 
-### REQ-STATE-06 — Deprecated content excluded from context
+### REQ-STATE-06 — Archived content excluded from context
 
-* **Description:** Documents in `deprecated` state remain in the repo but are excluded from agent context and default
-  searches.
+* **Description:** Documents in an archived state — `deprecated` on any type, and `superseded` on `adr`/`tech-spec` —
+  remain in the repo but are excluded from agent context and default searches.
 * **Rationale:** Distinguish active from archived decisions.
-* **Fit Criterion:** A `deprecated` document never appears in an assembled agent context nor in default `memory search`
-  results, while remaining present on disk and in git history.
+* **Fit Criterion:** A `deprecated` or `superseded` document never appears in an assembled agent context nor in default
+  `memory search` results, while remaining present on disk and in git history.
 * **Traceability:** Feature P1.9 (US-5-04, BDD `p1-memory/P1.9-memory-deprecate.feature`); Feature P5.3.3 (US-1-10,
-  BDD `p5-interaction/P5.3.3-relevance-filtering.feature`).
+  BDD `p5-interaction/P5.3.3-relevance-filtering.feature`). Archived set ratified by
+  `dl-028-archived-states-excluded-from-context`.
 
 ### REQ-STATE-07 — Iteration state for include() composition
 

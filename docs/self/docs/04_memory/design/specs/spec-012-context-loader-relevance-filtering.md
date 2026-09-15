@@ -140,8 +140,12 @@ interface ContextLimits {
 - **Deterministic truncation**: when a cap is reached, stop — never partially include a document, and
   never drop a higher-ranked doc to fit a lower-ranked one. Because the order is a total order, the
   included set is a pure function of `(element, stateRef, limits)`.
-- Documents in states `draft`/`rejected`/`deprecated` are **excluded** (only stable, decided content
-  enters an execution context), so a doc's frontmatter `status:` is part of the selection input.
+- Documents in states `draft`/`deprecated`/`superseded` are **excluded** (only stable, decided and
+  still-current content enters an execution context), so a doc's frontmatter `status:` is part of the
+  selection input. `superseded` — the terminal state of `adr`/`tech-spec` — is archived content and is
+  excluded for the same reason as `deprecated`; the previously-listed `rejected` is dropped, as
+  `spec-001-memory-yaml-schema` removed that status from every type's machine. Ratified by
+  `dl-028-archived-states-excluded-from-context`; the shared predicate is `isArchivedStatus`.
 
 ### 7. Canonical serialized payload (`context-builder`)
 

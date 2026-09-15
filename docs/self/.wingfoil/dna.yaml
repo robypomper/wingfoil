@@ -133,7 +133,9 @@ team:
       executes_as: [ developer, reviewer, qa, architect ]
       approval_authority: false
   # Available agent roles (P5.4.1); nested under `team` so `dna show --section team` surfaces them.
-  # [SPEC: REQ-SYS-08 / BDD P4.20 "role '...' not defined in dna.yaml"]; per-role `description` is [AUTHORING].
+  # [SPEC: REQ-SYS-08 / BDD P5.4.2 "unknown role '...' (not defined in dna.yaml)"]; per-role `description` is [AUTHORING].
+  # (was cited as P4.20, which is template-customization; the quoted message is P5.4.2's — flagged in both
+  #  passes of task-034-role-based-binding and corrected here.)
   roles:
     - name: developer
       description: Writes code and creates features; applies code-quality and testing directives.
