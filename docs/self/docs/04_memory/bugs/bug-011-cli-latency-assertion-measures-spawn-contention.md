@@ -2,7 +2,7 @@
 id: "bug-011-cli-latency-assertion-measures-spawn-contention"
 type: bug
 title: "P1.5's under-1-second assertion measures subprocess spawn contention, so npm test fails intermittently on a clean main"
-status: in-progress
+status: in-review
 severity: "medium"
 release-origin: "v0.1"
 release: ""

@@ -2,7 +2,7 @@
 id: "task-067-fix-cli-latency-assertion"
 type: task
 title: "Fix: P1.5's under-1-second budget must measure the query, not subprocess spawn contention"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "tooling", "quality-gate"]
@@ -199,3 +199,32 @@ reconciles exactly against the 60 suites / 576 tests recorded for `main` after
 `task-038`/`040`/`041`. This task adds 1 suite and 66 cases: 64 from the guard's `it.each` over the
 64 scanned test sources (the count is visible in the red run above — `1 failed, 64 passed`), 1 for the
 guard's own non-vacuity check, and 1 for the P1.5 scenario. 576 + 66 = 642. ✓
+
+### `review` — BDD gate, AC verdicts, `bug.sync_state`
+
+**`tests.bdd.run`.** The BDD-bearing suites for this task's contracts —
+`P1.5-memory-search.feature` (all three scenarios), `P1.12-keyword-search.feature`, and the new guard:
+`test/cli/program.integration.test.ts`, `test/core/query-latency.test.ts`,
+`test/core/memory-search.test.ts`, `test/memory/query.test.ts`,
+`test/core/latency-budget-placement.test.ts` — **5 suites / 152 tests, all passed**, 11.8 s.
+
+**AC verdicts.**
+
+| AC | Verdict | Evidence |
+|----|---------|----------|
+| 1 | **MET** | The budget is asserted in `test/core/query-latency.test.ts` around the registered `memory.memorySearch` `CoreFn` — the same call `wingfoil memory search` and the MCP `wingfoil://memory/search` Resource dispatch to — with no process boundary anywhere in the measurement. `program.integration.test.ts` now asserts exit code, output shape and content only. |
+| 2 | **MET** | `P1.5-memory-search.feature` is unchanged. Its "Find a decision by keyword" scenario is satisfied across two assertions that together cover it strictly more tightly than before: the integration test proves the CLI returns the "API design" document at exit 0; the in-process benchmark proves the same scenario's query (Background document titled "API design" tagged "architecture", query `api`) returns that document and only that document, p95 < 1,000 ms over 25 runs at 1,000-document scale. |
+| 3 | **MET** | Three consecutive `npm test` runs at `maxWorkers: 11` (jest's default here), all exit 0, 61 suites / 642 tests — table above. Plus two runs at `--maxWorkers=4`, bug-011's documented repro setting, also green. |
+| 4 | **MET** | Nothing deleted, nothing `.skip()`ed, no threshold widened: `1000` is still `1000`, in both the feature file and `P95_BUDGET_MS`. The suite grew by 66 cases and 1 file (diff: 4 files, +331/−8). One assertion was *removed* — the spawn-wrapped one — and that is the fix itself, not an evasion of it: the only remaining question is whether the clause it claimed to enforce is still enforced, and it is, more strictly. The retained budget in the new location is justified by measurement, not by assumption: observed p95 63.3 ms against 1,000 ms. |
+| 5 | **Coverage / `docs:api` MET; `eslint` NOT MET — pre-existing, not this task's** | Coverage 97.96/88.22/97.65/98.38, all ≥ 80. `npm run docs:api` exit 0. `npx eslint .` exits 1 on **exactly one** error, `test/storage/git-backed-storage.test.ts:90`, byte-identical to the baseline taken on this branch before the first edit — `bug-009`, owned by **task-066**, whose branch this one is not based on. This task added zero lint findings; AC-5's eslint half closes when task-066 merges. |
+
+**`bug.sync_state`.** `bug-011-cli-latency-assertion-measures-spawn-contention` is this task's only
+`bug:` and this task is its only fix task, so the aggregate rule collapses to 1:1: the bug moves
+`in-progress → in-review` in the same commit as this task's `memory.submit`.
+
+**Commit-body deviation (CLAUDE.md §5.1).** §5.1 specifies a subject-only commit for `memory.submit`;
+this one carries a short body naming the `bug.sync_state` it performs, so the paired bug transition is
+legible from `git log` without diffing the bug file.
+
+**Stopped at `in-review`.** No `memory.approve`, no merge, no worktree or branch removal — approval
+authority is the `approver` role's (CLAUDE.md §4/§8).
