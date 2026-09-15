@@ -2,7 +2,7 @@
 id: "task-066-fix-eslint-baseline-and-lint-gate"
 type: task
 title: "Fix: restore a clean lint baseline and wire the lint gate into dev-loop's refactor phase"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "tooling", "quality-gate"]

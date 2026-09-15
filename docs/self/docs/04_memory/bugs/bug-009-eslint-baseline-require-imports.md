@@ -2,7 +2,7 @@
 id: "bug-009-eslint-baseline-require-imports"
 type: bug
 title: "`npm run lint` fails on main, so every branch inherits a red lint gate that masks newly-introduced errors"
-status: triaged
+status: in-progress
 severity: "medium"
 release-origin: "v0.1"
 release: ""
