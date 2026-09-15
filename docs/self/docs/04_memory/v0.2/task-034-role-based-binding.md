@@ -106,3 +106,52 @@ green. Committed `refactor(dna): …`.
   not a behavior gap).
 - `npm run docs:api` — **exit 0** (TSDoc present on all new exported declarations; ACTIVE hard-reject
   gate satisfied).
+
+---
+
+## Execution Notes — second pass (returned to `red` by the review gate)
+
+The review gate rejected the first pass (`rejection_reason` in frontmatter at the time of this pass)
+and `dev-loop.yaml` v1.2's review `fallback: { step: red, set_state: in-progress }` resumed the loop
+at `red`. This section is **appended**; the first-pass sections above are left as written, and the
+two first-pass claims that were wrong are corrected explicitly under "corrections to the first-pass
+Execution Notes" below.
+
+### design (second pass)
+
+**New hard input, ratified after the first pass:** `dl-033-canonical-role-resolver` (`ready`) —
+**option (b), two resolvers, one hard boundary**. `src/core/approval-authority.ts` (shipped by
+`task-040`, merged to `main`) is canonical for *authority* ("may this principal approve?");
+`src/dna/roles.ts` is canonical for *binding* ("which directives does this role load?", P5.4.2) and
+is scoped **out of approval entirely**. dl-033's Rationale is explicit that the root cause is the two
+questions being fused in one module, not the `agents[0]` fallback line: agents legitimately hold
+`developer`/`reviewer` via `team.agents[].executes_as`, which is **correct** for directive binding and
+**wrong** for approval routing. Option (a) — adding an `approval_authority === true` filter to
+`resolveApprover` — was considered and **not** chosen.
+
+**Revised AC classification (T1, `dl-014`):**
+
+- **AC-1** (`isRoleDefined`/`assertRoleDefined`, P5.4.2) — unchanged, already shipped and green.
+- **AC-2** (`resolveRoleHolders`, REQ-SYS-08 Fit Criterion) — unchanged, already shipped and green.
+  One **characterization** sub-case added this pass (see below).
+- **AC-3** — **restated**. Was "`resolveApprover` routes to the role holder / errors when nobody
+  holds the role (P4.14)". Now: *"`src/dna/roles.ts` and the `dna` barrel export only the P5.4.2
+  directive-binding primitives — no approval-routing symbol"*. This is **red-first**: the ratified
+  surface is a behavioural change (a removal), and a test asserting the module surface fails while
+  `resolveApprover`/`NoRoleHolderError` still exist.
+
+**Reassigned out of this task** (dl-033 Actions): P4.14's routing scenarios — "Route a pending
+approval to the role holder", "Error - the approval role has no member in DNA", and the `by_person`
+override — move to **`task-046-memory-approve`** (`depends_on: ["task-040-…", "task-041-…"]`), built
+on `src/core/approval-authority.ts`. Nothing in this task implements P4.14 after this pass, so the
+TSDoc claiming it does is corrected here too.
+
+**Consumer check before removing (dl-033 / hard stop):** `grep` across `src/`, `test/`, `docs/`,
+`*.yaml`, `*.json` for `resolveApprover` / `NoRoleHolderError` found **no production or test consumer
+outside `src/dna/roles.ts`, `src/dna/index.ts`, `test/dna/roles.test.ts`** and the documents that
+describe the defect (`dl-033`, the v0.2 decision-log-ingest plan, this task file). The removal breaks
+nothing — no replacement had to be invented.
+
+`agent.verify_specs` — still no new `tech-spec`: the pass is a deletion plus a coverage case over the
+already-`spec-002-dna-yaml-schema`-approved shapes. `depends_on: []` → `agent.read_related` remains a
+no-op (`dl-015`).
