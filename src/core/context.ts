@@ -44,9 +44,9 @@ export interface RoleDirectiveResolution {
  * `valueOf`, `hasOwnProperty` or `__proto__` would otherwise resolve to an inherited
  * `Object.prototype` member instead of `undefined`. Read own properties only. */
 function ownAssignments(rolesYaml: RolesYaml, role: string): readonly string[] | undefined {
-  if (!Object.prototype.hasOwnProperty.call(rolesYaml.assignments, role)) return undefined;
-  const assigned: unknown = rolesYaml.assignments[role];
-  return Array.isArray(assigned) ? (assigned as readonly string[]) : undefined;
+  return Object.prototype.hasOwnProperty.call(rolesYaml.assignments, role)
+    ? rolesYaml.assignments[role]
+    : undefined;
 }
 
 /**
@@ -104,10 +104,9 @@ export function resolveRoleDirectives(
   }
 
   // Sort ascending by directive id (spec-012 §5 / REQ-SYS-07): the output order must not depend on
-  // `roles.yaml` listing order or file-system enumeration order.
-  const directives = [...byId.values()].sort((a, b) =>
-    a.frontmatter.id < b.frontmatter.id ? -1 : a.frontmatter.id > b.frontmatter.id ? 1 : 0,
-  );
+  // `roles.yaml` listing order or file-system enumeration order. `byId` is keyed by directive id, so
+  // the comparator never sees two equal keys and a strict two-way compare is total here.
+  const directives = [...byId].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, file]) => file);
 
   return { directives, warnings };
 }
