@@ -69,16 +69,23 @@ function isValidWorkflowSource(source: BuiltinTemplateSource): boolean {
   }
 }
 
+/** How one {@link BuiltinTemplateKind} is checked, and what its failure message reads. */
+interface IntegrityPolicy {
+  readonly isValid: (source: BuiltinTemplateSource) => boolean;
+  readonly message: (name: string) => string;
+}
+
 /**
- * Per-kind integrity policy: the `isValid` predicate to apply and the exact REQ-SEC-10 abort-message
+ * Per-kind schema-check policy: the `isValid` predicate to apply and the exact REQ-SEC-10 abort-message
  * builder to use when it fails. Keyed by {@link BuiltinTemplateKind} so each kind's validator and its
  * BDD wording live together and `verifyBuiltinTemplates` branches on `kind` exactly once. The message
  * strings are verbatim BDD contracts — P3.8 "Error - a built-in template fails its integrity check"
  * and P4.17 "Error - a built-in workflow template is structurally invalid" — do not reword.
+ *
+ * Declared as an EXHAUSTIVE `Record` so widening {@link BuiltinTemplateKind} is a compile error until
+ * the new kind gets a policy; look it up only through {@link policyFor}, never by bare indexing.
  */
-const INTEGRITY_POLICY: Readonly<
-  Record<BuiltinTemplateKind, { isValid: (s: BuiltinTemplateSource) => boolean; message: (name: string) => string }>
-> = {
+const INTEGRITY_POLICY: Readonly<Record<BuiltinTemplateKind, IntegrityPolicy>> = {
   directive: {
     isValid: isValidDirectiveSource,
     message: (name) => `built-in directive template integrity check failed: ${name}`,
@@ -90,10 +97,39 @@ const INTEGRITY_POLICY: Readonly<
 };
 
 /**
- * Integrity/schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no
- * unordered iteration), and return the FIRST one that fails — or `null` when every source is valid
- * (including the trivial, always-passing case of an empty list, today's shipped default: no built-in
- * template content exists yet, see `src/storage/templates.ts`'s `BUILTIN_TEMPLATE_SOURCES`).
+ * The REQ-SEC-10 message for a source whose `kind` has no policy — the fail-closed branch. Not a BDD
+ * contract string (the P3.8/P4.17 scenarios only cover the two known kinds), but it obeys the fit
+ * criterion's one requirement of every abort message: it NAMES the failing template. The offending
+ * `kind` is echoed so the operator can see what arrived.
+ */
+function unknownKindMessage(name: string, kind: string): string {
+  return `built-in template integrity check failed: ${name} (unrecognized kind "${kind}")`;
+}
+
+/**
+ * The policy for `kind`, or `undefined` when there is none.
+ *
+ * `INTEGRITY_POLICY[kind]` on its own is FAIL-OPEN at runtime: TypeScript types the result as always
+ * present, but a `kind` outside the union — reachable through a cast, a JS caller, a JSON boundary, or
+ * a future disk-derived source list — yields `undefined` (or, for `constructor`/`toString`/`__proto__`,
+ * an inherited `Object.prototype` member), and the call on it throws a `TypeError`. That throw escapes
+ * `initWingfoilProject`, whose guard-5 call sits outside its `try`/`catch`, as an uncaught exception
+ * instead of the `VALIDATION` CoreResult / exit 1 REQ-SEC-10 demands. `hasOwnProperty` keeps inherited
+ * members out, so an unrecognized kind resolves to `undefined` and the caller fails it closed.
+ */
+function policyFor(kind: BuiltinTemplateKind): IntegrityPolicy | undefined {
+  return Object.prototype.hasOwnProperty.call(INTEGRITY_POLICY, kind) ? INTEGRITY_POLICY[kind] : undefined;
+}
+
+/**
+ * Schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no unordered
+ * iteration), and return the FIRST one that fails — or `null` when every source is valid (including
+ * the trivial, always-passing case of an empty list, which is what `src/storage/templates.ts`'s
+ * `builtinTemplateSources` derives from today's scaffold: no built-in template content ships yet).
+ *
+ * FAILS CLOSED on an unrecognized `kind`: a source whose kind has no {@link INTEGRITY_POLICY} entry is
+ * reported as a failure ({@link unknownKindMessage}) rather than skipped or thrown on — it cannot be
+ * checked, so it must not be installed.
  *
  * Callers (namely `initWingfoilProject`, `src/core/init.ts`) MUST run this before writing any file:
  * REQ-SEC-10's fit criterion requires the abort to happen "before writing partial assets" — this
@@ -104,7 +140,14 @@ export function verifyBuiltinTemplates(
   sources: readonly BuiltinTemplateSource[],
 ): BuiltinIntegrityFailure | null {
   for (const source of sources) {
-    const policy = INTEGRITY_POLICY[source.kind];
+    const policy = policyFor(source.kind);
+    if (policy === undefined) {
+      return {
+        name: source.name,
+        kind: source.kind,
+        message: unknownKindMessage(source.name, String(source.kind)),
+      };
+    }
     if (!policy.isValid(source)) {
       return { name: source.name, kind: source.kind, message: policy.message(source.name) };
     }

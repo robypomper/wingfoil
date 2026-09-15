@@ -26,7 +26,9 @@ export {
   resolveTemplate,
   templateScaffold,
   initProjectCommitMessage,
-  BUILTIN_TEMPLATE_SOURCES,
+  builtinTemplateSources,
+  BUILTIN_DIRECTIVES_DIR,
+  BUILTIN_WORKFLOWS_DIR,
 } from './templates';
 export type { TemplateDefinition, BuiltinTemplateKind, BuiltinTemplateSource } from './templates';
 export { computeStateSnapshot, serializeSnapshot } from './snapshot';
