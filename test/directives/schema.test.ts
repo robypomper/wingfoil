@@ -13,7 +13,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { load } from 'js-yaml';
 
-import { DirectiveFrontmatter } from '../../src/directives/schema';
+import { DirectiveFrontmatter, RolesYaml } from '../../src/directives/schema';
 import { extractFrontmatter } from '../../src/storage/frontmatter';
 
 describe('DirectiveFrontmatter — structural shape', () => {
@@ -83,6 +83,61 @@ describe('DirectiveFrontmatter — validates every real, live docs/self/.wingfoi
         console.error(file, result.error.issues);
       }
       expect(result.success).toBe(true);
+    }
+  });
+});
+
+/**
+ * RolesYaml schema (task-037-role-task-scoped-context, REQ-STATE-05) — the role → directive binding
+ * config (`.wingfoil/roles.yaml`, P3.2/P3.7) `directive-loader` (spec-012 §5) resolves against. A
+ * minimal [AUTHORING] shape grounded directly in the real `docs/self/.wingfoil/roles.yaml` file's
+ * fields (`version`, `assignments`, `global`) — same rationale as `DirectiveFrontmatter` above: no
+ * dedicated tech-spec exists for this pillar's file shapes yet.
+ */
+describe('RolesYaml — structural shape', () => {
+  it('accepts the real roles.yaml shape (assignments + global)', () => {
+    const result = RolesYaml.safeParse({
+      version: 1.0,
+      assignments: {
+        developer: ['code-quality', 'testing', 'determinism'],
+        reviewer: ['code-review', 'traceability'],
+      },
+      global: ['doc-versioning', 'documentation', 'security-secrets'],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a document missing `assignments`', () => {
+    const result = RolesYaml.safeParse({ version: 1.0, global: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it('defaults `global` to an empty array when omitted', () => {
+    const result = RolesYaml.safeParse({ version: 1.0, assignments: { developer: ['testing'] } });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.global).toEqual([]);
+    }
+  });
+
+  it('rejects an `assignments` entry whose value is not a string array', () => {
+    const result = RolesYaml.safeParse({ version: 1.0, assignments: { developer: 'testing' } });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('RolesYaml — validates the real, live docs/self/.wingfoil/roles.yaml file', () => {
+  it('parses the live file with zero structural errors', () => {
+    const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'roles.yaml'), 'utf-8');
+    const data = load(raw);
+    const result = RolesYaml.safeParse(data);
+    if (!result.success) {
+      console.error(result.error.issues);
+    }
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.assignments.developer).toEqual(['code-quality', 'testing', 'determinism']);
+      expect(result.data.global).toContain('doc-versioning');
     }
   });
 });

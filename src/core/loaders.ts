@@ -12,7 +12,7 @@
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-import { DirectiveFrontmatter } from '../directives/schema';
+import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
 import { documentExists, extractFrontmatter, readDocument } from '../storage';
@@ -180,4 +180,19 @@ export function loadDirectives(root: string): DirectiveFile[] {
     files.push({ path: join('directives', relativePath), frontmatter });
   }
   return files;
+}
+
+/**
+ * Load and validate `.wingfoil/roles.yaml` in isolation (task-037-role-task-scoped-context,
+ * REQ-STATE-05's `directive-loader`, P3.2/P3.7 role → directive bindings) — the same shared two-pass
+ * pipeline (`readDocument` + `parseYaml` + `runValidation`) every other pillar loader uses, so this
+ * pillar's own validation never depends on another pillar's schema (REQ-SYS-02). Consumed by
+ * `resolveRoleDirectives`/`assembleExecutionContext` (`./context.ts`) to resolve a role's assigned
+ * directives.
+ */
+export function loadRolesYaml(root: string): RolesYaml {
+  const filePath = join(root, '.wingfoil', 'roles.yaml');
+  const raw = readDocument(filePath);
+  const data = parseYaml(raw, filePath);
+  return runValidation(RolesYaml, data, filePath);
 }
