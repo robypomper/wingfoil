@@ -2,7 +2,7 @@
 id: "dl-034-lint-gate-in-dev-loop"
 type: decision-log
 title: "Add a lint gate to dev-loop's refactor phase, and authorise the harness fix tasks as a recorded v0.2 exception"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
