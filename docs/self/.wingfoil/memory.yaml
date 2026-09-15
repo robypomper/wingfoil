@@ -59,7 +59,7 @@ version: 1.1                     # [AUTHORING] config-file format version (WingF
 # status value. `"deprecated"` is an implicit wildcard edge from any state, invoked via
 # `memory.deprecate`, and is never declared explicitly in `sequence`/`gates`/`waiting`.
 defaults:
-  states: 
+  states:
     sequence: [ draft, pending, approved ]
     gates:
       pending: { reject: draft }   # [AUTHORING] reject sends straight back to draft (no separate "rejected" status — see above)

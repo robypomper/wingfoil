@@ -46,6 +46,20 @@ Three shapes are available; this DL asks the approver to pick one.
    with warnings surfaced for review" — accepting the weaker guarantee deliberately rather than by
    drift.
 
+**Recommended: option 1, decided per-pattern — promote two of the three, not all three.** The three
+are not equivalent on *this* surface, which `git ls-files` shows is 169 Markdown files and 26 YAML
+files — authored documentation, not source code:
+
+| Pattern | Regex trigger | False-positive risk on a docs surface | Recommendation |
+|---|---|---|---|
+| `jwt-like` | literal `eyJ` prefix + three dot-separated base64url segments | **Very low** — a match essentially requires someone to write a JWT-shaped string | **Promote to `block`** |
+| `dotenv-style-secret-line` | line-anchored `[A-Z_]*(SECRET\|TOKEN\|PASSWORD\|API_KEY\|PRIVATE_KEY)[A-Z_]*=<value>` | **Moderate, and concentrated** — a fenced `.env` example in a document about publishing is the likely tripper, and `task-061-publish-secrets` will write exactly that | **Promote to `block`, but only together with making §3's escape hatch discoverable** |
+| `generic-high-entropy-string` | `(auth\|credential\|bearer)\s*[:=]\s*<24+ chars of `[A-Za-z0-9_\-/+=]`>` | **Real** — the value alphabet includes `/` and `-`, so an ordinary long path or identifier after an `auth:` key matches | **Leave at `warn`** |
+
+This closes both concrete leak scenarios the review named — a genuinely leaked JWT, and a real
+`NPM_TOKEN=<value>` line in a memory document — while leaving at `warn` the one pattern whose trigger
+is loose enough to fire on prose.
+
 Not a candidate: making all ten patterns `block`. §2's severity split exists because the three `warn`
 patterns are the entropy- and shape-based ones with genuine false-positive rates; `task-043`'s first
 review catalogued several (a path assigned to a `token` variable, `const secret =
