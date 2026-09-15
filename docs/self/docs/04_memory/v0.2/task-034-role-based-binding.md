@@ -2,7 +2,7 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: approved
+status: done
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
