@@ -173,3 +173,32 @@ describe('initWingfoilProject — REQ-SEC-10 built-in template integrity', () =>
     }
   });
 });
+
+/**
+ * Second pass (review-gate `red` fallback) — the guard-5 call sits OUTSIDE `initWingfoilProject`'s
+ * `try`/`catch`, so anything `verifyBuiltinTemplates` throws escapes the CoreResult contract entirely
+ * (uncaught exception, not exit 1). An unrecognized `kind` must therefore come back as a `VALIDATION`
+ * CoreResult like every other integrity failure — and, like them, write nothing.
+ */
+describe('initWingfoilProject — REQ-SEC-10 unrecognized built-in kind fails closed', () => {
+  it('returns a VALIDATION result (exit 1) instead of throwing, and writes nothing', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const alien = [
+        { name: 'mystery', kind: 'plugin', content: 'anything\n' },
+      ] as unknown as readonly BuiltinTemplateSource[];
+
+      let result: ReturnType<typeof initWingfoilProject> | undefined;
+      expect(() => {
+        result = initWingfoilProject(repo, 'Scrum', alien);
+      }).not.toThrow();
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+      expect(result && !result.ok ? result.error.message : '').toContain('mystery');
+      expect(exitCodeForResult(result!)).toBe(1);
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+});

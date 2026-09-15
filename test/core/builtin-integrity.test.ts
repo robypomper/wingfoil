@@ -127,3 +127,42 @@ describe('verifyBuiltinTemplates — deterministic first-failure order (REQ-SYS-
     expect(verifyBuiltinTemplates([badWorkflow])).toEqual(verifyBuiltinTemplates([badWorkflow]));
   });
 });
+
+/**
+ * Second pass (review-gate `red` fallback) — REQ-SEC-10 fail-closed default. `INTEGRITY_POLICY` is
+ * keyed by {@link BuiltinTemplateKind}; indexing it with a `kind` OUTSIDE that union yields
+ * `undefined` (or, worse, an inherited `Object.prototype` member) and the policy call then throws a
+ * `TypeError`. `initWingfoilProject` invokes `verifyBuiltinTemplates` OUTSIDE its `try`/`catch`, so
+ * such a throw escapes as an uncaught exception instead of the `VALIDATION` CoreResult / exit 1 the
+ * fit criterion requires. Unreachable from TypeScript today, but `verifyBuiltinTemplates` is a public
+ * barrel export (`src/core/index.ts`) and becomes reachable the moment sources are derived from disk
+ * by extension, or a caller crosses a JS/JSON boundary. An unrecognized kind must FAIL, not throw.
+ */
+describe('verifyBuiltinTemplates — fail-closed on an unrecognized kind (REQ-SEC-10)', () => {
+  /** Forge a source whose `kind` is outside the union (only reachable through a cast). */
+  const alien = (kind: string): BuiltinTemplateSource =>
+    ({ name: 'mystery', kind, content: 'anything\n' }) as unknown as BuiltinTemplateSource;
+
+  it('does not throw when a source carries a kind outside BuiltinTemplateKind', () => {
+    expect(() => verifyBuiltinTemplates([alien('plugin')])).not.toThrow();
+  });
+
+  it('reports the unrecognized-kind source as a failure naming the template', () => {
+    const failure = verifyBuiltinTemplates([alien('plugin')]);
+    expect(failure).not.toBeNull();
+    expect(failure?.name).toBe('mystery');
+    expect(failure?.message).toContain('mystery');
+  });
+
+  it('fails closed on inherited Object.prototype keys — no prototype member is mistaken for a policy', () => {
+    for (const inherited of ['constructor', 'toString', 'hasOwnProperty', '__proto__', 'valueOf']) {
+      expect(() => verifyBuiltinTemplates([alien(inherited)])).not.toThrow();
+      expect(verifyBuiltinTemplates([alien(inherited)])).not.toBeNull();
+    }
+  });
+
+  it('keeps deterministic first-failure order with an unrecognized kind in the middle', () => {
+    const failure = verifyBuiltinTemplates([VALID_DIRECTIVE, alien('plugin'), VALID_WORKFLOW]);
+    expect(failure?.name).toBe('mystery');
+  });
+});
