@@ -44,9 +44,30 @@ P4.9, so it cannot be done silently: it needs to be an explicit, recorded except
    declaration in the tree; here the backfill is a single line in one test file.
 3. **In `refactor`, not `review`.** The developer fixes their own lint before a reviewer is engaged.
 4. **Recorded exception:** `bug-009` and `bug-011` are scheduled into `v0.2` despite the release being
-   `in-development`, because they gate every remaining task in it. This is a deliberate, one-off
-   departure from `dl-030`'s rule, justified below — not a precedent for widening a release with
-   feature work.
+   `in-development`, because they gate every remaining task in it. This is a deliberate departure from
+   `dl-030`'s rule, justified below — not a precedent for widening a release with feature work.
+
+   **Extended by the approver to `bug-008` and `bug-010`** after the Fase-3 reviews. The extension is
+   recorded here rather than assumed, because this clause originally read "one-off": using it as a
+   precedent without amending it would have contradicted a ratified decision. The bar this exception
+   set — *argue from blocked work, not from convenience* — is met by both, and by the same shape of
+   argument that admitted `bug-009`:
+   - **`bug-008`** (CLAUDE.md §1 declares the project pre-implementation). `bug-009` was admitted
+     because it gated the *verification* of every remaining v0.2 task; this gates their
+     *orientation*. `CLAUDE.md` is the agent entry point, read first in every session, and it asserts
+     there is no source code, that the CLI/MCP is unimplemented, and that runtime behaviour must not
+     be assumed — all false since `minor-v0.1` was released. Every remaining v0.2 task is executed by
+     an agent that reads it.
+   - **`bug-010`** (archived documents reach agent context). Admitted on *ordering*, not urgency: its
+     two surfaces are unwired today — no `.mcp.json` exists (`dl-026`), and `assembleExecutionContext`
+     has no CLI/MCP surface — but `task-055-auto-load-directives-by-role` is in the v0.2 backlog and
+     is precisely what makes the context path user-reachable. Fixing it after `task-055` means v0.2
+     ships a context path that leaks archived documents; the same ordering logic that put `task-064`
+     ahead of `task-057`.
+
+   Still not admitted by this clause: feature work, or anything whose case is convenience. **If a
+   fifth bug needs this, stop extending the list and write a standing rule for out-of-band bug
+   scheduling** — four is where an exception starts becoming a policy in disguise.
 5. **Two fix tasks, not one.** `task-066-fix-eslint-baseline-and-lint-gate` (`bug: bug-009`, and it
    wires the gate from point 1) and `task-067-fix-cli-latency-assertion` (`bug: bug-011`). The
    original proposal was a single combined task; the `bug:` frontmatter field is singular and
