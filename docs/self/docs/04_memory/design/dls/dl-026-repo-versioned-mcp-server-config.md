@@ -2,7 +2,7 @@
 id: "dl-026-repo-versioned-mcp-server-config"
 type: decision-log
 title: "Version an .mcp.json in the repository so agents consume WingFoil's own MCP server (dogfood P5.2)"
-status: in-discussion
+status: ready
 context: "process"
 release: ""
 tmpl_version: 260703
