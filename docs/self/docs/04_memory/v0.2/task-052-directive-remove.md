@@ -31,9 +31,16 @@ to a role must be rejected with `cannot remove 'legacy-rule': still assigned to 
 'release-cycle'`) has no owner in v0.2 and is carried to the next `release-planning` run.
 
 Also per `task-042`'s review: `task-042`'s `requireCustomAsset` primitive is a pre-flight over a path
-string. Confirm before use that its built-in classification is an allow-list on the `custom` segment
-and not a `'built-in'` substring deny-list — the latter was the defect that returned `task-042` to
-`red`.
+string. Its classification is now a fail-closed **allow-list** on the `custom` segment (the earlier
+`'built-in'` substring deny-list was the defect that returned `task-042` to `red`), verified against
+both POSIX and Windows separator forms.
+
+**Resolve name → path before calling it.** P3.3's CLI takes a *name* (`wingfoil directive remove
+testing`) while the primitive takes a `.wingfoil`-relative *path*. `task-042`'s reviewer ran this:
+`requireCustomAsset('directive', 'testing')` returns the generic
+`cannot remove 'testing': not a directive under 'directives/custom/'`, **not** P3.3's pinned
+`built-in directives cannot be removed`. So this task must locate the asset first and pass its path,
+or the pinned scenario will not pass.
 
 ## Implementation Notes
 

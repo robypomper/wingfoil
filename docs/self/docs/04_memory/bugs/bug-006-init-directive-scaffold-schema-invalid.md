@@ -3,7 +3,7 @@ id: "bug-006-init-directive-scaffold-schema-invalid"
 type: bug
 title: "wingfoil init scaffolds directive .md files that fail the directives schema"
 status: planned
-severity: "low"
+severity: "high"
 release-origin: "v0.1"
 release: "v0.2"
 note: release_origin=v0.1, release_assigned=v0.2
@@ -48,6 +48,18 @@ directives list` errors `E_VALIDATION` (exit 1) on every freshly-initialized pro
   generated directive file through the real directives schema (spec-013).
 
 ## Triage & Execution Notes
+
+- **Severity re-graded `low` → `high` (after `task-044`'s second pass).** When this was filed the
+  symptom was a cosmetic `directives list` failure. `task-044` then replaced the hand-maintained
+  built-in registry with **derivation from the scaffold**, so `wingfoil init` now schema-checks every
+  built-in asset it is about to write and aborts if one fails. Verified empirically by that task and
+  again by its reviewer: feeding the ten real `directiveMd()` outputs through the checker fails on
+  `architecture`, because `directiveMd()` emits `name`/`kind`/`ref` while `DirectiveFrontmatter`
+  requires `id`/`type`/`title`. Consequence: **this is now a hard blocker for
+  `task-057-builtin-directive-templates`** — the moment task-057 adds a file under
+  `directives/built-in/`, `init` aborts for every user unless this is fixed first or task-057 emits
+  schema-valid frontmatter itself. The fix task is `task-064-fix-init-directive-scaffold-schema`.
+
 
 - 2026-07-07 (open): raised from task-032's review as a deferred `low`-severity sibling of
   bug-005. Out of v0.1 documented scope; no fix task scheduled.
