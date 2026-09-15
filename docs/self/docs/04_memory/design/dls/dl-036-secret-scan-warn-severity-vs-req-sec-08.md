@@ -2,7 +2,7 @@
 id: "dl-036-secret-scan-warn-severity-vs-req-sec-08"
 type: decision-log
 title: "Three of spec-007's ten patterns can only warn, so REQ-SEC-08's 'matches 0 known secret patterns' is not what the gate enforces"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
