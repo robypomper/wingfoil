@@ -1,12 +1,21 @@
 /**
- * Role-based binding resolver (REQ-SYS-08, task-034-role-based-binding) — the DNA-only primitives
- * directive binding (P3.2/P3.7), auto-load (P3.6), and approval routing (P1.7/P4.14) build on.
- * Directives and approval authority reference roles, never named persons (ADR-006): every function
- * here reads only the already-parsed `DnaYaml` (`team.roles`/`team.members`/`team.agents`,
- * spec-002-dna-yaml-schema) — never a directive or workflow file — so reassigning a person's role in
- * `dna.yaml` changes the resolved binding with zero edits anywhere else (the REQ-SYS-08 Fit
- * Criterion). No `CORE_MODULES` operation is registered here: this is the pure resolver later tasks
- * (task-040 REQ-SEC-03 approval-authority enforcement, task-046 `memory approve` routing, task-051/056
+ * Role-based **directive binding** resolver (REQ-SYS-08, task-034-role-based-binding) — the DNA-only
+ * primitives directive binding (P3.2/P3.7) and auto-load-by-role (P3.6) build on. Directives bind to
+ * roles, never to named persons (ADR-006): every function here reads only the already-parsed
+ * `DnaYaml` (`team.roles`/`team.members`/`team.agents`, spec-002-dna-yaml-schema) — never a directive
+ * or workflow file — so reassigning a person's role in `dna.yaml` changes the resolved binding with
+ * zero edits anywhere else (the REQ-SYS-08 Fit Criterion).
+ *
+ * **Approval routing is deliberately out of scope here** (`dl-033-canonical-role-resolver`, option b).
+ * "Who holds this role?" and "may this principal approve?" are different questions with different
+ * answers: AI agents do hold `developer`/`reviewer` via `team.agents[].executes_as` — correct for
+ * directive binding — but never hold approval authority (ADR-006, REQ-SEC-03). The canonical answer
+ * to the authority question is `src/core/approval-authority.ts` (task-040), which resolves from
+ * `team.members` by git identity and honours `approval_authority`;
+ * BDD `p4-workflow/P4.14-approval-routing.feature`'s routing scenarios belong to `task-046-memory-approve`,
+ * built on that module. Nothing in this file decides who may approve.
+ *
+ * No `CORE_MODULES` operation is registered here: this is the pure resolver later tasks (task-051/056
  * `directive assign`/role-based assignment) wire into their own CLI/MCP surfaces.
  */
 import type { AgentEntry, DnaYaml, TeamMember } from './schema';
@@ -27,24 +36,6 @@ export class UnknownRoleError extends Error {
     this.role = role;
     // Restore the prototype chain so `instanceof UnknownRoleError` holds after transpilation.
     Object.setPrototypeOf(this, UnknownRoleError.prototype);
-  }
-}
-
-/**
- * Raised by {@link resolveApprover} when a role is defined in `dna.yaml` but no team member or agent
- * currently holds it. Message matches BDD `p4-workflow/P4.14-approval-routing.feature` "Error - the
- * approval role has no member in DNA" verbatim.
- */
-export class NoRoleHolderError extends Error {
-  /** The role name nobody currently holds. */
-  readonly role: string;
-
-  constructor(role: string) {
-    super(`no approver found for role '${role}' in dna.yaml`);
-    this.name = 'NoRoleHolderError';
-    this.role = role;
-    // Restore the prototype chain so `instanceof NoRoleHolderError` holds after transpilation.
-    Object.setPrototypeOf(this, NoRoleHolderError.prototype);
   }
 }
 
@@ -70,6 +61,10 @@ export interface RoleHolders {
  * Resolves who currently holds `role`, reading only `dna.team.members`/`dna.team.agents` — no
  * directive or workflow file. Throws {@link UnknownRoleError} if `role` is not in `team.roles`;
  * returns empty lists (not an error) when the role is defined but nobody currently holds it.
+ *
+ * Agents are included because they genuinely hold the roles they `executes_as` for **directive
+ * binding** purposes (P3.6). This is **not** an authority check: a holder returned here may not
+ * approve anything (ADR-006, REQ-SEC-03) — use `src/core/approval-authority.ts` for that.
  */
 export function resolveRoleHolders(dna: DnaYaml, role: string): RoleHolders {
   assertRoleDefined(dna, role);
@@ -77,20 +72,4 @@ export function resolveRoleHolders(dna: DnaYaml, role: string): RoleHolders {
     members: dna.team.members.filter((member) => member.roles.includes(role)),
     agents: (dna.team.agents ?? []).filter((agent) => agent.executes_as.includes(role)),
   };
-}
-
-/**
- * Routes an approval to whoever holds `role` today (BDD P4.14 "Route a pending approval to the role
- * holder"), preferring a human member over an agent when both hold the role. Throws
- * {@link UnknownRoleError} for an undefined role, or {@link NoRoleHolderError} when the role is
- * defined but currently held by nobody (P4.14 "Error - the approval role has no member in DNA").
- * Routing by explicit person (`approval: { by_person: ... }`, P4.14 scenario 2) bypasses role
- * resolution entirely and is out of this function's scope — it belongs to the caller that reads the
- * workflow step declaration.
- */
-export function resolveApprover(dna: DnaYaml, role: string): TeamMember | AgentEntry {
-  const { members, agents } = resolveRoleHolders(dna, role);
-  const holder = members[0] ?? agents[0];
-  if (!holder) throw new NoRoleHolderError(role);
-  return holder;
 }
