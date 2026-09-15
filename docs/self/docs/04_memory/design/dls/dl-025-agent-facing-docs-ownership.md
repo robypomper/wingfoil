@@ -2,7 +2,7 @@
 id: "dl-025-agent-facing-docs-ownership"
 type: decision-log
 title: "Give agent-facing docs (CLAUDE.md) an owning release gate, like dl-013 did for user-facing docs"
-status: in-discussion
+status: ready
 context: "process"
 release: ""
 tmpl_version: 260703
