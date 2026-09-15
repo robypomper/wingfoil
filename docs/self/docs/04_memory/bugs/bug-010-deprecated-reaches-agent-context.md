@@ -2,10 +2,10 @@
 id: "bug-010-deprecated-reaches-agent-context"
 type: bug
 title: "Deprecated documents reach agent context through the MCP collection Resource, against REQ-STATE-06"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.9"
 contributor: ""
 credit: ""

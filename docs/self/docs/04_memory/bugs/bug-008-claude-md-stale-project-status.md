@@ -2,10 +2,10 @@
 id: "bug-008-claude-md-stale-project-status"
 type: bug
 title: "CLAUDE.md §1 declares the project pre-implementation (\"no source code yet\"), misleading every agent that reads the entry point"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 tmpl_version: 260703
 ---
 
