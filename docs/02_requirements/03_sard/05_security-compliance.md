@@ -37,12 +37,15 @@
 
 ### REQ-SEC-04 — Mandatory justification on decision verbs
 
-* **Description:** `approve`, `reject`, and `deprecate` require a `--reason`.
+* **Description:** `approve` and `reject` require a `--reason`.
 * **Rationale:** Decisions must be explainable in the audit trail.
-* **Fit Criterion:** Omitting `--reason` on `approve`/`reject`/`deprecate` returns exit code `2` with
+* **Fit Criterion:** Omitting `--reason` on `approve`/`reject` returns exit code `2` with
   `"missing required argument: --reason"` and makes no change.
 * **Traceability:** Feature P1.7 (US-2-10, BDD `p1-memory/P1.7-memory-approve.feature`); Feature P1.8 (US-4-11,
-  BDD `p1-memory/P1.8-memory-reject.feature`); Feature P1.9 (US-5-04, BDD `p1-memory/P1.9-memory-deprecate.feature`).
+  BDD `p1-memory/P1.8-memory-reject.feature`). Narrowed to the approval gates by
+  `dl-027-req-sec-04-deprecate-reason-scope`: `memory deprecate` is not an approval gate (no `Approver:` line,
+  no authority check), and `spec-008` §2 / BDD P1.9 / CLAUDE.md §5.1 already treat its `--reason` as
+  optional-but-encouraged.
 
 ### REQ-SEC-05 — Read-only agent read channel
 
@@ -92,15 +95,17 @@
 * **Traceability:** Feature P2.3 (US-0B-03, BDD `p2-dna/P2.3-dna-infer.feature`); Feature P5.1.2 (US-0B-02,
   BDD `p5-interaction/P5.1.2-init-infer.feature`).
 
-### REQ-SEC-10 — Integrity checks on built-in templates
+### REQ-SEC-10 — Schema checks on built-in templates
 
-* **Description:** Built-in directive and workflow templates are integrity/schema-checked before installation during
+* **Description:** Built-in directive and workflow templates are schema-checked before installation during
   `init`.
 * **Rationale:** A corrupted baseline must not partially install.
 * **Fit Criterion:** A corrupted or schema-invalid built-in template aborts `init` before writing partial assets, with a
   message naming the failing template.
 * **Traceability:** Feature P3.8 (US-0A-09, BDD `p3-directives/P3.8-builtin-directive-templates.feature`); Feature P4.17
-  (US-0A-21, BDD `p4-workflow/P4.17-builtin-workflow-templates.feature`).
+  (US-0A-21, BDD `p4-workflow/P4.17-builtin-workflow-templates.feature`). Scoped to schema validation by
+  `dl-031-req-sec-10-integrity-depth`: the threat addressed is accidental corruption, not post-install
+  tampering — distribution-channel assurance lives in `adr-009`/`spec-015` (npm provenance).
 
 ### REQ-SEC-11 — Notification routing authority by role / decision-type
 
