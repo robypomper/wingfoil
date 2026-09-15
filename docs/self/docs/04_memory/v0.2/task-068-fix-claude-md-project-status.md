@@ -2,7 +2,7 @@
 id: "task-068-fix-claude-md-project-status"
 type: task
 title: "Fix: CLAUDE.md §1 still tells every agent the project has no source code"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "documentation"]
