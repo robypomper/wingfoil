@@ -377,14 +377,82 @@ describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status
     }
   });
 
-  it('exits `2` (EXIT_INTEGRITY) — a cross-file/system-integrity failure per spec-009 §3, matching `resolveTransitionTarget`\'s illegal-transition exit code', () => {
+  it('exits `1` (EXIT_VALIDATION) — a business-rule failure, not a parse/system-integrity one (spec-009 §3 as rewritten by dl-032)', () => {
+    // spec-009 §3 now keys the exit code on the NATURE of the failure, not on the pass that detects
+    // it: `2` is reserved for parse and system-integrity failures ("the input could not be understood,
+    // or the installation is inconsistent"); `1` covers "every other validation failure: any mapped
+    // `E_INVALID_*` ... including business-rule failures detected in Pass 2". An unrecognised
+    // frontmatter `status` is understood input that a rule refused — `1`. No BDD scenario pins an exit
+    // code for this message (`P4.11` sc.3 / `P4.13` sc.3 pin the text only), so the spec rule governs.
     const machine = resolveStateMachine(memoryYaml, 'task');
     try {
       validateFrontmatterState(machine, 'task', 'nonexistent-state');
       throw new Error('expected validateFrontmatterState to throw');
     } catch (err) {
-      expect((err as ValidationError).exitCode).toBe(2);
+      expect((err as ValidationError).exitCode).toBe(1);
     }
+  });
+});
+
+describe('validateFrontmatterState — an off-chain `gates.<state>.reject` target is a legal state (spec-001)', () => {
+  // Synthetic fixture — none of the real registered types in `docs/self/.wingfoil/memory.yaml` trigger
+  // this case: all three of its reject targets (`draft`, `closed`, `in-progress`) happen to be
+  // `sequence` members, which is precisely why the suite stayed green over this defect. spec-001's
+  // "Semantic validation (post-parse)" is explicit that a reject target "need **not** be a member of
+  // `sequence`: it may revert into the chain ... or name an off-chain decline state reached by no
+  // forward edge", and `resolveTransitionTarget` already returns `gates[<state>].reject` verbatim.
+  // So the `reject` verb can legitimately write a `status` that is outside `sequence`, and
+  // `validateFrontmatterState` must accept it — otherwise the tool rejects as invalid a status it
+  // wrote itself and the document becomes unmovable (REQ-SYS-04).
+  //
+  // Parsed through the real `MemoryYaml` schema (Pass 1, spec-009 §1), same throwaway-fixture idiom as
+  // the REQ-STATE-08 fallback block above, so this is an end-to-end exercise and not a hand-built
+  // object smuggled past the structural rules.
+  const OFF_CHAIN_FIXTURE_YAML = {
+    version: 1.1,
+    defaults: {
+      states: { sequence: ['draft', 'pending', 'approved'], gates: { pending: { reject: 'draft' } } },
+    },
+    types: {
+      'fixture-off-chain-reject': {
+        path: 'docs/04_memory/fixtures/{id}.md',
+        id_pattern: 'fixture-off-chain-reject-{n}',
+        states: {
+          sequence: ['draft', 'pending', 'approved'],
+          // `cancelled` is reached ONLY by `reject` — it appears in no `sequence`, no `waiting`.
+          gates: { pending: { reject: 'cancelled' } },
+        },
+      },
+    },
+  };
+
+  const offChainYaml = MemoryYaml.parse(OFF_CHAIN_FIXTURE_YAML);
+  const machine = resolveStateMachine(offChainYaml, 'fixture-off-chain-reject');
+
+  it('Pass 1: an off-chain reject target is structurally valid — only `gates` KEYS and `waiting` entries must be in `sequence`', () => {
+    expect(machine.sequence).not.toContain('cancelled');
+    expect(machine.gates?.['pending']?.reject).toBe('cancelled');
+  });
+
+  it('the `reject` verb writes the off-chain target verbatim (pre-existing `resolveTransitionTarget` behaviour)', () => {
+    expect(resolveTransitionTarget(machine, 'pending', 'reject')).toBe('cancelled');
+  });
+
+  it('the status the `reject` verb just wrote validates as a legal state for the type', () => {
+    expect(validateFrontmatterState(machine, 'fixture-off-chain-reject', 'cancelled')).toBeUndefined();
+  });
+
+  it('round-trip: every reachable target of every declared `gates` entry is itself a legal frontmatter state', () => {
+    for (const gateState of Object.keys(machine.gates ?? {}).sort()) {
+      const target = resolveTransitionTarget(machine, gateState, 'reject');
+      expect(validateFrontmatterState(machine, 'fixture-off-chain-reject', target)).toBeUndefined();
+    }
+  });
+
+  it('is not over-permissive: a state that is neither in `sequence`, nor a reject target, nor `deprecated` is still rejected', () => {
+    expect(() => validateFrontmatterState(machine, 'fixture-off-chain-reject', 'shipped')).toThrow(
+      /invalid state 'shipped' for type 'fixture-off-chain-reject'/,
+    );
   });
 });
 
