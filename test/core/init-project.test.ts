@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { exitCodeForResult } from '../../src/core';
+import type { BuiltinTemplateSource } from '../../src/core/builtin-integrity';
 import {
   WINGFOIL_ALREADY_INITIALIZED,
   initWingfoilProject,
@@ -104,6 +105,98 @@ describe('initWingfoilProject — guards inherited from the write path', () => {
       const result = initWingfoilProject(repo, 'NopeTemplate');
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.code).toBe('VALIDATION');
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+});
+
+/**
+ * task-044-builtin-template-integrity (REQ-SEC-10) — guard 5. In production the checked sources are
+ * DERIVED from this run's `templateScaffold(template)` output (`builtinTemplateSources`,
+ * src/storage/templates.ts), so the checked set cannot drift from the written set; the optional 3rd
+ * `builtinTemplates` param is the TEST-ONLY override that exercises the abort path without real
+ * built-in content on disk (today's scaffold reserves both built-in directories with a `.gitkeep`
+ * only, so the derived set is empty). A corrupted/schema-invalid source must abort `init` before ANY
+ * file is written, exit 1, naming the failing template — BDD P3.8 "Error - a built-in template fails
+ * its integrity check" / P4.17 "Error - a built-in workflow template is structurally invalid".
+ */
+describe('initWingfoilProject — REQ-SEC-10 built-in template integrity', () => {
+  it('aborts before writing anything when a built-in directive template is corrupted', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const corrupted: readonly BuiltinTemplateSource[] = [
+        { name: 'security', kind: 'directive', content: 'not a frontmatter document\n' },
+      ];
+      const result = initWingfoilProject(repo, 'Scrum', corrupted);
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          code: 'VALIDATION',
+          message: 'built-in directive template integrity check failed: security',
+        },
+      });
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+
+  it('aborts before writing anything when a built-in workflow template is structurally invalid', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const invalid: readonly BuiltinTemplateSource[] = [
+        { name: 'task', kind: 'workflow', content: 'name: task\nkind: sub\n' }, // missing `phases`
+      ];
+      const result = initWingfoilProject(repo, 'Scrum', invalid);
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: 'VALIDATION', message: 'built-in workflow template invalid: task' },
+      });
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+
+  it('still succeeds with the default (empty) registry — no behavior change until built-in content ships', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const result = initWingfoilProject(repo, 'Scrum');
+      expect(result.ok).toBe(true);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+});
+
+/**
+ * Second pass (review-gate `red` fallback) — the guard-5 call sits OUTSIDE `initWingfoilProject`'s
+ * `try`/`catch`, so anything `verifyBuiltinTemplates` throws escapes the CoreResult contract entirely
+ * (uncaught exception, not exit 1). An unrecognized `kind` must therefore come back as a `VALIDATION`
+ * CoreResult like every other integrity failure — and, like them, write nothing.
+ */
+describe('initWingfoilProject — REQ-SEC-10 unrecognized built-in kind fails closed', () => {
+  it('returns a VALIDATION result (exit 1) instead of throwing, and writes nothing', () => {
+    const repo = makeTempGitRepo();
+    try {
+      const alien = [
+        { name: 'mystery', kind: 'plugin', content: 'anything\n' },
+      ] as unknown as readonly BuiltinTemplateSource[];
+
+      let result: ReturnType<typeof initWingfoilProject> | undefined;
+      expect(() => {
+        result = initWingfoilProject(repo, 'Scrum', alien);
+      }).not.toThrow();
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+      expect(result && !result.ok ? result.error.message : '').toContain('mystery');
+      expect(exitCodeForResult(result!)).toBe(1);
       expect(existsSync(join(repo, '.wingfoil'))).toBe(false);
     } finally {
       removeTempDir(repo);

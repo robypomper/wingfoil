@@ -86,6 +86,8 @@ export type {
   RelevantMemoryDocument,
   RelevantMemoryResult,
 } from './relevance';
+export { verifyBuiltinTemplates } from './builtin-integrity';
+export type { BuiltinIntegrityFailure, BuiltinTemplateKind, BuiltinTemplateSource } from './builtin-integrity';
 
 /** Params shared by every operation registered today — all of them are a bare pillar-config read. */
 export interface RootParams {

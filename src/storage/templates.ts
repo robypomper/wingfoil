@@ -65,6 +65,90 @@ export function initProjectCommitMessage(def: TemplateDefinition): string {
   return `chore(wingfoil): initialize .wingfoil/ with the ${def.name} template (P5.1.1)`;
 }
 
+// --- Built-in template asset registry (task-044-builtin-template-integrity, REQ-SEC-10) -----------
+
+/**
+ * Which pillar a {@link BuiltinTemplateSource} belongs to — `directive` for a P3.8 built-in directive
+ * `.md` file, `workflow` for a P4.17 built-in workflow `.yaml` file. Drives which pillar schema
+ * `core/builtin-integrity.ts`'s `verifyBuiltinTemplates` checks the source against, and which of
+ * REQ-SEC-10's two exact abort-message shapes a failure produces.
+ */
+export type BuiltinTemplateKind = 'directive' | 'workflow';
+
+/**
+ * One shipped built-in template asset, as raw content — a directive's full `.md` text (frontmatter +
+ * body) or a workflow's full `.yaml` text, exactly as it would be written under `.wingfoil/directives/
+ * built-in/` or `.wingfoil/workflows/built-in/`. This is the pure DATA shape only; `name`/`kind` are
+ * enough to identify and classify a source, and pillar-schema validation itself is a cross-pillar
+ * concern that lives in `core/builtin-integrity.ts` (this module never imports a pillar schema —
+ * REQ-SYS-02 keeps `storage` decoupled from `directives`/`workflow`).
+ */
+export interface BuiltinTemplateSource {
+  readonly name: string;
+  readonly kind: BuiltinTemplateKind;
+  readonly content: string;
+}
+
+/** Scaffold directory holding the P3.8 built-in directive templates (spec-011 storage layout). */
+export const BUILTIN_DIRECTIVES_DIR = `${WINGFOIL_DIR}/directives/built-in`;
+
+/** Scaffold directory holding the P4.17 built-in workflow templates (spec-011 storage layout). */
+export const BUILTIN_WORKFLOWS_DIR = `${WINGFOIL_DIR}/workflows/built-in`;
+
+/**
+ * The built-in source one scaffold file contributes, or `null` when the file is not a built-in
+ * template asset.
+ *
+ * Kind comes from the DIRECTORY holding the file, never from its extension: an unexpected file shape
+ * under a built-in directory is then still CHECKED (and fails, naming itself) instead of being waved
+ * through by an extension filter — the fail-closed reading. `name` is the basename with its final
+ * extension stripped. Dotfile placeholders (`.gitkeep`, which reserve an empty directory in git and
+ * carry no template content) are the single exclusion.
+ */
+function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
+  const base = file.path.slice(file.path.lastIndexOf('/') + 1);
+  if (base === '' || base.startsWith('.')) return null;
+
+  let kind: BuiltinTemplateKind;
+  if (file.path.startsWith(`${BUILTIN_DIRECTIVES_DIR}/`)) kind = 'directive';
+  else if (file.path.startsWith(`${BUILTIN_WORKFLOWS_DIR}/`)) kind = 'workflow';
+  else return null;
+
+  const dot = base.lastIndexOf('.');
+  return { name: dot > 0 ? base.slice(0, dot) : base, kind, content: file.content };
+}
+
+/**
+ * Derive the built-in template assets to schema-check (REQ-SEC-10) from the very `ScaffoldFile[]`
+ * that `initStorage` is about to write — so the CHECKED set and the INSTALLED set are the same set by
+ * construction.
+ *
+ * This replaces the hand-maintained `BUILTIN_TEMPLATE_SOURCES` constant the first pass of
+ * `task-044-builtin-template-integrity` shipped. A standalone registry is fail-open by omission: a
+ * later task (`task-057` for P3.8, or a P4.17 workflow-template task) can add an asset to
+ * {@link templateScaffold} and forget the registry, installing a template nothing ever checks while
+ * every existing test stays green. Deriving makes "installed but unchecked" unrepresentable rather
+ * than merely untested — the fix `dl-031-req-sec-10-integrity-depth` flagged. (dl-031 ratified that
+ * schema validation IS the REQ-SEC-10 contract; there is deliberately no digest or manifest here.)
+ *
+ * Pure and order-preserving over `files` (REQ-SYS-07): {@link templateScaffold} returns a path-sorted
+ * list, so the derived order — and hence `verifyBuiltinTemplates`' first-failure choice — is
+ * deterministic.
+ *
+ * Returns `[]` for today's scaffold, which still reserves both built-in directories with a `.gitkeep`
+ * only. That is a fact about the current scaffold CONTENT, not a property of this function: the
+ * moment an asset is added it is checked, with no edit here. See this task's Execution Notes for the
+ * ordering hazard that creates for `task-057` (`bug-006`/`task-064` must land first).
+ */
+export function builtinTemplateSources(files: readonly ScaffoldFile[]): BuiltinTemplateSource[] {
+  const sources: BuiltinTemplateSource[] = [];
+  for (const file of files) {
+    const source = builtinSourceOf(file);
+    if (source !== null) sources.push(source);
+  }
+  return sources;
+}
+
 // --- Content generators -----------------------------------------------------------------------
 // Every generator is a pure function of its inputs (REQ-SYS-07): fixed strings only, no Date/random.
 
@@ -302,12 +386,12 @@ export function templateScaffold(def: TemplateDefinition): ScaffoldFile[] {
     { path: wf('roles.yaml'), content: rolesYaml() },
     { path: wf('workflows.yaml'), content: workflowsYaml(def) },
     // Directives built-in/custom split (spec-011).
-    { path: wf('directives/built-in/.gitkeep'), content: '' },
+    { path: `${BUILTIN_DIRECTIVES_DIR}/.gitkeep`, content: '' },
     ...DIRECTIVES.map((d) => ({ path: wf(`directives/custom/${d.name}.md`), content: directiveMd(d) })),
     // Memory templates — one scaffold per element type (spec-011).
     ...MEMORY_TYPES.map((type) => ({ path: wf(`memory/templates/${type}.md`), content: memoryTemplateMd(type) })),
     // Workflows built-in/custom split (spec-011).
-    { path: wf('workflows/built-in/.gitkeep'), content: '' },
+    { path: `${BUILTIN_WORKFLOWS_DIR}/.gitkeep`, content: '' },
     {
       path: wf('workflows/custom/sw-life-cycle.yaml'),
       content: mainWorkflowYaml(

@@ -21,14 +21,17 @@ import { join } from 'node:path';
 
 import {
   INIT_COMMIT_MESSAGE,
+  builtinTemplateSources,
   detectInitState,
   initProjectCommitMessage,
   initStorage,
   resolveTemplate,
   scaffoldFiles,
   templateScaffold,
+  type BuiltinTemplateSource,
 } from '../storage';
 
+import { verifyBuiltinTemplates } from './builtin-integrity';
 import { requireGitIdentity } from './git-identity';
 import { coreErr, coreOk, type CoreResult } from './types';
 
@@ -101,8 +104,24 @@ export interface InitProjectValue {
  *   3. `templateName` resolves to a known template (defense-in-depth; the CLI rejects an unknown
  *      `--template` value as a usage error / exit 2 before reaching here).
  *   4. git identity is configured (REQ-SEC-01, {@link requireGitIdentity}) — refuse an unattributable commit.
+ *   5. every built-in template source passes {@link verifyBuiltinTemplates} (REQ-SEC-10,
+ *      task-044-builtin-template-integrity) — a corrupted/schema-invalid built-in directive or
+ *      workflow template aborts before the scaffold write, naming the failing template (P3.8/P4.17
+ *      BDD "Error - a built-in template fails its integrity check" / "... is structurally invalid").
+ *      The sources are DERIVED from this very run's `templateScaffold(template)` output via
+ *      {@link builtinTemplateSources}, so the checked set and the written set cannot drift apart
+ *      (there is no separate registry to forget to update). `templateScaffold` is pure and writes
+ *      nothing, so computing it before the guard preserves the "before writing partial assets"
+ *      ordering the fit criterion demands.
+ *
+ * @param builtinTemplates - test-only override for guard 5's source list, exercising the abort path
+ *   without real built-in content on disk. Omit it in production: the derived set is the contract.
  */
-export function initWingfoilProject(root: string, templateName: string): CoreResult<InitProjectValue> {
+export function initWingfoilProject(
+  root: string,
+  templateName: string,
+  builtinTemplates?: readonly BuiltinTemplateSource[],
+): CoreResult<InitProjectValue> {
   if (!existsSync(join(root, '.git'))) {
     return coreErr({ code: 'VALIDATION', message: NOT_A_GIT_REPO });
   }
@@ -117,8 +136,16 @@ export function initWingfoilProject(root: string, templateName: string): CoreRes
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity as CoreResult<InitProjectValue>;
 
+  // Guard 5 — REQ-SEC-10. `templateScaffold` is pure (no I/O), so the exact file list about to be
+  // written is available to check BEFORE anything is written; deriving the sources from it is what
+  // keeps "installed" and "checked" the same set.
+  const files = templateScaffold(template);
+  const integrityFailure = verifyBuiltinTemplates(builtinTemplates ?? builtinTemplateSources(files));
+  if (integrityFailure) {
+    return coreErr({ code: 'VALIDATION', message: integrityFailure.message });
+  }
+
   try {
-    const files = templateScaffold(template);
     const message = initProjectCommitMessage(template);
     const sha = initStorage(root, files, message);
     return coreOk<InitProjectValue>(
