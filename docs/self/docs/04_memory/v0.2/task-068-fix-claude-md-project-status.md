@@ -2,7 +2,7 @@
 id: "task-068-fix-claude-md-project-status"
 type: task
 title: "Fix: CLAUDE.md §1 still tells every agent the project has no source code"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "documentation"]
@@ -156,3 +156,44 @@ format is the contract either way, because it is what the verbs will emit and wh
 **Not changed, deliberately.** No gate, check, or workflow YAML was touched — `dl-025`'s own Actions
 assign the `user-docs.yaml` amendment to the next `release-planning` → `build-backlog`. No file outside
 `CLAUDE.md` and this task file was modified.
+
+### `refactor` — role: developer
+
+Nothing to refactor: the task produced no code, so there is no structure to improve and no refactor
+commit. The `refactor.checks.post` gates were run anyway, on the worktree as committed at `561df5a`.
+Observed, not assumed:
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **69 suites / 866 tests passed**, 0 failed |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **98.16 % statements · 88.82 % branches · 98.20 % functions · 98.73 % lines** — all four above the 80 % `coverageThreshold` in `jest.config.js`; exit 0 |
+| `docs.api.public-complete` + `docs.api.build` | `npm run docs:api` | exit **0** (TypeDoc with `notDocumented` + `treatWarningsAsErrors`) |
+| `lint.clean` (`dl-034`, hard-reject) | `npx eslint .` | exit **0**, no output |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+
+The 69/866 figures are identical to the pre-change baseline measured on this branch before any edit,
+which is the evidence for AC-4's "no behavioural change": `src/` and `test/` were never opened for
+writing, and `git show --stat` on both commits lists only `CLAUDE.md` and this file.
+
+### `review` — role: developer side
+
+`tests.bdd.run`: there is **no BDD feature covering `CLAUDE.md`'s prose** — the acceptance contracts
+under `docs/02_requirements/02_bdd/features/` describe CLI/MCP/pillar behaviour, and this task changes
+none of it. What was run instead is the full suite, which includes every BDD-derived acceptance test in
+the project, as the regression guard AC-4 actually asks for. Final run on the reviewed tree:
+**69 suites / 866 tests, all passing**; `tsc`, `docs:api` and `eslint` all exit 0.
+
+AC status: **1 met** (§1 callout replaced, callout and "specs win" guidance retained), **2 met** (full
+sweep table above; eight sections corrected, the rest verified and left alone — including §6's interim
+plan-first rule, kept because no workflow engine exists), **3 met** (answered "current, not intended",
+with `CORE_MODULES` and `task-045`–`task-048` as the evidence), **4 met** (gate table above).
+
+`bug.sync_state`: `bug-008-claude-md-stale-project-status` is this task's only source bug and this task
+is its only fix task, so it advances with the task — `in-progress → in-review`, in this same commit.
+
+**Left for the approver / later work, not done here:**
+- `dl-025`'s `align-agent-docs` phase in `user-docs.yaml` — the gate that would stop this recurring.
+  Out of scope by the task's own Implementation Notes and by `dl-025`'s Actions, which assign it to the
+  next `release-planning` → `build-backlog`. Until it lands, this fix is unprotected.
+- The Claude Code auto-memory index (golden rule §10.9) was **not** updated: this task stops at
+  `in-review`, the index lives outside the repository, and a sibling worktree was running concurrently.
