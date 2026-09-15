@@ -16,9 +16,9 @@
   (`spec-001-memory-yaml-schema`) is rejected with `"illegal transition <from> -> <to> for type '<type>'"` and
   leaves the state unchanged. Per `dl-032-illegal-transition-message-contract` (option c) that string is the
   message; any explanatory text (e.g. "a `gates` state — its forward edge requires `approve`, not `submit`")
-  rides as the issue's detail rather than replacing it. **The exit code is not settled:** BDD P1.6 pins `1`,
-  the shipped code exits `2`, and `spec-009` §3 licenses both — that contradiction must be resolved in
-  `spec-009` before the message change lands in code.
+  rides as the issue's detail rather than replacing it. The exit code is **`1`**, per BDD P1.6 and
+  REQ-INT-04 (an illegal transition is a logic error, not a usage/argument error); `spec-009` §3 has been
+  rewritten to key exit codes on the nature of the failure rather than on the detecting pass.
 * **Traceability:** Feature P1.6 (US-3-09, BDD `p1-memory/P1.6-memory-submit.feature`); Feature P4.11 (US-4-08,
   BDD `p4-workflow/P4.11-deliverables.feature`); Feature P4.13 (US-1-02, BDD `p4-workflow/P4.13-state-deduction.feature`).
 

@@ -49,7 +49,8 @@ defect; this divergence is **not** part of that fix, and will otherwise surface 
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (c), the hybrid.** Make the pinned string the
+**Ratified: option (c), the hybrid** — and, in a second pass, the exit code left open at
+ratification is settled as **`1`** (see Actions). Make the pinned string the
 message the contracts see, and keep the shipped diagnostic as its detail: emit `illegal transition
 <from> -> <to> for type '<type>'` as the message, carrying the current explanatory text ("a `gates`
 state — its forward edge requires `approve`, not `submit`") as the issue's detail field. Settle the
@@ -83,7 +84,13 @@ Independently of (a)/(b)/(c): REQ-STATE-01's reference to a `transitions` graph 
 
 ## Actions
 
-- Owner **approver**: ratify (a), (b) or (c); separately decide exit `1` vs `2`.
+- ~~Owner **approver**: ratify (a), (b) or (c); separately decide exit `1` vs `2`.~~ **Done:** option (c)
+  ratified; exit code settled as **`1`**. Three of the four authorities already said `1` — REQ-INT-04's
+  semantics (logic error, not usage/argument error), BDD P1.6's pinned code, and `src/core/exit-code.ts`'s
+  own `EXIT_CODE_BY_ERROR` mapping `INVALID_TRANSITION: 1` on the return path. The `2` came solely from
+  `state-machine.ts` reaching for `ValidationError.semantic(...)`, which hardcodes `2` for integrity
+  checks — a choice of constructor, not a decision about exit codes. Blast radius is one call site of
+  seven; the other six (`loaders`, `id`, `query`) are genuinely parse/integrity and keep `2`.
 - Regardless of option: amend REQ-STATE-01's Fit Criterion to reference `sequence`/`gates`/`waiting`
   instead of a `transitions` graph.
 - Resolve `spec-009` §3's Pass-2-exits-2 vs `E_INVALID_*`-exits-1 contradiction (new spec version per
