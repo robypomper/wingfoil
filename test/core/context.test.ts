@@ -3,9 +3,18 @@
  * REQ-STATE-05) — the Fit Criterion under test, verbatim: "The assembled context object exposes
  * separate `dna`, `memory`, `directives` sections; it contains 100% of the role's assigned directives
  * and 0 directives of other roles." (`docs/02_requirements/03_sard/03_state-context.md`).
+ *
+ * Second pass (review-gate reject) adds three contracts:
+ * - the **prototype-key** defect: a role named `toString`/`constructor`/`valueOf`/`hasOwnProperty`
+ *   must resolve to the globals like any other unbound role, never throw;
+ * - **`dl-029-role-with-no-directive-assignments`** option (c): a role contributing no assignments of
+ *   its own resolves to the globals **and** emits `no directives assigned to role '<role>'`
+ *   (`p3-directives/P3.6-auto-load-by-role.feature`, edge scenario, as amended by dl-029);
+ * - **spec-012 §5 "deduplicate by directive id"**, which the first pass claimed but never performed.
  */
 import { assembleExecutionContext, resolveRoleDirectives } from '../../src/core/context';
 import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml } from '../../src/core/loaders';
+import { ValidationError } from '../../src/validation';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const MEMORY_YAML = `
@@ -50,6 +59,21 @@ assignments:
     - testing
   reviewer:
     - code-review
+global:
+  - doc-versioning
+`;
+
+/** Same config, but `intern` is bound to an explicitly empty directive list (dl-029: "contributes no
+ * assignments of its own" covers an empty list exactly as it covers an absent key). */
+const ROLES_YAML_WITH_EMPTY_INTERN = `
+version: 1.0
+assignments:
+  developer:
+    - code-quality
+    - testing
+  reviewer:
+    - code-review
+  intern: []
 global:
   - doc-versioning
 `;
@@ -99,35 +123,91 @@ describe('resolveRoleDirectives — role-scoped directive resolution (REQ-STATE-
     removeTempDir(repo);
   });
 
+  function resolveIds(role: string, files = loadDirectives(repo)): string[] {
+    return resolveRoleDirectives(files, loadRolesYaml(repo), role).directives.map((d) => d.frontmatter.id);
+  }
+
   it('includes 100% of the role\'s assigned directives plus global', () => {
-    const directives = loadDirectives(repo);
-    const roles = loadRolesYaml(repo);
-    const resolved = resolveRoleDirectives(directives, roles, 'developer');
-    expect(resolved.map((d) => d.frontmatter.id)).toEqual(['code-quality', 'doc-versioning', 'testing']);
+    expect(resolveIds('developer')).toEqual(['code-quality', 'doc-versioning', 'testing']);
   });
 
   it('includes 0 directives of other roles', () => {
-    const directives = loadDirectives(repo);
-    const roles = loadRolesYaml(repo);
-    const resolved = resolveRoleDirectives(directives, roles, 'developer');
-    expect(resolved.map((d) => d.frontmatter.id)).not.toContain('code-review');
+    expect(resolveIds('developer')).not.toContain('code-review');
   });
 
   it('a role with no assignments resolves to only the global directives', () => {
-    const directives = loadDirectives(repo);
-    const roles = loadRolesYaml(repo);
-    const resolved = resolveRoleDirectives(directives, roles, 'intern');
-    expect(resolved.map((d) => d.frontmatter.id)).toEqual(['doc-versioning']);
+    expect(resolveIds('intern')).toEqual(['doc-versioning']);
   });
 
   it('is deterministic: sorted ascending by directive id, independent of file-system enumeration order', () => {
     const directives = loadDirectives(repo);
-    const roles = loadRolesYaml(repo);
-    const first = resolveRoleDirectives(directives, roles, 'developer').map((d) => d.frontmatter.id);
-    const reversedInput = [...directives].reverse();
-    const second = resolveRoleDirectives(reversedInput, roles, 'developer').map((d) => d.frontmatter.id);
+    const first = resolveIds('developer', directives);
+    const second = resolveIds('developer', [...directives].reverse());
     expect(first).toEqual(second);
     expect(first).toEqual([...first].sort());
+  });
+
+  describe('Object.prototype role names (rejection_reason — inherited-property defect)', () => {
+    // `assignments` is a plain object, so `assignments['toString']` reaches `Object.prototype` and
+    // yields a *function*; spreading it threw `TypeError: ... is not iterable` in the first pass.
+    it.each(['toString', 'constructor', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', '__proto__'])(
+      'role %p resolves to the globals instead of throwing',
+      (role) => {
+        expect(() => resolveIds(role)).not.toThrow();
+        expect(resolveIds(role)).toEqual(['doc-versioning']);
+      },
+    );
+
+    it('a prototype-named role also carries the dl-029 no-assignments warning', () => {
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'toString');
+      expect(resolution.warnings).toEqual(["no directives assigned to role 'toString'"]);
+    });
+
+    it('a role literally named `global` does not borrow the global list as its assignments', () => {
+      // Guards the mirror-image mistake: `global` IS an own key of `RolesYaml`, but not of
+      // `assignments`, so it must still be treated as an unbound role.
+      expect(resolveIds('global')).toEqual(['doc-versioning']);
+    });
+  });
+
+  describe('dl-029 option (c) — globals always, plus the operator warning (P3.6 edge scenario)', () => {
+    it('emits no warning for a role that has its own assignments', () => {
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
+      expect(resolution.warnings).toEqual([]);
+    });
+
+    it('emits the P3.6 warning verbatim for a role absent from `assignments`', () => {
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'intern');
+      expect(resolution.warnings).toEqual(["no directives assigned to role 'intern'"]);
+      expect(resolution.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning']);
+    });
+
+    it('emits the same warning for a role bound to an explicitly empty list', () => {
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML_WITH_EMPTY_INTERN);
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'intern');
+      expect(resolution.warnings).toEqual(["no directives assigned to role 'intern'"]);
+      expect(resolution.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning']);
+    });
+  });
+
+  describe('spec-012 §5 — deduplicate by directive id', () => {
+    beforeEach(() => {
+      // Same id shipped twice (the built-in/custom stand-in overlap CLAUDE.md §3 anticipates).
+      writeFixtureFile(repo, '.wingfoil/directives/built-in/testing.md', directiveMd('testing', 'Testing (built-in)'));
+    });
+
+    it('includes a duplicated directive id exactly once', () => {
+      expect(resolveIds('developer')).toEqual(['code-quality', 'doc-versioning', 'testing']);
+    });
+
+    it('picks the same duplicate regardless of input order (total, path-based tie-break)', () => {
+      const directives = loadDirectives(repo);
+      const roles = loadRolesYaml(repo);
+      const forward = resolveRoleDirectives(directives, roles, 'developer').directives;
+      const reversed = resolveRoleDirectives([...directives].reverse(), roles, 'developer').directives;
+      expect(reversed.map((d) => d.path)).toEqual(forward.map((d) => d.path));
+      expect(forward.find((d) => d.frontmatter.id === 'testing')?.path).toContain('built-in');
+    });
   });
 });
 
@@ -203,5 +283,27 @@ describe('assembleExecutionContext — distinct addressable dna/memory/directive
     const first = assemble('developer', 'task-101-alpha');
     const second = assemble('developer', 'task-101-alpha');
     expect(second).toEqual(first);
+  });
+
+  it('surfaces the dl-029 warning on the assembled context, not only on the resolver', () => {
+    expect(assemble('developer', 'task-101-alpha').warnings).toEqual([]);
+    const intern = assemble('intern', 'task-101-alpha');
+    expect(intern.warnings).toEqual(["no directives assigned to role 'intern'"]);
+    expect(intern.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning']);
+  });
+
+  it('assembles for a prototype-named role instead of throwing (rejection_reason)', () => {
+    expect(() => assemble('constructor', 'task-101-alpha')).not.toThrow();
+    const context = assemble('constructor', 'task-101-alpha');
+    expect(context.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning']);
+    expect(context.memory[0]?.frontmatter.id).toBe('task-101-alpha');
+  });
+
+  it('propagates a ValidationError when any Memory document has unparseable frontmatter', () => {
+    // Documents the *real* contract the first pass mis-stated as "never throws": the element lookup
+    // walks and YAML-parses Memory documents in path order until it matches, so a malformed sibling
+    // visited *before* the target aborts assembly (`task-100-*` sorts ahead of `task-101-alpha`).
+    writeFixtureFile(repo, 'docs/04_memory/v0.1/task-100-broken.md', '---\nid: "task-100-broken\n---\n\nbody\n');
+    expect(() => assemble('developer', 'task-101-alpha')).toThrow(ValidationError);
   });
 });
