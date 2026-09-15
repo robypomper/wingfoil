@@ -6,17 +6,24 @@
  * exposes separate `dna`, `memory`, `directives` sections; it contains 100% of the role's assigned
  * directives and 0 directives of other roles."
  *
- * Deliberately NOT the full spec-012 pipeline: no `ContextRequest`/`stateRef` pinning, no tiered
- * (T1–T4) Memory relevance ranking, no bounding caps, no archived-status exclusion (§6, REQ-STATE-06 —
- * `bug-010-deprecated-reaches-agent-context` owns that here), and no canonical byte-for-byte Markdown
+ * **Archived elements are excluded** (REQ-STATE-06, the `{deprecated, superseded}` set ratified by
+ * `dl-028-archived-states-excluded-from-context`): {@link assembleExecutionContext} drops a resolved
+ * element whose `status` is archived, through the shared `isArchivedStatus` primitive rather than any
+ * local notion of "archived". This closed `bug-010-deprecated-reaches-agent-context` — which this
+ * header previously recorded as an open gap — together with the `wingfoil://memory/{type}` collection
+ * Resource, the other surface that bug covered (`task-069-fix-archived-excluded-from-agent-context`).
+ *
+ * Still deliberately NOT the full spec-012 pipeline: no `ContextRequest`/`stateRef` pinning, no tiered
+ * (T1–T4) Memory relevance ranking, no bounding caps, and no canonical byte-for-byte Markdown
  * serialization (§7). Those are split across sibling Wave-1 v0.2 tasks
  * (task-035-bounded-context-relevance REQ-PERF-05, task-038-deprecated-excluded-from-context
  * REQ-STATE-06) and v0.3 (`REQ-SYS-07`, `REQ-PERF-01`, `REQ-STATE-09`, the real `agent execute`
  * CLI/MCP surface) — see this task's Execution Notes for the full scope decision. This module wraps
- * only existing, already-shipped primitives: `loadDirectives`/`loadRolesYaml` (`./loaders`) and
- * `findMemoryDocumentByTypeAndId` (`../memory`, task-011) — no scan/parse logic is reimplemented here.
+ * only existing, already-shipped primitives: `loadDirectives`/`loadRolesYaml` (`./loaders`),
+ * `findMemoryDocumentByTypeAndId` and `isArchivedStatus` (`../memory`, task-011/task-035) — no
+ * scan/parse logic and no second status predicate is reimplemented here.
  */
-import { findMemoryDocumentByTypeAndId, type MemoryDocumentSummary } from '../memory';
+import { findMemoryDocumentByTypeAndId, isArchivedStatus, type MemoryDocumentSummary } from '../memory';
 import type { MemoryYaml } from '../memory/schema';
 import type { RolesYaml } from '../directives/schema';
 import type { DnaYaml } from '../dna/schema';
@@ -130,7 +137,8 @@ export interface ExecutionContext {
   readonly dna: DnaYaml;
   /** This role's assigned directives + global, resolved by {@link resolveRoleDirectives}. */
   readonly directives: readonly DirectiveFile[];
-  /** Memory relevant to `element` — today, exactly the element's own document (0 or 1 entries); the
+  /** Memory relevant to `element` — today, exactly the element's own document (0 or 1 entries), and
+   * empty when that document is archived (REQ-STATE-06; see {@link assembleExecutionContext}); the
    * full T1–T4 tiered relevance expansion is task-035/038/v0.3's scope (see the module doc comment). */
   readonly memory: readonly MemoryDocumentSummary[];
   /** Operator diagnostics gathered during assembly — currently only
@@ -176,15 +184,34 @@ export interface ExecutionContextInputs {
  *   `ValidationError` (`E_YAML_PARSE_ERROR`) propagates out of assembly if any document visited
  *   during that walk has unparseable frontmatter. This function adds no `try`/`catch` of its own.
  *
- * `memory` is also **not** filtered by document status: an archived (`deprecated`/`superseded`)
- * element still assembles into the context. spec-012 §6 requires that exclusion and
- * `dl-028-archived-states-excluded-from-context` ratified the status set, but the fix is tracked as
- * `bug-010-deprecated-reaches-agent-context` (with the MCP collection Resource) and is deliberately
- * not made here.
+ * `memory` **is** filtered by document status, in one direction only: a resolved element whose
+ * `status` is archived — `{deprecated, superseded}`, per the shared {@link isArchivedStatus}
+ * (`../memory`, the set ratified by `dl-028-archived-states-excluded-from-context`) — is dropped,
+ * leaving `memory` empty. That is REQ-STATE-06's Fit Criterion as amended: "a `deprecated` or
+ * `superseded` document never appears in an assembled agent context". The filter is applied to the
+ * lookup's *result* rather than pushed into `findMemoryDocumentByTypeAndId`, because that same
+ * primitive also serves `wingfoil://memory/{type}/{id}`, where explicit retrieval of archived content
+ * must keep working.
+ *
+ * `draft` is deliberately **not** excluded here, unlike in `./relevance.ts`. That module filters
+ * *candidate* documents for relevance (spec-012 §6, which does bar `draft` from a context); this
+ * function resolves the **subject** element the context is being assembled for (spec-012 §3's
+ * `resolve-element` stage), and blanking the context for a task still in `draft` would defeat the
+ * point of assembling it. dl-028 ratified the archived set as `{deprecated, superseded}` and did not
+ * put `draft` in it.
+ *
+ * An archived element produces no warning: {@link ExecutionContext.warnings} carries
+ * directive-resolution diagnostics (dl-029), and adding an unratified entry would change a payload
+ * REQ-SYS-07 governs. An archived element is therefore indistinguishable here from an unresolvable
+ * one — both yield `memory: []`.
  */
 export function assembleExecutionContext(inputs: ExecutionContextInputs): ExecutionContext {
   const { directives, warnings } = resolveRoleDirectives(inputs.directiveFiles, inputs.rolesYaml, inputs.role);
   const doc = findMemoryDocumentByTypeAndId(inputs.root, inputs.memoryYaml, inputs.element.type, inputs.element.id);
-  const memory = doc ? [doc] : [];
+  // `frontmatter` is untyped (`Record<string, unknown>`), so project `status` to the
+  // `string | undefined` shape `isArchivedStatus` takes — a non-string `status` is never archived,
+  // exactly as that predicate's contract states.
+  const status = typeof doc?.frontmatter.status === 'string' ? doc.frontmatter.status : undefined;
+  const memory = doc !== undefined && !isArchivedStatus(status) ? [doc] : [];
   return { dna: inputs.dna, directives, memory, warnings };
 }
