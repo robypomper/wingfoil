@@ -16,7 +16,13 @@ tmpl_version: 260703   # Orignal template version
 
 ## Decision
 
-<!-- What was decided. -->
+<!-- What was decided. State it directly, in the present tense.
+     Do NOT mark the body as unratified (no "proposed, not yet ratified" preamble): `status:` already
+     says whether the decision is `in-discussion` or `ready`, and a body marker cannot be corrected by
+     `memory.approve`, which per CLAUDE.md §5.1 may change only `status`. The result is a `ready`
+     document that goes on declaring itself unratified — this had accumulated across 16 decision-logs
+     before the convention was adopted. Where options are still open, present them as options; the
+     approver's choice is recorded in the approve commit's `Reason:`. -->
 
 ## Rationale
 

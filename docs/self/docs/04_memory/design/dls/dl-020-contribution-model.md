@@ -36,7 +36,7 @@ spawning this DL together with a `COLLABORATION.md` deliverable (`retro-v0.1.md:
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Adopt an **AI-mediated contribution model**, documented
+Adopt an **AI-mediated contribution model**, documented
 in a new repo-root `COLLABORATION.md`:
 
 1. **Contribution channel is Memory artifacts, not code.** An external contributor's path into the

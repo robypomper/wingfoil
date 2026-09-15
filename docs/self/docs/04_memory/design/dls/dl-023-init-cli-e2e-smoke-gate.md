@@ -36,7 +36,7 @@ touch that area manually — in `bug-005`'s case, almost not at all.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Add a standing **fresh-init + CLI end-to-end smoke gate**
+Add a standing **fresh-init + CLI end-to-end smoke gate**
 run every release, before `release-submit`:
 
 - It runs a real `wingfoil init` (each supported template: Scrum, Kanban) into a throwaway directory,

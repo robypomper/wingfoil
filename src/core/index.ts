@@ -22,6 +22,7 @@ import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
 import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
 import {
   hasNumericToken,
+  isArchivedStatus,
   nextSequenceNumber,
   parseTags,
   renderAddDocument,
@@ -61,9 +62,22 @@ export * from './types';
 export * from './registry';
 export * from './exit-code';
 export * from './git-identity';
+export * from './approval-authority';
+export * from './require-reason';
 export * from './usage-error';
 export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
+export {
+  DEFAULT_CONTEXT_LIMITS,
+  filterRelevantMemoryDocuments,
+  NO_RELEVANT_MEMORY_NOTE,
+} from './relevance';
+export type {
+  ContextLimits,
+  RelevanceElementRef,
+  RelevantMemoryDocument,
+  RelevantMemoryResult,
+} from './relevance';
 
 /** Params shared by every operation registered today — all of them are a bare pillar-config read. */
 export interface RootParams {
@@ -427,6 +441,14 @@ const NO_MEMORY_SEARCH_MATCHES_MESSAGE = 'no documents matched the query';
  *    scenario's own title says "Error" but its assertion is exit `0`, so this is deliberately a
  *    successful, empty result carrying the exact message, per spec-005-cli-command-contract §1: a
  *    read-only command can only exit `0`/`1`).
+ *
+ * **REQ-STATE-06 (task-038; archived set widened by `dl-028-archived-states-excluded-from-context`):**
+ * `searchMemoryDocuments` excludes archived documents — `status: deprecated` or `superseded` — by
+ * default (the "default … `memory search` results" half of the Fit Criterion). This function passes
+ * `includeArchived: true` through to the scan ONLY when the caller's own `--status` narrow names an
+ * archived status (`isArchivedStatus`), so that intentional request still resolves; every other query
+ * (no `--status`, or a `--status` naming a live state such as `draft`) stays under the default
+ * exclusion.
  */
 const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
   const { root, positional, options } = params as MemorySearchParams;
@@ -441,7 +463,10 @@ const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
   const type = options?.type;
   const status = options?.status;
 
-  const scanned = searchMemoryDocuments(root, loaded.value, query, tag !== undefined ? { tag } : {});
+  const scanned = searchMemoryDocuments(root, loaded.value, query, {
+    ...(tag !== undefined ? { tag } : {}),
+    ...(isArchivedStatus(status) ? { includeArchived: true } : {}),
+  });
   const matches: MemorySearchResultItem[] = scanned
     .filter((match) => (type === undefined || match.type === type) && (status === undefined || match.status === status))
     .map(({ path, id, title, type: docType, status: docStatus, tags }) => ({ path, id, title, type: docType, status: docStatus, tags }));
