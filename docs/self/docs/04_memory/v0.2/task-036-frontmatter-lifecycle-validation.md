@@ -2,7 +2,7 @@
 id: "task-036-frontmatter-lifecycle-validation"
 type: task
 title: "Infrastructure: REQ-STATE-01 — frontmatter lifecycle, per-type validated"
-status: approved
+status: done
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "state"]
