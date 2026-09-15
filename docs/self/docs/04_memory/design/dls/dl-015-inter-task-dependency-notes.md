@@ -41,7 +41,7 @@ REQ-STATE-09) and the derive-from-state model of P1.13.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Make inter-task dependency notes **deterministic**
+Make inter-task dependency notes **deterministic**
 rather than convention-based, via three coordinated changes:
 
 1. Add a structured `depends_on:` (and/or `related_tasks:`) list field to the `task` Memory template

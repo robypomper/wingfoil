@@ -45,6 +45,23 @@ export function isConfiguredIdentity(name: string, email: string): boolean {
   return name.length > 0 && email.length > 0;
 }
 
+/** The `user.name`/`user.email` pair `readGitIdentity` resolves at a given root — either may be `''` (unset). */
+export interface GitIdentity {
+  readonly name: string;
+  readonly email: string;
+}
+
+/**
+ * Read the live `user.name`/`user.email` git identity configured at `root`, with no "is it valid"
+ * judgement of its own (that is {@link isConfiguredIdentity}'s job) — the single read primitive both
+ * {@link requireGitIdentity} (REQ-SEC-01) and `src/core/approval-authority.ts`'s
+ * `requireApprovalAuthority` (REQ-SEC-03, task-040-role-based-approval-authority) build on, so the two
+ * checks never each re-implement their own `git config` read.
+ */
+export function readGitIdentity(root: string): GitIdentity {
+  return { name: readGitConfig(root, 'user.name'), email: readGitConfig(root, 'user.email') };
+}
+
 /**
  * Verify a git identity is configured at `root` before a state mutation. Returns a
  * `CoreResult.error` (code `VALIDATION` — a failed precondition, mapped to exit `1` by
@@ -52,8 +69,7 @@ export function isConfiguredIdentity(name: string, email: string): boolean {
  * is unset; otherwise `ok`.
  */
 export function requireGitIdentity(root: string): CoreResult<void> {
-  const name = readGitConfig(root, 'user.name');
-  const email = readGitConfig(root, 'user.email');
+  const { name, email } = readGitIdentity(root);
   if (!isConfiguredIdentity(name, email)) {
     return coreErr({ code: 'VALIDATION', message: IDENTITY_ERROR });
   }

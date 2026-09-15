@@ -19,5 +19,5 @@ Feature: P3.6 (US-3-06) - Auto-Load Directives by Role
   Scenario: Edge - executing under a role with no assigned directives
     Given role "intern" has no directives assigned
     When an agent executes a task under the "intern" role
-    Then the agent context contains zero directives
+    Then the agent context contains only the global directives
     And a warning "no directives assigned to role 'intern'" is emitted

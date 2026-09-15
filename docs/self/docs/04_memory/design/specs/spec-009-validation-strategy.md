@@ -220,11 +220,21 @@ export function toValidationError(
 }
 ```
 
-`E_YAML_PARSE_ERROR` and the semantic/cross-field codes it triggers (Pass 1 pre-parse failure,
-Pass 2 cross-field failure) always exit `2`; a mapped `E_INVALID_*`/`E_INVALID_*_SCHEMA` failure
-exits `1`; the generic `E_VALIDATION` fallback also exits `1` — matching `spec-008`'s exit-code
-table (parse/system-integrity failures get the distinct `2`, all other validation failures get
-`1`).
+Exit codes follow **the nature of the failure, not the pass that detects it** — an earlier wording of
+this paragraph keyed on the pass and on the code family at the same time, which made a Pass-2
+`E_INVALID_*` failure both a `2` and a `1`. The rule is:
+
+- **`2`** — parse and system-integrity failures: `E_YAML_PARSE_ERROR`, and the cross-file integrity
+  checks that presuppose a parseable tree. The input could not be understood, or the installation is
+  inconsistent.
+- **`1`** — every other validation failure: any mapped `E_INVALID_*`/`E_INVALID_*_SCHEMA`, **including
+  business-rule failures detected in Pass 2** such as `E_INVALID_TRANSITION`, plus the generic
+  `E_VALIDATION` fallback. The input was understood and the rule said no.
+
+This matches `spec-008`'s exit-code table and REQ-INT-04 (`0` success, `1` user/logic error, `2`
+usage/argument error). Ratified by `dl-032-illegal-transition-message-contract`; it also removes an
+inconsistency in `src/core/exit-code.ts`, whose `EXIT_CODE_BY_ERROR` already maps `INVALID_TRANSITION`
+to `1` on the return path while the throw path produced `2` for the same failure.
 
 ## Consequences
 

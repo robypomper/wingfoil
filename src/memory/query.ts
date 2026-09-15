@@ -28,6 +28,20 @@
  *   a genuine gap task-008 left open (an empty query previously matched every document instead of
  *   being rejected) — task-023 closed it with a `ValidationError.semantic` guard a caller runs before
  *   invoking {@link searchMemoryDocuments}, exiting 2 with message "empty search query".
+ *
+ * **Archived-exclusion (REQ-STATE-06, task-038-deprecated-excluded-from-context; set widened by
+ * `dl-028-archived-states-excluded-from-context`):** {@link searchMemoryDocuments} excludes documents
+ * in an archived state from its default result — an archived document "never appears in … default
+ * `memory search` results" (the SARD Fit Criterion) while staying present on disk and in git history.
+ * The archived set is `{deprecated, superseded}` and the single shared check is
+ * `state-machine.ts`'s {@link isArchivedStatus} (it superseded task-038's `isDeprecatedStatus`), so
+ * the Agent Context Loader relevance-filter (spec-012 §6, `src/core/relevance.ts`) applies the same
+ * predicate rather than re-deciding what "archived" means. {@link MemorySearchOptions.includeArchived}
+ * is the explicit opt-out.
+ *
+ * `draft` is deliberately NOT excluded here: spec-012 §6 excludes drafts from an assembled agent
+ * *context*, but REQ-STATE-06 scopes default-search exclusion to archived content only, so a draft
+ * document a user is actively working on stays findable. The two filters are different sets on purpose.
  */
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
@@ -35,6 +49,7 @@ import { join } from 'path';
 import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
+import { isArchivedStatus } from './state-machine';
 import { readDocument, splitFrontmatter } from '../storage';
 
 /**
@@ -240,6 +255,15 @@ export function findMemoryDocumentByTypeAndId(
 export interface MemorySearchOptions {
   /** Only include documents whose `tags:` frontmatter contains this exact tag. */
   readonly tag?: string;
+  /**
+   * Opt back into archived documents (`status: deprecated` or `superseded` — `ARCHIVED_STATUSES`,
+   * ratified by `dl-028-archived-states-excluded-from-context`) appearing in the result.
+   * REQ-STATE-06 excludes them by default — "default … results" in the Fit Criterion. Set this only
+   * for an explicit, intentional request to see archived documents (e.g. an `--status deprecated` or
+   * `--status superseded` narrow); never as the default for a general keyword/tag search.
+   * Defaults to `false`.
+   */
+  readonly includeArchived?: boolean;
 }
 
 /** One ranked search result — enough for a future CLI/MCP surface to render without re-reading the file. */
@@ -296,6 +320,14 @@ export function validateSearchQuery(query: string): void {
  * Ordering is a total, deterministic order (REQ-SYS-07): metadata matches before body-only matches,
  * then by `id` (falling back to `path` when a document has no `id`) ascending — so calling this
  * twice against unchanged state always returns the exact same array.
+ *
+ * **REQ-STATE-06:** a document whose frontmatter `status` is archived — `deprecated` or `superseded`
+ * (`isArchivedStatus`, `dl-028`) — is excluded by default, so it never appears in these "default
+ * `memory search` results", matching the Fit Criterion verbatim, while the file itself is untouched on
+ * disk and in git history (`memory deprecate`, P1.9, never deletes it; `superseded` is reached by an
+ * ordinary `approve`). Pass `options.includeArchived: true` for the one legitimate exception: an
+ * explicit, intentional request to see archived documents too. `draft` documents are NOT excluded
+ * here — see this module's header for why the search set and the context set differ.
  */
 export function searchMemoryDocuments(
   root: string,
@@ -308,12 +340,13 @@ export function searchMemoryDocuments(
 
   for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
     const { frontmatter, body } = loadMemoryDocumentSummary(root, path);
+    const status = asString(frontmatter.status);
+    if (!options.includeArchived && isArchivedStatus(status)) continue;
     const tags = asStringArray(frontmatter.tags);
     if (options.tag && !tags.includes(options.tag)) continue;
 
     const title = asString(frontmatter.title);
     const id = asString(frontmatter.id);
-    const status = asString(frontmatter.status);
     const type = asString(frontmatter.type);
 
     let metadataMatch = false;
