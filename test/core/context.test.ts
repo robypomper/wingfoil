@@ -125,6 +125,20 @@ function writeTask(root: string, id: string, title: string, status = 'in-progres
   );
 }
 
+/** Load all four pillars from `repo` and assemble a context for one element — the wiring every
+ * `assembleExecutionContext` test needs, so each describe supplies only what it varies. */
+function assembleFrom(repo: string, role: string, type: string, elementId: string) {
+  return assembleExecutionContext({
+    root: repo,
+    dna: loadDnaYaml(repo),
+    memoryYaml: loadMemoryYaml(repo),
+    directiveFiles: loadDirectives(repo),
+    rolesYaml: loadRolesYaml(repo),
+    role,
+    element: { type, id: elementId },
+  });
+}
+
 function writeAdr(root: string, id: string, title: string, status: string): void {
   writeFixtureFile(
     root,
@@ -248,19 +262,7 @@ describe('assembleExecutionContext — distinct addressable dna/memory/directive
   });
 
   function assemble(role: string, elementId: string) {
-    const dna = loadDnaYaml(repo);
-    const memoryYaml = loadMemoryYaml(repo);
-    const directiveFiles = loadDirectives(repo);
-    const rolesYaml = loadRolesYaml(repo);
-    return assembleExecutionContext({
-      root: repo,
-      dna,
-      memoryYaml,
-      directiveFiles,
-      rolesYaml,
-      role,
-      element: { type: 'task', id: elementId },
-    });
+    return assembleFrom(repo, role, 'task', elementId);
   }
 
   it('exposes distinct, individually addressable `dna`, `memory`, and `directives` sections', () => {
@@ -361,15 +363,7 @@ describe('assembleExecutionContext — archived elements never reach the context
   });
 
   function assemble(role: string, type: string, elementId: string) {
-    return assembleExecutionContext({
-      root: repo,
-      dna: loadDnaYaml(repo),
-      memoryYaml: loadMemoryYaml(repo),
-      directiveFiles: loadDirectives(repo),
-      rolesYaml: loadRolesYaml(repo),
-      role,
-      element: { type, id: elementId },
-    });
+    return assembleFrom(repo, role, type, elementId);
   }
 
   it('AC1 — a `deprecated` element yields an empty `memory` section', () => {
