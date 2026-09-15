@@ -12,6 +12,7 @@ import {
   loadIgnoreGlobs,
   matchesIgnoreGlob,
 } from '../../src/validation/secret-scan';
+import { join } from 'path';
 import { git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('SECRET_PATTERNS — canonical pattern set (spec-007 §2)', () => {
@@ -261,6 +262,54 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
     git(repo, ['commit', '--quiet', '-m', 'seed']);
 
     expect(() => scanProjectSurface(repo)).not.toThrow();
+  });
+});
+
+/**
+ * The literal REQ-SEC-08 Fit Criterion, second clause — "a scan of committed `.wingfoil/` content
+ * matches **0** known secret patterns" — asserted against **this repository's own tracked content**,
+ * not a temp fixture. Every other `scanProjectSurface` case above builds a `makeTempGitRepo()`
+ * fixture and therefore only proves the scanner works on content the test itself wrote; none of them
+ * would notice a real credential committed under `docs/self/docs/04_memory/` or
+ * `docs/self/.wingfoil/`. This block is the standing guard that does, in the same spirit as
+ * `test/lint/lint-clean.test.ts` (ESLint over the real tree) and `test/docs/api-docs.test.ts`.
+ *
+ * The Fit Criterion's *first* clause ("after `init`, the built-in `security` directive is present")
+ * is not asserted here: built-in directive templates do not exist yet and are
+ * `task-057-builtin-directive-templates`'s deliverable, not this task's.
+ *
+ * Non-vacuity: `ScanResult.filesScanned` reports how many files the scan actually read, so a broken
+ * surface root, a `git ls-files` that returned nothing, or a scan pointed at the wrong directory
+ * cannot masquerade as "clean". The floor below is asserted alongside every clean verdict, and the
+ * last case shows what a vacuous scan looks like (`filesScanned: 0`) so the floor is a real
+ * discriminator rather than a number nothing could fail. Deterministic: the verdict is a pure
+ * function of this repo's indexed content and the fixed pattern set — no wall-clock, no randomness.
+ */
+describe("REQ-SEC-08 Fit Criterion — this repository's own committed surface", () => {
+  /** The worktree root: `test/validation/` → up two. */
+  const repoRoot = join(__dirname, '..', '..');
+
+  it('reads a non-trivial number of this repository\'s own tracked surface files', () => {
+    // Guards the guard: without this, "0 blocking" below could mean "0 files examined".
+    expect(scanProjectSurface(repoRoot).filesScanned).toBeGreaterThan(100);
+  });
+
+  it('matches 0 blocking secret patterns across this repository\'s committed surface', () => {
+    const result = scanProjectSurface(repoRoot);
+
+    expect(result.filesScanned).toBeGreaterThan(100);
+    // `toEqual([])` rather than `toHaveLength(0)`: a failure then names the offending
+    // file/line/pattern instead of just reporting a count mismatch.
+    expect(result.blocking).toEqual([]);
+  });
+
+  it('reports filesScanned: 0 for a surface root this repository does not have', () => {
+    // Proves `filesScanned` is a real count of examined files — an empty surface scores 0, so the
+    // >100 floor above cannot be satisfied by a scan that looked at nothing.
+    const result = scanProjectSurface(repoRoot, { surfaceRoots: ['no-such-surface-root'] });
+
+    expect(result.filesScanned).toBe(0);
+    expect(result.blocking).toEqual([]);
   });
 });
 
