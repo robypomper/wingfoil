@@ -10,8 +10,11 @@
  * "Who holds this role?" and "may this principal approve?" are different questions with different
  * answers: AI agents do hold `developer`/`reviewer` via `team.agents[].executes_as` — correct for
  * directive binding — but never hold approval authority (ADR-006, REQ-SEC-03). The canonical answer
- * to the authority question is `src/core/approval-authority.ts` (task-040), which resolves from
- * `team.members` by git identity and honours `approval_authority`;
+ * to the authority question is `src/core/approval-authority.ts` (task-040), which resolves the
+ * approver from `team.members` by live git identity and never consults `team.agents` at all. Note
+ * that `team.agents[].approval_authority` is **not** what grants or denies authority in code: no code
+ * path in this tree reads that field — it is a declarative `dna.yaml` marker, enforced by
+ * process/governance (ADR-006, CLAUDE.md §4/§8), as `approval-authority.ts`'s own header states.
  * BDD `p4-workflow/P4.14-approval-routing.feature`'s routing scenarios belong to `task-046-memory-approve`,
  * built on that module. Nothing in this file decides who may approve.
  *
