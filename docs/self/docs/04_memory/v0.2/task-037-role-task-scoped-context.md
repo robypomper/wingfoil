@@ -2,7 +2,7 @@
 id: "task-037-role-task-scoped-context"
 type: task
 title: "Infrastructure: REQ-STATE-05 — role/task-scoped context"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "state"]
