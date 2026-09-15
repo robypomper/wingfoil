@@ -104,6 +104,16 @@ DNA is small and fully declared, so selection is inclusion-by-category, not fuzz
 - Add the **global** directives applied to all roles (`doc-versioning, documentation, security-secrets`).
 - Deduplicate by directive id; **sort the final list lexicographically by directive id** (stable,
   reproducible order — never rely on `roles.yaml` listing order or file-system enumeration order).
+- **Precedence when two directives share an id: `custom/` wins over `built-in/`** — a local
+  customization overrides the shipped default, matching P3.8's "teams can create custom directives"
+  on top of pre-configured templates. Ratified by `dl-037-builtin-vs-custom-directive-precedence`
+  (option A.1), which replaced an accidental rule: an earlier implementation broke the tie on shortest
+  path, so `built-in/` won because `'b'` sorts before `'c'`.
+- **A shadowed directive is reported, never silently dropped** (`dl-037` option B.1). Emit through the
+  resolution's `warnings` channel (the one `dl-029-role-with-no-directive-assignments` introduced),
+  naming the id and which file won. Dropping one in silence would contradict this section's own
+  "authoritative rules … never truncated" rule below, and would leave an agent unaware of a directive
+  it was meant to obey.
 - Each directive is included **verbatim** (full Markdown body); directives are authoritative rules and
   are never truncated by the bounding logic in §6.
 
