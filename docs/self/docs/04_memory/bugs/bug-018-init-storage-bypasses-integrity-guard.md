@@ -2,7 +2,7 @@
 id: "bug-018-init-storage-bypasses-integrity-guard"
 type: bug
 title: "initWingfoilStorage is the one write path that calls initStorage without the built-in integrity guard"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
 release: ""
