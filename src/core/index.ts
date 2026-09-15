@@ -21,8 +21,8 @@ import { DnaYaml } from '../dna/schema';
 import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
 import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
 import {
-  DEPRECATED_STATE,
   hasNumericToken,
+  isArchivedStatus,
   nextSequenceNumber,
   parseTags,
   renderAddDocument,
@@ -67,6 +67,17 @@ export * from './require-reason';
 export * from './usage-error';
 export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
+export {
+  DEFAULT_CONTEXT_LIMITS,
+  filterRelevantMemoryDocuments,
+  NO_RELEVANT_MEMORY_NOTE,
+} from './relevance';
+export type {
+  ContextLimits,
+  RelevanceElementRef,
+  RelevantMemoryDocument,
+  RelevantMemoryResult,
+} from './relevance';
 
 /** Params shared by every operation registered today — all of them are a bare pillar-config read. */
 export interface RootParams {
@@ -431,11 +442,13 @@ const NO_MEMORY_SEARCH_MATCHES_MESSAGE = 'no documents matched the query';
  *    successful, empty result carrying the exact message, per spec-005-cli-command-contract §1: a
  *    read-only command can only exit `0`/`1`).
  *
- * **REQ-STATE-06 (task-038):** `searchMemoryDocuments` excludes `status: deprecated` documents by
- * default (the "default … `memory search` results" half of the Fit Criterion) — this function passes
- * `includeDeprecated: true` through to the scan ONLY when the caller's own `--status deprecated`
- * narrow is explicit, so that intentional request still resolves; every other query (no `--status`,
- * or any other `--status` value) stays under the default exclusion.
+ * **REQ-STATE-06 (task-038; archived set widened by `dl-028-archived-states-excluded-from-context`):**
+ * `searchMemoryDocuments` excludes archived documents — `status: deprecated` or `superseded` — by
+ * default (the "default … `memory search` results" half of the Fit Criterion). This function passes
+ * `includeArchived: true` through to the scan ONLY when the caller's own `--status` narrow names an
+ * archived status (`isArchivedStatus`), so that intentional request still resolves; every other query
+ * (no `--status`, or a `--status` naming a live state such as `draft`) stays under the default
+ * exclusion.
  */
 const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
   const { root, positional, options } = params as MemorySearchParams;
@@ -452,7 +465,7 @@ const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
 
   const scanned = searchMemoryDocuments(root, loaded.value, query, {
     ...(tag !== undefined ? { tag } : {}),
-    ...(status === DEPRECATED_STATE ? { includeDeprecated: true } : {}),
+    ...(isArchivedStatus(status) ? { includeArchived: true } : {}),
   });
   const matches: MemorySearchResultItem[] = scanned
     .filter((match) => (type === undefined || match.type === type) && (status === undefined || match.status === status))

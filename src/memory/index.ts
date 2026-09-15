@@ -28,10 +28,13 @@ export const MODULE_NAME = 'memory' as const;
 
 export { MemoryYaml, MemoryTypeEntry, StateMachine, TemplateConfig } from './schema';
 export {
+  ARCHIVED_STATUSES,
   DEPRECATED_STATE,
   E_INVALID_TRANSITION,
+  isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
+  SUPERSEDED_STATE,
 } from './state-machine';
 export type { TransitionOp } from './state-machine';
 export {
@@ -39,7 +42,6 @@ export {
   E_EMPTY_SEARCH_QUERY,
   findMemoryDocumentById,
   findMemoryDocumentByTypeAndId,
-  isDeprecatedStatus,
   listMemoryDocumentPaths,
   listMemoryDocumentsByType,
   loadMemoryDocumentSummary,

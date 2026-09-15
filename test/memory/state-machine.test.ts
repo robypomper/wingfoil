@@ -19,10 +19,13 @@ import { load } from 'js-yaml';
 
 import { MemoryYaml } from '../../src/memory/schema';
 import {
+  ARCHIVED_STATUSES,
   DEPRECATED_STATE,
   E_INVALID_TRANSITION,
+  isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
+  SUPERSEDED_STATE,
 } from '../../src/memory/state-machine';
 import { ValidationError } from '../../src/validation';
 
@@ -318,5 +321,48 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
     const fallbackMachine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
     expect(fallbackMachine).toBe(fixtureMemoryYaml.defaults!.states);
     expect(fallbackMachine.sequence).toEqual(['draft', 'pending', 'approved']);
+  });
+});
+
+describe('isArchivedStatus — the shared archived-status predicate (dl-028, REQ-STATE-06)', () => {
+  // `dl-028-archived-states-excluded-from-context` (`ready`) settles the archived set at
+  // `{deprecated, superseded}` and mandates ONE shared predicate consumed by both the search path
+  // (`searchMemoryDocuments`) and the context path (`src/core/relevance.ts`), superseding
+  // `task-038`'s `isDeprecatedStatus`. It lives here, next to `DEPRECATED_STATE`, because this module
+  // is already the single source of truth for status literals.
+
+  it('names the two archived statuses as declared constants', () => {
+    expect(DEPRECATED_STATE).toBe('deprecated');
+    expect(SUPERSEDED_STATE).toBe('superseded');
+  });
+
+  it('exposes the canonical archived set in a fixed, deterministic order', () => {
+    expect([...ARCHIVED_STATUSES]).toEqual(['deprecated', 'superseded']);
+  });
+
+  it('is true for `deprecated` — any type reaches it via `memory deprecate` (P1.9)', () => {
+    expect(isArchivedStatus(DEPRECATED_STATE)).toBe(true);
+  });
+
+  it('is true for `superseded` — the terminal state of `adr`/`tech-spec` (dl-028)', () => {
+    expect(isArchivedStatus(SUPERSEDED_STATE)).toBe(true);
+  });
+
+  it('is false for every live status, including `draft`', () => {
+    for (const live of ['draft', 'pending', 'backlog', 'in-progress', 'in-review', 'approved', 'accepted', 'done', 'ready']) {
+      expect(isArchivedStatus(live)).toBe(false);
+    }
+  });
+
+  it('is false for `rejected` — spec-001 removed that status; dl-028 drops it from the set', () => {
+    expect(isArchivedStatus('rejected')).toBe(false);
+  });
+
+  it('is false when the document declares no status at all', () => {
+    expect(isArchivedStatus(undefined)).toBe(false);
+  });
+
+  it('every archived status in the set is reported archived (set and predicate cannot drift)', () => {
+    for (const status of ARCHIVED_STATUSES) expect(isArchivedStatus(status)).toBe(true);
   });
 });

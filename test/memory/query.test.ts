@@ -11,7 +11,6 @@ import { join } from 'path';
 import {
   computeMemoryContentRoots,
   findMemoryDocumentById,
-  isDeprecatedStatus,
   listMemoryDocumentPaths,
   listMemoryDocumentsByType,
   loadMemoryDocumentSummary,
@@ -257,7 +256,7 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
   });
 });
 
-describe('REQ-STATE-06 — deprecated documents excluded from default search (task-038)', () => {
+describe('REQ-STATE-06 — archived documents excluded from default search (task-038; set widened by dl-028)', () => {
   let repo: string;
 
   afterEach(() => removeTempDir(repo));
@@ -298,9 +297,9 @@ describe('REQ-STATE-06 — deprecated documents excluded from default search (ta
     expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
   });
 
-  it('AC1 (red-first) — `includeDeprecated: true` is an explicit opt-in that still finds it', () => {
+  it('AC1 (red-first) — `includeArchived: true` is an explicit opt-in that still finds it', () => {
     repo = seedRepoWithDeprecated();
-    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeDeprecated: true });
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeArchived: true });
     expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
   });
 
@@ -328,19 +327,90 @@ describe('REQ-STATE-06 — deprecated documents excluded from default search (ta
     expect(existsSync(join(repo, 'docs/04_memory/v0.1/task-003-deprecated-doc.md'))).toBe(true);
   });
 
-  describe('isDeprecatedStatus — the shared exclusion primitive', () => {
-    it('is true for `status: deprecated`', () => {
-      expect(isDeprecatedStatus({ status: 'deprecated' })).toBe(true);
+  // `isArchivedStatus` — the single shared predicate this scan now consumes (dl-028, superseding
+  // task-038's `isDeprecatedStatus`) — is unit-tested at its home in `test/memory/state-machine.test.ts`.
+  // What belongs here is the SEARCH-PATH behaviour that predicate drives.
+
+  describe('dl-028 — the archived set is {deprecated, superseded}, and `draft` is NOT in it', () => {
+    function seedRepoWithArchived(): string {
+      // Builds on the deprecated fixture so one repo carries BOTH archived statuses at once.
+      const seeded = seedRepoWithDeprecated();
+      writeFixtureFile(
+        seeded,
+        'docs/04_memory/design/adrs/adr-002-superseded.md',
+        [
+          '---',
+          'id: adr-002-superseded',
+          'type: adr',
+          'title: "API superseded decision"',
+          'tags: [ architecture ]',
+          'status: superseded',
+          '---',
+          '',
+          'A superseded decision body that also mentions the api keyword.',
+          '',
+        ].join('\n'),
+      );
+      writeFixtureFile(
+        seeded,
+        'docs/04_memory/design/adrs/adr-003-accepted.md',
+        [
+          '---',
+          'id: adr-003-accepted',
+          'type: adr',
+          'title: "API accepted decision"',
+          'tags: [ architecture ]',
+          'status: accepted',
+          '---',
+          '',
+          'An accepted decision body that also mentions the api keyword.',
+          '',
+        ].join('\n'),
+      );
+      return seeded;
+    }
+
+    it('(red-first) a `superseded` document is excluded from a default keyword search', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api').map((m) => m.id);
+      expect(ids).not.toContain('adr-002-superseded');
+      expect(ids).toContain('adr-003-accepted');
     });
 
-    it('is false for any other status', () => {
-      expect(isDeprecatedStatus({ status: 'draft' })).toBe(false);
-      expect(isDeprecatedStatus({ status: 'approved' })).toBe(false);
+    it('(red-first) a `superseded` document is excluded from a default tag browse', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, '', { tag: 'architecture' }).map((m) => m.id);
+      expect(ids).not.toContain('adr-002-superseded');
+      expect(ids).toContain('adr-003-accepted');
     });
 
-    it('is false when `status` is absent or not a string', () => {
-      expect(isDeprecatedStatus({})).toBe(false);
-      expect(isDeprecatedStatus({ status: 42 })).toBe(false);
+    it('(red-first) `includeArchived: true` opts back into BOTH archived statuses at once', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeArchived: true }).map((m) => m.id);
+      expect(ids).toContain('adr-002-superseded');
+      expect(ids).toContain('task-003-deprecated-doc');
+    });
+
+    it('a `draft` document IS still returned by a default search — the search set and the context set differ on purpose', () => {
+      // Deliberate asymmetry (task-038's Execution Notes, restated by dl-028): REQ-STATE-06 excludes
+      // ARCHIVED content from default search; spec-012 §6 additionally excludes `draft` from an
+      // assembled agent CONTEXT ("only stable, decided and still-current content"). Collapsing the
+      // two sets would hide in-progress drafts from `memory search`, which nothing asks for.
+      // Mirror assertion: `test/core/relevance.test.ts`'s dl-028 block.
+      repo = seedRepoWithArchived();
+      const drafts = searchMemoryDocuments(repo, MEMORY_YAML, '').filter((m) => m.status === 'draft');
+      expect(drafts.length).toBeGreaterThan(0);
+    });
+
+    it('a document whose `status` is not a string is never treated as archived', () => {
+      repo = seedRepo();
+      writeFixtureFile(
+        repo,
+        'docs/04_memory/v0.1/task-004-numeric-status.md',
+        ['---', 'id: task-004-numeric-status', 'type: task', 'title: "API numeric status"', 'status: 42', '---', '', 'api body', ''].join('\n'),
+      );
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api').map((m) => m.id);
+      expect(ids).toContain('task-004-numeric-status');
     });
   });
 });
