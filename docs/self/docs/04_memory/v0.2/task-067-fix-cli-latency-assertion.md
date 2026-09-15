@@ -115,3 +115,87 @@ directive warns about. **Design therefore passes through with no approval gate**
 `test/memory/query.test.ts`, `test/core/memory-search.test.ts` (task-035's
 `isDeprecatedStatus` → `isArchivedStatus` rename). `test/core/query-latency.test.ts` is in none of
 those sets and references no renamed symbol, so extending it is conflict-free.
+
+### `red` (developer) — the guard that makes the flake unrepeatable
+
+New `test/core/latency-budget-placement.test.ts`: **no test-suite file may both start a child process
+and read the wall clock.** Textual scan of every `.ts`/`.cjs` under `test/` (the file excludes itself;
+see its module doc), spawn markers `child_process`/`execFileSync`/`execSync`/`spawnSync` against clock
+markers `Date.now(`/`performance.now(`/`process.hrtime`. It is the *combination in one file* that
+reproduces bug-011 — the in-process timing suites (`query-latency`, `mcp/resource-latency`,
+`mcp/server`) never spawn, and the spawn-based CLI suites had no business reading a clock.
+
+Observed red, verbatim (`npx jest test/core/latency-budget-placement.test.ts`):
+
+```
+  ● bug-011 — latency budgets are measured in-process, never across a process spawn ›
+    test/cli/program.integration.test.ts does not wrap a wall-clock measurement around a spawned process
+
+    - Array []
+    + Array [
+    +   "Date.now(",
+    + ]
+
+Tests:       1 failed, 64 passed, 65 total
+```
+
+Exactly one failure, naming the offending file and the exact API — no fabricated red, no dead code
+added to force one. The other 64 scanned files passed on the first run.
+
+### `green` (developer) — the budget moves, the threshold does not
+
+1. `test/cli/program.integration.test.ts` — the P1.5 case drops the wall-clock wrapper and keeps exit
+   code, output shape and content. A comment records why, and where the clause went.
+2. `test/core/query-latency.test.ts` — the reference repository's document **750** becomes P1.5's
+   Background document: `adr-050-doc`, titled `API design`, tagged `architecture`. That index was
+   chosen, not stumbled into — it has a globally unique id (`task-*` ids repeat across the seven
+   release directories), the `index % TAGS.length` rotation already gives it `architecture`, and it is
+   neither a `benchmarktoken` metadata hit (`750 % 13 ≠ 0`) nor a body hit (`750 % 7 ≠ 0`), so the
+   pre-existing keyword benchmark's match statistics are untouched and the document count stays at
+   exactly 1,000. A new case then runs the scenario's own query through the **registered**
+   `memory.memorySearch` op and asserts both of its `Then` clauses.
+
+**Measured, not assumed.** With a temporary `console.log` around the new assertion (added, read, and
+reverted before committing — it is not in the tree): **p95 = 63.3 ms, min 24.4 ms, max 66.5 ms** over
+25 runs on the 1,000-document repository. Roughly 16x headroom under the unchanged 1,000 ms budget,
+which is what a latency assertion should look like when it measures the right thing — versus the
+single spawn sample it replaces, which sat close enough to 1,000 ms to flip on worker contention.
+
+**Commit-subject deviation (plan §2).** The table maps `green` to `feat({module})`; this is a bug-fix
+task, so the honest verb is `fix`, and the module is `cli` — bug-011's location and the task's own
+name. The commit also carries the `test/core` half, because removing the meaningless assertion and
+adding the meaningful one are one logical change that must not be separable (splitting them would put
+a commit in history where P1.5's timing clause is asserted nowhere).
+
+### `refactor` (developer) — gates
+
+No code refactor was needed: the `green` change is test code, already at its final shape, and
+inventing a `refactor()` commit to satisfy the table would be noise. **There is therefore no
+`refactor({module})` commit for this task** — this notes entry is the phase's record.
+
+| Gate | Result |
+|------|--------|
+| `npm run test:coverage` | exit **0** — 61 suites / **642** tests passed; statements **97.96**, branches **88.22**, functions **97.65**, lines **98.38** — all ≥ 80 |
+| `npx tsc -p tsconfig.build.json` | exit **0** |
+| `npm run docs:api` | exit **0** (TypeDoc `notDocumented` + `treatWarningsAsErrors`, hard-reject regime) |
+| `npx eslint .` | exit **1**, **exactly 1 error** — `test/storage/git-backed-storage.test.ts:90 A require() style import is forbidden`. Identical to the baseline measured on this branch *before* any edit: pre-existing, `bug-009`, owned by **task-066**. This task introduced **zero** new lint findings (see Deviations). |
+
+**AC-3 — three consecutive full `npm test` runs at jest's default worker count.** `--showConfig`
+reports `"maxWorkers": 11` on this 12-core machine, i.e. the exact parallelism bug-011 reproduced
+under. All three green, no retries, nothing skipped:
+
+| Run | Result | Time |
+|-----|--------|------|
+| 1 | exit 0 — 61 suites / 642 tests passed | 21.403 s |
+| 2 | exit 0 — 61 suites / 642 tests passed | 17.959 s |
+| 3 | exit 0 — 61 suites / 642 tests passed | 19.632 s |
+
+Plus two runs at bug-011's documented repro condition `npx jest --maxWorkers=4` — the setting that
+*did* fail on a clean `main` — both exit 0, 61/642, 19.956 s and 19.224 s.
+
+**On the counts.** 642 tests, not the "558/559"/"561/562" figures that circulated during the v0.2
+review gate. I did **not** re-measure the pre-edit baseline on this branch — but the arithmetic
+reconciles exactly against the 60 suites / 576 tests recorded for `main` after
+`task-038`/`040`/`041`. This task adds 1 suite and 66 cases: 64 from the guard's `it.each` over the
+64 scanned test sources (the count is visible in the red run above — `1 failed, 64 passed`), 1 for the
+guard's own non-vacuity check, and 1 for the P1.5 scenario. 576 + 66 = 642. ✓
