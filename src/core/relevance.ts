@@ -9,26 +9,33 @@
  * This module implements ONLY spec-012 §6 (`relevance-filter`), one of the four cooperating units
  * spec-012 defines (`dna-loader`, `directive-loader`, `relevance-filter`, `context-builder`) — the
  * other three, and the canonical serialized envelope (§7), belong to
- * task-037-role-task-scoped-context (REQ-STATE-05, the `context-builder`/envelope task) and
- * task-038-deprecated-excluded-from-context (REQ-STATE-06). For the document scan itself it wraps, not
- * reimplements, `src/memory/query.ts`'s scan primitives (task-008) — no second directory walk or
- * frontmatter parser — and is placed in `src/core` per spec-012 §1 ("folded into the `core` module").
+ * task-037-role-task-scoped-context (REQ-STATE-05, the `context-builder`/envelope task). For the
+ * document scan itself it wraps, not reimplements, `src/memory/query.ts`'s scan primitives
+ * (task-008) — no second directory walk or frontmatter parser — and is placed in `src/core` per
+ * spec-012 §1 ("folded into the `core` module"). It is re-exported from `src/core`'s barrel, so
+ * `src/core` is the import surface for every consumer.
  *
- * FOLLOW-UP (deprecated-exclusion duplication): the deprecated/draft exclusion below
- * ({@link EXCLUDED_STATUSES}) is implemented LOCALLY here. task-038-deprecated-excluded-from-context
- * (REQ-STATE-06), developed on a sibling branch not yet on `main`, has since shipped a shared
- * `isDeprecatedStatus` helper reusing `memory`'s `DEPRECATED_STATE` constant. Those cannot be imported
- * from here yet (not on `main`). Once task-038 merges, this local status set MUST be reconciled onto
- * that shared helper so deprecated-exclusion has a single definition — recorded as a follow-up in this
- * task's Execution Notes for the coordinator.
+ * **Exclusion set (`dl-028-archived-states-excluded-from-context`, `ready`).** Candidates are dropped
+ * when their `status` is archived — `{deprecated, superseded}`, via `src/memory/state-machine.ts`'s
+ * shared {@link isArchivedStatus} (the one predicate the default-search path, REQ-STATE-06, consumes
+ * too) — **or** `draft`. That `draft` clause is context-only and deliberately NOT mirrored into
+ * `memory search`: spec-012 §6 admits only "stable, decided and still-current content" into an
+ * execution context, whereas REQ-STATE-06 scopes default-search exclusion to archived content so a
+ * draft under active work stays findable. Two different sets, on purpose — see
+ * {@link CONTEXT_EXCLUDED_STATUS}. dl-028 also dropped spec-012 §6's former `rejected` entry, a status
+ * `spec-001-memory-yaml-schema` removed from every type's machine.
  *
  * Determinism (REQ-SYS-07): no wall-clock, no randomness, no unordered map/set iteration in any
- * output-affecting path. Selection and ordering are a pure function of `(root@stateRef, memoryYaml,
- * element, limits)` — see {@link filterRelevantMemoryDocuments}'s own doc comment for the exact
- * ordering/bounding contract.
+ * output-affecting path. This function READS the live working tree under `root` — it is not pinned to
+ * a git revision, and `root`'s content is therefore part of its input, not a constant. What is
+ * guaranteed is *referential transparency over that observed state*: for one unchanged working tree,
+ * the selection and its order are a pure function of `(the Memory documents under root, memoryYaml,
+ * element, limits)`, so repeated calls return the identical array. See
+ * {@link filterRelevantMemoryDocuments}'s own doc comment for the exact ordering/bounding contract.
  */
 import { listMemoryDocumentPaths, loadMemoryDocumentSummary } from '../memory/query';
 import type { MemoryYaml } from '../memory/schema';
+import { isArchivedStatus } from '../memory/state-machine';
 
 /**
  * Caps that keep an assembled context "bounded, not a full dump" (spec-012 §6) — the defaults match
@@ -79,8 +86,13 @@ export const NO_RELEVANT_MEMORY_NOTE = 'no relevant Memory found for task';
 
 /**
  * {@link filterRelevantMemoryDocuments}'s result: the bounded, ordered set of relevant documents, plus
- * {@link NO_RELEVANT_MEMORY_NOTE} when — and only when — that set is empty (mirrors
- * `memorySearchFn`'s `message`-only-when-empty convention in `src/core/index.ts`).
+ * {@link NO_RELEVANT_MEMORY_NOTE} when — and only when — **nothing passed the relevance threshold**
+ * (mirrors `memorySearchFn`'s `message`-only-when-empty convention in `src/core/index.ts`).
+ *
+ * The note is keyed to the *scored* set, never to the *bounded* one: "no relevant Memory found for
+ * task" is a factual claim, and documents that scored as relevant but did not fit inside
+ * {@link ContextLimits} were found — they were merely not carried. In that case `documents` is empty
+ * and `note` is `undefined`, because the filter cannot honestly assert the stronger statement.
  */
 export interface RelevantMemoryResult {
   readonly documents: readonly RelevantMemoryDocument[];
@@ -102,20 +114,24 @@ const TIER_3_TRACEABILITY = 10;
 const LINK_FRONTMATTER_FIELDS = ['adr', 'spec', 'dl', 'bug'] as const;
 
 /**
- * Document `status:` values excluded from relevance regardless of score, per
- * spec-012-context-loader-relevance-filtering §6 verbatim: "Documents in states
- * draft/rejected/deprecated are excluded".
- *
- * SPEC CONFLICT (specs win — the vestigial `'rejected'` is retained deliberately, NOT dropped): the
- * later, also-approved spec-001-memory-yaml-schema removed the `rejected` status entirely from the
- * Memory model ("no document records `status: rejected` anymore" — a `reject` transition now lands
- * back on `draft`). So `'rejected'` here can never match a real document — it is vestigial but
- * harmless. It is kept because spec-012 §6 (this module's governing spec) still enumerates it, and a
- * `[SPEC]`-cited value may not be removed without first changing the governing spec. The two approved
- * specs therefore conflict on this point; spec-012 §6 needs reconciliation against spec-001 — recorded
- * as a spec-gap for the approver in this task's Execution Notes.
+ * The one status excluded from an assembled context *beyond* the shared archived set: `draft`.
+ * spec-012 §6 admits only "stable, decided and still-current content" into an execution context, so a
+ * draft — a document whose content is not yet submitted, let alone agreed — is dropped regardless of
+ * score. Kept as a named constant rather than folded into `isArchivedStatus` precisely because it is
+ * NOT archived: `memory search` must keep returning drafts (REQ-STATE-06 excludes archived content
+ * only), and collapsing the two sets would hide in-progress work from the search surface.
  */
-const EXCLUDED_STATUSES = new Set(['draft', 'deprecated', 'rejected']);
+const CONTEXT_EXCLUDED_STATUS = 'draft';
+
+/**
+ * True when a candidate's `status` bars it from an assembled agent context (spec-012 §6): the shared
+ * archived set `{deprecated, superseded}` ({@link isArchivedStatus}, ratified by
+ * `dl-028-archived-states-excluded-from-context`) widened by {@link CONTEXT_EXCLUDED_STATUS}.
+ * A document with no `status` frontmatter at all is not excluded — absence is not a decision.
+ */
+function isExcludedFromContext(status: string | undefined): boolean {
+  return status === CONTEXT_EXCLUDED_STATUS || isArchivedStatus(status);
+}
 
 /** A traceability token: a feature id (`P5.3.3`, `P1.9`, ...) or a SARD requirement id
  * (`REQ-PERF-05`, `REQ-SYS-07`, ...) — spec-012 §6 T3's "shared traceability keys". */
@@ -197,9 +213,10 @@ function isSameReleaseScope(elementRelease: string | undefined, documentPath: st
  *
  * 1. **Scan** every document `memoryYaml` declares under `root` ({@link listMemoryDocumentPaths}'s
  *    already-sorted order, task-008) — no second directory walk.
- * 2. **Exclude** the element's own document (never relevant to itself) and any document whose
- *    `status` is in {@link EXCLUDED_STATUSES} (draft/deprecated — REQ-STATE-06's own concern extends
- *    this to `memory search` defaults too, out of this task's scope).
+ * 2. **Exclude** the element's own document (never relevant to itself) and any document
+ *    {@link isExcludedFromContext} bars — `draft` plus the shared archived set `{deprecated,
+ *    superseded}` (`dl-028`; the archived half is the same predicate REQ-STATE-06 applies to default
+ *    `memory search`, the `draft` half is context-only).
  * 3. **Score** each remaining document: `1000*T1 + 100*T2 + 10*T3 + overlapCount(T4)` — T1 explicit
  *    link, T2 same release scope, T3 shared traceability key, T4 keyword/tag overlap count
  *    (spec-012 §6's exact formula). A document scoring `0` (no tier hit at all) is **not relevant**
@@ -212,8 +229,10 @@ function isSameReleaseScope(elementRelease: string | undefined, documentPath: st
  *    lower-ranked document to fit under a cap while a higher-ranked one was excluded, and never
  *    partially include a document (spec-012 §6's "deterministic truncation").
  *
- * Returns {@link NO_RELEVANT_MEMORY_NOTE} in `note` only when the bounded result is empty (P5.3.3's
- * edge-case scenario, verbatim wording).
+ * Returns {@link NO_RELEVANT_MEMORY_NOTE} in `note` only when **step 3 left nothing** — i.e. no
+ * document passed the relevance threshold at all (P5.3.3's edge-case scenario, verbatim wording).
+ * When documents scored as relevant but step 5's caps admitted none of them, `documents` is empty and
+ * `note` is omitted: relevant Memory *was* found, so the note would assert something false.
  */
 export function filterRelevantMemoryDocuments(
   root: string,
@@ -233,7 +252,7 @@ export function filterRelevantMemoryDocuments(
     const id = asString(frontmatter.id);
     const status = asString(frontmatter.status);
 
-    if (status !== undefined && EXCLUDED_STATUSES.has(status)) continue;
+    if (isExcludedFromContext(status)) continue;
     if (type === element.type && id === element.id) continue;
 
     const t1 = id !== undefined && linkedIds.has(id);
@@ -271,5 +290,7 @@ export function filterRelevantMemoryDocuments(
     totalBytes += docBytes;
   }
 
-  return documents.length === 0 ? { documents, note: NO_RELEVANT_MEMORY_NOTE } : { documents };
+  // The note is keyed to `scored`, NOT to `documents`: an empty `documents` with a non-empty `scored`
+  // means relevant Memory existed and was bounded out, which the note must not claim away.
+  return scored.length === 0 ? { documents, note: NO_RELEVANT_MEMORY_NOTE } : { documents };
 }

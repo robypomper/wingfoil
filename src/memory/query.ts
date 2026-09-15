@@ -29,13 +29,19 @@
  *   being rejected) — task-023 closed it with a `ValidationError.semantic` guard a caller runs before
  *   invoking {@link searchMemoryDocuments}, exiting 2 with message "empty search query".
  *
- * **Deprecated-exclusion (REQ-STATE-06, task-038-deprecated-excluded-from-context):**
- * {@link searchMemoryDocuments} excludes `status: deprecated` documents from its default result — a
- * deprecated document "never appears in … default `memory search` results" (the SARD Fit Criterion)
- * while staying present on disk and in git history. {@link isDeprecatedStatus} is the single shared
- * check (reusing `state-machine.ts`'s reserved `DEPRECATED_STATE`), so the future Agent Context Loader
- * relevance-filter (spec-012 §6, `task-035-bounded-context-relevance`) wraps the same primitive rather
- * than re-deciding what "deprecated" means. `includeDeprecated: true` is the explicit opt-out.
+ * **Archived-exclusion (REQ-STATE-06, task-038-deprecated-excluded-from-context; set widened by
+ * `dl-028-archived-states-excluded-from-context`):** {@link searchMemoryDocuments} excludes documents
+ * in an archived state from its default result — an archived document "never appears in … default
+ * `memory search` results" (the SARD Fit Criterion) while staying present on disk and in git history.
+ * The archived set is `{deprecated, superseded}` and the single shared check is
+ * `state-machine.ts`'s {@link isArchivedStatus} (it superseded task-038's `isDeprecatedStatus`), so
+ * the Agent Context Loader relevance-filter (spec-012 §6, `src/core/relevance.ts`) applies the same
+ * predicate rather than re-deciding what "archived" means. {@link MemorySearchOptions.includeArchived}
+ * is the explicit opt-out.
+ *
+ * `draft` is deliberately NOT excluded here: spec-012 §6 excludes drafts from an assembled agent
+ * *context*, but REQ-STATE-06 scopes default-search exclusion to archived content only, so a draft
+ * document a user is actively working on stays findable. The two filters are different sets on purpose.
  */
 import { existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
@@ -43,7 +49,7 @@ import { join } from 'path';
 import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
-import { DEPRECATED_STATE } from './state-machine';
+import { isArchivedStatus } from './state-machine';
 import { readDocument, splitFrontmatter } from '../storage';
 
 /**
@@ -142,20 +148,6 @@ function asStringArray(value: unknown): string[] {
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
-}
-
-/**
- * True when a Memory document's frontmatter `status` is the reserved {@link DEPRECATED_STATE}
- * (`./state-machine.ts` — the single source of truth for that literal, per REQ-STATE-08's reserved
- * transition target). REQ-STATE-06's Fit Criterion ("a `deprecated` document never appears in an
- * assembled agent context nor in default `memory search` results") names exactly this frontmatter
- * field, so this primitive is the one shared check both {@link searchMemoryDocuments} (below) and any
- * future Agent Context Loader relevance-filter (spec-012-context-loader-relevance-filtering §6,
- * `task-035-bounded-context-relevance`'s scope) apply — no second, drifting definition of "deprecated"
- * anywhere else in the codebase.
- */
-export function isDeprecatedStatus(frontmatter: Record<string, unknown>): boolean {
-  return asString(frontmatter.status) === DEPRECATED_STATE;
 }
 
 /**
@@ -264,13 +256,14 @@ export interface MemorySearchOptions {
   /** Only include documents whose `tags:` frontmatter contains this exact tag. */
   readonly tag?: string;
   /**
-   * Opt back into a `status: deprecated` document appearing in the result (REQ-STATE-06:
-   * `searchMemoryDocuments` excludes them by default — "default … results" in the Fit Criterion).
-   * Set this only for an explicit, intentional request to see deprecated documents (e.g. an
-   * `--status deprecated` narrow); never as the default for a general keyword/tag search.
+   * Opt back into archived documents (`status: deprecated` or `superseded` — `ARCHIVED_STATUSES`,
+   * ratified by `dl-028-archived-states-excluded-from-context`) appearing in the result.
+   * REQ-STATE-06 excludes them by default — "default … results" in the Fit Criterion. Set this only
+   * for an explicit, intentional request to see archived documents (e.g. an `--status deprecated` or
+   * `--status superseded` narrow); never as the default for a general keyword/tag search.
    * Defaults to `false`.
    */
-  readonly includeDeprecated?: boolean;
+  readonly includeArchived?: boolean;
 }
 
 /** One ranked search result — enough for a future CLI/MCP surface to render without re-reading the file. */
@@ -328,11 +321,13 @@ export function validateSearchQuery(query: string): void {
  * then by `id` (falling back to `path` when a document has no `id`) ascending — so calling this
  * twice against unchanged state always returns the exact same array.
  *
- * **REQ-STATE-06:** a document whose frontmatter `status` is `deprecated` ({@link isDeprecatedStatus})
- * is excluded by default — it never appears in these "default `memory search` results", matching the
- * Fit Criterion verbatim, while the file itself is untouched on disk and in git history (`memory
- * deprecate`, P1.9, never deletes it). Pass `options.includeDeprecated: true` for the one legitimate
- * exception: an explicit, intentional request to see deprecated documents too.
+ * **REQ-STATE-06:** a document whose frontmatter `status` is archived — `deprecated` or `superseded`
+ * (`isArchivedStatus`, `dl-028`) — is excluded by default, so it never appears in these "default
+ * `memory search` results", matching the Fit Criterion verbatim, while the file itself is untouched on
+ * disk and in git history (`memory deprecate`, P1.9, never deletes it; `superseded` is reached by an
+ * ordinary `approve`). Pass `options.includeArchived: true` for the one legitimate exception: an
+ * explicit, intentional request to see archived documents too. `draft` documents are NOT excluded
+ * here — see this module's header for why the search set and the context set differ.
  */
 export function searchMemoryDocuments(
   root: string,
@@ -345,13 +340,13 @@ export function searchMemoryDocuments(
 
   for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
     const { frontmatter, body } = loadMemoryDocumentSummary(root, path);
-    if (!options.includeDeprecated && isDeprecatedStatus(frontmatter)) continue;
+    const status = asString(frontmatter.status);
+    if (!options.includeArchived && isArchivedStatus(status)) continue;
     const tags = asStringArray(frontmatter.tags);
     if (options.tag && !tags.includes(options.tag)) continue;
 
     const title = asString(frontmatter.title);
     const id = asString(frontmatter.id);
-    const status = asString(frontmatter.status);
     const type = asString(frontmatter.type);
 
     let metadataMatch = false;
