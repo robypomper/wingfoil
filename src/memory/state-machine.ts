@@ -47,10 +47,12 @@
  * spec-010-memory-frontmatter-schema's "Validation rules" table names ("`status` must be a value in
  * the type's `states.values`" → failure "invalid state for type") and BDD
  * `P4.11-deliverables.feature`/`P4.13-state-deduction.feature` both exercise (`"invalid state
- * 'shipped' for type 'task'"`). A state is legal for a type iff it is a member of that type's
- * `sequence`, or is the reserved implicit `"deprecated"` state (never declared in `sequence` itself,
- * per the `StateMachine` schema's own `.superRefine()`, but always a legal transition target via
- * `memory.deprecate` — see `resolveTransitionTarget`'s `deprecate` case above).
+ * 'shipped' for type 'task'"`). A state is legal for a type iff it belongs to that machine's full
+ * reachable set — `sequence` ∪ every `gates.<state>.reject` target (spec-001 permits those to be
+ * off-chain, and `resolveTransitionTarget` returns them verbatim) ∪ the reserved implicit
+ * `"deprecated"` state (never declared in `sequence` itself, per the `StateMachine` schema's own
+ * `.superRefine()`, but always a legal transition target via `memory.deprecate` — see
+ * `resolveTransitionTarget`'s `deprecate` case above).
  *
  * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
  * `types.<name>.states ?? defaults.states`. task-005's own tests exercise only the real 7 types
@@ -236,25 +238,73 @@ export function resolveTransitionTarget(
 }
 
 /**
+ * True when `status` is a state a document of this type may legitimately carry — the **full**
+ * reachable state set of `machine`, which is the union of three sources:
+ *
+ * 1. **`machine.sequence`** — every state on the forward chain.
+ * 2. **Every `machine.gates.<state>.reject` target** — `resolveTransitionTarget` returns these
+ *    *verbatim* and spec-001-memory-yaml-schema's "Semantic validation (post-parse)" is explicit that
+ *    such a target "need **not** be a member of `sequence`: it may revert into the chain (e.g.
+ *    `pending: { reject: draft }`) or name an **off-chain decline state reached by no forward edge**".
+ *    Only the gate *keys* (and `waiting` entries) are constrained to `sequence`; the reject targets
+ *    are not. Omitting this arm is what task-036's first pass got wrong: the `reject` verb would write
+ *    a status that this very function then declared invalid, leaving the document unmovable —
+ *    a REQ-SYS-04 violation for a config shape spec-001 names by example. No type registered in
+ *    `docs/self/.wingfoil/memory.yaml` currently exercises it (all three of its reject targets —
+ *    `draft`, `closed`, `in-progress` — happen to be `sequence` members), so it is covered by a
+ *    synthetic fixture machine in `test/memory/state-machine.test.ts`.
+ * 3. **{@link DEPRECATED_STATE}** — the reserved implicit wildcard target every type reaches via
+ *    `memory.deprecate` (see {@link resolveTransitionTarget}'s `deprecate` case), never declared in
+ *    any `sequence` (the `StateMachine` schema's own `.superRefine()` forbids declaring it).
+ *
+ * `machine.waiting` contributes nothing: every `waiting` entry is required to be a `sequence` member
+ * already, so it is covered by (1).
+ *
+ * Iteration over `gates` is sorted (REQ-SYS-07 — no unordered iteration in any output-affecting path);
+ * the predicate's boolean result is order-independent, but keeping the traversal deterministic keeps
+ * it so under any future change that reports *which* source matched.
+ */
+function isDeclaredState(machine: StateMachine, status: string): boolean {
+  if (status === DEPRECATED_STATE || machine.sequence.includes(status)) {
+    return true;
+  }
+  const gates = machine.gates ?? {};
+  return Object.keys(gates)
+    .sort()
+    .some((gateState) => gates[gateState]?.reject === status);
+}
+
+/**
  * Assert that `status` — a value read straight off a document's frontmatter — is a legal state for
  * `typeName` under `machine` (REQ-STATE-01: state is derived from frontmatter; spec-010's "Validation
- * rules": *"`status` must be a value in the type's `states.values`"*). A state is legal iff it is a
- * member of `machine.sequence`, or is the reserved implicit {@link DEPRECATED_STATE} — every type
- * accepts `deprecated` via `memory.deprecate` (see {@link resolveTransitionTarget}'s `deprecate` case)
- * even though `"deprecated"` is never itself declared in any type's `sequence` (the `StateMachine`
- * schema's own `.superRefine()` forbids it from being).
+ * rules": *"`status` must be a value in the type's `states.values`"*). The legal set is exactly
+ * {@link isDeclaredState}'s: `sequence` ∪ every `gates.<state>.reject` target ∪ `deprecated`.
  *
  * This is a distinct check from {@link resolveTransitionTarget}: that function asks "is verb `op`
  * legal FROM `currentState`", assuming `currentState` is already known-legal; this function asks
  * whether an arbitrary `status` string is itself a legal state for the type at all — independent of
  * any transition attempt, e.g. when validating a document's frontmatter as read (BDD
- * `P4.11-deliverables.feature` scenario 3, `P4.13-state-deduction.feature` scenario 3).
+ * `P4.11-deliverables.feature` scenario 3, `P4.13-state-deduction.feature` scenario 3). The two must
+ * agree: any state `resolveTransitionTarget` can return must validate here, or the tool would refuse
+ * a document it wrote itself.
  *
- * @throws {@link ../validation.ValidationError} `E_INVALID_STATE` (exit 2, spec-009 §3 Pass-2
- *   semantic/cross-field failure) with the message `` invalid state '<status>' for type '<typeName>' ``
- *   when `status` is not a legal state for `typeName`. `filePath` is only used to enrich the thrown
- *   error's `file` field (optional — defaults to `''` when no document is on hand, e.g. in pure unit
- *   tests), mirroring {@link resolveTransitionTarget}'s own `filePath` parameter.
+ * @throws {@link ../validation.ValidationError} `E_INVALID_STATE` with the message
+ *   `` invalid state '<status>' for type '<typeName>' `` when `status` is not a legal state for
+ *   `typeName`. **Exit code `1`**, per spec-009-validation-strategy §3 as rewritten under
+ *   `dl-032-illegal-transition-message-contract`: the code keys on the *nature* of the failure, not
+ *   the pass that detected it — `2` is reserved for parse and system-integrity failures, while "every
+ *   other validation failure ... including business-rule failures detected in Pass 2" exits `1`. An
+ *   unrecognised `status` is understood input that a rule refused, so it is a `1`; that is why this
+ *   throws the `ValidationError` constructor directly rather than `ValidationError.semantic(...)`,
+ *   which hard-codes `2` for the genuine integrity checks (`loaders`, `id`, `query`). No BDD scenario
+ *   pins an exit code for this message — `P4.11` sc.3 and `P4.13` sc.3 pin the text only — so the spec
+ *   rule governs unopposed. (The separate `E_INVALID_TRANSITION` message/exit-code realignment that
+ *   `dl-032` ratified is **not** done here: `P1.6-memory-submit.feature` is
+ *   `task-045-memory-submit`'s acceptance contract and that change belongs to it.)
+ *
+ *   `filePath` is only used to enrich the thrown error's `file` field (optional — defaults to `''`
+ *   when no document is on hand, e.g. in pure unit tests), mirroring {@link resolveTransitionTarget}'s
+ *   own `filePath` parameter.
  */
 export function validateFrontmatterState(
   machine: StateMachine,
@@ -262,10 +312,10 @@ export function validateFrontmatterState(
   status: string,
   filePath = '',
 ): void {
-  if (status === DEPRECATED_STATE || machine.sequence.includes(status)) {
+  if (isDeclaredState(machine, status)) {
     return;
   }
-  throw ValidationError.semantic([
+  throw new ValidationError([
     {
       code: E_INVALID_STATE,
       path: 'status',
