@@ -55,6 +55,51 @@ import type { MemoryYaml, StateMachine } from './schema';
 /** The reserved implicit-wildcard target state (spec-001) — never declared explicitly anywhere. */
 export const DEPRECATED_STATE = 'deprecated';
 
+/**
+ * The terminal state of the `adr` and `tech-spec` machines (`memory.yaml`): reached along the forward
+ * `sequence` by `approve`, never by `memory deprecate`. A superseded decision is archived content — a
+ * later element explicitly replaced it — which is why `dl-028-archived-states-excluded-from-context`
+ * puts it in {@link ARCHIVED_STATUSES} alongside {@link DEPRECATED_STATE}.
+ */
+export const SUPERSEDED_STATE = 'superseded';
+
+/**
+ * The canonical **archived** status set, ratified by `dl-028-archived-states-excluded-from-context`:
+ * exactly `{deprecated, superseded}`, in this fixed order (REQ-SYS-07 — no unordered iteration in any
+ * output-affecting path).
+ *
+ * REQ-STATE-06's Rationale ("distinguish active from archived decisions") always named the archived
+ * set, but its Description and Fit Criterion named only `deprecated`; dl-028 closes that gap and the
+ * SARD entry now names both. The previously-specified `rejected` is **not** here: `spec-001-memory-yaml-schema`
+ * removed that status from every type's machine (a `reject` transition lands back on `draft`), so it
+ * can never appear in a document's frontmatter.
+ */
+export const ARCHIVED_STATUSES: readonly string[] = Object.freeze([DEPRECATED_STATE, SUPERSEDED_STATE]);
+
+/**
+ * True when a document's frontmatter `status` is an archived state ({@link ARCHIVED_STATUSES}).
+ *
+ * This is the **single shared predicate** dl-028 mandates: both the default-search path
+ * (`searchMemoryDocuments`, REQ-STATE-06) and the agent-context path (`src/core/relevance.ts`'s
+ * relevance filter, spec-012 §6) consume it, so "archived" has exactly one definition. It supersedes
+ * `task-038`'s `isDeprecatedStatus`.
+ *
+ * It takes the **already-parsed status string**, not the raw frontmatter record: every call site
+ * projects `status` out of frontmatter anyway (for its own result shape), and a frontmatter-shaped
+ * predicate forced those callers either to re-parse or to hand back a record they had already
+ * destructured — the composition problem `task-038`'s reviewer flagged. Non-string / absent `status`
+ * values are normalised to `undefined` by the caller's own frontmatter projection and are never
+ * archived.
+ *
+ * Note the deliberate asymmetry with the *context* filter: `src/core/relevance.ts` excludes
+ * `draft` **in addition to** this archived set (spec-012 §6 — only "stable, decided and still-current"
+ * content enters an execution context), while default `memory search` keeps drafts visible.
+ * `draft` is therefore NOT part of the archived set.
+ */
+export function isArchivedStatus(status: string | undefined): boolean {
+  return status !== undefined && ARCHIVED_STATUSES.includes(status);
+}
+
 /** `E_INVALID_<X>` field-level code (spec-009 §3) for an illegal state transition. */
 export const E_INVALID_TRANSITION = 'E_INVALID_TRANSITION';
 
