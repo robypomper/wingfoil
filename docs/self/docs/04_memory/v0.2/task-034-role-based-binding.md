@@ -2,8 +2,7 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: in-progress
-rejection_reason: "The replacement TSDoc in src/dna/roles.ts asserts that src/core/approval-authority.ts resolves from team.members by git identity and honours approval_authority. It does not: no code anywhere in the tree reads that field - grep over src/ and test/ returns only the Zod declaration in src/dna/schema.ts, two test fixtures that set it, and approval-authority.ts's own header stating the opposite, that structurally preventing agents from holding approval authority is enforced by process and governance, not by that predicate. approval_authority is a declarative dna.yaml marker. The claim is security-relevant: a reader, plausibly the author of task-046, could build memory approve believing that setting approval_authority: true on an agent is what grants authority, or that the field is validated at all. It is also a fresh instance of the exact defect class this task was rejected for the first time, a TSDoc asserting behaviour that is not implemented, occurring in the very sentence mandated to make that TSDoc accurate. Fix: replace the clause with what the module actually does - resolves the approver from team.members by git identity and never consults team.agents, with approval_authority a declarative marker enforced by governance per adr-006 and CLAUDE.md sections 4 and 8 - then re-run docs:api and eslint. Everything else in this pass was assessed as exemplary and needs no rework."
+status: in-review
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
@@ -260,3 +259,89 @@ pending approval to the role holder", "Error - the approval role has no member i
 `by_person` override — implemented over `src/core/approval-authority.ts`, not over this module. That
 task's `depends_on` (`task-040`, `task-041`) already points at the right foundation; no edit to it was
 made from this branch.
+
+---
+
+## Execution Notes — third pass (second review-gate rejection; documentation-only fix)
+
+The second pass was rejected for **one** finding; the rest was assessed as needing no rework. The
+review `fallback` returned the task to `in-progress` (`4c2ce72`) and the loop resumed at `red`.
+
+### the finding
+
+`src/dna/roles.ts`'s rewritten module header asserted that `src/core/approval-authority.ts` "resolves
+from `team.members` by git identity **and honours `approval_authority`**". It does not.
+`grep -rn "approval_authority" src/ test/` returns exactly five hits, and **none of them is a read**:
+
+- `src/dna/schema.ts:79,84` — the Zod declaration (`approval_authority: z.boolean().optional()`) and
+  its doc comment;
+- `src/core/approval-authority.ts:20` — that module's own header, stating the *opposite*: preventing
+  agents from holding approval authority is "a `dna.yaml` fact … enforced by process/governance
+  (CLAUDE.md §4/§8) … not by this predicate";
+- `test/dna/roles.test.ts:29`, `test/dna/schema.test.ts:78,90` — three fixtures that *set* the field.
+
+So `approval_authority` is a **declarative `dna.yaml` marker**: nothing in the tree reads it, and
+nothing cross-validates it against `executes_as`. `dl-033` never claimed otherwise either — it says
+only that task-040's module "resolves from `team.members` only, by git-identity email, and never looks
+at `team.agents`". The unsupported clause was mine, not the DL's.
+
+Blocking rather than a wording nit for two reasons, both accepted here: it is **security-relevant**
+(a reader — plausibly task-046's author, the very task this file hands P4.14 to — could build
+`memory approve` believing `approval_authority: true` is what grants authority, or that the field is
+validated at all), and it is a **fresh instance of the exact defect class the first rejection was
+about** — a TSDoc asserting behaviour that is not implemented — landing in the very sentence that was
+supposed to make the TSDoc accurate.
+
+### the correction
+
+`src/dna/roles.ts` module header now reads: `approval-authority.ts` "resolves the approver from
+`team.members` by live git identity and never consults `team.agents` at all", followed by an explicit
+warning that `team.agents[].approval_authority` is **not** what grants or denies authority in code —
+no code path reads it; it is a declarative marker enforced by process/governance (ADR-006,
+CLAUDE.md §4/§8), as that module's own header states. Every clause is now checkable against the code.
+
+**Swept for the same claim elsewhere.** `grep` for `honour|honors` and for `approval_authority` across
+`src/`, `test/`, and this task file found no other instance in anything this task touched:
+
+- `src/dna/index.ts`'s module header says only that "may this principal approve?" is answered by
+  `src/core/approval-authority.ts` — true, and it makes no claim about the field. **Left as is.**
+- `resolveRoleHolders`'s own TSDoc says including agents is "not an authority check" and points at the
+  same module — true. **Left as is.**
+- The only other mention of the field in this file is the second-pass design note describing dl-033's
+  **rejected** option (a) as "adding an `approval_authority === true` filter" — an accurate
+  description of a road not taken, not a claim about shipped behaviour. **Left as is.**
+
+### no test change, deliberately
+
+Documentation-only fix: no behaviour changed, so there is no failing test to write and none was
+fabricated (`testing` directive, no-fabricated-red; the same T1 rule that exempted the second pass's
+characterization case). The existing surface test still pins what this module exports. I do **not**
+think a guard is warranted here and did not invent one: pinning prose against implementation is not
+something a unit test can do, and the genuine testable gap in this area — that an agent with
+`executes_as: ['approver']` gains no authority — sits in `src/core/approval-authority.ts`'s suite, not
+this module's, and was explicitly placed outside this task's scope.
+
+### self-report accuracy — the process failure behind the finding
+
+Recording this because it is the more useful lesson than the clause itself. The second pass's own
+`green` entry above says the TSDoc "now states the dl-033 boundary explicitly" and lists the
+corrections made — and did not flag that one clause of that same rewrite was unverified. I checked
+what `approval-authority.ts` *is for* and not what it *reads*; a `grep` for `approval_authority`
+before writing the sentence would have caught it in seconds. The effect is that the self-report read
+as fully accurate while the delivered artifact was not — which is exactly the failure mode the first
+rejection was about, reproduced one layer up in the Execution Notes. Concretely: **a claim in prose
+about what another module does is not a summary, it is an assertion, and it needs the same evidence
+as a test.**
+
+### gate results (third pass, as observed)
+
+- `npx jest --maxWorkers=2` — **693/693 passing, 64/64 suites** (unchanged, as expected for a
+  documentation-only change; `test/lint/lint-clean.test.ts` is among them).
+- `npx tsc -p tsconfig.build.json` — exit 0.
+- `npm run docs:api` — exit 0.
+- `npx eslint .` — exit 0.
+
+No `git merge` was run; the branch was not re-synced with `main`.
+
+Committed `refactor(dna): …` (plan §2's `refactor` subject format — the change is in `src/`, tests
+green, no behaviour change).
