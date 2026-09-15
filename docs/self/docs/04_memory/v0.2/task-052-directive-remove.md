@@ -30,7 +30,7 @@ to a role must be rejected with `cannot remove 'legacy-rule': still assigned to 
 (P3.3, exact string). The workflow surface (P4.9, `cannot remove 'arch-review': included by
 'release-cycle'`) has no owner in v0.2 and is carried to the next `release-planning` run.
 
-Also per `dl-042`'s review: `task-042`'s `requireCustomAsset` primitive is a pre-flight over a path
+Also per `task-042`'s review: `task-042`'s `requireCustomAsset` primitive is a pre-flight over a path
 string. Confirm before use that its built-in classification is an allow-list on the `custom` segment
 and not a `'built-in'` substring deny-list — the latter was the defect that returned `task-042` to
 `red`.
