@@ -16,7 +16,17 @@
  *   `{deprecated, superseded}` and drops the vestigial `rejected`, behind one shared
  *   `isArchivedStatus` predicate consumed by both the search path and this context path.
  */
-import * as coreBarrel from '../../src/core';
+import {
+  DEFAULT_CONTEXT_LIMITS as BARREL_DEFAULT_CONTEXT_LIMITS,
+  filterRelevantMemoryDocuments as barrelFilterRelevantMemoryDocuments,
+  NO_RELEVANT_MEMORY_NOTE as BARREL_NO_RELEVANT_MEMORY_NOTE,
+} from '../../src/core';
+import type {
+  ContextLimits,
+  RelevanceElementRef,
+  RelevantMemoryDocument,
+  RelevantMemoryResult,
+} from '../../src/core';
 import {
   DEFAULT_CONTEXT_LIMITS,
   filterRelevantMemoryDocuments,
@@ -362,30 +372,35 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
     // The deliverable is only usable by a sibling unit (task-037's `context-builder`) or by a
     // CLI/MCP surface if `src/core/index.ts` re-exports it — a deep `src/core/relevance` import is
     // not the module's public API. `src/memory/query.ts` (task-008) set the precedent: every one of
-    // its primitives is re-exported from `src/memory/index.ts`.
-    const exported = coreBarrel as unknown as Record<string, unknown>;
+    // its primitives is re-exported from `src/memory/index.ts`. Each assertion below imports the
+    // symbol from BOTH paths and compares identity, so deleting the barrel re-export fails this
+    // suite (at compile time on the import, and on the identity assertion if it were ever stubbed).
 
     it('re-exports `filterRelevantMemoryDocuments` from `src/core`', () => {
-      expect(typeof exported.filterRelevantMemoryDocuments).toBe('function');
+      expect(barrelFilterRelevantMemoryDocuments).toBe(filterRelevantMemoryDocuments);
     });
 
     it('re-exports the spec-012 §6 constants (`DEFAULT_CONTEXT_LIMITS`, `NO_RELEVANT_MEMORY_NOTE`)', () => {
-      expect(exported.DEFAULT_CONTEXT_LIMITS).toEqual({ maxDocs: 40, maxBytes: 262144 });
-      expect(exported.NO_RELEVANT_MEMORY_NOTE).toBe('no relevant Memory found for task');
+      expect(BARREL_DEFAULT_CONTEXT_LIMITS).toBe(DEFAULT_CONTEXT_LIMITS);
+      expect(BARREL_DEFAULT_CONTEXT_LIMITS).toEqual({ maxDocs: 40, maxBytes: 262144 });
+      expect(BARREL_NO_RELEVANT_MEMORY_NOTE).toBe('no relevant Memory found for task');
     });
 
-    it('the barrel-exported function is the same callable, working end to end', () => {
+    it('the barrel-exported function works end to end, with the barrel-exported types', () => {
       const root = makeTempGitRepo();
       try {
         writeTaskDoc(root, 'v0.2', 'task-210-relevant', { index: 0, tags: ['performance'] });
         commitAll(root, 'seed barrel-reachability fixture');
 
-        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
-        const viaBarrel = (
-          exported.filterRelevantMemoryDocuments as typeof filterRelevantMemoryDocuments
-        )(root, MEMORY_YAML, element);
+        const element: RelevanceElementRef = {
+          type: 'task',
+          id: 'task-active',
+          frontmatter: { release: 'v0.2', tags: ['performance'] },
+        };
+        const limits: ContextLimits = BARREL_DEFAULT_CONTEXT_LIMITS;
+        const result: RelevantMemoryResult = barrelFilterRelevantMemoryDocuments(root, MEMORY_YAML, element, limits);
 
-        expect(viaBarrel.documents.map((doc) => doc.id)).toEqual(['task-210-relevant']);
+        expect(result.documents.map((doc: RelevantMemoryDocument) => doc.id)).toEqual(['task-210-relevant']);
       } finally {
         removeTempDir(root);
       }

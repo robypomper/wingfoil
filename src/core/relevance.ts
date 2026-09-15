@@ -22,7 +22,7 @@
  * `memory search`: spec-012 §6 admits only "stable, decided and still-current content" into an
  * execution context, whereas REQ-STATE-06 scopes default-search exclusion to archived content so a
  * draft under active work stays findable. Two different sets, on purpose — see
- * {@link CONTEXT_EXCLUDED_STATUS}. dl-028 also dropped spec-012 §6's former `rejected` entry, a status
+ * {@link DRAFT_STATUS}. dl-028 also dropped spec-012 §6's former `rejected` entry, a status
  * `spec-001-memory-yaml-schema` removed from every type's machine.
  *
  * Determinism (REQ-SYS-07): no wall-clock, no randomness, no unordered map/set iteration in any
@@ -114,23 +114,23 @@ const TIER_3_TRACEABILITY = 10;
 const LINK_FRONTMATTER_FIELDS = ['adr', 'spec', 'dl', 'bug'] as const;
 
 /**
- * The one status excluded from an assembled context *beyond* the shared archived set: `draft`.
+ * `draft` — the one status excluded from an assembled context *beyond* the shared archived set.
  * spec-012 §6 admits only "stable, decided and still-current content" into an execution context, so a
  * draft — a document whose content is not yet submitted, let alone agreed — is dropped regardless of
  * score. Kept as a named constant rather than folded into `isArchivedStatus` precisely because it is
  * NOT archived: `memory search` must keep returning drafts (REQ-STATE-06 excludes archived content
  * only), and collapsing the two sets would hide in-progress work from the search surface.
  */
-const CONTEXT_EXCLUDED_STATUS = 'draft';
+const DRAFT_STATUS = 'draft';
 
 /**
  * True when a candidate's `status` bars it from an assembled agent context (spec-012 §6): the shared
  * archived set `{deprecated, superseded}` ({@link isArchivedStatus}, ratified by
- * `dl-028-archived-states-excluded-from-context`) widened by {@link CONTEXT_EXCLUDED_STATUS}.
+ * `dl-028-archived-states-excluded-from-context`) widened by {@link DRAFT_STATUS}.
  * A document with no `status` frontmatter at all is not excluded — absence is not a decision.
  */
 function isExcludedFromContext(status: string | undefined): boolean {
-  return status === CONTEXT_EXCLUDED_STATUS || isArchivedStatus(status);
+  return status === DRAFT_STATUS || isArchivedStatus(status);
 }
 
 /** A traceability token: a feature id (`P5.3.3`, `P1.9`, ...) or a SARD requirement id
