@@ -2,7 +2,7 @@
 id: "task-067-fix-cli-latency-assertion"
 type: task
 title: "Fix: P1.5's under-1-second budget must measure the query, not subprocess spawn contention"
-status: approved
+status: done
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "tooling", "quality-gate"]
