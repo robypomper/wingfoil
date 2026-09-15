@@ -53,6 +53,14 @@ P4.9, so it cannot be done silently: it needs to be an explicit, recorded except
    `dev-loop`'s `bug.sync_state` keys on it, so one task covering two bugs would leave the second
    permanently unsynced and hand-advanced. The exception being authorised here is one decision, not
    one task.
+6. **The `planned` state is skipped for bugs scheduled under this exception, and that is accepted.**
+   `memory.yaml`'s `bug` machine has `planned` as a `waiting` state — entered when
+   `release-planning`/`build-backlog` schedules the bug (the established two-commit shape is
+   `wf(bug): sync … [triaged → planned]` then `[planned → in-progress]`, as `bug-005` did). A bug
+   authorised out of band by this DL never passes through `release-planning`, so nothing stamps
+   `planned`, and its fix task starts it directly at `in-progress`. `bug-009` and `bug-011` both did
+   this. Ratified as an accepted consequence of the exception rather than treated as a defect; it
+   applies only to bugs scheduled under this authorisation, not to the normal path.
 
 ## Rationale
 

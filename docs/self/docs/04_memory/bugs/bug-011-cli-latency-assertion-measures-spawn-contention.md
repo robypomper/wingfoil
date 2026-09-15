@@ -5,7 +5,7 @@ title: "P1.5's under-1-second assertion measures subprocess spawn contention, so
 status: closed
 severity: "medium"
 release-origin: "v0.1"
-release: ""
+release: "v0.2"
 feature: "P1.5"
 contributor: ""
 credit: ""

@@ -5,7 +5,7 @@ title: "`npm run lint` fails on main, so every branch inherits a red lint gate t
 status: closed
 severity: "medium"
 release-origin: "v0.1"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
