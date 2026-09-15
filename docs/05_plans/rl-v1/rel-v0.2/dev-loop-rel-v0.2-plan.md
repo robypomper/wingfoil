@@ -242,7 +242,9 @@ This table is a derived snapshot for readability — do not edit it in place of 
   task-063/064/065; `bug-005` `closed`.
 - [x] Real `src/` tree from v0.1 present (`core, storage, memory, dna, directives, workflow, cli, mcp,
   validation`) + `package.json` — dev-loop produces real code, not paper.
-- [ ] **Not yet run:** no v0.2 task has moved past `backlog`; this plan has not been executed.
+- [x] **Running.** `task-062` done+merged; `task-038`/`task-040`/`task-041` done+merged; seven tasks
+  (`034`, `035`, `036`, `037`, `042`, `043`, `044`) returned to `in-progress` by the review gate and
+  awaiting a second pass; the rest still `backlog`. `main` is green at 60 suites / 576 tests.
 
 Next: start **`task-062`** (early, to flip `docs.api.*`) or any Wave-1 task; then follow the §4
 topological order.

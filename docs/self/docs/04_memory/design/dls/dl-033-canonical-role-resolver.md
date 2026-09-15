@@ -53,7 +53,7 @@ branch is merged, so the duplication is not yet on `main`.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* **Option (b): two resolvers, one hard boundary.**
+**Ratified: option (b) — two resolvers, one hard boundary.**
 `src/core/approval-authority.ts` is canonical for *authority* ("may this principal approve?");
 `src/dna/roles.ts` is canonical for *binding* ("which directives does this role load?", P5.4.2) and
 is scoped out of approval entirely — meaning `resolveApprover` is **removed** from `task-034`, not
