@@ -84,9 +84,13 @@ patterns:
 
   - id: jwt-like
     description: "JSON Web Token shape (header.payload.signature, base64url segments)"
-    severity: warn
+    severity: block
     regex: '\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b'
 
+  # dl-037 note: `jwt-like` and `dotenv-style-secret-line` were promoted warn -> block by
+  # dl-036-secret-scan-warn-severity-vs-req-sec-08. `generic-high-entropy-string` below stays `warn`
+  # deliberately: its value alphabet includes `/` and `-`, so an ordinary long path or identifier
+  # after an `auth:` key matches, and promoting it would fire on prose until the gate was disabled.
   - id: generic-high-entropy-string
     description: "Long contiguous base64/hex-alphabet token assigned to a suspicious key name"
     severity: warn
@@ -94,7 +98,7 @@ patterns:
 
   - id: dotenv-style-secret-line
     description: ".env-style KEY=VALUE line where KEY names a credential"
-    severity: warn
+    severity: block
     regex: '(?im)^[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
 ```
 
@@ -151,7 +155,13 @@ Finding = { pattern_id, severity, file, line, column, excerpt }
      file(s) about to be committed. Any `blocking` finding fails the operation before the commit is
      created — an operation that cannot complete cleanly writes nothing. `warnings` findings are
      surfaced to the operator but do not block.
-6. Exit/return contract: `blocking.length === 0` is required for the caller to proceed; `warnings` are
+6. **Severity is per-pattern, and the split is deliberate** (`dl-036-secret-scan-warn-severity-vs-req-sec-08`).
+   Seven patterns `block`; `jwt-like` and `dotenv-style-secret-line` were promoted to `block` because
+   their triggers are structural and near-unambiguous on a curated documentation surface;
+   `generic-high-entropy-string` remains `warn` because its trigger is loose enough to match prose.
+   REQ-SEC-08's "matches 0 known secret patterns" is therefore enforced as "0 blocking matches" — the
+   one remaining warn-only pattern is surfaced for review rather than failing the gate.
+7. Exit/return contract: `blocking.length === 0` is required for the caller to proceed; `warnings` are
    always returned for display regardless of outcome.
 
 ### 5. Non-goals
