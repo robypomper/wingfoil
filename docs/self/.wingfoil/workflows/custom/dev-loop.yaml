@@ -15,7 +15,7 @@ kind: sub
 description: >-
   Test-first development loop for a single task: design -> red -> green -> refactor -> review.
   On review rejection, fall back to `red` and return the task to in-progress.
-version: 1.1                     # dl-014 git ergonomics (branch/worktree/merge) + docs-api checks; T1 test-strategy classification
+version: 1.2                     # dl-034 lint.clean gate in `refactor` (prev 1.1: dl-014 git ergonomics (branch/worktree/merge) + docs-api checks; T1 test-strategy classification)
 element: task          # the iterated element provided by release-cycle
 
 phases:
@@ -70,7 +70,8 @@ phases:
     actions:
       - agent.execute
     checks:
-      post: ["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build"]   # dl-014 G5 / dl-013 — ACTIVE hard-reject (as of task-062-typedoc-tsdoc-backfill, which closed the B-DECISION Option 2 ramp): docs.api.* enforce via TypeDoc `notDocumented` + `treatWarningsAsErrors` (`typedoc.json`, `npm run docs:api`, asserted by `test/docs/api-docs.test.ts`); an undocumented exported declaration fails `refactor`
+      post: ["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build", "lint.clean"]   # dl-014 G5 / dl-013 — ACTIVE hard-reject (as of task-062-typedoc-tsdoc-backfill, which closed the B-DECISION Option 2 ramp): docs.api.* enforce via TypeDoc `notDocumented` + `treatWarningsAsErrors` (`typedoc.json`, `npm run docs:api`, asserted by `test/docs/api-docs.test.ts`); an undocumented exported declaration fails `refactor`
+      # dl-034 (as of task-066-fix-eslint-baseline-and-lint-gate, which cleared the bug-009 baseline) — ACTIVE hard-reject FROM THE START, no warn-only ramp (dl-034 Decision 2: docs.api.* needed a ramp because its backfill spanned every exported declaration in the tree; this backfill was one line): lint.clean enforces via ESLint (`eslint.config.js`, `npm run lint`, asserted by `test/lint/lint-clean.test.ts`); any lint error fails `refactor`. Placed here and not in `review` (dl-034 Decision 3) so the developer clears their own lint before a reviewer is engaged — this is the gate the `code-quality` directive's "Lint clean: no errors" always assumed and never had
 
   - name: review
     description: "Quality gate runs the BDD acceptance tests, then the reviewer approves or rejects."

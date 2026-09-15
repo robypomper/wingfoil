@@ -166,3 +166,40 @@ difference (AC-2's "no behavioural edit").
 own frontmatter carries `bug:`. `fix(storage):` is the truthful conventional-commit type for a
 bug-fix change, so `green` is committed as `fix(storage): …`. `storage` is a real `dna.yaml` module
 and names the suite that was edited.
+
+### `refactor` — developer
+
+Landed AC-3/AC-4 in `.wingfoil/workflows/custom/dev-loop.yaml`:
+
+- `refactor.checks.post` now reads
+  `["tests.passing", "tests.coverage(min: 80)", "docs.api.public-complete", "docs.api.build", "lint.clean"]`
+  — `lint.clean` appended, the four existing entries untouched.
+- `version: 1.1 → 1.2`, its trailing comment naming `dl-034` as the reason and preserving the 1.1
+  rationale.
+- `dl-034` cited inline in the style of the neighbouring `docs.api.*` citation — same elements: the
+  DL id, the task that made the check ACTIVE, the enforcement mechanism (`eslint.config.js`,
+  `npm run lint`), the test that asserts it (`test/lint/lint-clean.test.ts`), and the failure
+  condition. It is one comment line below the `post:` line rather than appended to that line's
+  already-long trailing comment, because the two checks now need two distinct rationales; the
+  `docs.api.*` comment is preserved byte-for-byte.
+- The comment records AC-4 explicitly — **hard-reject from the start, no warn-only ramp** — with
+  `dl-034` Decision 2's justification, and `dl-034` Decision 3's reason for `refactor` over `review`.
+
+Schema safety: `test/workflow/schema.test.ts` parses every file under `.wingfoil/workflows/custom/`
+against `src/workflow/schema`; it passes with the edit (check expressions are free-form strings and
+`version` is a positive number — see the `design` note above).
+
+**Gates observed at the end of `refactor`** (each command run in this worktree, exit code read, not
+predicted):
+
+| Gate | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **61/61 suites, 577/577 tests passed**, exit 0 |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **97.96 % stmts / 88.22 % branch / 97.65 % funcs / 98.38 % lines**, exit 0 |
+| `docs.api.public-complete` + `docs.api.build` | `npm run docs:api` | exit **0** |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (new) | `npx eslint .` | exit **0**, no output |
+
+`bug-011`'s flaky wall-clock assertion (`test/cli/program.integration.test.ts:352`) did **not** fire
+in either the plain or the coverage run at `--maxWorkers=2`; no re-run in isolation was needed, and
+that file was not modified.
