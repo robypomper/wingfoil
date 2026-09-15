@@ -3,12 +3,12 @@
  * `team.roles`/`team.members`/`team.agents` alone to answer "is this role defined" and "who holds
  * it today", with no directive or workflow file involved (ADR-006's Fit Criterion).
  */
+import * as dnaModule from '../../src/dna';
+import * as rolesModule from '../../src/dna/roles';
 import { DnaYaml } from '../../src/dna/schema';
 import {
   assertRoleDefined,
   isRoleDefined,
-  NoRoleHolderError,
-  resolveApprover,
   resolveRoleHolders,
   UnknownRoleError,
 } from '../../src/dna/roles';
@@ -89,25 +89,45 @@ describe('resolveRoleHolders (AC-2 — Fit Criterion: DNA is the sole source of 
       'New Hire',
     ]);
   });
+
+  it('resolves an empty agent list for a DNA file with no team.agents key at all', () => {
+    const noAgentsDna: DnaYaml = DnaYaml.parse({
+      version: 1.1,
+      modules: [{ name: 'core', path: 'src/core' }],
+      stacks: { technologies: [{ name: 'TypeScript', category: 'language' }] },
+      team: {
+        members: [{ name: 'Solo Maintainer', roles: ['developer'] }],
+        roles: [{ name: 'developer' }],
+      },
+      paths: {},
+    });
+
+    expect(noAgentsDna.team.agents).toBeUndefined();
+    const holders = resolveRoleHolders(noAgentsDna, 'developer');
+    expect(holders.members.map((m) => m.name)).toEqual(['Solo Maintainer']);
+    expect(holders.agents).toEqual([]);
+  });
 });
 
-describe('resolveApprover (AC-3)', () => {
-  it('routes to the role holder (BDD P4.14 "Route a pending approval to the role holder")', () => {
-    const approver = resolveApprover(baseDna, 'approver');
-    expect(approver.name).toBe('Roberto Pompermaier');
+describe('module surface (AC-3, dl-033-canonical-role-resolver option b)', () => {
+  it('exports only the P5.4.2 directive-binding primitives — no approval-routing symbol', () => {
+    expect(Object.keys(rolesModule).sort()).toEqual([
+      'UnknownRoleError',
+      'assertRoleDefined',
+      'isRoleDefined',
+      'resolveRoleHolders',
+    ]);
   });
 
-  it(
-    "throws NoRoleHolderError with the exact P4.14 message when nobody holds the role",
-    () => {
-      expect(() => resolveApprover(baseDna, 'qa')).toThrow(NoRoleHolderError);
-      expect(() => resolveApprover(baseDna, 'qa')).toThrow(
-        "no approver found for role 'qa' in dna.yaml",
-      );
-    },
-  );
+  it('does not re-export any approval-routing symbol from the dna module barrel', () => {
+    expect(dnaModule).not.toHaveProperty('resolveApprover');
+    expect(dnaModule).not.toHaveProperty('NoRoleHolderError');
+  });
 
-  it('throws UnknownRoleError (not NoRoleHolderError) when the role itself is undefined', () => {
-    expect(() => resolveApprover(baseDna, 'ghost')).toThrow(UnknownRoleError);
+  it('still re-exports the four directive-binding symbols from the dna module barrel', () => {
+    expect(dnaModule).toHaveProperty('isRoleDefined');
+    expect(dnaModule).toHaveProperty('assertRoleDefined');
+    expect(dnaModule).toHaveProperty('resolveRoleHolders');
+    expect(dnaModule).toHaveProperty('UnknownRoleError');
   });
 });
