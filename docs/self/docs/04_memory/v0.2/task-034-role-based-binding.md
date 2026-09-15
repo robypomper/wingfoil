@@ -2,7 +2,8 @@
 id: "task-034-role-based-binding"
 type: task
 title: "Infrastructure: REQ-SYS-08 — role-based directive/approval binding"
-status: in-review
+status: in-progress
+rejection_reason: "The replacement TSDoc in src/dna/roles.ts asserts that src/core/approval-authority.ts resolves from team.members by git identity and honours approval_authority. It does not: no code anywhere in the tree reads that field - grep over src/ and test/ returns only the Zod declaration in src/dna/schema.ts, two test fixtures that set it, and approval-authority.ts's own header stating the opposite, that structurally preventing agents from holding approval authority is enforced by process and governance, not by that predicate. approval_authority is a declarative dna.yaml marker. The claim is security-relevant: a reader, plausibly the author of task-046, could build memory approve believing that setting approval_authority: true on an agent is what grants authority, or that the field is validated at all. It is also a fresh instance of the exact defect class this task was rejected for the first time, a TSDoc asserting behaviour that is not implemented, occurring in the very sentence mandated to make that TSDoc accurate. Fix: replace the clause with what the module actually does - resolves the approver from team.members by git identity and never consults team.agents, with approval_authority a declarative marker enforced by governance per adr-006 and CLAUDE.md sections 4 and 8 - then re-run docs:api and eslint. Everything else in this pass was assessed as exemplary and needs no rework."
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "architecture"]
