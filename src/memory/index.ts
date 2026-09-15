@@ -23,6 +23,12 @@
  * one commit" Memory-entry write path (REQ-SYS-01/REQ-SYS-03). `wingfoil memory add`/`submit`
  * (task-020) wire this in behind a `CoreResult`; this module stays a plain, throwing composition,
  * matching every other `src/storage` primitive it builds on.
+ *
+ * task-036-frontmatter-lifecycle-validation adds `validateFrontmatterState` (REQ-STATE-01,
+ * spec-010-memory-frontmatter-schema) to `./state-machine` — the per-type membership check on a
+ * document's frontmatter `status` value itself, independent of any transition attempt (distinct from
+ * `resolveTransitionTarget`'s verb-based transition legality). `task-045-memory-submit` (P1.6) is the
+ * first CLI-facing consumer.
  */
 export const MODULE_NAME = 'memory' as const;
 
@@ -30,11 +36,13 @@ export { MemoryYaml, MemoryTypeEntry, StateMachine, TemplateConfig } from './sch
 export {
   ARCHIVED_STATUSES,
   DEPRECATED_STATE,
+  E_INVALID_STATE,
   E_INVALID_TRANSITION,
   isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
   SUPERSEDED_STATE,
+  validateFrontmatterState,
 } from './state-machine';
 export type { TransitionOp } from './state-machine';
 export {
