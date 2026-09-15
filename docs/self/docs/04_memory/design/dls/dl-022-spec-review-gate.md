@@ -36,7 +36,7 @@ present (REQ-STATE-01 validity), not that the content be internally or cross-doc
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Introduce a **spec-review gate**: before a `tech-spec`
+Introduce a **spec-review gate**: before a `tech-spec`
 transitions `pending → approved`, or an `adr` transitions `pending → accepted`, a reviewer/architect
 must confirm the document passes four checks:
 

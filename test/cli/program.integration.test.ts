@@ -346,10 +346,23 @@ types:
 
     afterEach(() => removeTempDir(repo));
 
-    it('`memory search api` finds the "API design" document, under 1 second, exit 0 (BDD "Find a decision by keyword")', () => {
-      const start = Date.now();
+    // BDD "Find a decision by keyword" has two clauses. This case owns the first — "the results
+    // include the document titled 'API design'" — through the real, compiled CLI wiring: exit code,
+    // output shape, content.
+    //
+    // The second clause, "And the query returns in under 1 second", is deliberately NOT asserted
+    // here (bug-011-cli-latency-assertion-measures-spawn-contention / task-067). `runCliInRoot`
+    // spawns `node dist/cli.js`, so a wall-clock reading taken around it samples Node process startup
+    // plus CPU contention from jest's sibling workers rather than the query — which is why it failed
+    // intermittently on an unmodified `main`. The threshold is unchanged and the clause is still
+    // enforced; only the measurement point moved, to `test/core/query-latency.test.ts`, which runs
+    // this exact scenario (a document titled "API design" tagged "architecture", query "api")
+    // against the REGISTERED `memory.memorySearch` op — the same call this command makes — at
+    // REQ-PERF-02's own measurement conditions: p95 over 25 runs on the 1,000-Memory-document
+    // reference repository. `test/core/latency-budget-placement.test.ts` keeps it from drifting back
+    // across the process boundary.
+    it('`memory search api` finds the "API design" document, exit 0 (BDD "Find a decision by keyword")', () => {
       const result = runCliInRoot(repo, 'memory', 'search', 'api', '--format', 'json');
-      expect(Date.now() - start).toBeLessThan(1000);
       expect(result.status).toBe(0);
       const parsed = JSON.parse(result.stdout) as { matches: { id?: string }[] };
       expect(parsed.matches.map((m) => m.id)).toContain('task-001-api-design');

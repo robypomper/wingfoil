@@ -28,7 +28,7 @@ which is exactly the unimplementable transition.
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)* Adopt **Option B**: reduce the `decision-log` machine
+Adopt **Option B**: reduce the `decision-log` machine
 to
 
 ```

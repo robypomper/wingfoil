@@ -8,7 +8,7 @@ priority: "Medium"
 tags: ["v0.2", "p1"]
 ref: "P1.9"
 bug: ""
-depends_on: ["task-035-bounded-context-relevance", "task-038-deprecated-excluded-from-context", "task-041-mandatory-reason-on-verbs"]
+depends_on: ["task-035-bounded-context-relevance", "task-038-deprecated-excluded-from-context"]
 tmpl_version: 260703
 ---
 

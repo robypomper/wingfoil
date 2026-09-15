@@ -5,10 +5,14 @@
  * `path` patterns (spec-011-storage-layout), plus keyword/frontmatter relevance filtering
  * (spec-012-context-loader-relevance-filtering's discipline — no full-text/semantic index).
  */
+import { existsSync } from 'fs';
+import { join } from 'path';
+
 import {
   computeMemoryContentRoots,
   findMemoryDocumentById,
   listMemoryDocumentPaths,
+  listMemoryDocumentsByType,
   loadMemoryDocumentSummary,
   searchMemoryDocuments,
   validateSearchQuery,
@@ -249,6 +253,165 @@ describe('searchMemoryDocuments — deterministic keyword/frontmatter relevance 
     repo = seedRepo(); // seedRepo's fixtures declare no `type:` field
     const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'API');
     expect(matches[0]?.type).toBeUndefined();
+  });
+});
+
+describe('REQ-STATE-06 — archived documents excluded from default search (task-038; set widened by dl-028)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  function seedRepoWithDeprecated(): string {
+    const seeded = seedRepo();
+    writeFixtureFile(
+      seeded,
+      'docs/04_memory/v0.1/task-003-deprecated-doc.md',
+      [
+        '---',
+        'id: task-003-deprecated-doc',
+        'type: task',
+        'title: "API deprecated doc"',
+        'tags: [ architecture ]',
+        'status: deprecated',
+        '---',
+        '',
+        'Deprecated body that also mentions the api keyword.',
+        '',
+      ].join('\n'),
+    );
+    return seeded;
+  }
+
+  it('AC1 (red-first) — a deprecated document is excluded from a default keyword search that would otherwise match it', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api');
+    expect(matches.map((m) => m.path)).not.toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+    // Non-deprecated matches are unaffected.
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+  });
+
+  it('AC1 (red-first) — a deprecated document is excluded from a default no-keyword tag browse', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, '', { tag: 'architecture' });
+    expect(matches.map((m) => m.path)).not.toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+  });
+
+  it('AC1 (red-first) — `includeArchived: true` is an explicit opt-in that still finds it', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeArchived: true });
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-003-deprecated-doc.md');
+  });
+
+  it('AC1 — a non-deprecated document (e.g. `status: draft`) is never affected by the exclusion', () => {
+    repo = seedRepoWithDeprecated();
+    const matches = searchMemoryDocuments(repo, MEMORY_YAML, '');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-001-doc.md');
+    expect(matches.map((m) => m.path)).toContain('docs/04_memory/v0.1/task-002-doc.md');
+  });
+
+  it('AC2 (characterization) — an explicit id lookup still resolves a deprecated document', () => {
+    repo = seedRepoWithDeprecated();
+    const doc = findMemoryDocumentById(repo, MEMORY_YAML, 'task-003-deprecated-doc');
+    expect(doc?.frontmatter.status).toBe('deprecated');
+  });
+
+  it('AC2 (characterization) — `listMemoryDocumentsByType` browsing still includes a deprecated document', () => {
+    repo = seedRepoWithDeprecated();
+    const tasks = listMemoryDocumentsByType(repo, MEMORY_YAML, 'task');
+    expect(tasks.map((t) => t.id)).toContain('task-003-deprecated-doc');
+  });
+
+  it('AC2 (characterization) — the deprecated document remains present on disk, never deleted', () => {
+    repo = seedRepoWithDeprecated();
+    expect(existsSync(join(repo, 'docs/04_memory/v0.1/task-003-deprecated-doc.md'))).toBe(true);
+  });
+
+  // `isArchivedStatus` — the single shared predicate this scan now consumes (dl-028, superseding
+  // task-038's `isDeprecatedStatus`) — is unit-tested at its home in `test/memory/state-machine.test.ts`.
+  // What belongs here is the SEARCH-PATH behaviour that predicate drives.
+
+  describe('dl-028 — the archived set is {deprecated, superseded}, and `draft` is NOT in it', () => {
+    function seedRepoWithArchived(): string {
+      // Builds on the deprecated fixture so one repo carries BOTH archived statuses at once.
+      const seeded = seedRepoWithDeprecated();
+      writeFixtureFile(
+        seeded,
+        'docs/04_memory/design/adrs/adr-002-superseded.md',
+        [
+          '---',
+          'id: adr-002-superseded',
+          'type: adr',
+          'title: "API superseded decision"',
+          'tags: [ architecture ]',
+          'status: superseded',
+          '---',
+          '',
+          'A superseded decision body that also mentions the api keyword.',
+          '',
+        ].join('\n'),
+      );
+      writeFixtureFile(
+        seeded,
+        'docs/04_memory/design/adrs/adr-003-accepted.md',
+        [
+          '---',
+          'id: adr-003-accepted',
+          'type: adr',
+          'title: "API accepted decision"',
+          'tags: [ architecture ]',
+          'status: accepted',
+          '---',
+          '',
+          'An accepted decision body that also mentions the api keyword.',
+          '',
+        ].join('\n'),
+      );
+      return seeded;
+    }
+
+    it('(red-first) a `superseded` document is excluded from a default keyword search', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api').map((m) => m.id);
+      expect(ids).not.toContain('adr-002-superseded');
+      expect(ids).toContain('adr-003-accepted');
+    });
+
+    it('(red-first) a `superseded` document is excluded from a default tag browse', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, '', { tag: 'architecture' }).map((m) => m.id);
+      expect(ids).not.toContain('adr-002-superseded');
+      expect(ids).toContain('adr-003-accepted');
+    });
+
+    it('(red-first) `includeArchived: true` opts back into BOTH archived statuses at once', () => {
+      repo = seedRepoWithArchived();
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api', { includeArchived: true }).map((m) => m.id);
+      expect(ids).toContain('adr-002-superseded');
+      expect(ids).toContain('task-003-deprecated-doc');
+    });
+
+    it('a `draft` document IS still returned by a default search — the search set and the context set differ on purpose', () => {
+      // Deliberate asymmetry (task-038's Execution Notes, restated by dl-028): REQ-STATE-06 excludes
+      // ARCHIVED content from default search; spec-012 §6 additionally excludes `draft` from an
+      // assembled agent CONTEXT ("only stable, decided and still-current content"). Collapsing the
+      // two sets would hide in-progress drafts from `memory search`, which nothing asks for.
+      // Mirror assertion: `test/core/relevance.test.ts`'s dl-028 block.
+      repo = seedRepoWithArchived();
+      const drafts = searchMemoryDocuments(repo, MEMORY_YAML, '').filter((m) => m.status === 'draft');
+      expect(drafts.length).toBeGreaterThan(0);
+    });
+
+    it('a document whose `status` is not a string is never treated as archived', () => {
+      repo = seedRepo();
+      writeFixtureFile(
+        repo,
+        'docs/04_memory/v0.1/task-004-numeric-status.md',
+        ['---', 'id: task-004-numeric-status', 'type: task', 'title: "API numeric status"', 'status: 42', '---', '', 'api body', ''].join('\n'),
+      );
+      const ids = searchMemoryDocuments(repo, MEMORY_YAML, 'api').map((m) => m.id);
+      expect(ids).toContain('task-004-numeric-status');
+    });
   });
 });
 

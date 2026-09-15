@@ -1,8 +1,10 @@
 /**
  * State-machine transition-legality engine (spec-001-memory-yaml-schema, REQ-SYS-04,
  * task-005-per-type-state-machines). Exercises `resolveStateMachine` + `resolveTransitionTarget`
- * against the real 7 types registered in `docs/self/.wingfoil/memory.yaml` (per the task's
- * Acceptance Criteria) plus illegal-transition rejection.
+ * against every type registered in `docs/self/.wingfoil/memory.yaml` (per the task's Acceptance
+ * Criteria) plus illegal-transition rejection. The registered-type list is DERIVED from the parsed
+ * config (`REGISTERED_TYPE_NAMES`) rather than hard-coded — the previous hard-coded list of 7 had gone
+ * stale when `dl-019-plans-as-memory-element` registered `plan` as an 8th type.
  *
  * The final `describe` block below (REQ-STATE-08) is task-010-default-state-machine-fallback's
  * scope: a throwaway fixture `MemoryYaml` document (parsed in-test, never written to the real
@@ -19,19 +21,40 @@ import { load } from 'js-yaml';
 
 import { MemoryYaml } from '../../src/memory/schema';
 import {
+  ARCHIVED_STATUSES,
   DEPRECATED_STATE,
+  E_INVALID_STATE,
   E_INVALID_TRANSITION,
+  isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
+  SUPERSEDED_STATE,
+  validateFrontmatterState,
 } from '../../src/memory/state-machine';
 import { ValidationError } from '../../src/validation';
 
 const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'), 'utf-8');
 const memoryYaml = MemoryYaml.parse(load(raw));
 
+/**
+ * Every type actually registered in `docs/self/.wingfoil/memory.yaml`, **derived** from the parsed
+ * config rather than hard-coded. The hard-coded list these loops previously used named 7 types and had
+ * silently gone stale: `dl-019-plans-as-memory-element` registered an 8th (`plan`), which was therefore
+ * never exercised here. Deriving the list keeps the suite honest as types are added or removed, and
+ * `.sort()` keeps iteration deterministic (REQ-SYS-07) independently of YAML key order.
+ */
+const REGISTERED_TYPE_NAMES = Object.keys(memoryYaml.types).sort();
+
 describe('resolveStateMachine — REQ-STATE-08 resolution', () => {
-  it('resolves each of the 7 registered types to its own declared `states` block', () => {
-    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+  it('covers every type registered in `memory.yaml`, derived from the config (not a stale hard-coded list)', () => {
+    // Guard on the derivation itself: if this ever resolves to an empty or trivially small set, the
+    // `for` loops below would pass vacuously.
+    expect(REGISTERED_TYPE_NAMES.length).toBeGreaterThanOrEqual(8);
+    expect(REGISTERED_TYPE_NAMES).toContain('plan');
+  });
+
+  it('resolves each registered type to its own declared `states` block', () => {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
       const machine = resolveStateMachine(memoryYaml, typeName);
       expect(machine).toBe(memoryYaml.types[typeName]!.states);
     }
@@ -318,5 +341,192 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
     const fallbackMachine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
     expect(fallbackMachine).toBe(fixtureMemoryYaml.defaults!.states);
     expect(fallbackMachine.sequence).toEqual(['draft', 'pending', 'approved']);
+  });
+});
+
+describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status` membership (task-036, BDD P4.11/P4.13)', () => {
+  it('passes silently (returns undefined, does not throw) for every state in a real type\'s declared `sequence`', () => {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      for (const state of machine.sequence) {
+        expect(validateFrontmatterState(machine, typeName, state)).toBeUndefined();
+      }
+    }
+  });
+
+  it('passes silently for the implicit "deprecated" state on every real type, even though it is never declared in `sequence`', () => {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      expect(machine.sequence).not.toContain(DEPRECATED_STATE);
+      expect(() => validateFrontmatterState(machine, typeName, DEPRECATED_STATE)).not.toThrow();
+    }
+  });
+
+  it('passes silently for every `gates.<state>.reject` target of every real type — the status its own `reject` verb writes', () => {
+    // The real config's reject targets all happen to be `sequence` members today, so this asserts the
+    // *invariant* rather than the off-chain branch (which the synthetic fixture below covers): whatever
+    // `resolveTransitionTarget` returns for `reject` must validate, or `memory reject` would leave the
+    // document in a state the tool refuses to read back (REQ-SYS-04).
+    for (const typeName of REGISTERED_TYPE_NAMES) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      for (const gateState of Object.keys(machine.gates ?? {}).sort()) {
+        const target = resolveTransitionTarget(machine, gateState, 'reject');
+        expect(validateFrontmatterState(machine, typeName, target)).toBeUndefined();
+      }
+    }
+  });
+
+  it('BDD P4.11 scenario 3: "shipped" is not a valid task state — throws with the exact message "invalid state \'shipped\' for type \'task\'"', () => {
+    const machine = resolveStateMachine(memoryYaml, 'task');
+    expect(() => validateFrontmatterState(machine, 'task', 'shipped')).toThrow(ValidationError);
+    try {
+      validateFrontmatterState(machine, 'task', 'shipped');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ValidationError);
+      const validationError = err as ValidationError;
+      expect(validationError.issues).toHaveLength(1);
+      expect(validationError.issues[0]?.code).toBe(E_INVALID_STATE);
+      expect(validationError.issues[0]?.path).toBe('status');
+      expect(validationError.issues[0]?.message).toBe("invalid state 'shipped' for type 'task'");
+    }
+  });
+
+  it('BDD P4.13 scenario 3: "releasing" (a valid `release` state) is NOT a valid `task` state — rejected per-type, and `file` is threaded through when supplied', () => {
+    const releaseMachine = resolveStateMachine(memoryYaml, 'release');
+    expect(() => validateFrontmatterState(releaseMachine, 'release', 'releasing')).not.toThrow();
+
+    const taskMachine = resolveStateMachine(memoryYaml, 'task');
+    expect(() => validateFrontmatterState(taskMachine, 'task', 'releasing', 'docs/04_memory/v0.2/task-101.md')).toThrow(
+      /invalid state 'releasing' for type 'task'/,
+    );
+    try {
+      validateFrontmatterState(taskMachine, 'task', 'releasing', 'docs/04_memory/v0.2/task-101.md');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      const validationError = err as ValidationError;
+      expect(validationError.issues[0]?.file).toBe('docs/04_memory/v0.2/task-101.md');
+    }
+  });
+
+  it('exits `1` (EXIT_VALIDATION) — a business-rule failure, not a parse/system-integrity one (spec-009 §3 as rewritten by dl-032)', () => {
+    // spec-009 §3 now keys the exit code on the NATURE of the failure, not on the pass that detects
+    // it: `2` is reserved for parse and system-integrity failures ("the input could not be understood,
+    // or the installation is inconsistent"); `1` covers "every other validation failure: any mapped
+    // `E_INVALID_*` ... including business-rule failures detected in Pass 2". An unrecognised
+    // frontmatter `status` is understood input that a rule refused — `1`. No BDD scenario pins an exit
+    // code for this message (`P4.11` sc.3 / `P4.13` sc.3 pin the text only), so the spec rule governs.
+    const machine = resolveStateMachine(memoryYaml, 'task');
+    try {
+      validateFrontmatterState(machine, 'task', 'nonexistent-state');
+      throw new Error('expected validateFrontmatterState to throw');
+    } catch (err) {
+      expect((err as ValidationError).exitCode).toBe(1);
+    }
+  });
+});
+
+describe('validateFrontmatterState — an off-chain `gates.<state>.reject` target is a legal state (spec-001)', () => {
+  // Synthetic fixture — none of the real registered types in `docs/self/.wingfoil/memory.yaml` trigger
+  // this case: all three of its reject targets (`draft`, `closed`, `in-progress`) happen to be
+  // `sequence` members, which is precisely why the suite stayed green over this defect. spec-001's
+  // "Semantic validation (post-parse)" is explicit that a reject target "need **not** be a member of
+  // `sequence`: it may revert into the chain ... or name an off-chain decline state reached by no
+  // forward edge", and `resolveTransitionTarget` already returns `gates[<state>].reject` verbatim.
+  // So the `reject` verb can legitimately write a `status` that is outside `sequence`, and
+  // `validateFrontmatterState` must accept it — otherwise the tool rejects as invalid a status it
+  // wrote itself and the document becomes unmovable (REQ-SYS-04).
+  //
+  // Parsed through the real `MemoryYaml` schema (Pass 1, spec-009 §1), same throwaway-fixture idiom as
+  // the REQ-STATE-08 fallback block above, so this is an end-to-end exercise and not a hand-built
+  // object smuggled past the structural rules.
+  const OFF_CHAIN_FIXTURE_YAML = {
+    version: 1.1,
+    defaults: {
+      states: { sequence: ['draft', 'pending', 'approved'], gates: { pending: { reject: 'draft' } } },
+    },
+    types: {
+      'fixture-off-chain-reject': {
+        path: 'docs/04_memory/fixtures/{id}.md',
+        id_pattern: 'fixture-off-chain-reject-{n}',
+        states: {
+          sequence: ['draft', 'pending', 'approved'],
+          // `cancelled` is reached ONLY by `reject` — it appears in no `sequence`, no `waiting`.
+          gates: { pending: { reject: 'cancelled' } },
+        },
+      },
+    },
+  };
+
+  const offChainYaml = MemoryYaml.parse(OFF_CHAIN_FIXTURE_YAML);
+  const machine = resolveStateMachine(offChainYaml, 'fixture-off-chain-reject');
+
+  it('Pass 1: an off-chain reject target is structurally valid — only `gates` KEYS and `waiting` entries must be in `sequence`', () => {
+    expect(machine.sequence).not.toContain('cancelled');
+    expect(machine.gates?.['pending']?.reject).toBe('cancelled');
+  });
+
+  it('the `reject` verb writes the off-chain target verbatim (pre-existing `resolveTransitionTarget` behaviour)', () => {
+    expect(resolveTransitionTarget(machine, 'pending', 'reject')).toBe('cancelled');
+  });
+
+  it('the status the `reject` verb just wrote validates as a legal state for the type', () => {
+    expect(validateFrontmatterState(machine, 'fixture-off-chain-reject', 'cancelled')).toBeUndefined();
+  });
+
+  it('round-trip: every reachable target of every declared `gates` entry is itself a legal frontmatter state', () => {
+    for (const gateState of Object.keys(machine.gates ?? {}).sort()) {
+      const target = resolveTransitionTarget(machine, gateState, 'reject');
+      expect(validateFrontmatterState(machine, 'fixture-off-chain-reject', target)).toBeUndefined();
+    }
+  });
+
+  it('is not over-permissive: a state that is neither in `sequence`, nor a reject target, nor `deprecated` is still rejected', () => {
+    expect(() => validateFrontmatterState(machine, 'fixture-off-chain-reject', 'shipped')).toThrow(
+      /invalid state 'shipped' for type 'fixture-off-chain-reject'/,
+    );
+  });
+});
+
+describe('isArchivedStatus — the shared archived-status predicate (dl-028, REQ-STATE-06)', () => {
+  // `dl-028-archived-states-excluded-from-context` (`ready`) settles the archived set at
+  // `{deprecated, superseded}` and mandates ONE shared predicate consumed by both the search path
+  // (`searchMemoryDocuments`) and the context path (`src/core/relevance.ts`), superseding
+  // `task-038`'s `isDeprecatedStatus`. It lives here, next to `DEPRECATED_STATE`, because this module
+  // is already the single source of truth for status literals.
+
+  it('names the two archived statuses as declared constants', () => {
+    expect(DEPRECATED_STATE).toBe('deprecated');
+    expect(SUPERSEDED_STATE).toBe('superseded');
+  });
+
+  it('exposes the canonical archived set in a fixed, deterministic order', () => {
+    expect([...ARCHIVED_STATUSES]).toEqual(['deprecated', 'superseded']);
+  });
+
+  it('is true for `deprecated` — any type reaches it via `memory deprecate` (P1.9)', () => {
+    expect(isArchivedStatus(DEPRECATED_STATE)).toBe(true);
+  });
+
+  it('is true for `superseded` — the terminal state of `adr`/`tech-spec` (dl-028)', () => {
+    expect(isArchivedStatus(SUPERSEDED_STATE)).toBe(true);
+  });
+
+  it('is false for every live status, including `draft`', () => {
+    for (const live of ['draft', 'pending', 'backlog', 'in-progress', 'in-review', 'approved', 'accepted', 'done', 'ready']) {
+      expect(isArchivedStatus(live)).toBe(false);
+    }
+  });
+
+  it('is false for `rejected` — spec-001 removed that status; dl-028 drops it from the set', () => {
+    expect(isArchivedStatus('rejected')).toBe(false);
+  });
+
+  it('is false when the document declares no status at all', () => {
+    expect(isArchivedStatus(undefined)).toBe(false);
+  });
+
+  it('every archived status in the set is reported archived (set and predicate cannot drift)', () => {
+    for (const status of ARCHIVED_STATUSES) expect(isArchivedStatus(status)).toBe(true);
   });
 });

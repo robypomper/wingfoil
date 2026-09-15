@@ -12,7 +12,7 @@
 import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 
-import { initStorage, scaffoldFiles, writeDocument, WINGFOIL_DIR } from '../../src/storage';
+import { commitPaths, initStorage, scaffoldFiles, writeDocument, WINGFOIL_DIR } from '../../src/storage';
 import { git, makeTempGitRepo, removeTempDir } from './helpers/git-fixture';
 
 describe('initStorage — Initialize the WingFoil storage structure (P1.1 scenario 1)', () => {
@@ -87,7 +87,7 @@ describe('Persisting a pillar state file produces exactly one tracked change (P1
     expect(git(repo, ['status', '--porcelain', '--untracked-files=all']).trim()).toBe(`?? ${rel}`);
 
     // Commit just that file (the pillar's own single-commit operation).
-    require('../../src/storage').commitPaths(repo, [rel], 'feat(directives): add testing');
+    commitPaths(repo, [rel], 'feat(directives): add testing');
 
     expect(git(repo, ['status', '--porcelain'])).toBe('');
     expect(git(repo, ['ls-files', rel]).trim()).toBe(rel);

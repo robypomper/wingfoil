@@ -54,7 +54,6 @@ implemented. dl-017 removes those states, so under this DL a DL pulled into a re
 
 ## Decision
 
-*(in-discussion — proposed, not yet ratified)*
 
 ### 1. Uniform `release` field for selection
 
