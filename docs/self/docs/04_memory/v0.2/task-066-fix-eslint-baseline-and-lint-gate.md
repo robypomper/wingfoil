@@ -95,3 +95,50 @@ scaffolded, so it is vacuous here. `tech-spec.approved` — the one relevant spe
 
 **Approval.** `design`'s `approval: { by_role: approver }` applies *"only when a new spec was
 scaffolded"* (plan §3.2); none was, so this phase is **pass-through** — no approver action requested.
+
+### `red` — developer
+
+New test `test/lint/lint-clean.test.ts`, modelled on `test/docs/api-docs.test.ts` (same shape:
+resolve the tool's CLI via `require.resolve('<pkg>/package.json')`, run it out-of-process with
+`execFileSync(process.execPath, …, { cwd: repoRoot, stdio: 'pipe' })`, rethrow captured
+stdout+stderr on failure, assert exit 0). It runs the same invocation as the `lint` npm script
+(`eslint .`) so the test and the script cannot drift.
+
+**Observed red** — `npx jest test/lint/lint-clean.test.ts`, before any fix, on a clean tree:
+
+```
+FAIL test/lint/lint-clean.test.ts
+  ● ESLint baseline (task-066-fix-eslint-baseline-and-lint-gate) › eslint reports zero errors over the repository
+
+    eslint lint-clean gate failed:
+
+    /…/test/storage/git-backed-storage.test.ts
+      90:5  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+    ✖ 1 problem (1 error, 0 warnings)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+```
+
+This is a real red, not a fabricated one: the failure is the pre-existing `bug-009` error, reported
+by the tool itself.
+
+**Two deliberate departures from `api-docs.test.ts`'s idiom**, both recorded here rather than left
+implicit:
+
+1. **Explicit `it` timeout (`LINT_TIMEOUT_MS = 120_000`).** A full-repo lint takes ~3.5 s wall-clock
+   standalone on this machine and competes with the other suites under `--maxWorkers`; Jest's 5 s
+   default would make the gate report machine load instead of lint status — the exact failure mode
+   `bug-011` describes for the CLI latency assertion. The budget is a fixed ceiling, not a measured
+   assertion, so it introduces no wall-clock dependency into the verdict (`determinism` directive).
+2. **Commit scope.** Each phase's Execution-Notes entry is committed together with that phase's code
+   change, so the running log is atomic with the work it describes. `design` got its own
+   `docs(self):` commit only because it produced no code.
+
+**Commit subject `{module}`.** `dna.yaml`'s module list (`core, storage, memory, dna, directives,
+workflow, cli, mcp, validation`) has no entry for a repo-level tooling gate. Followed the precedent
+set by the equivalent `docs:api` gate test, whose own commit is
+`test(docs): task-062-typedoc-tsdoc-backfill — failing test for doc-coverage gate …` (`9b016b9`) —
+i.e. scope named after the gate/test directory, not a `src/` module. Hence `test(lint):`, with the
+test at `test/lint/`.
