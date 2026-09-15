@@ -39,6 +39,7 @@ export {
   E_EMPTY_SEARCH_QUERY,
   findMemoryDocumentById,
   findMemoryDocumentByTypeAndId,
+  isDeprecatedStatus,
   listMemoryDocumentPaths,
   listMemoryDocumentsByType,
   loadMemoryDocumentSummary,

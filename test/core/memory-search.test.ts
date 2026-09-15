@@ -181,3 +181,72 @@ describe('CORE_MODULES memory.memorySearch — P1.5 fit criteria', () => {
     }
   });
 });
+
+describe('REQ-STATE-06 — `memory.memorySearch` excludes `deprecated` documents by default (task-038)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+    writeFixtureFile(
+      repo,
+      'docs/04_memory/v0.1/task-001-api-design.md',
+      [
+        '---',
+        'id: task-001-api-design',
+        'type: task',
+        'title: "API design"',
+        'status: draft',
+        'tags: [ architecture ]',
+        '---',
+        '',
+        'Discusses the REST API surface.',
+        '',
+      ].join('\n'),
+    );
+    writeFixtureFile(
+      repo,
+      'docs/04_memory/v0.1/task-002-old-api-design.md',
+      [
+        '---',
+        'id: task-002-old-api-design',
+        'type: task',
+        'title: "Old API design"',
+        'status: deprecated',
+        'tags: [ architecture ]',
+        '---',
+        '',
+        'Superseded API design, kept for history only.',
+        '',
+      ].join('\n'),
+    );
+    commitAll(repo, 'seed memory.yaml + an active and a deprecated document');
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('a default keyword search excludes the deprecated document (BDD P1.9 "excluded from default agent context")', async () => {
+    const result = await memorySearchFn()({ root: repo, positional: 'api' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).toContain('task-001-api-design');
+    expect(ids).not.toContain('task-002-old-api-design');
+  });
+
+  it('a default `--tag` browse (no keyword) excludes the deprecated document', async () => {
+    const result = await memorySearchFn()({ root: repo, options: { tag: 'architecture' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).toEqual(['task-001-api-design']);
+  });
+
+  it('an explicit `--status deprecated` narrow still resolves the deprecated document (intentional override, not a default search)', async () => {
+    const result = await memorySearchFn()({ root: repo, options: { status: 'deprecated' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).toEqual(['task-002-old-api-design']);
+  });
+});
