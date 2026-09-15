@@ -6,6 +6,9 @@
  * `registerReadOnlyResources` (`src/mcp/index.ts`) — the full Memory + DNA + Workflow Resources
  * channel plus the structural `resources/write` refusal.
  */
+import { existsSync } from 'fs';
+import { join } from 'path';
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 import { WRITE_REFUSAL_MESSAGE } from '../../src/mcp';
@@ -103,29 +106,25 @@ function taskDoc(id: string, title: string, status: string): string {
   );
 }
 
-function adrDoc(): string {
-  return [
-    '---',
-    'id: adr-001-foo',
-    'type: adr',
-    'title: "Adr Foo"',
-    'status: accepted',
-    'tags: [ a1 ]',
-    '---',
-    '',
-    'Adr body.',
-    '',
-  ].join('\n');
+function adrDoc(id = 'adr-001-foo', title = 'Adr Foo', status = 'accepted'): string {
+  return ['---', `id: ${id}`, 'type: adr', `title: "${title}"`, `status: ${status}`, 'tags: [ a1 ]', '---', '', 'Adr body.', ''].join(
+    '\n',
+  );
 }
 
-/** Seed a small, hand-built fixture repo exercising every Resource this task registers. */
-function seedFixtureRepo(): string {
-  const root = makeTempGitRepo();
+/** The four-pillar config every fixture repo in this suite shares. */
+function writeFixtureConfig(root: string): void {
   writeFixtureFile(root, '.wingfoil/dna.yaml', DNA_YAML);
   writeFixtureFile(root, '.wingfoil/memory.yaml', MEMORY_YAML);
   writeFixtureFile(root, '.wingfoil/workflows.yaml', WORKFLOWS_YAML);
   writeFixtureFile(root, '.wingfoil/workflows/custom/sw-life-cycle.yaml', SW_LIFE_CYCLE_YAML);
   writeFixtureFile(root, '.wingfoil/workflows/custom/dev-loop.yaml', DEV_LOOP_YAML);
+}
+
+/** Seed a small, hand-built fixture repo exercising every Resource this task registers. */
+function seedFixtureRepo(): string {
+  const root = makeTempGitRepo();
+  writeFixtureConfig(root);
 
   // release-line + release deliberately share the same static directory root
   // (docs/04_memory/planning) — proving type-filtering is frontmatter-driven, not directory-driven.
@@ -241,6 +240,91 @@ describe('wingfoil://memory/{type} — collection listing, frontmatter only (spe
     const first = await client.readResource({ uri: 'wingfoil://memory/task' });
     const second = await client.readResource({ uri: 'wingfoil://memory/task' });
     expect(first.contents[0]).toEqual(second.contents[0]);
+  });
+});
+
+/**
+ * task-069-fix-archived-excluded-from-agent-context / `bug-010-deprecated-reaches-agent-context` —
+ * REQ-STATE-06 ("Archived content excluded from context", as amended by
+ * `dl-028-archived-states-excluded-from-context`), BDD `p1-memory/P1.9-memory-deprecate.feature` +
+ * `p5-interaction/P5.2.1-mcp-resources.feature`. The collection Resource is an agent-facing read
+ * path, so it must not hand an agent archived content; its sibling single-document Resource
+ * deliberately still must (explicit retrieval by id — bug-010's Expected Behavior).
+ *
+ * A dedicated fixture repo, rather than extra documents in `seedFixtureRepo`, so the exact-equality
+ * listing assertions above keep pinning task-011's own contract unchanged.
+ */
+function seedArchivedFixtureRepo(): string {
+  const root = makeTempGitRepo();
+  writeFixtureConfig(root);
+
+  writeFixtureFile(root, 'docs/04_memory/v0.1/task-001-foo.md', taskDoc('task-001-foo', 'Foo', 'in-progress'));
+  // `draft` is NOT archived (dl-028): excluded from an execution context, but still browsable —
+  // the same asymmetry `task-038`/`task-035` pinned for default `memory search`.
+  writeFixtureFile(root, 'docs/04_memory/v0.1/task-003-draft.md', taskDoc('task-003-draft', 'Draft', 'draft'));
+  writeFixtureFile(root, 'docs/04_memory/v0.1/task-004-gone.md', taskDoc('task-004-gone', 'Gone', 'deprecated'));
+  writeFixtureFile(root, 'docs/04_memory/design/adrs/adr-001-foo.md', adrDoc());
+  // The half of the archived set a `deprecated`-only fix would miss: `superseded` is reached along
+  // `adr`'s forward `sequence` by `approve`, never by `memory deprecate`.
+  writeFixtureFile(root, 'docs/04_memory/design/adrs/adr-002-old.md', adrDoc('adr-002-old', 'Adr Old', 'superseded'));
+
+  commitAll(root, 'seed task-069 archived-exclusion fixture');
+  return root;
+}
+
+describe('wingfoil://memory/{type} — archived documents never reach an agent (REQ-STATE-06, dl-028)', () => {
+  let root: string;
+  let client: Client;
+
+  beforeAll(async () => {
+    root = seedArchivedFixtureRepo();
+    ({ client } = await connectReadOnlyClient(root));
+  });
+
+  afterAll(() => removeTempDir(root));
+
+  async function listIds(uri: string): Promise<string[]> {
+    const result = await client.readResource({ uri });
+    const content = result.contents[0]!;
+    const parsed = 'text' in content ? (JSON.parse(content.text) as { id: string }[]) : [];
+    return parsed.map((entry) => entry.id);
+  }
+
+  it('AC1/AC2 — a `deprecated` document is absent from the collection, its live siblings are not', async () => {
+    const ids = await listIds('wingfoil://memory/task');
+    expect(ids).not.toContain('task-004-gone');
+    expect(ids).toContain('task-001-foo');
+  });
+
+  it('AC2 — a `superseded` ADR is absent too: the set is {deprecated, superseded}, not `deprecated` alone', async () => {
+    const ids = await listIds('wingfoil://memory/adr');
+    expect(ids).toEqual(['adr-001-foo']);
+    expect(ids).not.toContain('adr-002-old');
+  });
+
+  it('AC3 — `draft` is NOT archived: a draft document is still listed (the browse/context asymmetry)', async () => {
+    expect(await listIds('wingfoil://memory/task')).toEqual(['task-001-foo', 'task-003-draft']);
+  });
+
+  it('AC4 — a `deprecated` document stays resolvable by explicit id through the single-document Resource', async () => {
+    const result = await client.readResource({ uri: 'wingfoil://memory/task/task-004-gone' });
+    expect(result.metadata).toEqual({
+      id: 'task-004-gone',
+      type: 'task',
+      status: 'deprecated',
+      title: 'Gone',
+    });
+  });
+
+  it('AC4 — a `superseded` ADR stays resolvable by explicit id as well', async () => {
+    const result = await client.readResource({ uri: 'wingfoil://memory/adr/adr-002-old' });
+    expect((result.metadata as { status?: string }).status).toBe('superseded');
+    expect('text' in result.contents[0]! ? result.contents[0]!.text : '').toContain('Adr body.');
+  });
+
+  it('the archived documents remain present on disk — excluded from the channel, never deleted', () => {
+    expect(existsSync(join(root, 'docs/04_memory/v0.1/task-004-gone.md'))).toBe(true);
+    expect(existsSync(join(root, 'docs/04_memory/design/adrs/adr-002-old.md'))).toBe(true);
   });
 });
 
