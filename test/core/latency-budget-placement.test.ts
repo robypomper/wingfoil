@@ -31,6 +31,11 @@
  * services or wall-clock/random") and the `determinism` directive (REQ-SYS-07) — a non-deterministic
  * gate on a project whose north star is determinism costs more than the assertion is worth.
  *
+ * The check is textual, so a marker named in a *comment* counts too. That is intentional rather than
+ * merely tolerated: it stops the removed pattern from being reintroduced by copy-paste out of a
+ * "here is what we used to do" note. A file explaining why it no longer times a spawn should say so
+ * in prose ("a wall-clock reading taken around it"), not by quoting the API.
+ *
  * Lives in `test/core/` with the project's other cross-cutting structural guards
  * (`module-layout.test.ts`, `pillar-isolation.test.ts`, `parity.test.ts`) rather than in the directory
  * it polices — which also keeps it out of its own scanned set, since the pattern lists below would
