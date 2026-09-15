@@ -1,7 +1,12 @@
 /**
- * Role-based binding resolver (REQ-SYS-08, task-034-role-based-binding) — reads `dna.yaml`'s
- * `team.roles`/`team.members`/`team.agents` alone to answer "is this role defined" and "who holds
- * it today", with no directive or workflow file involved (ADR-006's Fit Criterion).
+ * Role-based **directive binding** resolver (REQ-SYS-08, task-034-role-based-binding) — reads
+ * `dna.yaml`'s `team.roles`/`team.members`/`team.agents` alone to answer "is this role defined" and
+ * "who holds it today", with no directive or workflow file involved (ADR-006's Fit Criterion).
+ *
+ * The last describe block pins the module's **surface**: per `dl-033-canonical-role-resolver`
+ * (option b) this module answers the binding question only — approval routing lives in
+ * `src/core/approval-authority.ts` (task-040) and is wired by `task-046-memory-approve`, so an
+ * approval-routing export reappearing here is a regression, not an addition.
  */
 import * as dnaModule from '../../src/dna';
 import * as rolesModule from '../../src/dna/roles';
