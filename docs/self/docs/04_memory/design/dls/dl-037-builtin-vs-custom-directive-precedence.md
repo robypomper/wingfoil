@@ -2,7 +2,7 @@
 id: "dl-037-builtin-vs-custom-directive-precedence"
 type: decision-log
 title: "When a built-in and a custom directive share an id, which one wins — and should the loser be silent?"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
