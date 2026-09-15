@@ -2,7 +2,7 @@
 id: "task-069-fix-archived-excluded-from-agent-context"
 type: task
 title: "Fix: archived documents still reach agent context through the MCP collection Resource and the context builder"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "architecture"]
