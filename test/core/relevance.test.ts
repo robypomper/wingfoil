@@ -6,12 +6,23 @@
  * others") at the literal 1,000-document reference scale, plus the tier-scoring/ordering/bounding
  * rules and the three P5.3.3-relevance-filtering.feature BDD scenarios (load-only-relevant,
  * deprecated-excluded, no-relevant-documents edge case).
+ *
+ * **Second pass (review fallback `in-review -> in-progress`).** Three review findings and one
+ * ratified decision-log add the blocks marked `(second pass)` below:
+ * - the module must be reachable through `src/core`'s public barrel, not only by deep path import;
+ * - {@link NO_RELEVANT_MEMORY_NOTE} must assert "no relevant Memory found" only when nothing passed
+ *   the relevance threshold — never when relevant documents existed and were merely bounded out;
+ * - `dl-028-archived-states-excluded-from-context` (`ready`) makes the archived set canonically
+ *   `{deprecated, superseded}` and drops the vestigial `rejected`, behind one shared
+ *   `isArchivedStatus` predicate consumed by both the search path and this context path.
  */
+import * as coreBarrel from '../../src/core';
 import {
   DEFAULT_CONTEXT_LIMITS,
   filterRelevantMemoryDocuments,
   NO_RELEVANT_MEMORY_NOTE,
 } from '../../src/core/relevance';
+import { ARCHIVED_STATUSES } from '../../src/memory/state-machine';
 import type { MemoryYaml } from '../../src/memory/schema';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -341,6 +352,173 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
         const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
 
         expect(result.documents.map((doc) => doc.id)).toEqual(['task-500-array-req']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
+
+  describe('public API reachability through the `core` barrel (second pass — review finding 1)', () => {
+    // The deliverable is only usable by a sibling unit (task-037's `context-builder`) or by a
+    // CLI/MCP surface if `src/core/index.ts` re-exports it — a deep `src/core/relevance` import is
+    // not the module's public API. `src/memory/query.ts` (task-008) set the precedent: every one of
+    // its primitives is re-exported from `src/memory/index.ts`.
+    const exported = coreBarrel as unknown as Record<string, unknown>;
+
+    it('re-exports `filterRelevantMemoryDocuments` from `src/core`', () => {
+      expect(typeof exported.filterRelevantMemoryDocuments).toBe('function');
+    });
+
+    it('re-exports the spec-012 §6 constants (`DEFAULT_CONTEXT_LIMITS`, `NO_RELEVANT_MEMORY_NOTE`)', () => {
+      expect(exported.DEFAULT_CONTEXT_LIMITS).toEqual({ maxDocs: 40, maxBytes: 262144 });
+      expect(exported.NO_RELEVANT_MEMORY_NOTE).toBe('no relevant Memory found for task');
+    });
+
+    it('the barrel-exported function is the same callable, working end to end', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeTaskDoc(root, 'v0.2', 'task-210-relevant', { index: 0, tags: ['performance'] });
+        commitAll(root, 'seed barrel-reachability fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
+        const viaBarrel = (
+          exported.filterRelevantMemoryDocuments as typeof filterRelevantMemoryDocuments
+        )(root, MEMORY_YAML, element);
+
+        expect(viaBarrel.documents.map((doc) => doc.id)).toEqual(['task-210-relevant']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
+
+  describe('the no-relevant-Memory note asserts only what is true (second pass — review finding 2)', () => {
+    // P5.3.3's note is a factual claim ("no relevant Memory found for task"). Emitting it whenever
+    // the BOUNDED result is empty lets it fire while relevant documents existed and were merely
+    // bounded out by ContextLimits — an assertion the filter cannot support. The note belongs to the
+    // relevance threshold (the SCORED set), not to the bounding step.
+    function seedOneRelevantDoc(root: string): void {
+      writeTaskDoc(root, 'v0.2', 'task-220-relevant', { index: 0, tags: ['performance'] });
+      commitAll(root, 'seed bounded-out fixture');
+    }
+
+    const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
+
+    it('records NO note when a relevant document existed but was bounded out by `maxBytes`', () => {
+      const root = makeTempGitRepo();
+      try {
+        seedOneRelevantDoc(root);
+        // Each filler body is ~251 bytes, so a 10-byte cap admits nothing — yet one document DID
+        // pass the relevance threshold, so "no relevant Memory found" would be false.
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element, { maxDocs: 40, maxBytes: 10 });
+
+        expect(result.documents).toHaveLength(0);
+        expect(result.note).toBeUndefined();
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('records NO note when a relevant document existed but was bounded out by `maxDocs`', () => {
+      const root = makeTempGitRepo();
+      try {
+        seedOneRelevantDoc(root);
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element, {
+          maxDocs: 0,
+          maxBytes: DEFAULT_CONTEXT_LIMITS.maxBytes,
+        });
+
+        expect(result.documents).toHaveLength(0);
+        expect(result.note).toBeUndefined();
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('still records the note when nothing passed the relevance threshold (P5.3.3 edge case unchanged)', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeTaskDoc(root, 'v0.5', 'task-230-noise', { index: 0 });
+        commitAll(root, 'seed threshold fixture');
+
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents).toHaveLength(0);
+        expect(result.note).toBe(NO_RELEVANT_MEMORY_NOTE);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
+
+  describe('dl-028 archived set — {deprecated, superseded} (second pass)', () => {
+    it('the shared archived set is exactly {deprecated, superseded} — `rejected` is gone', () => {
+      // `spec-001-memory-yaml-schema` removed `rejected` from every type's machine, so spec-012 §6's
+      // former `draft`/`rejected`/`deprecated` list named a status that cannot occur. dl-028 drops it
+      // and adds `superseded` (the terminal archived state of `adr`/`tech-spec`).
+      expect([...ARCHIVED_STATUSES]).toEqual(['deprecated', 'superseded']);
+    });
+
+    it('excludes a `superseded` ADR from context even when it scores as relevant', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeFixtureFile(
+          root,
+          'docs/04_memory/design/adrs/adr-930-superseded.md',
+          ['---', 'id: adr-930-superseded', 'type: adr', 'title: "Superseded decision"', 'status: superseded', 'tags: [performance]', '---', '', fillerBody(0), ''].join('\n'),
+        );
+        writeFixtureFile(
+          root,
+          'docs/04_memory/design/adrs/adr-931-current.md',
+          ['---', 'id: adr-931-current', 'type: adr', 'title: "Current decision"', 'status: accepted', 'tags: [performance]', '---', '', fillerBody(1), ''].join('\n'),
+        );
+        commitAll(root, 'seed superseded-exclusion fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents.map((doc) => doc.id)).toEqual(['adr-931-current']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('excludes a `superseded` tech-spec from context for the same reason', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeFixtureFile(
+          root,
+          'docs/04_memory/design/specs/spec-930-superseded.md',
+          ['---', 'id: spec-930-superseded', 'type: tech-spec', 'title: "Superseded spec"', 'status: superseded', 'tags: [performance]', '---', '', fillerBody(0), ''].join('\n'),
+        );
+        commitAll(root, 'seed superseded-spec fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents).toHaveLength(0);
+        expect(result.note).toBe(NO_RELEVANT_MEMORY_NOTE);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('keeps `draft` excluded from CONTEXT — the context set is archived ∪ {draft}, wider than the search set', () => {
+      // Asymmetry pinned deliberately (task-038's Execution Notes): `draft` is excluded HERE
+      // (spec-012 §6: only "stable, decided" content enters an execution context) but is NOT
+      // excluded from `memory search` (REQ-STATE-06 names archived content only). The mirror
+      // assertion lives in `test/memory/query.test.ts`.
+      const root = makeTempGitRepo();
+      try {
+        writeTaskDoc(root, 'v0.2', 'task-940-draft', { index: 0, tags: ['performance'], status: 'draft' });
+        writeTaskDoc(root, 'v0.2', 'task-941-deprecated', { index: 1, tags: ['performance'], status: 'deprecated' });
+        writeTaskDoc(root, 'v0.2', 'task-942-active', { index: 2, tags: ['performance'], status: 'backlog' });
+        commitAll(root, 'seed context-exclusion-set fixture');
+
+        const element = { type: 'task', id: 'task-active', frontmatter: { release: 'v0.2', tags: ['performance'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents.map((doc) => doc.id)).toEqual(['task-942-active']);
       } finally {
         removeTempDir(root);
       }

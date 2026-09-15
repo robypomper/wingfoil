@@ -182,7 +182,7 @@ describe('CORE_MODULES memory.memorySearch — P1.5 fit criteria', () => {
   });
 });
 
-describe('REQ-STATE-06 — `memory.memorySearch` excludes `deprecated` documents by default (task-038)', () => {
+describe('REQ-STATE-06 — `memory.memorySearch` excludes archived documents by default (task-038; set widened by dl-028)', () => {
   let repo: string;
 
   beforeEach(() => {
@@ -220,7 +220,23 @@ describe('REQ-STATE-06 — `memory.memorySearch` excludes `deprecated` documents
         '',
       ].join('\n'),
     );
-    commitAll(repo, 'seed memory.yaml + an active and a deprecated document');
+    writeFixtureFile(
+      repo,
+      'docs/04_memory/design/adrs/adr-001-api-choice.md',
+      [
+        '---',
+        'id: adr-001-api-choice',
+        'type: adr',
+        'title: "API choice"',
+        'status: superseded',
+        'tags: [ architecture ]',
+        '---',
+        '',
+        'A superseded API decision, replaced by a later ADR.',
+        '',
+      ].join('\n'),
+    );
+    commitAll(repo, 'seed memory.yaml + an active, a deprecated and a superseded document');
   });
 
   afterEach(() => removeTempDir(repo));
@@ -248,5 +264,30 @@ describe('REQ-STATE-06 — `memory.memorySearch` excludes `deprecated` documents
     if (!result.ok) return;
     const ids = result.value.matches.map((m) => (m as { id?: string }).id);
     expect(ids).toEqual(['task-002-old-api-design']);
+  });
+
+  it('(red-first, dl-028) a default keyword search also excludes a `superseded` document', async () => {
+    const result = await memorySearchFn()({ root: repo, positional: 'api' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).not.toContain('adr-001-api-choice');
+    expect(ids).toContain('task-001-api-design');
+  });
+
+  it('(red-first, dl-028) an explicit `--status superseded` narrow still resolves it — the override generalises to the whole archived set', async () => {
+    const result = await memorySearchFn()({ root: repo, options: { status: 'superseded' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).toEqual(['adr-001-api-choice']);
+  });
+
+  it('a non-archived `--status` narrow (e.g. `draft`) stays under the default archived exclusion', async () => {
+    const result = await memorySearchFn()({ root: repo, options: { status: 'draft' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const ids = result.value.matches.map((m) => (m as { id?: string }).id);
+    expect(ids).toEqual(['task-001-api-design']);
   });
 });
