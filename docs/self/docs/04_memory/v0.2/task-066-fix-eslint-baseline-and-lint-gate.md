@@ -2,7 +2,7 @@
 id: "task-066-fix-eslint-baseline-and-lint-gate"
 type: task
 title: "Fix: restore a clean lint baseline and wire the lint gate into dev-loop's refactor phase"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "tooling", "quality-gate"]
@@ -203,3 +203,45 @@ predicted):
 `bug-011`'s flaky wall-clock assertion (`test/cli/program.integration.test.ts:352`) did **not** fire
 in either the plain or the coverage run at `--maxWorkers=2`; no re-run in isolation was needed, and
 that file was not modified.
+
+### `review` — developer side (`memory.submit` + `bug.sync_state`)
+
+**Final gate run** — `npx jest --coverage --maxWorkers=2`, then each tooling gate, all executed on
+this branch at commit `6183918` with a clean working tree. These are observed exit codes and
+observed counters, not projections:
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=2` | **577 / 577 tests passed, 61 / 61 suites**, exit 0 |
+| coverage (≥ 80 global) | same run | **stmts 97.96 · branch 88.22 · funcs 97.65 · lines 98.38** — all four above the 80 threshold, exit 0 |
+| `lint.clean` | `npx eslint .` | exit **0**, no output |
+| `docs.api.*` | `npm run docs:api` | exit **0** |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+
+Suite count moved 60 → 61 and test count 576 → 577: exactly the one new suite
+(`test/lint/lint-clean.test.ts`) with its one test. No existing test changed its result.
+
+**`tests.bdd.run` (`review` `checks.pre`).** The project has no separate BDD runner — the `.feature`
+files under `docs/02_requirements/02_bdd/features/` are executed as the traced Jest suites (each
+suite's docblock cites its scenarios), so the full run above **is** the BDD run. This task adds no
+new BDD scenario: it is a harness/tooling fix whose contract is the `dl-034` decision, not a product
+behaviour. Stating that plainly rather than claiming a BDD suite that does not exist.
+
+**Acceptance criteria.**
+
+| AC | Verdict | Evidence |
+|---|---|---|
+| 1 | **MET** | `npx eslint .` → exit 0, no output, clean working tree. |
+| 2 | **MET** | `test/storage/git-backed-storage.test.ts` line 15 import extended with `commitPaths`, line 90 call de-`require()`d; no other line touched (`git diff bb89e39~1 bb89e39` is 2 lines ±). Suite passes: 4/4 tests. |
+| 3 | **MET** | `dev-loop.yaml` `refactor.checks.post` now carries `lint.clean` alongside the four existing checks; `version: 1.1 → 1.2`; `dl-034` cited inline in a comment mirroring the `docs.api.*` one. |
+| 4 | **MET** | The comment states "ACTIVE hard-reject FROM THE START, no warn-only ramp" and carries `dl-034` Decision 2's justification. No ramp clause, no staged wording, no follow-up task implied — contrast §2 of the v0.2 dev-loop plan, which had to describe the `docs.api.*` ramp. |
+| 5 | **MET** | `test/lint/lint-clean.test.ts` runs the same `eslint .` invocation as `npm run lint` out-of-process and requires exit 0. Proven executable by its recorded red (see `red` above) and its green after the fix. |
+| 6 | **MET** | 577/577 tests, 61/61 suites; coverage 97.96 / 88.22 / 97.65 / 98.38 (≥ 80); `npm run docs:api` exit 0. |
+
+**`bug.sync_state`.** `bug-009-eslint-baseline-require-imports` is moved `in-progress → in-review` in
+the same commit as this task's `in-progress → in-review`. `task-066` is its only fix task
+(`dl-034` Decision 5), so the aggregate rule collapses to 1:1 and the two states move together.
+
+**Stop point.** The dev-loop halts here. `memory.approve`, the merge to `main`, worktree removal and
+branch deletion are the `approver`'s (`done` phase) — agents hold no approval authority (CLAUDE.md
+§4/§8).
