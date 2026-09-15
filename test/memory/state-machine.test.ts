@@ -1,8 +1,10 @@
 /**
  * State-machine transition-legality engine (spec-001-memory-yaml-schema, REQ-SYS-04,
  * task-005-per-type-state-machines). Exercises `resolveStateMachine` + `resolveTransitionTarget`
- * against the real 7 types registered in `docs/self/.wingfoil/memory.yaml` (per the task's
- * Acceptance Criteria) plus illegal-transition rejection.
+ * against every type registered in `docs/self/.wingfoil/memory.yaml` (per the task's Acceptance
+ * Criteria) plus illegal-transition rejection. The registered-type list is DERIVED from the parsed
+ * config (`REGISTERED_TYPE_NAMES`) rather than hard-coded — the previous hard-coded list of 7 had gone
+ * stale when `dl-019-plans-as-memory-element` registered `plan` as an 8th type.
  *
  * The final `describe` block below (REQ-STATE-08) is task-010-default-state-machine-fallback's
  * scope: a throwaway fixture `MemoryYaml` document (parsed in-test, never written to the real
@@ -34,9 +36,25 @@ import { ValidationError } from '../../src/validation';
 const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'), 'utf-8');
 const memoryYaml = MemoryYaml.parse(load(raw));
 
+/**
+ * Every type actually registered in `docs/self/.wingfoil/memory.yaml`, **derived** from the parsed
+ * config rather than hard-coded. The hard-coded list these loops previously used named 7 types and had
+ * silently gone stale: `dl-019-plans-as-memory-element` registered an 8th (`plan`), which was therefore
+ * never exercised here. Deriving the list keeps the suite honest as types are added or removed, and
+ * `.sort()` keeps iteration deterministic (REQ-SYS-07) independently of YAML key order.
+ */
+const REGISTERED_TYPE_NAMES = Object.keys(memoryYaml.types).sort();
+
 describe('resolveStateMachine — REQ-STATE-08 resolution', () => {
-  it('resolves each of the 7 registered types to its own declared `states` block', () => {
-    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+  it('covers every type registered in `memory.yaml`, derived from the config (not a stale hard-coded list)', () => {
+    // Guard on the derivation itself: if this ever resolves to an empty or trivially small set, the
+    // `for` loops below would pass vacuously.
+    expect(REGISTERED_TYPE_NAMES.length).toBeGreaterThanOrEqual(8);
+    expect(REGISTERED_TYPE_NAMES).toContain('plan');
+  });
+
+  it('resolves each registered type to its own declared `states` block', () => {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
       const machine = resolveStateMachine(memoryYaml, typeName);
       expect(machine).toBe(memoryYaml.types[typeName]!.states);
     }
@@ -328,7 +346,7 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
 
 describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status` membership (task-036, BDD P4.11/P4.13)', () => {
   it('passes silently (returns undefined, does not throw) for every state in a real type\'s declared `sequence`', () => {
-    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
       const machine = resolveStateMachine(memoryYaml, typeName);
       for (const state of machine.sequence) {
         expect(validateFrontmatterState(machine, typeName, state)).toBeUndefined();
@@ -337,10 +355,24 @@ describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status
   });
 
   it('passes silently for the implicit "deprecated" state on every real type, even though it is never declared in `sequence`', () => {
-    for (const typeName of ['release-line', 'release', 'task', 'adr', 'decision-log', 'tech-spec', 'bug']) {
+    for (const typeName of REGISTERED_TYPE_NAMES) {
       const machine = resolveStateMachine(memoryYaml, typeName);
       expect(machine.sequence).not.toContain(DEPRECATED_STATE);
       expect(() => validateFrontmatterState(machine, typeName, DEPRECATED_STATE)).not.toThrow();
+    }
+  });
+
+  it('passes silently for every `gates.<state>.reject` target of every real type — the status its own `reject` verb writes', () => {
+    // The real config's reject targets all happen to be `sequence` members today, so this asserts the
+    // *invariant* rather than the off-chain branch (which the synthetic fixture below covers): whatever
+    // `resolveTransitionTarget` returns for `reject` must validate, or `memory reject` would leave the
+    // document in a state the tool refuses to read back (REQ-SYS-04).
+    for (const typeName of REGISTERED_TYPE_NAMES) {
+      const machine = resolveStateMachine(memoryYaml, typeName);
+      for (const gateState of Object.keys(machine.gates ?? {}).sort()) {
+        const target = resolveTransitionTarget(machine, gateState, 'reject');
+        expect(validateFrontmatterState(machine, typeName, target)).toBeUndefined();
+      }
     }
   });
 
