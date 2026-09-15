@@ -2,7 +2,7 @@
 id: "dl-035-task-branch-sync-with-main"
 type: decision-log
 title: "How a task branch that has fallen behind main is brought current: merge, never rebase"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
