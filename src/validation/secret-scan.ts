@@ -151,6 +151,17 @@ export interface ScanResult {
   readonly warnings: readonly SecretFinding[];
   /** Findings downgraded by a spec-007 §3 exclusion — still listed, never fail the scan. */
   readonly info: readonly ExemptFinding[];
+  /**
+   * How many files' text this result covers — `1` from {@link scanText}, the number of non-binary
+   * tracked files actually read from {@link scanProjectSurface} (binaries skipped per spec-007 §1
+   * are not counted, because their content was never examined).
+   *
+   * Without it an empty `blocking` list is ambiguous: a caller — or an assertion — cannot tell
+   * "every file was read and all were clean" from "no file was read at all" (a missing surface
+   * root, an empty index, a wrong `root`). Callers gating on `blocking.length === 0` should check
+   * that this is non-zero before trusting a clean verdict.
+   */
+  readonly filesScanned: number;
 }
 
 /** Options for {@link scanText}. */
@@ -265,7 +276,7 @@ export function scanText(content: string, filePath: string, options: ScanTextOpt
     }
   }
 
-  return { blocking, warnings, info };
+  return { blocking, warnings, info, filesScanned: 1 };
 }
 
 /** Concatenate {@link ScanResult}s (file iteration order — deterministic when the caller's is). */
@@ -274,6 +285,7 @@ function mergeScanResults(results: readonly ScanResult[]): ScanResult {
     blocking: results.flatMap((r) => r.blocking),
     warnings: results.flatMap((r) => r.warnings),
     info: results.flatMap((r) => r.info),
+    filesScanned: results.reduce((total, r) => total + r.filesScanned, 0),
   };
 }
 
@@ -370,7 +382,9 @@ export interface ScanProjectOptions {
  *
  * This is the concrete entry point the REQ-SEC-08 Fit Criterion ("a scan of committed `.wingfoil/`
  * content matches 0 known secret patterns") is checkable against: `scanProjectSurface(root).blocking`
- * must be empty for a hygienic project.
+ * must be empty for a hygienic project. Pair that with {@link ScanResult.filesScanned} — an empty
+ * `blocking` list only means "clean" once it is known that files were actually read; `filesScanned`
+ * is `0` when no surface root exists or the index is empty under it.
  */
 export function scanProjectSurface(root: string, options: ScanProjectOptions = {}): ScanResult {
   const surfaceRoots = options.surfaceRoots ?? SCAN_SURFACE_ROOTS;
