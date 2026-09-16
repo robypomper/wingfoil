@@ -129,3 +129,55 @@ under `BUILTIN_DIRECTIVES_DIR`, passed through `builtinTemplateSources` exactly 
 failures are 6 in `templates.test.ts` (3 assertions × 2 templates) + 2 in `builtin-integrity.test.ts`
 (1 × 2 templates); the `scaffolds at least one directive document to validate` guard passed already
 (it only pins that the block is not vacuous).
+
+### `green` (developer) — 2026-09-16
+
+**One change, in one function:** `directiveMd()` in `src/storage/templates.ts` now emits
+
+```
+---
+id: architecture
+name: architecture
+type: directive
+kind: custom
+title: "Architecture"
+ref: [P3.8]
+---
+```
+
+i.e. `id` + `type: directive` + `title` **added**; `name`, `kind`, `ref` keep the exact values they
+had. Strictly additive — no existing field changed value, so no consumer that already read the old
+frontmatter can regress. The generator stays pure (fixed strings from the `DIRECTIVES` table, no
+clock/random), so `init` remains byte-identical run to run (REQ-SYS-07); the existing determinism
+tests still pass. Field-by-field against `DirectiveFrontmatter` / `spec-013`: `id` string (filename
+stem), `name` string, `type` literal `directive`, `kind` string, `title` string, `ref` optional
+string[] — all five required fields present, `tags` legitimately omitted (optional).
+
+`title` is quoted, `id`/`name` are not — the same style the ten real stand-ins under
+`docs/self/.wingfoil/directives/custom/` use.
+
+**Observed after the change (no other file touched):**
+- `npx jest test/storage/templates.test.ts test/core/builtin-integrity.test.ts --maxWorkers=2` →
+  `Test Suites: 2 passed, 2 total` / `Tests: 42 passed, 42 total` (was 8 failed).
+- Full suite `npx jest --maxWorkers=2` → `Test Suites: 69 passed, 69 total` /
+  `Tests: 889 passed, 889 total`.
+
+**End-to-end on the real compiled CLI** (rebuilt `dist/`, fresh `git init` repo outside the worktree,
+transcript trimmed to the shape — the full listing is in the task report):
+
+```
+$ wingfoil init --template Scrum
+INIT_EXIT=0
+$ wingfoil directives list
+[
+  {
+    "path": "directives/custom/architecture.md",
+    "frontmatter": { "id": "architecture", "name": "architecture", "type": "directive",
+                     "kind": "custom", "title": "Architecture", "ref": ["P3.8"] }
+  },
+  ... all ten directives, architecture → traceability ...
+]
+DIRECTIVES_LIST_EXIT=0
+```
+
+All ten scaffolded directives listed; exit 0. AC1 met on the real binary, not only in Jest.
