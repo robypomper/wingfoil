@@ -66,14 +66,24 @@ interface PackResult {
 const rawPackageJson = readFileSync(PKG_PATH, 'utf-8');
 const pkg = JSON.parse(rawPackageJson) as PublishManifest;
 
-/** The exact paths `npm pack` would ship, via the same file selection `npm publish` uses. */
+let cachedPackedPaths: readonly string[] | undefined;
+
+/**
+ * The exact paths `npm pack` would ship, via the same file selection `npm publish` uses.
+ *
+ * Memoized: the manifest is a pure function of the working tree, so every case in this file observes
+ * the same tarball, and the (~1s) `npm pack` subprocess is spawned once rather than per assertion.
+ */
 function packedPaths(): readonly string[] {
-  const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf-8',
-  });
-  const [result] = JSON.parse(raw) as PackResult[];
-  return (result?.files ?? []).map((f) => f.path);
+  if (cachedPackedPaths === undefined) {
+    const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+    });
+    const [result] = JSON.parse(raw) as PackResult[];
+    cachedPackedPaths = (result?.files ?? []).map((f) => f.path);
+  }
+  return cachedPackedPaths;
 }
 
 describe('publish metadata (task-059) — spec-015 §1 attribution fields', () => {
