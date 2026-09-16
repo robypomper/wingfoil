@@ -2,7 +2,7 @@
 id: "bug-004-dna-set-strips-yaml-comments"
 type: bug
 title: "wingfoil dna set strips YAML comments (loses [SPEC]/[AUTHORING] provenance)"
-status: in-progress
+status: in-review
 severity: "medium"
 release-origin: "v0.1"
 release: "v0.2"
@@ -59,3 +59,13 @@ annotations are lost.
   deferred by the approver from the v0.1 release** — not a release blocker; scheduled for a v0.2/patch
   (comment-preserving `dna set` via a CST/AST YAML editor). To be surfaced in v0.1 release notes as a
   known limitation.
+- 2026-09-16 (in-progress → in-review): fixed by `task-063-fix-dna-set-comment-preservation` (its only
+  fix task). `dna set` now writes through a minimal **in-place textual edit**
+  (`setDnaValueInText`, `src/dna/set.ts`) — one line rewritten or inserted, every other byte untouched
+  — instead of `dump()`-ing the whole document. Verified on this repository's own `dna.yaml`: a
+  `dna set project.name` is a 1-insertion/1-deletion diff with all 44 comment lines and 23
+  `[SPEC]`/`[AUTHORING]` markers intact, and an inline annotation keeps its column. **No production
+  dependency added** — the CST/AST YAML editor floated above was rejected against
+  `dl-010-minimal-dependencies`. Residual, deliberately out of scope: targets that are block scalars
+  (`>-`, `|`), open a nested block, or sit under a sequence still fall back to the whole-file `dump()`
+  and still lose comments; widening that would need the CST library and therefore a dl-010 exemption.
