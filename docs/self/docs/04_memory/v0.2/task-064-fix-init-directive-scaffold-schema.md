@@ -2,7 +2,7 @@
 id: "task-064-fix-init-directive-scaffold-schema"
 type: task
 title: "Fix bug-006: `init` must scaffold directive .md that pass the directives schema"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Low"
 tags: ["v0.2", "cli"]
@@ -205,3 +205,89 @@ where the next editor will see it.
 | `docs.api.build` + `docs.api.public-complete` | `npm run docs:api` | exit **0**, no TypeDoc warning or error emitted |
 | (build) | `npx tsc -p tsconfig.build.json` | exit **0** |
 | `lint.clean` (`dl-034`, hard-reject) | `npx eslint .` | exit **0**, no output |
+
+### `review` (developer side) — 2026-09-16
+
+**`tests.bdd.run`.** Acceptance suites for the features this task touches —
+`P5.1.1-init.feature` (`test/cli/init-command.test.ts`, `test/core/init-project.test.ts`,
+`test/cli/journey-0a.integration.test.ts`), `P3.4-directives-list` / `P3.5-project-directives`
+(`test/directives/schema.test.ts`, `test/core/loaders.test.ts`, `test/core/context.test.ts`),
+`P3.8`/`P4.17` integrity (`test/core/builtin-integrity.test.ts`) and the generator itself
+(`test/storage/templates.test.ts`): `Test Suites: 8 passed, 8 total` / `Tests: 124 passed, 124
+total`. (The `error: unknown command 'agent'` / `E_VALIDATION paths.sources` lines in that output are
+pre-existing negative-path fixtures printing on stderr inside passing tests, not failures.)
+
+**Full suite, final run:** `npx jest --maxWorkers=2` → `Test Suites: 69 passed, 69 total` /
+`Tests: 889 passed, 889 total`, 0 failed, 0 skipped.
+
+**AC status (observed, not inferred):**
+- AC1 — real CLI, fresh repo: `init --template Scrum` exit 0, `directives list` exit 0 listing all
+  ten directives. **Met.**
+- AC2 — every scaffolded directive frontmatter carries `id` (= filename stem), `type: directive`,
+  `title`, and validates against the real `DirectiveFrontmatter`/`spec-013`. **Met.**
+- AC3 — failing-first tests for that generator (`src/storage/templates.ts`) exist and were observed
+  red before the fix. **Met.**
+
+**`bug.sync_state`.** `bug-006-init-directive-scaffold-schema-invalid` moved `in-progress →
+in-review` in the same commit as this submit; it is this bug's only fix task, so its state tracks
+this task 1:1 (plan §2).
+
+---
+
+### For `task-057-builtin-directive-templates` (read via the `dl-015` gate)
+
+**Is the ordering hazard closed? YES — for anything `directiveMd()` generates, and that is proven,
+not asserted.**
+
+What was true before this task: `wingfoil init` computes `templateScaffold(...)`, derives its
+built-in sources from it (`builtinTemplateSources`), and schema-checks them in guard 5 of
+`initWingfoilProject` **before writing anything**. Feeding the real generator output through that
+guard failed on the first directive with
+`built-in directive template integrity check failed: architecture` — so adding any
+`directiveMd()`-generated file under `.wingfoil/directives/built-in/` would have aborted `init` for
+every user. Reproduced here in `red`, verbatim, before touching the generator.
+
+What is true now: that same property test — `test/core/builtin-integrity.test.ts`,
+`verifyBuiltinTemplates accepts the real init directive generator output (bug-006)` — re-homes every
+scaffolded directive under `BUILTIN_DIRECTIVES_DIR`, derives sources exactly as guard 5 does, and
+asserts `verifyBuiltinTemplates(...) === null`. It passes, for every registered template, and it is
+written as a property over `TEMPLATES` so it keeps biting if a directive or template is added later.
+
+**Three things it does NOT cover — your job, not this task's:**
+1. **`kind`.** `directiveMd()` hard-codes `kind: custom`, correct for the only place the scaffold
+   writes directives today (`directives/custom/`). A P3.8 built-in template should carry
+   `kind: built-in`; `spec-013` keeps `kind` a plain `string` so that needs no schema change, but the
+   generator needs a `kind` input (or its own built-in generator) if you reuse it. Schema-valid either
+   way — this will not abort `init` — but `kind: custom` on a built-in file would be semantically
+   wrong.
+2. **Frontmatter you author some other way.** The guard checks the bytes actually scaffolded. A
+   built-in `.md` written by hand or by a new generator must satisfy `DirectiveFrontmatter`
+   (`id`, `name`, `type: directive`, `kind`, `title`) on its own — the guard classifies by
+   **directory**, not extension, so anything non-dotfile you drop under `directives/built-in/` is
+   checked.
+3. **Duplicate ids across `built-in/` + `custom/`.** The scaffold currently ships the six P3.8
+   category names (`architecture`, `code-quality`, `code-review`, `documentation`, `security`,
+   `testing`) as `custom/` stand-ins with `id` = the stem. If you install built-ins under the same
+   ids, `resolveRoleDirectives` (`src/core/context.ts`, spec-012 §5) deduplicates by id keeping the
+   **smallest path**, i.e. `directives/built-in/...` wins over `directives/custom/...` — that is an
+   explicitly *unspecified* precedence in spec-012 (it notes no built-in-vs-custom override rule was
+   ever ratified), not a decision this task made. Decide it deliberately (and probably drop or rename
+   the stand-ins the built-ins replace, per `CLAUDE.md` §3) rather than inheriting it by string order.
+
+### Deviations / left for others
+
+- **`name` kept as the slug.** `spec-013` describes `name` as the "human-readable directive name",
+  and the ten real stand-ins under `docs/self/.wingfoil/directives/custom/` use `name: "Architecture"`
+  with `id: architecture`. The scaffold emits `name: architecture` (slug) for both. Deliberately left
+  unchanged: the fix is additive by design, `name` was already present and schema-valid
+  (`z.string()`), and the generated `roles.yaml` header says it binds "by NAME" — with
+  `id === name === stem` that comment stays true under either reading, whereas changing `name` alone
+  would have made it false. Flagged rather than silently changed; a follow-up may align it with the
+  stand-ins, and would then want to reword that generated comment (which in fact describes the
+  resolver's `id` lookup).
+- **Storage layout untouched.** `directives/{built-in,custom}` and their git-tracking are
+  `task-054-project-directives`' (P3.5) scope; nothing here required a layout change, so none was
+  made.
+- **No digest/manifest/checksum** anywhere near `builtin-integrity` — `dl-031` ratified schema
+  validation *as* the REQ-SEC-10 contract.
+- **Not touched** (concurrent tasks): `src/core/index.ts`, `src/mcp/`, `package.json`.
