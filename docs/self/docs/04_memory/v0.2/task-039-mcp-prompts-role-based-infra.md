@@ -124,3 +124,26 @@ Tests:       9 failed, 9 total
 
 All four AC classes are red for the same structural reason — `src/mcp` exports no Prompts registrar
 yet. No fabricated red and no dead code was added to force one.
+
+### `green` — developer
+
+`src/mcp/prompt.ts` (new) + three export lines in `src/mcp/index.ts`. `registerRolePrompts(server,
+{resolveRoot})`:
+
+- reads the role catalogue **once, at registration** (`loadDnaYaml(...).team.roles`) and registers one
+  `roleSessionPromptName(role)` = `{role}-session` prompt per entry — spec-004 §3.1's "fixed set
+  derived from DNA at server start";
+- each handler, **per request**, calls `resolveRoleDirectives(loadDirectives(root),
+  loadRolesYaml(root), role)` and composes `# Role: {role}` + one `## Directive: {id}\n{body}` block
+  per resolved directive — spec-004 §3.2, and the reason AC-3 passes (nothing is captured at boot);
+- the body comes from `splitFrontmatter(readDocument(<root>/.wingfoil/<file.path>)).body.trim()` —
+  `loadDirectives` stores `path` relative to `.wingfoil/`, so `WINGFOIL_DIR` is joined in.
+
+`src/core/index.ts` was **not** edited (`task-049`/`task-063` are editing it concurrently) — everything
+this module needs is already exported from there: `loadDnaYaml`, `loadRolesYaml`, `loadDirectives`,
+`resolveRoleDirectives`, `type DirectiveFile`. `src/mcp/memory-resource.ts` was read but not modified;
+`task-069`'s `isArchivedStatus` collection filter is untouched. `registerReadOnlyResources` and
+`createMcpServer` are untouched, so the Resources channel and the production entry point are
+bit-identical to before this task.
+
+Result: `npx jest test/mcp/role-prompts.test.ts` → **9 passed, 9 total, 1 suite**.
