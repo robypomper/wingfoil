@@ -104,3 +104,23 @@ provide is the directive **body** — `loadDirectives` returns `{path, frontmatt
 module reads the resolved file with `storage.readDocument` + `storage.splitFrontmatter`, the same
 already-shipped primitives `src/mcp/memory-resource.ts` uses for the same "the frontmatter scan already
 happened, now I need the raw text" reason.
+
+### `red` — developer
+
+`test/mcp/role-prompts.test.ts` — 9 cases across four `describe` blocks, one per AC above, all driven
+over the SDK's in-memory transport + a real `Client` against a temp-git-repo fixture
+(`test/storage/helpers/git-fixture.ts`) carrying `dna.yaml` (roles `developer`/`reviewer`/`qa`),
+`roles.yaml` (`developer → code-quality, testing`; `reviewer → code-review`; `global →
+security-secrets`) and five directive files with unique `BODY-*` marker bodies.
+
+Observed first failure (`npx jest test/mcp/role-prompts.test.ts`), verbatim:
+
+```
+Tests:       9 failed, 9 total
+● prompts/list — one {role}-session prompt per dna.yaml team.roles entry (spec-004 §3.1) › derives the prompt set from DNA — exactly one per role, named {role}-session
+
+    TypeError: (0 , mcp_1.registerRolePrompts) is not a function
+```
+
+All four AC classes are red for the same structural reason — `src/mcp` exports no Prompts registrar
+yet. No fabricated red and no dead code was added to force one.
