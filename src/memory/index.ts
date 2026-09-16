@@ -79,6 +79,7 @@ export {
   auditAttribution,
   isValidAttribution,
   parseApprovalMetadata,
+  parseCommitReason,
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from './audit';
