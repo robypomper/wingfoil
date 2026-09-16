@@ -2,9 +2,9 @@
 id: "dl-038-archived-exclusion-default-in-memory-primitives"
 type: decision-log
 title: "Should the Memory scan primitives default to excluding archived documents, so a forgetful consumer fails closed?"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703
