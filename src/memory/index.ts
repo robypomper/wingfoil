@@ -8,8 +8,9 @@
  *
  * task-008-dna-memory-query-latency adds the `memory search`/`memory history` query-path
  * *primitives* (REQ-PERF-02) `./query` and `./history` — the performance-bearing foundation
- * task-021/a-later-P1.10-task build their CLI/MCP surface on top of; see those modules' own doc
- * comments and the task's Execution Notes for the foundation/feature scoping decision.
+ * `task-021-implement-memory-search` (P1.5) and `task-049-memory-history` (P1.10) built their
+ * CLI/MCP surface on top of; see those modules' own doc comments and the task's Execution Notes for
+ * the foundation/feature scoping decision.
  *
  * task-015-complete-audit-trail adds `./audit` (REQ-SEC-02) — the audit/verification layer built on
  * `./history`'s raw git-log walk: attribution auditing (0 "unknown author"), `Approver:`/`Reason:`

@@ -229,9 +229,10 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
 /**
  * Reconstruct every transition `relativePath` went through, oldest first, entirely from git log
  * (`getMemoryHistory`) plus a frontmatter read at each commit (`git show`) — no separate log file
- * (ADR-007). This is the derivation a future `wingfoil memory history` CLI/MCP surface (P1.10, a
- * later feature task) renders; this function is the reconstruction itself, not that command's output
- * formatting.
+ * (ADR-007). This is the derivation `wingfoil memory history` (P1.10) renders — `src/core`'s
+ * `memoryHistory` operation (`task-049-memory-history`) renames and string-formats these fields into
+ * its own entry shape, deriving no further state of its own; this function is the reconstruction
+ * itself, not that command's output formatting.
  *
  * Known limitation: `getMemoryHistory` walks with `git log --follow` (rename-following), but
  * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that predates

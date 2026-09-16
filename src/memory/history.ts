@@ -1,16 +1,16 @@
 /**
- * Memory history primitive (task-008-dna-memory-query-latency, REQ-PERF-02) — the git-log walk a
- * future `wingfoil memory history` feature task (P1.10; not yet scheduled in v0.1, see
- * task-015-complete-audit-trail's Implementation Notes) renders. Per ADR-007
- * (stateless-state-derivation), git history is the sole audit trail for a Memory element's
- * transitions — there is no secondary `.wingfoil/state/` log to query instead — so this walks
- * `git log` directly over the element's file.
+ * Memory history primitive (task-008-dna-memory-query-latency, REQ-PERF-02) — the git-log walk
+ * underneath `wingfoil memory history` (P1.10), which shipped in `task-049-memory-history` as
+ * `src/core`'s `memoryHistory` operation. Per ADR-007 (stateless-state-derivation), git history is
+ * the sole audit trail for a Memory element's transitions — there is no secondary `.wingfoil/state/`
+ * log to query instead — so this walks `git log` directly over the element's file.
  *
  * Scope (see task-008's Execution Notes): this returns *structured commit records* (sha, author
  * name/email, ISO-8601 author date, subject, body) — the walk itself. Deriving a human-facing
  * "state change" (e.g. "pending -> backlog") from the commit body's `Approver:`/`Reason:` lines
- * (CLAUDE.md §5.1) is the feature task's rendering concern, not this primitive's; the raw `body`
- * field already carries that text verbatim for a caller to parse.
+ * (CLAUDE.md §5.1) is not this primitive's concern; the raw `body` field carries that text verbatim
+ * for a caller to parse, and `./audit`'s `reconstructMemoryTransitions` is the caller that does — the
+ * `memoryHistory` operation projects that reconstruction rather than re-reading this walk itself.
  *
  * The `git log` walk/record-splitting plumbing itself lives in `./git-log` (factored out by
  * task-015-complete-audit-trail, which needs the same plumbing for its own attribution audit) — this
