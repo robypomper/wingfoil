@@ -56,7 +56,7 @@ export {
 // request. Exported but deliberately NOT folded into `registerReadOnlyResources` below (that call is
 // spec-004 §2's Resources bundle) and not wired into `createMcpServer` — spec-014 §3 assigns the
 // entry-point wiring to P5.2.2 / `task-058-mcp-prompts-role-based`. See `./prompt.ts`.
-export { registerRolePrompts, roleSessionPromptName, ROLE_PROMPT_NAME_SUFFIX } from './prompt';
+export { registerRolePrompts, roleSessionPromptName } from './prompt';
 export type { RegisterRolePromptsOptions } from './prompt';
 
 import { registerDnaResources } from './dna-resource';

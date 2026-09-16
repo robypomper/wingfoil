@@ -47,8 +47,9 @@ export interface RegisterRolePromptsOptions {
   readonly resolveRoot: () => string;
 }
 
-/** spec-004 §3.1's prompt-name suffix: one prompt per role, named `{role}-session`. */
-export const ROLE_PROMPT_NAME_SUFFIX = '-session';
+/** spec-004 §3.1's prompt-name suffix: one prompt per role, named `{role}-session`. Module-local —
+ * {@link roleSessionPromptName} is the only naming API this channel exposes. */
+const ROLE_PROMPT_NAME_SUFFIX = '-session';
 
 /**
  * `{role}-session` — spec-004 §3.1's prompt naming convention, as a function so the wire-visible name
@@ -73,6 +74,13 @@ function readDirectiveBody(root: string, file: DirectiveFile): string {
   return splitFrontmatter(readDocument(join(root, WINGFOIL_DIR, file.path))).body.trim();
 }
 
+/** One directive as it appears in a composed prompt: the `id` the `## Directive:` heading names and
+ * the body text that follows it. */
+interface RolePromptDirectiveBlock {
+  readonly id: string;
+  readonly body: string;
+}
+
 /**
  * Compose the prompt text for `role` from its already-resolved directives — spec-004 §3.2's shape: a
  * `# Role: {role}` header followed by one `## Directive: {id}` block per directive, each carrying that
@@ -89,7 +97,7 @@ function readDirectiveBody(root: string, file: DirectiveFile): string {
  * resolution itself as a *set* union (`roles.yaml[R].directives` ∪ `global`), which fixes membership,
  * not sequence; an explicit total order is what makes two runs byte-identical.
  */
-function composeRolePromptText(role: string, directives: readonly { id: string; body: string }[]): string {
+function composeRolePromptText(role: string, directives: readonly RolePromptDirectiveBlock[]): string {
   const blocks = directives.map(({ id, body }) => `## Directive: ${id}\n${body}`);
   return [`# Role: ${role}`, ...blocks].join('\n\n');
 }

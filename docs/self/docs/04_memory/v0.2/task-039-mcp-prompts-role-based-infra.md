@@ -147,3 +147,20 @@ this module needs is already exported from there: `loadDnaYaml`, `loadRolesYaml`
 bit-identical to before this task.
 
 Result: `npx jest test/mcp/role-prompts.test.ts` → **9 passed, 9 total, 1 suite**.
+
+### `refactor` — developer
+
+Two narrowing changes, no behaviour change: `ROLE_PROMPT_NAME_SUFFIX` demoted from a public export to a
+module-local constant (`roleSessionPromptName` is the whole naming API this channel needs to expose —
+nothing outside `prompt.ts` consumed the suffix), and the `composeRolePromptText` parameter given a
+named `RolePromptDirectiveBlock` interface instead of an inline anonymous shape.
+
+Checks, all re-run after the refactor (observed, not estimated):
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **889 passed / 889, 70 suites, 0 failed** |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | global **98.19 % stmts / 88.88 % branch / 98.25 % funcs / 98.75 % lines**; `src/mcp/prompt.ts` **100 / 100 / 100 / 100**; `src/mcp` module 97.36 % stmts |
+| `docs.api.build` | `npm run docs:api` | exit **0** |
+| (build) | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` | `npx eslint .` | exit **0** |
