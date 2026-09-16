@@ -2,7 +2,7 @@
 id: "task-039-mcp-prompts-role-based-infra"
 type: task
 title: "Infrastructure: REQ-INT-02 — MCP Prompts role-based"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "integrations"]
@@ -164,3 +164,49 @@ Checks, all re-run after the refactor (observed, not estimated):
 | `docs.api.build` | `npm run docs:api` | exit **0** |
 | (build) | `npx tsc -p tsconfig.build.json` | exit **0** |
 | `lint.clean` | `npx eslint .` | exit **0** |
+
+### `review` — reviewer (developer side; approval is the approver's)
+
+**`tests.bdd.run`.** The repository has no separate BDD runner — `.feature` files are honoured by the
+Jest suites that cite them in their headers (the convention `test/mcp/read-only-resources.test.ts`
+established for P5.2.1). This task's contract is a SARD requirement (`ref: REQ-INT-02`), not a feature;
+`p5-interaction/P5.2.2-mcp-prompts.feature` is `task-058`'s acceptance suite. So the BDD gate here is
+the full suite: `npx jest --maxWorkers=2` → **889 passed / 889, 70 suites, 0 failed**.
+
+**REQ-INT-02 Fit Criterion — where it is met and what proves it.**
+
+- *"Starting a session under role R returns a prompt embedding 100% of R's currently assigned
+  directives"* — `registerRolePrompts` registers `{role}-session` per DNA role; the handler resolves
+  `assignments[R] ∪ global` through `resolveRoleDirectives` and emits a `## Directive: {id}` block with
+  each directive's full body. Proven by `test/mcp/role-prompts.test.ts` › *"embeds every directive
+  assigned to the role plus every global one, with its full body"* (asserts all three of
+  `code-quality`, `testing`, `security-secrets` — heading **and** unique `BODY-*` marker), paired with
+  *"embeds 0 directives bound only to another role"* (`code-review` absent), so "100%" is asserted in
+  both directions.
+- *"a newly assigned directive appears on the next session start"* — proven by › *"a directive newly
+  assigned after server construction appears on the next prompts/get"*: the same connected
+  `Client`/`McpServer` pair is asked twice, with only `roles.yaml` rewritten in between; `determinism`
+  is absent from the first response and present, body included, in the second.
+
+**Diff surface** (`git diff --stat` against the `start` commit `5b28aff`): 4 files, **560 insertions,
+0 deletions** — `src/mcp/prompt.ts` (new), `src/mcp/index.ts` (+8 lines, two re-exports and a comment),
+`test/mcp/role-prompts.test.ts` (new), this task file. Nothing was modified, only added.
+
+**Left for someone else (not defects, scope boundaries):**
+
+1. `task-058-mcp-prompts-role-based` — wire `registerRolePrompts` into `createMcpServer` (spec-014 §3)
+   and implement the `P5.2.2-mcp-prompts.feature` scenarios, including the undefined-role error string
+   `no prompt for undefined role 'wizard'`. Today an undefined role simply has no registered prompt, so
+   the SDK's own generic prompt-not-found error surfaces; nothing here pre-empts that contract.
+2. **Candidate editorial correction to `spec-004` §3.2** — its example message carries `role: "system"`,
+   a value MCP's `PromptMessageSchema` does not admit (`"user" | "assistant"` only, verified against
+   `@modelcontextprotocol/sdk@1.29.0`). The implementation emits `"user"` and says so in
+   `src/mcp/prompt.ts`. Raising this as a spec revision is the approver's call, not this task's.
+3. **`dl-037` (custom/ beats built-in/ on a duplicated directive id) is not implemented in
+   `resolveRoleDirectives`** — that resolver's documented tie-break still keeps the lexicographically
+   smallest `path` (`src/core/context.ts:110`). `dl-037`'s implementation is assigned to
+   `task-055-auto-load-directives-by-role`; this task consumes the resolver as-is and asserts nothing
+   about precedence, so this Prompts surface inherits the fix for free once task-055 lands.
+
+`memory.submit` — task `in-progress → in-review`. No `memory.approve`, no merge: this agent has no
+approval authority (CLAUDE.md §4/§8).
