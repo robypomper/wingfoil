@@ -2,8 +2,7 @@
 id: "task-049-memory-history"
 type: task
 title: "Implement `wingfoil memory history`"
-status: in-progress
-rejection_reason: "Two single-line documentation corrections; no code defect was found and every other claim verified true, several of them non-obvious. (1) The Execution Notes state 18 cases in test/core/memory-history.test.ts; the file contains 13 - npx jest reports Tests: 13 passed, and grep -c agrees. Real total is 17, not 22. This matters more than an ordinary miscount because that sentence is the ENTIRE substitute evidence for the one gate that structurally cannot see memoryHistoryFn: jest.config.js excludes src/**/index.ts from instrumentation, so the global coverage figure says nothing about the new function, as the notes themselves correctly point out. Offering a number in place of a meaningless one and inflating it is the single place where accuracy mattered most. The conclusion survives easily at 13. (2) Same file, the claim that every uncovered branch in audit.ts is an unreachable empty-string destructuring default lists lines 105, 150, 167, 301; coverage-final.json gives 105, 150, 167, 220, 223, 226, 301, where 220/223/226 are task-015's readStatusAt defensive paths. Those three are disclosed one sentence earlier as the uncovered statements, so this is an enumeration slip rather than concealment, and it belongs in the same fix. Worth recording alongside the corrections: the volunteered coverage caveat and the explicitly labelled retroactive red were both above the bar and neither was forced - which is exactly why the one inflated number inside that paragraph is the thing to correct rather than a reason to doubt the rest."
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p1"]
@@ -188,21 +187,44 @@ feature task)", and `src/memory/index.ts`'s "task-021/a-later-P1.10-task". (Same
 Per-file coverage for what this task touched: `src/memory` 98.85 / 87.38 / 100 / 99.36; `src/core`
 98.42 / 90 / 100 / 99.1; `audit.ts` 97.26 stmts / 62.16 branch / 100 funcs / 100 lines.
 
+*Re-run after the first review's rejection* (which required documentation corrections only — see the
+`review` section): `npx jest --maxWorkers=2` exit 0, **70 suites / 901 tests**; `npx tsc -p
+tsconfig.build.json` exit 0; `npm run docs:api` exit 0; `npx eslint .` exit 0. No source, test or gate
+figure moved, because nothing but Execution Notes prose changed.
+
 **Coverage caveat, stated rather than glossed:** `jest.config.js` sets
 `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`, so **`src/core/index.ts` — where
 `memoryHistoryFn` lives — is not instrumented at all.** That exclusion is pre-existing and
 project-wide (it applies equally to `dnaSetFn`, `memoryAddFn`, `memorySearchFn`), not something this
 task introduced or opted into, but it means the 98.17 % global figure is *not* evidence that the new
-function is covered. The evidence that it is exercised is direct instead: 18 cases in
-`test/core/memory-history.test.ts` plus 3 CLI cases and 1 benchmark case all call it through the
-registered `CORE_MODULES` entry.
+function is covered — `coverage/coverage-final.json` has **no key for `src/core/index.ts` at all**,
+confirmed mechanically rather than inferred from the table. The evidence that it is exercised is direct
+instead: **13** cases in `test/core/memory-history.test.ts` (`npx jest` on that file alone reports
+`Tests: 13 passed, 13 total`; `grep -c "^  it("` agrees) plus **3** CLI cases and **1** benchmark case —
+**17** in total, all calling it through the registered `CORE_MODULES` entry.
 
-`audit.ts`'s uncovered branches were checked against `coverage/coverage-final.json` rather than eyeballed:
-the only uncovered *statements* are lines 220/223 inside `readStatusAt` (task-015's defensive
-"no frontmatter at this sha" / "unparseable frontmatter" paths — pre-existing, untouched by this task),
-and every uncovered *branch* is an unreachable `= ''` destructuring default on an already-matched regex
-group (lines 105, 150, 167, 301). Line 150 is the one inside the new `parseCommitReason`, following the
-identical pattern the file already used at 105/167/301.
+*Correction, recorded rather than silently edited:* the first submission of these notes said "18 cases
+… plus 3 … and 1", i.e. 22. That was a hand count, and it was wrong; the true figures are 13 and 17,
+counted two independent ways above. It is the one number in this task where accuracy mattered most,
+since it is the entire substitute for a coverage figure these notes had just argued is meaningless
+here. The conclusion is unchanged at 17.
+
+`audit.ts`'s uncovered rows were checked against `coverage/coverage-final.json` rather than eyeballed.
+The only uncovered *statements* are lines 220/223 inside `readStatusAt` (task-015's defensive "no
+frontmatter at this sha" / "unparseable frontmatter" paths — pre-existing, untouched by this task). The
+complete set of *branches* carrying an uncovered path is **105, 150, 167, 220, 223, 226, 301**, and it
+splits in two:
+
+- **105, 150, 167, 301** — unreachable `= ''` destructuring defaults on already-matched regex groups.
+  Line 150 is the one inside the new `parseCommitReason`, following the identical pattern the file
+  already used at 105/167/301.
+- **220, 223, 226** — the same three `readStatusAt` defensive paths named above, seen as branches
+  (`if`, `if`, `cond-expr`) rather than as statements. Pre-existing task-015 code, untouched here.
+
+*Correction, recorded rather than silently edited:* the first submission enumerated only 105/150/167/301
+and called that "every uncovered branch". It was not — 220/223/226 were disclosed one sentence earlier
+as the uncovered statements but dropped from the branch list, so the enumeration under-reported itself.
+Nothing new is revealed by the fix; the two sentences now agree.
 
 ### review (developer side)
 
@@ -241,6 +263,18 @@ text round-trips exactly (`'Ratified at the design review; no open objections.'`
 **Latency placement.** See LATENCY below; `test/core/latency-budget-placement.test.ts` re-run on its
 own: **74 passed, 74 total**, and its scanned set includes the new `core/memory-history.test.ts`.
 
+**Review round 2 — rejected at `in-review`, documentation only (`9157e23`).** No code defect was found
+and every other claim was independently verified. Two corrections were required, both inside the
+coverage paragraph above, and both are applied there with the wrong figure named rather than quietly
+overwritten: (1) the case count backing the uninstrumented-`index.ts` gate was stated as 18 (total 22)
+when it is **13** (total **17**) — the one number in this task where accuracy mattered most, since it
+substitutes for a coverage figure these notes had just argued is meaningless here; (2) the
+"every uncovered branch" enumeration listed 105/150/167/301 when `coverage-final.json` gives
+**105, 150, 167, 220, 223, 226, 301**, the extra three being the `readStatusAt` paths already disclosed
+one sentence earlier as statements. The reviewer also asked that the spec-006 §3 MCP divergence be
+labelled **untracked** — done in "Scope / deviations" below, with the absence of a `bug`/`decision-log`/
+`tech-spec` element for it confirmed by grep here rather than taken on report.
+
 **Scope / deviations.**
 
 - `src/core/index.ts` edit is **purely additive: 3 hunks, 127 insertions, 0 deletions** — the `../memory`
@@ -252,12 +286,23 @@ own: **74 passed, 74 total**, and its scanned set includes the new `core/memory-
   so registering a read-only op changes no running MCP surface. `test/core/parity.test.ts` builds a
   server from `CORE_MODULES` itself, which is why its expected Resource list gained
   `wingfoil://memory/history`.
-- **Left for someone else:** spec-006 §3 names the MCP exposure `wingfoil://memory/history/{id}`, but
-  the mechanical registrar can only derive the zero-argument `wingfoil://memory/history` form (the
-  `CoreOperation` shape carries no parameter metadata) — the identical, already-documented gap
-  `memorySearch` shipped with, and `src/mcp/registrar.ts` already records it. Closing it means
-  parameterised Resource templates, which is `src/mcp` work and out of scope here (task-039 owns that
-  file this cycle).
+- **Left for someone else — and UNTRACKED, which is the part the approver needs to see.** spec-006 §3
+  (`approved`) pins the MCP exposure as `wingfoil://memory/history/{id}`, but the mechanical registrar
+  can only derive the zero-argument `wingfoil://memory/history` form: the `CoreOperation` shape
+  (spec-006 §2 — `{name, mutates, fn}` plus optional `flags`/`options`) carries no parameter metadata
+  for a URI template to consume. Registering `memoryHistory` therefore adds a **second** row that does
+  not match the spec table it is registered against.
+
+  Leaving the gap is correct — closing it needs parameterised Resource templates in
+  `src/mcp/registrar.ts`, which is task-039's area this cycle, not something to bolt on here. But it
+  should not be assumed that the first occurrence is already covered: the identical `memorySearch` gap
+  from `task-021` is recorded **only** in a `src/mcp/registrar.ts` source comment and in that (now
+  `done`) task's Execution Notes. There is **no `bug`, `decision-log` or `tech-spec` element for it
+  anywhere**, and nothing reschedules a done task's notes — so unless an element is raised, this task's
+  row makes the divergence two-wide with still nothing tracking it. Flagged here so the approver can
+  decide whether to raise one (a `decision-log` on whether `CoreOperation` should carry parameter
+  metadata at all, or a `bug` against the spec-006 §3 rows, or an amendment to spec-006/spec-004) —
+  raising it is not this task's call to make.
 - `console`-format rendering falls back to pretty-printed JSON (`src/cli/output.ts`), as it does for
   every command with no command-specific rendering spec. Not a gap this task invented; a human-facing
   `memory history` rendering would need its own spec.
