@@ -25,7 +25,7 @@ export {
   Paths,
 } from './schema';
 
-export { isValidKeyPath, setDnaValue, DNA_KEY_ALIASES } from './set';
+export { isValidKeyPath, setDnaValue, setDnaValueInText, DNA_KEY_ALIASES } from './set';
 
 export {
   isRoleDefined,
