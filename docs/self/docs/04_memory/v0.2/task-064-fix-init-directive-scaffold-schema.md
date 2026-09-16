@@ -2,8 +2,7 @@
 id: "task-064-fix-init-directive-scaffold-schema"
 type: task
 title: "Fix bug-006: `init` must scaffold directive .md that pass the directives schema"
-status: in-progress
-rejection_reason: "Execution Notes item 3, in the section headed for task-057 and therefore a dl-015 hard-gate deliverable, asserts that built-in-vs-custom directive precedence is an explicitly unspecified precedence in spec-012 and instructs task-057's author to decide it deliberately. Both halves are false on this branch and were before the task started: dl-037-builtin-vs-custom-directive-precedence is ready, and spec-012 section 5 states it verbatim - Precedence when two directives share an id: custom/ wins over built-in/ - plus A shadowed directive is reported, never silently dropped, emitted through the resolution's warnings channel. git merge-base --is-ancestor confirms both commits predate the branch point; this was checkable and unchecked. The description of the CURRENT CODE is accurate - src/core/context.ts:110 does still break the tie on smallest path and its TSDoc at 76-81 does still claim spec-012 defines no precedence - so the error is attributing that gap to spec-012 rather than to the code. Blocking rather than a nit because task-057 creates all six live id collisions: its author would either burn a cycle re-litigating a ratified decision or read the surviving built-in-wins path as a sanctioned default and ship six built-ins under a rule spec-012 section 5 forbids. Rewrite item 3 to hand over the real inherited item - dl-037 is ready, spec-012 section 5 specifies custom/ wins and the shadowed directive is reported through warnings, src/core/context.ts still implements the opposite and emits no shadow warning, so task-057 inherits an implementation gap against a ratified rule, not an open question - and point at task-055-auto-load-directives-by-role, which already carries that gap in its Acceptance Criteria by dl-037's assignment, so no new element is needed. Also record briefly that a spec's content was asserted without checking it, in notes whose whole purpose is to be read by another task; that is the class of error five tasks were rejected for in this cycle. Text-only correction: no code, test or gate change - the fix, the red evidence, the end-to-end proof and the hazard-closure property test were all independently re-verified and graded exemplary. Two non-blocking items to fold in: test/core/builtin-integrity.test.ts asBuiltinDirectives filters on .endsWith('.md') while builtinSourceOf classifies by directory and excludes only dotfiles, so mirror the guard with !base.startsWith('.') to make the property co-extensive with what it claims to prove; and the name-stays-a-slug justification leans on the generated roles.yaml comment Binds directives to roles by NAME, while RolesYaml's own TSDoc says the entries are ids and resolveRoleDirectives keys on frontmatter.id - change that generated word to ID and the deviation dissolves."
+status: in-review
 release: "v0.2"
 priority: "Low"
 tags: ["v0.2", "cli"]
@@ -266,29 +265,70 @@ written as a property over `TEMPLATES` so it keeps biting if a directive or temp
    (`id`, `name`, `type: directive`, `kind`, `title`) on its own — the guard classifies by
    **directory**, not extension, so anything non-dotfile you drop under `directives/built-in/` is
    checked.
-3. **Duplicate ids across `built-in/` + `custom/`.** The scaffold currently ships the six P3.8
-   category names (`architecture`, `code-quality`, `code-review`, `documentation`, `security`,
-   `testing`) as `custom/` stand-ins with `id` = the stem. If you install built-ins under the same
-   ids, `resolveRoleDirectives` (`src/core/context.ts`, spec-012 §5) deduplicates by id keeping the
-   **smallest path**, i.e. `directives/built-in/...` wins over `directives/custom/...` — that is an
-   explicitly *unspecified* precedence in spec-012 (it notes no built-in-vs-custom override rule was
-   ever ratified), not a decision this task made. Decide it deliberately (and probably drop or rename
-   the stand-ins the built-ins replace, per `CLAUDE.md` §3) rather than inheriting it by string order.
+3. **Duplicate ids across `built-in/` + `custom/` — a ratified rule the code does not yet implement.**
+   The scaffold ships the six P3.8 category names (`architecture`, `code-quality`, `code-review`,
+   `documentation`, `security`, `testing`) as `custom/` stand-ins with `id` = the stem, so **every one
+   becomes a live duplicate the moment your built-ins land**. The rule is already decided — do not
+   re-open it:
+   - **`dl-037-builtin-vs-custom-directive-precedence` is `status: ready`**, and `spec-012` §5 states
+     it verbatim: *"Precedence when two directives share an id: `custom/` wins over `built-in/`"*
+     (`dl-037` option A.1 — a local customization overrides the shipped default), and *"A shadowed
+     directive is reported, never silently dropped"* (option B.1), naming the id and which file won,
+     emitted through the resolution's `warnings` channel (the one `dl-029` introduced).
+   - **`src/core/context.ts` still implements the OPPOSITE.** `resolveRoleDirectives` dedupes by id
+     keeping the lexicographically **smallest path** (line 110), so `directives/built-in/...` beats
+     `directives/custom/...` because `'b' < 'c'` — precisely the accidental rule `dl-037` was raised
+     to replace — and it emits no shadow warning. Its TSDoc (lines 76-81) still says spec-012 defines
+     no built-in-vs-custom precedence; that comment is stale, and is **not** a statement of the spec.
+   - So what you inherit is an **implementation gap against a ratified rule**, not an open question,
+     and you do not need to open an element for it: **`task-055-auto-load-directives-by-role` already
+     carries it in its Acceptance Criteria**, assigned there by `dl-037` (both the `custom/`-wins
+     tie-break and the shadow warning). Coordinate with `task-055`: if your built-ins land while the
+     old comparator is still live, the six stand-ins silently lose to them — the exact opposite of
+     the ratified behaviour. (Whether those stand-ins are then dropped or renamed per `CLAUDE.md` §3
+     remains yours to decide; the *precedence* is not.)
 
 ### Deviations / left for others
 
 - **`name` kept as the slug.** `spec-013` describes `name` as the "human-readable directive name",
   and the ten real stand-ins under `docs/self/.wingfoil/directives/custom/` use `name: "Architecture"`
-  with `id: architecture`. The scaffold emits `name: architecture` (slug) for both. Deliberately left
-  unchanged: the fix is additive by design, `name` was already present and schema-valid
-  (`z.string()`), and the generated `roles.yaml` header says it binds "by NAME" — with
-  `id === name === stem` that comment stays true under either reading, whereas changing `name` alone
-  would have made it false. Flagged rather than silently changed; a follow-up may align it with the
-  stand-ins, and would then want to reword that generated comment (which in fact describes the
-  resolver's `id` lookup).
+  with `id: architecture`; the scaffold emits `name: architecture` (slug) for both. Left unchanged on
+  its own merits: the fix is additive by design and `name` was already present and schema-valid
+  (`z.string()`), so touching it would add regression surface for no acceptance criterion. It is a
+  real divergence from how the dogfooded files read, flagged for a follow-up rather than silently
+  changed.
+  *(Corrected at the review gate: the first version of this note also leaned on the generated
+  `roles.yaml` header saying it binds "by NAME". That was a coincidence, not a justification —
+  `RolesYaml`'s TSDoc and `resolveRoleDirectives` both key on the directive **`id`**; the header was
+  only true because `id === name === stem`. The generated header now reads "by directive ID", which
+  removes the false prop and states what the resolver actually does.)*
 - **Storage layout untouched.** `directives/{built-in,custom}` and their git-tracking are
   `task-054-project-directives`' (P3.5) scope; nothing here required a layout change, so none was
   made.
 - **No digest/manifest/checksum** anywhere near `builtin-integrity` — `dl-031` ratified schema
   validation *as* the REQ-SEC-10 contract.
 - **Not touched** (concurrent tasks): `src/core/index.ts`, `src/mcp/`, `package.json`.
+- **`src/core/context.ts` not touched**, though its directive tie-break contradicts `spec-012` §5 /
+  `dl-037` (see item 3 above). That gap is `task-055-auto-load-directives-by-role`'s by assignment,
+  and this task is a text-and-generator fix; correcting it here would pre-empt task-055 and collide
+  with concurrent work.
+
+### Review-gate correction — process note
+
+This task was **rejected once**, on one paragraph: item 3 of the `task-057` hand-off claimed
+built-in-vs-custom precedence was "an explicitly unspecified precedence in `spec-012`" and told
+task-057's author to decide it. That was false, and checkably so before I started —
+`dl-037-builtin-vs-custom-directive-precedence` is `ready` and `spec-012` §5 states the rule
+verbatim; `git merge-base --is-ancestor` puts both commits before this branch point. What I actually
+observed was the *code* (`src/core/context.ts`'s smallest-path tie-break, and its TSDoc saying
+spec-012 defines no precedence) and I wrote that observation up as if it were the spec's content,
+without opening `spec-012` §5 or searching for a decision-log. I took a stale comment as the
+authority and never checked the authority itself.
+
+Recorded here because these notes exist to be read by another task through `dl-015`'s hard gate: an
+unverified claim in them is not a private mistake, it is an instruction to whoever reads next — here,
+plausibly six built-in directives shipped under a rule the spec forbids. Asserting a spec's content
+without opening it is the class of error five tasks were rejected for in this cycle; the remedy is
+mechanical — quote the spec, or do not characterise it. Everything else in the task (generator fix,
+red evidence, end-to-end proof, hazard-closure property test) was independently re-verified at the
+gate and required no rework.

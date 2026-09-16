@@ -267,7 +267,7 @@ ${types}
 
 function rolesYaml(): string {
   return `# Directive role assignments (P3.2/P3.7) — scaffolded by \`wingfoil init\`.
-# Binds directives to roles by NAME, independent of the built-in/custom subfolder holding the file.
+# Binds directives to roles by directive ID, independent of the built-in/custom subfolder holding the file.
 version: 1
 
 assignments:

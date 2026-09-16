@@ -192,10 +192,21 @@ describe('verifyBuiltinTemplates — fail-closed on an unrecognized kind (REQ-SE
  * template or directive is added with different frontmatter.
  */
 describe('verifyBuiltinTemplates accepts the real init directive generator output (bug-006)', () => {
-  /** The scaffold's directive documents, re-homed under the built-in directory guard 5 watches. */
+  /**
+   * The scaffold's directive documents, re-homed under the built-in directory guard 5 watches.
+   *
+   * The filter deliberately mirrors `builtinSourceOf`'s own rule — everything under the directives
+   * tree that is NOT a dotfile placeholder — rather than selecting on `.md`. The guard classifies by
+   * DIRECTORY, not by extension (that is its fail-closed reading), so an extension filter here would
+   * make the property narrower than the thing it claims to prove: a future non-`.md`, non-dotfile
+   * directive asset would be checked by `init` and silently skipped by this test.
+   */
   const asBuiltinDirectives = (def: TemplateDefinition): ScaffoldFile[] =>
     templateScaffold(def)
-      .filter((f) => f.path.startsWith('.wingfoil/directives/') && f.path.endsWith('.md'))
+      .filter((f) => {
+        const base = f.path.slice(f.path.lastIndexOf('/') + 1);
+        return f.path.startsWith('.wingfoil/directives/') && base !== '' && !base.startsWith('.');
+      })
       .map((f) => ({ path: `${BUILTIN_DIRECTIVES_DIR}/${f.path.slice(f.path.lastIndexOf('/') + 1)}`, content: f.content }));
 
   it.each(TEMPLATES.map((t) => [t.name, t] as const))(
