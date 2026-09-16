@@ -181,3 +181,27 @@ DIRECTIVES_LIST_EXIT=0
 ```
 
 All ten scaffolded directives listed; exit 0. AC1 met on the real binary, not only in Jest.
+
+### `refactor` (developer) — 2026-09-16
+
+No structural refactor: the fix is six lines inside one pure generator, and the surrounding code was
+already reworked by `task-044` hours ago — reshaping it again would only collide with `task-057`.
+
+One documentation correction, in the file this task touches: `builtinTemplateSources`' doc comment
+still said the ordering hazard means "`bug-006`/`task-064` must land first". That sentence is stale
+the moment this branch lands, and a stale pointer is exactly what the next reader of that function
+(`task-057`) would rely on. Rewritten to state the hazard's CURRENT status and to name the test that
+proves it, with the residual caveat kept explicit (a built-in asset authored some other way still has
+to satisfy its own pillar schema). `directiveMd()` also gained a doc comment carrying the spec-013 /
+`resolveRoleDirectives` rationale, so the `id = filename stem = roles.yaml key` coupling is stated
+where the next editor will see it.
+
+**Gates — all observed, in this worktree, after the change:**
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | `Test Suites: 69 passed, 69 total` / `Tests: 889 passed, 889 total` |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | global **98.17 %** stmts / 88.88 % branch / 98.2 % funcs / 98.73 % lines; touched files `storage/templates.ts` 100 % stmts, 95 % branch (the one uncovered branch is the pre-existing path-sort comparator) and `core/builtin-integrity.ts` 100 % across the board |
+| `docs.api.build` + `docs.api.public-complete` | `npm run docs:api` | exit **0**, no TypeDoc warning or error emitted |
+| (build) | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (`dl-034`, hard-reject) | `npx eslint .` | exit **0**, no output |

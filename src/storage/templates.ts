@@ -137,8 +137,12 @@ function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
  *
  * Returns `[]` for today's scaffold, which still reserves both built-in directories with a `.gitkeep`
  * only. That is a fact about the current scaffold CONTENT, not a property of this function: the
- * moment an asset is added it is checked, with no edit here. See this task's Execution Notes for the
- * ordering hazard that creates for `task-057` (`bug-006`/`task-064` must land first).
+ * moment an asset is added it is checked, with no edit here — which is precisely the ordering hazard
+ * `task-057` (P3.8 built-in directives) inherits. That hazard is now CLOSED on the directive side:
+ * `task-064` fixed `bug-006`, so {@link directiveMd}'s output satisfies `DirectiveFrontmatter` and a
+ * directive generated from it passes the guard wherever it is written
+ * (`test/core/builtin-integrity.test.ts`, "accepts the real init directive generator output"). A
+ * built-in asset authored some OTHER way still has to satisfy its pillar schema on its own.
  */
 export function builtinTemplateSources(files: readonly ScaffoldFile[]): BuiltinTemplateSource[] {
   const sources: BuiltinTemplateSource[] = [];
