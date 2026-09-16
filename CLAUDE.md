@@ -17,10 +17,20 @@ Layer (CLI + MCP)**.
   using different AI agents, produce substantially equivalent software.
 - **License:** MIT · **Distribution:** npm (public) · **Tech:** TypeScript / Node.js 18+.
 
-> **Project status: specification & design phase.** There is **no source code yet** — the repository
-> currently contains the *specifications* and the *self-configuration*. The `wingfoil` CLI/MCP tool is
-> **not implemented**, so its config is hand-authored (see §3). Do not assume runtime behaviour exists;
-> when in doubt, the specs in `docs/01_vision/` and `docs/02_requirements/` are the source of truth.
+> **Project status: implementation under way.** The release line `rl-v1` is `active`, **`minor-v0.1` is
+> `released`** and **`minor-v0.2` is `in-development`** (`docs/self/docs/04_memory/planning/`). The
+> repository carries a real implementation under `src/` — `core, validation, storage, memory, dna,
+> directives, workflow, cli, mcp` — a packaged `wingfoil` CLI (`package.json` `bin` → `dist/cli.js`)
+> and an MCP server (`wingfoil mcp`), all covered by a full Jest suite (`npm test`). Read, run, test and
+> reason about `src/` as you would in any other codebase.
+>
+> **What is *not* built yet is a subset of what the specs describe, and the self-configuration is still
+> hand-authored (§3).** The command surface is derived mechanically from `CORE_MODULES`
+> (`src/core/index.ts`) — today `dna set`, `dna show`, `memory add`, `memory search`, `directives list`,
+> `paths`, `workflow list`, plus the two bootstrap commands `init` and `mcp`. In particular there is
+> **no workflow engine** (§6) and **no Memory state-transition verb** (§5.1). Check `CORE_MODULES`, or
+> the release Memory, before assuming a command exists — and where the code and the specs in
+> `docs/01_vision/` / `docs/02_requirements/` disagree about *what should be built*, the specs win (§10.1).
 
 ---
 
@@ -31,10 +41,16 @@ Layer (CLI + MCP)**.
 | `docs/01_vision/`                         | Product vision package. `01_product-brief.md` (identity, north star, tech stack), `04_personas.md`, `05_journeys.md`, **`06_features.md`** (the feature list **P1–P5**, the canonical feature IDs), `07_sequencer.md` (release waves v0.1→v1.0), `08_mvp-canvas.md`, `X_cli-cmds.md`, `X_lean-inception-plan.md` |
 | `docs/02_requirements/`                   | Engineering requirements (downcast of the vision)                                                                                                                                                                                                                                                                |
 | `docs/02_requirements/01_user_story_map/` | User Story Map (US-* stories, per journey)                                                                                                                                                                                                                                                                       |
-| `docs/02_requirements/02_bdd/features/`   | BDD `.feature` files by pillar (`p1-memory/`…`p5-interaction/`) — the **acceptance contracts**                                                                                                                                                                                                                   |
+| `docs/02_requirements/02_bdd/features/`   | BDD `.feature` files by pillar (`p1-memory/`…`p5-interaction/`, plus `x1-notification/`) — the **acceptance contracts**                                                                                                                                                                                          |
 | `docs/02_requirements/03_sard/`           | SARD requirements: `01_architecture.md` (**REQ-SYS-***), `02_performance-nfr.md` (**REQ-PERF-***), `03_state-context.md` (**REQ-STATE-***), `04_integrations.md` (**REQ-INT-***), `05_security-compliance.md` (**REQ-SEC-***)                                                                                    |
 | `docs/03_backlog/04_backlog/`             | Operational backlog: `backlog.json`, `schema.json`, `by-release/{v0.1..v1.0}.json` (tasks + REQ infra tasks per release)                                                                                                                                                                                         |
-| `docs/self/`                              | **WingFoil's own configuration** (dogfooding — see §3) + `X_wingfoil-init-plan.md`, `X_initial-design-plan.md`, `WORKFLOW.md`                                                                                                                                                                                    |
+| `docs/self/`                              | **WingFoil's own configuration** (dogfooding — see §3) + `X_wingfoil-init-plan.md`, `WORKFLOW.md`                                                                                                                                                                                                                |
+| `docs/05_plans/`                          | **Phase plans** — the `plan` Memory type (§5), one per started workflow phase, nested by scope (`rl-v1/`, `rl-v1/rel-v0.2/`, …). `X_*.md` at the top level are grandfathered ad-hoc plans (dl-019)                                                                                                               |
+| `src/`                                    | **The implementation.** One directory per `dna.yaml` module (§4) — `core, validation, storage, memory, dna, directives, workflow, cli, mcp` — plus `cli.ts`, the `bin` entry point                                                                                                                              |
+| `test/`                                   | Jest suites, mirroring `src/` one directory per module, plus `docs/` (API-doc coverage gate) and `lint/` (the `lint.clean` gate)                                                                                                                                                                                 |
+| `docs/design.md`                          | Index of the **documentary chain** Lean Inception → USM → BDD → SARD → backlog: where each phase lives, what it produces, and its stop-check                                                                                                                                                                     |
+| `README.md`                               | The **user-facing** entry point (problem, pillars, personas) — the human counterpart to this file. Owned by the `user-docs` release gate (dl-013); `CLAUDE.md` is owned by nothing yet (dl-025)                                                                                                                  |
+| `COLLABORATION.md`                        | How external contributors file **intent as Memory artifacts** rather than pull requests (`dl-020-contribution-model`)                                                                                                                                                                                           |
 
 **Feature IDs** are `P<pillar>.<n>` (e.g. `P1.13`). **Requirement IDs** are `REQ-<AREA>-<nn>`.
 Traceability chain: **feature (P*) → user story (US-*) → BDD scenario → SARD requirement (REQ-*) → task**.
@@ -43,15 +59,17 @@ Traceability chain: **feature (P*) → user story (US-*) → BDD scenario → SA
 
 ## 3. WingFoil self-configuration (dogfooding)
 
-WingFoil manages its own development. The config is hand-authored under `docs/self/.wingfoil/` (it will
-move to the repository-root `.wingfoil/` once the tool can manage it). Memory **content** lives under
+WingFoil manages its own development. The config is hand-authored under `docs/self/.wingfoil/`; there is
+**no `.wingfoil/` at the repository root**, and moving it there is still an open intention, not a
+scheduled change — `wingfoil init` can now scaffold a root `.wingfoil/`, but the verbs that would keep
+this config up to date (Memory transitions, workflow execution) do not exist yet. Memory **content** lives under
 `docs/self/docs/04_memory/` (the `docs/04_memory/` paths in `memory.yaml` resolved against the
 `docs/self/` root). Start from `docs/self/.wingfoil/README.md`.
 
 | File                                                       | Pillar                 | What it holds                                                                                                                                                                                        |
 |------------------------------------------------------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `docs/self/.wingfoil/dna.yaml`                             | DNA (P2.4)             | Modules, **stacks** (technologies + methodologies), **team & roles**, resource paths (`conventions` removed in v1.1 — rules moved to `directives/custom/`; see spec-002)                              |
-| `docs/self/.wingfoil/memory.yaml`                          | Memory (P1.13)         | Element **types** (`release-line, release, task, adr, decision-log, tech-spec, bug`), per-type **state machines**, and per-type `template:` scaffolds                                                |
+| `docs/self/.wingfoil/memory.yaml`                          | Memory (P1.13)         | Element **types** (`release-line, release, task, adr, decision-log, tech-spec, bug, plan`), per-type **state machines**, and per-type `template:` scaffolds                                          |
 | `docs/self/.wingfoil/memory/templates/`                    | Memory (P1.13)         | One Markdown scaffold per element type (`frontmatter.required` enforced on submit)                                                                                                                   |
 | `docs/self/docs/04_memory/planning/{id}.md`                | Memory (P1.11)         | The **release-line** roadmap (one file per major version, e.g. `rl-v1.md`)                                                                                                                           |
 | `docs/self/docs/04_memory/planning/{release-line}/{id}.md` | Memory (P1.11)         | That release-line's **minor releases** (v0.1→v1.0 for `rl-v1`), derived from `docs/03_backlog/`                                                                                                      |
@@ -59,17 +77,24 @@ move to the repository-root `.wingfoil/` once the tool can manage it). Memory **
 | `docs/self/.wingfoil/roles.yaml`                           | Directives (P3.2/P3.7) | Role → directive bindings                                                                                                                                                                            |
 | `docs/self/.wingfoil/workflows.yaml` + `workflows/custom/` | Workflow (P4.1)        | `sw-life-cycle` (main) + sub-workflows + three ingest mains                                                                                                                                          |
 
-> The official P3.8 **built-in** directive templates are not implemented yet, so they live in `custom/`
-> as stand-ins (`kind: custom`, `ref: [P3.8]`) until the tool ships them. `directives/built-in/` is empty.
+> The official P3.8 **built-in** directive templates are not implemented yet (`task-057`, still
+> `backlog`), so they live in `custom/` as stand-ins (`kind: custom`, `ref: [P3.8]`) until the tool
+> ships them. `directives/built-in/` and `workflows/built-in/` hold nothing but a `.gitkeep` — they are
+> reserved for assets shipped by the npm package (spec-011), which is why `built-in/` vs `custom/` is
+> the structural discriminator REQ-SEC-07 keys removability on.
 
 ---
 
 ## 4. Project DNA — quick reference (`dna.yaml` is authoritative)
 
-- **Modules:** `core, storage, memory, dna, directives, workflow, cli, mcp-server` (under `src/`, planned).
-- **Stacks** (`stacks.technologies`): TypeScript · Node.js 18+ · npm · Commander.js + chalk (CLI) · MCP over stdio
-  + Anthropic SDK · Zod (validation) · Jest (testing, coverage **>80%**) · git storage · semver. **Methodologies**
-  (`stacks.methodologies`): Lean Inception · User Story Mapping · Specification by Example (BDD) · SARD · TDD.
+- **Modules:** `core, validation, storage, memory, dna, directives, workflow, cli, mcp-server` — all nine
+  exist under `src/`, each at its `dna.yaml` `path:` (note `mcp-server` lives at `src/mcp`).
+- **Stacks** (`stacks.technologies`): TypeScript · Node.js 18+ · npm · Commander.js + chalk (CLI) · MCP
+  over stdio via `@modelcontextprotocol/sdk` · js-yaml (all git-backed YAML) · Zod (validation) · Jest
+  (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. The Anthropic SDK is a
+  declared dependency but is **not** imported by any `src/` module — `dna.yaml` flags this drift from
+  ADR-004's original framing. **Methodologies** (`stacks.methodologies`): Lean Inception · User Story
+  Mapping · Specification by Example (BDD) · SARD · TDD.
 - **Roles:** `developer, reviewer, qa, architect, product-owner, tech-lead, facilitator, approver`.
   AI agents execute as `developer/reviewer/qa/architect` and **never hold approval authority** — all
   approvals route to the `approver` role (the human, Roberto).
@@ -80,7 +105,10 @@ move to the repository-root `.wingfoil/` once the tool can manage it). Memory **
 ## 5. Memory model (`memory.yaml`)
 
 State is **derived from each document's frontmatter** — there is **no `.wingfoil/state/` index**
-(REQ-SYS-03). Every transition is validated against the type's state machine (REQ-STATE-01).
+(REQ-SYS-03). Every transition is validated against the type's state machine (REQ-STATE-01): the engine
+is real and tested (`resolveTransitionTarget` / `validateFrontmatterState`, `src/memory/state-machine.ts`),
+but no CLI verb drives it yet (§5.1), so *today* that validation is your responsibility when you edit
+frontmatter by hand.
 
 Each type's machine is encoded in `memory.yaml` as `sequence` (the ordered forward chain) + `gates`
 (per-state `{state: {reject: target}}`, meaning that state's forward edge needs `approve` rather than
@@ -92,7 +120,7 @@ status** anymore anywhere (the rejection reason still lives in the git commit bo
 as a status value). `task` already worked this way; `decision-log` now has its own custom machine
 (previously it used the plain default) per `dl-012-decision-log-state-machine`.
 
-| Type           | Path (under `docs/self/`)                        | State machine (forward chain; `reject` targets in parentheses)                         |
+| Type           | Path (resolved under `docs/self/` — except `plan`) | State machine (forward chain; `reject` targets in parentheses)                         |
 |----------------|---------------------------------------------------|-------------------------------------------------------------------------------------------|
 | `release-line` | `docs/04_memory/planning/{id}.md`                | draft→planning(→draft)→active→done (·→deprecated)                                       |
 | `release`      | `docs/04_memory/planning/{release-line}/{id}.md` | draft→planning→in-development→releasing→released (·→deprecated)                          |
@@ -101,7 +129,7 @@ as a status value). `task` already worked this way; `decision-log` now has its o
 | `decision-log` | `docs/04_memory/design/dls/{id}.md`              | draft→in-discussion(→draft)→ready (·→deprecated)  [in-develop/done removed per dl-017]   |
 | `tech-spec`    | `docs/04_memory/design/specs/{id}.md`            | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
 | `bug`          | `docs/04_memory/bugs/{id}.md`                    | draft→open(→closed)→triaged→planned→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
-| `plan`         | `docs/05_plans/{scope}/{id}.md`                  | draft→active→done (·→deprecated)  [dl-019 — phase-plan execution scaffold; `X_*` grandfathered]        |
+| `plan`         | `docs/05_plans/{scope}/{id}.md` — **repo root**, *not* under `docs/self/` | draft→active→done (·→deprecated)  [dl-019 — phase-plan execution scaffold; `X_*` grandfathered]        |
 
 ---
 
@@ -117,9 +145,20 @@ wf({type}): {add|submit|approve|reject|deprecate} {id1}, {id2}, ...
 
 Worked example (two separate commits): `wf(release-line): add rl-v1` then `wf(release-line): submit rl-v1`.
 
+> **Performed by hand today — by necessity, not by design.** Of the five operations below only
+> `memory.add` is implemented (`memoryAdd` in `CORE_MODULES`; `memory search` is the other Memory
+> command, and it is read-only). `submit`, `approve`, `reject` and `deprecate` have **no CLI verb**:
+> they are specified as **P1.6–P1.9** and scheduled in `minor-v0.2` as `task-045`, `task-046`,
+> `task-047` and `task-048`, all still `backlog`. So editing the frontmatter and writing the commit by
+> hand is the **current** procedure standing in for `wingfoil memory <verb>`, **not** the intended
+> end state. The commit *format* specified below is the contract either way — it is what the verbs will
+> emit, and what `wingfoil memory history` (P1.10) will read back — so follow it exactly, and keep each
+> operation to its own commit.
+
 ### `memory.add` — register a new element (draft)
 
-1. Create the file at the path given by the type's `path` pattern (resolved under `docs/self/`).
+1. Create the file at the path given by the type's `path` pattern (resolved under `docs/self/` — except
+   `plan`, which resolves at the repo root; see the §5 table).
 2. Copy the type's `template.file` scaffold verbatim.
 3. Fill in **only** the frontmatter skeleton:
   - `id` — generated from the type's `id_pattern` (e.g. `task-109-validation-id-engine`).
@@ -166,9 +205,16 @@ two must appear explicitly in the commit message.
     can surface it per **P1.10** even when git author and approver differ.
   - `Reason:` body line — **mandatory** (`--reason` is a required argument per P1.7 Scenario 2;
     omitting it is an error).
-4. If the approval also registers the element in an external artifact (e.g. a task reaching `backlog`
-   adds its entry to the release backlog JSON under `docs/03_backlog/04_backlog/by-release/`), include
-   that artifact change in the **same commit**.
+4. If an approval ever *does* change an artifact outside Memory, that change belongs in the **same
+   commit** — an approval and its side effect must not be separable. Note this has **not yet happened**:
+   no `wf(…): approve` commit in this repository's history touches anything outside
+   `docs/self/docs/04_memory/`. In particular, **do not** add the task to the per-release backlog JSON
+   under `docs/03_backlog/04_backlog/by-release/` when it reaches `backlog` — that JSON is an output of
+   the `backlog-export` sub-workflow from the *specification* phase (`docs/design.md` phase 4), read as
+   a source and cited by each release's `requirements:` frontmatter field; `release-planning`'s
+   `build-backlog` / `commit-backlog` phases declare no action and no `produces:` under
+   `docs/03_backlog/`, and that directory has exactly one commit in the whole history (its initial
+   import).
 5. Agents may execute `memory.approve` **only when explicitly instructed** by the `approver` role (Roberto);
    agents never approve autonomously (§4, §8).
 
@@ -228,9 +274,13 @@ Callable from any state, on any type (§5). Not an approval gate — no `Approve
       `plan-next-release-line` (closes this release-line to `done`, self-seeds the next one once
       every one of its releases is `released`).
         - `delivery` → `release-cycle` *(iterate_over: release, scoped to this release-line)* →
-          `release-planning` *(incl. `identify-specs`)* → `dev-loop` *(design gate + TDD,
-          iterate_over: task; review gate runs unit + **BDD** tests; keeps a fix task's source `bug`
-          in sync via `bug.sync_state`)* → `release-submit` → `release-publishing` → `retrospective`.
+          `release-planning` *(`define-scope` → `triage-bugs` → `reconcile-governance` → `record-adrs`
+          → `identify-specs` → `build-backlog` → `commit-backlog`; the two sweeps added by dl-016)* →
+          `dev-loop` *(design gate + TDD,
+          iterate_over: task; `refactor` runs coverage + API-docs + `lint.clean`; review gate runs unit
+          + **BDD** tests; keeps a fix task's source `bug` in sync via `bug.sync_state`)* → `user-docs`
+          *(dl-013 — the user-facing documentation gate)* → `e2e-smoke` *(dl-023 — fresh-init + CLI
+          end-to-end smoke gate)* → `release-submit` → `release-publishing` → `retrospective`.
     - `sunset` → `end-of-life`.
 - **`bug-ingest`, `decision-log-ingest`, `adr-ingest`** — capture a single element on demand. If started
   while another workflow with an active `element` is running, the new file **inherits that element**
@@ -239,11 +289,13 @@ Callable from any state, on any type (§5). Not an approval gate — no `Approve
 Phase completion is **deduced** (no stored `status:`): Memory-backed phases from element status,
 spec/doc phases from the existence of their `produces:` artifacts.
 
-> **Interim — no workflow engine yet:** Until `wingfoil` exists to run workflows, whenever you are
-> asked to **start a workflow** (main *or* sub), first **write a plan file** under `docs/05_plans/`
-> that is coherent with that workflow definition — its phases, roles, `actions`, `produces:`, and `checks` —
+> **Interim — no workflow engine yet (still true):** the `wingfoil` CLI exists, but it cannot *run* a
+> workflow — `workflow list` is the only workflow operation in `CORE_MODULES`, and it is read-only.
+> There is no `workflow start`, no phase execution, no `checks` runner. So whenever you are asked to
+> **start a workflow** (main *or* sub), first **write a plan file** under `docs/05_plans/` that is
+> coherent with that workflow definition — its phases, roles, `actions`, `produces:`, and `checks` —
 > then execute against that plan. Use `docs/self/X_wingfoil-init-plan.md` (for `wingfoil-init`) or
-> `docs/self/X_initial-design-plan.md` (for `initial-design`) as the model.
+> `docs/05_plans/rl-v1/initial-design-rl-v1-plan.md` (for `initial-design`) as the model.
 >
 > Since `dl-019`, a phase plan is itself a **`plan` Memory element** (`memory.yaml` `plan` type; path
 > `docs/05_plans/{scope}/{id}.md`; `draft → active → done`) — register it with `memory.add(type: plan)`
@@ -271,7 +323,12 @@ When executing under a role, **auto-load and obey that role's directives** (P3.6
 
 ## 8. Conventions (non-negotiable)
 
-- **TDD / test-first**: write a failing test before implementation; keep coverage **>80%** (Jest); the
+- **TDD / test-first**: write a failing test before implementation — but **classify each acceptance
+  criterion first** (`dl-014`/T1, `testing` directive): **red-first** when the behaviour is new (a
+  genuine failing test precedes the code), **characterization** when the behaviour already exists (pin
+  it with a test that passes on first run). Characterization is legitimate for verification, infra and
+  documentation tasks; **never fabricate a red or add dead code to force one**. Record the per-AC
+  classification in the task's Execution Notes. Keep coverage **>80%** (Jest) and non-regressing; the
   `dev-loop` review gate runs unit **and BDD** acceptance tests.
 - **Determinism**: no wall-clock, randomness, or unordered iteration in context-building paths; prefer
   explicit declared config over inferred behaviour (REQ-SYS-07 / REQ-STATE-09).
@@ -303,7 +360,9 @@ When executing under a role, **auto-load and obey that role's directives** (P3.6
 3. **Respect the state machines.** Only legal transitions (per `memory.yaml`); state lives in frontmatter.
 4. **Obey your role's directives.** Load them on execution; never self-approve.
 5. **Keep traceability and determinism intact** in every change.
-6. **The tool isn't built yet** — describe/author configuration and specs; don't assume runtime features.
+6. **The tool is partly built — check, don't assume.** `src/` is real and testable, but only the
+   operations in `CORE_MODULES` ship as commands (§1). Before relying on a runtime feature, confirm it
+   exists; if it doesn't, author the configuration/specs and do the step by hand per §5.1/§6.
 7. **Starting a workflow ⇒ write its plan first.** Until `wingfoil` can run workflows, every workflow
    start (main or sub) produces a coherent plan file in `docs/05_plans/` before execution (see §6).
 8. **Overview ≠ memory scan.** For general project-status questions, rely on §1–§5 of this file and
