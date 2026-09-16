@@ -2,7 +2,8 @@
 id: "task-049-memory-history"
 type: task
 title: "Implement `wingfoil memory history`"
-status: in-review
+status: in-progress
+rejection_reason: "Two single-line documentation corrections; no code defect was found and every other claim verified true, several of them non-obvious. (1) The Execution Notes state 18 cases in test/core/memory-history.test.ts; the file contains 13 - npx jest reports Tests: 13 passed, and grep -c agrees. Real total is 17, not 22. This matters more than an ordinary miscount because that sentence is the ENTIRE substitute evidence for the one gate that structurally cannot see memoryHistoryFn: jest.config.js excludes src/**/index.ts from instrumentation, so the global coverage figure says nothing about the new function, as the notes themselves correctly point out. Offering a number in place of a meaningless one and inflating it is the single place where accuracy mattered most. The conclusion survives easily at 13. (2) Same file, the claim that every uncovered branch in audit.ts is an unreachable empty-string destructuring default lists lines 105, 150, 167, 301; coverage-final.json gives 105, 150, 167, 220, 223, 226, 301, where 220/223/226 are task-015's readStatusAt defensive paths. Those three are disclosed one sentence earlier as the uncovered statements, so this is an enumeration slip rather than concealment, and it belongs in the same fix. Worth recording alongside the corrections: the volunteered coverage caveat and the explicitly labelled retroactive red were both above the bar and neither was forced - which is exactly why the one inflated number inside that paragraph is the thing to correct rather than a reason to doubt the rest."
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p1"]
