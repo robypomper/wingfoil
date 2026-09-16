@@ -21,10 +21,12 @@ import { DnaYaml } from '../dna/schema';
 import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
 import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
 import {
+  findMemoryDocumentById,
   hasNumericToken,
   isArchivedStatus,
   nextSequenceNumber,
   parseTags,
+  reconstructMemoryTransitions,
   renderAddDocument,
   resolveTypeDirectory,
   searchMemoryDocuments,
@@ -488,6 +490,126 @@ const memorySearchFn: CoreFn<unknown, MemorySearchResult> = async (params) => {
 };
 
 /**
+ * `wingfoil memory history <id>` params (P1.10, task-049-memory-history). The document id rides the
+ * generic bare `ParamsContext.positional` seam (task-026) — spec-008-cli-grammar §7: a command whose
+ * noun already scopes the type takes the **bare `<id>`**, never a `<type>:<id>` element-ref, because
+ * ids are globally unique per `memory.yaml`'s `id_pattern`. Optional in the type only because the
+ * seam itself is: {@link memoryHistoryFn} rejects an absent id as a usage error (exit 2).
+ */
+export interface MemoryHistoryParams {
+  readonly root: string;
+  readonly positional?: string;
+}
+
+/**
+ * One entry of a document's audit trail as `wingfoil memory history` renders it — exactly the four
+ * things `P1.10-memory-history.feature` requires of every entry ("author, ISO-8601 timestamp, state
+ * change, and reason"), plus the `sha`/`subject`/`operation` that identify the commit it came from.
+ *
+ * Every field is derived, never stored: `author`/`timestamp` come from git's own `%an`/`%ae`/`%aI`
+ * (ADR-007 / P1.2 — the commit supplies the date, never file content), `from`/`to` from the
+ * document's own frontmatter `status:` at each commit, and `approver`/`reason` from the commit body's
+ * CLAUDE.md §5.1 trailers. `author` and `approver` are rendered in that same trailer notation
+ * (`Name <email>`, `Name <email> (role)`) because P1.10 exists to read exactly that convention back.
+ *
+ * Two independently-nullable fields, and neither is ever filled in by inference:
+ *
+ * - `approver` is `null` unless the commit carries a well-formed `Approver:` line — so it is null on
+ *   `add`/`submit` (subject-only by convention) and on `deprecate` (not an approval gate).
+ * - `reason` is `null` unless the commit carries a `Reason:` line, read independently of `Approver:`
+ *   (`parseCommitReason`) so a `deprecate` reason is not lost with the missing approver.
+ *
+ * `from` is `null` only on the element's creation entry (no prior state to name) — which is what
+ * "1 entry describing the creation" in the feature's edge scenario looks like. `to` is `null` only in
+ * the documented rename edge case `reconstructMemoryTransitions` describes.
+ */
+export interface MemoryHistoryEntryView {
+  readonly sha: string;
+  /** `Name <email>` — git's own author identity for this commit (`%an`/`%ae`). */
+  readonly author: string;
+  /** ISO-8601 author date (`%aI`), sourced from git, never from the document. */
+  readonly timestamp: string;
+  /** The CLAUDE.md §5.1 verb this commit's subject declares, or `null` if the subject is not in that shape. */
+  readonly operation: string | null;
+  /** The state before this commit; `null` on the creation entry. */
+  readonly from: string | null;
+  /** The state this commit put the document in, read from its frontmatter at that commit. */
+  readonly to: string | null;
+  /** `Name <email> (role)` from the commit's `Approver:` line, or `null` when it carries none. */
+  readonly approver: string | null;
+  /** The commit's `Reason:` line, or `null` when it carries none. */
+  readonly reason: string | null;
+  readonly subject: string;
+}
+
+/** `memory history` success shape: the resolved document (`id` + root-relative `path`) and its full
+ * audit trail, oldest first ("the output lists N entries in chronological order"). */
+export interface MemoryHistoryResult {
+  readonly id: string;
+  readonly path: string;
+  readonly entries: readonly MemoryHistoryEntryView[];
+}
+
+/**
+ * `memory history` `CoreOperation.fn` (P1.10, `mutates: false`; spec-006-core-domain-api §3 memory
+ * table). Composes two existing primitives and reimplements neither — the git walk, the commit-body
+ * parse and the per-commit frontmatter read all belong to `src/memory`:
+ *
+ * 1. **Argument validation** — an absent (or blank) `<id>` is a usage error: `throw new UsageError`
+ *    → exit **2** (spec-008-cli-grammar §4/§5, mapped by `exitCodeForThrow`), the same classification
+ *    `dna set`'s missing positional gets. Blank is folded in with absent deliberately: `memory
+ *    history ""` supplies a positional that names no document, so reporting it as "not found" would
+ *    dress a malformed invocation up as a domain outcome (and print an id-less message).
+ * 2. **Load `memory.yaml`** through the same `loadOrError` + `loadMemoryYaml` path every read op uses
+ *    — it declares the type `path` patterns that bound the id scan (spec-011: no full-repo walk).
+ * 3. **Resolve the id to a document** with task-009's {@link findMemoryDocumentById} — an EXACT
+ *    frontmatter-`id` match over the deterministically-sorted document set, never a substring (that
+ *    is `memory search`'s job). No match is a domain `NOT_FOUND` (exit 1) with the exact P1.10 message
+ *    `document not found: <id>`, returned rather than thrown. Archived documents are deliberately NOT
+ *    excluded: REQ-STATE-06 scopes its exclusion to default *search* results, and explicitly
+ *    guarantees an archived element remains "present on disk and in git history" — which is precisely
+ *    what this command reads.
+ * 4. **Reconstruct + project the trail** with task-015's `reconstructMemoryTransitions` (`git log
+ *    --follow` oldest-first + a `git show` per commit for that commit's frontmatter `status`, plus the
+ *    `Approver:`/`Reason:` body parse). This function only renames those fields into
+ *    {@link MemoryHistoryEntryView}'s user-facing shape; it derives no state, parses no body, and
+ *    reads no clock of its own (REQ-SYS-07 — the whole result is a pure function of the repository).
+ *
+ * A document that exists on disk but has never been committed yields `entries: []` — correctly, not
+ * as an error: per ADR-007 git history IS the audit trail, so an uncommitted document has none yet.
+ */
+const memoryHistoryFn: CoreFn<unknown, MemoryHistoryResult> = async (params) => {
+  const { root, positional: id } = params as MemoryHistoryParams;
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory history <id>');
+  }
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const found = findMemoryDocumentById(root, loaded.value, id);
+  if (!found) {
+    return coreErr({ code: 'NOT_FOUND', message: `document not found: ${id}` });
+  }
+
+  const entries: MemoryHistoryEntryView[] = reconstructMemoryTransitions(root, found.path).map((transition) => ({
+    sha: transition.sha,
+    author: `${transition.authorName} <${transition.authorEmail}>`,
+    timestamp: transition.date,
+    operation: transition.operation,
+    from: transition.fromState,
+    to: transition.toState,
+    approver: transition.approval
+      ? `${transition.approval.approverName} <${transition.approval.approverEmail}> (${transition.approval.approverRole})`
+      : null,
+    reason: transition.reason,
+    subject: transition.subject,
+  }));
+
+  return coreOk({ id, path: found.path, entries });
+};
+
+/**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
  * `src/mcp`'s Tool/Resource registrar both import this exact array — see spec-006 §4.1: "no
  * duplicated or hand-copied operation list in either surface module".
@@ -541,6 +663,11 @@ export const CORE_MODULES: readonly CoreModule[] = [
         ],
         fn: memoryAddFn,
       },
+      // P1.10 (task-049-memory-history) — `mutates: false`, so by construction an MCP Resource +
+      // CLI command (`wingfoil memory history <id>`). It declares no flags and no value options: the
+      // document id rides the generic bare `positional` seam (task-026), per spec-008-cli-grammar §7's
+      // bare-`<id>` rule for a command whose noun already scopes the type.
+      memoryHistory: { name: 'memoryHistory', mutates: false, fn: memoryHistoryFn },
       // The FIRST Memory-document READ operation (P1.5, spec-006 §3 memory table) — `mutates: false`,
       // so by construction an MCP Resource (`wingfoil://memory/search`, the mechanical zero-argument
       // form spec-006 §3 pins verbatim) + CLI command (`wingfoil memory search`). Its keyword rides the
