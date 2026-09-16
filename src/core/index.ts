@@ -18,7 +18,7 @@ import { dump } from 'js-yaml';
 import { generateId, parseYaml, toValidationError, ValidationError } from '../validation';
 import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
-import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue } from '../dna/set';
+import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue, setDnaValueInText } from '../dna/set';
 import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
 import {
   hasNumericToken,
@@ -229,15 +229,23 @@ export interface DnaSetParams {
  * 2. **Argument validation** — a missing `<key>`/`<value>`, or a malformed dotted key path (e.g. the
  *    BDD's `..language`), is a usage error: `throw new UsageError(...)` → exit **2** with a clean
  *    message (mapped by `exitCodeForThrow`, `./exit-code.ts`), per spec-005-cli-command-contract §1.
- * 3. **Load + apply + re-serialize** — load the current `.wingfoil/dna.yaml` through the same two-pass
- *    path `dnaShow` uses (a missing/invalid file → `NOT_FOUND`/`VALIDATION`, exit 1), set the value
- *    (`src/dna`'s pure `setDnaValue`, incl. the `tech_stack`→`stacks` alias), and re-serialize
- *    deterministically (REQ-SYS-07: js-yaml preserves key order, no wall-clock/random; `lineWidth: -1`
- *    fixes the wrap width so the same input yields byte-identical output).
+ * 3. **Load + apply + produce the new bytes** — load the current `.wingfoil/dna.yaml` through the same
+ *    two-pass path `dnaShow` uses (a missing/invalid file → `NOT_FOUND`/`VALIDATION`, exit 1), then
+ *    produce the file's new text. The PRIMARY path is `src/dna`'s `setDnaValueInText`: a minimal
+ *    **in-place textual edit** — one line rewritten or inserted — so every comment survives, including
+ *    the inline `[SPEC]`/`[AUTHORING]` field-provenance annotations a whole-file re-serialization used
+ *    to delete (bug-004-dna-set-strips-yaml-comments, task-063). When no provably-minimal edit exists
+ *    (see that function's refusal list) it returns `undefined` and this FALLS BACK to the original
+ *    `dump(dna, { lineWidth: -1 })` of `setDnaValue`'s in-memory result — correct, but comment-stripping.
+ *    Both paths are deterministic (REQ-SYS-07: a pure function of file + key + value; js-yaml preserves
+ *    key order, no wall-clock/random; `lineWidth: -1` fixes the wrap width).
  * 4. **Re-validate the written bytes** against `DnaYaml` (spec-002) BEFORE persisting — a schema-invalid
  *    result is a logic error (`VALIDATION` → exit 1) and the file is left untouched (returned, not
  *    thrown). Re-parsing the serialized form (not the in-memory object) is deliberate: it validates the
- *    exact bytes about to be written, honouring YAML's own scalar coercion.
+ *    exact bytes about to be written, honouring YAML's own scalar coercion. The in-place path keeps that
+ *    guarantee and strengthens it — `serialized` IS the final file text, and the value token it writes
+ *    is rendered by the very same `dump()` call, so e.g. `dna set version 2` still writes `version: '2'`
+ *    and still fails `z.number()` on read-back.
  * 5. **Persist + commit** through the single storage primitives (task-018) — `writeDocument` then
  *    `commitPaths` on the ONE scoped path `.wingfoil/dna.yaml`; the returned sha rides `CoreResult.commit`.
  */
@@ -262,7 +270,12 @@ const dnaSetFn: CoreFn<unknown, { key: string; value: string }> = async (params)
   const dna = loaded.value as Record<string, unknown>;
   setDnaValue(dna, keyPath, value);
   const dnaPath = join(root, '.wingfoil', 'dna.yaml');
-  const serialized = dump(dna, { lineWidth: -1 });
+  const current = readDocument(dnaPath);
+
+  // bug-004: prefer the minimal in-place textual edit, which leaves every comment (and every
+  // [SPEC]/[AUTHORING] provenance annotation) byte-for-byte intact; fall back to the whole-file
+  // re-serialization only for the shapes it cannot edit minimally and provably.
+  const serialized = setDnaValueInText(current, keyPath, value) ?? dump(dna, { lineWidth: -1 });
 
   // Re-validate the exact bytes about to be written against DnaYaml (spec-002), via a SILENT
   // `safeParse` — the unknown-field warning (spec-009 §2) belongs to the load path (`dna show`), not
@@ -279,7 +292,7 @@ const dnaSetFn: CoreFn<unknown, { key: string; value: string }> = async (params)
   // there is nothing to write or commit, so this succeeds without an empty commit (a set to the current
   // value is idempotent success, not an error). REQ-SYS-07: `serialized` is a deterministic function of
   // the input, so this comparison is stable across runs.
-  if (readDocument(dnaPath) === serialized) {
+  if (current === serialized) {
     return coreOk({ key: keyPath, value });
   }
 
