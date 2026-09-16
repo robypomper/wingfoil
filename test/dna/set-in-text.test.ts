@@ -21,9 +21,12 @@ describe('setDnaValueInText — replacing an existing key (bug-004 AC(a)/(b))', 
   });
 
   it('keeps an inline trailing comment, and its column when the new value still fits', () => {
+    // `'1.2'` is quoted because the GIVEN value is the string "1.2" (see the scalar-coercion block
+    // below); the point here is that the `#` stays in column 33, exactly where it was.
     const text = 'version: 1.1                     # [AUTHORING] config-file format version\n';
     const edited = setDnaValueInText(text, 'version', '1.2');
-    expect(edited).toBe('version: 1.2                     # [AUTHORING] config-file format version\n');
+    expect(edited).toBe("version: '1.2'                   # [AUTHORING] config-file format version\n");
+    expect(edited!.indexOf('#')).toBe(text.indexOf('#'));
   });
 
   it('falls back to a single separating space when the new value overruns the comment column', () => {
