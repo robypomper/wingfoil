@@ -137,4 +137,12 @@ describe('setDnaValueInText — honest refusals (caller falls back to the whole-
   it('refuses text that is not valid YAML at all, rather than writing a broken edit', () => {
     expect(setDnaValueInText('name: [unclosed\n', 'name', 'x')).toBeUndefined();
   });
+
+  it('refuses when the edited text would no longer parse — the final read-back safety net', () => {
+    // A flow sequence whose continuation is dedented to column 0 is valid YAML but makes the
+    // indentation-based block scan end `a`'s block early, so the insertion would land INSIDE the
+    // flow sequence. Nothing before the read-back check can see that; the check is what refuses.
+    const text = 'a:\n  b: [\n1,\n2 ]\n  c: 3\n';
+    expect(setDnaValueInText(text, 'a.d', 'x')).toBeUndefined();
+  });
 });

@@ -81,7 +81,7 @@ interface Resolution {
   readonly leaf?: KeyLine;
   /** The line holding the deepest existing strict prefix of the path, when the leaf is absent. */
   readonly parent?: KeyLine;
-  /** How many leading segments of the path `parent` resolves (0 when nothing matched). */
+  /** How many leading segments of the path exist in the text (0 when nothing matched). */
   readonly depth: number;
 }
 
@@ -176,7 +176,9 @@ function resolveKeyPath(lines: readonly string[], segments: readonly string[]): 
     const path = [...stack.map((frame) => frame.key), key];
 
     if (path.length <= segments.length && path.every((name, index) => name === segments[index])) {
-      if (path.length === segments.length) return { leaf: { line: i, indent, key, rest }, depth };
+      if (path.length === segments.length) {
+        return { leaf: { line: i, indent, key, rest }, depth: segments.length };
+      }
       parent = { line: i, indent, key, rest };
       depth = path.length;
     }
