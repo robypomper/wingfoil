@@ -77,3 +77,55 @@ which is also what the scaffolded `roles.yaml` lists in its `assignments`/`globa
 working as a side effect. No layout change: the files stay under `directives/custom/`
 (`task-054-project-directives` owns that layout and is not in this group). No digest/manifest
 (`dl-031`).
+
+### `red` (developer) — 2026-09-16
+
+**1. Real-CLI reproduction (AC1).** Built `npx tsc -p tsconfig.build.json` (exit 0) and ran the
+compiled `dist/cli.js` in a throwaway git repo *outside* the worktree. `init` succeeded (exit 0) and
+wrote the ten `directives/custom/*.md`; the generated `architecture.md` frontmatter was, verbatim:
+
+```
+---
+name: architecture
+kind: custom
+ref: [P3.8]
+---
+```
+
+and `wingfoil directives list` then failed, verbatim (paths shortened to `<scratch>`):
+
+```
+error: E_VALIDATION id (<scratch>/.wingfoil/directives/custom/architecture.md): Invalid input: expected string, received undefined; E_VALIDATION type (<scratch>/.wingfoil/directives/custom/architecture.md): Invalid input: expected "directive"; E_VALIDATION title (<scratch>/.wingfoil/directives/custom/architecture.md): Invalid input: expected string, received undefined
+DIRECTIVES_LIST_EXIT=1
+```
+
+Exactly the three fields `bug-006` names, on exactly the file `bug-006` predicts.
+
+**2. Generator-level failing tests (AC2/AC3).** `test/storage/templates.test.ts` — new block
+`templateScaffold directive output satisfies the real DirectiveFrontmatter schema (bug-006)`,
+alongside the existing `bug-005` block: per template, every scaffolded `directives/**/*.md`
+frontmatter must `safeParse` against the real `DirectiveFrontmatter`; must carry `id` equal to the
+filename stem, `type: directive`, and a non-empty `title`; and every directive id the scaffolded
+`roles.yaml` binds must actually be scaffolded (the `resolveRoleDirectives` key).
+
+**3. The `task-057` ordering hazard, reproduced (`test/core/builtin-integrity.test.ts`).** New block
+feeding the REAL `directiveMd()` bytes through the REAL guard: each scaffolded directive is re-homed
+under `BUILTIN_DIRECTIVES_DIR`, passed through `builtinTemplateSources` exactly as
+`initWingfoilProject` guard 5 does, then `verifyBuiltinTemplates`. Observed failure, verbatim:
+
+```
+● verifyBuiltinTemplates accepts the real init directive generator output (bug-006) › Scrum: every generated directive passes the REQ-SEC-10 guard (init does not abort)
+
+    expect(received).toBeNull()
+
+    Received: {"kind": "directive", "message": "built-in directive template integrity check failed: architecture", "name": "architecture"}
+```
+
+— character-for-character the message `task-044` and its reviewer reported, and the one
+`task-057`'s Implementation Notes quote.
+
+**Red totals (observed):** `npx jest test/storage/templates.test.ts test/core/builtin-integrity.test.ts
+--maxWorkers=2` → `Test Suites: 2 failed, 2 total` / `Tests: 8 failed, 34 passed, 42 total`. The 8
+failures are 6 in `templates.test.ts` (3 assertions × 2 templates) + 2 in `builtin-integrity.test.ts`
+(1 × 2 templates); the `scaffolds at least one directive document to validate` guard passed already
+(it only pins that the block is not vacuous).

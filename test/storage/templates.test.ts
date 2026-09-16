@@ -16,10 +16,25 @@ import {
   type TemplateDefinition,
 } from '../../src/storage/templates';
 import type { ScaffoldFile } from '../../src/storage/layout';
+import { extractFrontmatter } from '../../src/storage/frontmatter';
+import { DirectiveFrontmatter } from '../../src/directives/schema';
 import { DnaYaml } from '../../src/dna/schema';
 
 function pathsOf(files: readonly ScaffoldFile[]): string[] {
   return files.map((f) => f.path);
+}
+
+/** Every scaffolded Directives-pillar document (`.md` under `.wingfoil/directives/`; never a placeholder). */
+function directiveFilesOf(def: TemplateDefinition): ScaffoldFile[] {
+  return templateScaffold(def).filter(
+    (f) => f.path.startsWith('.wingfoil/directives/') && f.path.endsWith('.md'),
+  );
+}
+
+/** The filename stem of a scaffold path — `architecture` for `.wingfoil/directives/custom/architecture.md`. */
+function stemOf(path: string): string {
+  const base = path.slice(path.lastIndexOf('/') + 1);
+  return base.slice(0, base.lastIndexOf('.'));
 }
 
 describe('templates registry (P5.1.1)', () => {
@@ -157,6 +172,61 @@ describe('templateScaffold output satisfies its consumers’ real schemas (bug-0
         expect([type, entry.id_pattern]).toEqual([type, expect.any(String)]);
         expect([type, entry.template]).toEqual([type, expect.anything()]);
       }
+    });
+  }
+});
+
+/**
+ * bug-006-init-directive-scaffold-schema-invalid (task-064) — the Directives half of the same defect
+ * class as `bug-005` above, in the same generator: `templateScaffold`'s `directives/**\/*.md` output
+ * must satisfy `DirectiveFrontmatter` (`src/directives/schema.ts`, the realization of the approved
+ * `spec-013-directive-frontmatter-schema`), because that is the schema `loadDirectives`
+ * (`src/core/loaders.ts`) runs every directive file through — so `wingfoil directives list` errored
+ * `E_VALIDATION` on every freshly-`init`'d project while the generator emitted `name`/`kind`/`ref`
+ * only.
+ *
+ * Asserted per FIELD, not just "safeParse succeeded": the three fields bug-006 names (`id`,
+ * `type: directive`, `title`) are the regression surface, and `id` additionally has to equal the
+ * filename stem (`spec-013`'s "Stable directive identifier … matches the filename stem") because
+ * that is the key `resolveRoleDirectives` (`src/core/context.ts`, spec-012 §5) binds roles on — the
+ * scaffolded `roles.yaml` lists exactly those stems.
+ */
+describe('templateScaffold directive output satisfies the real DirectiveFrontmatter schema (bug-006)', () => {
+  for (const def of TEMPLATES) {
+    it(`${def.name}: scaffolds at least one directive document to validate`, () => {
+      expect(directiveFilesOf(def).length).toBeGreaterThan(0);
+    });
+
+    it(`${def.name}: every scaffolded directive frontmatter round-trips through DirectiveFrontmatter`, () => {
+      for (const file of directiveFilesOf(def)) {
+        const frontmatterText = extractFrontmatter(file.content);
+        expect([file.path, frontmatterText]).toEqual([file.path, expect.any(String)]);
+        const result = DirectiveFrontmatter.safeParse(loadYaml(frontmatterText as string));
+        expect([file.path, result.success]).toEqual([file.path, true]);
+      }
+    });
+
+    it(`${def.name}: every scaffolded directive carries id (= filename stem), type: directive and title`, () => {
+      for (const file of directiveFilesOf(def)) {
+        const parsed = loadYaml(extractFrontmatter(file.content) as string) as Record<string, unknown>;
+        expect([file.path, parsed.id]).toEqual([file.path, stemOf(file.path)]);
+        expect([file.path, parsed.type]).toEqual([file.path, 'directive']);
+        expect([file.path, parsed.title]).toEqual([file.path, expect.any(String)]);
+        expect([file.path, (parsed.title as string).length]).toEqual([file.path, expect.any(Number)]);
+        expect((parsed.title as string).length).toBeGreaterThan(0);
+      }
+    });
+
+    it(`${def.name}: every directive id the scaffolded roles.yaml binds is actually scaffolded`, () => {
+      const rolesText = templateScaffold(def).find((f) => f.path === '.wingfoil/roles.yaml')!.content;
+      const roles = loadYaml(rolesText) as { assignments: Record<string, string[]>; global: string[] };
+      const scaffoldedIds = new Set(
+        directiveFilesOf(def).map(
+          (f) => (loadYaml(extractFrontmatter(f.content) as string) as { id?: string }).id,
+        ),
+      );
+      const bound = [...Object.values(roles.assignments).flat(), ...roles.global];
+      for (const id of bound) expect([id, scaffoldedIds.has(id)]).toEqual([id, true]);
     });
   }
 });
