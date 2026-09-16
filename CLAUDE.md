@@ -41,13 +41,16 @@ Layer (CLI + MCP)**.
 | `docs/01_vision/`                         | Product vision package. `01_product-brief.md` (identity, north star, tech stack), `04_personas.md`, `05_journeys.md`, **`06_features.md`** (the feature list **P1–P5**, the canonical feature IDs), `07_sequencer.md` (release waves v0.1→v1.0), `08_mvp-canvas.md`, `X_cli-cmds.md`, `X_lean-inception-plan.md` |
 | `docs/02_requirements/`                   | Engineering requirements (downcast of the vision)                                                                                                                                                                                                                                                                |
 | `docs/02_requirements/01_user_story_map/` | User Story Map (US-* stories, per journey)                                                                                                                                                                                                                                                                       |
-| `docs/02_requirements/02_bdd/features/`   | BDD `.feature` files by pillar (`p1-memory/`…`p5-interaction/`) — the **acceptance contracts**                                                                                                                                                                                                                   |
+| `docs/02_requirements/02_bdd/features/`   | BDD `.feature` files by pillar (`p1-memory/`…`p5-interaction/`, plus `x1-notification/`) — the **acceptance contracts**                                                                                                                                                                                          |
 | `docs/02_requirements/03_sard/`           | SARD requirements: `01_architecture.md` (**REQ-SYS-***), `02_performance-nfr.md` (**REQ-PERF-***), `03_state-context.md` (**REQ-STATE-***), `04_integrations.md` (**REQ-INT-***), `05_security-compliance.md` (**REQ-SEC-***)                                                                                    |
 | `docs/03_backlog/04_backlog/`             | Operational backlog: `backlog.json`, `schema.json`, `by-release/{v0.1..v1.0}.json` (tasks + REQ infra tasks per release)                                                                                                                                                                                         |
 | `docs/self/`                              | **WingFoil's own configuration** (dogfooding — see §3) + `X_wingfoil-init-plan.md`, `WORKFLOW.md`                                                                                                                                                                                                                |
 | `docs/05_plans/`                          | **Phase plans** — the `plan` Memory type (§5), one per started workflow phase, nested by scope (`rl-v1/`, `rl-v1/rel-v0.2/`, …). `X_*.md` at the top level are grandfathered ad-hoc plans (dl-019)                                                                                                               |
 | `src/`                                    | **The implementation.** One directory per `dna.yaml` module (§4) — `core, validation, storage, memory, dna, directives, workflow, cli, mcp` — plus `cli.ts`, the `bin` entry point                                                                                                                              |
 | `test/`                                   | Jest suites, mirroring `src/` one directory per module, plus `docs/` (API-doc coverage gate) and `lint/` (the `lint.clean` gate)                                                                                                                                                                                 |
+| `docs/design.md`                          | Index of the **documentary chain** Lean Inception → USM → BDD → SARD → backlog: where each phase lives, what it produces, and its stop-check                                                                                                                                                                     |
+| `README.md`                               | The **user-facing** entry point (problem, pillars, personas) — the human counterpart to this file. Owned by the `user-docs` release gate (dl-013); `CLAUDE.md` is owned by nothing yet (dl-025)                                                                                                                  |
+| `COLLABORATION.md`                        | How external contributors file **intent as Memory artifacts** rather than pull requests (`dl-020-contribution-model`)                                                                                                                                                                                           |
 
 **Feature IDs** are `P<pillar>.<n>` (e.g. `P1.13`). **Requirement IDs** are `REQ-<AREA>-<nn>`.
 Traceability chain: **feature (P*) → user story (US-*) → BDD scenario → SARD requirement (REQ-*) → task**.
@@ -202,9 +205,16 @@ two must appear explicitly in the commit message.
     can surface it per **P1.10** even when git author and approver differ.
   - `Reason:` body line — **mandatory** (`--reason` is a required argument per P1.7 Scenario 2;
     omitting it is an error).
-4. If the approval also registers the element in an external artifact (e.g. a task reaching `backlog`
-   adds its entry to the release backlog JSON under `docs/03_backlog/04_backlog/by-release/`), include
-   that artifact change in the **same commit**.
+4. If an approval ever *does* change an artifact outside Memory, that change belongs in the **same
+   commit** — an approval and its side effect must not be separable. Note this has **not yet happened**:
+   no `wf(…): approve` commit in this repository's history touches anything outside
+   `docs/self/docs/04_memory/`. In particular, **do not** add the task to the per-release backlog JSON
+   under `docs/03_backlog/04_backlog/by-release/` when it reaches `backlog` — that JSON is an output of
+   the `backlog-export` sub-workflow from the *specification* phase (`docs/design.md` phase 4), read as
+   a source and cited by each release's `requirements:` frontmatter field; `release-planning`'s
+   `build-backlog` / `commit-backlog` phases declare no action and no `produces:` under
+   `docs/03_backlog/`, and that directory has exactly one commit in the whole history (its initial
+   import).
 5. Agents may execute `memory.approve` **only when explicitly instructed** by the `approver` role (Roberto);
    agents never approve autonomously (§4, §8).
 
@@ -264,7 +274,9 @@ Callable from any state, on any type (§5). Not an approval gate — no `Approve
       `plan-next-release-line` (closes this release-line to `done`, self-seeds the next one once
       every one of its releases is `released`).
         - `delivery` → `release-cycle` *(iterate_over: release, scoped to this release-line)* →
-          `release-planning` *(incl. `identify-specs`)* → `dev-loop` *(design gate + TDD,
+          `release-planning` *(`define-scope` → `triage-bugs` → `reconcile-governance` → `record-adrs`
+          → `identify-specs` → `build-backlog` → `commit-backlog`; the two sweeps added by dl-016)* →
+          `dev-loop` *(design gate + TDD,
           iterate_over: task; `refactor` runs coverage + API-docs + `lint.clean`; review gate runs unit
           + **BDD** tests; keeps a fix task's source `bug` in sync via `bug.sync_state`)* → `user-docs`
           *(dl-013 — the user-facing documentation gate)* → `e2e-smoke` *(dl-023 — fresh-init + CLI
@@ -311,7 +323,12 @@ When executing under a role, **auto-load and obey that role's directives** (P3.6
 
 ## 8. Conventions (non-negotiable)
 
-- **TDD / test-first**: write a failing test before implementation; keep coverage **>80%** (Jest); the
+- **TDD / test-first**: write a failing test before implementation — but **classify each acceptance
+  criterion first** (`dl-014`/T1, `testing` directive): **red-first** when the behaviour is new (a
+  genuine failing test precedes the code), **characterization** when the behaviour already exists (pin
+  it with a test that passes on first run). Characterization is legitimate for verification, infra and
+  documentation tasks; **never fabricate a red or add dead code to force one**. Record the per-AC
+  classification in the task's Execution Notes. Keep coverage **>80%** (Jest) and non-regressing; the
   `dev-loop` review gate runs unit **and BDD** acceptance tests.
 - **Determinism**: no wall-clock, randomness, or unordered iteration in context-building paths; prefer
   explicit declared config over inferred behaviour (REQ-SYS-07 / REQ-STATE-09).

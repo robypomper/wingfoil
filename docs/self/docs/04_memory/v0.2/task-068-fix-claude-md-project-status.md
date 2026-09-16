@@ -2,8 +2,7 @@
 id: "task-068-fix-claude-md-project-status"
 type: task
 title: "Fix: CLAUDE.md §1 still tells every agent the project has no source code"
-status: in-progress
-rejection_reason: "AC-2 requires sweeping the whole file - check every factual claim - and two stale claims of exactly the class this task exists to remove survived, both found by the review and both verified independently. (1) CLAUDE.md section 5.1 memory.approve step 4 instructs that a task reaching backlog adds its entry to the release backlog JSON under docs/03_backlog/04_backlog/by-release/ in the same commit. That practice has never occurred in this repository: git log on docs/03_backlog/ shows exactly one commit ever, the initial import, and the commit that moved all 32 v0.2 tasks from pending to backlog touched zero files under it. An agent following the step would produce a commit nobody else produces. It is phrased conditionally, which is why the reviewer graded it non-blocking, but the instruction is still there to be followed. (2) Section 8's first convention bullet states test-first with no qualification, while the testing directive it summarises carries dl-014/T1's red-first versus characterization classification and the explicit rule never to fabricate a red. Section 8 is the non-negotiable summary an agent reads at orientation, and the irony is sharp: this task's own no-test justification rests entirely on the characterization branch that section 8 does not mention. Also fold in, being the same class and cheap while the branch is open: section 2's BDD row lists p1-memory through p5-interaction while features/ also contains x1-notification, and the documentation map omits README.md, COLLABORATION.md and docs/design.md; and section 6 summarises release-planning as incl. identify-specs while release-planning.yaml has declared triage-bugs and reconcile-governance since dl-016 - incomplete rather than false, so correct it only if it reads naturally. Everything else in the pass was verified correct by the review, including all eight state-machine rows and the whole section 7 table, and needs no rework. One process note: bug-008's own triage Notes had flagged section 3's once the tool can manage it clause as still accurate and not to be swept; you swept it and the review judged the sweep right, since the location half was true and the condition half was not and AC-2 authorises it. Record that you walked past that contradiction and why your reading wins, rather than leaving a reader to find it."
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "documentation"]
@@ -198,3 +197,119 @@ is its only fix task, so it advances with the task — `in-progress → in-revie
   next `release-planning` → `build-backlog`. Until it lands, this fix is unprotected.
 - The Claude Code auto-memory index (golden rule §10.9) was **not** updated: this task stops at
   `in-review`, the index lives outside the repository, and a sibling worktree was running concurrently.
+
+---
+
+### Second pass — rejected at `review`, reworked
+
+Rejected at the review gate (`f04aaca`; `bug-008` followed via `bug.sync_state`, `75109e2`). The reason
+was not a wrong correction but an **incomplete sweep**: AC-2 says *check every factual claim*, and two
+claims of exactly the class this task exists to remove survived the first pass. Both are now fixed.
+Nothing from the first pass was reverted.
+
+#### Rejection item 1 — §5.1 `memory.approve` step 4, the backlog-JSON instruction
+
+**Old text:** *"If the approval also registers the element in an external artifact (e.g. a task reaching
+`backlog` adds its entry to the release backlog JSON under `docs/03_backlog/04_backlog/by-release/`),
+include that artifact change in the same commit."*
+
+**Verdict: obsolete as an instruction, and its example is wrong.** Five independent checks, all run in
+this worktree:
+
+1. `git log --oneline -- docs/03_backlog/` → **one commit in the entire history**, `b9c4df0 Add
+   categorized backlog files for all releases (v0.1 -> v1.0)` — the initial import. Nothing has been
+   appended to those files since.
+2. `93d8e57`, the single commit that moved **all 32** v0.2 tasks `pending → backlog`, touches
+   **32 files, none under `docs/03_backlog/`** (`git show --name-only` filtered: zero matches).
+3. Widened to the general clause, not just its example: I walked **every** `wf(…): approve` commit in the
+   history and filtered each file list to paths outside `docs/self/docs/04_memory/`. The result is
+   **empty** — no approval commit has ever carried an external artifact. So the rule as written has no
+   instances at all, not merely a bad example.
+4. The workflow disagrees with the instruction. `release-planning.yaml` v1.1 is where a task reaches
+   `backlog` (`commit-backlog`, `task.set_state(backlog)`); neither it nor `build-backlog` declares any
+   action or `produces:` under `docs/03_backlog/`. `build-backlog`'s only `produces:` is
+   `docs/04_memory/{release}/{id}.md`.
+5. **What those JSON files actually are** — the question the rejection asked me to settle before
+   rewriting. They are an *output of the specification phase*, not a delivery registry:
+   `backlog-export.yaml` (a `specification-downcast` sub-workflow, `role: product-owner`) produces them;
+   `docs/design.md` lists them as phase 4, the terminus of the documentary chain; and each release
+   document *cites* one as a read-only source — `minor-v0.2.md` carries
+   `requirements: "docs/03_backlog/04_backlog/by-release/v0.2.json"`. The v0.2 `release-planning` plan
+   confirms the direction of that dependency in practice: its 25 feature tasks were drawn **from**
+   `v0.2.json` and re-issued as fresh `task-0NN` IDs, deliberately not mirroring its `TASK-*` numbering.
+
+**Rewritten to preserve the sound half and remove the false half.** The atomicity principle — if an
+approval has a side effect outside Memory, it ships in the same commit — is kept, because it is a real
+property of the P1.7 audit trail and costs nothing if it never fires. What is removed is the claim that a
+`backlog` approval *has* such a side effect; the step now states positively that the by-release JSON must
+**not** be appended to, says what it is instead, and cites the workflow and the history so the next
+reader does not have to redo this.
+
+#### Rejection item 2 — §8's unqualified test-first bullet
+
+**Old text:** *"write a failing test before implementation; keep coverage >80% (Jest); the `dev-loop`
+review gate runs unit and BDD acceptance tests."*
+
+The `testing` directive it summarises carries two rules §8 dropped: `dl-014`/T1's **red-first vs
+characterization** classification (with the instruction to record it per-AC in Execution Notes), and
+**"never fabricate a red or add dead code to force one"**. §8 is labelled *non-negotiable* and is what an
+agent reads at orientation, so an agent who reads only §8 is told to produce a failing test for work
+where no honest failing test exists — precisely the pressure that manufactures a fake red.
+
+**The irony is this task's own:** the `design` notes above justify writing no test by invoking the
+characterization branch — the branch §8 did not mention. My justification rested on a rule the
+orientation summary denied. Bullet rewritten to carry both halves of the directive, plus the
+coverage-non-regression clause it also omitted.
+
+#### Folded in while the branch is open (same class, cheap)
+
+- **§2 BDD row** — listed `p1-memory/`…`p5-interaction/`; `features/` also contains `x1-notification/`
+  (verified by `ls`). Added.
+- **§2 map omissions** — added `README.md`, `COLLABORATION.md` and `docs/design.md`, by the same
+  principle that justified adding `src/`, `test/` and `docs/05_plans/`: a map that omits what exists
+  misleads. The `README.md` row also records the ownership asymmetry `dl-025` exists to close — the
+  README is owned by the `user-docs` gate, `CLAUDE.md` by nothing.
+- **§6 `release-planning`** — *"(incl. `identify-specs`)"* was incomplete: `release-planning.yaml` v1.1
+  declares seven phases, including `triage-bugs` and `reconcile-governance` added by `dl-016`. Replaced
+  with the full chain; it reads naturally as a phase list, so the rejection's "only if it reads
+  naturally" condition is met.
+
+#### Process note — the `bug-008` triage note I contradicted without saying so
+
+`bug-008`'s Notes had explicitly checked §3's *"it will move to the repository-root `.wingfoil/` once the
+tool can manage it"* and recorded it as **"still accurate"** and that it **"must not be swept into the
+fix"**. My first pass swept it anyway and never mentioned the contradiction. That was the wrong process
+even though the review judged the edit itself right — and in a task whose subject is a document that
+asserted unverified things, walking past a conflict in silence is the wrong habit to practise. Recording
+it properly now:
+
+- **Where the triage note was right.** Its stated evidence was that no root-level `.wingfoil/` exists. I
+  re-verified that independently (`ls -d .wingfoil` → no such file) and did not change that half of the
+  sentence.
+- **Where it was incomplete.** The sentence has a second half — the *condition* "once the tool can manage
+  it" — which the triage note did not examine. That condition no longer holds: `wingfoil init` exists
+  (`src/core/init.ts`, registered in `src/cli/program.ts`) and scaffolds a root `.wingfoil/`, so the
+  blocker the clause names is not the blocker any more. The real blocker is different and narrower — no
+  Memory transition verbs, no workflow engine — which is what the sentence now says.
+- **Why my reading wins.** The triage note was written at capture time against a narrower question ("is
+  §1's claim the only false one?"). AC-2 as approved directs a sweep of *every* factual claim and says to
+  correct what is false; a clause that is half true is false as a whole once an agent acts on it. The
+  note also pre-dates the `init` check that settles the condition half.
+- **What I should have done the first time:** exactly this — name the disagreement, show both readings,
+  and leave the approver able to overrule me if the note's author meant something I have not understood.
+
+#### Second-pass gates — observed on the reworked tree
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **69 suites / 866 tests passed**, 0 failed, exit 0 |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **98.16 % statements · 88.82 % branches · 98.20 % functions · 98.73 % lines**, exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit **0** |
+| `lint.clean` | `npx eslint .` | exit **0**, no output |
+| build | `npx tsc -p tsconfig.build.json` | exit **0** |
+
+Identical to the first pass and to the pre-change baseline, which is again the evidence for AC-4: the
+second pass touched `CLAUDE.md` and this file only. `src/`, `test/` and every workflow YAML remain
+untouched across both passes — including `src/mcp/index.ts`, whose module doc carries the same
+"Anthropic SDK" claim §4 corrects; that is a real inconsistency but it is out of this task's scope and is
+left for whoever owns the MCP module docs.
