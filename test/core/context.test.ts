@@ -11,7 +11,14 @@
  *   its own resolves to the globals **and** emits `no directives assigned to role '<role>'`
  *   (`p3-directives/P3.6-auto-load-by-role.feature`, edge scenario, as amended by dl-029);
  * - **spec-012 §5 "deduplicate by directive id"**, which the first pass claimed but never performed.
+ *
+ * `task-069-fix-archived-excluded-from-agent-context` adds REQ-STATE-06's archived-exclusion contract
+ * (`dl-028-archived-states-excluded-from-context`, `bug-010-deprecated-reaches-agent-context`) — the
+ * gap this module's own header used to document as deliberately unfixed.
  */
+import { existsSync } from 'fs';
+import { join } from 'path';
+
 import { assembleExecutionContext, resolveRoleDirectives } from '../../src/core/context';
 import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml } from '../../src/core/loaders';
 import { ValidationError } from '../../src/validation';
@@ -29,6 +36,13 @@ types:
         pending: { reject: draft }
         in-review: { reject: in-progress }
       waiting: [ backlog, approved ]
+  adr:
+    path: "docs/04_memory/design/adrs/{id}.md"
+    id_pattern: "adr-{n}-{slug}"
+    states:
+      sequence: [ draft, pending, accepted, superseded ]
+      gates:
+        pending: { reject: draft }
 `;
 
 const DNA_YAML = `
@@ -103,11 +117,33 @@ function writeFixtureConfig(root: string): void {
   writeFixtureFile(root, '.wingfoil/directives/custom/doc-versioning.md', directiveMd('doc-versioning', 'Doc Versioning'));
 }
 
-function writeTask(root: string, id: string, title: string): void {
+function writeTask(root: string, id: string, title: string, status = 'in-progress'): void {
   writeFixtureFile(
     root,
     `docs/04_memory/v0.1/${id}.md`,
-    `---\nid: "${id}"\ntype: task\ntitle: "${title}"\nstatus: in-progress\n---\n\n# ${title}\n`,
+    `---\nid: "${id}"\ntype: task\ntitle: "${title}"\nstatus: ${status}\n---\n\n# ${title}\n`,
+  );
+}
+
+/** Load all four pillars from `repo` and assemble a context for one element — the wiring every
+ * `assembleExecutionContext` test needs, so each describe supplies only what it varies. */
+function assembleFrom(repo: string, role: string, type: string, elementId: string) {
+  return assembleExecutionContext({
+    root: repo,
+    dna: loadDnaYaml(repo),
+    memoryYaml: loadMemoryYaml(repo),
+    directiveFiles: loadDirectives(repo),
+    rolesYaml: loadRolesYaml(repo),
+    role,
+    element: { type, id: elementId },
+  });
+}
+
+function writeAdr(root: string, id: string, title: string, status: string): void {
+  writeFixtureFile(
+    root,
+    `docs/04_memory/design/adrs/${id}.md`,
+    `---\nid: "${id}"\ntype: adr\ntitle: "${title}"\nstatus: ${status}\n---\n\n# ${title}\n`,
   );
 }
 
@@ -226,19 +262,7 @@ describe('assembleExecutionContext — distinct addressable dna/memory/directive
   });
 
   function assemble(role: string, elementId: string) {
-    const dna = loadDnaYaml(repo);
-    const memoryYaml = loadMemoryYaml(repo);
-    const directiveFiles = loadDirectives(repo);
-    const rolesYaml = loadRolesYaml(repo);
-    return assembleExecutionContext({
-      root: repo,
-      dna,
-      memoryYaml,
-      directiveFiles,
-      rolesYaml,
-      role,
-      element: { type: 'task', id: elementId },
-    });
+    return assembleFrom(repo, role, 'task', elementId);
   }
 
   it('exposes distinct, individually addressable `dna`, `memory`, and `directives` sections', () => {
@@ -305,5 +329,75 @@ describe('assembleExecutionContext — distinct addressable dna/memory/directive
     // visited *before* the target aborts assembly (`task-100-*` sorts ahead of `task-101-alpha`).
     writeFixtureFile(repo, 'docs/04_memory/v0.1/task-100-broken.md', '---\nid: "task-100-broken\n---\n\nbody\n');
     expect(() => assemble('developer', 'task-101-alpha')).toThrow(ValidationError);
+  });
+});
+
+/**
+ * `task-069` / `bug-010-deprecated-reaches-agent-context` — REQ-STATE-06 as amended by
+ * `dl-028-archived-states-excluded-from-context`: "A `deprecated` or `superseded` document never
+ * appears in an assembled agent context nor in default `memory search` results, while remaining
+ * present on disk and in git history." BDD `p1-memory/P1.9-memory-deprecate.feature`, Scenario
+ * "Deprecated documents are excluded from default agent context".
+ *
+ * The exclusion here is the **archived set only**. `src/core/relevance.ts` additionally excludes
+ * `draft` because spec-012 §6 filters *candidate* documents for relevance; this function resolves the
+ * **subject** element the context is assembled for (spec-012 §3's `resolve-element` stage), so
+ * excluding `draft` here would blank the context for the very element being worked on. dl-028 did not
+ * widen the archived set to include `draft`, and these tests pin that boundary from both sides.
+ */
+describe('assembleExecutionContext — archived elements never reach the context (REQ-STATE-06, dl-028)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureConfig(repo);
+    writeTask(repo, 'task-101-alpha', 'Alpha task');
+    writeTask(repo, 'task-105-gone', 'Deprecated task', 'deprecated');
+    writeTask(repo, 'task-106-early', 'Draft task', 'draft');
+    writeAdr(repo, 'adr-001-live', 'Accepted decision', 'accepted');
+    writeAdr(repo, 'adr-002-old', 'Superseded decision', 'superseded');
+  });
+
+  afterEach(() => {
+    removeTempDir(repo);
+  });
+
+  function assemble(role: string, type: string, elementId: string) {
+    return assembleFrom(repo, role, type, elementId);
+  }
+
+  it('AC1 — a `deprecated` element yields an empty `memory` section', () => {
+    expect(assemble('developer', 'task', 'task-105-gone').memory).toEqual([]);
+  });
+
+  it('AC2 — a `superseded` element yields an empty `memory` section too, not only `deprecated`', () => {
+    expect(assemble('developer', 'adr', 'adr-002-old').memory).toEqual([]);
+  });
+
+  it('AC2 — a non-archived element of the same type is unaffected', () => {
+    const context = assemble('developer', 'adr', 'adr-001-live');
+    expect(context.memory.map((doc) => doc.frontmatter.id)).toEqual(['adr-001-live']);
+  });
+
+  it('AC3 — a `draft` subject element still assembles: `draft` is not archived (dl-028)', () => {
+    const context = assemble('developer', 'task', 'task-106-early');
+    expect(context.memory.map((doc) => doc.frontmatter.id)).toEqual(['task-106-early']);
+  });
+
+  it('only `memory` is affected — `dna`, `directives` and `warnings` are identical to a live element', () => {
+    const archived = assemble('developer', 'task', 'task-105-gone');
+    const live = assemble('developer', 'task', 'task-101-alpha');
+    expect(archived.directives).toEqual(live.directives);
+    expect(archived.warnings).toEqual([]);
+    expect(archived.dna).toEqual(live.dna);
+  });
+
+  it('the archived element remains on disk — excluded from the context, never deleted', () => {
+    expect(existsSync(join(repo, 'docs/04_memory/v0.1/task-105-gone.md'))).toBe(true);
+    expect(existsSync(join(repo, 'docs/04_memory/design/adrs/adr-002-old.md'))).toBe(true);
+  });
+
+  it('is deterministic: assembling an archived element twice yields deep-equal output (REQ-SYS-07)', () => {
+    expect(assemble('developer', 'task', 'task-105-gone')).toEqual(assemble('developer', 'task', 'task-105-gone'));
   });
 });
