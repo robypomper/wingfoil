@@ -17,12 +17,19 @@
  * spec-005/008) without touching the project's Jest/tsconfig setup: a *dynamic* `import('commander')`
  * here, inside an async function. Dynamic `import()` is never downleveled by `tsc` regardless of
  * module target, so it does not trigger TS1479, and it resolves correctly at real `node`/`wingfoil`
- * runtime (Node 22's ESM-aware module loader). It is simply never exercised by an automated test in
- * this task — any test importing this file would still hit the same Jest-runtime wall — so this
- * file's own wiring (a handful of mechanical lines: construct global flags, register a noun/verb
- * `Command` per `CliCommand`, forward to `command.run`) is verified manually, not by `npx jest`.
- * `buildCliCommands`/`listRegisteredCliCommands` (`./registrar.ts`) carry 100% of the AC-relevant,
- * unit-tested behavior; this file adds no logic of its own beyond Commander's own API calls.
+ * runtime (Node 22's ESM-aware module loader).
+ *
+ * TESTING (task-065-fix-commander-esm-jest-harness, `bug-007-commander-esm-jest-untestable`): this
+ * file's wiring — construct the global flags, register a noun/verb `Command` per `CliCommand`,
+ * forward to `command.run` — used to be verified by hand, because a test importing it hit that same
+ * Jest-runtime wall (`module: Node16` *preserves* the dynamic `import()`, and jest's CommonJS runtime
+ * has no dynamic-import callback). It is now covered two ways, with no change to this file: in-process
+ * by `test/cli/program.test.ts` — jest compiles the test runtime as CommonJS against
+ * `tsconfig.test.json` and transforms `commander`'s ESM on the way in, see `jest.config.js` — and
+ * black-box by `test/cli/program.integration.test.ts`, which spawns the compiled `dist/` and so
+ * exercises the real ESM `import()` this file actually ships with.
+ * `buildCliCommands`/`listRegisteredCliCommands` (`./registrar.ts`) still carry 100% of the
+ * AC-relevant behavior; this file adds no logic of its own beyond Commander's own API calls.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

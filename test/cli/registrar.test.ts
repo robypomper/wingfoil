@@ -3,10 +3,10 @@
  * `wingfoil <noun> <verb>` command descriptor per operation from a `CoreModule[]` registry
  * (spec-006 §2/§4, spec-005 exit-code/format/error contract, spec-008 grammar). No business logic
  * here beyond dispatch: these tests only exercise parse-format -> call-core-fn -> render-CoreResult,
- * never a real domain operation. (See `src/cli/program.ts` for why the actual `commander` wiring —
- * a thin, mechanical pass-through over this exact model — is not itself covered by an automated
- * test in this task: `commander` v15 is ESM-only and cannot be loaded under this project's current
- * Jest configuration.)
+ * never a real domain operation. The actual `commander` wiring over this model — a thin, mechanical
+ * pass-through — is covered by `./program.test.ts` (in-process: task-065-fix-commander-esm-jest-harness
+ * lifted the ESM barrier `bug-007` describes) and by `./program.integration.test.ts` (out-of-process,
+ * against the compiled `dist/`).
  */
 import type { CoreModule } from '../../src/core/registry';
 import { coreErr, coreOk } from '../../src/core/types';
