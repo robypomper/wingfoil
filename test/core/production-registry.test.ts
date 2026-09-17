@@ -21,6 +21,7 @@ describe('CORE_MODULES — production registry', () => {
       // `CoreModule.name` IS the `wingfoil <noun>` segment and both the P3.1 BDD and spec-006 §3's
       // own CLI/MCP columns spell that noun `directive create` — while P3.4's list command keeps the
       // plural `directives list`. See task-050's Execution Notes (design decision D1).
+      'directive.directiveAssign',
       'directive.directiveCreate',
       'directives.directivesList',
       'dna.dnaSet',
@@ -33,9 +34,10 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('three operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
+  it('four operations mutate today — `directive.directiveAssign` (P3.2), `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
+      'directive.directiveAssign',
       'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
