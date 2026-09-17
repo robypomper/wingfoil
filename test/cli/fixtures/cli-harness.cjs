@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 /**
  * Out-of-process spawn harness for `test/cli/program.integration.test.ts` (see that file's header
- * comment for the full rationale). `src/cli/program.ts`'s `buildProgram` cannot be imported from a
- * Jest test file: it does a dynamic `import('commander')`, and `commander` v15 is ESM-only, which
- * `ts-jest`'s CommonJS test runtime cannot load (this predates this test — see `program.ts`'s own
- * module doc). It works fine under a real, compiled Node process, so this harness is the bridge:
- * it requires the COMPILED `dist/cli/program.js` (built via `npx tsc -p tsconfig.build.json`,
- * CommonJS output — confirmed by inspecting `dist/cli/program.js`) and drives it exactly the way a
- * real `bin/wingfoil` entrypoint would, so it can be spawned as a subprocess and its real exit code
- * / stdout / stderr observed from the test.
+ * comment for the full rationale). The point of spawning is to run the CLI the way a user does:
+ * this harness requires the COMPILED `dist/cli/program.js` (built once by jest's `globalSetup` via
+ * `npx tsc -p tsconfig.build.json`, CommonJS output that loads the **real ESM `commander`** through
+ * the dynamic `import()` the published CLI ships with) and drives it exactly the way the real
+ * `bin/wingfoil` entrypoint would, so its real exit code / stdout / stderr can be observed from the
+ * test.
+ *
+ * It originally existed because `buildProgram` could not be imported from a Jest test file at all
+ * (`commander` v15 is ESM-only and the CommonJS Jest runtime could not load it — `bug-007`). That
+ * barrier is gone since task-065-fix-commander-esm-jest-harness, and `test/cli/program.test.ts` now
+ * drives `buildProgram` in-process; this harness is still the only path that exercises the compiled
+ * artifact and the untranspiled ESM dependency, so it stays.
  *
  * Usage: node cli-harness.cjs <distDir> <fixtureRoot> <cli-args...>
  *   distDir     - absolute path to the compiled `dist/` directory

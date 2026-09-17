@@ -23,6 +23,8 @@
  * Nothing here spawns a process and nothing reads the wall clock
  * (`test/core/latency-budget-placement.test.ts` / bug-011).
  */
+import { join, resolve } from 'path';
+
 import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
 import { CORE_MODULES } from '../../src/core';
@@ -37,8 +39,14 @@ let stderrSpy: jest.SpyInstance;
 
 /** Load `src/cli.ts` fresh (its work happens in the module body) and let its promise chain settle. */
 async function runEntrypoint(): Promise<void> {
-  await jest.isolateModulesAsync(async () => {
-    await import('../../src/cli');
+  jest.isolateModules(() => {
+    // A runtime `require`, not a static/dynamic `import`, on purpose: the entrypoint must be
+    // (re-)executed inside `isolateModules`'s fresh registry on every call — a static import would
+    // run it once at suite load, and a dynamic `import()` of a relative path fails `tsc --noEmit`
+    // under the project's `moduleResolution: Node16` (TS2835 wants a `.js` specifier, which jest's
+    // resolver would then not find).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('../../src/cli');
   });
   // One macrotask turn is enough for the module body's `.then`/`.catch` to run: every promise in the
   // chain is already resolved or rejected by construction here (no timers, no I/O, no wall clock).
@@ -91,6 +99,23 @@ describe('src/cli.ts — the `wingfoil` bin entrypoint', () => {
     // Registration must not resolve the git root: `resolveRoot` is called lazily, once per dispatched
     // command, inside `registrar.ts`'s `run` (spec-005 §1 / spec-008 §1, bug-001).
     expect(typeof optionsPassedToBuildProgram().resolveRoot).toBe('function');
+  });
+
+  it('resolves the project root from the CWD *at call time*, via git-root detection (spec-011)', async () => {
+    jest.mocked(buildProgram).mockResolvedValue({ parseAsync: jest.fn(async () => ({}) as Command) } as unknown as Command);
+
+    await runEntrypoint();
+
+    // `resolveProjectRoot` is pure filesystem walking (`existsSync` for a `.git` entry — a file in a
+    // worktree, a directory in a normal clone), so pointing `process.cwd()` at this repository root
+    // makes the assertion deterministic and spawns nothing.
+    const repoRoot = resolve(join(__dirname, '..', '..'));
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(repoRoot);
+    try {
+      expect(optionsPassedToBuildProgram().resolveRoot()).toBe(repoRoot);
+    } finally {
+      cwdSpy.mockRestore();
+    }
   });
 
   it('passes a `buildParams` producing the exact shape `test/cli/fixtures/cli-harness.cjs` mirrors', async () => {

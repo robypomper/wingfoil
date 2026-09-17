@@ -303,6 +303,21 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it('`init` stringifies a non-Error thrown by `resolveRoot` rather than printing `undefined`', async () => {
+    const program = await buildProgram(FIXTURE_MODULES, {
+      resolveRoot: () => {
+        // Deliberately not an `Error`: this is the `String(error)` branch of the init action's handler.
+        throw 'not an Error instance';
+      },
+      buildParams: (ctx) => ({ root: ctx.root }),
+    });
+    program.exitOverride();
+    await program.parseAsync(['node', 'wingfoil', 'init']);
+
+    expect(written(stderrSpy)).toBe('error: not an Error instance\n');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it('`mcp` drives `runMcp` with the package version and the validated ambient format', async () => {
     const program = await buildFixtureProgram();
     await program.parseAsync(['node', 'wingfoil', 'mcp', '--format', 'yaml']);

@@ -1,14 +1,21 @@
 /**
  * Integration smoke test for `src/cli/program.ts` — the real `commander` wiring — following up on
- * task-006-dual-interface-shared-core. `program.ts`'s own module doc explains why no automated test
- * can import it directly: `commander` v15 is ESM-only, and this project's `ts-jest` test runtime is
+ * task-006-dual-interface-shared-core. When this suite was written, no automated test could import
+ * `program.ts` directly: `commander` v15 is ESM-only, and this project's `ts-jest` test runtime is
  * CommonJS, so a static `require()`/`import` of anything that transitively pulls in `commander`
- * crashes at Jest-test runtime even though the exact same code works under real Node (which supports
+ * crashed at Jest-test runtime even though the exact same code works under real Node (which supports
  * `import(ESM)` from a CJS module, i.e. the `await import('commander')` inside `buildProgram`).
  * `test/cli/registrar.test.ts` already covers 100% of the AC-relevant dispatch behavior
  * (Commander-independent); what was NOT covered by any automated test was `program.ts`'s own thin
  * mechanical wiring — registering global flags, deriving one `Command` per `{noun, verb}`, forwarding
  * to `command.run` — the exact thing task-006's reviewer verified by hand instead of by test.
+ *
+ * task-065-fix-commander-esm-jest-harness (`bug-007`) has since lifted that barrier for the
+ * *white-box* half: `./program.test.ts` drives `buildProgram` in-process against a synthetic
+ * registry, because jest now compiles the test runtime as CommonJS and transforms `commander`'s ESM
+ * on the way in (`jest.config.js` / `tsconfig.test.json`). This suite is unchanged and remains the
+ * only place the **real ESM `commander`** inside the **real compiled `dist/`** is exercised, against
+ * the production `CORE_MODULES` — complementary to that suite, not redundant with it.
  *
  * The fix here is compile-then-spawn, not import-then-call: the compiled `dist/` (CommonJS output —
  * confirmed by inspecting `dist/cli/program.js`) is built once by jest's `globalSetup`
