@@ -2,14 +2,13 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.5"
 bug: ""
 depends_on: []
-rejection_reason: "P3.5 scenarios 2 and 3 are asserted as already covered elsewhere and neither is: the cited git-backed-storage test creates a new file rather than editing a tracked one, and no test in the suite reads prior content (zero HEAD~/HEAD^ occurrences), so scenario 2's 'previous version is retrievable from history' clause is uncovered; scenario 3's exact message exists only in the feature file (zero occurrences in src/ and test/). task-054 is the only element carrying ref: P3.5, so nothing else schedules these clauses. Separately, the refactor introduced a false claim that scaffoldFiles() is path-sorted. The P3.5 scenario-1 and bug-018 code is correct and needs no change."
 tmpl_version: 260703
 ---
 
@@ -422,3 +421,51 @@ right and only the prose was wrong.
 in `docs/02_requirements/03_sard/05_security-compliance.md` to say *schema-checked* — remains
 **undone**. It is dl-031's follow-up, not this task's, and nothing here should be read as claiming
 otherwise.
+
+### review (second pass) — developer
+
+All five `refactor` gates re-run in this worktree at the submit commit:
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **75 suites / 979 tests passed**, 0 failed |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **global 98.11% stmts / 89.70% branch / 98.33% funcs / 98.85% lines** |
+| `docs.api.build` + `public-complete` | `npm run docs:api` | exit **0** |
+| (build typecheck) | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (`dl-034`) | `npx eslint .` | exit **0** |
+
+**978 → 979, +1, and the delta is its own consistency check.** The one new test went into an
+*existing* file, so — unlike the first pass — `test/core/latency-budget-placement.test.ts` did **not**
+move (still 79): its `it.each` enumerates files under `test/`, not tests. `test/storage/git-backed-storage.test.ts`
+went 5 → 6. No other suite changed.
+
+Per-file coverage for the touched files is unchanged from the first pass: `src/storage/layout.ts`
+**100 / 100 / 100 / 100**; `src/core/builtin-integrity.ts` **100 / 100 / 100 / 100**;
+`src/storage/templates.ts` **100 / 95 / 100 / 100**; `src/core/init.ts` **93.18 / 95 / 100 / 95.23**.
+Two line numbers shifted because comments grew — `templates.ts`'s uncovered branch is now reported at
+**459** (was 457) and is still the same line, `files.sort((a, b) => …)`'s equal-paths arm; `init.ts`'s
+117 and 192 are unmoved and are still the two pre-existing `catch → coreErr({code: 'IO'})` arms. This
+pass changed no production behaviour, so no coverage number moved.
+
+**Files changed across BOTH passes, in full:**
+
+| File | Change |
+|---|---|
+| `src/storage/layout.ts` | behaviour (pass 1: the split) + comments (pass 2: order wording) |
+| `src/core/init.ts` | behaviour (pass 1: guard 3 + override) |
+| `src/storage/templates.ts` | comments only (both passes) |
+| `src/core/builtin-integrity.ts` | comments only (pass 1) |
+| `test/core/project-directives.test.ts` | new (pass 1) |
+| `test/storage/builtin-template-sources.test.ts` | one added case (pass 1) |
+| `test/storage/git-backed-storage.test.ts` | one added `describe` (pass 2) |
+| `docs/self/docs/04_memory/bugs/bug-025-…md` | new element (pass 2) |
+
+Still untouched: `src/directives/`, `src/core/index.ts`, `package.json`, `jest.config.js`. No merge
+run; worktree and branch left in place.
+
+**Open items this task hands on, as elements rather than prose:**
+
+- `bug-018-init-storage-bypasses-integrity-guard` — closed in code here, still `triaged`; closed by
+  hand (no `bug:` back-reference, so `bug.sync_state` is a no-op).
+- `bug-025-directive-validation-message-not-emitted` — `open`, filed in this pass, unscheduled.
+- `dl-031`'s REQ-SEC-10 title/Description amendment — dl-031's, not this task's.
