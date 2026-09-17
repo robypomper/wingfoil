@@ -333,7 +333,38 @@ the `directives` module block was reordered or reformatted (`task-050-directive-
 `src/storage/layout.ts` (`task-054`), `package.json` and `jest.config.js` (`task-065`) were not
 touched.
 
-**Left for someone else — please convert rather than leave in these notes:**
+**Left for someone else — CONVERTED, each item below now resolves to an element id.** Filed after
+the independent review, per the project rule that a finding must not survive as prose in a `done`
+task's notes:
+
+| item below | element |
+|---|---|
+| 1, 2, 3 (output shape, type filters, `console` table) | `dl-042-directives-list-output-contract` (1, 2) and `dl-043-console-format-human-rendering` (3 — it is cross-cutting, not this command's: `renderSuccess` falls back to JSON for *every* read-only command, against `spec-008` §2) |
+| 4 (dl-037 precedence + shadow warning) | already `dl-037` + `task-055`; **plus** `dl-042` question A, on whether this listing should *mark* a shadowed pair rather than leave the user to infer it from `path` |
+| 5 (MCP loses `--role`) | `dl-040`, amended to name this as its third occurrence — and to record that it is a *capability gap*, not a URI divergence |
+
+**One correction to the reasoning below, from the review — the citations are weaker than item 4 and
+the SHADOWED FILES note claim.** `spec-012` §5 and `dl-037` B.1 are scoped to the `directive-loader`
+inside **context assembly** (dl-037's Actions assign the work to `task-055` and `src/core/context.ts`),
+so they neither require nor forbid what `directives list` does. The decision to list every file on
+disk is still right, but its authority is **P3.4's own scenarios**, which count *files installed*
+("the 6 built-in directives **and** `no-direct-db-access`"; "exactly the 6 built-in directives"),
+never ids resolved.
+
+**And one gap this task did not record.** `dl-029`'s ratified outcome is option **(c)**, the hybrid:
+globals always **plus** the warning `no directives assigned to role '<role>'`. That warning is
+implemented in the sibling path (`src/core/context.ts:98-101`). `directives list --role ghost` returns
+the globals **silently**, reproducing exactly the harm dl-029's rationale names — a role never bound
+is indistinguishable from one deliberately bound to globals only. dl-029 was cited here for half its
+decision. The other half is `dl-042` question D; adding a `warnings` channel to a bare
+`DirectiveListEntry[]` is a shape decision correctly outside this task.
+
+Separately, `bug-024-commander-parse-errors-exit-1` was filed from this review: `directives list
+--role` (value missing) and `--rol x` (unknown option) exit **1** where `spec-008` and REQ-INT-04
+require **2**. Pre-existing and identical on `memory search --tag`, so not introduced here.
+
+Original list, kept for context:
+
 
 1. **No approved tech-spec covers this command's output shape.** The added fields are grounded in
    `spec-012` §5 and the BDD's own wording, and the pre-existing `path`/`frontmatter` pair is
