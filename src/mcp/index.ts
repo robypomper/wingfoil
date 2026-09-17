@@ -53,9 +53,9 @@ export {
 
 // task-039-mcp-prompts-role-based-infra adds the spec-004 §3 Prompts channel (REQ-INT-02): one
 // `{role}-session` prompt per `dna.yaml` role, embedding that role's directives, resolved per
-// request. Exported but deliberately NOT folded into `registerReadOnlyResources` below (that call is
-// spec-004 §2's Resources bundle) and not wired into `createMcpServer` — spec-014 §3 assigns the
-// entry-point wiring to P5.2.2 / `task-058-mcp-prompts-role-based`. See `./prompt.ts`.
+// request. Deliberately NOT folded into `registerReadOnlyResources` below (that call is spec-004 §2's
+// Resources bundle); `createMcpServer` registers it alongside that bundle since
+// `task-058-mcp-prompts-role-based` (P5.2.2, spec-014 §3). See `./prompt.ts`.
 export { registerRolePrompts, roleSessionPromptName } from './prompt';
 export type { RegisterRolePromptsOptions } from './prompt';
 
@@ -84,7 +84,7 @@ export function registerReadOnlyResources(server: McpServer, options: RegisterRe
 }
 
 // The production stdio entry point (task-030-implement-mcp-resources, spec-014-mcp-server-entry-point):
-// `createMcpServer` builds a real `McpServer` with the v0.1 read-only Resources channel above wired on,
+// `createMcpServer` builds a real `McpServer` with the read-only Resources and Prompts channels above wired on,
 // `startMcpServer` connects it over `StdioServerTransport`. Exported here so the `bin`/`wingfoil mcp`
 // seam imports the whole `src/mcp` surface from one module.
 export { createMcpServer, startMcpServer } from './server';

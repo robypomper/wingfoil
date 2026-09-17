@@ -99,9 +99,9 @@ describe('builtinTemplateSources — derives the checked set from the scaffold (
 
 /**
  * The coupling property itself: NOTHING the scaffold installs under a built-in directory may be
- * invisible to `verifyBuiltinTemplates`. Vacuously true today (the scaffold reserves both directories
- * with a `.gitkeep` only) and the reason it must be asserted as a PROPERTY rather than a fixed list —
- * it starts biting the moment `task-057` or a P4.17 task adds real content, and it fails immediately
+ * invisible to `verifyBuiltinTemplates`. Non-vacuous since `task-057` installed the six P3.8 built-in
+ * directives, and asserted as a PROPERTY rather than a fixed list so it keeps biting when a P4.17 task
+ * adds workflow content, and fails immediately
  * if anyone widens the derivation's skip rule beyond dotfiles.
  */
 describe('builtinTemplateSources — total coverage of the real scaffold', () => {

@@ -13,8 +13,9 @@
  * needs the type's registered machine (loaded from `memory.yaml`) plus the document's own `status`
  * field — neither is decidable from the document's frontmatter schema alone, matching spec-009's own
  * worked example ("`wingfoil.status` must be a member of that type's `states.values`"). An illegal
- * transition throws the shared `ValidationError` via `ValidationError.semantic(...)` (exit code 2,
- * spec-009 §3) and — critically — throws *before* returning any target, so a caller can never reach
+ * transition throws the shared `ValidationError` (exit code `1` — a business-rule failure, not an
+ * integrity one, per spec-009 §3 as rewritten under `dl-032-illegal-transition-message-contract`)
+ * and — critically — throws *before* returning any target, so a caller can never reach
  * the frontmatter-write step on an illegal transition (REQ-STATE-01: rejected before any file write).
  * This module never touches a document or the filesystem itself; it is a pure function of
  * (`machine`, `currentState`, `op`) → target-or-throw, and it is the caller's job to gate any actual
@@ -149,9 +150,14 @@ export function resolveStateMachine(memoryYaml: MemoryYaml, typeName: string): S
   return resolved;
 }
 
-/** Build one `E_INVALID_TRANSITION` `ValidationError` (Pass 2, spec-009 §3 — exits 2) and throw it. */
+/**
+ * Build one `E_INVALID_TRANSITION` `ValidationError` and throw it. Exits `1`: an illegal transition is
+ * understood input that a rule refused, not a parse/integrity failure (spec-009 §3, `dl-032`) — so the
+ * plain constructor, not `ValidationError.semantic(...)`. The message here is the type-agnostic
+ * diagnostic; {@link resolveTypeTransition} turns it into the pinned contract message.
+ */
 function illegal(currentState: string, op: TransitionOp, message: string, filePath: string): never {
-  throw ValidationError.semantic([
+  throw new ValidationError([
     {
       code: E_INVALID_TRANSITION,
       path: 'status',
@@ -237,6 +243,75 @@ export function resolveTransitionTarget(
   }
 }
 
+/** What the contract message prints for `<to>` when a verb has no legal edge anywhere in the machine. */
+const NO_TARGET = '(none)';
+
+/**
+ * The `<to>` of the illegal-transition contract message: the verb's **canonical edge** for this type —
+ * the target `op` reaches from the first state, in `sequence` order, from which `op` is legal (for
+ * `submit` on `task` or on the default machine: `pending`; on `release`: `planning`). A verb names no
+ * target of its own, so the message needs a rule; this one reproduces the string BDD `P1.6` sc.2 and
+ * `P5.2.3` sc.2 pin (`approved -> pending` for `task`) on both the default machine and the real `task`
+ * machine, where the literal forward edge out of `approved` is `done`. Two refinements keep the message
+ * honest: when that canonical target IS `currentState` it would print a self-loop, so the next state in
+ * `sequence` is named instead; when the machine has no legal edge for `op` at all, `(none)`.
+ * A pure function of `(machine, currentState, op)` walked in `sequence` order (REQ-SYS-07).
+ */
+function contractTarget(machine: StateMachine, currentState: string, op: TransitionOp): string {
+  let canonical: string | undefined;
+  for (const state of machine.sequence) {
+    try {
+      canonical = resolveTransitionTarget(machine, state, op);
+      break;
+    } catch {
+      // not legal from this state — keep walking the chain
+    }
+  }
+  if (canonical !== currentState) return canonical ?? NO_TARGET;
+  const index = machine.sequence.indexOf(currentState);
+  return machine.sequence[index + 1] ?? NO_TARGET;
+}
+
+/**
+ * Resolve the legal target of verb `op` for a document of type `typeName` currently in `currentState`
+ * — the entry point every Memory transition verb (`submit`, and `approve`/`reject`/`deprecate` after
+ * it) uses. It resolves the type's machine ({@link resolveStateMachine}, REQ-STATE-08) and delegates
+ * legality to {@link resolveTransitionTarget}, adding only the user-facing contract:
+ *
+ * An illegal transition is rethrown as the `E_INVALID_TRANSITION` issue ratified by
+ * `dl-032-illegal-transition-message-contract` (option (c)) — `message` is the pinned
+ * `` illegal transition <from> -> <to> for type '<type>' `` (REQ-STATE-01 Fit Criterion; BDD `P1.6`
+ * sc.2, `P5.2.3` sc.2), `detail` carries the engine's explanation of *why* the edge is illegal, and the
+ * exit code is `1`. `<to>` is computed by {@link contractTarget}.
+ *
+ * @throws {@link ../validation.ValidationError} `E_INVALID_TRANSITION` (exit `1`) as above.
+ * @throws `Error` when `typeName` is not registered or no machine applies (see {@link resolveStateMachine}).
+ */
+export function resolveTypeTransition(
+  memoryYaml: MemoryYaml,
+  typeName: string,
+  currentState: string,
+  op: TransitionOp,
+  filePath = '',
+): string {
+  const machine = resolveStateMachine(memoryYaml, typeName);
+  try {
+    return resolveTransitionTarget(machine, currentState, op, filePath);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    const detail = error.issues.map((issue) => issue.message).join('; ');
+    throw new ValidationError([
+      {
+        code: E_INVALID_TRANSITION,
+        path: 'status',
+        file: filePath,
+        message: `illegal transition ${currentState} -> ${contractTarget(machine, currentState, op)} for type '${typeName}'`,
+        detail,
+      },
+    ]);
+  }
+}
+
 /**
  * True when `status` is a state a document of this type may legitimately carry — the **full**
  * reachable state set of `machine`, which is the union of three sources:
@@ -299,8 +374,7 @@ function isDeclaredState(machine: StateMachine, status: string): boolean {
  *   which hard-codes `2` for the genuine integrity checks (`loaders`, `id`, `query`). No BDD scenario
  *   pins an exit code for this message — `P4.11` sc.3 and `P4.13` sc.3 pin the text only — so the spec
  *   rule governs unopposed. (The separate `E_INVALID_TRANSITION` message/exit-code realignment that
- *   `dl-032` ratified is **not** done here: `P1.6-memory-submit.feature` is
- *   `task-045-memory-submit`'s acceptance contract and that change belongs to it.)
+ *   `dl-032` ratified lives in {@link resolveTypeTransition}, added by `task-045-memory-submit`.)
  *
  *   `filePath` is only used to enrich the thrown error's `file` field (optional — defaults to `''`
  *   when no document is on hand, e.g. in pure unit tests), mirroring {@link resolveTransitionTarget}'s

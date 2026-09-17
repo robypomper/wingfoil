@@ -73,7 +73,15 @@ describe('templateScaffold — complete spec-011 layout (P5.1.1 AC (a))', () => 
 
   it('creates the directives built-in/custom split (spec-011)', () => {
     const paths = pathsOf(templateScaffold(scrum));
-    expect(paths).toContain('.wingfoil/directives/built-in/.gitkeep');
+    // task-057: built-in/ holds the six P3.8 templates, so it needs no `.gitkeep` placeholder any more.
+    expect(paths.filter((p) => p.startsWith('.wingfoil/directives/built-in/'))).toEqual([
+      '.wingfoil/directives/built-in/architecture.md',
+      '.wingfoil/directives/built-in/code-quality.md',
+      '.wingfoil/directives/built-in/code-review.md',
+      '.wingfoil/directives/built-in/documentation.md',
+      '.wingfoil/directives/built-in/security.md',
+      '.wingfoil/directives/built-in/testing.md',
+    ]);
     expect(paths.some((p) => p.startsWith('.wingfoil/directives/custom/') && p.endsWith('.md'))).toBe(true);
   });
 

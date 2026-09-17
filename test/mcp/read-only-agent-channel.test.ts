@@ -5,15 +5,21 @@
  * The channel-enumeration guarantee: across the agent-facing MCP surface, **Tools are the only channel
  * a state mutation is registered under** (`src/mcp/registrar.ts` — a `mutates: true` op can only be a
  * Tool, a `mutates: false` op only a Resource), the Resources channel refuses every write and persists
- * nothing (task-011), and there is no mutation-capable Prompts channel. The structural mechanisms
- * already exist (task-006 registrar + task-011 resources); this suite asserts the REQ-SEC-05 property
+ * nothing (task-011), and the Prompts channel the production server advertises (task-058, P5.2.2)
+ * registers no Tool and persists nothing across a `prompts/list` + `prompts/get` round trip. The
+ * structural mechanisms already exist (task-006 registrar + task-011 resources + task-039/058 prompts);
+ * this suite asserts the REQ-SEC-05 property
  * end-to-end over a real MCP `Client`. The remaining AC case — a *mutating* Tool call rejected on an
  * illegal state-machine transition, identical to the CLI — awaits a real mutating operation (task-018+;
  * `CORE_MODULES` is read-only today); the registrar's `isError` error-parity mechanism it depends on is
  * proven here with a synthetic op. See this task's Execution Notes.
  */
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+
 import { coreErr, coreOk, CORE_MODULES, type CoreModule, type CoreResult } from '../../src/core';
 import { WRITE_REFUSAL_MESSAGE } from '../../src/mcp';
+import { createMcpServer } from '../../src/mcp/server';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 import {
@@ -72,25 +78,96 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, dna.set, memory.add — task-051/050/025/020)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes `directive.assign` + `directive.create` + `dna.set` + `memory.add` — the mutating ops', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, dna.set, memory.add, memory.submit — task-051/050/025/020/045)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes `directive.assign` + `directive.create` + `dna.set` + `memory.add` + `memory.submit` — the mutating ops', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
-    // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`) + task-050
-    // (`directive.directiveCreate`) + task-051 (`directive.directiveAssign`) are the mutating core ops, so they — and only they — are
+    // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`), task-050
+    // (`directive.directiveCreate`), task-051 (`directive.directiveAssign`) + task-045
+    // (`memory.memorySubmit`) are the mutating core ops, so they — and only they — are
     // registered under Tools. task-021's `memory.memorySearch` is `mutates: false` (a read, per
     // spec-006 §3), so it registers as a Resource, not a Tool, and does not widen this list.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['directiveAssign', 'directiveCreate', 'dnaSet', 'memoryAdd']);
+    expect(mutatingOps.map((op) => op.name).sort()).toEqual([
+      'directiveAssign',
+      'directiveCreate',
+      'dnaSet',
+      'memoryAdd',
+      'memorySubmit',
+    ]);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.assign', 'directive.create', 'dna.set', 'memory.add']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'directive.assign',
+      'directive.create',
+      'dna.set',
+      'memory.add',
+      'memory.submit',
+    ]);
   });
 
-  it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {
-    const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
-    expect(client.getServerCapabilities()?.prompts).toBeUndefined();
+});
+
+describe('REQ-SEC-05 — the shipped production surface: Prompts advertised, no Tools, nothing persisted (task-058)', () => {
+  const PROMPT_FIXTURE_FILES = ['.wingfoil/dna.yaml', '.wingfoil/roles.yaml', '.wingfoil/directives/custom/testing.md'];
+  let root: string;
+
+  beforeAll(() => {
+    root = makeTempGitRepo();
+    writeFixtureFile(
+      root,
+      '.wingfoil/dna.yaml',
+      [
+        'version: 1.1',
+        'project:',
+        '  name: "Fx"',
+        'modules:',
+        '  - name: core',
+        '    path: src/core',
+        'stacks:',
+        '  technologies:',
+        '    - name: TypeScript',
+        '      category: language',
+        'team:',
+        '  members:',
+        '    - name: Test User',
+        '      roles: [ developer ]',
+        '  roles:',
+        '    - name: developer',
+        'paths:',
+        '  sources: [ src/ ]',
+        '',
+      ].join('\n'),
+    );
+    writeFixtureFile(root, '.wingfoil/roles.yaml', 'version: 1.0\nassignments:\n  developer:\n    - testing\nglobal: []\n');
+    writeFixtureFile(
+      root,
+      '.wingfoil/directives/custom/testing.md',
+      ['---', 'id: testing', 'name: "Testing"', 'type: directive', 'kind: custom', 'title: "Testing"', '---', '', 'Write the failing test first.', ''].join('\n'),
+    );
+    commitAll(root, 'seed task-058 production-surface fixture');
+  });
+
+  afterAll(() => removeTempDir(root));
+
+  it('advertises Prompts but no Tools, and a prompts/list + prompts/get round trip leaves every file byte-for-byte unchanged', async () => {
+    const server = createMcpServer({ resolveRoot: () => root });
+    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'wingfoil-test-client', version: '0.0.0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    const caps = client.getServerCapabilities();
+    expect(caps?.prompts).toBeDefined();
+    expect(caps?.tools).toBeUndefined();
+    await expect(client.listTools()).rejects.toThrow(/method not found/i);
+
+    const snapshot = snapshotFiles(root, PROMPT_FIXTURE_FILES);
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((prompt) => prompt.name)).toEqual(['developer-session']);
+    const result = await client.getPrompt({ name: 'developer-session' });
+    expect(JSON.stringify(result.messages)).toContain('## Directive: testing');
+    assertFilesUnchanged(root, snapshot);
   });
 });
 

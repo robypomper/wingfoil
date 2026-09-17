@@ -17,17 +17,18 @@
  *    stdio channel: `server.connect(new StdioServerTransport())`. It is verified by hand / at runtime,
  *    never by an automated test (a test must never open a real stdio server against a repo).
  *
- * v0.1 channel scope (spec-014 §3): `createMcpServer` registers ONLY the read-only Resources channel
- * (`registerReadOnlyResources` — spec-004 §2). It deliberately does NOT call `registerCoreModules`,
- * which would advertise a mutating Tool for every `mutates: true` CoreOperation (as of task-025,
- * `dnaSet` -> the `dna.set` Tool) — Tools are P5.2.3 (v0.4) scope, out of scope for the P5.2.1
- * read-only skeleton. Prompts (P5.2.2, v0.2) and Tools (P5.2.3, v0.4) extend the channel set here
- * later; the entry point (`wingfoil mcp` + this transport wiring) is unchanged by those additions.
+ * Channel scope (spec-014 §3): `createMcpServer` registers the read-only Resources channel
+ * (`registerReadOnlyResources` — spec-004 §2, P5.2.1) and, since task-058-mcp-prompts-role-based
+ * (P5.2.2, v0.2), the read-only role Prompts channel (`registerRolePrompts` — spec-004 §3). It
+ * deliberately does NOT call `registerCoreModules`, which would advertise a mutating Tool for every
+ * `mutates: true` CoreOperation (as of task-025, `dnaSet` -> the `dna.set` Tool) — Tools are P5.2.3
+ * (v0.4) scope and will extend the channel set here later; the entry point (`wingfoil mcp` + this
+ * transport wiring) is unchanged by those additions.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { registerReadOnlyResources } from './index';
+import { registerReadOnlyResources, registerRolePrompts } from './index';
 
 /** Construction/connection options for the production MCP server. */
 export interface McpServerOptions {
@@ -44,9 +45,12 @@ export interface McpServerOptions {
 }
 
 /**
- * Construct the production `McpServer` and register the v0.1 read-only Resources channel on it
- * (spec-014 §3). Pure and synchronous — no transport, no stdio, no process side effects — so a test
- * can connect it over the SDK's in-memory transport and drive it with a real `Client`.
+ * Construct the production `McpServer` and register the read-only Resources and role Prompts channels
+ * on it (spec-014 §3). Pure and synchronous — no transport, no stdio, no filesystem read, no process
+ * side effects (spec-014 §2: "no I/O at construction time beyond wiring handlers"); every handler
+ * resolves the root and reads the project per request. So a test can connect it over the SDK's
+ * in-memory transport and drive it with a real `Client`, and `wingfoil mcp` never fails to start
+ * because of the project's content.
  */
 export function createMcpServer(options: McpServerOptions): McpServer {
   const server = new McpServer({
@@ -54,6 +58,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     version: options.version ?? '0.0.0',
   });
   registerReadOnlyResources(server, { resolveRoot: options.resolveRoot });
+  registerRolePrompts(server, { resolveRoot: options.resolveRoot });
   return server;
 }
 
