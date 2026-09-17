@@ -1,33 +1,77 @@
 ---
 id: "dl-058-directive-create-with-builtin-id"
 type: decision-log
-title: ""              # REQUIRED — e.g. "Retrospective v0.1" or "Use Jest for unit testing"
-status: draft          # auto-set by wingfoil
-context: ""            # optional — short label for the context, e.g. "retrospective", "planning", "ad-hoc"
-release: ""            # optional — implementation release this DL is assigned to (stamped at release-planning/build-backlog, dl-016), e.g. "v0.1"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "May `wingfoil directive create` take the id of a built-in directive? After task-057 it silently creates a shadowing override"
+status: in-discussion
+context: "dev-loop-review"
+release: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Context
 
-<!-- The situation or question that prompted this decision. -->
+`directive create`'s already-exists check looks **only** in `custom/`: `src/core/index.ts:701` on
+`main` (`8a6a091`) — `const relativePath = \`.wingfoil/directives/custom/${name}.md\``, then
+`documentExists(absolutePath)` → `CONFLICT` "directive already exists: <name>".
+
+**On `main` today** the check happens to cover the P3.8 ids, because `init` scaffolds all ten starter
+directives into `custom/`. Reproduced: fresh repository, `wingfoil init --template Scrum` →
+`.wingfoil/directives/built-in/` empty, `custom/` holds `architecture, code-quality, code-review,
+determinism, doc-versioning, documentation, security, security-secrets, testing, traceability`; then
+`wingfoil directive create --name code-quality` → `error: directive already exists: code-quality`,
+exit 1.
+
+**After `task-057-builtin-directive-templates`** (branch, `9b77243`, not merged) the six P3.8 templates
+(`architecture, code-quality, code-review, documentation, security, testing`) are installed into
+`built-in/` instead, and `src/core/index.ts:701` is unchanged (same line on `9b77243`). The task records
+the consequence (`git show 9b77243:docs/self/docs/04_memory/v0.2/task-057-builtin-directive-templates.md`,
+lines 191-195): `directive create --name code-quality` "now SUCCEEDS and creates a `custom/` override of
+the built-in, which `directives list` reports as a shadow … no element ratifies whether `directive
+create` should accept a built-in id". The task changed the collision test to use `determinism`, still a
+`custom/` starter (`test/core/directive-create.test.ts`, AC2).
+
+What the authorities say:
+
+- **BDD P3.1** (`P3.1-directive-create.feature`), error scenario: "Given a **custom** directive
+  `no-direct-db-access` already exists … exits with code 1 and message `directive already exists: …`" —
+  silent about built-ins.
+- **`dl-037`** (`ready`) / `spec-012` §5: when two directives share an id, `custom/` wins over
+  `built-in/`, and the shadow is reported as a warning — so a `custom/` override of a built-in is a
+  supported configuration.
+- **REQ-SEC-07** protects built-ins against **removal** ("built-in … cannot be removed"), not against
+  being overridden.
 
 ## Decision
 
-<!-- What was decided. State it directly, in the present tense.
-     Do NOT mark the body as unratified (no "proposed, not yet ratified" preamble): `status:` already
-     says whether the decision is `in-discussion` or `ready`, and a body marker cannot be corrected by
-     `memory.approve`, which per CLAUDE.md §5.1 may change only `status`. The result is a `ready`
-     document that goes on declaring itself unratified — this had accumulated across 16 decision-logs
-     before the convention was adopted. Where options are still open, present them as options; the
-     approver's choice is recorded in the approve commit's `Reason:`. -->
+*Approver to choose.*
+
+1. **Allow it, and say so** (recommended): `directive create --name <built-in id>` creates the `custom/`
+   override. Make the command's success output mention that it now shadows the built-in (the same fact
+   `directives list` already reports), and add a P3.1 scenario pinning it. Matches `dl-037`'s override
+   model and what `task-057` ships; the only change beyond ratification is the
+   output hint.
+2. **Refuse it**: extend the existence check to `built-in/` with a distinct message (e.g. `directive
+   '<id>' is built-in; edit a copy instead` or a `--override` flag to allow it). Protects users from
+   shadowing a baseline rule by accident; overriding still possible by hand.
+3. **Allow it silently** — ratify `task-057`'s current behaviour as is. Cheapest; the only signal is the
+   shadow warning in `directives list`, which a user must go looking for (`dl-050`).
 
 ## Rationale
 
-<!-- Why this option was chosen over alternatives. Include the key trade-offs considered. -->
+- Overriding a built-in is a legitimate customisation `dl-037` already designed for; refusing it at
+  `create` while honouring a hand-made override would be inconsistent.
+- The risk is accidental shadowing — a user picking a natural name like `security` without knowing a
+  built-in exists. Option 1 addresses that at the moment it happens, at the cost of one output line.
 
 ## Actions
 
-<!-- Optional: follow-up actions that result from this decision, with owners and deadlines. -->
+- Owner **approver**: choose before `task-057` is approved (it introduces the behaviour).
+- If 1: add the output hint, a test and the P3.1 scenario, in `task-057` or a follow-up.
+- If 2: extend `directiveCreateFn`'s existence check and add the refusal scenario to P3.1.
+- Hand the outcome to `task-052` (`directive remove`), which faces the mirror question (removing a
+  `custom/` override that shadows a built-in).
+
+Related: `dl-037`, `dl-050`, `dl-059`, BDD `P3.1`, `spec-012` §5, REQ-SEC-07,
+`task-050-directive-create`, `task-057-builtin-directive-templates`, `task-052`.
