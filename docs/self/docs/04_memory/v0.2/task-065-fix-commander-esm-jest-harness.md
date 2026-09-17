@@ -2,7 +2,7 @@
 id: "task-065-fix-commander-esm-jest-harness"
 type: task
 title: "Fix bug-007: make CLI entry-point wiring testable under Jest (commander ESM)"
-status: approved
+status: done
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "cli"]
