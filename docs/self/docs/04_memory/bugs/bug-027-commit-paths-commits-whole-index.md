@@ -2,7 +2,7 @@
 id: "bug-027-commit-paths-commits-whole-index"
 type: bug
 title: "commitPaths commits the whole git index, so pre-staged files leak into wf(*) memory commits"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
 release: ""
