@@ -6,24 +6,28 @@
  *   reference repository of 1,000 Memory documents.
  *   (docs/02_requirements/03_sard/02_performance-nfr.md)
  *
- * This benchmarks the query-path *primitives* task-008 is scoped to build (see the task's Execution
- * Notes for the foundation/feature scoping decision) — `src/core`'s existing `loadDnaYaml` (already
- * wired as the `dnaShow` CoreOperation, task-006) and `src/memory`'s `getMemoryHistory` — not the
- * full CLI commands (argv grammar, console/json/yaml rendering, exit-code messaging), which are
- * task-026 (dna show) / a later, not-yet-scheduled P1.10 task (memory history) feature work.
+ * task-008-dna-memory-query-latency originally benchmarked the query-path *primitives* it was scoped
+ * to build, because no CLI command existed to measure. Two of the three named commands have since
+ * been implemented, and each feature task re-pointed its own row at the REAL, REGISTERED
+ * `CORE_MODULES` operation — the exact `CoreFn` the CLI command dispatches to, config load, argument
+ * handling and result envelope included:
  *
- * **`memory search` is the one exception, re-pointed by task-021-implement-memory-search**: it now
- * measures the REAL, REGISTERED `CORE_MODULES` `memory.memorySearch` `CoreFn` (`--tag`/`--status`/
- * `--type` filtering, the empty-query guard, and the exit-0/message envelope included) rather than
- * calling `searchMemoryDocuments` directly — the exact same call both `wingfoil memory search` and
- * the MCP `wingfoil://memory/search` Resource make, so this is the REQ-PERF-02 guarantee task-021's
- * Acceptance Criteria actually needs (AC(a): "returning in under 1 second").
+ * - **`memory search`** -> `memory.memorySearch` (task-021-implement-memory-search), replacing a direct
+ *   `searchMemoryDocuments` call.
+ * - **`memory history`** -> `memory.memoryHistory` (task-049-memory-history), replacing a direct
+ *   `getMemoryHistory` call. This matters: the registered op also resolves the bare `<id>` positional
+ *   to a document (`findMemoryDocumentById`, a scan over all 1,000 reference documents) and
+ *   reconstructs each transition's state from frontmatter (`git show` per commit) — real cost the raw
+ *   git-log walk never paid, and cost a real `wingfoil memory history <id>` invocation does pay.
+ * - **`dna show`** still measures `loadDnaYaml`, which IS the whole body of the registered `dnaShow`
+ *   op for the no-section case (`src/core/index.ts`) — a bounded single-file read either way.
  *
  * Each timed run redoes the full pillar-config load + scan a real CLI invocation would redo (no
  * warm in-process cache carried across runs), so the measurement reflects one command's real cost.
  *
- * **This file also owns BDD P1.5's own under-1-second clause** (task-067-fix-cli-latency-assertion,
- * `bug-011-cli-latency-assertion-measures-spawn-contention`). `P1.5-memory-search.feature`'s "Find a
+ * **This file owns BDD P1.5's and P1.10's under-1-second clauses** (task-067-fix-cli-latency-assertion,
+ * `bug-011-cli-latency-assertion-measures-spawn-contention`; extended to P1.10 by task-049).
+ * `P1.5-memory-search.feature`'s "Find a
  * decision by keyword" scenario was previously timed in `test/cli/program.integration.test.ts` by
  * wrapping `Date.now()` around a **spawned** `node dist/cli.js`, which measured Node process startup
  * plus CPU contention from jest's sibling workers instead of the query, and so failed intermittently
@@ -33,12 +37,17 @@
  * same registered op, under REQ-PERF-02's measurement conditions. The integration test keeps the
  * scenario's other clause (results include "API design") plus exit code and output shape;
  * `test/core/latency-budget-placement.test.ts` forbids the budget drifting back across a spawn.
+ *
+ * `P1.10-memory-history.feature`'s "And the query returns in under 1 second" clause lands here for the
+ * same reason and was never written anywhere else: `test/cli/program.integration.test.ts` owns P1.10's
+ * exit codes, messages and output shape (it spawns), and `test/core/memory-history.test.ts` owns the
+ * entry-shape fit criteria (it never reads a clock). Only this file does both a real op call and a
+ * wall-clock reading, and it does so without spawning anything.
  */
 import { performance } from 'perf_hooks';
 
 import { loadDnaYaml, CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
-import { getMemoryHistory } from '../../src/memory/history';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 /** The projected match fields these benchmarks assert on — `memorySearchFn`'s real result items carry
@@ -55,6 +64,21 @@ function memorySearchFn(): CoreFn<unknown, { matches: readonly BenchmarkMatch[] 
   const operation = CORE_MODULES.find((module) => module.name === 'memory')?.operations.memorySearch;
   if (!operation) throw new Error('fixture bug: "memorySearch" operation not registered on the memory module');
   return operation.fn as CoreFn<unknown, { matches: readonly BenchmarkMatch[] }>;
+}
+
+/** The projected audit-trail fields this benchmark asserts on — the real entries carry more
+ * (`sha`, `author`, `timestamp`, `operation`, `from`, `approver`, `subject`). */
+interface BenchmarkHistory {
+  readonly path: string;
+  readonly entries: readonly { readonly to: string | null; readonly reason: string | null }[];
+}
+
+/** The real, registered `memory.memoryHistory` `CoreFn` (task-049) — fails loudly if a future change
+ * un-registers it, rather than silently benchmarking a stale/wrong function. */
+function memoryHistoryFn(): CoreFn<unknown, BenchmarkHistory> {
+  const operation = CORE_MODULES.find((module) => module.name === 'memory')?.operations.memoryHistory;
+  if (!operation) throw new Error('fixture bug: "memoryHistory" operation not registered on the memory module');
+  return operation.fn as CoreFn<unknown, BenchmarkHistory>;
 }
 
 jest.setTimeout(60_000);
@@ -181,8 +205,28 @@ function docContent(doc: FixtureDoc, index: number, title: string, status: strin
   ].join('\n');
 }
 
+/**
+ * The history target's post-creation commits (task-049): conventional CLAUDE.md §5.1 subjects rather
+ * than the synthetic `transition ->` wording they replaced, so the benchmarked op exercises the real
+ * parse paths — `OPERATION_RE` on the subject, and an `Approver:`/`Reason:` body on the `approve`
+ * commit. `start` is deliberately left unconventional-for-the-parser: it is a real subject this very
+ * project writes (`wf(task): start task-049-memory-history [backlog → in-progress]`) that the
+ * five-verb `OPERATION_RE` does not recognise, so the fixture covers that case too.
+ */
+const HISTORY_TARGET_COMMITS = [
+  { status: 'pending', message: 'wf(task): submit task-000-doc' },
+  {
+    status: 'backlog',
+    message:
+      'wf(task): approve task-000-doc [pending → backlog]\n\nApprover: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason: scheduled into the release',
+  },
+  { status: 'in-progress', message: 'wf(task): start task-000-doc [backlog → in-progress]' },
+] as const;
+
+const HISTORY_APPROVE_REASON = 'scheduled into the release';
+
 /** Write + commit the 1,000-document reference repository (REQ-PERF-02 measurement conditions). */
-function seedReferenceRepo(): { root: string; historyTarget: string } {
+function seedReferenceRepo(): { root: string; historyTarget: string; historyTargetId: string } {
   const root = makeTempGitRepo();
   writeFixtureFile(root, '.wingfoil/dna.yaml', DNA_YAML);
   writeFixtureFile(root, '.wingfoil/memory.yaml', MEMORY_YAML);
@@ -204,12 +248,12 @@ function seedReferenceRepo(): { root: string; historyTarget: string } {
   // Give the memory-history target a few extra transitions — real `memory history` invocations walk
   // real, multi-commit history, not a single creation commit.
   const historyTarget = docs[0]!;
-  for (const status of ['pending', 'backlog', 'in-progress']) {
+  for (const { status, message } of HISTORY_TARGET_COMMITS) {
     writeFixtureFile(root, historyTarget.relativePath, docContent(historyTarget, 0, 'Document 0', status, false));
-    commitAll(root, `wf(task): transition ${historyTarget.id} -> ${status}`);
+    commitAll(root, message);
   }
 
-  return { root, historyTarget: historyTarget.relativePath };
+  return { root, historyTarget: historyTarget.relativePath, historyTargetId: historyTarget.id };
 }
 
 function timeSync(fn: () => void): number {
@@ -228,9 +272,10 @@ function p95(samples: readonly number[]): number {
 describe('REQ-PERF-02 — DNA/Memory query latency on a 1,000-Memory-document reference repository', () => {
   let root: string;
   let historyTarget: string;
+  let historyTargetId: string;
 
   beforeAll(() => {
-    ({ root, historyTarget } = seedReferenceRepo());
+    ({ root, historyTarget, historyTargetId } = seedReferenceRepo());
   });
 
   afterAll(() => removeTempDir(root));
@@ -288,10 +333,36 @@ describe('REQ-PERF-02 — DNA/Memory query latency on a 1,000-Memory-document re
     expect(lastMatches[0]?.tags).toContain(P1_5_TAG);
   });
 
-  it('`memory history`\'s git-log walk stays under 1000ms at p95 over >= 20 runs', () => {
-    const samples = Array.from({ length: RUNS }, () => timeSync(() => getMemoryHistory(root, historyTarget)));
+  // BDD P1.10 "View the full audit trail of a document" — its "And the query returns in under 1
+  // second" clause, measured where the budget means something (task-049; same placement rule
+  // task-067/bug-011 established for P1.5). REQ-PERF-02 names `wingfoil memory history` explicitly,
+  // and this measures the registered `memory.memoryHistory` op — the very call that command
+  // dispatches to — end to end: `memory.yaml` load, the bare-`<id>` scan over all 1,000 reference
+  // documents, the `git log --follow` walk, and one `git show` per commit to derive each state.
+  //
+  // The scenario's Background gives its document "3 recorded state transitions"; this fixture's
+  // target has FOUR entries (creation + the three `HISTORY_TARGET_COMMITS`), so the measurement
+  // upper-bounds the scenario's own case rather than approximating it — one extra `git show` on top
+  // of an id scan two orders of magnitude larger than the scenario's Memory.
+  it('P1.10 "View the full audit trail of a document": `memory history <id>` returns the full chronological trail, in under 1000ms at p95 over >= 20 runs (task-049)', async () => {
+    const fn = memoryHistoryFn();
+    let last: BenchmarkHistory | undefined;
+    const samples: number[] = [];
+    for (let i = 0; i < RUNS; i += 1) {
+      const start = performance.now();
+      const outcome = await fn({ root, positional: historyTargetId });
+      samples.push(performance.now() - start);
+      if (outcome.ok) last = outcome.value;
+    }
     expect(samples).toHaveLength(RUNS);
+    // "And the query returns in under 1 second" — P1.10-memory-history.feature line 13 / REQ-PERF-02.
     expect(p95(samples)).toBeLessThan(P95_BUDGET_MS);
-    expect(getMemoryHistory(root, historyTarget)).toHaveLength(4); // 1 creation + 3 transitions
+
+    // Sanity: the op really resolved THIS document (the `task-*` ids repeat across the seven release
+    // directories, so pin the path) and really walked its whole trail — "the output lists N entries
+    // in chronological order", with the `approve` commit's `Reason:` read back off the commit body.
+    expect(last?.path).toBe(historyTarget);
+    expect(last?.entries.map((entry) => entry.to)).toEqual(['draft', 'pending', 'backlog', 'in-progress']);
+    expect(last?.entries.map((entry) => entry.reason)).toEqual([null, null, HISTORY_APPROVE_REASON, null]);
   });
 });

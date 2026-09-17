@@ -154,6 +154,9 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(resources.map((r) => r.uri).sort()).toEqual([
       'wingfoil://directives/list',
       'wingfoil://dna/show',
+      // task-049-memory-history's `memory.memoryHistory` is `mutates: false`, so the mechanical
+      // registrar derives a Resource for it, exactly as it did for `memory.memorySearch`.
+      'wingfoil://memory/history',
       'wingfoil://memory/search',
       'wingfoil://paths',
       'wingfoil://workflow/list',

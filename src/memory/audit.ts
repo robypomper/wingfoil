@@ -126,26 +126,46 @@ const APPROVER_LINE_RE = /^Approver:\s*(.+?)\s*<([^>]+)>\s*\(([^)]+)\)\s*$/m;
 const REASON_LINE_RE = /^Reason:\s*(.+)$/m;
 
 /**
+ * The `Reason:` line a commit body records, on its own — `null` when the body has none (a plain
+ * `add`/`submit` body, which carries no trailer by convention). Split out of
+ * {@link parseApprovalMetadata} by `task-049-memory-history` (P1.10) because the two trailers do not
+ * always travel together: an APPROVAL-gate commit (`approve`/`reject`) must carry both `Approver:`
+ * and `Reason:` (CLAUDE.md §5.1, P1.7), but a `deprecate` commit records a `Reason:` with **no**
+ * `Approver:` line at all — deprecate is explicitly not an approval gate. `parseApprovalMetadata` is
+ * all-or-nothing by design, so `wingfoil memory history` reading its reason through that function
+ * would silently drop every deprecate reason from the audit trail it exists to surface.
+ *
+ * `parseApprovalMetadata` consumes this same function, so the two never diverge on what counts as a
+ * `Reason:` line or on trimming.
+ *
+ * Known limitation (unchanged by the split): `REASON_LINE_RE` captures only the FIRST line of the
+ * `Reason:` value (the `.` in `/^Reason:\s*(.+)$/m` does not cross newlines). This matches the
+ * single-line `Reason:` convention every WingFoil workflow commit uses (CLAUDE.md §5.1); a
+ * hypothetical multi-paragraph reason would be silently truncated to its first line here. Revisit if
+ * the commit convention ever allows a multiline reason body.
+ */
+export function parseCommitReason(body: string): string | null {
+  const reasonMatch = REASON_LINE_RE.exec(body);
+  if (!reasonMatch) return null;
+  const [, reason = ''] = reasonMatch;
+  return reason.trim();
+}
+
+/**
  * Parse a commit body for the mandatory `Approver: Name <email> (role)` and `Reason: ...` lines
  * (CLAUDE.md §5.1; REQ-SEC-02/REQ-SEC-04). Returns `null` when either line is absent — e.g. for a
  * plain `add`/`submit` commit body, which carries neither by convention — rather than a
  * partially-filled object, so a caller never has to guess whether a `null` field means "absent" or
- * "empty string".
- *
- * Known limitation: `REASON_LINE_RE` captures only the FIRST line of the `Reason:` value (the `.` in
- * `/^Reason:\s*(.+)$/m` does not cross newlines). This matches the single-line `Reason:` convention
- * every WingFoil workflow commit uses (CLAUDE.md §5.1); a hypothetical multi-paragraph reason would be
- * silently truncated to its first line here. Revisit if the commit convention ever allows a multiline
- * reason body.
+ * "empty string". A caller that wants the reason of a commit which is not an approval gate (a
+ * `deprecate`, whose body has a `Reason:` but no `Approver:`) wants {@link parseCommitReason} instead.
  */
 export function parseApprovalMetadata(body: string): ApprovalMetadata | null {
   const approverMatch = APPROVER_LINE_RE.exec(body);
-  const reasonMatch = REASON_LINE_RE.exec(body);
-  if (!approverMatch || !reasonMatch) return null;
+  const reason = parseCommitReason(body);
+  if (!approverMatch || reason === null) return null;
 
   const [, approverName = '', approverEmail = '', approverRole = ''] = approverMatch;
-  const [, reason = ''] = reasonMatch;
-  return { approverName, approverEmail, approverRole, reason: reason.trim() };
+  return { approverName, approverEmail, approverRole, reason };
 }
 
 // --- Full transition reconstruction (`memory history`, P1.10) --------------------------------
@@ -172,6 +192,14 @@ export interface MemoryTransition {
   readonly fromState: string | null;
   readonly toState: string | null;
   readonly approval: ApprovalMetadata | null;
+  /**
+   * The `Reason:` this commit's body records, read INDEPENDENTLY of `Approver:`
+   * ({@link parseCommitReason}) — `null` when the body records none. Deliberately not the same field
+   * as `approval.reason`: `approval` is `null` for a `deprecate` commit (it has no `Approver:` line),
+   * yet such a commit does record a reason, and `wingfoil memory history` (P1.10) must surface it.
+   * When `approval` is non-null the two always agree, by construction.
+   */
+  readonly reason: string | null;
 }
 
 /**
@@ -201,9 +229,10 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
 /**
  * Reconstruct every transition `relativePath` went through, oldest first, entirely from git log
  * (`getMemoryHistory`) plus a frontmatter read at each commit (`git show`) — no separate log file
- * (ADR-007). This is the derivation a future `wingfoil memory history` CLI/MCP surface (P1.10, a
- * later feature task) renders; this function is the reconstruction itself, not that command's output
- * formatting.
+ * (ADR-007). This is the derivation `wingfoil memory history` (P1.10) renders — `src/core`'s
+ * `memoryHistory` operation (`task-049-memory-history`) renames and string-formats these fields into
+ * its own entry shape, deriving no further state of its own; this function is the reconstruction
+ * itself, not that command's output formatting.
  *
  * Known limitation: `getMemoryHistory` walks with `git log --follow` (rename-following), but
  * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that predates
@@ -231,6 +260,7 @@ export function reconstructMemoryTransitions(root: string, relativePath: string)
       fromState: previousState,
       toState,
       approval: parseApprovalMetadata(entry.body),
+      reason: parseCommitReason(entry.body),
     });
     previousState = toState;
   }

@@ -392,6 +392,87 @@ types:
     });
   });
 
+  // task-049-memory-history (P1.10, BDD `p1-memory/P1.10-memory-history.feature`) — the audit-trail
+  // read command, driven end-to-end through real `commander` with the bare `<id>` positional
+  // (spec-008 §7). Seeds a THROWAWAY temp git repo whose git history IS the fixture: the trail is
+  // reconstructed from `git log`, not from anything written into the document (ADR-007).
+  //
+  // The feature's third clause, "And the query returns in under 1 second", is deliberately NOT
+  // asserted here (`bug-011-cli-latency-assertion-measures-spawn-contention` / task-067):
+  // `runCliInRoot` spawns `node dist/cli.js`, so a wall-clock reading taken around it would sample
+  // Node process startup plus CPU contention from jest's sibling workers rather than the query. The
+  // clause is enforced in `test/core/query-latency.test.ts`, in-process, against the registered
+  // `memory.memoryHistory` op at REQ-PERF-02's own measurement conditions; this suite owns the exit
+  // codes, messages and output shape.
+  describe('`memory history <id>` — the audit-trail read command (task-049, P1.10)', () => {
+    const MEMORY_YAML = `version: 1
+types:
+  decision-log:
+    path: "docs/04_memory/design/dls/{id}.md"
+`;
+    const DOC = 'docs/04_memory/design/dls/decision-12.md';
+    let repo: string;
+
+    function writeDecision(status: string): void {
+      writeFixtureFile(
+        repo,
+        DOC,
+        ['---', 'id: decision-12', 'type: decision-log', 'title: "A decision"', `status: ${status}`, '---', '', 'Body.', ''].join('\n'),
+      );
+    }
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeDecision('draft');
+      commitAll(repo, 'wf(decision-log): add decision-12');
+      writeDecision('in-discussion');
+      commitAll(repo, 'wf(decision-log): submit decision-12');
+      writeDecision('ready');
+      commitAll(
+        repo,
+        'wf(decision-log): approve decision-12 [in-discussion → ready]\n\nApprover: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason: ratified at the design review',
+      );
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('`memory history decision-12` lists 3 entries in chronological order, each with author/timestamp/state-change/reason, exit 0', () => {
+      const result = runCliInRoot(repo, 'memory', 'history', 'decision-12', '--format', 'json');
+      expect(result.status).toBe(0);
+      const parsed = JSON.parse(result.stdout) as {
+        id: string;
+        entries: { author: string; timestamp: string; from: string | null; to: string | null; reason: string | null }[];
+      };
+      expect(parsed.id).toBe('decision-12');
+      expect(parsed.entries).toHaveLength(3);
+      expect(parsed.entries.map((entry) => entry.to)).toEqual(['draft', 'in-discussion', 'ready']);
+      expect(parsed.entries.map((entry) => entry.from)).toEqual([null, 'draft', 'in-discussion']);
+      parsed.entries.forEach((entry) => {
+        expect(entry.author).toBe('WingFoil Test <wf-test@example.invalid>');
+        expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
+      });
+      // The `Approver:`/`Reason:` body P1.7 mandates, read back through the real CLI — and left null
+      // on the two subject-only commits rather than invented.
+      expect(parsed.entries.map((entry) => entry.reason)).toEqual([null, null, 'ratified at the design review']);
+      expect(result.stderr).toBe('');
+    });
+
+    it('`memory history decision-999` exits 1 with the exact "document not found: decision-999" message on stderr', () => {
+      const result = runCliInRoot(repo, 'memory', 'history', 'decision-999');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: document not found: decision-999\n');
+      expect(result.stdout).toBe('');
+    });
+
+    it('`memory history` with no <id> exits 2 with the missing-required-argument message (spec-008 §5)', () => {
+      const result = runCliInRoot(repo, 'memory', 'history');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: memory history <id>\n');
+      expect(result.stdout).toBe('');
+    });
+  });
+
   it('an invalid --format value exits 2 with the usage-error message on stderr, never touching stdout', () => {
     const result = runCli('dna', 'show', '--format', 'xml');
     expect(result.status).toBe(2);

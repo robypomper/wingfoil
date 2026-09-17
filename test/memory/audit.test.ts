@@ -8,6 +8,7 @@ import {
   auditAttribution,
   isValidAttribution,
   parseApprovalMetadata,
+  parseCommitReason,
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from '../../src/memory/audit';
@@ -186,6 +187,36 @@ describe('parseApprovalMetadata — Approver:/Reason: commit-body parsing (CLAUD
   });
 });
 
+/**
+ * task-049-memory-history (P1.10): the `Reason:` line read INDEPENDENTLY of `Approver:`. A
+ * `memory.deprecate` commit records a `Reason:` with no `Approver:` line at all (CLAUDE.md §5.1 —
+ * deprecate is not an approval gate), and `parseApprovalMetadata` is all-or-nothing by design, so
+ * `wingfoil memory history` cannot read that reason through it without dropping every deprecate
+ * reason from the audit trail.
+ */
+describe('parseCommitReason — the Reason: line alone (CLAUDE.md §5.1)', () => {
+  it('reads the Reason: of a deprecate body that carries no Approver: line', () => {
+    expect(parseCommitReason('Reason: superseded by adr-004')).toBe('superseded by adr-004');
+  });
+
+  it('reads the same Reason: out of a full approve body', () => {
+    expect(
+      parseCommitReason('Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason: meets standards'),
+    ).toBe('meets standards');
+  });
+
+  it('returns null for a plain add/submit body with no Reason: line', () => {
+    expect(parseCommitReason('')).toBeNull();
+    expect(parseCommitReason('Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)')).toBeNull();
+  });
+
+  it('agrees with parseApprovalMetadata whenever that function returns a value (one shared parse, not two)', () => {
+    const body = 'Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason:   trailing space  ';
+    expect(parseCommitReason(body)).toBe(parseApprovalMetadata(body)?.reason);
+    expect(parseCommitReason(body)).toBe('trailing space');
+  });
+});
+
 describe('reconstructMemoryTransitions — full history reconstructed from git log + frontmatter (ADR-007)', () => {
   let repo: string;
 
@@ -251,6 +282,21 @@ describe('reconstructMemoryTransitions — full history reconstructed from git l
       toState: 'draft',
       approval: { reason: 'tests missing' },
     });
+  });
+
+  it('carries each commit\'s `reason` independently of `approval` — a deprecate reason survives, an add/submit stays null (task-049, P1.10)', () => {
+    repo = makeTempGitRepo();
+    writeDoc(repo, DOC_PATH, 'draft');
+    commitAll(repo, 'wf(task): add task-901-doc');
+    writeDoc(repo, DOC_PATH, 'deprecated');
+    commitAll(repo, 'wf(task): deprecate task-901-doc [draft → deprecated]\n\nReason: superseded by task-902');
+
+    const transitions = reconstructMemoryTransitions(repo, DOC_PATH);
+
+    expect(transitions.map((t) => t.reason)).toEqual([null, 'superseded by task-902']);
+    // `approval` stays null for BOTH: the deprecate body has a `Reason:` but no `Approver:` line, and
+    // `parseApprovalMetadata` requires both — the two fields are deliberately not the same read.
+    expect(transitions.map((t) => t.approval)).toEqual([null, null]);
   });
 
   it('returns exactly 1 entry for a document created and never touched again (creation event)', () => {

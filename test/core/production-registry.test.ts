@@ -21,6 +21,7 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaSet',
       'dna.dnaShow',
       'memory.memoryAdd',
+      'memory.memoryHistory',
       'memory.memorySearch',
       'paths.paths',
       'workflow.workflowList',
