@@ -2,7 +2,7 @@
 id: "task-065-fix-commander-esm-jest-harness"
 type: task
 title: "Fix bug-007: make CLI entry-point wiring testable under Jest (commander ESM)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "cli"]
@@ -133,3 +133,130 @@ appears in the report at all** — not even at 0 % — which is (c)'s red.
   in-process suites spawn nothing and time nothing, and the spawn-based CLI suites are unchanged, so
   the guard still polices a live pattern rather than an empty set. Its `SCANNED_FILES.length > 40`
   self-check keeps holding (the scan grows by the new files).
+
+**red** (developer, `065cbac`) — two new suites, **27 tests, all failing**, both on the single
+`bug-007` symptom, verbatim:
+
+```
+FAIL test/cli/program.test.ts
+  ● buildProgram — the program itself (bug-007: this module is now loadable in-process) › builds a real commander `Command` named `wingfoil`
+
+    TypeError: A dynamic import callback was invoked without --experimental-vm-modules
+
+    > 61 |   const { Command: CommandCtor } = await import('commander');
+      at buildProgram (src/cli/program.ts:61:36)
+
+FAIL test/cli/entrypoint.test.ts
+  ● src/cli.ts — the `wingfoil` bin entrypoint › builds the program over the production `CORE_MODULES` and parses the real `process.argv`
+
+    TypeError: A dynamic import callback was invoked without --experimental-vm-modules
+```
+
+- `test/cli/program.test.ts` — drives `buildProgram` against a **synthetic** `CoreModule[]` covering
+  all three command shapes (`<noun> <verb>`, `<noun> <verb>` with value options, flat self-named noun
+  with a boolean flag), asserting the wiring `bug-007` left unverified: the five registered global
+  options, `--version` output, the derived command tree and its nesting, the shared variadic
+  `[positionals...]` argument, per-command `--{flag}` / `--{name} <value>` registration, the
+  `format`/`positionals`/`flags`/`options` forwarded into `registrar.run`, the `--format xml` usage
+  error, commander's own `unknownCommand` exit code, and the `init`/`mcp` bootstrap registrations
+  and their resolve-root failure path. `./init-command.ts` / `./mcp-command.ts` are mocked (they own
+  their own suites; running them for real here would write to a repo / open a stdio MCP transport).
+- `test/cli/entrypoint.test.ts` — loads `src/cli.ts` with `./cli/program` mocked, which is the only
+  way to run the bin entrypoint without handing *jest's* argv to commander. Asserts the whole
+  production registry is passed through unfiltered, the real `process.argv` is parsed, `resolveRoot`
+  is lazy and resolves via git-root detection, the `buildParams` shape that
+  `test/cli/fixtures/cli-harness.cjs` must mirror, and the last-resort `.catch` (message only, never
+  the stack — `bug-002` — plus `String(error)` for a non-Error rejection).
+
+**green** (developer, `1b8c8b0` then `9cfe300`) — configuration-only, exactly as designed; **zero**
+changes under `src/`, **zero** changes to `package.json` (no dependency added, removed or repinned):
+
+- new `tsconfig.test.json` — `extends: ./tsconfig.json`, overriding only `module: CommonJS`,
+  `moduleResolution: Node10`, `ignoreDeprecations: "6.0"`, `allowJs: true`. Read **only** by
+  `jest.config.js`; `npm run build`, `npx tsc --noEmit` and `npm run docs:api` keep using
+  `tsconfig.build.json` / `tsconfig.json` at `module: Node16`, so the published CLI is byte-for-byte
+  what it was.
+- `jest.config.js` — `preset: 'ts-jest'` expanded into an explicit `transform` (the preset *is* the
+  first entry, minus the `tsconfig` option) pointing both the `.ts` and the `.js` entry at
+  `tsconfig.test.json`, plus `transformIgnorePatterns: ['/node_modules/(?!commander/)']` so
+  `commander`'s ESM is transformed rather than ignored. `globalSetup`, `collectCoverageFrom` and the
+  80 % `coverageThreshold` are untouched.
+- `1b8c8b0` corrects two assertions that were written from expectation rather than observation, before
+  the config change made them runnable: commander's `program.opts()` carries **only** `{format:
+  'console'}` before a parse (the negatable `--no-color`/`--no-interactive` resolve to `true` only
+  once argv is read), and `jest.isolateModulesAsync` hands the entrypoint its **own** module registry,
+  so its `CORE_MODULES` is a different instance of the same declaration — compared structurally now,
+  not by identity.
+
+**refactor** (developer, `0fa0fb6`) — no production behaviour touched; two uncovered paths closed and
+four stale comments retired:
+
+- `src/cli.ts` reached `100 / 100 / 100 / 100` by covering `resolveRoot` itself (`resolveProjectRoot`
+  is pure filesystem walking, so pointing `process.cwd()` at the repo root is deterministic and spawns
+  nothing), and `src/cli/program.ts`'s `init` handler gained its `String(error)` non-Error branch.
+  The one branch left uncovered in `program.ts` (line 145) is the `= []` / `= {}` **default parameters**
+  of the Commander action callback: Commander always passes both arguments, so they are defensive and
+  unreachable through any invocation — left as-is rather than faked.
+- comments that claimed the wiring *cannot* be tested were true until `9cfe300` and are now false, so
+  they were rewritten rather than left to mislead: `src/cli/program.ts`'s module doc (the only `src/`
+  edit in this task — comment text only), `test/cli/registrar.test.ts`, `test/cli/program.integration.test.ts`
+  and `test/cli/fixtures/cli-harness.cjs`. Each now states what it still uniquely covers: the spawn-based
+  pair is the only place the **real ESM `commander`** inside the **real compiled `dist/`** runs.
+
+**Refactor gate results** (all run in this worktree, exit codes observed, not assumed):
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **exit 0** — 76 suites / 997 tests passed |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **exit 0** — global `98.18 / 89.75 / 98.4 / 98.9` |
+| `docs.api.*` | `npm run docs:api` | **exit 0** |
+| build typecheck | `npx tsc -p tsconfig.build.json` | **exit 0** |
+| AC (b) regression guard | `npx tsc --noEmit` (whole project) | **exit 0** — no `TS1479` |
+| `lint.clean` | `npx eslint .` | **exit 0** — 0 errors, 0 warnings |
+
+`npx tsc --noEmit` caught the one real divergence this harness can produce and it was fixed rather
+than suppressed: ts-jest (`Node10`) accepted `await import('../../src/cli')` in the entrypoint suite,
+while the project's `Node16` resolution rejected it (`TS2835` — it wants a `.js` specifier that jest's
+resolver would then not find). The suite uses `jest.isolateModules(() => require(...))` instead, with
+a justified `eslint-disable` for `@typescript-eslint/no-require-imports`; the isolated registry is
+needed anyway, since the entrypoint must be re-executed per test.
+
+**Coverage — measured before and after, both from `npx jest --coverage --maxWorkers=2`:**
+
+| Scope | Before (`4524604`) | After (`0fa0fb6`) |
+|---|---|---|
+| **global** | `98.1 / 89.65 / 98.33 / 98.85` | **`98.18 / 89.75 / 98.4 / 98.9`** |
+| `src/cli` group | `93.69 / 85.45 / 77.77 / 94.17` | `95.95 / 87.34 / 85.18 / 96.27` |
+| `src/cli/program.ts` | **absent from the report** | `100 / 91.66 / 100 / 100` |
+| `src/cli.ts` | **absent from the report** | `100 / 100 / 100 / 100` |
+
+(`% Stmts / % Branch / % Funcs / % Lines`.) Both new files entered the denominator, so the global
+figure could have moved either way; it moved **up** on all four metrics, because both land at or near
+100 %. Two presentation details worth knowing when diffing the two reports: the `cli` group row is now
+labelled `src/cli` and a new `src` group row appears, because `src/cli.ts` sits directly under `src/`
+and changes the report's common root. The suite/test counts grew 74 → 76 and 966 → 997 (29 new tests
+plus the 2 extra `it.each` cases the new files add to `latency-budget-placement.test.ts`'s scan).
+
+**review** (reviewer) — final verification in this worktree, all numbers observed:
+
+- `npx jest --maxWorkers=2` → **exit 0, 76 suites / 997 tests passed** (23.7 s).
+- BDD acceptance (`tests.bdd.run`): this task changes no CLI behaviour, so its guard is that the
+  behavioural suites still pass untouched. Run explicitly together:
+  `test/cli/program.integration.test.ts`, `test/cli/npm-distribution.test.ts`,
+  `test/cli/journey-0a.integration.test.ts`, `test/core/latency-budget-placement.test.ts` →
+  **4 suites / 122 tests passed**. `bug-003`'s single-build `globalSetup` is intact and untouched
+  (`jest.config.js`'s `globalSetup` line is unchanged), so the two `dist/`-spawning suites still share
+  one pre-worker build.
+- **Left for someone else, deliberately not fixed here** (out of this task's scope):
+  - `test/cli/npm-distribution.test.ts` runs `npm pack` **without** `--ignore-scripts` (so its
+    `prepack` rebuilds `dist/` mid-run) while `test/cli/publish-metadata.test.ts` (task-059) runs it
+    **with**. Both pass, and nothing in this task touches either; but the asymmetry is a latent
+    sibling of `bug-003` and deserves its own bug rather than a silent edit here.
+  - `package.json` declares `engines: node >= 18`, while the installed `commander@15` declares
+    `engines: node >= 22.12`. Unrelated to the harness (and not a test failure), but the two
+    manifests disagree about the supported floor.
+  - `ignoreDeprecations: "6.0"` in `tsconfig.test.json` is the harness's only debt: TypeScript 7
+    removes `node10` resolution, at which point this file needs revisiting. No behaviour depends on
+    it today.
+  - `src/cli/program.ts` line 145's default-parameter branch stays uncovered by design (unreachable
+    through Commander).
