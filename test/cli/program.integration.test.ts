@@ -163,9 +163,13 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
   it('`directives list --format json` exits 0 and lists the one fixture directive', () => {
     const result = runCli('directives', 'list', '--format', 'json');
     expect(result.status).toBe(0);
-    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string } }>;
+    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
     expect(value).toHaveLength(1);
     expect(value[0]?.frontmatter.id).toBe('sample');
+    // P3.4 Scenario 1's "(or `unassigned`)": the fixture root carries a directive but no
+    // `roles.yaml`, so nothing binds `sample` — and that is a successful listing, not an error
+    // (task-053-directives-list).
+    expect(value[0]?.assignment).toBe('unassigned');
   });
 
   it('`workflow list --format json` exits 0 and includes the one fixture `main` workflow', () => {
@@ -540,6 +544,52 @@ types:
       expect(result.status).toBe(0);
       const listed = JSON.parse(result.stdout) as { path: string; frontmatter: { id: string } }[];
       expect(listed.map((entry) => entry.frontmatter.id)).toContain('no-direct-db-access');
+    });
+  });
+
+  // task-053-directives-list (P3.4, BDD `p3-directives/P3.4-directives-list.feature`) — the `--role`
+  // value option, driven end-to-end through real `commander` against a THROWAWAY temp repo (the
+  // static fixture root deliberately has no `roles.yaml`, which is the "unassigned" case asserted
+  // above). Commander rejects an unregistered option, so this also proves `--role` is really
+  // declared on the derived command rather than only honoured by the core function.
+  describe('`directives list --role <role>` (task-053, P3.4 Scenario 2)', () => {
+    const DIRECTIVE = (id: string): string =>
+      ['---', `id: ${id}`, `name: "${id}"`, 'type: directive', 'kind: custom', `title: "${id}"`, '---', '', `# ${id}`, ''].join('\n');
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      for (const id of ['testing', 'code-review', 'security-secrets']) {
+        writeFixtureFile(repo, `.wingfoil/directives/custom/${id}.md`, DIRECTIVE(id));
+      }
+      writeFixtureFile(
+        repo,
+        '.wingfoil/roles.yaml',
+        'version: 1.0\nassignments:\n  developer:\n    - testing\n  reviewer:\n    - code-review\nglobal:\n  - security-secrets\n',
+      );
+      commitAll(repo, 'seed directives + roles.yaml');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('lists only the developer-assigned directives (incl. globals), exit 0', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      expect(value.map((entry) => entry.frontmatter.id).sort()).toEqual(['security-secrets', 'testing']);
+      expect(value.find((entry) => entry.frontmatter.id === 'testing')?.assignment).toBe('developer');
+      expect(result.stderr).toBe('');
+    });
+
+    it('without --role, lists every directive with its assignment (or "unassigned")', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      expect(value.map((entry) => `${entry.frontmatter.id}=${entry.assignment}`)).toEqual([
+        'code-review=reviewer',
+        'security-secrets=global (all roles)',
+        'testing=developer',
+      ]);
     });
   });
 

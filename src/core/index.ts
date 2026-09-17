@@ -41,13 +41,12 @@ import {
 } from '../memory';
 
 import {
-  loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
   loadWorkflowsYaml,
-  type DirectiveFile,
   type WorkflowsLoadResult,
 } from './loaders';
+import { loadDirectiveListing, type DirectiveListEntry } from './directives-list';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
 import { UsageError } from './usage-error';
@@ -67,6 +66,13 @@ export {
 } from './loaders';
 export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
 export { assembleExecutionContext, resolveRoleDirectives } from './context';
+export {
+  buildDirectiveListing,
+  loadDirectiveListing,
+  GLOBAL_ASSIGNMENT,
+  UNASSIGNED_ASSIGNMENT,
+} from './directives-list';
+export type { DirectiveListEntry } from './directives-list';
 export type {
   ExecutionContext,
   ExecutionContextElement,
@@ -640,6 +646,19 @@ export interface DirectiveCreateParams {
 }
 
 /**
+ * `wingfoil directives list [--role <role>]` params (P3.4, task-053-directives-list). Reuses
+ * task-020's value-bearing `ParamsContext.options` seam for the optional `--role` filter, exactly as
+ * `memorySearch`'s `--tag`/`--status`/`--type` do. The MCP surface's mechanical zero-argument
+ * `wingfoil://directives/list` Resource never populates it (see `ParamsContext.options`), which
+ * degenerates to the unfiltered listing — the right default for a Resource that has no per-request
+ * parameter.
+ */
+export interface DirectivesListParams {
+  readonly root: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/**
  * `directive create` `CoreOperation.fn` (P3.1, `mutates: true` — the FIRST Directives-pillar mutation
  * and the pillar's first CLI verb; spec-006-core-domain-api §3 directives table). Follows `dna set`'s
  * mutating-op template (task-025) exactly, over the Directives pillar instead of `dna.yaml`:
@@ -688,6 +707,22 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
   const message = `wf(directive): create ${name}`;
   const sha = commitPaths(root, [relativePath], message);
   return coreOk({ name, path: relativePath }, { sha, message });
+};
+
+/**
+ * `directives list` `CoreOperation.fn` (P3.4, `mutates: false` — spec-006 §3 directives table). Wraps
+ * `loadDirectiveListing` (`./directives-list.ts`, which carries the annotation rules and the
+ * rationale for not deduplicating shadowed ids) in the same `loadOrError` mapping every read-only
+ * pillar query uses, so a schema-invalid directive file or `roles.yaml` is a `VALIDATION` domain
+ * failure (exit 1), never a throw.
+ *
+ * This replaces the bare `wrapReadOnly(loadDirectives)` registration task-006 wired in: the payload
+ * keeps every field that registration returned (`path`, `frontmatter`, per entry, unchanged) and adds
+ * the role annotation P3.4 requires.
+ */
+const directivesListFn: CoreFn<unknown, DirectiveListEntry[]> = async (params) => {
+  const { root, options } = params as DirectivesListParams;
+  return loadOrError(() => loadDirectiveListing(root, options?.role));
 };
 
 /**
@@ -771,7 +806,8 @@ export const CORE_MODULES: readonly CoreModule[] = [
       directivesList: {
         name: 'directivesList',
         mutates: false,
-        fn: wrapReadOnly<DirectiveFile[]>(loadDirectives),
+        options: [{ name: 'role' }],
+        fn: directivesListFn,
       },
     },
   },
