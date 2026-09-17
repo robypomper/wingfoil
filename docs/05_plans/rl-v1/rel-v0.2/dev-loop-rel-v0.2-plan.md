@@ -18,7 +18,7 @@ tmpl_version: 260703
 (`task-034..065`, `docs/self/docs/04_memory/v0.2/`), all `status: backlog`, tag `v0.2`. Per
 `release-cycle` (`.wingfoil/workflows/custom/release-cycle.yaml` v1.1) the next phase is
 **`implementation`**: one `dev-loop` sub-workflow run
-(`.wingfoil/workflows/custom/dev-loop.yaml` **v1.2**, `element: task`) per backlog task tagged
+(`.wingfoil/workflows/custom/dev-loop.yaml` **v1.3**, `element: task`) per backlog task tagged
 `v0.2`, `where: { status: [backlog], tags: ["v0.2"] }`. Per CLAUDE.md §6-interim + §10.7 (no
 workflow engine yet) and `dl-019`, this `plan` element is that phase's coherent, reusable execution
 scaffold.
@@ -32,7 +32,7 @@ Notes** section (see §1). This mirrors `X_wingfoil-init-plan.md` and the v0.1 d
 > because `dl-013` (doc gate), `dl-014` (dev-loop plan deltas: `task/` branches, per-task worktree,
 > `--no-ff` merge, G4 merge-conflict fallback, G5 API-docs check, T1 AC classification) and `dl-015`
 > (inter-task dependency notes) were all `in-discussion`. **All three are now `ready`, and
-> `dev-loop.yaml` is at v1.2 with them absorbed.** So this plan simply *follows `dev-loop.yaml` v1.2
+> `dev-loop.yaml` is at v1.3 with them absorbed.** So this plan simply *follows `dev-loop.yaml` v1.3
 > as configured* — there is nothing to force. The only staged item remaining is the `docs.api.*`
 > check ramp, closed by `task-062` (see §2).
 
@@ -71,7 +71,7 @@ is created (same rationale as the v0.1 dev-loop plan).
 
 ## 2. Conventions
 
-### Branch, worktree & merge (`dl-014` G1–G4, `dl-024` — all `ready`; matches `dev-loop.yaml` v1.2)
+### Branch, worktree & merge (`dl-014` G1–G4, `dl-024` — all `ready`; matches `dev-loop.yaml` v1.3)
 
 - **Branch — `task/{task.id}`** (e.g. `task/task-034-role-based-binding`), created from `main` at
   `start` via `git.create_branch("task/{task.id}")` (`dl-014` G1).
@@ -121,7 +121,14 @@ regime — but that is a sequencing preference, not a dependency.
 
 ### `bug.sync_state` — live for the three fix tasks only
 
-`bug.sync_state(where: { id: task.bug })` is a no-op unless the task carries a `bug:` field. Three do:
+`bug.sync_state(for_each: task.bug)` is a no-op unless the task's `bug:` field names at least one
+bug. Since **`dl-045-absorbed-bug-back-reference`** that field is a **list**, and it covers two cases:
+a fix task derived from a bug by release-planning, and a bug **absorbed** into an existing task's
+Acceptance Criteria because that task already owns the ground. A bug no task names there can never
+leave `triaged` — `triaged`/`planned` are `waiting` states and the only reject edge to `closed`
+starts from `open`.
+
+Derived fix tasks, all three now `done` and merged:
 
 | Fix task | `bug:` | Bug state today |
 |---|---|---|
@@ -129,13 +136,29 @@ regime — but that is a sequencing preference, not a dependency.
 | task-064-fix-init-directive-scaffold-schema | bug-006-init-directive-scaffold-schema-invalid | planned |
 | task-065-fix-commander-esm-jest-harness | bug-007-commander-esm-jest-untestable | planned |
 
+Absorbed bugs (dl-045) — the host task already owned the ground, so no dedicated fix task was
+created. `bug-018` was absorbed while `task-054` was already in flight, so its chain was reconstructed
+retroactively per dl-045 sub-question 3; the other three are recorded **before** their host task
+starts, so no reconstruction is needed:
+
+| Host task | absorbed `bug:` | why that task |
+|---|---|---|
+| task-054-project-directives (`done`) | bug-018-init-storage-bypasses-integrity-guard | its `scaffoldFiles()` change is what makes the unguarded write path reachable |
+| task-045-memory-submit | bug-016-stale-pass2-exit-code-tsdoc | already owns dl-032's realignment in the same call path |
+| task-046 | bug-017-agent-authority-guarantee-untested | wires `requireApprovalAuthority`; the missing characterization test belongs there |
+| task-061 | bug-015-scan-reads-worktree-not-index | already cites spec-007 and the scanner |
+
+`dl-015`'s `read_related` covers `depends_on` tasks, **not** decision-logs — so dl-045's outcome must
+be handed to task-045, task-046 and task-061 explicitly at their design step, or the absorption will
+not be recorded and those three bugs will stick at `triaged` exactly as bug-018 did.
+
 Each bug has exactly **one** fix task, so the aggregate rule collapses to 1:1: the bug advances
 `planned → in-progress` (task `start`), `→ in-review` (task `review`), `→ resolved → closed` (task
 `done`). Keep each bug's frontmatter `status` in sync within the fix task's own commits.
 
 ---
 
-## 3. Phase-by-phase plan (mirrors `dev-loop.yaml` v1.2 exactly)
+## 3. Phase-by-phase plan (mirrors `dev-loop.yaml` v1.3 exactly)
 
 ### 3.1 `start` — role: developer
 
@@ -179,7 +202,7 @@ Each bug has exactly **one** fix task, so the aggregate rule collapses to 1:1: t
   `docs.api.build`; **`lint.clean`**.
 - `docs.api.*` is **ACTIVE hard-reject** since `task-062` closed its ramp (§2). `lint.clean` is
   **ACTIVE hard-reject from the start** — no ramp — per `dl-034-lint-gate-in-dev-loop`, added to
-  `dev-loop.yaml` v1.2 by `task-066-fix-eslint-baseline-and-lint-gate`. It is backed by
+  `dev-loop.yaml` v1.3 by `task-066-fix-eslint-baseline-and-lint-gate`. It is backed by
   `npm run lint` exiting 0 and asserted by `test/lint/lint-clean.test.ts`; an eslint error in any
   file fails `refactor`.
 

@@ -109,9 +109,14 @@ The surface was **measured, not assumed**:
    task's assembled context. `asStringArray` already exists and is used for `depends_on` on the very
    next line, so the fix is mechanical; it should tolerate **both** forms so existing single-id
    documents keep working through the migration.
-4. **`spec-012` §6** describes these as "explicit **single-id** links" (and `relevance.ts:113` quotes
-   that wording). Amend in place via a `docs(self): implement dl-045` commit, per the `spec-001`
-   precedent.
+4. ~~**`spec-012` §6** describes these as "explicit **single-id** links"~~ — **wrong when written, and
+   corrected at implementation.** `spec-012` §6's T1 row (`:127`) actually reads *"Explicit links: ids
+   the element references in frontmatter (`adr:`, `spec:`, `dl:`, `bug:`, `depends_on:`)"* — plural
+   "ids", **no cardinality claim per field**. The "single-id" wording existed only in
+   `relevance.ts`'s own comment, which this implementation rewrote. **So spec-012 needs no amendment**,
+   and none was made. Recorded rather than quietly deleted because it is the same defect class two
+   independent reviews rejected `task-054` for twice — a claim about a document's state written
+   without opening it — committed here in this decision-log's own Actions list.
 5. **The v0.2 dev-loop plan file** under `docs/05_plans/rl-v1/rel-v0.2/` — per the `dl-034` lesson:
    under the no-engine interim regime agents execute against the **plan**, not the YAML, and
    `task-066`'s review caught exactly this omission once already.
