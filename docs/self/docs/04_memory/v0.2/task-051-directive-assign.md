@@ -212,7 +212,8 @@ are the untouched pre-existing cases of the three widened suites. CLI (`-t "BDD 
   already guarantee, reasoning recorded in `updateRoleAssignments`' TSDoc) and pinned the reachable
   refusals with tests (multi-line id rendering, lone CR, flow-mapping child line, `role: ~`, invalid
   YAML elsewhere in the file, **a YAML alias shared with another role** — the self-check refuses an
-  edit that would silently change the aliasing role too).
+  edit that would silently change the aliasing role too — **this last claim was wrong; corrected in the
+  second pass below**).
 - Refreshed stale docs: `CORE_MODULES` header (listed `directiveAssign` as later scope), the
   `src/directives` barrel doc + re-export of the writer.
 - `docs(self)`: spec-006 §3 `directiveAssign` row — *(planned)* marker removed per dl-041.
@@ -283,3 +284,136 @@ exit 1 exact message; `--directive ghost` → exit 1 exact message; no `--direct
   not introduced here.
 - Merge commit `878b5aa` carries one test adaptation (the `.entries` read), not only conflict markers.
 
+
+---
+
+## Execution Notes — second pass (returned to `red` by the review gate, `b117011`)
+
+The review upheld the implementation — a 60-case fuzz of the writer against `js-yaml`, the check order,
+the exit codes, idempotence, registration and the first merge resolution were all verified correct —
+and rejected the task for **one false claim in these notes**: that the writer's re-parse self-check was
+pinned by a test. It was not. This section is appended; the first-pass sections stay as written, with
+the one wrong sentence marked in place above.
+
+### the finding, reproduced
+
+The fixture the notes named (`test/directives/roles-edit.test.ts`, `qa: *d` **inside** the
+`assignments:` block) never reaches `readsBackAs`: `mappingEntry('qa: *d')` loads that one line on its
+own and `js-yaml` throws `unidentified alias "d" (1:7)`, so `setRoleAssignmentsInText` returns
+`undefined` at the key scan, long before the self-check. Verified two ways:
+
+```
+$ node -e "require('js-yaml').load('qa: *d')"     → unidentified alias "d" (1:7)
+# mutant: readsBackAs's final line reduced to `return roleMatches;`
+$ npx jest test/directives/roles-edit.test.ts test/core/directive-assign.test.ts
+  Tests: 58 passed, 58 total          ← the self-check could be deleted and nothing failed
+```
+
+### the correction
+
+Added a fixture whose alias sits **outside** the assignments child lines, which is what actually
+reaches the self-check — `assignments:` / `  developer: &d` / `    - testing` / `global: *d`
+(appending to `developer` would silently rewrite `global` too). Mutation-proof, both directions:
+
+```
+# real code, with the new fixture
+$ npx jest test/directives/roles-edit.test.ts test/core/directive-assign.test.ts
+  Tests: 59 passed, 59 total
+# mutant `return roleMatches;`, same command
+  Tests: 1 failed, 58 passed, 59 total      ← "a list the `global` key aliases"
+# and the mutant's own output for that fixture, i.e. the harm the check prevents:
+  "assignments:\n  developer: &d\n    - testing\n    - security\nglobal: *d\n"
+  (re-parsed: global === ["testing","security"] — silently changed)
+```
+
+The misplaced comment (it described the alias case but sat above the lone-CR case) was moved onto the
+two alias fixtures, which now state which guard refuses each.
+
+### re-checking the other refusal claims the same way — four of six were overstated
+
+The first pass's refactor paragraph said the reachable refusals were "pinned … with tests". Each
+fixture does pin the **refusal** (its `toBeUndefined()` assertion is real), but a mutation run shows
+that for four of them the named guard is **not** what refuses the input: a later guard catches it once
+the named one is removed, so those guards are layered defence rather than independently necessary.
+Each mutant was applied to `src/directives/roles-edit.ts`, then:
+`npx jest test/directives/roles-edit.test.ts test/core/directive-assign.test.ts`.
+
+| mutated guard | fixture it was claimed to pin | result | reading |
+|---|---|---|---|
+| `readsBackAs` final `roleMatches && sameJson(…)` → `roleMatches` | `a list the global key aliases` | **1 failed / 58 passed** | genuinely pinned |
+| `readsBackAs` `if (!before \|\| !after) return false` → `return true` | `invalid YAML outside the assignments block` | **1 failed / 58 passed** | genuinely pinned |
+| lone-CR guard disabled | `a lone CR line ending` | 59 passed | still refused — by the `^assignments:$` header scan (with no `\n` split, the single line never matches) |
+| `mappingEntry` single-key guard disabled | `a flow-mapping child line` | 59 passed | still refused — by `rewriteRole`'s non-empty-flow check |
+| `renderScalar` multi-line guard disabled | `refuses an id whose rendering would span several lines` | 59 passed | still refused — by the self-check |
+| `renderKeyLine` unmatched-line guard altered | `a tagged/null key line …` | 59 passed | still refused — by the self-check |
+
+Nothing was removed on the strength of this: every mutant still refuses every fixture, so no
+behavioural change is observable, and the early guards give a cheaper, more local refusal than letting
+a bad edit reach the re-parse. The accurate statement — the one this pass makes — is that the fixtures
+pin the **refusals**, and that only the two self-check branches above are attributable to the guard
+their comment names. A reviewer who prefers fewer layers can delete the four redundant guards as a
+separate cleanup; that is a judgement call, not a defect, so it is recorded here rather than acted on
+inside this task.
+
+### second sync with main (merge `311f23e`, dl-035 — merge, never rebase)
+
+`main` at `194ff91` (task-045 memory-submit **including the bug-027 fix**, task-057 built-in directive
+templates, task-058, bug-028..041, dl-046..060). Three conflicts, all the same shape — a verbatim
+operation list extended by both sides — resolved as the **sorted union**, with no contradictory
+`toEqual` left behind:
+
+- `test/core/production-registry.test.ts` — the registry list itself auto-merged to five entries; only
+  the test title conflicted (`four operations mutate` on each side) → `five operations mutate today —
+  directive.directiveAssign, directive.directiveCreate, dna.dnaSet, memory.memoryAdd +
+  memory.memorySubmit`.
+- `test/core/parity.test.ts` — `cli`/`tools` → the 5-element union; the Tools list and **both**
+  `not.toContain` lines (`wingfoil://directive/assign` and `wingfoil://memory/submit`) kept.
+- `test/mcp/read-only-agent-channel.test.ts` — `mutatingOps` and the Tools list → the 5-element union.
+- `src/core/index.ts` — no conflict, but its `CORE_MODULES` header still listed `memorySubmit` as later
+  scope; corrected (the remaining examples are now `memoryApprove`, `directiveRemove`, `workflowStart`).
+
+**bug-027 is fixed on `main`** (`commitPaths` now runs `git commit --only -- <paths>`), so the first
+pass's TSDoc and test-header caveat ("commits the whole index … callers must not rely on it") were
+stale. Both corrected, and the property is now pinned at this call path:
+`test/core/directive-assign.test.ts` › *a change someone else staged is NOT swept into the
+`wf(directive): assign` commit, and stays staged* (mirrors `test/core/memory-submit.test.ts`'s case).
+
+### approver decisions read this pass (dl-053, dl-054) — effect on this task
+
+- **dl-053** (illegal-transition `<to>` = the verb's first legal edge in `sequence`, then the next edge
+  of the same verb when the current state *is* that target, else `(none)`): **no effect** — nothing in
+  this task touches the Memory state machine or emits that message.
+- **dl-054** (`[from → to]` belongs to `approve`/`reject`/`deprecate`; `add` and `submit` stay plain):
+  the resubmit commit is therefore `wf(task): submit task-051-directive-assign`, with no bracket. The
+  first-pass `submit` (`a74d787`) and the `start` commit keep the older bracketed form as history,
+  exactly as dl-054's reason anticipates.
+
+### gates — post-merge run (at the resubmit HEAD)
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=4` | **94 suites / 1387 tests passing** |
+| coverage | same | All files **98.51 stmts / 91.90 branch / 98.73 funcs / 99.13 lines**; `main` at `194ff91`, same command in a detached scratch worktree: 98.36 / 90.91 / 98.64 / 99.06 → non-regressing. `src/core/directive-assign.ts` and `src/directives/roles-edit.ts` stay **100/100/100/100** |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| test types | `npx tsc --noEmit -p tsconfig.json` | only the pre-existing bug-026 error `test/core/directive-create.test.ts(159,19) TS2339` |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**End-to-end re-run after the merge**, same scratch-repo copy of this repository's `docs/self/.wingfoil/`:
+`assign security to developer` → exit 0, subject `wf(directive): assign security to developer`,
+`git show --stat` = `.wingfoil/roles.yaml | 1 +`; re-run → exit 0 and still 2 commits (idempotent);
+`--role approver` → `+  approver:` / `+    - security`; `--role wizard` → exit 1
+`error: unknown role 'wizard' (not defined in dna.yaml)`; `--directive ghost` →
+`error: unknown directive: ghost`; no `--directive` → `error: missing required argument: --directive`.
+`grep -c '#' .wingfoil/roles.yaml` = **7 before and 7 after**.
+
+### still unfiled, for the approver (dl-060 already covers the id-vs-name point)
+
+1. **D6's fail-closed `CONFLICT`** — a hand-written `roles.yaml` the in-place editor cannot handle
+   *and* that contains a `#` gets exit 1 and `roles.yaml cannot be updated without discarding its
+   comments; edit assignments.<role> by hand`. No spec pins this outcome; the alternative (silently
+   dumping the file) is bug-019's defect, which is why it was chosen — but it is a user-visible
+   behaviour invented inside a task.
+2. **The whole-file fallback still loses formatting** — for a comment-free `roles.yaml` the fallback
+   `dump` normalizes the layout (flow lists become block, quoting is re-decided). Nothing the schema
+   carries is lost, but it is the same class of surprise as bug-019, one notch milder.
