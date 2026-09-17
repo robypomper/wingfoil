@@ -151,3 +151,111 @@ src/storage/templates.ts` → the scaffold writes only `${BUILTIN_DIRECTIVES_DIR
   `src/core/init.ts`, `src/core/context.ts`, `src/core/index.ts`, `package.json`.
 - **D6 — dogfood config untouched.** `docs/self/.wingfoil/directives/{built-in,custom}/` not edited;
   the stand-ins stay. Delete/rename vs. keep-as-customization is the approver's call (review summary).
+
+### red — role: developer (directives: code-quality, testing, determinism) — `81cb63d`
+
+Two new suites: `test/storage/builtin-directives.test.ts` (template data) and
+`test/core/builtin-directive-templates.test.ts` (end to end over `initWingfoilProject` in a temp repo).
+`npx jest test/core/builtin-directive-templates.test.ts test/storage/builtin-directives.test.ts --maxWorkers=2`
+→ `Test Suites: 2 failed` / `Tests: 12 failed, 3 passed, 15 total` (the storage suite could not run:
+`Cannot find module '../../src/storage/builtin-directives'`). Observed failure reasons:
+
+| AC | Test | Observed |
+|---|---|---|
+| AC1 | Sc.1 › *contains exactly the 6 templates*; *tracked by git* | `- Expected - 6 / + Received + 1` (only `.gitkeep`) |
+| AC4 | Sc.1 › *loads through the real loadDirectives as kind built-in* | `- Expected - 8 / + Received + 1` |
+| AC5 | Sc.1 › *REQ-SEC-08 (a)* | `Expected: "directives/built-in/security.md"` / `Received: "directives/custom/security.md"` |
+| AC2 | Sc.2 › *Scrum/Kanban installs the same 6*; *available for assignment* | `-6/+1`; `Received: "directives/custom/code-quality.md"` |
+| AC3 | Sc.3 › *corrupted REAL template* | `ENOENT … built-in/security.md` — the fixture needs a shipped template to corrupt; the abort behaviour itself is characterization (task-044) and needed no code |
+| AC6 | dl-037 › *a fresh project defines no id twice* | `Expected: false / Received: true` (`custom/testing.md` scaffolded) |
+| AC7 | dl-037 › *customizes a built-in id … one shadow warning* | `- Expected - 3 / + Received + 1` (no built-in to shadow) |
+| AC9 | spec-015 › *compiled module is packed* | `Expected value: "dist/storage/builtin-directives.js"` not in the pack listing |
+
+Green at red, as T1 predicted (no fabricated red): *REQ-SEC-07 … refused for removal* (AC8),
+*REQ-SEC-08 (b) … 0 findings*, and *installed bytes identical across methodologies* (vacuously equal
+`.gitkeep` maps at red; made meaningful by the 6-file assertion beside it).
+
+### green — `d405e5a`
+
+- `src/storage/builtin-directives.ts` (new): `BUILTIN_DIRECTIVE_TEMPLATES` (6, feature order),
+  `BUILTIN_DIRECTIVE_IDS`, `builtinDirectiveMd` (D1–D3). Exported from `src/storage/index.ts`.
+- `src/storage/templates.ts`: `templateScaffold` emits the six under `BUILTIN_DIRECTIVES_DIR` instead of
+  `built-in/.gitkeep`; `DIRECTIVES` keeps only the four custom starters (the `p38` flag and the
+  `ref: [P3.8]` branch in `directiveMd` are gone with them) (D4). `roles.yaml` unchanged.
+- Two pre-existing tests pinned the old shape and were updated (shape only, intent kept):
+  `test/storage/templates.test.ts` › *creates the directives built-in/custom split* (now asserts the six
+  built-in paths); `test/core/directive-create.test.ts` › AC2 collision now uses `determinism` (still a
+  scaffolded CUSTOM directive) and the untouched-directory count 10 → 4. Line 159 (bug-026) not touched.
+- `npx jest --maxWorkers=4` → **87 suites / 1226 tests passed**.
+
+**Behaviour change worth the reviewer's eye:** on a fresh project `wingfoil directive create --name
+code-quality` previously failed `directive already exists` (the stand-in was in `custom/`); it now
+SUCCEEDS and creates a `custom/` override of the built-in, which `directives list` reports as a shadow.
+That matches dl-037's override model and P3.1's wording ("a **custom** directive … already exists"),
+but no element ratifies whether `directive create` should accept a built-in id → proposed dl.
+
+### refactor — `f0076f9`
+
+Comments/test-name only, all made false by this change: `src/core/builtin-integrity.ts`
+(`verifyBuiltinTemplates` TSDoc "no built-in template content ships yet"), `src/storage/templates.ts`
+(`builtinTemplateSources` "Returns `[]` for both of today's scaffolds"), `test/core/init-project.test.ts`
+(describe header + the *"default (empty) registry — no behavior change until built-in content ships"*
+test name), `test/storage/builtin-template-sources.test.ts` ("Vacuously true today"),
+`test/validation/secret-scan.test.ts` (clause (a) "do not exist yet" → points at the new test). Found by
+`grep -rn "EMPTY today\|empty today\|\.gitkeep only\|no built-in template content ships\|until built-in content ships\|do not exist yet\|Returns \`\[\]\` for both\|Vacuously true today" src/ test/`.
+`src/core/builtin-asset.ts:8` still says "(empty today, `.gitkeep` only)" — it paraphrases spec-011's
+description of the dogfood tree, which is still true there; left alone (task-052 territory).
+
+### review-ready summary
+
+**Gates (this worktree, HEAD `f0076f9`; `git merge main` → "Already up to date", main still `9c83ca2`):**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=4` | **87/87 suites, 1226/1226 tests** (main: 85 / 1163) |
+| coverage | same | **98.33 % stmts / 90.31 % branch / 98.48 % funcs / 98.95 % lines**; main `9c83ca2` measured in a throwaway worktree: 98.32 / 90.33 / 98.46 / 98.94. `builtin-directives.ts` 100/100/100/100 |
+| build tsc | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full tsc | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026) |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**Branch-% dip explained, not asserted:** absolute counts from `coverage/coverage-final.json` — main
+900 branches / 813 covered / **87 uncovered**; branch 898 / 811 / **87 uncovered**. No new uncovered
+branch; the −0.02 pt is the arithmetic of deleting the fully-covered `p38` ternary.
+
+**BDD acceptance → tests (all passing):**
+- P3.8 Sc.1 *Built-in templates are installed during init* → `test/core/builtin-directive-templates.test.ts`
+  › *P3.8 Scenario 1* (exactly 6 files, the set, git-tracked, clean tree, real `loadDirectives`) +
+  `test/storage/builtin-directives.test.ts` › *built-in directive template set*.
+- P3.8 Sc.2 *selected by methodology* → › *P3.8 Scenario 2* — property over `TEMPLATE_NAMES`
+  (Scrum, Kanban): same 6, byte-identical, every bound built-in id resolves to `built-in/` with no warning.
+  The scenario's literal `"Trunk-Based"` is not a registered init template → proposed element.
+- P3.8 Sc.3 *integrity check* → › *P3.8 Scenario 3* (a truncated copy of the REAL shipped `security.md`,
+  exact message, exit 1, `.wingfoil` absent) + existing `test/core/init-project.test.ts` REQ-SEC-10 cases.
+- REQ-SEC-08 (a) → › *REQ-SEC-08 (a)*; template text → `builtin-directives.test.ts` › *zero spec-007
+  findings of any severity* (+ non-vacuity: a planted key header under the same path IS flagged).
+- bug-006 re-grade → every shipped file through `DirectiveFrontmatter`, `verifyBuiltinTemplates`,
+  declared-keys-only; compiled CLI `init` printed nothing on stderr.
+- dl-037 → › *a fresh project … 0 warnings*; › *customizes a built-in id* (listing, `resolveRoleDirectives`
+  and `assembleExecutionContext` all carry the one shadow warning; custom wins).
+- REQ-SEC-07 → › *refused for removal*. spec-015 §1 → › *compiled module … packed*
+  (`npm pack --dry-run --json --ignore-scripts`; `package.json` `files` unchanged, allowlist test untouched).
+
+**End to end, compiled CLI** (`npm run build`, fresh repo in the scratchpad):
+`node dist/cli.js init --template Kanban` → exit 0, empty stderr; `git ls-files .wingfoil/directives` →
+6 `built-in/*.md` + 4 `custom/*.md`; `directives list --format json` → 10 entries, `warnings: []`, exit 0.
+
+**Dogfood config — APPROVER DECISION (nothing changed here).** `docs/self/.wingfoil/directives/built-in/`
+still holds only `.gitkeep` and there is no root `.wingfoil/`, so **today this repo reports no shadow
+warning**. Simulated by copying `docs/self/.wingfoil` into a scratch repo and adding the six shipped
+files: `directives list` reports six warnings of the form
+`directive 'testing' defined in directives/built-in/testing.md, directives/custom/testing.md; using directives/custom/testing.md`
+(architecture, code-quality, code-review, documentation, security, testing). Options:
+(a) delete the six stand-ins once the dogfood config receives the built-ins; (b) keep them as deliberate
+customizations (they carry WingFoil-specific rules — dl-022, dl-013/TypeDoc, T1, REQ-SYS ids — that the
+generic built-ins intentionally omit), updating their "stand-in … until they ship" blockquote and
+`kind`-note, and accepting the six warnings; (c) split: keep WingFoil-specific additions as differently
+named custom directives bound in `roles.yaml` alongside the built-ins. **Recommendation: (c)** — it keeps
+every WingFoil-specific rule, dogfoods the built-ins as a real user would, and yields zero warnings;
+(b) is the zero-effort fallback. Either way CLAUDE.md §3 and spec-011's "EMPTY today" text become stale
+once the dogfood built-ins are installed.
