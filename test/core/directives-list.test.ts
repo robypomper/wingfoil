@@ -20,12 +20,15 @@
  * `frontmatter.id`, never `name` (`src/directives/schema.ts`'s `RolesYaml` doc: assignment values and
  * `global` entries are directive ids).
  *
- * NOT asserted here, deliberately: `dl-037-builtin-vs-custom-directive-precedence`'s custom-wins
- * precedence and its shadow warning. That gap lives in `resolveRoleDirectives`
- * (`src/core/context.ts`) and is `task-055-auto-load-directives-by-role`'s to close. This listing
- * deliberately does not deduplicate at all — see the `shadowed id` case below.
+ * `task-055-auto-load-directives-by-role` adds `dl-042-directives-list-output-contract` (A + D): the
+ * payload becomes `{ entries, warnings }`. `warnings` reports every shadowed id (dl-037's rule, decided
+ * once in `selectDirectivesById`, `src/core/context.ts`) and, under `--role`, is exactly the
+ * `resolveRoleDirectives` warnings — the dl-029 no-assignments warning and the dangling-binding
+ * warning. `entries` is unchanged: this listing still does not deduplicate — see the `shadowed id` cases.
  */
 import { CORE_MODULES } from '../../src/core';
+import { resolveRoleDirectives } from '../../src/core/context';
+import { loadDirectives, loadRolesYaml } from '../../src/core/loaders';
 import type { CoreOperation } from '../../src/core/registry';
 import type { CoreResult } from '../../src/core/types';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
@@ -56,11 +59,22 @@ async function runList(root: string, options?: Record<string, string>): Promise<
   return findDirectivesList().fn({ root, options });
 }
 
-/** Unwrap a successful listing, failing the test loudly (never silently) if the call errored. */
-async function listOk(root: string, options?: Record<string, string>): Promise<readonly ListedDirective[]> {
+/** The listing payload (dl-042): the inventory entries plus the operator warnings channel. */
+interface Listing {
+  readonly entries: readonly ListedDirective[];
+  readonly warnings: readonly string[];
+}
+
+/** Unwrap a successful listing payload, failing the test loudly (never silently) if the call errored. */
+async function listingOk(root: string, options?: Record<string, string>): Promise<Listing> {
   const result = await runList(root, options);
   if (!result.ok) throw new Error(`expected coreOk, got ${result.error.code}: ${result.error.message}`);
-  return result.value as readonly ListedDirective[];
+  return result.value as Listing;
+}
+
+/** The entries of a successful listing. */
+async function listOk(root: string, options?: Record<string, string>): Promise<readonly ListedDirective[]> {
+  return (await listingOk(root, options)).entries;
 }
 
 function directiveDoc(id: string, name: string): string {
@@ -206,7 +220,7 @@ describe('directivesList — P3.4 Scenario 2: filter the listing by role', () =>
   it('a role with no assignments of its own lists exactly the globals, exit-0 (dl-029)', async () => {
     const result = await runList(repo, { role: 'architect' });
     expect(result.ok).toBe(true);
-    const ids = ((result as { value: readonly ListedDirective[] }).value).map((entry) => entry.frontmatter.id);
+    const ids = ((result as { value: Listing }).value).entries.map((entry) => entry.frontmatter.id);
     expect(ids).toEqual(['security-secrets']);
   });
 
@@ -320,5 +334,75 @@ describe('directivesList — a shadowed id is listed, never hidden (dl-037 / spe
     const entries = (await listOk(repo, { role: 'developer' })).filter((entry) => entry.frontmatter.id === 'testing');
     expect(entries).toHaveLength(2);
     entries.forEach((entry) => expect(entry.roles).toEqual(['developer', 'qa']));
+  });
+});
+
+// task-055-auto-load-directives-by-role — dl-042 A + D (T1 AC-6..AC-9, RED-FIRST): the listing gains a
+// `warnings` channel alongside `entries`, instead of leaving the winner and unbound roles to inference.
+describe('directivesList — the warnings channel (dl-042 A + D)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/built-in/testing.md', directiveDoc('testing', 'Testing (built-in)'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing (custom)'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/code-review.md', directiveDoc('code-review', 'Code review'));
+    writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  const SHADOW_WARNING =
+    "directive 'testing' defined in directives/built-in/testing.md, directives/custom/testing.md; using directives/custom/testing.md";
+
+  it('A — without --role, a shadowed id is reported, naming both files and the custom/ winner (dl-037)', async () => {
+    const listing = await listingOk(repo);
+    expect(listing.warnings).toEqual([SHADOW_WARNING]);
+    // The inventory itself is unchanged: both files still listed.
+    expect(listing.entries.filter((entry) => entry.frontmatter.id === 'testing')).toHaveLength(2);
+  });
+
+  it('A — no duplicate ids means an empty warnings array, not an absent one', async () => {
+    removeTempDir(repo);
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
+    expect((await listingOk(repo)).warnings).toEqual([]);
+  });
+
+  it('D — --role for a role with no assignments emits the dl-029 warning and still lists the globals', async () => {
+    const listing = await listingOk(repo, { role: 'architect' });
+    expect(listing.warnings).toEqual(["no directives assigned to role 'architect'"]);
+    expect(listing.entries.map((entry) => entry.frontmatter.id)).toEqual(['security-secrets']);
+  });
+
+  it('D — --role with a dangling binding (id with no file) emits a warning naming the id and role', async () => {
+    // ROLES_YAML binds `developer` to `no-direct-db-access`, which this fixture does not install.
+    const listing = await listingOk(repo, { role: 'developer' });
+    expect(listing.warnings).toEqual([
+      "directive 'no-direct-db-access' bound to role 'developer' has no directive file",
+      SHADOW_WARNING,
+    ]);
+  });
+
+  it('D — --role with no roles.yaml at all is an unbound role: warning, exit 0', async () => {
+    removeTempDir(repo);
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    const listing = await listingOk(repo, { role: 'developer' });
+    expect(listing.entries).toEqual([]);
+    expect(listing.warnings).toEqual(["no directives assigned to role 'developer'"]);
+  });
+
+  it('a bound role with nothing dangling and nothing shadowed yields no warnings', async () => {
+    expect((await listingOk(repo, { role: 'reviewer' })).warnings).toEqual([]);
+  });
+
+  it('one rule: under --role the listing warnings are exactly resolveRoleDirectives\' warnings', async () => {
+    for (const role of ['developer', 'reviewer', 'architect', 'qa']) {
+      const expected = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), role).warnings;
+      expect((await listingOk(repo, { role })).warnings).toEqual(expected);
+    }
   });
 });
