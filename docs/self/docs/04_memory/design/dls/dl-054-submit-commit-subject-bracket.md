@@ -2,7 +2,7 @@
 id: "dl-054-submit-commit-subject-bracket"
 type: decision-log
 title: "Does a `submit` commit subject carry the `[from → to]` bracket? The written form says no; most of this repository's history says yes"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
