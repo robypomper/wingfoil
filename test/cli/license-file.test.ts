@@ -64,11 +64,13 @@ describe('LICENSE file (task-070) — AC1 full MIT text', () => {
     expect(lines[1]).toBe(COPYRIGHT_LINE);
   });
 
-  it('contains the grant, condition and disclaimer paragraphs unmodified', () => {
-    const text = normalise(licenseText());
-    expect(text).toContain(MIT_GRANT);
-    expect(text).toContain(MIT_CONDITION);
-    expect(text).toContain(MIT_DISCLAIMER);
+  it('is exactly the MIT text — nothing added, removed or reordered', () => {
+    // Equality, not containment: an extra restriction clause appended or slipped between paragraphs
+    // would still *contain* all three MIT paragraphs, but it is no longer the MIT licence.
+    const expected = normalise(
+      ['MIT License', COPYRIGHT_LINE, MIT_GRANT, MIT_CONDITION, MIT_DISCLAIMER].join(' '),
+    );
+    expect(normalise(licenseText())).toBe(expected);
   });
 
   it('carries no placeholder left unfilled', () => {
