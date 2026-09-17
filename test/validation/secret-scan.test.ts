@@ -276,8 +276,8 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
  * `test/lint/lint-clean.test.ts` (ESLint over the real tree) and `test/docs/api-docs.test.ts`.
  *
  * The Fit Criterion's *first* clause ("after `init`, the built-in `security` directive is present")
- * is not asserted here: built-in directive templates do not exist yet and are
- * `task-057-builtin-directive-templates`'s deliverable, not this task's.
+ * is not asserted here: it is `task-057-builtin-directive-templates`'s deliverable, asserted in
+ * `test/core/builtin-directive-templates.test.ts` › "REQ-SEC-08 (a)".
  *
  * Non-vacuity: `ScanResult.filesScanned` reports how many files the scan actually read, so a broken
  * surface root, a `git ls-files` that returned nothing, or a scan pointed at the wrong directory

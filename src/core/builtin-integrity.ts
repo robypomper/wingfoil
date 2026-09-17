@@ -134,8 +134,9 @@ function policyFor(kind: BuiltinTemplateKind): IntegrityPolicy | undefined {
  * Schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no unordered
  * iteration), and return the FIRST one that fails — or `null` when every source is valid (including
  * the trivial, always-passing case of an empty list, which is what `src/storage/templates.ts`'s
- * `builtinTemplateSources` derives from either of today's two scaffolds: each reserves its built-in
- * directories with a `.gitkeep` only, and no built-in template content ships yet).
+ * `builtinTemplateSources` derives from the P1.1 minimal skeleton, whose built-in directory holds only
+ * a `.gitkeep`; `templateScaffold` yields the six P3.8 built-in directives since
+ * `task-057-builtin-directive-templates`).
  *
  * FAILS CLOSED on an unrecognized `kind`: a source whose kind has no {@link INTEGRITY_POLICY} entry is
  * reported as a failure ({@link unknownKindMessage}) rather than skipped or thrown on — it cannot be

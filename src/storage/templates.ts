@@ -146,14 +146,12 @@ function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
  * (`bug-018-init-storage-bypasses-integrity-guard`). Being generic over `ScaffoldFile[]` is what made
  * that a one-line wiring rather than a second mechanism.
  *
- * Returns `[]` for both of today's scaffolds, which still reserve their built-in directories with a
- * `.gitkeep` only. That is a fact about the current scaffold CONTENT, not a property of this function: the
- * moment an asset is added it is checked, with no edit here — which is precisely the ordering hazard
- * `task-057` (P3.8 built-in directives) inherits. That hazard is now CLOSED on the directive side:
- * `task-064` fixed `bug-006`, so {@link directiveMd}'s output satisfies `DirectiveFrontmatter` and a
- * directive generated from it passes the guard wherever it is written
- * (`test/core/builtin-integrity.test.ts`, "accepts the real init directive generator output"). A
- * built-in asset authored some OTHER way still has to satisfy its pillar schema on its own.
+ * What it returns is a fact about the scaffold CONTENT, not a property of this function: for
+ * {@link templateScaffold} it is the six P3.8 built-in directives `task-057-builtin-directive-templates`
+ * ships (`./builtin-directives`, rendered by `builtinDirectiveMd`), for `scaffoldFiles` it is `[]` (a
+ * `.gitkeep` only), and the workflows built-in directory still holds a `.gitkeep` only. Any asset added
+ * later is checked with no edit here. Each shipped built-in must satisfy its pillar schema on its own —
+ * `test/storage/builtin-directives.test.ts` runs every directive template through the real guard.
  */
 export function builtinTemplateSources(files: readonly ScaffoldFile[]): BuiltinTemplateSource[] {
   const sources: BuiltinTemplateSource[] = [];

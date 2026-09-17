@@ -117,8 +117,8 @@ describe('initWingfoilProject — guards inherited from the write path', () => {
  * DERIVED from this run's `templateScaffold(template)` output (`builtinTemplateSources`,
  * src/storage/templates.ts), so the checked set cannot drift from the written set; the optional 3rd
  * `builtinTemplates` param is the TEST-ONLY override that exercises the abort path without real
- * built-in content on disk (today's scaffold reserves both built-in directories with a `.gitkeep`
- * only, so the derived set is empty). A corrupted/schema-invalid source must abort `init` before ANY
+ * corrupted content on disk (the real derived set — the six P3.8 built-in directives since task-057 —
+ * is valid). A corrupted/schema-invalid source must abort `init` before ANY
  * file is written, exit 1, naming the failing template — BDD P3.8 "Error - a built-in template fails
  * its integrity check" / P4.17 "Error - a built-in workflow template is structurally invalid".
  */
@@ -164,7 +164,7 @@ describe('initWingfoilProject — REQ-SEC-10 built-in template integrity', () =>
     }
   });
 
-  it('still succeeds with the default (empty) registry — no behavior change until built-in content ships', () => {
+  it('still succeeds with the default derived sources (the six shipped P3.8 built-in directives, task-057)', () => {
     const repo = makeTempGitRepo();
     try {
       const result = initWingfoilProject(repo, 'Scrum');
