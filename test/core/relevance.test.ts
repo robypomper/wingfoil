@@ -539,4 +539,79 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
       }
     });
   });
+
+  // dl-045-absorbed-bug-back-reference — the task `bug:` field becomes a LIST, so a bug absorbed into
+  // an existing task's Acceptance Criteria (rather than given a dedicated fix task) keeps the
+  // back-reference `bug.sync_state` binds to. `bug` is in LINK_FRONTMATTER_FIELDS, and the pre-dl-045
+  // reader was `asString`, which returns undefined for an array — so without this the absorbed bug
+  // would silently stop scoring as a spec-012 §6 T1 explicit link and drop out of its own host task's
+  // assembled context. Both forms must work: single-id documents predate the decision and must keep
+  // scoring, or the migration breaks every existing fix task.
+  describe('dl-045 — `bug` as a list of back-references (spec-012 §6 T1)', () => {
+    const BUG = (id: string): string =>
+      ['---', `id: ${id}`, 'type: bug', `title: "${id}"`, 'status: triaged', 'severity: "low"', '---', '', fillerBody(0), ''].join('\n');
+
+    it('scores EVERY id in a `bug` list as a T1 explicit link', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-901-absorbed-a.md', BUG('bug-901-absorbed-a'));
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-902-absorbed-b.md', BUG('bug-902-absorbed-b'));
+        // A third bug that is NOT referenced, under no shared release/tag, proves the two above are
+        // selected by the link and not merely by being bugs.
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-903-unrelated.md', BUG('bug-903-unrelated'));
+        commitAll(root, 'seed absorbed-bug fixture');
+
+        const element = {
+          type: 'task',
+          id: 'task-host',
+          frontmatter: { release: 'v0.2', bug: ['bug-901-absorbed-a', 'bug-902-absorbed-b'] },
+        };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        const ids = result.documents.map((doc) => doc.id);
+        expect(ids).toContain('bug-901-absorbed-a');
+        expect(ids).toContain('bug-902-absorbed-b');
+        expect(ids).not.toContain('bug-903-unrelated');
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('still scores a single-string `bug` as a T1 explicit link (documents written before dl-045)', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-904-derived.md', BUG('bug-904-derived'));
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-905-unrelated.md', BUG('bug-905-unrelated'));
+        commitAll(root, 'seed legacy single-id fixture');
+
+        const element = { type: 'task', id: 'task-fix', frontmatter: { release: 'v0.2', bug: 'bug-904-derived' } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        const ids = result.documents.map((doc) => doc.id);
+        expect(ids).toContain('bug-904-derived');
+        expect(ids).not.toContain('bug-905-unrelated');
+      } finally {
+        removeTempDir(root);
+      }
+    });
+
+    it('outranks a same-release, no-link document — the list entry really is T1, not T2', () => {
+      const root = makeTempGitRepo();
+      try {
+        writeFixtureFile(root, 'docs/04_memory/bugs/bug-906-zzz-linked.md', BUG('bug-906-zzz-linked'));
+        // Same release as the element, so it scores T2 (100). The linked bug must still come first,
+        // despite sorting later by id and by type.
+        writeTaskDoc(root, 'v0.2', 'task-906-aaa-same-release', { index: 1, status: 'backlog' });
+        commitAll(root, 'seed tier-ordering fixture');
+
+        const element = { type: 'task', id: 'task-host', frontmatter: { release: 'v0.2', bug: ['bug-906-zzz-linked'] } };
+        const result = filterRelevantMemoryDocuments(root, MEMORY_YAML, element);
+
+        expect(result.documents.map((doc) => doc.id)).toEqual(['bug-906-zzz-linked', 'task-906-aaa-same-release']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
+
 });

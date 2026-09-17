@@ -110,7 +110,8 @@ const TIER_2_RELEASE_SCOPE = 100;
 const TIER_3_TRACEABILITY = 10;
 // T4 (keyword/tag overlap) contributes its raw overlap count, weight 1 — spec-012 §6.
 
-/** Frontmatter fields spec-012 §6 T1 treats as explicit single-id links. */
+/** Frontmatter fields spec-012 §6 T1 treats as explicit links. Each may carry a single id or a list
+ * of them — see {@link asLinkIds} and `dl-045-absorbed-bug-back-reference`. */
 const LINK_FRONTMATTER_FIELDS = ['adr', 'spec', 'dl', 'bug'] as const;
 
 /**
@@ -148,14 +149,35 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
 }
 
+/**
+ * Read a {@link LINK_FRONTMATTER_FIELDS} value as the list of ids it names, accepting BOTH a single
+ * string and an array of them.
+ *
+ * `dl-045-absorbed-bug-back-reference` made the task `bug:` field a list, so a bug absorbed into an
+ * existing task's Acceptance Criteria — rather than given its own fix task — keeps the back-reference
+ * `bug.sync_state` binds to. Reading these fields with a bare {@link asString} would have made that
+ * change **silently lossy**: `asString` returns `undefined` for an array, so an absorbed bug would
+ * stop scoring as a T1 explicit link and drop out of its own host task's assembled context, with no
+ * error to notice.
+ *
+ * Both shapes stay valid on purpose. Every fix task written before dl-045 carries a single id, and
+ * `adr`/`spec`/`dl` are unchanged by that decision — narrowing to arrays would break them all.
+ */
+function asLinkIds(value: unknown): readonly string[] {
+  const single = asString(value);
+  return single !== undefined ? [single] : asStringArray(value);
+}
+
 /** T1: the set of ids the element's frontmatter explicitly references (`adr`, `spec`, `dl`, `bug`,
  * `depends_on`) — spec-012 §6. Insertion order follows {@link LINK_FRONTMATTER_FIELDS}'s fixed
- * declaration order then `depends_on`'s own array order (REQ-SYS-07: no unordered iteration). */
+ * declaration order, then each field's own array order, then `depends_on`'s (REQ-SYS-07: no
+ * unordered iteration). */
 function collectLinkedIds(frontmatter: Record<string, unknown>): Set<string> {
   const ids = new Set<string>();
   for (const field of LINK_FRONTMATTER_FIELDS) {
-    const value = asString(frontmatter[field]);
-    if (value !== undefined && value.length > 0) ids.add(value);
+    for (const value of asLinkIds(frontmatter[field])) {
+      if (value.length > 0) ids.add(value);
+    }
   }
   for (const dependency of asStringArray(frontmatter.depends_on)) ids.add(dependency);
   return ids;
