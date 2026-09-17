@@ -163,7 +163,12 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
   it('`directives list --format json` exits 0 and lists the one fixture directive', () => {
     const result = runCli('directives', 'list', '--format', 'json');
     expect(result.status).toBe(0);
-    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+    // dl-042 (task-055): the payload is `{ entries, warnings }`, no longer a bare array.
+    const { entries: value, warnings } = JSON.parse(result.stdout) as {
+      entries: Array<{ frontmatter: { id: string }; assignment: string }>;
+      warnings: string[];
+    };
+    expect(warnings).toEqual([]);
     expect(value).toHaveLength(1);
     expect(value[0]?.frontmatter.id).toBe('sample');
     // P3.4 Scenario 1's "(or `unassigned`)": the fixture root carries a directive but no
@@ -592,7 +597,7 @@ types:
       expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
       const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
       expect(result.status).toBe(0);
-      const listed = JSON.parse(result.stdout) as { path: string; frontmatter: { id: string } }[];
+      const listed = (JSON.parse(result.stdout) as { entries: { path: string; frontmatter: { id: string } }[] }).entries;
       expect(listed.map((entry) => entry.frontmatter.id)).toContain('no-direct-db-access');
     });
   });
@@ -625,7 +630,7 @@ types:
     it('lists only the developer-assigned directives (incl. globals), exit 0', () => {
       const result = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
       expect(result.status).toBe(0);
-      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      const value = (JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string }; assignment: string }> }).entries;
       expect(value.map((entry) => entry.frontmatter.id).sort()).toEqual(['security-secrets', 'testing']);
       expect(value.find((entry) => entry.frontmatter.id === 'testing')?.assignment).toBe('developer');
       expect(result.stderr).toBe('');
@@ -634,12 +639,22 @@ types:
     it('without --role, lists every directive with its assignment (or "unassigned")', () => {
       const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
       expect(result.status).toBe(0);
-      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      const value = (JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string }; assignment: string }> }).entries;
       expect(value.map((entry) => `${entry.frontmatter.id}=${entry.assignment}`)).toEqual([
         'code-review=reviewer',
         'security-secrets=global (all roles)',
         'testing=developer',
       ]);
+    });
+
+    // task-055 (dl-042 D, dl-029): an unbound role is no longer silent on the real CLI — the warning
+    // rides the payload, the command still exits 0 and lists the globals.
+    it('--role for an unbound role carries the dl-029 warning in the payload, exit 0', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--role', 'ghost', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string } }>; warnings: string[] };
+      expect(value.entries.map((entry) => entry.frontmatter.id)).toEqual(['security-secrets']);
+      expect(value.warnings).toEqual(["no directives assigned to role 'ghost'"]);
     });
   });
 
