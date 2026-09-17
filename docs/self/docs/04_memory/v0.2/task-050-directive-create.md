@@ -302,6 +302,31 @@ scaffolded by `wingfoil init`".
 
 ### Deviations / out of scope
 
+**Two of the items below are now elements, filed after the independent review so they do not survive
+as prose in a `done` task's notes:**
+
+- **`dl-041-spec-006-module-grouping-vs-core-module-name`** — `spec-006` §3 claims its groupings *are*
+  `CoreModule.name`, which is false in three places (`pathsQuery` under `dna`, this task's
+  `directiveCreate` under `directives`, plus the heading/`module` split generally), and `spec-008` §1's
+  noun list omits `directives` entirely. **It also carries the instruction below about where
+  `task-051` / `task-052` register** — which is the one thing in these notes that must not be lost,
+  since nothing reschedules a done task's Execution Notes and `dl-015`'s `read_related` covers
+  `depends_on` tasks, not decision-logs.
+- **`bug-021-core-index-excluded-from-coverage`** — the `collectCoverageFrom` exclusion noted below.
+  Originally disclosed by `task-049`, which is now `done`, so it had already escaped once; this task
+  was the second restatement and `task-065` the third. Measured during `task-065`'s review: the
+  reported ~98 % is **not** materially overstated — including `index.ts` files moves statements,
+  branches and lines *up*, and the functions drop is an artifact of CommonJS re-export getters. The
+  one real hole is `src/core/index.ts` itself.
+
+The review upheld the module-naming deviation as **correct and necessary**, not merely defensible: the
+brief executed literally would have produced `wingfoil directives directive-create`, failing the P3.1
+acceptance contract. `paths` is the established precedent for a `CoreModule.name` decoupled from both
+the `src/` directory and `spec-006` §3's heading.
+
+Original list, kept for context:
+
+
 - **Deviation from the task brief's wording.** The brief asked for the operation to be appended to the
   **`directives`** module's operations map in `src/core/index.ts`. Doing that literally would have
   produced `wingfoil directives directive-create` and Tool `directives.directive-create` (see design
