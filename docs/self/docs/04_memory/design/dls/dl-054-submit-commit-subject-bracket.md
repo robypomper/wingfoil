@@ -39,6 +39,15 @@ and **64** do not. The split is not random:
   `tech-spec` (4) submit, plus 17 `task` and 17 `bug` submits — essentially every **content** submit
   (`draft → pending` / `draft → open`).
 
+> **Re-count (2026-09-17, `main` at `42d12c8`).** The figures above were true when this was written,
+> and the per-type breakdown matches them; submits kept landing while the decision was open, so the
+> same command now reports **73** bracketed and **67** plain — bracketed: `task` ×68, `bug` ×5; plain:
+> `decision-log` ×19, `bug` ×18, `task` ×17, `plan` ×4, `tech-spec` ×4, `adr` ×2, `release` ×2,
+> `release-line` ×1. All five added brackets are `task … [in-progress → in-review]`, so only the totals
+> moved: the split this section describes is unchanged. Commands:
+> `git log --format=%s main | grep -E '^wf\([a-z-]+\): submit'`, counted with `grep -cE '\['` and
+> `grep -vcE '\['`, and broken down with `sed -E 's/^wf\(([a-z-]+)\).*/\1/' | sort | uniq -c`.
+
 So hand-made history already distinguishes the two meanings of `submit` that
 `docs/self/.wingfoil/workflows/custom/dev-loop.yaml` uses: the capture submit (`:51`,
 `draft -> pending`, which fills content and moves to the post-submit state) and the review hand-off
