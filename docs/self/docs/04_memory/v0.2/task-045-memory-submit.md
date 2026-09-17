@@ -2,8 +2,7 @@
 id: "task-045-memory-submit"
 type: task
 title: "Implement `wingfoil memory submit`"
-status: in-progress
-rejection_reason: "P1.6 and dl-032 are implemented faithfully and every gate passes, but the frontmatter helper this verb introduces for all transition verbs silently corrupts documents. Removing a `rejection_reason` block scalar that contains a blank line commits `status: \"in-review\\nSecond paragraph.\"` with exit 0, or produces invalid YAML that stops every later submit and search in the repo (reproduced through the CLI). CRLF, unspaced `#` and multi-line values are also mishandled, with no tests. Separately, `commitPaths` commits the whole index, so pre-staged files leak into `wf(task): submit` commits, against CLAUDE.md §5.1 and `commitMemoryTransition`'s own TSDoc (reproduced). Fix the helper, add a re-parse post-condition before writing, and fix the scoped commit as an absorbed bug, then resubmit. The `<to>` rule's self-loop fallback should be ratified as a decision-log before task-046/047."
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
