@@ -2,7 +2,7 @@
 id: "bug-016-stale-pass2-exit-code-tsdoc"
 type: bug
 title: "Two TSDoc blocks in src/validation/errors.ts still encode the Pass-2-always-exits-2 rule that spec-009 §3 now repudiates"
-status: in-progress
+status: in-review
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2"
