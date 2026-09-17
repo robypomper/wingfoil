@@ -27,9 +27,9 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaShow',
       'memory.memoryAdd',
       'memory.memoryHistory',
+      'memory.memoryReject',
       'memory.memorySearch',
       'memory.memorySubmit',
-      'memory.memoryReject',
       'paths.paths',
       'workflow.workflowList',
     ]);
@@ -41,8 +41,8 @@ describe('CORE_MODULES — production registry', () => {
       'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
-      'memory.memorySubmit',
       'memory.memoryReject',
+      'memory.memorySubmit',
     ]);
   });
 });

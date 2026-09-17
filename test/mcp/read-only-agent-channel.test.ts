@@ -93,7 +93,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
     // `memory.memoryReject` (P1.8), the first approver-gated Tool.
     expect(mutatingOps.map((op) => op.name).sort()).toEqual(['directiveCreate', 'dnaSet', 'memoryAdd', 'memoryReject', 'memorySubmit']);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add', 'memory.submit']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add', 'memory.reject', 'memory.submit']);
   });
 
 });

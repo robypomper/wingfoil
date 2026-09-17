@@ -41,7 +41,9 @@ describe('renderRejectDocument', () => {
   it('replaces an existing `rejection_reason` in place rather than adding a second key', () => {
     const once = renderRejectDocument(DOC, 'draft', 'first');
     const twice = renderRejectDocument(once, 'draft', 'second');
-    expect(twice.match(/^rejection_reason:/gm)).toHaveLength(1);
+    // Counted inside the frontmatter only: `DOC`'s body deliberately contains a `rejection_reason:`
+    // line, which must stay exactly one untouched body line (next test).
+    expect((splitFrontmatter(twice).frontmatter ?? '').match(/^rejection_reason:/gm)).toHaveLength(1);
     expect(parsed(twice).rejection_reason).toBe('second');
   });
 

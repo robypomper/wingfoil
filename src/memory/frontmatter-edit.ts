@@ -19,7 +19,8 @@
  * - a **plain scalar**: following indented lines that are not comments, with the blank lines between
  *   them (a plain scalar ends at a comment line);
  * - an **empty value** (a nested mapping or sequence): following indented or `-` lines, with blank and
- *   indented comment lines only when more of that nested block follows.
+ *   comment lines — at ANY indentation, a column-0 `#` between two column-0 sequence items included —
+ *   only when more of that nested block follows.
  *
  * Trailing blank lines, and a comment that ends a value, belong to the parent mapping and are kept.
  * CRLF documents stay CRLF. Only column-0 keys are matched, so a
@@ -138,7 +139,12 @@ function entryEnd(lines: readonly string[], index: number, key: string): number 
   let lastContent = start;
   for (let end = start; end < lines.length; end += 1) {
     const text = lines[end]!;
-    if (isBlank(text) || (nested && isComment(text) && indentOf(text) > 0)) continue;
+    // Inside a nested value a comment line continues the block whatever its indentation: a column-0
+    // `#` between two column-0 sequence items is part of that sequence, not the end of the entry
+    // (`bug-041` G2, whose removal left `- b` orphaned behind the deleted key — invalid YAML).
+    // `lastContent` still advances only on real content, so a comment that *ends* the value is not
+    // swallowed: it belongs to the parent mapping and is kept.
+    if (isBlank(text) || (nested && isComment(text))) continue;
     const child = indentOf(text) > 0 || (nested && text.startsWith('-'));
     if (!child || isComment(text)) break;
     lastContent = end + 1;
@@ -164,7 +170,7 @@ function toYamlScalar(value: string): string {
  * Set top-level `key` to the string `value`, serialized YAML-safely. An existing entry is replaced as a
  * whole — continuation lines, block-scalar body or multi-line quoted value included. A `# comment` on
  * the key line is kept when the old value ended on that line; the line ending of the key line is kept.
- * An absent key is appended as the last frontmatter line, with the document's line ending.
+ * An absent key is appended after the last non-blank frontmatter line, with the document's line ending.
  *
  * @throws `Error` when the document has no frontmatter block.
  */
@@ -172,13 +178,24 @@ export function setFrontmatterField(content: string, key: string, value: string)
   const { before, lines, after } = locateFrontmatter(content);
   const entry = `${key}: ${toYamlScalar(value)}`;
   const index = findKeyLine(lines, key);
-  if (index === -1) return assemble(before, [...lines, entry], after);
+  if (index === -1) {
+    // After the last NON-BLANK line, not simply last: trailing blank lines can belong to a
+    // keep-chomped (`|+`) block scalar's value, and pushing the new key past them would change that
+    // other field — which the post-condition then rightly refuses (`bug-041` G3).
+    let at = lines.length;
+    while (at > 0 && isBlank(lines[at - 1]!)) at -= 1;
+    return assemble(before, [...lines.slice(0, at), entry, ...lines.slice(at)], after);
+  }
   const header = lines[index]!;
   const { valueEnd, closed } = scanHeaderValue(header, key);
   // A value that ended on the key line keeps what followed it there (spaces, `# comment`); line
-  // endings are restored by `assemble`.
+  // endings are restored by `assemble`. A tail that starts at the `#` itself — the shape an EMPTY
+  // value with an inline comment leaves behind (`rejection_reason:   # set by memory.reject`) — gets
+  // a separating space: `value# comment` is a comment YAML requires to be preceded by whitespace, and
+  // js-yaml's tolerance of it hid the defect from the re-parse post-condition (`bug-041` G1).
   const tail = closed ? header.slice(valueEnd) : '';
-  return assemble(before, [...lines.slice(0, index), `${entry}${tail}`, ...lines.slice(entryEnd(lines, index, key))], after);
+  const separated = tail.startsWith('#') ? ` ${tail}` : tail;
+  return assemble(before, [...lines.slice(0, index), `${entry}${separated}`, ...lines.slice(entryEnd(lines, index, key))], after);
 }
 
 /**
