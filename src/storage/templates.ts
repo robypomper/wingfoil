@@ -15,6 +15,7 @@
  * so `wingfoil init --template X` is byte-identical run to run (REQ-SYS-07), and the returned list is
  * sorted by path so callers may diff the set safely.
  */
+import { BUILTIN_DIRECTIVE_TEMPLATES, builtinDirectiveMd } from './builtin-directives';
 import { WINGFOIL_DIR, type ScaffoldFile } from './layout';
 
 /** A methodology starter template: the methodologies it seeds and the delivery sub-workflow it adds. */
@@ -190,20 +191,17 @@ const MEMORY_ID_PATTERNS: Readonly<Record<(typeof MEMORY_TYPES)[number], string>
 };
 
 /**
- * The role-based directives every starter project gets. The six P3.8 categories carry `ref: [P3.8]`;
- * the four cross-cutting rules are AUTHORING starters the user tailors.
+ * The cross-cutting CUSTOM directives every starter project gets under `directives/custom/` — AUTHORING
+ * starters the user tailors. The six P3.8 categories are not here: since
+ * `task-057-builtin-directive-templates` they ship as official built-ins (`./builtin-directives`,
+ * installed under `directives/built-in/`), replacing the generated `custom/` stand-ins that would
+ * otherwise shadow them on every fresh project (`dl-037`: a same-id `custom/` file wins and is reported).
  */
-const DIRECTIVES: ReadonlyArray<{ name: string; title: string; summary: string; p38: boolean }> = [
-  { name: 'architecture', title: 'Architecture', summary: 'Keep the system decomposed into cohesive, loosely-coupled modules; document boundaries.', p38: true },
-  { name: 'code-quality', title: 'Code quality', summary: 'Prefer clear, small, well-named units; no dead code; consistent formatting via the linter.', p38: true },
-  { name: 'code-review', title: 'Code review', summary: 'Every change is reviewed for correctness, tests, and adherence to the directives before merge.', p38: true },
-  { name: 'determinism', title: 'Determinism', summary: 'No wall-clock, randomness, or unordered iteration in context-building paths; prefer declared config.', p38: false },
-  { name: 'doc-versioning', title: 'Documentation versioning', summary: 'Bump a document version only on the first edit after it was committed; update its date when bumping.', p38: false },
-  { name: 'documentation', title: 'Documentation', summary: 'Keep user- and developer-facing docs in step with behaviour; document the why, not just the what.', p38: true },
-  { name: 'security', title: 'Security', summary: 'Validate all inputs; apply least privilege; review dependencies for known vulnerabilities.', p38: true },
-  { name: 'security-secrets', title: 'Secret hygiene', summary: 'Never commit credentials or secrets; the repository is the single source of truth and is shared.', p38: false },
-  { name: 'testing', title: 'Testing', summary: 'Test-first: write a failing test before the implementation; keep meaningful coverage high.', p38: true },
-  { name: 'traceability', title: 'Traceability', summary: 'Maintain the feature -> story -> acceptance -> requirement -> task chain across every change.', p38: false },
+const DIRECTIVES: ReadonlyArray<{ name: string; title: string; summary: string }> = [
+  { name: 'determinism', title: 'Determinism', summary: 'No wall-clock, randomness, or unordered iteration in context-building paths; prefer declared config.' },
+  { name: 'doc-versioning', title: 'Documentation versioning', summary: 'Bump a document version only on the first edit after it was committed; update its date when bumping.' },
+  { name: 'security-secrets', title: 'Secret hygiene', summary: 'Never commit credentials or secrets; the repository is the single source of truth and is shared.' },
+  { name: 'traceability', title: 'Traceability', summary: 'Maintain the feature -> story -> acceptance -> requirement -> task chain across every change.' },
 ];
 
 function dnaYaml(def: TemplateDefinition): string {
@@ -348,18 +346,17 @@ ${includes}
  * binds roles on, and {@link rolesYaml} lists exactly those stems in its `assignments`/`global` blocks
  * — so any other value would leave every scaffolded role binding dangling. Keep the two in step.
  *
- * `kind: custom` is correct for `directives/custom/`, the only place {@link templateScaffold} writes a
- * directive today; a P3.8 built-in template (`task-057`) is `kind: built-in`, and spec-013 keeps `kind`
- * a plain `string` precisely so that needs no schema change.
+ * `kind: custom` is correct for `directives/custom/`, the only place this generator's output is written;
+ * the P3.8 built-ins carry `kind: built-in` and have their own renderer (`builtinDirectiveMd`,
+ * `./builtin-directives`).
  */
 function directiveMd(d: (typeof DIRECTIVES)[number]): string {
-  const ref = d.p38 ? '\nref: [P3.8]' : '';
   return `---
 id: ${d.name}
 name: ${d.name}
 type: directive
 kind: custom
-title: "${d.title}"${ref}
+title: "${d.title}"
 ---
 
 # ${d.title}
@@ -421,8 +418,8 @@ export function templateScaffold(def: TemplateDefinition): ScaffoldFile[] {
     { path: wf('memory.yaml'), content: memoryYaml() },
     { path: wf('roles.yaml'), content: rolesYaml() },
     { path: wf('workflows.yaml'), content: workflowsYaml(def) },
-    // Directives built-in/custom split (spec-011).
-    { path: `${BUILTIN_DIRECTIVES_DIR}/.gitkeep`, content: '' },
+    // Directives built-in/custom split (spec-011): the six P3.8 built-ins (task-057) + custom starters.
+    ...BUILTIN_DIRECTIVE_TEMPLATES.map((t) => ({ path: `${BUILTIN_DIRECTIVES_DIR}/${t.id}.md`, content: builtinDirectiveMd(t) })),
     ...DIRECTIVES.map((d) => ({ path: wf(`directives/custom/${d.name}.md`), content: directiveMd(d) })),
     // Memory templates — one scaffold per element type (spec-011).
     ...MEMORY_TYPES.map((type) => ({ path: wf(`memory/templates/${type}.md`), content: memoryTemplateMd(type) })),
