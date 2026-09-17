@@ -85,3 +85,37 @@ same paragraph of an `approved` spec.*
 - Either way, record that the ordering choice rests on resolver reuse rather than on determinism.
 - Related: `task-039` (which raised both), `task-058-mcp-prompts-role-based` (the feature task that
   inherits whatever is decided), `spec-012` §5 (the id-ascending rule).
+
+## Review addendum (2026-09-17)
+
+Recorded from the Wave 2 review of `task-058-mcp-prompts-role-based`; verified on `main` (`8a6a091`).
+No change to this decision-log's status, options or recommendations.
+
+**A third defect in the same example: heading levels invert.** `spec-004` §3.2's composition — a
+`# Role: {role}` header, then one `## Directive: {id}` block per directive "carrying the full directive
+body" — is implemented literally (`src/mcp/prompt.ts:100-102` on `main`, from `task-039`; unchanged in
+`task-058`'s `3f27d98`). But every directive body starts with its own **H1**:
+
+- this repository's directives: `grep -c '^# Directive' docs/self/.wingfoil/directives/custom/*.md` →
+  `1` in each of the ten files (e.g. `# Directive — Code Quality`);
+- the starters `wingfoil init` scaffolds on `main`: an H1 at line 10 (e.g. `# Architecture`);
+- the P3.8 built-in templates on `task/task-057-builtin-directive-templates` (`9b77243`):
+  `src/storage/builtin-directives.ts:158` renders `# Directive — ${t.name}`.
+
+So the composed prompt reads `# Role: developer` → `## Directive: code-quality` → `# Directive — Code
+Quality`: each directive's own title outranks the block heading that contains it,
+and every directive after the first appears, structurally, as a new top-level section beside
+`# Role`. Agents parse Markdown structure; the embedding contract should not produce an outline that
+contradicts the nesting it describes.
+
+Options, to settle with the two questions above since all three edit the same paragraph:
+
+1. **Demote directive bodies when embedding** — shift every heading in the body down two levels (H1 → H3,
+   capped at H6) (recommended: the prompt's outline then matches its intent, and the directive files
+   stay readable on their own).
+2. **Strip the body's leading H1** and use it as the block heading (`## Directive: {id} — {name}`); deeper
+   headings still need demoting by one.
+3. **Accept it** and state in §3.2 that bodies are embedded verbatim, including their own headings.
+
+Either way the choice interacts with REQ-INT-02's "embedding 100% of" wording (a rewritten heading is
+still the full directive), and with `dl-048` / `dl-049`, which amend neighbouring §3 text.
