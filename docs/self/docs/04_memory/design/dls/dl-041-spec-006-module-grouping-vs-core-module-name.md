@@ -2,7 +2,7 @@
 id: "dl-041-spec-006-module-grouping-vs-core-module-name"
 type: decision-log
 title: "spec-006 §3 groupings are not CoreModule.name — reconcile, and pin where directive verbs register"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
