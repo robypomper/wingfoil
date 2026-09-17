@@ -31,5 +31,7 @@ export {
   BUILTIN_WORKFLOWS_DIR,
 } from './templates';
 export type { TemplateDefinition, BuiltinTemplateKind, BuiltinTemplateSource } from './templates';
+export { BUILTIN_DIRECTIVE_TEMPLATES, BUILTIN_DIRECTIVE_IDS, builtinDirectiveMd } from './builtin-directives';
+export type { BuiltinDirectiveTemplate } from './builtin-directives';
 export { computeStateSnapshot, serializeSnapshot } from './snapshot';
 export type { SnapshotEntry } from './snapshot';
