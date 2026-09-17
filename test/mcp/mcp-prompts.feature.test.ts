@@ -177,4 +177,12 @@ describe('P5.2.2 — edges of the undefined-role refusal', () => {
     expect((error as McpError).code).toBe(ErrorCode.InvalidParams);
     expect((error as McpError).message).toBe('MCP error -32602: Prompt wizard not found');
   });
+
+  it('owns the Prompts handlers: a later high-level registerPrompt on the same server fails loudly, never shadows them', () => {
+    const server = createMcpServer({ resolveRoot: () => root });
+
+    expect(() => server.registerPrompt('developer-session', {}, () => ({ messages: [] }))).toThrow(
+      /A request handler for prompts\/list already exists/,
+    );
+  });
 });
