@@ -83,9 +83,9 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dna.
     // false` (a read, per spec-006 §3), so it registers as a Resource, not a Tool, and does not widen
     // this list; the next mutating op arrives with a later task-022+.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['dnaSet', 'memoryAdd']);
+    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['directiveCreate', 'dnaSet', 'memoryAdd']);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set', 'memory.add']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add']);
   });
 
   it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {
