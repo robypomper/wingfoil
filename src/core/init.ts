@@ -11,6 +11,12 @@
  *   2. the REQ-SEC-01 git-identity pre-flight (`requireGitIdentity`, task-014) — a WingFoil commit
  *      with no attributable author is refused before any file is written.
  *
+ * Both write paths below — {@link initWingfoilStorage} and {@link initWingfoilProject} — additionally
+ * run the REQ-SEC-10 built-in template schema check over the very `ScaffoldFile[]` they are about to
+ * write, before writing it. The symmetry is deliberate and is pinned by a shared test table
+ * (`test/core/project-directives.test.ts`); it closed
+ * `bug-018-init-storage-bypasses-integrity-guard`, the last asymmetry `task-044` left behind.
+ *
  * The user-facing `wingfoil init` CLI command and its interactive wizard are task-029's scope; this
  * function is the library entry point that command will call. It is intentionally NOT registered in
  * `CORE_MODULES` yet — there is no distinct verb beyond `init`, and wiring the surface belongs with
@@ -56,11 +62,34 @@ export interface InitStorageValue {
  * Initialize the `.wingfoil/` storage structure at `root` and stage it as a single commit authored
  * by the current git user.
  *
+ * Guards, in the order their message must win: git repository → git identity (REQ-SEC-01) → built-in
+ * template integrity (REQ-SEC-10) — the same three, in the same order, as {@link initWingfoilProject}.
+ *
+ * The third one arrived with `task-054-project-directives` / `bug-018-init-storage-bypasses-integrity-guard`.
+ * `scaffoldFiles()` now reserves `.wingfoil/directives/built-in/` (P3.5), which makes this a write path
+ * that installs into a built-in ASSET directory; before that it was the one `initStorage` caller with
+ * no check, safe only because the skeleton happened to contain nothing but dotfiles. Deriving the
+ * checked set from `files` — the exact array handed to `initStorage` below, bound once and not
+ * recomputed — is what makes "installed but unchecked" unrepresentable here too, rather than a
+ * property of today's scaffold content. `verifyBuiltinTemplates` is pure and touches no disk, so
+ * running it here satisfies REQ-SEC-10's "abort before writing partial assets" ordering.
+ *
+ * Per `dl-031-req-sec-10-integrity-depth` (`ready`), that check is schema validation: no digest, no
+ * manifest, no checksum.
+ *
+ * @param builtinTemplates - test-only override for the REQ-SEC-10 source list, mirroring
+ *   {@link initWingfoilProject}'s parameter of the same name; it lets one shared test table drive the
+ *   guard through BOTH write paths (`test/core/project-directives.test.ts`). Omit it in production:
+ *   the derived set is the contract.
  * @returns `ok` carrying the created paths and the produced `{sha, message}` commit; or a
  *   `CoreResult.error` (code `VALIDATION` → exit 1) when `root` is not a git repository, when git
- *   identity is unconfigured (REQ-SEC-01), or (code `IO`) when the git commit itself fails.
+ *   identity is unconfigured (REQ-SEC-01), when a built-in template fails its schema check
+ *   (REQ-SEC-10), or (code `IO`) when the git commit itself fails.
  */
-export function initWingfoilStorage(root: string): CoreResult<InitStorageValue> {
+export function initWingfoilStorage(
+  root: string,
+  builtinTemplates?: readonly BuiltinTemplateSource[],
+): CoreResult<InitStorageValue> {
   // Guard 1 — `root` must itself be a git repository (a `.git` dir or worktree file at the root).
   // Checked first so its precise message wins over the identity pre-flight below.
   if (!existsSync(join(root, '.git'))) {
@@ -71,10 +100,17 @@ export function initWingfoilStorage(root: string): CoreResult<InitStorageValue> 
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity as CoreResult<InitStorageValue>;
 
+  // Guard 3 — REQ-SEC-10, over the very list this call is about to write.
+  const files = scaffoldFiles();
+  const integrityFailure = verifyBuiltinTemplates(builtinTemplates ?? builtinTemplateSources(files));
+  if (integrityFailure) {
+    return coreErr({ code: 'VALIDATION', message: integrityFailure.message });
+  }
+
   try {
-    const sha = initStorage(root);
+    const sha = initStorage(root, files);
     return coreOk<InitStorageValue>(
-      { root, files: scaffoldFiles().map((file) => file.path) },
+      { root, files: files.map((file) => file.path) },
       { sha, message: INIT_COMMIT_MESSAGE },
     );
   } catch (error) {

@@ -2,9 +2,11 @@
  * Methodology templates for `wingfoil init` (task-029-implement-wingfoil-init, P5.1.1,
  * spec-011-storage-layout). task-018 delivered only the minimal committed skeleton
  * (`scaffoldFiles()` in ./layout) and EXPLICITLY deferred the complete spec-011 layout — `roles.yaml`,
- * the `directives/{built-in,custom}` and `workflows/{built-in,custom}` splits, `memory/templates/`,
- * and real starter content — to this module. `templateScaffold(def)` returns that complete layout as
- * a `ScaffoldFile[]` the same `initStorage(root, files, message)` write+commit path consumes.
+ * the `workflows/{built-in,custom}` split, `memory/templates/`, and real starter content — to this
+ * module. `templateScaffold(def)` returns that complete layout as a `ScaffoldFile[]` the same
+ * `initStorage(root, files, message)` write+commit path consumes. (The `directives/{built-in,custom}`
+ * split was deferred here too, until `task-054-project-directives` pulled it back into the minimal
+ * skeleton as well: P3.5 requires it after init, on whichever path ran.)
  *
  * A "template" (Scrum, Kanban — the names the P5.1.1 BDD uses as examples) is an AUTHORING starter:
  * it selects the project's methodologies (written into `dna.yaml` `stacks.methodologies`) and a
@@ -131,12 +133,20 @@ function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
  * than merely untested — the fix `dl-031-req-sec-10-integrity-depth` flagged. (dl-031 ratified that
  * schema validation IS the REQ-SEC-10 contract; there is deliberately no digest or manifest here.)
  *
- * Pure and order-preserving over `files` (REQ-SYS-07): {@link templateScaffold} returns a path-sorted
- * list, so the derived order — and hence `verifyBuiltinTemplates`' first-failure choice — is
- * deterministic.
+ * Pure and order-preserving over `files` (REQ-SYS-07), so the derived order — and hence
+ * `verifyBuiltinTemplates`' first-failure choice — is the caller's own order, deterministic whenever
+ * that is. Both of today's callers qualify, for different reasons: {@link templateScaffold} returns a
+ * genuinely path-sorted list, whereas `scaffoldFiles` (./layout) returns a fixed hand-written literal
+ * that is stable but NOT sorted (see its doc comment). Reproducible is what matters here, not sorted.
  *
- * Returns `[]` for today's scaffold, which still reserves both built-in directories with a `.gitkeep`
- * only. That is a fact about the current scaffold CONTENT, not a property of this function: the
+ * BOTH scaffolds flow through here since `task-054-project-directives`: `scaffoldFiles()` now reserves
+ * `.wingfoil/directives/built-in/` for the P3.5 layout, and `initWingfoilStorage` derives its checked
+ * set from it exactly as `initWingfoilProject` does from {@link templateScaffold}
+ * (`bug-018-init-storage-bypasses-integrity-guard`). Being generic over `ScaffoldFile[]` is what made
+ * that a one-line wiring rather than a second mechanism.
+ *
+ * Returns `[]` for both of today's scaffolds, which still reserve their built-in directories with a
+ * `.gitkeep` only. That is a fact about the current scaffold CONTENT, not a property of this function: the
  * moment an asset is added it is checked, with no edit here — which is precisely the ordering hazard
  * `task-057` (P3.8 built-in directives) inherits. That hazard is now CLOSED on the directive side:
  * `task-064` fixed `bug-006`, so {@link directiveMd}'s output satisfies `DirectiveFrontmatter` and a
