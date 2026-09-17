@@ -24,6 +24,23 @@ Per `spec-015` §2–§4 + `adr-009`:
 - `.github/workflows/publish.yml`: gate → stage → smoke → promote (provenance via OIDC) on `vX.Y.Z` tag on `main`.
 - Document local `act` run to avoid CI-debug commit churn.
 
+
+**`bug-020` — drop the `./` from `bin.wingfoil` (assigned here, spec-015 §1 amended).** This task wires
+`npm publish --dry-run` as the §3 stage-1 CI gate, so it is the task that would otherwise inherit a
+permanent warning in every run's log:
+
+```
+npm warn publish "bin[wingfoil]" script name dist/cli.js was invalid and removed
+```
+
+`spec-015` §1 now specifies `bin.wingfoil: dist/cli.js` without the leading `./` (it previously sat
+under *Unchanged* in the `./` form, which is why `task-059` correctly declined to touch it). Change
+`package.json` to match, and confirm the warning is gone from `npm publish --dry-run` before wiring the
+gate — otherwise stage 1 ships with expected noise on day one, which is how `bug-009`'s red lint
+baseline stopped meaning anything.
+
+Not a functional fix: `task-059`'s reviewer packed and installed a probe and confirmed the shim works
+with either form. It is purely about the gate being readable.
 ## Implementation Notes
 
 Source: `dl-018` T3; architecture fixed by `adr-009`; contract in `spec-015`; requirement REQ-SYS-09. Reuses the `dl-023` smoke sub-workflow.

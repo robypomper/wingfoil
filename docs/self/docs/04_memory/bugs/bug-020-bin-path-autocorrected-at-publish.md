@@ -5,7 +5,7 @@ title: "bin.wingfoil's leading ./ makes npm auto-correct the manifest at publish
 status: triaged
 severity: "low"
 release-origin: "v0.1"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
@@ -63,5 +63,12 @@ land **before** `task-060` wires the gate, not after.
 
 ## Triage & Execution Notes
 
+- **Resolution chosen by the approver: amend the spec.** `spec-015` §1 now specifies
+  `bin.wingfoil: dist/cli.js` without the leading `./`, and the matching `package.json` change is
+  assigned to `task-060-publish-pipeline`'s Acceptance Criteria — the task that wires the CI gate and
+  would otherwise inherit the noise. Scheduled `v0.2` accordingly.
+  Note this bug carries no `bug:` back-reference from `task-060`, because that task is not a derived
+  fix task; `bug.sync_state` will therefore not advance it automatically and it needs closing by hand
+  once `task-060` lands.
 - capture (`bug-ingest`): raised by `task-059`'s review. Severity `low` — no functional impact, no user
   can hit it; the cost is entirely in the signal-to-noise of a CI gate that does not exist yet.

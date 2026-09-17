@@ -47,8 +47,18 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   only if intended in the tarball. **No `.npmignore`** — `files` is the allowlist (single source;
   avoids the `files`/`.npmignore` double-negative).
 
-Unchanged: `name: wingfoil`, `bin.wingfoil: ./dist/cli.js`, `main`, `types`, `engines: node >=18`,
-`license: MIT`. `version` is driven by the release/tag scheme (§4), not hand-edited at publish time.
+- `bin.wingfoil`: **`dist/cli.js`** — no leading `./`. npm rejects a `./`-prefixed `bin` target,
+  rewrites the manifest at publish and warns `"bin[wingfoil]" script name dist/cli.js was invalid and
+  removed` (misleading wording: the command is normalised, not dropped). Amended after `task-059`'s
+  review isolated it with two probe packages — `./dist/cli.js` emits the warning, `dist/cli.js` does
+  not — and confirmed by probe install that the shim works either way, so this is signal hygiene, not
+  a functional fix: §3 stage 1 runs `npm publish --dry-run` as a CI gate, and a gate whose output
+  carries permanent expected noise is a gate people stop reading. Previously listed under *Unchanged*
+  with the `./` form, which is why `task-059` correctly declined to fix it in code. Tracked by
+  `bug-020-bin-path-autocorrected-at-publish`.
+
+Unchanged: `name: wingfoil`, `main`, `types`, `engines: node >=18`, `license: MIT`. `version` is
+driven by the release/tag scheme (§4), not hand-edited at publish time.
 
 ### 2. Scripts (publish gate)
 
