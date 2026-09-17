@@ -98,7 +98,7 @@ describe('publish:staging (task-060) — pure builders', () => {
     expect(wingfoilBlock).not.toBe('');
     expect(wingfoilBlock).not.toContain('proxy');
     expect(config.split("'**':")[1]).toContain('proxy: npmjs');
-    expect(config).toContain(`storage: ${paths.storage}`);
+    expect(config).toContain(`storage: ${JSON.stringify(paths.storage)}`);
     expect(config).toContain('listen: localhost:4873');
   });
 

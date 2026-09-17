@@ -18,7 +18,7 @@
   "main": "dist/core/index.js",
   "types": "dist/core/index.d.ts",
   "bin": {
-    "wingfoil": "./dist/cli.js"
+    "wingfoil": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -32,6 +32,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
+    "prepublishOnly": "npm run build && npm test && npm run lint",
+    "publish:staging": "node scripts/publish-staging.cjs",
     "lint": "eslint .",
     "docs:api": "typedoc --options typedoc.json",
     "test": "jest",

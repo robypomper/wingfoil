@@ -43,7 +43,7 @@ describe('dl-023 smoke (task-060) — scripts/e2e-smoke.cjs', () => {
   });
 
   it('fails when the command exits non-zero, and stops before the per-template runs', () => {
-    const report = runSmoke({ command: process.execPath, commandArgs: ['-e', 'process.exit(3)'] });
+    const report = runSmoke({ command: process.execPath, commandArgs: ['-e', 'process.exit(3)', '--'] });
     expect(report.ok).toBe(false);
     expect(report.checks).toHaveLength(1);
     expect(report.checks[0]).toMatchObject({ label: 'wingfoil --help', ok: false });
