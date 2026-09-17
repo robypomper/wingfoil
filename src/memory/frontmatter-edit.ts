@@ -22,7 +22,7 @@
  *   indented comment lines only when more of that nested block follows.
  *
  * Trailing blank lines, and a comment that ends a value, belong to the parent mapping and are kept.
- * Line endings are preserved per line (CRLF documents stay CRLF). Only column-0 keys are matched, so a
+ * CRLF documents stay CRLF. Only column-0 keys are matched, so a
  * nested `status:` or a body line starting with `status:` is never touched.
  *
  * A byte-level editor can still be wrong in a case nobody thought of, so {@link verifyFrontmatterEdit}
@@ -33,29 +33,28 @@ import { isDeepStrictEqual } from 'util';
 import { splitFrontmatter } from '../storage';
 import { parseYaml, ValidationError } from '../validation';
 
-/** One frontmatter line without its line ending, plus the `\r` of a CRLF ending (or `''`). */
-interface Line {
-  readonly text: string;
-  readonly cr: string;
-}
-
-function toLines(frontmatter: string): Line[] {
-  return frontmatter.split('\n').map((raw) => (raw.endsWith('\r') ? { text: raw.slice(0, -1), cr: '\r' } : { text: raw, cr: '' }));
-}
-
-function fromLines(lines: readonly Line[]): string {
-  return lines.map((line) => `${line.text}${line.cr}`).join('\n');
-}
-
 /** Split `content` into the text before the frontmatter lines, those lines, and everything after them. */
-function locateFrontmatter(content: string): { before: string; lines: Line[]; after: string } {
+function locateFrontmatter(content: string): { before: string; lines: string[]; after: string } {
   const { frontmatter } = splitFrontmatter(content);
   if (frontmatter === null) {
     throw new Error('document has no frontmatter block');
   }
   // `splitFrontmatter` anchors on an opening `---` line, so the frontmatter starts after the first newline.
   const start = content.indexOf('\n') + 1;
-  return { before: content.slice(0, start), lines: toLines(frontmatter), after: content.slice(start + frontmatter.length) };
+  return { before: content.slice(0, start), lines: frontmatter.split('\n'), after: content.slice(start + frontmatter.length) };
+}
+
+// Lines keep a CRLF document's `\r`; every predicate below treats it as trailing whitespace, and the
+// value scan stops before it, so an edited line keeps its ending (see `setFrontmatterField`).
+/**
+ * Join edited frontmatter lines back between `before` and `after`. In a CRLF document the last
+ * frontmatter line's `\r` lives in `after` (`\r\n---`), so a line that becomes last after an edit must
+ * not keep its own `\r`, and a line that stops being last needs one.
+ */
+function assemble(before: string, lines: readonly string[], after: string): string {
+  const crlf = before.endsWith('\r\n');
+  const joined = lines.map((line, i) => (crlf && i < lines.length - 1 && !line.endsWith('\r') ? `${line}\r` : line)).join('\n');
+  return `${before}${crlf ? joined.replace(/\r$/, '') : joined}${after}`;
 }
 
 const indentOf = (text: string): number => text.length - text.trimStart().length;
@@ -63,10 +62,10 @@ const isBlank = (text: string): boolean => text.trim().length === 0;
 const isComment = (text: string): boolean => text.trimStart().startsWith('#');
 
 /** Index of the column-0 `key:` line (followed by a space, a tab or the end of the line), or `-1`. */
-function findKeyLine(lines: readonly Line[], key: string): number {
-  return lines.findIndex(({ text }) => {
+function findKeyLine(lines: readonly string[], key: string): number {
+  return lines.findIndex((text) => {
     const next = text.charAt(key.length + 1);
-    return text.startsWith(`${key}:`) && (next === '' || next === ' ' || next === '\t');
+    return text.startsWith(`${key}:`) && (next === '' || next === ' ' || next === '\t' || next === '\r');
   });
 }
 
@@ -109,19 +108,19 @@ function scanHeaderValue(text: string, key: string): { value: string; valueEnd: 
 }
 
 /** The exclusive end index of the entry whose `key:` line is at `index` (rules in the module doc). */
-function entryEnd(lines: readonly Line[], index: number, key: string): number {
-  const header = scanHeaderValue(lines[index]!.text, key);
+function entryEnd(lines: readonly string[], index: number, key: string): number {
+  const header = scanHeaderValue(lines[index]!, key);
   const start = index + 1;
 
   const block = /^[|>](?:([1-9])[+-]?|[+-]([1-9])?)?$/.exec(header.value);
   if (block) {
     const explicit = block[1] ?? block[2];
-    const firstContent = lines.slice(start).find(({ text }) => !isBlank(text));
-    const contentIndent = explicit !== undefined ? Number(explicit) : indentOf(firstContent?.text ?? '');
+    const firstContent = lines.slice(start).find((text) => !isBlank(text));
+    const contentIndent = explicit !== undefined ? Number(explicit) : indentOf(firstContent ?? '');
     let end = start;
     let lastContent = start;
     while (contentIndent > 0 && end < lines.length) {
-      const { text } = lines[end]!;
+      const text = lines[end]!;
       if (!isBlank(text) && indentOf(text) < contentIndent) break;
       end += 1;
       if (!isBlank(text)) lastContent = end;
@@ -131,14 +130,14 @@ function entryEnd(lines: readonly Line[], index: number, key: string): number {
 
   if (!header.closed) {
     const quote = header.value.charAt(0);
-    const closing = lines.slice(start).findIndex(({ text }) => findClosingQuote(text, 0, quote) !== -1);
+    const closing = lines.slice(start).findIndex((text) => findClosingQuote(text, 0, quote) !== -1);
     return closing === -1 ? lines.length : start + closing + 1;
   }
 
   const nested = header.value.length === 0;
   let lastContent = start;
   for (let end = start; end < lines.length; end += 1) {
-    const { text } = lines[end]!;
+    const text = lines[end]!;
     if (isBlank(text) || (nested && isComment(text) && indentOf(text) > 0)) continue;
     const child = indentOf(text) > 0 || (nested && text.startsWith('-'));
     if (!child || isComment(text)) break;
@@ -173,17 +172,13 @@ export function setFrontmatterField(content: string, key: string, value: string)
   const { before, lines, after } = locateFrontmatter(content);
   const entry = `${key}: ${toYamlScalar(value)}`;
   const index = findKeyLine(lines, key);
-  if (index === -1) {
-    // The last frontmatter line's own ending sits in `after` (it precedes the closing `---`), so it
-    // moves to the new last line, and the old last line takes the document's line ending.
-    const cr = before.endsWith('\r\n') ? '\r' : '';
-    const last = lines[lines.length - 1]!;
-    return `${before}${fromLines([...lines.slice(0, -1), { text: last.text, cr }, { text: entry, cr: last.cr }])}${after}`;
-  }
+  if (index === -1) return assemble(before, [...lines, entry], after);
   const header = lines[index]!;
-  const { valueEnd, closed } = scanHeaderValue(header.text, key);
-  const replaced = { text: `${entry}${closed ? header.text.slice(valueEnd) : ''}`, cr: header.cr };
-  return `${before}${fromLines([...lines.slice(0, index), replaced, ...lines.slice(entryEnd(lines, index, key))])}${after}`;
+  const { valueEnd, closed } = scanHeaderValue(header, key);
+  // A closed value keeps what follows it on the key line (spaces, `# comment`, `\r`); a multi-line
+  // quoted value's key line only keeps its `\r`.
+  const tail = closed ? header.slice(valueEnd) : header.endsWith('\r') ? '\r' : '';
+  return assemble(before, [...lines.slice(0, index), `${entry}${tail}`, ...lines.slice(entryEnd(lines, index, key))], after);
 }
 
 /**
@@ -197,7 +192,7 @@ export function removeFrontmatterField(content: string, key: string): string {
   const { before, lines, after } = locateFrontmatter(content);
   const index = findKeyLine(lines, key);
   if (index === -1) return content;
-  return `${before}${fromLines([...lines.slice(0, index), ...lines.slice(entryEnd(lines, index, key))])}${after}`;
+  return assemble(before, [...lines.slice(0, index), ...lines.slice(entryEnd(lines, index, key))], after);
 }
 
 /** Parse a document's frontmatter into a plain record, or return why it cannot be. */
