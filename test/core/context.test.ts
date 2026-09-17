@@ -301,6 +301,20 @@ describe('resolveRoleDirectives — role-scoped directive resolution (REQ-STATE-
       expect([...byId.values()]).toEqual([same]);
     });
 
+    // Second pass (rejection_reason): the shadow warning's path list is ascending regardless of input
+    // order — fed in reverse, the warning string must be byte-identical (REQ-SYS-07).
+    it('names the shadowing files in ascending path order even when the input arrives reversed', () => {
+      const files = [
+        file('directives/custom/testing.md', 'testing', 'Custom'),
+        file('directives/built-in/testing.md', 'testing', 'Built-in'),
+      ];
+      const expected = [
+        "directive 'testing' defined in directives/built-in/testing.md, directives/custom/testing.md; using directives/custom/testing.md",
+      ];
+      expect(selectDirectivesById(files).warnings).toEqual(expected);
+      expect(selectDirectivesById([...files].reverse()).warnings).toEqual(expected);
+    });
+
     it('selectDirectivesById is the shared rule: every shadowed id, sorted, without a role filter', () => {
       writeFixtureFile(repo, '.wingfoil/directives/built-in/code-review.md', directiveMd('code-review', 'Code Review (built-in)'));
       const { byId, warnings } = selectDirectivesById(loadDirectives(repo));
@@ -317,6 +331,16 @@ describe('resolveRoleDirectives — role-scoped directive resolution (REQ-STATE-
       const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
       expect(resolution.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning', 'testing']);
       expect(resolution.warnings).toEqual(["directive 'ghost-rule' bound to role 'developer' has no directive file"]);
+    });
+
+    // Second pass (rejection_reason): dangling ids are reported ascending, never in roles.yaml order.
+    it('reports several dangling ids in ascending id order, not roles.yaml listing order', () => {
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', 'version: 1.0\nassignments:\n  developer:\n    - zeta-rule\n    - alpha-rule\n    - testing\nglobal: []\n');
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
+      expect(resolution.warnings).toEqual([
+        "directive 'alpha-rule' bound to role 'developer' has no directive file",
+        "directive 'zeta-rule' bound to role 'developer' has no directive file",
+      ]);
     });
 
     it('warns for a dangling global too, after the no-assignments warning (fixed order)', () => {
