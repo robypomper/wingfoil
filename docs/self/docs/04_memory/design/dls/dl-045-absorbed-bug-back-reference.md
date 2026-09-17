@@ -2,7 +2,7 @@
 id: "dl-045-absorbed-bug-back-reference"
 type: decision-log
 title: "A bug absorbed into an existing task's Acceptance Criteria has no closure path — make the task's `bug` field a list"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
