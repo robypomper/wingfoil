@@ -250,3 +250,156 @@ but the MCP surface still populates no positional, so it cannot carry `<id>` —
 | spec-010 — approve changes **only** `status` | **red-first** | no approve code path exists; the post-condition that enforces it (`commitMemoryTransition`) has no approve caller |
 | dl-053 — `<to>` is the verb's own next legal edge, never the next `sequence` state | **red-first** | measured above: `task`/`backlog`/`approve` prints `in-progress` today, and `test/memory/state-machine.test.ts` actively asserts the old `release`/`planning` fallback |
 | bug-017 — an agent holding `approver` via `executes_as` (with `approval_authority: true`) gains no approval authority | **characterization** | the property already holds structurally (`resolveMemberRoles` reads `team.members` only, `src/core/approval-authority.ts:38-43`); the test pins it and **passes on first run**. No red is fabricated and no code is added to force one. |
+
+### red — role: developer
+
+Two red commits, in the order dl-053's fix was asked to land.
+
+**`c8d193d` — dl-053.** Ten cases added to `test/memory/state-machine.test.ts`'s dl-032 contract
+block, over the REAL `memory.yaml` machines, covering `approve` and `reject` as well as `submit`
+across `task`, `adr`, `decision-log`, `bug` and `release`. Red run:
+
+```
+npx jest test/memory/state-machine.test.ts
+Tests:       8 failed, 63 passed, 71 total
+```
+
+The two that passed on first run are the cases dl-053 leaves unchanged (`task`/`approved`/`approve`
+→ `backlog`; `decision-log`/`draft`/`approve` → `ready`). The existing assertion "never prints a
+self-loop … the next state in `sequence`" was rewritten in this same commit, as designed.
+
+**`403b895` — P1.7 + bug-017.** New suite `test/core/memory-approve.test.ts` (15 cases) driving the
+REAL registered `memory.memoryApprove` `CoreFn`; the three P1.7 scenarios end-to-end through real
+`commander` in `test/cli/program.integration.test.ts`; `memoryApprove`/`memory.approve` added to the
+three surface lists (`test/core/production-registry.test.ts`, `test/core/parity.test.ts`,
+`test/mcp/read-only-agent-channel.test.ts`). Red run:
+
+```
+npx jest test/core/memory-approve.test.ts test/core/approval-authority.test.ts \
+  test/core/parity.test.ts test/core/production-registry.test.ts \
+  test/mcp/read-only-agent-channel.test.ts test/cli/program.integration.test.ts
+Test Suites: 5 failed, 1 passed, 6 total
+Tests:       23 failed, 71 passed, 94 total
+```
+
+Causes: `fixture bug: "memoryApprove" operation not registered on the memory module`; the three lists
+lacking the op; and, through the CLI, `error: unknown command 'approve'`. **The one suite that
+passes is `approval-authority.test.ts`** — bug-017's case is a characterization (T1) and passes on
+first run; no red was fabricated for it and no code was added to force one
+(`npx jest test/core/approval-authority.test.ts -t "bug-017"` → `10 skipped, 1 passed, 11 total`).
+
+### green — role: developer
+
+`339420a`. `memoryApproveFn` + its `CORE_MODULES` entry, exactly as designed — one contiguous block
+next to `memorySubmitFn`, one registry entry, three added imports. Every task-045 helper is reused
+unchanged; none is forked. Two small notes:
+
+- `formatMemoryCommitMessage`'s `transition`/`approver`/`reason` inputs already existed (task-045
+  built them for this verb) and were dead until now, so dl-054 cost no formatter change.
+- spec-010's "approve changes **only** `status`" needs no explicit check: `commitMemoryTransition`'s
+  post-condition already refuses unless `status` is the target **and no other field's parsed value
+  changed**. Passing an empty `expected` is therefore the enforcement, not a gap — and the
+  byte-for-byte assertion in `memory-approve.test.ts` sc.1 (`toBe(taskDoc(... 'backlog'))`) pins it
+  from the outside as well.
+
+### Merge of `main` (dl-035)
+
+Merged `main` at `652dbfa` (past the `451f3e8` the orchestrator named — `task-057`, the
+dl-051/053/054 approvals and their doc actions, `spec-012` §5.1, and `dl-061`). No conflict. Re-read
+after the merge, and the effect on sentences written above:
+
+- **`spec-004` §4.3 changed** (+22 lines): it now states the `[{from} → {to}]` split *explicitly* —
+  the bracket belongs to `approve`/`reject`/`deprecate`, `add`/`submit` stay plain — plus a dated
+  Revision note. The design section above cites §4.3 as pinning the subject only generically; that
+  was true when written and is **superseded here**: the split is now written down, and the shipped
+  verb already conforms to it verbatim. No code change needed.
+- **`dl-054` changed** (+9 lines): a dated re-count of the bracketed/plain submit subjects. The
+  ratified option is unchanged.
+- **`dev-loop-rel-v0.2-plan.md` → v1.1**: §3.6 now spells out that the review-gate `memory.submit`
+  subject is plain. This task's own submit commit below follows it.
+- **`dl-061-dev-loop-reject-bug-sync` (new, `in-discussion`)**: read. It concerns the review-*reject*
+  fallback, which declares no `bug.sync_state`. It does not touch this task's path — the
+  `in-progress → in-review` sync at `dev-loop.yaml:90` is a declared call site and is what runs
+  below. Recorded only so a later reject on this task knows the gap exists.
+- No requirement, BDD feature or other cited spec moved across the merge:
+  `git diff 911a5f3^2 HEAD --stat -- docs/02_requirements` → empty (`911a5f3` is the merge commit).
+
+### refactor — role: developer
+
+`9ee7321`: `spec-006` §3's `memoryApprove` row loses its *(planned)* marker (the same edit task-045
+made for `memorySubmit`; spec-006 has no `version` field to bump).
+
+**No code refactor was made, and none is claimed.** Two candidates were considered and rejected for
+stated reasons rather than skipped silently:
+
+1. *Factoring the shared preamble of `memorySubmitFn`/`memoryApproveFn`* (identity → id → load →
+   prepare). Deliberately not done: `src/core/index.ts` is shared by parallel dev-loops —
+   `task-047-memory-reject` is editing this exact region right now, and `task-048` follows — so
+   extracting a common skeleton today would both pre-empt the shape those two verbs need (reject also
+   writes `rejection_reason`; deprecate takes no mandatory reason) and turn a clean list-append merge
+   into a rewritten-function merge. The right moment is after all four verbs exist.
+2. *Avoiding the second `readGitIdentity(root)` call.* `requireApprovalAuthority` reads the git
+   identity internally, and the `Approver:` line needs the same name/email, so the config is read
+   twice (four `git config` invocations instead of two). Not optimised: the alternative is to call
+   `hasApproverRole` directly and rebuild the REQ-SEC-03 message here, which forks task-040's gate
+   and duplicates a fit-criterion string. Cost is two extra `git config` reads on a command that
+   already runs `git add` + `git commit`; correctness and single-source-of-truth win.
+
+### review-ready summary
+
+**Gates** (run in the worktree, after the merge and the refactor commit):
+
+| Command | Result |
+|---|---|
+| `npx jest --maxWorkers=4` | **93/93 suites, 1350/1350 tests passed** |
+| `npx jest --coverage --maxWorkers=4` | All files **98.36** stmts · **91.07** branches · **98.64** funcs · **99.06** lines. Baseline, same command on `main` `652dbfa` in a scratch worktree: 98.36 · 90.91 · 98.64 · 99.06 — branches improve, no metric regresses. `src/core` 98.75 · 92.33 · 100 · 99.29 (baseline 98.75 · 91.93 · 100 · 99.29); `src/memory/state-machine.ts` 95.89 · 93.87 · 100 · 97.14 (baseline 95.94 · 92.45 · 100 · 97.18 — the two uncovered lines are the pre-existing exhaustive `default` arm at 240–241, unchanged) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 2, **only** `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026, pre-existing, untouched) |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+
+**BDD P1.7 → tests** (`docs/02_requirements/02_bdd/features/p1-memory/P1.7-memory-approve.feature`)
+
+| Scenario | Tests |
+|---|---|
+| sc.1 "Approve a pending document with a reason" | `test/core/memory-approve.test.ts` "P1.7 sc.1: approves a pending document with a reason — one commit recording approver, timestamp and reason, exit 0", plus "…the review hand-off gate reaches the literally-named `approved` state (in-review → approved)" and "…a type falling back to `defaults.states` approves pending → approved"; `test/cli/program.integration.test.ts` "sc.1 `memory approve task-101 --reason \"meets standards\"`…" |
+| sc.2 "Error - approving without a reason" | `test/core/memory-approve.test.ts` "P1.7 sc.2: omitting `--reason` exits 2 with the exact REQ-SEC-04 message and changes nothing"; `program.integration` "sc.2 `memory approve task-101` without `--reason`…" |
+| sc.3 "Error - approver lacks authority for the type" | `test/core/memory-approve.test.ts` "P1.7 sc.3: a caller holding no `approver` role exits 1 with the REQ-SEC-03 message, state unchanged" + "…the refusal names the document's OWN type, not a fixed one"; `program.integration` "sc.3 a caller holding no approver role…" |
+
+`P5.2.3` (the MCP Tool path) is `minor-v0.4` scope: `memory.approve` is registered as a Tool and the
+parity/read-only-channel tests assert that, but no MCP-channel behavioural test is claimed here — the
+MCP surface still populates no positional, the same limitation `memory.add`/`memory.submit` carry.
+
+**Other contracts pinned by this task's tests**
+
+| Contract | Test |
+|---|---|
+| dl-054 + CLAUDE.md §5.1 — subject bracket + `Approver:`/`Reason:` body | `memory-approve.test.ts` sc.1 (exact full `%B`), "dl-054: … `verifyTransitionConsistency` finds no drift", "P1.7: the commit body round-trips through `parseApprovalMetadata`" |
+| P1.2/P1.10 — the ISO-8601 timestamp comes from git, not the message | `memory-approve.test.ts` sc.1 (`git log -1 --format=%aI` matches the ISO-8601 shape; the message is asserted `toBe` an exact string with no timestamp in it) |
+| P1.10 round-trip | "`memory history` reads the approve back as operation `approve`, pending -> backlog" |
+| spec-010 — only `status` changes | `memory-approve.test.ts` sc.1 byte-for-byte file assertion |
+| dl-032 + dl-053 — the illegal-transition message | `memory-approve.test.ts` "dl-032/dl-053: approving a `draft` task…"; the ten dl-053 cases in `test/memory/state-machine.test.ts` |
+| bug-027 — the commit stays scoped | "bug-027: a change someone else staged is NOT swept into the `wf(task): approve` commit" |
+| bug-017 (absorbed) | `test/core/approval-authority.test.ts` "bug-017: an agent holding `approver` via `executes_as` — even with `approval_authority: true` — gets NO approval authority" |
+
+**T1 outcome:** every red-first AC had a genuine failing test first (the two red runs above);
+bug-017 stayed a characterization and passed on first run.
+
+**For the approver / the reviewer**
+
+1. **Call order — authority (step 6) runs after `prepareMemoryTransition` (step 5).** The rationale is
+   in the design section and in `memoryApproveFn`'s TSDoc. The one observable consequence: an
+   unauthorized caller attempting an *already illegal* transition sees the illegal-transition message
+   instead of the authority one. Both exit `1`, no BDD scenario pins the combination, and nothing is
+   written either way — but it is a deliberate choice, not an accident.
+2. **The `Approver:` role is always the literal `approver`**, not the member's full role list — it is
+   the role the approval is made *in*, and `requireApprovalAuthority` grants authority on no other.
+   A member who is also `tech-lead` still gets `(approver)`.
+3. **dl-053's rule is now load-bearing for `task-047`.** `contractTarget` is corrected in its own
+   early commit (`acbd724`) touching only `src/memory/state-machine.ts`; `task-047` runs in parallel
+   on that file and should take that commit rather than re-deriving the rule.
+4. **`--reason` is recorded verbatim on one line.** `audit.ts`'s `REASON_LINE_RE` captures only the
+   first line of a `Reason:` value (a pre-existing, documented limitation, not introduced here), so a
+   multi-paragraph `--reason` would be written in full into the commit but read back truncated by
+   `memory history`. Left alone deliberately — changing it is out of this task's scope — and reported
+   as a proposed element instead.
