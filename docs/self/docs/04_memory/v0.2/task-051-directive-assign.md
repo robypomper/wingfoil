@@ -2,7 +2,7 @@
 id: "task-051-directive-assign"
 type: task
 title: "Implement `wingfoil directive assign`"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p3"]
