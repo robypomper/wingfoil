@@ -33,8 +33,10 @@ function runGit(root: string, args: readonly string[], options: CommitOptions): 
 
 /**
  * Stage exactly `paths` (root-relative or absolute; each passed verbatim after `--` so a path that
- * looks like a flag is never misread) and create a single commit with `message`, returning the new
- * commit's 40-hex sha.
+ * looks like a flag is never misread) and create a single commit with `message` that contains **only**
+ * those paths, returning the new commit's 40-hex sha. Other changes already staged in the index are
+ * neither committed nor unstaged (bug-027) — this also holds for the first commit of an empty
+ * repository (`wingfoil init`).
  *
  * Determinism note (REQ-SYS-07): a git commit's sha necessarily incorporates the author/commit
  * timestamp, so two runs produce different shas — that is inherent to *creating* history and is not
@@ -52,6 +54,9 @@ export function commitPaths(
   options: CommitOptions = {},
 ): string {
   runGit(root, ['add', '--', ...paths], options);
-  runGit(root, ['commit', '--quiet', '-m', message], options);
+  // `--only -- <paths>` records exactly these paths, whatever else is staged: anything a caller or
+  // another tool already staged stays staged and uncommitted (bug-027). A plain `git commit` would
+  // commit the whole index under a subject that names only this operation.
+  runGit(root, ['commit', '--only', '--quiet', '-m', message, '--', ...paths], options);
   return runGit(root, ['rev-parse', 'HEAD'], options).trim();
 }

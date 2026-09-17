@@ -163,7 +163,12 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
   it('`directives list --format json` exits 0 and lists the one fixture directive', () => {
     const result = runCli('directives', 'list', '--format', 'json');
     expect(result.status).toBe(0);
-    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+    // dl-042 (task-055): the payload is `{ entries, warnings }`, no longer a bare array.
+    const { entries: value, warnings } = JSON.parse(result.stdout) as {
+      entries: Array<{ frontmatter: { id: string }; assignment: string }>;
+      warnings: string[];
+    };
+    expect(warnings).toEqual([]);
     expect(value).toHaveLength(1);
     expect(value[0]?.frontmatter.id).toBe('sample');
     // P3.4 Scenario 1's "(or `unassigned`)": the fixture root carries a directive but no
@@ -485,6 +490,56 @@ types:
     });
   });
 
+  // task-045-memory-submit (P1.6, BDD `p1-memory/P1.6-memory-submit.feature`) — the three scenarios
+  // driven through the real `commander` wiring, so the exit codes and the `error: <reason>` lines the
+  // feature pins are asserted as a user sees them, not only on the `CoreResult`.
+  describe('`memory submit <id>` — the first Memory transition verb (task-045, P1.6)', () => {
+    const MEMORY_YAML = `version: 1
+types:
+  task:
+    path: "docs/memory/task/{id}.md"
+    states:
+      sequence: [draft, pending, backlog, in-progress, in-review, approved, done]
+      gates:
+        pending: { reject: draft }
+        in-review: { reject: in-progress }
+      waiting: [backlog, approved]
+`;
+    let repo: string;
+    const doc = (id: string, status: string): string =>
+      ['---', `id: ${id}`, 'type: task', 'title: "A task"', `status: ${status}`, '---', '', 'Body.', ''].join('\n');
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeFixtureFile(repo, 'docs/memory/task/task-101.md', doc('task-101', 'draft'));
+      writeFixtureFile(repo, 'docs/memory/task/task-200.md', doc('task-200', 'approved'));
+      commitAll(repo, 'seed');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('sc.1 `memory submit task-101` sets `status: pending`, records one git commit, exit 0', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-101');
+      expect(result.status).toBe(0);
+      expect(readFileSync(join(repo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+      expect(execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim()).toBe('wf(task): submit task-101');
+    });
+
+    it('sc.2 `memory submit task-200` (approved) exits 1 with "illegal transition approved -> pending for type \'task\'", state unchanged', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-200');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: illegal transition approved -> pending for type 'task'\n");
+      expect(readFileSync(join(repo, 'docs/memory/task/task-200.md'), 'utf-8')).toContain('status: approved');
+    });
+
+    it('sc.3 `memory submit task-999` exits 1 with "document not found: task-999"', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-999');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: document not found: task-999\n');
+    });
+  });
+
   // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
   // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
   // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real
@@ -542,7 +597,7 @@ types:
       expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
       const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
       expect(result.status).toBe(0);
-      const listed = JSON.parse(result.stdout) as { path: string; frontmatter: { id: string } }[];
+      const listed = (JSON.parse(result.stdout) as { entries: { path: string; frontmatter: { id: string } }[] }).entries;
       expect(listed.map((entry) => entry.frontmatter.id)).toContain('no-direct-db-access');
     });
   });
@@ -575,7 +630,7 @@ types:
     it('lists only the developer-assigned directives (incl. globals), exit 0', () => {
       const result = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
       expect(result.status).toBe(0);
-      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      const value = (JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string }; assignment: string }> }).entries;
       expect(value.map((entry) => entry.frontmatter.id).sort()).toEqual(['security-secrets', 'testing']);
       expect(value.find((entry) => entry.frontmatter.id === 'testing')?.assignment).toBe('developer');
       expect(result.stderr).toBe('');
@@ -584,12 +639,22 @@ types:
     it('without --role, lists every directive with its assignment (or "unassigned")', () => {
       const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
       expect(result.status).toBe(0);
-      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      const value = (JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string }; assignment: string }> }).entries;
       expect(value.map((entry) => `${entry.frontmatter.id}=${entry.assignment}`)).toEqual([
         'code-review=reviewer',
         'security-secrets=global (all roles)',
         'testing=developer',
       ]);
+    });
+
+    // task-055 (dl-042 D, dl-029): an unbound role is no longer silent on the real CLI — the warning
+    // rides the payload, the command still exits 0 and lists the globals.
+    it('--role for an unbound role carries the dl-029 warning in the payload, exit 0', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--role', 'ghost', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string } }>; warnings: string[] };
+      expect(value.entries.map((entry) => entry.frontmatter.id)).toEqual(['security-secrets']);
+      expect(value.warnings).toEqual(["no directives assigned to role 'ghost'"]);
     });
   });
 

@@ -28,17 +28,19 @@ describe('CORE_MODULES — production registry', () => {
       'memory.memoryAdd',
       'memory.memoryHistory',
       'memory.memorySearch',
+      'memory.memorySubmit',
       'paths.paths',
       'workflow.workflowList',
     ]);
   });
 
-  it('three operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
+  it('four operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3) + `memory.memorySubmit` (P1.6); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
+      'memory.memorySubmit',
     ]);
   });
 });
@@ -128,7 +130,8 @@ phases:
     const result = await findOperation('directives', 'directivesList').fn({ root: repo });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value as unknown[]).toHaveLength(1);
+      // dl-042 (task-055): the payload is `{ entries, warnings }`, no longer a bare array.
+      expect((result.value as { entries: unknown[] }).entries).toHaveLength(1);
     }
   });
 

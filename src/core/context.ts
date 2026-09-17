@@ -28,6 +28,7 @@ import type { MemoryYaml } from '../memory/schema';
 import type { RolesYaml } from '../directives/schema';
 import type { DnaYaml } from '../dna/schema';
 
+import { isRemovableCustomAssetPath } from './builtin-asset';
 import type { DirectiveFile } from './loaders';
 
 /**
@@ -57,6 +58,74 @@ function ownAssignments(rolesYaml: RolesYaml, role: string): readonly string[] |
 }
 
 /**
+ * The outcome of {@link selectDirectivesById}: one winning file per directive id, and one shadow
+ * warning per id that more than one file defines.
+ */
+export interface DirectiveSelection {
+  /** Winning file per directive id, keyed and iterated in ascending id order. */
+  readonly byId: ReadonlyMap<string, DirectiveFile>;
+  /** `directive '<id>' defined in <path>, <path>; using <winner>` — one per shadowed id, ascending by id. */
+  readonly warnings: readonly string[];
+}
+
+/**
+ * The single precedence rule between two directive files that share an id
+ * (`dl-037-builtin-vs-custom-directive-precedence` A.1, `spec-012` §5): negative when `a` wins.
+ *
+ * A `custom/` file beats any other — "custom" decided by REQ-SEC-07's structural discriminator
+ * {@link isRemovableCustomAssetPath}, which keys on the `custom` directory segment and accepts both
+ * path separators (`loadDirectives` builds `path` with the platform `join`). `frontmatter.kind` is not
+ * consulted: it can disagree with the directory, and the directory is what REQ-SEC-07 trusts. Within
+ * the same tier the lexicographically smallest `path` wins, so the order is total and independent of
+ * the order files arrive in (REQ-SYS-07).
+ */
+function compareDirectivePrecedence(a: DirectiveFile, b: DirectiveFile): number {
+  const aCustom = isRemovableCustomAssetPath('directive', a.path);
+  const bCustom = isRemovableCustomAssetPath('directive', b.path);
+  if (aCustom !== bCustom) return aCustom ? -1 : 1;
+  return a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
+}
+
+/**
+ * Deduplicate `directiveFiles` by `frontmatter.id` — the one place WingFoil decides which of several
+ * same-id directive files is in force. Both {@link resolveRoleDirectives} (context assembly) and the
+ * `directives list` payload (`./directives-list.ts`, `dl-042-directives-list-output-contract` A) call
+ * this, so the rule the listing *reports* is the rule context assembly *applies*.
+ *
+ * - Precedence: `custom/` wins over `built-in/`, then smallest path (see `compareDirectivePrecedence`).
+ * - A shadowed file is **reported, never silently dropped** (dl-037 B.1): one warning per shadowed id,
+ *   naming every file that defines it (in precedence-independent path order) and the winner.
+ * - `ids`, when given, restricts selection (and warnings) to those directive ids.
+ */
+export function selectDirectivesById(
+  directiveFiles: readonly DirectiveFile[],
+  ids?: ReadonlySet<string>,
+): DirectiveSelection {
+  const candidates = new Map<string, DirectiveFile[]>();
+  for (const file of directiveFiles) {
+    const id = file.frontmatter.id;
+    if (ids !== undefined && !ids.has(id)) continue;
+    const list = candidates.get(id);
+    if (list === undefined) candidates.set(id, [file]);
+    else list.push(file);
+  }
+
+  const byId = new Map<string, DirectiveFile>();
+  const warnings: string[] = [];
+  // Ascending by id (REQ-SYS-07): never `roles.yaml` listing order or file-system enumeration order.
+  // `candidates` is keyed by id, so no two keys are equal and a two-way compare is total here.
+  for (const [id, files] of [...candidates].sort(([a], [b]) => (a < b ? -1 : 1))) {
+    const [winner] = [...files].sort(compareDirectivePrecedence) as [DirectiveFile, ...DirectiveFile[]];
+    byId.set(id, winner);
+    if (files.length > 1) {
+      const paths = files.map((file) => file.path).sort();
+      warnings.push(`directive '${id}' defined in ${paths.join(', ')}; using ${winner.path}`);
+    }
+  }
+  return { byId, warnings };
+}
+
+/**
  * Resolve the directives bound to `role` — its own `roles.yaml` `assignments[role]` entries plus every
  * `global` directive — per `spec-012-context-loader-relevance-filtering` §5 and
  * `dl-029-role-with-no-directive-assignments` (`ready`, option (c)).
@@ -69,21 +138,20 @@ function ownAssignments(rolesYaml: RolesYaml, role: string): readonly string[] |
  * - **A role that contributes no assignments of its own** — absent from `assignments`, or bound to an
  *   explicitly empty list — resolves to exactly the globals **and** produces the warning
  *   `no directives assigned to role '<role>'`. This is dl-029's ratified hybrid, and it is the
- *   behaviour the edge scenario of `p3-directives/P3.6-auto-load-by-role.feature` now specifies
+ *   behaviour the edge scenario of `p3-directives/P3.6-auto-load-by-role.feature` specifies
  *   ("the agent context contains only the global directives" + that warning). Never an error.
  *   Role-name lookup reads **own** properties only, so a role named after an `Object.prototype`
  *   member (`toString`, `constructor`, …) is treated as unbound like any other unknown role.
- * - **Deduplicated by directive id** (spec-012 §5): if two loaded files carry the same
- *   `frontmatter.id` — the built-in/custom overlap the P3.8 stand-ins will produce — exactly one is
- *   returned. The tie-break keeps the file with the lexicographically smallest `path`, which makes
- *   the choice a total, input-order-independent function of the loaded set. spec-012 defines no
- *   built-in-vs-custom *override* precedence, so none is invented here; a duplicated id is a
- *   config-hygiene problem for whoever authors the directives tree.
+ * - **Deduplicated by directive id, `custom/` winning over `built-in/`** (spec-012 §5, dl-037 A.1),
+ *   through the shared {@link selectDirectivesById}; each shadowed id the role is bound to adds a
+ *   warning naming the files and the winner (dl-037 B.1).
+ * - **A dangling binding is reported** — an id bound to the role (own assignment or global) with no
+ *   file in `directiveFiles` adds `directive '<id>' bound to role '<role>' has no directive file`
+ *   (`dl-042-directives-list-output-contract` D). It is still not an error: the rest resolves.
  * - **Sorted ascending by directive id** (spec-012 §5: "never rely on `roles.yaml` listing order or
  *   file-system enumeration order", REQ-SYS-07).
- * - Directive ids named in `roles.yaml` with no corresponding file in `directiveFiles` are silently
- *   skipped, not an error: a dangling binding is a config-hygiene concern for the pillar that authors
- *   `roles.yaml`, not this resolver's.
+ * - `warnings` has a fixed order: the no-assignments warning, then dangling ids ascending, then
+ *   shadowed ids ascending.
  *
  * This is REQ-STATE-05's Fit Criterion made concrete: for any two distinct roles with disjoint
  * `assignments`, the resolved sets are disjoint too (100% of one role's directives, 0% of the other's).
@@ -99,23 +167,13 @@ export function resolveRoleDirectives(
     : [];
 
   const allowedIds = new Set<string>([...(assigned ?? []), ...rolesYaml.global]);
+  const selection = selectDirectivesById(directiveFiles, allowedIds);
 
-  // Deduplicate by directive id (spec-012 §5), keeping the smallest `path` so the winner does not
-  // depend on the order `directiveFiles` happens to arrive in.
-  const byId = new Map<string, DirectiveFile>();
-  for (const file of directiveFiles) {
-    const id = file.frontmatter.id;
-    if (!allowedIds.has(id)) continue;
-    const incumbent = byId.get(id);
-    if (incumbent === undefined || file.path < incumbent.path) byId.set(id, file);
-  }
+  const dangling = [...allowedIds].filter((id) => !selection.byId.has(id)).sort();
+  for (const id of dangling) warnings.push(`directive '${id}' bound to role '${role}' has no directive file`);
+  warnings.push(...selection.warnings);
 
-  // Sort ascending by directive id (spec-012 §5 / REQ-SYS-07): the output order must not depend on
-  // `roles.yaml` listing order or file-system enumeration order. `byId` is keyed by directive id, so
-  // the comparator never sees two equal keys and a strict two-way compare is total here.
-  const directives = [...byId].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, file]) => file);
-
-  return { directives, warnings };
+  return { directives: [...selection.byId.values()], warnings };
 }
 
 /** The active Memory element an execution context is scoped to (spec-012 §2 `ContextRequest.element`,
@@ -142,7 +200,8 @@ export interface ExecutionContext {
    * full T1–T4 tiered relevance expansion is task-035/038/v0.3's scope (see the module doc comment). */
   readonly memory: readonly MemoryDocumentSummary[];
   /** Operator diagnostics gathered during assembly — currently only
-   * {@link RoleDirectiveResolution.warnings} (dl-029). Diagnostics *about* the context, not content
+   * {@link RoleDirectiveResolution.warnings}: no-assignments (dl-029), dangling binding (dl-042 D),
+   * shadowed directive (dl-037 B.1). Diagnostics *about* the context, not content
    * *of* it: spec-012 §7's canonical envelope has no warnings section, so this never enters the
    * serialized payload. */
   readonly warnings: readonly string[];
@@ -201,7 +260,7 @@ export interface ExecutionContextInputs {
  * put `draft` in it.
  *
  * An archived element produces no warning: {@link ExecutionContext.warnings} carries
- * directive-resolution diagnostics (dl-029), and adding an unratified entry would change a payload
+ * directive-resolution diagnostics only (dl-029, dl-037, dl-042), and adding an unratified entry would change a payload
  * REQ-SYS-07 governs. An archived element is therefore indistinguishable here from an unresolvable
  * one — both yield `memory: []`.
  */
