@@ -109,13 +109,49 @@ DNA is small and fully declared, so selection is inclusion-by-category, not fuzz
   on top of pre-configured templates. Ratified by `dl-037-builtin-vs-custom-directive-precedence`
   (option A.1), which replaced an accidental rule: an earlier implementation broke the tie on shortest
   path, so `built-in/` won because `'b'` sorts before `'c'`.
-- **A shadowed directive is reported, never silently dropped** (`dl-037` option B.1). Emit through the
-  resolution's `warnings` channel (the one `dl-029-role-with-no-directive-assignments` introduced),
-  naming the id and which file won. Dropping one in silence would contradict this section's own
+- **A shadowed directive is reported, never silently dropped** (`dl-037` option B.1), and so is a
+  **dangling binding** — an id bound to the role with no directive file on disk (`dl-042` D, ratified
+  by `dl-051-dangling-directive-binding-warning`). Both are emitted through the resolution's
+  `warnings` channel (the one `dl-029-role-with-no-directive-assignments` introduced); §5.1 fixes the
+  exact texts and their order. Dropping one in silence would contradict this section's own
   "authoritative rules … never truncated" rule below, and would leave an agent unaware of a directive
   it was meant to obey.
 - Each directive is included **verbatim** (full Markdown body); directives are authoritative rules and
   are never truncated by the bounding logic in §6.
+
+#### 5.1 Resolution warnings — the three kinds, their texts and their order
+
+Directive resolution emits **three** kinds of warning, and no others. They appear in this **fixed
+order** (REQ-SYS-07 — the payload must be a pure function of the inputs, never of `roles.yaml` listing
+order or file-system enumeration order): the no-assignments warning first, then dangling ids ascending,
+then shadowed ids ascending. None of the three is an error; resolution always completes.
+
+| # | Kind | Text | Cardinality |
+|---|------|------|-------------|
+| 1 | No assignments (`dl-029`) | `` no directives assigned to role '<role>' `` | 0 or 1 |
+| 2 | Dangling binding (`dl-042` D, `dl-051`) | `` directive '<id>' bound to role '<role>' has no directive file `` | one per dangling id, ascending by id |
+| 3 | Shadowed directive (`dl-037` B.1) | `` directive '<id>' defined in <paths>; using <winner> `` | one per shadowed id, ascending by id |
+
+- **Kind 1** fires when the role contributes no assignments of its own — absent from `assignments`, or
+  bound to an explicitly empty list. It still resolves to exactly the globals (`dl-029`'s ratified
+  hybrid); the warning is the operator signal that the role is unbound, not a refusal.
+- **Kind 2** checks *every* id bound to the role — through its own `assignments` entry **and** through
+  `global`. A dangling **global** is therefore reported too, which matters most: a missing global
+  removes a directive from **every** role.
+- **Kind 3**: `<paths>` is every file defining the id, in ascending path order, joined with `, `;
+  `<winner>` is the path the precedence rule above selects.
+
+**These warnings reach context assembly, not only the listing.** All three are produced by the
+directive resolver itself, so the same array is carried by `directives list --role <r>`'s `warnings`
+**and** by the assembled execution context (`ExecutionContext.warnings`). The two surfaces are one
+rule, never two: a listing-only warning would be a second implementation that can drift, and would
+leave agent-session context assembly silent about the exact directive an agent will not receive
+(`dl-051`). The warnings are diagnostics *about* the context, not content *of* it — §7's canonical
+envelope has no warnings section, so they never enter the serialized payload and never perturb its
+byte stream.
+
+`directives list` **without** a role filter has no role to resolve against, so its `warnings` are kind
+3 only, computed by the same selection primitive over every installed directive file.
 
 ### 6. Relevance filtering (`relevance-filter`) — Memory selection
 
@@ -238,3 +274,19 @@ REQ-SYS-03 stateless derivation, REQ-SYS-08 role binding), `docs/01_vision/06_fe
 dna, directives, workflow, cli, mcp-server`), and uses the current release-line-scoped Memory layout
 applied by the T2 scope rule. Discovered proactively as a `release-planning/identify-specs` candidate:
 it is a genuinely new architectural surface with no prior ADR/spec.
+
+**Revision (2026-09-17) — §5.1 added: all three resolution warnings, their texts and their reach, per
+`dl-051-dangling-directive-binding-warning`.** §5 named only the shadow warning (via `dl-037`) and the
+`warnings` channel `dl-029` introduced — no warning text, and no mention of the dangling-binding
+warning `task-055-auto-load-directives-by-role` shipped (merged at `9c83ca2`). `dl-051` (`ready`,
+approved `8c3fe35`) ratified that warning, its inclusion of dangling **globals**, and the two texts as
+written, together with the rule that it is emitted by the resolver and so reaches
+`ExecutionContext.warnings` as well as `directives list --role`. The new §5.1 states points 1–4 of that
+decision. Every statement in it was read off the code on `main` at `194ff91` —
+`selectDirectivesById` and `resolveRoleDirectives` (`src/core/context.ts`: the warning literals at
+`:122`, `:166`, `:173`, the `allowedIds = assignments ∪ global` union at `:169`, the ascending
+`dangling` sort at `:172`, and the append order `:166` → `:173` → `:174`) and `buildDirectiveListing`
+(`src/core/directives-list.ts`, which takes `selectDirectivesById(...).warnings` without a role filter
+and `resolveRoleDirectives(...).warnings` with one) — and cross-checked against the shipped assertions
+in `test/core/context.test.ts` and `test/core/directives-list.test.ts`. Edited in place without a
+supersede or a state change, per the `spec-001` precedent `dl-041` cites.

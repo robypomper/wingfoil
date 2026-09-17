@@ -194,6 +194,17 @@ Each Tool's input schema mirrors its CLI's required flags one-to-one (e.g. `memo
 3. On an illegal transition, is **rejected identically to the CLI path** (REQ-INT-03 fit criterion):
    same error message, same exit-equivalent status, no partial write.
 
+**The `[{from} → {to}]` bracket belongs to the approver-gated verbs only** — `approve`, `reject`,
+`deprecate` — whose subject must say which edge was taken, because those verbs sit on a gate and the
+edge is a decision rather than a derivation. `add` and `submit` subjects stay **plain**
+(`wf({type}): submit {id}`, exactly the item-2 format above): their target state is derivable from the
+type's state machine in `memory.yaml`, so the bracket would add nothing a reader or `memory history`
+cannot already resolve. Ratified by `dl-054-submit-commit-subject-bracket` (option 2), which chose the
+form already written here over the hand-made bracketed `submit` subjects that accumulated in this
+repository's history; those stay readable — `src/memory/audit.ts` parses both shapes, and its consistency check
+skips a plain `add`/`submit` subject — they simply stop being produced. The split applies to the CLI
+and MCP paths identically, since item 2 makes their commit shape one and the same.
+
 ```json
 // memory.approve tool call
 {
@@ -232,3 +243,14 @@ grounded entirely in `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-
 `docs/02_requirements/03_sard/05_security-compliance.md` (REQ-SEC-05), and
 `docs/01_vision/06_features.md` (P5.2.1/P5.2.2/P5.2.3, plus the release-staging notes for v0.1/v0.2/v0.4).
 No prior-art source material was identified or used; this is authored fresh from the ground-truth specs.
+
+**Revision (2026-09-17) — §4.3 states the `[{from} → {to}]` split explicitly, per
+`dl-054-submit-commit-subject-bracket`.** §4.3 item 2 pinned the subject only as
+`wf({type}): {verb} {id}`, generically; it never said which verbs carry the state bracket, so
+`task-045-memory-submit` had to re-derive that from `src/memory/audit.ts`'s parsing convention and
+CLAUDE.md §5.1. `dl-054` (`ready`, approved `194ff91`) ratified option 2 — the bracket belongs to the
+approver-gated verbs (`approve`, `reject`, `deprecate`), `add` and `submit` stay plain — so the next
+verb does not have to rediscover it. The decision changes nothing already written or built: item 2's
+format is unchanged, `task-045`'s shipped subject builder already conforms, and no commit message was
+rewritten. Edited in place without a supersede or a state change, per the `spec-001` precedent
+`dl-041` cites.
