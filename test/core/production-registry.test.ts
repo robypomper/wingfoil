@@ -26,6 +26,7 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaSet',
       'dna.dnaShow',
       'memory.memoryAdd',
+      'memory.memoryApprove',
       'memory.memoryHistory',
       'memory.memorySearch',
       'memory.memorySubmit',
@@ -34,12 +35,13 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('four operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3) + `memory.memorySubmit` (P1.6); the rest are read-only', () => {
+  it('five operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3), `memory.memoryApprove` (P1.7) + `memory.memorySubmit` (P1.6); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
+      'memory.memoryApprove',
       'memory.memorySubmit',
     ]);
   });

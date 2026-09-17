@@ -540,6 +540,90 @@ types:
     });
   });
 
+  // task-046-memory-approve (P1.7, BDD `p1-memory/P1.7-memory-approve.feature`) — the three scenarios
+  // driven through the real `commander` wiring, so the exit codes, the `error: <reason>` lines and the
+  // required `--reason` VALUE option are asserted as a user sees them, not only on the `CoreResult`.
+  describe('`memory approve <id> --reason <text>` — the approval gate (task-046, P1.7)', () => {
+    const APPROVE_MEMORY_YAML = `version: 1
+types:
+  task:
+    path: "docs/memory/task/{id}.md"
+    states:
+      sequence: [draft, pending, backlog, in-progress, in-review, approved, done]
+      gates:
+        pending: { reject: draft }
+        in-review: { reject: in-progress }
+      waiting: [backlog, approved]
+`;
+    /** `makeTempGitRepo`'s identity is `WingFoil Test <wf-test@example.invalid>` — the principal here. */
+    const dnaYaml = (roles: string): string => `version: 1.1
+modules:
+  - name: core
+    path: src/core
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+team:
+  members:
+    - name: WingFoil Test
+      email: wf-test@example.invalid
+      roles: [ ${roles} ]
+  roles:
+    - name: approver
+    - name: reviewer
+paths:
+  sources: [ src/ ]
+`;
+    let approveRepo: string;
+    const approveDoc = (id: string, status: string): string =>
+      ['---', `id: ${id}`, 'type: task', 'title: "A task"', `status: ${status}`, '---', '', 'Body.', ''].join('\n');
+
+    /** Seed a throwaway project whose single team member holds exactly `roles`. */
+    const seedApproveRepo = (roles: string): void => {
+      approveRepo = makeTempGitRepo();
+      writeFixtureFile(approveRepo, '.wingfoil/memory.yaml', APPROVE_MEMORY_YAML);
+      writeFixtureFile(approveRepo, '.wingfoil/dna.yaml', dnaYaml(roles));
+      writeFixtureFile(approveRepo, 'docs/memory/task/task-101.md', approveDoc('task-101', 'pending'));
+      commitAll(approveRepo, 'seed');
+    };
+
+    afterEach(() => removeTempDir(approveRepo));
+
+    it('sc.1 `memory approve task-101 --reason "meets standards"` advances the state and records approver + reason, exit 0', () => {
+      seedApproveRepo('approver');
+      const result = runCliInRoot(approveRepo, 'memory', 'approve', 'task-101', '--reason', 'meets standards');
+      expect(result.status).toBe(0);
+      expect(readFileSync(join(approveRepo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: backlog');
+      expect(execFileSync('git', ['-C', approveRepo, 'log', '-1', '--format=%B'], { encoding: 'utf-8' }).trim()).toBe(
+        [
+          'wf(task): approve task-101 [pending → backlog]',
+          '',
+          'Approver: WingFoil Test <wf-test@example.invalid> (approver)',
+          'Reason: meets standards',
+        ].join('\n'),
+      );
+    });
+
+    it('sc.2 `memory approve task-101` without `--reason` exits 2 and leaves the state unchanged', () => {
+      seedApproveRepo('approver');
+      const before = execFileSync('git', ['-C', approveRepo, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+      const result = runCliInRoot(approveRepo, 'memory', 'approve', 'task-101');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: --reason\n');
+      expect(readFileSync(join(approveRepo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+      expect(execFileSync('git', ['-C', approveRepo, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim()).toBe(before);
+    });
+
+    it('sc.3 a caller holding no approver role exits 1 with the REQ-SEC-03 message, state unchanged', () => {
+      seedApproveRepo('reviewer');
+      const result = runCliInRoot(approveRepo, 'memory', 'approve', 'task-101', '--reason', 'ok');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: user not authorized to approve type 'task'\n");
+      expect(readFileSync(join(approveRepo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+    });
+  });
+
   // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
   // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
   // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real

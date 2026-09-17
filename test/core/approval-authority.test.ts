@@ -120,6 +120,36 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     expect(requireApprovalAuthority(dir, realDna, 'release').ok).toBe(true);
   });
 
+  // bug-017-agent-authority-guarantee-untested, absorbed into task-046-memory-approve (dl-045).
+  // The load-bearing guarantee of the whole authority model — an AI agent that `executes_as`
+  // `approver` gains NO approval authority — held structurally (`resolveMemberRoles` reads
+  // `team.members` only) but was asserted nowhere, so a future edit reintroducing an agent fallback
+  // (exactly the defect `task-034`'s first pass shipped) would break nothing. The fixture is
+  // deliberately adversarial: `approval_authority: true`, a declarative `dna.yaml` marker NO code
+  // anywhere reads (`task-034`'s second rejection) — so refusing here pins both halves at once.
+  // Characterization (T1): the property already holds, so this passes on first run; no red fabricated.
+  it('bug-017: an agent holding `approver` via `executes_as` — even with `approval_authority: true` — gets NO approval authority', () => {
+    const agentOnlyDna: DnaYaml = {
+      ...REVIEWER_ONLY_DNA,
+      team: {
+        members: [{ name: 'Reviewer Ray', email: 'ray@example.com', roles: ['reviewer', 'developer'] }],
+        agents: [{ name: 'Claude', executes_as: ['approver'], approval_authority: true }],
+        roles: [{ name: 'approver' }, { name: 'reviewer' }, { name: 'developer' }],
+      },
+    };
+    // No MEMBER holds `approver` — only the agent entry claims it.
+    expect(agentOnlyDna.team.members.some((member) => member.roles.includes('approver'))).toBe(false);
+    expect(hasApproverRole(agentOnlyDna, 'ray@example.com')).toBe(false);
+    expect(resolveMemberRoles(agentOnlyDna, 'ray@example.com')).not.toContain('approver');
+
+    setLocalConfig('user.name', 'Reviewer Ray');
+    setLocalConfig('user.email', 'ray@example.com');
+    expect(requireApprovalAuthority(dir, agentOnlyDna, 'task')).toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
+    });
+  });
+
   it('the error type-interpolation reflects the exact `typeName` argument passed in', () => {
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
