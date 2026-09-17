@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
 ref: "P1.8"
-bug: ""
+bug: ["bug-041-frontmatter-edit-yaml-edge-cases"]
 depends_on: ["task-041-mandatory-reason-on-verbs"]
 tmpl_version: 260703
 ---

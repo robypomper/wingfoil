@@ -5,7 +5,7 @@ title: "frontmatter-edit: unspaced `#` after a value written over an empty value
 status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.6"
 contributor: ""
 credit: ""
