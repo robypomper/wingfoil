@@ -204,13 +204,18 @@ describe('setRoleAssignmentsInText — refuses (undefined) whatever it cannot ed
     ['tab indentation', 'assignments:\n\tdeveloper:\n\t\t- testing\nglobal: []\n'],
     ['mixed line endings', 'assignments:\r\n  developer:\n    - testing\nglobal: []\n'],
     ['text that is not YAML', 'assignments:\n  developer:\n    - [unclosed\n'],
-    // The re-parse self-check: `qa` aliases `developer`'s list, so appending to it would silently
-    // change `qa` too — the edit is refused rather than applied.
     ['a lone CR line ending', 'assignments:\r  developer:\r    - testing\rglobal: []\r'],
     ['a flow-mapping child line', 'assignments:\n  {developer: [testing], qa: [testing]}\nglobal: []\n'],
     ['a tagged/null key line the editor cannot re-render', 'assignments:\n  developer: ~\nglobal: []\n'],
     ['invalid YAML outside the assignments block', 'assignments:\n  developer:\n    - testing\nglobal: [unclosed\n'],
-    ['a list another role aliases', 'assignments:\n  developer: &d\n    - testing\n  qa: *d\nglobal: []\n'],
+    // An alias INSIDE the assignments block is refused early, in `mappingEntry` — js-yaml cannot load
+    // `qa: *d` as a standalone line ("unidentified alias") — so it never reaches the self-check.
+    ['a role line aliasing another role', 'assignments:\n  developer: &d\n    - testing\n  qa: *d\nglobal: []\n'],
+    // This one DOES reach the re-parse self-check: `global` aliases `developer`'s list, so appending
+    // an item would silently change `global` too. Mutation-proof that the self-check is what refuses
+    // it: replacing `readsBackAs`'s final `roleMatches && sameJson(...)` with `roleMatches` makes this
+    // case return the edited text (with `global` silently rewritten) and this assertion fail.
+    ['a list the `global` key aliases', 'assignments:\n  developer: &d\n    - testing\nglobal: *d\n'],
   ])('%s', (_label, text) => {
     expect(setRoleAssignmentsInText(text, 'developer', ['testing', 'security'])).toBeUndefined();
   });
