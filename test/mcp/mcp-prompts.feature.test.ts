@@ -146,7 +146,8 @@ describe('P5.2.2-mcp-prompts.feature — MCP Prompts (role-based templates), on 
 
     expect(error).toBeInstanceOf(McpError);
     expect((error as McpError).code).toBe(ErrorCode.InvalidParams);
-    expect((error as McpError).message).toContain("no prompt for undefined role 'wizard'");
+    // The server sends exactly the BDD string; the client's McpError adds its one `MCP error <code>: ` prefix.
+    expect((error as McpError).message).toBe("MCP error -32602: no prompt for undefined role 'wizard'");
   });
 });
 
@@ -174,7 +175,6 @@ describe('P5.2.2 — edges of the undefined-role refusal', () => {
 
     expect(error).toBeInstanceOf(McpError);
     expect((error as McpError).code).toBe(ErrorCode.InvalidParams);
-    expect((error as McpError).message).toContain('Prompt wizard not found');
-    expect((error as McpError).message).not.toContain('undefined role');
+    expect((error as McpError).message).toBe('MCP error -32602: Prompt wizard not found');
   });
 });

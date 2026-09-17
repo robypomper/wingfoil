@@ -5,14 +5,11 @@
  * alongside the Resources channel (`./index.ts`'s `registerReadOnlyResources`, task-011/task-030) and
  * the still-unshipped Tools channel (P5.2.3, v0.4).
  *
- * **Scope — registrar only.** Exactly like `task-011-mcp-resources-read-only` did for Resources, this
- * task ships the registrar and its contract; it does **not** wire it into the production
- * `createMcpServer` (`./server.ts`). That wiring is `spec-014-mcp-server-entry-point` §3's explicit
- * assignment to P5.2.2 ("when Prompts ship (P5.2.2, v0.2), it adds their registrar") and therefore
- * belongs to `task-058-mcp-prompts-role-based`, which `depends_on` this task and also owns the BDD
- * scenarios of `p5-interaction/P5.2.2-mcp-prompts.feature` — including that feature's undefined-role
- * error string, which neither REQ-INT-02's Fit Criterion nor spec-004 §3 defines and which is
- * consequently not invented here.
+ * **Wired into the production server by `task-058-mcp-prompts-role-based` (P5.2.2).** task-039
+ * shipped this registrar as infra, exactly like `task-011-mcp-resources-read-only` did for Resources;
+ * task-058 adds it to `createMcpServer` (`./server.ts`) per `spec-014-mcp-server-entry-point` §3
+ * ("when Prompts ship (P5.2.2, v0.2), it adds their registrar") and implements the undefined-role
+ * refusal of `p5-interaction/P5.2.2-mcp-prompts.feature` (`no prompt for undefined role '<role>'`).
  *
  * **Read-only (spec-004 §3.3).** A prompt handler reads `dna.yaml`, `roles.yaml` and the directive
  * files and returns text. There is no code path in this module that writes, and it registers no Tool —
@@ -32,7 +29,7 @@
 import { join } from 'path';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ErrorCode, GetPromptRequestSchema, ListPromptsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { ErrorCode, GetPromptRequestSchema, ListPromptsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { loadDirectives, loadDnaYaml, loadRolesYaml, resolveRoleDirectives } from '../core';
@@ -63,12 +60,23 @@ export function roleSessionPromptName(role: string): string {
 }
 
 /**
+ * A `prompts/get` refusal whose JSON-RPC error carries `message` **verbatim** with code `InvalidParams`
+ * (-32602, the code the MCP SDK itself uses for an unknown prompt name).
+ *
+ * Deliberately a plain `Error` with a `code`, not the SDK's `McpError`: `McpError`'s constructor
+ * prefixes its own message with `MCP error <code>: `, and the SDK serializes `error.message` as-is, so a
+ * client — which adds that prefix again when it rebuilds the error — would read the prefix twice.
+ */
+function promptRequestError(message: string): Error {
+  return Object.assign(new Error(message), { code: ErrorCode.InvalidParams });
+}
+
+/**
  * The P5.2.2 undefined-role refusal, verbatim from `p5-interaction/P5.2.2-mcp-prompts.feature`
  * (Scenario "Error - requesting a prompt for an undefined role"): `no prompt for undefined role '<role>'`.
- * Raised as `InvalidParams` — the code the MCP SDK itself uses for an unknown prompt name.
  */
-function undefinedRolePromptError(role: string): McpError {
-  return new McpError(ErrorCode.InvalidParams, `no prompt for undefined role '${role}'`);
+function undefinedRolePromptError(role: string): Error {
+  return promptRequestError(`no prompt for undefined role '${role}'`);
 }
 
 /**
@@ -175,7 +183,7 @@ export function registerRolePrompts(server: McpServer, options: RegisterRoleProm
   server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
     const { name } = request.params;
     if (!name.endsWith(ROLE_PROMPT_NAME_SUFFIX)) {
-      throw new McpError(ErrorCode.InvalidParams, `Prompt ${name} not found`);
+      throw promptRequestError(`Prompt ${name} not found`);
     }
     const role = name.slice(0, -ROLE_PROMPT_NAME_SUFFIX.length);
     if (!roles.has(role)) throw undefinedRolePromptError(role);
