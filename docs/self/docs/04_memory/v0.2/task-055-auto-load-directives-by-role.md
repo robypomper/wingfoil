@@ -167,7 +167,8 @@ spec-012 approved, no new spec. `depends_on.acknowledged` — all three above.
 | AC-9 | › dl-037 › *selectDirectivesById is the shared rule…* | `TypeError: (0 , context_1.selectDirectivesById) is not a function` |
 | AC-8 | › dl-042 D › *warns for a role-assigned id with no directive file*; *warns for a dangling global too…* | warnings missing the dangling entry |
 | AC-6/7/8/9 | `directives-list.test.ts` › *the warnings channel (dl-042 A + D)* — all 7 cases | `Expected: [...] / Received: undefined` (payload is a bare array, no `warnings`) |
-| AC-10 | the 16 pre-existing `directives-list.test.ts` cases, `production-registry.test.ts` › *directivesList returns coreOk([...])*, CLI › *--role for an unbound role carries the dl-029 warning…* | shape change: `entries` undefined on a bare array (accepted by dl-042's ratification) |
+| AC-10 | the 15 pre-existing `directives-list.test.ts` cases, `production-registry.test.ts` › *directivesList returns coreOk([...])*, the 4 pre-existing CLI `directives list` cases | shape change: `entries` undefined on a bare array (accepted by dl-042's ratification) |
+| AC-7 (CLI) | `program.integration.test.ts` › *--role for an unbound role carries the dl-029 warning in the payload, exit 0* | `warnings` absent from the payload |
 
 Characterization cases green at red, as T1 predicted (no fabricated red): `context.test.ts` › *P3.6 — auto-load
 directives by role (BDD acceptance)* — 3/3 passing (`npx jest test/core/context.test.ts -t "P3.6"`).
