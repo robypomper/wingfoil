@@ -2,7 +2,7 @@
 id: "task-045-memory-submit"
 type: task
 title: "Implement `wingfoil memory submit`"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
