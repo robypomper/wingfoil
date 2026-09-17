@@ -105,8 +105,17 @@ is sufficient to make it reachable from both surfaces; no per-surface wiring is 
 
 ### 3. Core functions (v0.1 surface, per `X_cli-cmds.md` Pillars 1–5 + Agent Execution)
 
-Grouped by `CoreModule.name`. Each row: function name (camelCase, matches `{module}{Verb}` — e.g.
-`memoryApprove`), `mutates`, and the CLI command / MCP exposure it backs.
+Grouped by **pillar** — the bold headings below are a human, editorial grouping and are **not**
+`CoreModule.name`. The registering `CoreModule` is named explicitly in the `module` column: its value is
+the `CoreModule.name` the operation is registered under in `CORE_MODULES` (`src/core/index.ts`). That
+value is wire-visible — it is the `wingfoil <noun>` CLI segment and the `{module}` segment of the MCP
+Tool name / Resource URI, and it is the prefix `deriveVerb` (`src/core/registry.ts`) strips from the
+function name to obtain the verb — so it is pinned per row rather than inferred from the heading. A
+`module` value marked *(planned)* belongs to an operation not yet registered in `CORE_MODULES`, and
+names the module its acceptance contract (BDD feature file) or a decision-log mandates; an unmarked
+value is the module the operation is registered under today. Each row: function name (camelCase,
+matches `{module}{Verb}` — e.g. `memoryApprove`), `module`, `mutates`, and the CLI command / MCP
+exposure it backs.
 
 > **MCP naming — authoritative source is `spec-004-mcp-surface-contract`.** The MCP column below uses
 > the wire-visible names defined by `spec-004` (`scope: src/mcp`): **Tool names are dot-form
@@ -118,62 +127,64 @@ Grouped by `CoreModule.name`. Each row: function name (camelCase, matches `{modu
 > `wingfoil://dna/{section}`); the mechanical zero-argument `wingfoil://{module}/{verb}` form shown
 > here is what a read-only op with no parameter metadata resolves to today (`src/mcp/registrar.ts`).
 
-**`memory` module** (P1, `src/memory`):
+**Memory pillar** (P1, `src/memory`):
 
-| function            | mutates | CLI                     | MCP                          |
-|----------------------|---------|--------------------------|-------------------------------|
-| `memoryAdd`          | true    | `wingfoil memory add`    | Tool `memory.add`             |
-| `memorySearch`       | false   | `wingfoil memory search` | Resource `wingfoil://memory/search`    |
-| `memoryImport`       | true    | `wingfoil memory import` | Tool `memory.import`          |
-| `memorySubmit`       | true    | `wingfoil memory submit` | Tool `memory.submit`          |
-| `memoryApprove`      | true    | `wingfoil memory approve`| Tool `memory.approve`         |
-| `memoryReject`       | true    | `wingfoil memory reject` | Tool `memory.reject`          |
-| `memoryDeprecate`    | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
-| `memoryHistory`      | false   | `wingfoil memory history`| Resource `wingfoil://memory/history/{id}` |
+| function            | module                | mutates | CLI                     | MCP                          |
+|----------------------|------------------------|---------|--------------------------|-------------------------------|
+| `memoryAdd`          | `memory`               | true    | `wingfoil memory add`    | Tool `memory.add`             |
+| `memorySearch`       | `memory`               | false   | `wingfoil memory search` | Resource `wingfoil://memory/search`    |
+| `memoryImport`       | `memory` *(planned)*   | true    | `wingfoil memory import` | Tool `memory.import`          |
+| `memorySubmit`       | `memory` *(planned)*   | true    | `wingfoil memory submit` | Tool `memory.submit`          |
+| `memoryApprove`      | `memory` *(planned)*   | true    | `wingfoil memory approve`| Tool `memory.approve`         |
+| `memoryReject`       | `memory` *(planned)*   | true    | `wingfoil memory reject` | Tool `memory.reject`          |
+| `memoryDeprecate`    | `memory` *(planned)*   | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
+| `memoryHistory`      | `memory`               | false   | `wingfoil memory history`| Resource `wingfoil://memory/history/{id}` |
 
-**`dna` module** (P2, `src/dna`):
+**DNA pillar** (P2, `src/dna`):
 
-| function   | mutates | CLI                | MCP                     |
-|------------|---------|---------------------|--------------------------|
-| `dnaSet`   | true    | `wingfoil dna set`  | Tool `dna.set`           |
-| `dnaShow`  | false   | `wingfoil dna show` | Resource `wingfoil://dna/show`    |
-| `dnaInfer` | true    | `wingfoil dna infer`| Tool `dna.infer`         |
-| `pathsQuery` | false | `wingfoil paths`    | Resource `wingfoil://dna/paths`   |
+| function   | module              | mutates | CLI                | MCP                     |
+|------------|----------------------|---------|---------------------|--------------------------|
+| `dnaSet`   | `dna`                | true    | `wingfoil dna set`  | Tool `dna.set`           |
+| `dnaShow`  | `dna`                | false   | `wingfoil dna show` | Resource `wingfoil://dna/show`    |
+| `dnaInfer` | `dna` *(planned)*    | true    | `wingfoil dna infer`| Tool `dna.infer`         |
+| `pathsQuery` | `paths`            | false   | `wingfoil paths`    | Resource `wingfoil://dna/paths`   |
 
-**`directives` module** (P3, `src/directives`):
+**Directives pillar** (P3, `src/directives`) — two nouns by design: singular `directive` for the
+per-directive mutations (BDD P3.1–P3.3), plural `directives` for the listing (BDD P3.4)
+(`dl-041-spec-006-module-grouping-vs-core-module-name`):
 
-| function            | mutates | CLI                        | MCP                          |
-|----------------------|---------|------------------------------|--------------------------------|
-| `directiveCreate`    | true    | `wingfoil directive create`  | Tool `directive.create`       |
-| `directiveAssign`    | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
-| `directiveRemove`    | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
-| `directivesList`     | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
+| function            | module                   | mutates | CLI                        | MCP                          |
+|----------------------|---------------------------|---------|------------------------------|--------------------------------|
+| `directiveCreate`    | `directive`               | true    | `wingfoil directive create`  | Tool `directive.create`       |
+| `directiveAssign`    | `directive` *(planned)*   | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
+| `directiveRemove`    | `directive` *(planned)*   | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
+| `directivesList`     | `directives`              | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
 
-**`workflow` module** (P4, `src/workflow`):
+**Workflow pillar** (P4, `src/workflow`):
 
-| function          | mutates | CLI                     | MCP                        |
-|--------------------|---------|--------------------------|------------------------------|
-| `workflowStatus`   | false   | `wingfoil workflow status` | Resource `wingfoil://workflow/status` |
-| `workflowNext`     | false   | `wingfoil workflow next`   | Resource `wingfoil://workflow/next`   |
-| `workflowStart`    | true    | `wingfoil workflow start`  | Tool `workflow.start`        |
-| `workflowEnd`      | true    | `wingfoil workflow end`    | Tool `workflow.end`          |
-| `workflowList`     | false   | `wingfoil workflow list`   | Resource `wingfoil://workflow/list`   |
-| `workflowShow`     | false   | `wingfoil workflow show`   | Resource `wingfoil://workflow/show/{name}` |
-| `workflowCreate`   | true    | `wingfoil workflow create` | Tool `workflow.create`       |
-| `workflowRemove`   | true    | `wingfoil workflow remove` | Tool `workflow.remove`       |
+| function          | module                  | mutates | CLI                     | MCP                        |
+|--------------------|--------------------------|---------|--------------------------|------------------------------|
+| `workflowStatus`   | `workflow` *(planned)*   | false   | `wingfoil workflow status` | Resource `wingfoil://workflow/status` |
+| `workflowNext`     | `workflow` *(planned)*   | false   | `wingfoil workflow next`   | Resource `wingfoil://workflow/next`   |
+| `workflowStart`    | `workflow` *(planned)*   | true    | `wingfoil workflow start`  | Tool `workflow.start`        |
+| `workflowEnd`      | `workflow` *(planned)*   | true    | `wingfoil workflow end`    | Tool `workflow.end`          |
+| `workflowList`     | `workflow`               | false   | `wingfoil workflow list`   | Resource `wingfoil://workflow/list`   |
+| `workflowShow`     | `workflow` *(planned)*   | false   | `wingfoil workflow show`   | Resource `wingfoil://workflow/show/{name}` |
+| `workflowCreate`   | `workflow` *(planned)*   | true    | `wingfoil workflow create` | Tool `workflow.create`       |
+| `workflowRemove`   | `workflow` *(planned)*   | true    | `wingfoil workflow remove` | Tool `workflow.remove`       |
 
-**`init` module** (P5.1, `src/core` top-level, no dedicated pillar module):
+**Project bootstrap & audit** (P5.1, `src/core` top-level, no dedicated pillar module):
 
-| function     | mutates | CLI              | MCP                    |
-|--------------|---------|-------------------|--------------------------|
-| `projectInit`| true    | `wingfoil init`   | Tool `project.init`      |
-| `projectAudit` | false | `wingfoil audit`  | Resource `wingfoil://project/audit` |
+| function     | module                                                                 | mutates | CLI              | MCP                    |
+|--------------|-------------------------------------------------------------------------|---------|-------------------|--------------------------|
+| `projectInit`| — *(not a `CoreModule`: bootstrap command wired directly in `src/cli/program.ts`)* | true    | `wingfoil init`   | Tool `project.init`      |
+| `projectAudit` | `audit` *(planned — flat `wingfoil audit`, BDD P5.1.3)*              | false   | `wingfoil audit`  | Resource `wingfoil://project/audit` |
 
-**`agent` module** (Agent Execution Commands, `src/core` top-level):
+**Agent execution** (Agent Execution Commands, `src/core` top-level):
 
-| function        | mutates | CLI                     | MCP                      |
-|------------------|---------|---------------------------|----------------------------|
-| `agentExecute`   | true    | `wingfoil agent execute`  | Tool `agent.execute`      |
+| function        | module                | mutates | CLI                     | MCP                      |
+|------------------|------------------------|---------|---------------------------|----------------------------|
+| `agentExecute`   | `agent` *(planned)*    | true    | `wingfoil agent execute`  | Tool `agent.execute`      |
 
 `agentExecute` is `mutates: true` because it can advance the active workflow's step context as a side
 effect of `--next` resolution (per `X_cli-cmds.md`: "Pre-loads Memory context ... "), even though its
@@ -260,3 +271,16 @@ this table's enumeration. No core-function names (`{module}{Verb}`, §5 bullet 1
 actually owns) changed; only the MCP column, which merely reproduces `spec-004`'s naming for the
 parity cross-reference. Recorded per the user's decision to revise `spec-006` (rather than open a
 separate decision-log) to close the gap.
+
+**Revision (2026-09-17) — explicit `module` column in §3, per `dl-041-spec-006-module-grouping-vs-core-module-name`.**
+§3's preamble claimed its groupings **are** `CoreModule.name`; that was false for `pathsQuery`
+(registered on module `paths`, not `dna`) and `directiveCreate` (registered on module `directive`, not
+`directives`). `dl-041` (approved, option **(b)**) kept the pillar headings as the human grouping, added
+a `module` column naming the registering `CoreModule`, and corrected the preamble. It also recorded
+that `directiveAssign`/`directiveRemove` register on the singular `directive` module
+(`wingfoil directive assign|remove`, Tools `directive.assign|remove`), now pinned in their rows.
+Unmarked `module` values were read off `CORE_MODULES` (`src/core/index.ts`) and cross-checked by
+enumerating the registry with `enumerateOperations`/`deriveVerb`/`deriveMcpToolName`/
+`deriveMcpResourceUri`; *(planned)* values follow the operations' BDD feature files. No other column
+changed — the Resource-URI column is `dl-040-spec-006-resource-uri-divergence`'s scope. Edited in place
+without a supersede or a state change, per the `spec-001` precedent `dl-041` cites.
