@@ -60,7 +60,10 @@ export interface InitStorageValue {
  *   `CoreResult.error` (code `VALIDATION` → exit 1) when `root` is not a git repository, when git
  *   identity is unconfigured (REQ-SEC-01), or (code `IO`) when the git commit itself fails.
  */
-export function initWingfoilStorage(root: string): CoreResult<InitStorageValue> {
+export function initWingfoilStorage(
+  root: string,
+  builtinTemplates?: readonly BuiltinTemplateSource[],
+): CoreResult<InitStorageValue> {
   // Guard 1 — `root` must itself be a git repository (a `.git` dir or worktree file at the root).
   // Checked first so its precise message wins over the identity pre-flight below.
   if (!existsSync(join(root, '.git'))) {
@@ -71,10 +74,17 @@ export function initWingfoilStorage(root: string): CoreResult<InitStorageValue> 
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity as CoreResult<InitStorageValue>;
 
+  // Guard 3 — REQ-SEC-10, over the very list this call is about to write.
+  const files = scaffoldFiles();
+  const integrityFailure = verifyBuiltinTemplates(builtinTemplates ?? builtinTemplateSources(files));
+  if (integrityFailure) {
+    return coreErr({ code: 'VALIDATION', message: integrityFailure.message });
+  }
+
   try {
-    const sha = initStorage(root);
+    const sha = initStorage(root, files);
     return coreOk<InitStorageValue>(
-      { root, files: scaffoldFiles().map((file) => file.path) },
+      { root, files: files.map((file) => file.path) },
       { sha, message: INIT_COMMIT_MESSAGE },
     );
   } catch (error) {

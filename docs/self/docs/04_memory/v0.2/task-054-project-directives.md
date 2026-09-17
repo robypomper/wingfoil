@@ -133,3 +133,28 @@ Two files, both driving the production entry points (no test-only reimplementati
 unchanged, including the git-tracking one. So A3 is red-first on the **skeleton** path only; on the
 `wingfoil init` path it was already true, just never asserted — characterization, like A1. A2 and A4
 are red-first as classified. No fabricated red was needed anywhere.
+
+### green (developer)
+
+Two production edits, nothing else:
+
+1. **`src/storage/layout.ts`** — `scaffoldFiles()` now returns
+   `.wingfoil/directives/built-in/.gitkeep` + `.wingfoil/directives/custom/.gitkeep` in place of the
+   single flat `.wingfoil/directives/.gitkeep`. Lexical ordering is preserved
+   (`directives/built-in/… < directives/custom/… < dna.yaml`), so the list stays sorted and
+   byte-identical run to run (REQ-SYS-07).
+2. **`src/core/init.ts`** — `initWingfoilStorage` gains guard 3 (REQ-SEC-10) and the optional
+   `builtinTemplates` override. It binds `const files = scaffoldFiles()` **once**, derives
+   `builtinTemplateSources(files)`, calls `verifyBuiltinTemplates`, returns a `VALIDATION` `coreErr`
+   on failure, and then passes *that same array* to `initStorage(root, files)`. The previous code
+   called `scaffoldFiles()` twice (once implicitly as `initStorage`'s default parameter, once to
+   report `value.files`); binding it once is what makes the checked set and the written set the same
+   array rather than two independently recomputed lists.
+
+Guard order matches `initWingfoilProject` — git-repo, then identity, then REQ-SEC-10 — so the
+`not a git repository` message still wins over everything else.
+
+**Observed after green:** `npx jest test/core/project-directives.test.ts
+test/storage/builtin-template-sources.test.ts` → 2 suites passed, 21 tests passed.
+Full suite `npx jest --maxWorkers=2` → **75 suites / 978 tests, all passing** (baseline at `8456f28`
+was 74 suites / 966 tests; +1 suite, +12 tests). `npx tsc -p tsconfig.build.json` exit 0.

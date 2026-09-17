@@ -46,7 +46,8 @@ const GITKEEP = '';
  */
 export function scaffoldFiles(): ScaffoldFile[] {
   return [
-    { path: `${WINGFOIL_DIR}/directives/.gitkeep`, content: GITKEEP },
+    { path: `${WINGFOIL_DIR}/directives/built-in/.gitkeep`, content: GITKEEP },
+    { path: `${WINGFOIL_DIR}/directives/custom/.gitkeep`, content: GITKEEP },
     { path: `${WINGFOIL_DIR}/dna.yaml`, content: DNA_STUB },
     { path: `${WINGFOIL_DIR}/memory/.gitkeep`, content: GITKEEP },
     { path: `${WINGFOIL_DIR}/memory.yaml`, content: MEMORY_STUB },
