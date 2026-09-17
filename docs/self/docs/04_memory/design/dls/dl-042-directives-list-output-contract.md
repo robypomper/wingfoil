@@ -2,7 +2,7 @@
 id: "dl-042-directives-list-output-contract"
 type: decision-log
 title: "directives list: output contract, shadow marking, and the missing half of dl-029"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
