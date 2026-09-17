@@ -250,3 +250,57 @@ compiled CLI in a scratch repo (`node dist/cli.js directives list --role develop
 3. **Shadow warnings without `--role` are not role-filtered**, while `--role` reports only shadowed ids bound to that role.
 4. `src/mcp/prompt.ts` still does not surface warnings (task-039's decision, spec-004 §3.2); it inherits
    custom-wins with no change. No surface renders `ExecutionContext.warnings` yet (no `agent execute` until v0.3).
+
+---
+
+## Execution Notes — second pass (review-gate reject → `red`)
+
+### Rejection (`cb8cf12`, approver)
+
+`rejection_reason` (now removed by `memory.submit`): dl-037, dl-042 A+D and P3.6 were verified correct,
+but **the ascending warning order promised by D3 / the TSDoc is not pinned**. Removing the `.sort()` at
+`src/core/context.ts:172` (dangling ids) or `:121` (shadow-warning path list) left all 69
+context/listing tests green. Required: a test with two dangling ids in reverse order, and one feeding
+`selectDirectivesById` reversed input.
+
+**Why the first pass missed it:** every dangling-warning fixture had exactly one dangling id, and every
+shadow fixture came through `loadDirectives`, which already returns files in sorted path order. So the
+input was always pre-sorted and the `.sort()` calls were never exercised.
+
+**D4, approver decision: ACCEPTED.** The dangling-binding warning stays in `resolveRoleDirectives`, so it
+also appears in `ExecutionContext.warnings`, dangling globals included. The orchestrator files a
+decision-log to ratify the wording and amend spec-012 §5. This task does not edit spec-012.
+
+### red (second pass) — `227d316`
+
+Two tests added to `test/core/context.test.ts`. Both pass on the unmutated code, because the order is
+already implemented; their job is to pin it. Each was proven to catch its mutant:
+
+| Test | Mutation | Result under mutation |
+|---|---|---|
+| › dl-042 D › *reports several dangling ids in ascending id order, not roles.yaml listing order* (`developer: [zeta-rule, alpha-rule, testing]`, asserts `alpha-rule` then `zeta-rule`) | M1: `context.ts:172` `….filter((id) => !selection.byId.has(id)).sort();` → no `.sort()` | `Tests: 1 failed, 70 passed, 71 total` (only this test fails) |
+| › dl-037 › *names the shadowing files in ascending path order even when the input arrives reversed* (`[custom, built-in]` and its reverse, both assert the identical string) | M2: `context.ts:121` `files.map((file) => file.path).sort();` → no `.sort()` | `Tests: 1 failed, 70 passed, 71 total` (only this test fails) |
+
+Command, per mutant: `sed` the line, then `npx jest test/core/context.test.ts test/core/directives-list.test.ts --maxWorkers=2`.
+Afterwards the file was restored from a copy: `git diff --stat -- src` was empty, and the same run gave
+`Tests: 71 passed, 71 total`. No production code changed in this pass.
+
+### sync with main (dl-035) — `2fe371b`
+
+`git merge main` (no rebase) brought main to `857b0fb`, including the task-060 and task-070 merges and
+bug-020's close. `git diff HEAD~1 --stat` touches no `src/core/context.ts`, `src/core/directives-list.ts`,
+directives test or spec-012/dl file, so no note is stale. `npm ci` was re-run for the new dependencies.
+
+### review-ready summary (second pass)
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=2` | **85/85 suites, 1163/1163 tests** |
+| coverage | same | 98.32 % stmts / 90.33 % branch / 98.46 % funcs / 98.94 % lines (unchanged from first pass) |
+| build | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full tsc | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026) |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+| BDD suites | `npx jest test/core/context.test.ts test/core/directives-list.test.ts test/core/production-registry.test.ts test/cli/program.integration.test.ts test/mcp/role-prompts.test.ts` | 5/5 suites, 130/130 |
+
+The P3.6/P3.4 scenario → test mapping from the first-pass summary is unchanged.
