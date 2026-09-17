@@ -2,7 +2,7 @@
 id: "task-070-license-file"
 type: task
 title: "Add the MIT LICENSE file the package claims but does not ship"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "distribution", "governance"]
