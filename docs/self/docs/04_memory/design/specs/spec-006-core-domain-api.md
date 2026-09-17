@@ -136,7 +136,7 @@ exposure it backs.
 | `memoryImport`       | `memory` *(planned)*   | true    | `wingfoil memory import` | Tool `memory.import`          |
 | `memorySubmit`       | `memory`               | true    | `wingfoil memory submit` | Tool `memory.submit`          |
 | `memoryApprove`      | `memory` *(planned)*   | true    | `wingfoil memory approve`| Tool `memory.approve`         |
-| `memoryReject`       | `memory` *(planned)*   | true    | `wingfoil memory reject` | Tool `memory.reject`          |
+| `memoryReject`       | `memory`               | true    | `wingfoil memory reject` | Tool `memory.reject`          |
 | `memoryDeprecate`    | `memory` *(planned)*   | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
 | `memoryHistory`      | `memory`               | false   | `wingfoil memory history`| Resource `wingfoil://memory/history/{id}` |
 
