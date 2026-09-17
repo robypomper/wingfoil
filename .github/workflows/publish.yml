@@ -1,0 +1,115 @@
+# WingFoil — npm publish pipeline (adr-009, spec-015 §3–§4, dl-018 T3; implemented by task-060).
+#
+#   gate    → assert the tag is on main and equals v<package.json version> (spec-015 §4), `npm ci`,
+#             `prepublishOnly` (build + test + lint), `npm publish --dry-run` (the manifest), pack ONCE
+#   stage   → `npm run publish:staging -- --tarball <that tarball>`: ephemeral Verdaccio, publish,
+#             clean `npm install -g`, dl-023 init + CLI smoke, teardown — the very script a developer runs
+#   promote → publish THAT SAME tarball to npm with provenance (GitHub OIDC)
+#
+# Trigger: a `vX.Y.Z` tag push. The tag is created on `main` after the release branch merges (dl-024);
+# the gate refuses a tag whose commit is not on `main`.
+#
+# NOT wired here — spec-015 §5, task-061: the registry token (from the Actions secret store) and the
+# transient `.npmrc` the promote step authenticates with. Until task-061 lands, promote fails ENEEDAUTH
+# and nothing reaches npm.
+#
+# Node version: pinned once in `env.NODE_VERSION` to 22.12.0 — the lowest version every dependency accepts
+# (commander@15 declares `engines.node >=22.12.0`). `package.json` still declares `engines.node >=18.0.0`,
+# which this pipeline does NOT test and which is currently false: bug-023. bug-023 must land before a
+# real publish; do not add Node 18/20 here to "cover" the declared floor — npm reports EBADENGINE there.
+#
+# ── Running this workflow locally with `act` (nektos/act) — no throwaway CI-debug commits (adr-009) ──
+#
+#   1. Describe a tag push:
+#        echo '{"ref": "refs/tags/v0.2.0", "ref_name": "v0.2.0", "ref_type": "tag"}' > /tmp/tag-event.json
+#      (use the version currently in package.json, or the gate's tag check fails — which is correct).
+#   2. Run the pipeline with a local artifact server so gate → stage → promote can hand the tarball on:
+#        act push --eventpath /tmp/tag-event.json --artifact-server-path /tmp/act-artifacts
+#      or one job at a time: `act push --eventpath /tmp/tag-event.json --artifact-server-path /tmp/act-artifacts -j gate`
+#   3. act sets `ACT=true`: the promote publish step is skipped (`if: !env.ACT`), so a local run can never
+#      publish. act has no OIDC issuer, so provenance can only be exercised by a real tag push.
+#   The gate's "tag is on main" check needs a local `main` pushed to `origin`; for a dry iteration on a
+#   branch, run `npm run prepublishOnly` and `npm run publish:staging` directly instead — they are the
+#   same commands the gate and stage jobs run.
+
+name: publish
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22.12.0'
+  TARBALL_ARTIFACT: wingfoil-tarball
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Tag commit is on main (dl-024)
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Tag matches package.json version (spec-015 §4)
+        run: node scripts/check-release-tag.cjs "$GITHUB_REF_NAME"
+      - name: Install
+        run: npm ci
+      - name: prepublishOnly gate — build, test, lint (spec-015 §2)
+        run: npm run prepublishOnly
+      - name: Publish manifest (dry run)
+        run: npm publish --dry-run --ignore-scripts
+      - name: Pack the release tarball once
+        run: |
+          mkdir -p dist-pack
+          npm pack --ignore-scripts --pack-destination dist-pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARBALL_ARTIFACT }}
+          path: dist-pack/*.tgz
+          if-no-files-found: error
+
+  stage:
+    needs: gate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARBALL_ARTIFACT }}
+          path: dist-pack
+      - name: Stage on ephemeral Verdaccio + dl-023 smoke (spec-015 §3 stages 2–3)
+        run: npm run publish:staging -- --tarball dist-pack/*.tgz
+
+  promote:
+    needs: stage
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.TARBALL_ARTIFACT }}
+          path: dist-pack
+      - name: Publish the staged tarball to npm with provenance (spec-015 §3 stage 4)
+        if: ${{ !env.ACT }}
+        run: npm publish dist-pack/*.tgz --provenance --access public

@@ -21,9 +21,25 @@ module.exports = tseslint.config(
       },
     },
   },
-  // TypeScript sources and tests.
+  // Release tooling (task-060, spec-015 §3): plain CommonJS Node scripts run from a bare checkout.
   {
-    files: ['src/**/*.ts', 'test/**/*.ts'],
+    files: ['scripts/**/*.cjs'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'writable',
+        require: 'readonly',
+        __dirname: 'readonly',
+        process: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
+  // TypeScript sources and tests (plus the release scripts' hand-written declarations).
+  {
+    files: ['src/**/*.ts', 'test/**/*.ts', 'scripts/**/*.d.cts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     rules: {
       // Determinism directive: no `any` without justification.
