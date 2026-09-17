@@ -2,8 +2,7 @@
 id: "task-051-directive-assign"
 type: task
 title: "Implement `wingfoil directive assign`"
-status: in-progress
-rejection_reason: "task-051 implements P3.2 correctly and every gate passes. directive assign is registered on the singular directive module (dl-041); both error messages match the BDD exactly; roles.yaml edits keep comments, which a 60-case js-yaml fuzz confirmed; and re-assigning is an idempotent no-commit success. It is rejected because the Execution Notes claim the writer's alias self-check is pinned by a test, and it is not. The named fixture at test/directives/roles-edit.test.ts:213 is refused earlier in mappingEntry (js-yaml throws \"unidentified alias\"), and cutting the self-check down to `return roleMatches` leaves all 58 writer and core tests green. Add a fixture that actually reaches the self-check (an alias outside the assignments child lines, e.g. `global: *d`), move the misplaced test comment at lines 207-208, correct the note, and resubmit."
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p3"]
