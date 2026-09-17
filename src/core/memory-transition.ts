@@ -22,6 +22,7 @@ import {
   resolveStateMachine,
   resolveTypeTransition,
   validateFrontmatterState,
+  verifyFrontmatterEdit,
 } from '../memory';
 import type { MemoryYaml, StateMachine, TransitionOp } from '../memory';
 import { commitPaths, readDocument, writeDocument } from '../storage';
@@ -99,10 +100,30 @@ export function prepareMemoryTransition(
 
 /**
  * Write `content` over the prepared document and commit exactly that one path with `message`,
- * returning the new commit's sha (`commitPaths`, task-018). Callers must have run the git-identity
- * pre-flight (REQ-SEC-01) and every refusal check first; this step is the only write.
+ * returning the new commit's sha (`commitPaths`, task-018; scoped to that path even when other changes
+ * are staged, bug-027). Callers must have run the git-identity pre-flight (REQ-SEC-01) and every refusal
+ * check first; this step is the only write.
+ *
+ * **Post-condition, checked before the write.** `content` is re-parsed and compared with the prepared
+ * document ({@link verifyFrontmatterEdit}): `status` must be the prepared target, every field in
+ * `expected` must have its value (`undefined` = absent), and no other field may have changed. On any
+ * problem nothing is written or committed and a `VALIDATION` error (exit 1) names the document and the
+ * problems — a defect in a frontmatter editor can then never reach the repository.
  */
-export function commitMemoryTransition(root: string, prepared: PreparedMemoryTransition, content: string, message: string): string {
+export function commitMemoryTransition(
+  root: string,
+  prepared: PreparedMemoryTransition,
+  content: string,
+  message: string,
+  expected: Readonly<Record<string, string | undefined>> = {},
+): CoreResult<string> {
+  const problems = verifyFrontmatterEdit(prepared.content, content, { status: prepared.to, ...expected });
+  if (problems.length > 0) {
+    return coreErr({
+      code: 'VALIDATION',
+      message: `refusing to write ${prepared.path}: the rendered frontmatter failed its post-condition: ${problems.join('; ')}`,
+    });
+  }
   writeDocument(join(root, prepared.path), content);
-  return commitPaths(root, [prepared.path], message);
+  return coreOk(commitPaths(root, [prepared.path], message));
 }

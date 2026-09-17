@@ -83,7 +83,7 @@ export {
 export type { AddDocumentFields } from './add';
 export { formatMemoryCommitMessage } from './commit-message';
 export type { CommitApprover, MemoryCommitMessageInput } from './commit-message';
-export { removeFrontmatterField, setFrontmatterField } from './frontmatter-edit';
+export { removeFrontmatterField, setFrontmatterField, verifyFrontmatterEdit } from './frontmatter-edit';
 export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
 export {
   auditAttribution,

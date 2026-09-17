@@ -35,6 +35,7 @@ import {
   parseTags,
   reconstructMemoryTransitions,
   renderAddDocument,
+  REJECTION_REASON_FIELD,
   renderSubmitDocument,
   resolveTypeDirectory,
   searchMemoryDocuments,
@@ -673,7 +674,9 @@ export interface MemorySubmitResult {
  *    field must be non-empty, else `VALIDATION` `missing required field on submit: <fields>` (exit 1).
  * 6. **Edit + commit** — `status` set to the target and `rejection_reason` removed (spec-010 field-write
  *    ownership; every other byte kept), then one commit scoped to that file, subject
- *    `wf(<type>): submit <id>` with no bracket and no body (spec-004 §4.3). No `--reason`: spec-008 §2
+ *    `wf(<type>): submit <id>` with no bracket and no body (spec-004 §4.3). The rendered document is
+ *    re-parsed first (`commitMemoryTransition`'s post-condition: `status` is the target, no
+ *    `rejection_reason`, nothing else changed); a failure is `VALIDATION` (exit 1) with nothing written. No `--reason`: spec-008 §2
  *    requires it only on the approval gates (`dl-027`).
  */
 const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
@@ -699,8 +702,10 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
   }
 
   const message = formatMemoryCommitMessage({ type, op: 'submit', ids: [id] });
-  const sha = commitMemoryTransition(root, prepared.value, renderSubmitDocument(content, to), message);
-  return coreOk({ id, path, from, to }, { sha, message });
+  const rendered = renderSubmitDocument(content, to);
+  const committed = commitMemoryTransition(root, prepared.value, rendered, message, { [REJECTION_REASON_FIELD]: undefined });
+  if (!committed.ok) return committed;
+  return coreOk({ id, path, from, to }, { sha: committed.value, message });
 };
 
 /**

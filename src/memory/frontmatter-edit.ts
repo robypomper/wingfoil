@@ -4,76 +4,245 @@
  * Memory transition verbs change a handful of fields — `status` on every verb, `rejection_reason` on
  * `submit` (removed) and `reject` (set) — per `spec-010-memory-frontmatter-schema`'s field-write
  * ownership table. Re-serializing the YAML would strip the templates' inline `# REQUIRED …` comments
- * and normalise quoting everywhere, the same defect class as `bug-004` for `dna set`; so these edits
- * touch only the affected line(s) and leave every other byte of the document — the rest of the
- * frontmatter and the whole body — exactly as it was.
+ * and normalise quoting everywhere (the defect class of `bug-004` for `dna set`), so these edits touch
+ * only the lines of the one entry being changed and leave every other byte — the rest of the
+ * frontmatter and the whole body — as it was.
  *
- * Only **top-level** keys (column 0) are matched, so a nested `status:` under some map, or a body line
- * that happens to start with `status:`, is never touched. Values are passed as already-serialized
- * YAML (e.g. `pending`, `"a quoted string"`); a trailing `# comment` on the edited line is kept.
+ * **What "the lines of an entry" are** is decided by YAML's own rules, not by indentation alone (the
+ * first pass's indentation-only rule removed half of a block scalar and folded the rest into the
+ * preceding key — rejection `d7b9d70`). An entry is its column-0 `key:` line plus:
+ *
+ * - a **block scalar** (`|`, `>`, with optional chomping/indentation indicators): every following line
+ *   that is blank or indented at least as far as the scalar's content, `#`-lines included (they are
+ *   content there);
+ * - a **quoted scalar** not closed on the key line: every line up to the closing quote;
+ * - a **plain scalar**: following indented lines that are not comments, with the blank lines between
+ *   them (a plain scalar ends at a comment line);
+ * - an **empty value** (a nested mapping or sequence): following indented or `-` lines, with blank and
+ *   indented comment lines only when more of that nested block follows.
+ *
+ * Trailing blank lines, and a comment that ends a value, belong to the parent mapping and are kept.
+ * Line endings are preserved per line (CRLF documents stay CRLF). Only column-0 keys are matched, so a
+ * nested `status:` or a body line starting with `status:` is never touched.
+ *
+ * A byte-level editor can still be wrong in a case nobody thought of, so {@link verifyFrontmatterEdit}
+ * re-parses the result; the transition verbs refuse to write when it reports a problem.
  */
-import { splitFrontmatter } from '../storage';
+import { isDeepStrictEqual } from 'util';
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+import { splitFrontmatter } from '../storage';
+import { parseYaml, ValidationError } from '../validation';
+
+/** One frontmatter line without its line ending, plus the `\r` of a CRLF ending (or `''`). */
+interface Line {
+  readonly text: string;
+  readonly cr: string;
 }
 
-/**
- * Split `content` into the text before the frontmatter lines, the frontmatter lines themselves, and
- * everything after them (closing delimiter and body), so an edit can be spliced back byte-exactly.
- */
-function locateFrontmatter(content: string): { before: string; lines: string[]; after: string } {
+function toLines(frontmatter: string): Line[] {
+  return frontmatter.split('\n').map((raw) => (raw.endsWith('\r') ? { text: raw.slice(0, -1), cr: '\r' } : { text: raw, cr: '' }));
+}
+
+function fromLines(lines: readonly Line[]): string {
+  return lines.map((line) => `${line.text}${line.cr}`).join('\n');
+}
+
+/** Split `content` into the text before the frontmatter lines, those lines, and everything after them. */
+function locateFrontmatter(content: string): { before: string; lines: Line[]; after: string } {
   const { frontmatter } = splitFrontmatter(content);
   if (frontmatter === null) {
     throw new Error('document has no frontmatter block');
   }
-  // `splitFrontmatter` anchors on an opening `---` line, so the frontmatter text starts right after
-  // the first newline.
+  // `splitFrontmatter` anchors on an opening `---` line, so the frontmatter starts after the first newline.
   const start = content.indexOf('\n') + 1;
-  return {
-    before: content.slice(0, start),
-    lines: frontmatter.split('\n'),
-    after: content.slice(start + frontmatter.length),
-  };
+  return { before: content.slice(0, start), lines: toLines(frontmatter), after: content.slice(start + frontmatter.length) };
 }
 
-/** Matches `key: value   # comment` at column 0, capturing the whitespace + comment tail if present. */
-function keyLineRegExp(key: string): RegExp {
-  return new RegExp(`^${escapeRegExp(key)}:[ \\t]*(?:"(?:[^"\\\\]|\\\\.)*"|'(?:[^']|'')*'|[^#]*?)([ \\t]+#.*)?$`);
+const indentOf = (text: string): number => text.length - text.trimStart().length;
+const isBlank = (text: string): boolean => text.trim().length === 0;
+const isComment = (text: string): boolean => text.trimStart().startsWith('#');
+
+/** Index of the column-0 `key:` line (followed by a space, a tab or the end of the line), or `-1`. */
+function findKeyLine(lines: readonly Line[], key: string): number {
+  return lines.findIndex(({ text }) => {
+    const next = text.charAt(key.length + 1);
+    return text.startsWith(`${key}:`) && (next === '' || next === ' ' || next === '\t');
+  });
+}
+
+/** Offset of the closing quote in `text` from `from`, honouring `\"` escapes and `''` doubling; `-1` if none. */
+function findClosingQuote(text: string, from: number, quote: string): number {
+  for (let i = from; i < text.length; i += 1) {
+    if (quote === '"' && text[i] === '\\') {
+      i += 1;
+    } else if (text[i] === quote) {
+      if (quote === "'" && text[i + 1] === "'") {
+        i += 1;
+      } else {
+        return i;
+      }
+    }
+  }
+  return -1;
 }
 
 /**
- * Set top-level `key` to `valueYaml`. An existing `key:` line has its value replaced (its trailing
- * comment kept); an absent key is appended as the last frontmatter line.
+ * The value written on a `key:` line: its text, the offset right after it (where any spaces +
+ * `# comment` begin), and whether it is complete on this line (`false` for a quoted scalar whose
+ * closing quote is on a later line). In a plain value a `#` starts a comment only after whitespace,
+ * so `dr#aft` is one value.
+ */
+function scanHeaderValue(text: string, key: string): { value: string; valueEnd: number; closed: boolean } {
+  let start = key.length + 1;
+  while (text[start] === ' ' || text[start] === '\t') start += 1;
+  const quote = text[start];
+  if (quote === '"' || quote === "'") {
+    const close = findClosingQuote(text, start + 1, quote);
+    return close === -1
+      ? { value: text.slice(start), valueEnd: text.length, closed: false }
+      : { value: text.slice(start, close + 1), valueEnd: close + 1, closed: true };
+  }
+  const comment = quote === '#' ? { index: 0 } : /[ \t]#/.exec(text.slice(start));
+  const end = start + (comment ? comment.index : text.length - start);
+  const valueEnd = start + text.slice(start, end).trimEnd().length;
+  return { value: text.slice(start, valueEnd), valueEnd, closed: true };
+}
+
+/** The exclusive end index of the entry whose `key:` line is at `index` (rules in the module doc). */
+function entryEnd(lines: readonly Line[], index: number, key: string): number {
+  const header = scanHeaderValue(lines[index]!.text, key);
+  const start = index + 1;
+
+  const block = /^[|>](?:([1-9])[+-]?|[+-]([1-9])?)?$/.exec(header.value);
+  if (block) {
+    const explicit = block[1] ?? block[2];
+    const firstContent = lines.slice(start).find(({ text }) => !isBlank(text));
+    const contentIndent = explicit !== undefined ? Number(explicit) : indentOf(firstContent?.text ?? '');
+    let end = start;
+    let lastContent = start;
+    while (contentIndent > 0 && end < lines.length) {
+      const { text } = lines[end]!;
+      if (!isBlank(text) && indentOf(text) < contentIndent) break;
+      end += 1;
+      if (!isBlank(text)) lastContent = end;
+    }
+    return lastContent;
+  }
+
+  if (!header.closed) {
+    const quote = header.value.charAt(0);
+    const closing = lines.slice(start).findIndex(({ text }) => findClosingQuote(text, 0, quote) !== -1);
+    return closing === -1 ? lines.length : start + closing + 1;
+  }
+
+  const nested = header.value.length === 0;
+  let lastContent = start;
+  for (let end = start; end < lines.length; end += 1) {
+    const { text } = lines[end]!;
+    if (isBlank(text) || (nested && isComment(text) && indentOf(text) > 0)) continue;
+    const child = indentOf(text) > 0 || (nested && text.startsWith('-'));
+    if (!child || isComment(text)) break;
+    lastContent = end + 1;
+  }
+  return lastContent;
+}
+
+/** State-machine identifiers and other simple tokens YAML reads back as the same string, unquoted. */
+const PLAIN_SAFE = /^[A-Za-z][A-Za-z0-9._/-]*$/;
+const YAML_TYPED_WORD = /^(?:true|false|yes|no|on|off|y|n|null)$/i;
+
+/**
+ * Serialize `value` as a YAML scalar that parses back to exactly `value`: a plain token when that is
+ * unambiguous (so `status: pending` stays a one-token diff), otherwise a JSON string literal — every
+ * JSON string escape is also a valid YAML double-quoted escape, so quotes, colons, `#`, newlines and
+ * leading/trailing whitespace all survive (task-047's `rejection_reason` carries arbitrary text).
+ */
+function toYamlScalar(value: string): string {
+  return PLAIN_SAFE.test(value) && !YAML_TYPED_WORD.test(value) ? value : JSON.stringify(value);
+}
+
+/**
+ * Set top-level `key` to the string `value`, serialized YAML-safely. An existing entry is replaced as a
+ * whole — continuation lines, block-scalar body or multi-line quoted value included. A `# comment` on
+ * the key line is kept when the old value ended on that line; the line ending of the key line is kept.
+ * An absent key is appended as the last frontmatter line, with the document's line ending.
  *
  * @throws `Error` when the document has no frontmatter block.
  */
-export function setFrontmatterField(content: string, key: string, valueYaml: string): string {
+export function setFrontmatterField(content: string, key: string, value: string): string {
   const { before, lines, after } = locateFrontmatter(content);
-  const re = keyLineRegExp(key);
-  let replaced = false;
-  const edited = lines.map((line) => {
-    const match = replaced ? null : re.exec(line);
-    if (!match) return line;
-    replaced = true;
-    return `${key}: ${valueYaml}${match[1] ?? ''}`;
-  });
-  if (!replaced) edited.push(`${key}: ${valueYaml}`);
-  return `${before}${edited.join('\n')}${after}`;
+  const entry = `${key}: ${toYamlScalar(value)}`;
+  const index = findKeyLine(lines, key);
+  if (index === -1) {
+    // The last frontmatter line's own ending sits in `after` (it precedes the closing `---`), so it
+    // moves to the new last line, and the old last line takes the document's line ending.
+    const cr = before.endsWith('\r\n') ? '\r' : '';
+    const last = lines[lines.length - 1]!;
+    return `${before}${fromLines([...lines.slice(0, -1), { text: last.text, cr }, { text: entry, cr: last.cr }])}${after}`;
+  }
+  const header = lines[index]!;
+  const { valueEnd, closed } = scanHeaderValue(header.text, key);
+  const replaced = { text: `${entry}${closed ? header.text.slice(valueEnd) : ''}`, cr: header.cr };
+  return `${before}${fromLines([...lines.slice(0, index), replaced, ...lines.slice(entryEnd(lines, index, key))])}${after}`;
 }
 
 /**
- * Remove top-level `key` — its `key:` line plus the indented continuation lines that directly follow
- * it (a block or nested value). Returns `content` unchanged when the key is absent.
+ * Remove top-level `key` together with every line its value spans (rules in the module doc). Blank
+ * lines and comments that follow the value belong to the parent mapping and are kept. Returns `content`
+ * unchanged when the key is absent.
  *
  * @throws `Error` when the document has no frontmatter block.
  */
 export function removeFrontmatterField(content: string, key: string): string {
   const { before, lines, after } = locateFrontmatter(content);
-  const index = lines.findIndex((line) => line.startsWith(`${key}:`));
+  const index = findKeyLine(lines, key);
   if (index === -1) return content;
-  const following = lines.slice(index + 1);
-  const continuation = following.findIndex((line) => !/^[ \t]+\S/.test(line));
-  lines.splice(index, 1 + (continuation === -1 ? following.length : continuation));
-  return `${before}${lines.join('\n')}${after}`;
+  return `${before}${fromLines([...lines.slice(0, index), ...lines.slice(entryEnd(lines, index, key))])}${after}`;
+}
+
+/** Parse a document's frontmatter into a plain record, or return why it cannot be. */
+function parseFrontmatter(content: string): Record<string, unknown> | string {
+  const { frontmatter } = splitFrontmatter(content);
+  if (frontmatter === null) return 'rendered document has no frontmatter block';
+  try {
+    const parsed = parseYaml(frontmatter, 'frontmatter');
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return `rendered frontmatter is not valid YAML: ${error.issues.map((issue) => issue.message).join('; ')}`;
+  }
+}
+
+/**
+ * The post-condition of a frontmatter edit, checked by re-parsing rather than by trusting the editor.
+ * `expected` maps each field the operation owns to its required value (`undefined` = must be absent).
+ * Returns the problems found, empty when the edit is sound:
+ *
+ * - the rendered document has no frontmatter, or it does not parse;
+ * - an owned field does not have its expected value, or is still present when it should be removed;
+ * - any **other** field's parsed value differs from `before` — an edit leaked into a field it does not own.
+ *
+ * Deterministic (REQ-SYS-07): owned fields in `expected`'s order, then other fields sorted by name.
+ */
+export function verifyFrontmatterEdit(before: string, after: string, expected: Readonly<Record<string, string | undefined>>): string[] {
+  const rendered = parseFrontmatter(after);
+  if (typeof rendered === 'string') return [rendered];
+  const parsedBefore = parseFrontmatter(before);
+  const original = typeof parsedBefore === 'string' ? {} : parsedBefore;
+
+  const problems: string[] = [];
+  for (const [field, value] of Object.entries(expected)) {
+    if (value === undefined) {
+      if (field in rendered) problems.push(`field '${field}' is still present, expected it removed`);
+    } else if (rendered[field] !== value) {
+      problems.push(`field '${field}' is ${JSON.stringify(rendered[field])}, expected ${JSON.stringify(value)}`);
+    }
+  }
+  const others = [...new Set([...Object.keys(original), ...Object.keys(rendered)])].filter((field) => !(field in expected)).sort();
+  for (const field of others) {
+    if (!isDeepStrictEqual(original[field], rendered[field])) {
+      problems.push(`field '${field}' changed although this operation does not own it`);
+    }
+  }
+  return problems;
 }
