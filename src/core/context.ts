@@ -200,7 +200,8 @@ export interface ExecutionContext {
    * full T1–T4 tiered relevance expansion is task-035/038/v0.3's scope (see the module doc comment). */
   readonly memory: readonly MemoryDocumentSummary[];
   /** Operator diagnostics gathered during assembly — currently only
-   * {@link RoleDirectiveResolution.warnings} (dl-029). Diagnostics *about* the context, not content
+   * {@link RoleDirectiveResolution.warnings}: no-assignments (dl-029), dangling binding (dl-042 D),
+   * shadowed directive (dl-037 B.1). Diagnostics *about* the context, not content
    * *of* it: spec-012 §7's canonical envelope has no warnings section, so this never enters the
    * serialized payload. */
   readonly warnings: readonly string[];
@@ -259,7 +260,7 @@ export interface ExecutionContextInputs {
  * put `draft` in it.
  *
  * An archived element produces no warning: {@link ExecutionContext.warnings} carries
- * directive-resolution diagnostics (dl-029), and adding an unratified entry would change a payload
+ * directive-resolution diagnostics only (dl-029, dl-037, dl-042), and adding an unratified entry would change a payload
  * REQ-SYS-07 governs. An archived element is therefore indistinguishable here from an unresolvable
  * one — both yield `memory: []`.
  */

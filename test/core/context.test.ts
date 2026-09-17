@@ -15,6 +15,9 @@
  * `task-069-fix-archived-excluded-from-agent-context` adds REQ-STATE-06's archived-exclusion contract
  * (`dl-028-archived-states-excluded-from-context`, `bug-010-deprecated-reaches-agent-context`) — the
  * gap this module's own header used to document as deliberately unfixed.
+ *
+ * `task-055-auto-load-directives-by-role` adds `dl-037` (custom/ wins over built-in/, shadow reported),
+ * `dl-042` D's dangling-binding warning, and the P3.6 BDD scenarios transcribed one-to-one.
  */
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -290,6 +293,12 @@ describe('resolveRoleDirectives — role-scoped directive resolution (REQ-STATE-
       const roles = loadRolesYaml(repo);
       expect(resolveRoleDirectives(files, roles, 'developer').directives[0]?.frontmatter.name).toBe('A');
       expect(resolveRoleDirectives([...files].reverse(), roles, 'developer').directives[0]?.frontmatter.name).toBe('A');
+    });
+
+    it('the same file handed in twice still resolves to one directive (comparator tie is stable)', () => {
+      const same = file('directives/custom/testing.md', 'testing', 'Only');
+      const { byId } = selectDirectivesById([same, same]);
+      expect([...byId.values()]).toEqual([same]);
     });
 
     it('selectDirectivesById is the shared rule: every shadowed id, sorted, without a role filter', () => {
