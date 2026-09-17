@@ -1,5 +1,5 @@
 /**
- * `src/cli.ts` — the `bin` entrypoint (`package.json` `"bin": {"wingfoil": "./dist/cli.js"}`,
+ * `src/cli.ts` — the `bin` entrypoint (`package.json` `"bin": {"wingfoil": "dist/cli.js"}`,
  * task-007-npm-distribution / REQ-SYS-09), exercised in-process
  * (task-065-fix-commander-esm-jest-harness, `bug-007-commander-esm-jest-untestable`).
  *
