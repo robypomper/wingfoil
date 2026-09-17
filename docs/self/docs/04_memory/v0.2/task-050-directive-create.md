@@ -2,7 +2,7 @@
 id: "task-050-directive-create"
 type: task
 title: "Implement `wingfoil directive create`"
-status: approved
+status: done
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
