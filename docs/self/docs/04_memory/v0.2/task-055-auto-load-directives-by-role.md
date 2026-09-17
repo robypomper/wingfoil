@@ -153,3 +153,98 @@ stays `[AUTHORING]`). `dl-029`, `dl-037`, `dl-042` are all `ready`. Design gate 
 
 **Checks (post):** `frontmatter.required` — task carries `title`, `release`. `tech-spec.approved` —
 spec-012 approved, no new spec. `depends_on.acknowledged` — all three above.
+
+### red — role: developer (directives: code-quality, testing, determinism) — `d23f8e7`
+
+`npx jest test/core/context.test.ts test/core/directives-list.test.ts test/core/production-registry.test.ts test/cli/program.integration.test.ts --maxWorkers=2`
+→ **`Test Suites: 4 failed, 4 total` / `Tests: 34 failed, 84 passed, 118 total`**. Failures, by reason:
+
+| AC | Test (red) | Observed failure |
+|---|---|---|
+| AC-4 | `context.test.ts` › spec-012 §5 › *picks the same duplicate regardless of input order, and `custom/` wins (dl-037 A.1)* (the flipped task-037 pin) | `Expected: "directives/custom/testing.md"` / `Received: "directives/built-in/testing.md"` |
+| AC-4 | › dl-037 › *custom/ wins even when the built-in arrives with Windows separators* | `Expected: "Custom"` / `Received: "Built-in"` |
+| AC-5 | › dl-037 › *reports the shadowed directive through `warnings`…* | `- Expected - 3 / + Received + 1` (warnings `[]`) |
+| AC-9 | › dl-037 › *selectDirectivesById is the shared rule…* | `TypeError: (0 , context_1.selectDirectivesById) is not a function` |
+| AC-8 | › dl-042 D › *warns for a role-assigned id with no directive file*; *warns for a dangling global too…* | warnings missing the dangling entry |
+| AC-6/7/8/9 | `directives-list.test.ts` › *the warnings channel (dl-042 A + D)* — all 7 cases | `Expected: [...] / Received: undefined` (payload is a bare array, no `warnings`) |
+| AC-10 | the 16 pre-existing `directives-list.test.ts` cases, `production-registry.test.ts` › *directivesList returns coreOk([...])*, CLI › *--role for an unbound role carries the dl-029 warning…* | shape change: `entries` undefined on a bare array (accepted by dl-042's ratification) |
+
+Characterization cases green at red, as T1 predicted (no fabricated red): `context.test.ts` › *P3.6 — auto-load
+directives by role (BDD acceptance)* — 3/3 passing (`npx jest test/core/context.test.ts -t "P3.6"`).
+
+### green — `07dafc5`
+
+- `src/core/context.ts` — new exported `selectDirectivesById(files, ids?)` → `{ byId, warnings }` with the
+  module-private `compareDirectivePrecedence` (custom via `isRemovableCustomAssetPath('directive', path)`
+  first, then smallest path). `resolveRoleDirectives` now delegates dedup/precedence/shadow warnings to it
+  and adds the dangling-binding warning (fixed order: no-assignments → dangling → shadow). Return shape
+  `RoleDirectiveResolution` is unchanged, so `assembleExecutionContext` and `src/mcp/prompt.ts` needed no
+  edit (`git diff main --stat -- src/mcp` → empty).
+- `src/core/directives-list.ts` — `buildDirectiveListing`/`loadDirectiveListing` return
+  `DirectiveListing { entries, warnings }`; warnings come from `selectDirectivesById` (no role) or
+  `resolveRoleDirectives` (with role; a missing `roles.yaml` resolves against an empty bindings object).
+  Entries logic untouched.
+- `src/core/index.ts` — the `directivesListFn` value type and TSDoc line; `selectDirectivesById`,
+  `DirectiveSelection`, `DirectiveListing` added to the existing context/directives-list export lines.
+
+### refactor — `e7b6793`
+
+`ExecutionContext.warnings` and `assembleExecutionContext` TSDoc still said the warnings were dl-029 only —
+updated to name the three kinds. Coverage showed `compareDirectivePrecedence`'s equal-path arm uncovered;
+kept (it keeps the comparator consistent for a caller passing one file twice) and covered by
+› *the same file handed in twice still resolves to one directive*. `src/core/context.ts` and
+`src/core/directives-list.ts` → **100 / 100 / 100 / 100** (`npx jest test/core/context.test.ts
+test/core/directives-list.test.ts --coverage --collectCoverageFrom=src/core/context.ts
+--collectCoverageFrom=src/core/directives-list.ts`).
+
+### sync with main (dl-035) — `4910303`
+
+`git merge main` (no rebase) brought in `ebfb1e3` (dl-041: spec-006 §3 `module` column, spec-008 §1
+`directives` noun) — docs only, no conflict. Re-read after the merge: spec-006 §3 row
+`| directivesList | directives | false | wingfoil directives list | Resource wingfoil://directives/list |`
+matches the unchanged `CORE_MODULES` registration (`name: 'directives'`); spec-006 §4 ("no duplicated or
+hand-copied operation list") still reads as cited in D5. No note relied on the old wording. Gates re-run below.
+
+### review-ready summary
+
+**Gates — re-run after the merge, in this worktree:**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=2` | **80/80 suites, 1106/1106 tests** (baseline before this task: 80 / 1087) |
+| coverage | same | **98.32 % stmts / 90.33 % branch / 98.46 % funcs / 98.94 % lines** (baseline 98.29 / 90.18 / 98.44 / 98.93 — non-regressing) |
+| build | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full tsc | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026, pre-existing) |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**BDD acceptance → tests (all passing):**
+
+- P3.6 Sc.1 *Directives auto-load at task execution* → `test/core/context.test.ts` › P3.6 › *Scenario: Directives auto-load at task execution…*
+- P3.6 Sc.2 *Only the executing role's directives are loaded* → › *Scenario: Only the executing role's directives are loaded…*
+- P3.6 Sc.3 *Edge - no assigned directives* → › *Scenario: Edge - a role with no assigned directives — only globals, plus the warning*
+- P3.4 Sc.1/2/3 → `test/core/directives-list.test.ts` (Scenario 1/2/3 describes, now reading `entries`) + `test/cli/program.integration.test.ts` › `directives list --format json` and › `directives list --role <role>`.
+
+**Scope added by approver decision (dl-042 A + D), covered:** AC-6..AC-9 above, plus the end-to-end CLI case
+› *--role for an unbound role carries the dl-029 warning in the payload, exit 0*. Manual check of the
+compiled CLI in a scratch repo (`node dist/cli.js directives list --role developer --format yaml`) printed
+`warnings:` with the dangling `ghost-rule` warning and the `testing` shadow warning, exit 0.
+
+**Corrections to the design notes (verified after writing them):**
+- AC-10 said "three assertions" pin the bare array. The actual edits were five read sites: `production-registry.test.ts`
+  (1) and `program.integration.test.ts` (4 — the `--format json` case, the `directive create` visibility
+  case, and both `--role` describe cases). All are shape-only (`.entries`).
+- D5 said warnings reach `wingfoil://directives/list` with no surface code. That follows from spec-006 §4
+  (the Resource derives from the same registered op), but **no MCP test asserts the directives Resource
+  payload**: `grep -rl directives test/mcp` → only `test/mcp/role-prompts.test.ts`.
+
+**For the approver / reviewer:**
+1. **D4 goes past dl-042's literal text:** the dangling-binding warning lives in `resolveRoleDirectives`, so
+   `ExecutionContext.warnings` carries it too (and dangling **globals** are reported). This is what makes the
+   listing's `--role` warnings and the context's warnings one rule (AC-9); if the approver wants it
+   listing-only, the dangling loop moves to `buildDirectiveListing`.
+2. **Warning texts are not ratified anywhere** except dl-029's. Shadow: `directive '<id>' defined in <paths>; using <winner>`
+   (dl-037's example, generalised to paths); dangling: `directive '<id>' bound to role '<role>' has no directive file`.
+3. **Shadow warnings without `--role` are not role-filtered**, while `--role` reports only shadowed ids bound to that role.
+4. `src/mcp/prompt.ts` still does not surface warnings (task-039's decision, spec-004 §3.2); it inherits
+   custom-wins with no change. No surface renders `ExecutionContext.warnings` yet (no `agent execute` until v0.3).
