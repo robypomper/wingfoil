@@ -27,12 +27,15 @@ import {
 import { commitPaths, documentExists, readDocument, StorageError, writeDocument } from '../storage';
 import {
   findMemoryDocumentById,
+  formatMemoryCommitMessage,
   hasNumericToken,
   isArchivedStatus,
+  missingRequiredFields,
   nextSequenceNumber,
   parseTags,
   reconstructMemoryTransitions,
   renderAddDocument,
+  renderSubmitDocument,
   resolveTypeDirectory,
   searchMemoryDocuments,
   slugifyTitle,
@@ -49,6 +52,7 @@ import {
 import { loadDirectiveListing, type DirectiveListEntry } from './directives-list';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
+import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule } from './registry';
 import { coreErr, coreOk } from './types';
@@ -100,6 +104,8 @@ export type {
   RelevantMemoryDocument,
   RelevantMemoryResult,
 } from './relevance';
+export { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+export type { PreparedMemoryTransition } from './memory-transition';
 export { verifyBuiltinTemplates } from './builtin-integrity';
 export type { BuiltinIntegrityFailure, BuiltinTemplateKind, BuiltinTemplateSource } from './builtin-integrity';
 
@@ -634,6 +640,70 @@ const memoryHistoryFn: CoreFn<unknown, MemoryHistoryResult> = async (params) => 
 };
 
 /**
+ * `wingfoil memory submit <id>` params (P1.6, task-045-memory-submit). The document id rides the bare
+ * `ParamsContext.positional` seam, per spec-008-cli-grammar §7 (a command whose noun scopes the type
+ * takes the bare `<id>`). Optional only because the seam is; an absent id is a usage error.
+ */
+export interface MemorySubmitParams {
+  readonly root: string;
+  readonly positional?: string;
+}
+
+/** `memory submit` success shape: the document and the transition it went through. */
+export interface MemorySubmitResult {
+  readonly id: string;
+  /** Root-relative path of the submitted document. */
+  readonly path: string;
+  readonly from: string;
+  readonly to: string;
+}
+
+/**
+ * `memory submit` `CoreOperation.fn` (P1.6, `mutates: true`; spec-006-core-domain-api §3). Submit is
+ * "the content is written — move it forward": it commits the document as the author left it, with
+ * `status` advanced. Order, every refusal before the single write:
+ *
+ * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit 1.
+ * 2. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory history`.
+ * 3. **Load `memory.yaml`** (`loadOrError`).
+ * 4. **{@link prepareMemoryTransition}** — not found, unknown type, no machine, invalid state, or an
+ *    illegal transition, each a `CoreResult.error` (exit 1); an illegal one carries the pinned
+ *    `illegal transition <from> -> <to> for type '<type>'` (`dl-032`, P1.6 sc.2).
+ * 5. **Required fields** (spec-010 validation rules) — `title` and every `template.frontmatter.required`
+ *    field must be non-empty, else `VALIDATION` `missing required field on submit: <fields>` (exit 1).
+ * 6. **Edit + commit** — `status` set to the target and `rejection_reason` removed (spec-010 field-write
+ *    ownership; every other byte kept), then one commit scoped to that file, subject
+ *    `wf(<type>): submit <id>` with no bracket and no body (spec-004 §4.3). No `--reason`: spec-008 §2
+ *    requires it only on the approval gates (`dl-027`).
+ */
+const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
+  const { root, positional: id } = params as MemorySubmitParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory submit <id>');
+  }
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const prepared = prepareMemoryTransition(root, loaded.value, id, 'submit');
+  if (!prepared.ok) return prepared;
+  const { type, path, frontmatter, content, from, to } = prepared.value;
+
+  const required = loaded.value.types[type]?.template?.frontmatter.required ?? [];
+  const missing = missingRequiredFields(frontmatter, required);
+  if (missing.length > 0) {
+    return coreErr({ code: 'VALIDATION', message: `missing required field on submit: ${missing.join(', ')}` });
+  }
+
+  const message = formatMemoryCommitMessage({ type, op: 'submit', ids: [id] });
+  const sha = commitMemoryTransition(root, prepared.value, renderSubmitDocument(content, to), message);
+  return coreOk({ id, path, from, to }, { sha, message });
+};
+
+/**
  * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
  * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
  * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
@@ -798,6 +868,9 @@ export const CORE_MODULES: readonly CoreModule[] = [
         options: [{ name: 'tag' }, { name: 'status' }, { name: 'type' }],
         fn: memorySearchFn,
       },
+      // P1.6 (task-045-memory-submit) — `mutates: true`: CLI `wingfoil memory submit <id>` + MCP Tool
+      // `memory.submit`. The id rides the bare `positional` seam (spec-008 §7); no flags, no options.
+      memorySubmit: { name: 'memorySubmit', mutates: true, fn: memorySubmitFn },
     },
   },
   {

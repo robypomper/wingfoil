@@ -30,6 +30,10 @@
  * document's frontmatter `status` value itself, independent of any transition attempt (distinct from
  * `resolveTransitionTarget`'s verb-based transition legality). `task-045-memory-submit` (P1.6) is the
  * first CLI-facing consumer.
+ *
+ * task-045-memory-submit adds the pieces every Memory transition verb shares — `resolveTypeTransition`
+ * (the `dl-032` illegal-transition contract), `./commit-message` (the one commit-message formatter) and
+ * `./frontmatter-edit` (byte-preserving field edits) — plus `./submit`, the submit-specific rules.
  */
 export const MODULE_NAME = 'memory' as const;
 
@@ -42,6 +46,7 @@ export {
   isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
+  resolveTypeTransition,
   SUPERSEDED_STATE,
   validateFrontmatterState,
 } from './state-machine';
@@ -76,6 +81,10 @@ export {
   slugifyTitle,
 } from './add';
 export type { AddDocumentFields } from './add';
+export { formatMemoryCommitMessage } from './commit-message';
+export type { CommitApprover, MemoryCommitMessageInput } from './commit-message';
+export { removeFrontmatterField, setFrontmatterField } from './frontmatter-edit';
+export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
 export {
   auditAttribution,
   isValidAttribution,
