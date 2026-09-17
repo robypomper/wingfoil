@@ -146,9 +146,13 @@ describe('buildProgram — the program itself (bug-007: this module is now loada
     ]);
   });
 
-  it('`--format` defaults to `console` and the negated flags default to enabled', async () => {
+  it('`--format` defaults to `console`; the negatable flags resolve to enabled once an invocation is parsed', async () => {
     const program = await buildFixtureProgram();
-    expect(program.opts()).toMatchObject({ format: 'console', color: true, interactive: true });
+    // Only `--format` carries a commander *default value*, so it is the only key present before a
+    // parse; `--no-color` / `--no-interactive` resolve to `true` when argv is actually read.
+    expect(program.opts()).toEqual({ format: 'console' });
+    await program.parseAsync(['node', 'wingfoil', 'dna', 'show']);
+    expect(program.opts()).toEqual({ format: 'console', color: true, interactive: true });
   });
 
   it('`--version` prints the package.json version and terminates with commander exit code 0', async () => {

@@ -71,9 +71,15 @@ describe('src/cli.ts — the `wingfoil` bin entrypoint', () => {
     await runEntrypoint();
 
     expect(buildProgram).toHaveBeenCalledTimes(1);
-    // The production registry itself — not a copy, not a subset: `cli.ts` must not filter operations
-    // (spec-006 §4.2: no surface keeps its own allow/deny list).
-    expect(jest.mocked(buildProgram).mock.calls[0]?.[0]).toBe(CORE_MODULES);
+    // The production registry, whole — not a subset, not a hand-picked list (spec-006 §4.2: no
+    // surface keeps its own allow/deny list). Compared structurally rather than by identity because
+    // `jest.isolateModulesAsync` gives the entrypoint its own module registry, so its `src/core` is a
+    // different instance of the same declaration than the one imported at the top of this file.
+    const registered = jest.mocked(buildProgram).mock.calls[0]?.[0];
+    expect(registered?.map((module) => module.name)).toEqual(CORE_MODULES.map((module) => module.name));
+    expect(registered?.flatMap((module) => Object.keys(module.operations).sort())).toEqual(
+      CORE_MODULES.flatMap((module) => Object.keys(module.operations).sort()),
+    );
     expect(parseAsync).toHaveBeenCalledWith(process.argv);
   });
 
