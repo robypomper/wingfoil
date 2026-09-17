@@ -2,7 +2,8 @@
 id: "task-061-publish-secrets"
 type: task
 title: "Publish secrets: CI secret store + rollback posture (dl-018 T4)"
-status: in-review
+status: in-progress
+rejection_reason: "All six ACs are implemented and each has a test that goes red under mutation: the literal .npmrc written from a promote-only secret and removed on success and failure, the empty-token check, the npm-publish environment, the approver runbook and rollback docs, the dl-036 promotion with its escape hatch proven by the directive's own examples, and bug-015's index reading, including renames, symlinks, conflict stages and odd filenames. Gates are green, coverage does not regress, and it merges cleanly with main and the parallel branches. It is rejected for one false claim in the Execution Notes: test/validation/secret-scan.test.ts is said to scan to 23 blocking with 4 new fixture lines, but at HEAD it scans to 24 with 5, because df9797a added one and the note was not updated. Correct the count and resubmit. The dotenv regex gap (bug-037), publish hardening (dl-057), the trusted-publishing decision (dl-057 item e) and the spec-007 ignore-path inconsistency are filed separately."
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
