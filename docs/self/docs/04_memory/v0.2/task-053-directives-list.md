@@ -126,3 +126,40 @@ by this phase**; none was, so it does not apply. (For the record, `memory.yaml` 
 `tech-spec.approved` — spec-006/008/012 all `approved`, `dl-029`/`dl-037` `ready`.
 `depends_on.acknowledged` — vacuous, `depends_on: []`.
 **Approval:** pass-through (no new spec scaffolded).
+
+### red — role: developer (directives: code-quality, testing, determinism)
+
+**New suite** `test/core/directives-list.test.ts` (17 cases), driven through the **registered**
+`directives.directivesList` operation in `CORE_MODULES` rather than an internal helper — so the
+assertions are on what `wingfoil directives list` and `wingfoil://directives/list` actually return
+(spec-006 §3). Driving the registered op also means the characterization cases were **green at
+red**, keeping the red evidence honest: no fabricated failure.
+
+`npx jest test/core/directives-list.test.ts --maxWorkers=2` at red:
+**`Tests: 11 failed, 6 passed, 17 total`** — the 6 passing are exactly the T1 characterization
+cases (enumeration of both trees, the 6-built-ins edge case, `path`/`frontmatter` preserved,
+determinism, the shadowed-pair listing, invalid-directive VALIDATION); all 11 failures are the
+red-first role/`--role` cases. First failure, verbatim:
+
+```
+● directivesList — P3.4 Scenario 1: list all directives with assignments › each directive shows its assigned roles
+
+  expect(received).toEqual(expected) // deep equality
+
+  Expected: ["developer", "qa"]
+  Received: undefined
+
+    > 122 |     expect(byId.get('testing')?.roles).toEqual(['developer', 'qa']);
+```
+
+**End-to-end red** in `test/cli/program.integration.test.ts` (compiled `dist/` + spawned `node`):
+`Tests: 3 failed, 30 passed, 33 total`. `directives list --role developer` exited **1** instead of
+0 (the option is not declared on the derived command), and without `--role` every entry rendered
+`assignment=undefined`.
+
+Cases pinned: roles per directive; the character-exact `unassigned`; an assigned directive rendering
+its roles; a `global` directive flagged `global: true`; `--role developer` including `testing` and
+the globals and excluding `code-review`/`architecture`; `--role <unbound role>` succeeding with just
+the globals (dl-029); a directive id colliding with an `Object.prototype` member resolving to
+`unassigned`; missing `roles.yaml` ⇒ all `unassigned`, exit 0; schema-invalid `roles.yaml` ⇒
+`VALIDATION`; and both halves of a shadowed id staying visible, with and without `--role`.
