@@ -2,7 +2,7 @@
 id: "dl-051-dangling-directive-binding-warning"
 type: decision-log
 title: "Ratify the dangling-binding warning in directive resolution (and so in context assembly), and the shadow-warning text"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
