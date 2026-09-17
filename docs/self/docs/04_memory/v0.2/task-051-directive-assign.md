@@ -105,6 +105,9 @@ No characterization ACs claimed: the `UnknownRoleError` message is task-034's an
   inserts the key (AC7) — never an error.
 - **dl-037**: assignment is by id; built-in vs custom precedence is a *resolution* concern
   (task-055/`context.ts`), not an assignment one — nothing here depends on which file wins.
+  *(Post-merge note: task-055 has since landed on `main` (`9c83ca2`) with the custom-wins rule and the
+  `{entries, warnings}` listing payload; still nothing in this task depends on it — only the CLI
+  integration test that reads `directives list` output was adapted to `.entries` in the merge commit.)*
 - **dl-030 / REQ-SEC-07**: immutability is about removing/modifying assets; assigning a built-in only
   edits `roles.yaml`, so it is allowed (AC6 asserts the built-in file is byte-identical and absent
   from the commit). `requireCustomAsset` is deliberately not called.
@@ -167,3 +170,115 @@ consistent with the code. Reported as a proposed decision-log.
   `roles.yaml` (both block style); reachable only for hand-written flow lists.
 - **Out of scope**: `directive remove` (task-052), multi-id CLI grammar (task-056), `global` edits,
   MCP `inputSchema` details beyond what the registrar derives.
+
+### red — role: developer (commit `101d387`)
+
+- `test/directives/roles-edit.test.ts` — the pure writer: set-union semantics, append/insert/delete,
+  comment + inline-comment + CRLF preservation, indentation adoption, every refusal shape.
+- `test/core/directive-assign.test.ts` — the registered op against throwaway repos with the real
+  `wingfoil init` Scrum scaffold (Sc.1 precondition: `testing` unbound from `developer`, committed).
+- `test/cli/program.integration.test.ts` — a `directive assign` block through the compiled CLI.
+- Widened the three verbatim enumerations: `test/core/production-registry.test.ts`,
+  `test/core/parity.test.ts`, `test/mcp/read-only-agent-channel.test.ts`.
+
+Observed red (`npx jest test/core/directive-assign.test.ts test/directives/roles-edit.test.ts
+test/core/parity.test.ts test/core/production-registry.test.ts test/mcp/read-only-agent-channel.test.ts`):
+**5 suites failed; 25 failed / 20 passed**. `roles-edit.test.ts`: `Cannot find module
+'../../src/directives/roles-edit'`. `directive-assign.test.ts`: 20 failed / 1 passed — every behaviour
+case fails with `fixture bug: "directiveAssign" operation not registered on the directive module`; the
+one pass is the `deriveVerb('directive','directiveAssign') === 'assign'` derivation, which is the
+generic, pre-existing registrar rule (it pins dl-041's expectation, not new code). The other 19 passes
+are the untouched pre-existing cases of the three widened suites. CLI (`-t "BDD Sc.2"`): stderr
+`error: unknown command 'assign'` instead of the BDD message.
+
+### green — role: developer (commit `4e0118f`)
+
+- `src/directives/roles-edit.ts` — `withAssignedDirectives`, `setRoleAssignmentsInText` (imports
+  `js-yaml` only).
+- `src/core/directive-assign.ts` — `checkAssignable`, `updateRoleAssignments`, `ROLES_YAML_PATH`.
+- `src/core/index.ts` — one import line each for `./directive-assign` and `../directives/roles-edit`,
+  `loadDirectives` re-added to the `./loaders` import, one contiguous `DirectiveAssignParams` /
+  `DirectiveAssignResult` / `directiveAssignFn` block after `directiveCreateFn`, one registration
+  entry after `directiveCreate` in the `directive` module. No other block touched.
+- Full suite: **87 suites / 1197 tests passing**.
+
+### refactor — role: developer (commits `ace9f6e`, `22cd921`)
+
+- Coverage showed dead or untested paths in the writer; removed the unreachable ones rather than
+  testing around them (`readsBackAs`'s absent-role branch, which the early `result === text` return
+  already made unreachable; the non-`ValidationError` rethrow around `parseYaml`, which throws nothing
+  else — `src/validation/yaml.ts`; a second `RolesYaml` pass on output that the self-check / `dump`
+  already guarantee, reasoning recorded in `updateRoleAssignments`' TSDoc) and pinned the reachable
+  refusals with tests (multi-line id rendering, lone CR, flow-mapping child line, `role: ~`, invalid
+  YAML elsewhere in the file, **a YAML alias shared with another role** — the self-check refuses an
+  edit that would silently change the aliasing role too).
+- Refreshed stale docs: `CORE_MODULES` header (listed `directiveAssign` as later scope), the
+  `src/directives` barrel doc + re-export of the writer.
+- `docs(self)`: spec-006 §3 `directiveAssign` row — *(planned)* marker removed per dl-041.
+
+### sync with main (merge `878b5aa`, dl-035)
+
+`git merge main` (main at `9c83ca2`, task-055 merged): one conflict in `src/core/index.ts` imports
+(`DirectiveListEntry` → `DirectiveListing` from task-055, plus my `./directive-assign` import), resolved
+keeping both; the CLI test reading `directives list` output adapted to the `{entries, warnings}`
+payload. `git diff --stat 8a6a091 main -- docs/` touched only task-055's own file — no spec or dl cited
+in these notes changed.
+
+### review-ready summary
+
+**BDD P3.2 scenario → proving tests**
+
+| Scenario | Core test (`test/core/directive-assign.test.ts`) | CLI test (`test/cli/program.integration.test.ts`) |
+|---|---|---|
+| Assign a directive to a role | `Sc.1: assigns testing to developer — the role lists it, one commit touching only roles.yaml, exit 0` | `assigns, commits only roles.yaml, and directives list --role developer now lists testing (BDD Sc.1)` |
+| Error - role not defined in DNA | `Sc.2: an undefined role exits 1 with the exact message and makes no assignment` | `an undefined role exits 1 with the exact BDD message (BDD Sc.2)` — stderr exactly `error: unknown role 'wizard' (not defined in dna.yaml)` |
+| Error - non-existent directive | `Sc.3: a non-existent directive exits 1 with the exact message and makes no assignment` | `a non-existent directive exits 1 with the exact BDD message (BDD Sc.3)` — stderr exactly `error: unknown directive: ghost` |
+
+AC4–AC9 tests: `AC4: preserves every comment and line …` (diff `--numstat` = `1 0`), `AC5: re-assigning …
+commits nothing`, `AC6: a directive that exists only under built-in/ is assignable; the asset file is
+untouched`, `AC7: assigns to a DNA role absent from roles.yaml …`, `AC9: options … is a usage error`,
+registration block (3 cases), plus the writer suite (36 cases; `npx jest test/directives/roles-edit.test.ts` → `Tests: 36 passed`).
+
+**End-to-end on the compiled CLI** against a copy of this repository's own comment-rich
+`docs/self/.wingfoil/` in a scratch repo: `directive assign --directive security --role developer` →
+exit 0, `wf(directive): assign security to developer`, `git show --stat` = `.wingfoil/roles.yaml | 1 +`;
+re-run → exit 0, no commit; `--role approver` (defined in DNA, absent from `roles.yaml`) → `+  approver:`
+/ `+    - security` inserted after `tech-lead`'s list, before `# Global directives …`; `--role wizard` →
+exit 1 exact message; `--directive ghost` → exit 1 exact message; no `--directive` → exit 2
+`missing required argument: --directive`. Comment lines before/after: 7 / 7
+(`grep -c '#' .wingfoil/roles.yaml`); `git diff --numstat seed HEAD` = `3 0`.
+
+**Gates (after the merge, at `878b5aa`)**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=4` | **87 suites / 1227 tests passing** |
+| coverage | same | All files **98.49 stmts / 91.53 branch / 98.58 funcs / 99.04 lines**; baseline at `8a6a091` (detached scratch worktree, same command) 98.29 / 90.18 / 98.44 / 98.93 → non-regressing; `src/core/directive-assign.ts` and `src/directives/roles-edit.ts` **100/100/100/100** |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| test types | `npx tsc --noEmit -p tsconfig.json` | only the pre-existing bug-026 error `test/core/directive-create.test.ts(159,19) TS2339` |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**For the reviewer / approver**
+
+- **D6 is a new user-visible outcome no spec pins**: a hand-written `roles.yaml` the in-place editor
+  cannot handle (e.g. non-empty flow lists) *and* that contains a `#` gets `CONFLICT`,
+  `roles.yaml cannot be updated without discarding its comments; edit assignments.<role> by hand`
+  (exit 1). Without a `#`, a whole-file `dump` is used. Unreachable on the `wingfoil init` scaffold and on
+  this repository's own `roles.yaml`. The `#` test is conservative (a `#` inside a quoted scalar also
+  triggers it — fail-closed direction).
+- **Role checked before directive** when both are wrong (the BDD pins neither order).
+- **Missing `roles.yaml` is created** (deterministic `dump`, no comments) rather than being an error.
+- **bug-027 dependency**: `updateRoleAssignments` commits via `commitPaths(root, ['.wingfoil/roles.yaml'])`;
+  until task-045 lands the fix, anything the user pre-staged is swept into the `wf(directive): assign`
+  commit. Tests start from a clean index and do not rely on or test that behaviour.
+- **Reuse surface for task-052 / task-056**: `setRoleAssignmentsInText(text, role, next)` already
+  supports deletions and emptied lists (`role: []`) and is tested for them; `checkAssignable` takes an
+  id list and validates all before writing (P3.7 "no partial assignment"); `updateRoleAssignments`
+  takes an `update` function and a commit message. P3.3's "still assigned to role" reference check
+  and P3.7's multi-id CLI grammar are **not** implemented here.
+- The `Warning: … unknown field(s) ignored: scope` lines on stderr when running against this
+  repository's own directives are pre-existing loader behaviour (also printed by `directives list`),
+  not introduced here.
+- Merge commit `878b5aa` carries one test adaptation (the `.entries` read), not only conflict markers.
+
