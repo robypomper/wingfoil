@@ -2,7 +2,7 @@
 id: "task-039-mcp-prompts-role-based-infra"
 type: task
 title: "Infrastructure: REQ-INT-02 — MCP Prompts role-based"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Blocker"
 tags: ["v0.2", "integrations"]
