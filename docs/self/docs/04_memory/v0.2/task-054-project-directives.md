@@ -2,13 +2,14 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: in-review
+status: in-progress
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.5"
 bug: ""
 depends_on: []
+rejection_reason: "Second pass delivered all four required fixes honestly and verifiably, but introduced a new false claim of the same genus the task was rejected for. The notes assert that dl-031's Actions item (amend REQ-SEC-10 to say schema-checked) remains undone; it was already done by 9d74d80 on 2026-09-14, which predates this branch point, and the amended text sits in docs/02_requirements/03_sard/05_security-compliance.md:98-101 on this very branch. The branch also contradicts itself: src/core/builtin-integrity.ts:8 says dl-031 retitled the requirement, and the task's own design note cites dl-031 correctly. Separately, the stated reason for the untrimmed porcelain comparison is wrong — a trimmed comparison would also reject an added or untracked file; what untrimmed actually discriminates is the index column from the worktree column. Two sentences; no code or test change."
 tmpl_version: 260703
 ---
 
