@@ -20,7 +20,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CORE_MODULES } from '../../src/core';
+import { commitMemoryTransition, CORE_MODULES, loadMemoryYaml, prepareMemoryTransition } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import { UsageError } from '../../src/core/usage-error';
@@ -130,6 +130,49 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
     expect(result.ok).toBe(true);
     expect(gitOut(repo, ['show', 'HEAD:docs/memory/v0.2/task-101.md'])).toContain('Real content, now finished.');
     expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  it('bug-027: a change someone else staged is NOT swept into the `wf(task): submit` commit, and stays staged', async () => {
+    writeFixtureFile(repo, 'other.txt', 'unrelated work');
+    gitOut(repo, ['add', 'other.txt']);
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-101' });
+    expect(result.ok).toBe(true);
+    expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe('docs/memory/v0.2/task-101.md');
+    expect(gitOut(repo, ['diff', '--cached', '--name-only'])).toBe('other.txt');
+  });
+
+  it('removes a multi-paragraph block-scalar `rejection_reason` without corrupting `status` (second-pass rejection repro)', async () => {
+    const doc = taskDoc({ id: 'task-107', status: 'draft' }).replace(
+      'status: draft          # auto-set by wingfoil\n',
+      'status: draft          # auto-set by wingfoil\nrejection_reason: |\n  First paragraph.\n\n  Second paragraph.\n',
+    );
+    writeFixtureFile(repo, 'docs/memory/v0.2/task-107.md', doc);
+    commitAll(repo, 'seed 107');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-107' });
+    expect(result.ok).toBe(true);
+    const written = readFileSync(join(repo, 'docs/memory/v0.2/task-107.md'), 'utf-8');
+    expect(written).toBe(taskDoc({ id: 'task-107', status: 'pending' }));
+  });
+
+  it('post-condition: a rendered document whose re-parsed frontmatter is not the target is refused — nothing written, no commit', () => {
+    const before = head(repo);
+    const path = join(repo, 'docs/memory/v0.2/task-101.md');
+    const original = readFileSync(path, 'utf-8');
+    const prepared = prepareMemoryTransition(repo, loadMemoryYaml(repo), 'task-101', 'submit');
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+    // A corrupted render of the kind the first pass produced: a stray continuation line folded into `status`.
+    const corrupted = prepared.value.content.replace('status: draft', 'status: pending\n  Second paragraph.');
+    const result = commitMemoryTransition(repo, prepared.value, corrupted, 'wf(task): submit task-101', { status: 'pending' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('VALIDATION');
+    expect(result.error.message).toBe(
+      'refusing to write docs/memory/v0.2/task-101.md: the rendered frontmatter failed its post-condition: field \'status\' is "pending Second paragraph.", expected "pending"',
+    );
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(readFileSync(path, 'utf-8')).toBe(original);
+    expect(head(repo)).toBe(before);
   });
 
   it('P1.6 sc.2: an illegal transition (approved -> pending) leaves the state unchanged and exits 1 with the pinned message', async () => {
