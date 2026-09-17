@@ -52,6 +52,43 @@ describe('commitPaths — scoped, single-commit git primitive (task-018, P1.1)',
     expect(git(repo, ['status', '--porcelain'])).toContain('?? untracked.txt');
   });
 
+  it('bug-027: commits ONLY the scoped paths — an unrelated, already-STAGED change is absent from HEAD and still staged afterwards', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'seed.txt', 'seed');
+    writeFixtureFile(repo, 'other.txt', 'v1');
+    commitPathsSeed(repo, ['seed.txt', 'other.txt']);
+
+    writeFixtureFile(repo, 'other.txt', 'v2 staged by someone else');
+    git(repo, ['add', 'other.txt']);
+    writeFixtureFile(repo, 'new-staged.txt', 'also staged');
+    git(repo, ['add', 'new-staged.txt']);
+    writeFixtureFile(repo, 'a.txt', 'A');
+
+    commitPaths(repo, ['a.txt'], 'feat: add a only');
+
+    expect(git(repo, ['show', '--name-only', '--format=', 'HEAD']).trim()).toBe('a.txt');
+    expect(git(repo, ['show', 'HEAD:other.txt'])).toBe('v1');
+    // Both unrelated changes are still staged, exactly as the caller left them.
+    expect(git(repo, ['diff', '--cached', '--name-only']).trim().split('\n')).toEqual(['new-staged.txt', 'other.txt']);
+    expect(git(repo, ['show', ':other.txt'])).toBe('v2 staged by someone else');
+  });
+
+  it('bug-027: a first commit in an empty repository (the `wingfoil init` case) still records every scoped path', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'version: 1\n');
+    writeFixtureFile(repo, '.wingfoil/directives/built-in/.gitkeep', '');
+    writeFixtureFile(repo, 'unrelated.txt', 'staged');
+    git(repo, ['add', 'unrelated.txt']);
+
+    commitPaths(repo, ['.wingfoil/dna.yaml', '.wingfoil/directives/built-in/.gitkeep'], 'chore: init');
+
+    expect(git(repo, ['ls-tree', '--name-only', '-r', 'HEAD']).trim().split('\n')).toEqual([
+      '.wingfoil/directives/built-in/.gitkeep',
+      '.wingfoil/dna.yaml',
+    ]);
+    expect(git(repo, ['diff', '--cached', '--name-only']).trim()).toBe('unrelated.txt');
+  });
+
   it('leaves the scoped paths tracked with a clean status (no untracked residue)', () => {
     repo = makeTempGitRepo();
     writeFixtureFile(repo, '.wingfoil/dna.yaml', 'version: 1\n');
@@ -81,8 +118,8 @@ describe('commitPaths — scoped, single-commit git primitive (task-018, P1.1)',
 });
 
 // Local seed helper: commit the seed file without depending on commitPaths' own contract.
-function commitPathsSeed(root: string): void {
-  execFileSync('git', ['-C', root, 'add', 'seed.txt'], { encoding: 'utf-8', env: process.env });
+function commitPathsSeed(root: string, paths: readonly string[] = ['seed.txt']): void {
+  execFileSync('git', ['-C', root, 'add', ...paths], { encoding: 'utf-8', env: process.env });
   execFileSync('git', ['-C', root, 'commit', '--quiet', '-m', 'chore: seed'], {
     encoding: 'utf-8',
     env: process.env,
