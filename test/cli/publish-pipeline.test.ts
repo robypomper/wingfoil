@@ -172,11 +172,14 @@ describe('publish workflow (task-060) — spec-015 §3 / adr-009', () => {
     expect(raw).toContain('bug-023');
   });
 
-  it('carries no registry credential — the token wiring is spec-015 §5 (task-061)', () => {
-    const { raw } = readWorkflow();
-    expect(raw).not.toContain('NPM_TOKEN');
-    expect(raw).not.toContain('NODE_AUTH_TOKEN');
-    expect(raw).not.toContain('_authToken');
+  it('gate and stage carry no registry credential — the token is promote-only (spec-015 §5, task-061)', () => {
+    const { parsed } = readWorkflow();
+    for (const job of [parsed.jobs.gate, parsed.jobs.stage]) {
+      const text = JSON.stringify(job);
+      expect(text).not.toContain('NPM_TOKEN');
+      expect(text).not.toContain('NODE_AUTH_TOKEN');
+      expect(text).not.toContain('_authToken');
+    }
   });
 
   it('documents how to exercise the workflow locally with `act` (spec-015 §3)', () => {

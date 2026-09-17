@@ -4,7 +4,7 @@
  * procedure (§4). Every fixture "secret" below is an obviously-fake value (per the global
  * security-secrets directive) — none are real credentials.
  */
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import {
   SECRET_PATTERNS,
@@ -32,7 +32,7 @@ describe('SECRET_PATTERNS — canonical pattern set (spec-007 §2)', () => {
     ]);
   });
 
-  it('classifies each pattern block/warn severity exactly as spec-007 §2', () => {
+  it('classifies each pattern block/warn severity exactly as spec-007 §2 (dl-036: jwt-like, dotenv promoted)', () => {
     const bySeverity = Object.fromEntries(SECRET_PATTERNS.map((p) => [p.id, p.severity]));
     expect(bySeverity['private-key-pem']).toBe('block');
     expect(bySeverity['generic-api-key-assignment']).toBe('block');
@@ -41,9 +41,9 @@ describe('SECRET_PATTERNS — canonical pattern set (spec-007 §2)', () => {
     expect(bySeverity['gcp-service-account-key']).toBe('block');
     expect(bySeverity['github-token']).toBe('block');
     expect(bySeverity['slack-token']).toBe('block');
-    expect(bySeverity['jwt-like']).toBe('warn');
+    expect(bySeverity['jwt-like']).toBe('block');
     expect(bySeverity['generic-high-entropy-string']).toBe('warn');
-    expect(bySeverity['dotenv-style-secret-line']).toBe('warn');
+    expect(bySeverity['dotenv-style-secret-line']).toBe('block');
   });
 });
 
@@ -87,25 +87,28 @@ describe('scanText — block-severity pattern shapes (spec-007 §2)', () => {
   });
 });
 
-describe('scanText — warn-severity pattern shapes (spec-007 §2)', () => {
-  it('warns (not blocks) on a JWT-shaped string', () => {
+describe('scanText — patterns promoted warn → block by dl-036 (spec-007 §2)', () => {
+  it('blocks on a JWT-shaped string', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.fakefakefakefakefakefakefake';
     const result = scanText(`token = ${jwt}\n`, 'fixture.txt');
-    expect(result.warnings.map((f) => f.patternId)).toContain('jwt-like');
-    expect(result.blocking.map((f) => f.patternId)).not.toContain('jwt-like');
+    expect(result.blocking.map((f) => f.patternId)).toContain('jwt-like');
+    expect(result.warnings.map((f) => f.patternId)).not.toContain('jwt-like');
   });
 
+  it('blocks on a .env-style credential line (the NPM_TOKEN leak dl-036 names)', () => {
+    const result = scanText('NPM_TOKEN=fake1234567890abcdef\n', '.env.fixture');
+    expect(result.blocking.map((f) => f.patternId)).toContain('dotenv-style-secret-line');
+    expect(result.warnings.map((f) => f.patternId)).not.toContain('dotenv-style-secret-line');
+  });
+});
+
+describe('scanText — warn-severity pattern shapes (spec-007 §2)', () => {
   it('warns (not blocks) on a generic high-entropy string near a credential-shaped key', () => {
     const result = scanText('auth: fakeFAKEfakeFAKEfakeFAKEfakeFAKE1234\n', 'fixture.txt');
     expect(result.warnings.map((f) => f.patternId)).toContain('generic-high-entropy-string');
     expect(result.blocking.map((f) => f.patternId)).not.toContain('generic-high-entropy-string');
   });
 
-  it('warns (not blocks) on a .env-style credential line', () => {
-    const result = scanText('MY_TOKEN=fake1234567890abcdef\n', '.env.fixture');
-    expect(result.warnings.map((f) => f.patternId)).toContain('dotenv-style-secret-line');
-    expect(result.blocking.map((f) => f.patternId)).not.toContain('dotenv-style-secret-line');
-  });
 });
 
 describe('scanText — deterministic ordering (REQ-SYS-07, spec-007 §4 step 3)', () => {
@@ -129,9 +132,10 @@ describe('scanText — exclusions (spec-007 §3)', () => {
     expect(finding?.exemptReason).toBe('placeholder-value');
   });
 
-  it('downgrades a literal REDACTED/PLACEHOLDER/EXAMPLE dotenv value to info, not warning', () => {
+  it('downgrades a literal REDACTED/PLACEHOLDER/EXAMPLE dotenv value to info, not blocking', () => {
     for (const literal of ['REDACTED', 'PLACEHOLDER', 'EXAMPLE']) {
       const result = scanText(`API_TOKEN=${literal}\n`, '.env.fixture');
+      expect(result.blocking).toHaveLength(0);
       expect(result.warnings).toHaveLength(0);
       const finding = result.info.find((f) => f.patternId === 'dotenv-style-secret-line');
       expect(finding?.exemptReason).toBe('placeholder-value');
@@ -267,6 +271,61 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
 });
 
 /**
+ * bug-015 — the scanner used to enumerate the git index but read the working tree, so the two could
+ * disagree. Contract since task-061: it enumerates AND reads the index — the content the next commit
+ * would contain, which is what the pre-commit / pre-publish gate spec-007 §4 step 5 names must judge.
+ */
+describe('scanProjectSurface — reads the git index, not the working tree (bug-015)', () => {
+  let repo: string;
+  afterEach(() => removeTempDir(repo));
+
+  it('does not throw when an indexed file is missing from disk, and still reports its indexed content', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'modules: [core]\n');
+    writeFixtureFile(repo, '.wingfoil/leaky.md', 'api_key: "sk_live_fake1234567890abcdef"\n');
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '--quiet', '-m', 'seed']);
+    rmSync(join(repo, '.wingfoil/leaky.md')); // deleted on disk, deletion NOT staged
+
+    const result = scanProjectSurface(repo);
+    expect(result.filesScanned).toBe(2);
+    expect(result.blocking.map((f) => f.file)).toEqual(['.wingfoil/leaky.md']);
+  });
+
+  it('does not list a staged deletion at all', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'modules: [core]\n');
+    writeFixtureFile(repo, '.wingfoil/leaky.md', 'api_key: "sk_live_fake1234567890abcdef"\n');
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '--quiet', '-m', 'seed']);
+    git(repo, ['rm', '--quiet', '.wingfoil/leaky.md']);
+
+    const result = scanProjectSurface(repo);
+    expect(result.filesScanned).toBe(1);
+    expect(result.blocking).toEqual([]);
+  });
+
+  it('judges the staged blob: a clean unstaged edit cannot hide a staged secret', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/leaky.md', 'api_key: "sk_live_fake1234567890abcdef"\n');
+    git(repo, ['add', '-A']);
+    writeFixtureFile(repo, '.wingfoil/leaky.md', 'nothing to see here\n'); // unstaged
+
+    const result = scanProjectSurface(repo);
+    expect(result.blocking.map((f) => f.patternId)).toEqual(['generic-api-key-assignment']);
+  });
+
+  it('judges the staged blob: an unstaged secret edit is not what the next commit contains', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/notes.md', 'nothing to see here\n');
+    git(repo, ['add', '-A']);
+    writeFixtureFile(repo, '.wingfoil/notes.md', 'api_key: "sk_live_fake1234567890abcdef"\n'); // unstaged
+
+    expect(scanProjectSurface(repo).blocking).toEqual([]);
+  });
+});
+
+/**
  * The literal REQ-SEC-08 Fit Criterion, second clause — "a scan of committed `.wingfoil/` content
  * matches **0** known secret patterns" — asserted against **this repository's own tracked content**,
  * not a temp fixture. Every other `scanProjectSurface` case above builds a `makeTempGitRepo()`
@@ -286,7 +345,7 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
  * discriminator rather than a number nothing could fail. Deterministic: the verdict is a pure
  * function of this repo's indexed content and the fixed pattern set — no wall-clock, no randomness.
  */
-describe("REQ-SEC-08 Fit Criterion — this repository's own committed surface", () => {
+describe("REQ-SEC-08 Fit Criterion — this repository's own indexed (tracked + staged) surface", () => {
   /** The worktree root: `test/validation/` → up two. */
   const repoRoot = join(__dirname, '..', '..');
 
@@ -295,7 +354,26 @@ describe("REQ-SEC-08 Fit Criterion — this repository's own committed surface",
     expect(scanProjectSurface(repoRoot).filesScanned).toBeGreaterThan(100);
   });
 
-  it('matches 0 blocking secret patterns across this repository\'s committed surface', () => {
+  it('gates on the dl-036 blocking set — every spec-007 §2 pattern except generic-high-entropy-string', () => {
+    // "0 blocking" below only covers the patterns declared `block`; pin that set so a silent
+    // re-classification back to `warn` cannot weaken the Fit Criterion without failing here.
+    expect(SECRET_PATTERNS.filter((p) => p.severity === 'block').map((p) => p.id)).toEqual([
+      'private-key-pem',
+      'generic-api-key-assignment',
+      'aws-access-key-id',
+      'aws-secret-access-key',
+      'gcp-service-account-key',
+      'github-token',
+      'slack-token',
+      'jwt-like',
+      'dotenv-style-secret-line',
+    ]);
+    expect(SECRET_PATTERNS.filter((p) => p.severity === 'warn').map((p) => p.id)).toEqual([
+      'generic-high-entropy-string',
+    ]);
+  });
+
+  it('matches 0 blocking secret patterns across this repository\'s indexed surface', () => {
     const result = scanProjectSurface(repoRoot);
 
     expect(result.filesScanned).toBeGreaterThan(100);
@@ -371,3 +449,31 @@ function writeFixtureBinaryFile(root: string, relativePath: string, content: Buf
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, content);
 }
+
+/**
+ * dl-036 action 2 — the spec-007 §3 escape hatch must be discoverable where an author writing a memory
+ * document meets it: the global `security-secrets` directive, auto-loaded for every role. Its worked
+ * examples live on the scanned surface, so they must themselves pass the gate they describe — and must
+ * actually exercise the hatch (land in `info`), or they would prove nothing.
+ */
+describe('escape hatch documented in the security-secrets directive (dl-036, spec-007 §3)', () => {
+  const directivePath = 'docs/self/.wingfoil/directives/custom/security-secrets.md';
+  const directive = readFileSync(join(__dirname, '..', '..', directivePath), 'utf-8');
+
+  it('names all three spec-007 §3 exclusions', () => {
+    expect(directive).toContain('<!-- example -->');
+    expect(directive).toContain('<!-- placeholder -->');
+    expect(directive).toContain('REDACTED');
+    expect(directive).toContain('.wingfoil/security-ignore');
+    expect(directive).toContain('spec-007');
+  });
+
+  it('its own worked examples pass the scan only because they use the hatch', () => {
+    const result = scanText(directive, directivePath);
+    expect(result.blocking).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    const reasons = new Set(result.info.map((f) => f.exemptReason));
+    expect(reasons).toEqual(new Set(['fenced-example', 'placeholder-value']));
+    expect(result.info.map((f) => f.patternId)).toContain('dotenv-style-secret-line');
+  });
+});
