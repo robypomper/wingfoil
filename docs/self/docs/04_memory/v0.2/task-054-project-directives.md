@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.5"
-bug: ""
+bug: ["bug-018-init-storage-bypasses-integrity-guard"]
 depends_on: []
 tmpl_version: 260703
 ---
