@@ -2,7 +2,7 @@
 id: "bug-020-bin-path-autocorrected-at-publish"
 type: bug
 title: "bin.wingfoil's leading ./ makes npm auto-correct the manifest at publish, and spec-015 §1 pins the bad value"
-status: in-review
+status: closed
 severity: "low"
 release-origin: "v0.1"
 release: "v0.2"
