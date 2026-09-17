@@ -123,7 +123,7 @@ Result: `npx jest test/mcp test/cli` → **207 passed / 207**.
   `A request handler for prompts/list already exists`.
 - Docs brought in line: `src/mcp/prompt.ts` / `server.ts` / `index.ts` module comments (no longer "not
   wired"), `src/cli/program.ts` `mcp` help text → "(read-only Resources and role Prompts)".
-- Observed behaviour change: `wingfoil mcp` in a repo whose `.wingfoil/dna.yaml` is missing now exits
+- *(Superseded in the second pass below — the construction-time DNA read was removed.)* Observed behaviour change: `wingfoil mcp` in a repo whose `.wingfoil/dna.yaml` is missing now exits
   at start (`error: ENOENT: … .wingfoil/dna.yaml`, exit 1, via `src/cli.ts`'s last-resort handler —
   observed with the smoke repo after `rm .wingfoil/dna.yaml`) instead of starting and failing per request.
 
@@ -158,7 +158,7 @@ REQ-INT-02 registrar contract remains pinned by task-039's `test/mcp/role-prompt
 unchanged file).
 
 **For the reviewer / approver.**
-1. *Mechanism change to task-039's registrar*: handlers moved from `McpServer.registerPrompt` to the
+1. *(Second pass: the role catalogue is now read per request, not at registration.)* *Mechanism change to task-039's registrar*: handlers moved from `McpServer.registerPrompt` to the
    low-level `server.server` API (only way to emit the BDD string); prompts capability is now `{}`
    instead of the SDK's `{ listChanged: true }` (the list is fixed at start, so no change notification is
    ever sent).
@@ -171,3 +171,91 @@ unchanged file).
    conflicts only at that one call; shadow warnings would, like dl-029's, not reach the agent via Prompts.
 5. Directive bodies carry their own `# Directive — …` H1 inside each `## Directive: {id}` block (seen in
    the smoke run) — heading levels invert; spec-004 §3.2 says "full directive body", so left as is.
+
+### second pass — rejection `ff13321` (review → red)
+
+**Rejection reason (verbatim from `rejection_reason`, commit `ff13321`, approver Roberto Pompermaier):**
+"P5.2.2's three scenarios work on the production server and every gate is green, but the task changes
+`wingfoil mcp` startup without a test and against an approved spec. `createMcpServer` now reads
+`dna.yaml` when the server is built, contradicting spec-014 §2's "no I/O at construction time". A missing
+`dna.yaml` exits 1 through `src/cli.ts`'s last-resort handler as a raw ENOENT that ignores `--format
+json`, not through `runMcp`'s format-aware pre-flight. Making the registrar tolerate a missing `dna.yaml`
+leaves all 208 mcp/cli tests green. The notes mention the change but never check it against spec-014 or
+propose an element. Also, `test/mcp/read-only-agent-channel.test.ts:91` still grounds REQ-SEC-05 on "no
+Prompts channel is advertised", which this task made false. Route the startup failure through `runMcp`
+with a test (or defer the DNA read), re-ground the channel-enumeration test on the shipped surface, and
+raise the spec-004/spec-014 gaps as decision-logs."
+
+Kept as verified by the approver: P5.2.2 behaviour, low-level SDK handler choice, per-request directive
+re-read, determinism.
+
+**B1 — option (b) chosen: the DNA role catalogue is read per request.** Reasons for (b) over (a):
+
+- It satisfies spec-014 §2 literally ("no I/O at construction time beyond wiring handlers"); option (a)
+  would still read at construction and only reformat the failure.
+- `resolveProjectRoot` needs only a git root (`src/storage/git-root.ts:35-45`: throws only
+  `E_NO_GIT_ROOT` / `E_NOT_AT_GIT_ROOT`), so a git root with no `.wingfoil/` — this repository's own
+  root (`ls /home/robypomper/Workspaces/WingFoil2/.wingfoil` → `No such file or directory`), the dl-026
+  case — passes the pre-flight. With (b), `wingfoil mcp` there starts like it did before this task, and
+  the Prompts channel behaves exactly like the existing `wingfoil://dna` Resource (`src/mcp/dna-resource.ts`
+  calls `loadDnaYaml` per request): the missing DNA is that request's error.
+- Cost, recorded for the approver: spec-004 §3.1's "fixed set derived from DNA at server start" is served
+  as "the DNA role set at request time" — a role added to `dna.yaml` mid-session is listed on the next
+  `prompts/list`. Pinned by a test and raised as a proposed decision-log (spec-014 §2 vs spec-004 §3.1).
+  Neither spec edited.
+
+T1 for the second-pass criteria:
+
+| # | Criterion | Class | Test |
+|---|---|---|---|
+| B1-a | `createMcpServer` performs no I/O at construction (`resolveRoot` never invoked while wiring) | red-first | `mcp-prompts.feature.test.ts` › `createMcpServer performs no I/O at construction…` |
+| B1-b | no `dna.yaml`: server connects, Prompts advertised, `prompts/list` and `prompts/get` each reject naming `dna.yaml` | red-first | › `a repo with no dna.yaml still yields a connectable server…` |
+| B1-c | a role added to `dna.yaml` after start is listed and served on the next request (pins the (b) side of the spec tension) | red-first | › `a role added to dna.yaml after the server started…` |
+| B1-d | `runMcp` with `--format console` and `--format json`, git root without `.wingfoil/dna.yaml`, real `createMcpServer` in `start`: no exit, no stderr | red-first | `test/cli/mcp-command.test.ts` › `with --format console|json, a git root without .wingfoil/dna.yaml builds the real server without an error or exit` |
+| B2 | REQ-SEC-05 on the shipped surface: Prompts advertised, no Tools (`tools/list` → method not found), files byte-for-byte unchanged after `prompts/list` + `prompts/get` | characterization (behaviour shipped by the first pass) | `read-only-agent-channel.test.ts` › `advertises Prompts but no Tools, and a prompts/list + prompts/get round trip leaves every file byte-for-byte unchanged` (replaces `no Prompts channel is advertised…`; header lines 7-8 rewritten) |
+
+**red** (`455183a`) — `npx jest test/mcp/mcp-prompts.feature.test.ts test/cli/mcp-command.test.ts
+test/mcp/read-only-agent-channel.test.ts` → **5 failed, 15 passed**: B1-a `Expected number of calls: 0 /
+Received number of calls: 1`; B1-b and both B1-d cases `ENOENT: no such file or directory, open
+'/tmp/wf-storage-…/.wingfoil/dna.yaml'` (thrown by `createMcpServer`); B1-c `Expected … "wizard-session"`
+missing from the list. B2 passes on first run (characterization); its first draft failed only on an invalid
+fixture `dna.yaml` (`E_VALIDATION stacks … team.members … paths`), fixed before the commit — not a
+behavioural red.
+
+**green** (`3a77878`) — `src/mcp/prompt.ts`: `registerRolePrompts` reads nothing; `prompts/list` and
+`prompts/get` call `loadRoleNames(options.resolveRoot())` per request; non-`-session` names are refused
+without any read. `src/mcp/server.ts` doc updated. `npx jest test/mcp test/cli` → **213 passed / 213**.
+
+**Mutation proof** (applied to a copy of `prompt.ts`, run, restored; `git diff --stat` clean afterwards):
+
+| Mutation | Command | Result |
+|---|---|---|
+| M1 — registrar swallows the DNA error (`try { … } catch { return []; }` in `loadRoleNames`) | `npx jest test/mcp test/cli` | **1 failed, 212 passed** — › `a repo with no dna.yaml still yields a connectable server, and each Prompts request surfaces the missing DNA as an error` |
+| M2 — construction-time read restored (`loadRoleNames(options.resolveRoot())` at the top of `registerRolePrompts`) | `npx jest test/mcp test/cli` | **4 failed, 209 passed** — both `runMcp --format console/json` cases, `createMcpServer performs no I/O at construction`, `a repo with no dna.yaml…` |
+
+**stdio smoke** (built `dist/`, SDK `StdioClientTransport` → `node dist/cli.js [--format json] mcp`):
+
+- cwd = this repo's root (no `.wingfoil/`), `console` and `--format json` identical: server starts;
+  `caps {"prompts":{},"resources":{"listChanged":true}}`; `prompts/list`, `prompts/get` and
+  `wingfoil://dna` each → `MCP error -32603: ENOENT: no such file or directory, open
+  '/home/robypomper/Workspaces/WingFoil2/.wingfoil/dna.yaml'` (same error shape as the pre-existing DNA
+  Resource — raised as a proposed bug, not changed here).
+- cwd = temp repo with `docs/self/.wingfoil/{dna,roles}.yaml` + directives: 8 `*-session` prompts listed,
+  `prompts/get("developer-session")` ok.
+
+**Merge.** `git merge --no-ff main` (dl-035) at `8a6a091` (task-060, task-070, bug-027 sync) → merge
+commit `0b5ffc4`, no conflict. `grep -n -i "mcp\|prompt" scripts/e2e-smoke.cjs test/cli/e2e-smoke.test.ts`
+→ no hit, so the new e2e smoke does not exercise this surface.
+
+Gates (post-merge, worktree):
+
+| Check | Command | Result |
+|---|---|---|
+| tests | `npx jest` | **86 suites, 1154 passed / 1154** |
+| coverage | `npx jest --coverage` | global **98.31 / 90.67 / 98.48 / 98.94** (stmts/branch/funcs/lines); baseline `main` `8a6a091`: 98.29 / 90.18 / 98.44 / 98.93, 1142 tests; `src/mcp/prompt.ts` 100/100/100/100; `server.ts` 69.23 lines, uncovered 72-75 = pre-existing `startMcpServer` stdio seam |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| all types | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026) |
+| `lint.clean` | `npm run lint` | exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit 0 |
+
+Resubmitted `in-progress → in-review`; `rejection_reason` removed by the submit commit (CLAUDE.md §5.1).
