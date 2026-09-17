@@ -1,14 +1,21 @@
 /**
  * Integration smoke test for `src/cli/program.ts` — the real `commander` wiring — following up on
- * task-006-dual-interface-shared-core. `program.ts`'s own module doc explains why no automated test
- * can import it directly: `commander` v15 is ESM-only, and this project's `ts-jest` test runtime is
+ * task-006-dual-interface-shared-core. When this suite was written, no automated test could import
+ * `program.ts` directly: `commander` v15 is ESM-only, and this project's `ts-jest` test runtime is
  * CommonJS, so a static `require()`/`import` of anything that transitively pulls in `commander`
- * crashes at Jest-test runtime even though the exact same code works under real Node (which supports
+ * crashed at Jest-test runtime even though the exact same code works under real Node (which supports
  * `import(ESM)` from a CJS module, i.e. the `await import('commander')` inside `buildProgram`).
  * `test/cli/registrar.test.ts` already covers 100% of the AC-relevant dispatch behavior
  * (Commander-independent); what was NOT covered by any automated test was `program.ts`'s own thin
  * mechanical wiring — registering global flags, deriving one `Command` per `{noun, verb}`, forwarding
  * to `command.run` — the exact thing task-006's reviewer verified by hand instead of by test.
+ *
+ * task-065-fix-commander-esm-jest-harness (`bug-007`) has since lifted that barrier for the
+ * *white-box* half: `./program.test.ts` drives `buildProgram` in-process against a synthetic
+ * registry, because jest now compiles the test runtime as CommonJS and transforms `commander`'s ESM
+ * on the way in (`jest.config.js` / `tsconfig.test.json`). This suite is unchanged and remains the
+ * only place the **real ESM `commander`** inside the **real compiled `dist/`** is exercised, against
+ * the production `CORE_MODULES` — complementary to that suite, not redundant with it.
  *
  * The fix here is compile-then-spawn, not import-then-call: the compiled `dist/` (CommonJS output —
  * confirmed by inspecting `dist/cli/program.js`) is built once by jest's `globalSetup`
@@ -41,11 +48,12 @@
  * update this test alongside that change.
  */
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 import { load as yamlLoad } from 'js-yaml';
 
+import { initWingfoilProject } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../storage/helpers/git-fixture';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -155,9 +163,13 @@ describe('program.ts — real commander wiring (compiled + spawned, out-of-proce
   it('`directives list --format json` exits 0 and lists the one fixture directive', () => {
     const result = runCli('directives', 'list', '--format', 'json');
     expect(result.status).toBe(0);
-    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string } }>;
+    const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
     expect(value).toHaveLength(1);
     expect(value[0]?.frontmatter.id).toBe('sample');
+    // P3.4 Scenario 1's "(or `unassigned`)": the fixture root carries a directive but no
+    // `roles.yaml`, so nothing binds `sample` — and that is a successful listing, not an error
+    // (task-053-directives-list).
+    expect(value[0]?.assignment).toBe('unassigned');
   });
 
   it('`workflow list --format json` exits 0 and includes the one fixture `main` workflow', () => {
@@ -470,6 +482,114 @@ types:
       expect(result.status).toBe(2);
       expect(result.stderr).toBe('error: missing required argument: memory history <id>\n');
       expect(result.stdout).toBe('');
+    });
+  });
+
+  // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
+  // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
+  // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real
+  // `wingfoil init` scaffold, so the created directive is checked against the ten it ships with.
+  describe('`directive create --name <name>` — first Directives-pillar mutating command (task-050, P3.1)', () => {
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      const init = initWingfoilProject(repo, 'Scrum');
+      if (!init.ok) throw new Error(`fixture bug: wingfoil init failed — ${init.error.message}`);
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('creates the file under .wingfoil/directives/custom/, commits it, and exits 0 (BDD "Create a new custom directive")', () => {
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const created = join(repo, '.wingfoil', 'directives', 'custom', 'no-direct-db-access.md');
+      expect(existsSync(created)).toBe(true);
+      expect(readFileSync(created, 'utf-8')).toContain('id: no-direct-db-access');
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(directive): create no-direct-db-access');
+      const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
+        encoding: 'utf-8',
+      }).trim();
+      expect(changed).toBe('.wingfoil/directives/custom/no-direct-db-access.md');
+    });
+
+    it('a duplicate name exits 1 with the exact BDD message and overwrites nothing (BDD "Error - ... already exists")', () => {
+      expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
+      const created = join(repo, '.wingfoil', 'directives', 'custom', 'no-direct-db-access.md');
+      const before = readFileSync(created, 'utf-8');
+
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: directive already exists: no-direct-db-access\n');
+      expect(result.stdout).toBe('');
+      expect(readFileSync(created, 'utf-8')).toBe(before);
+    });
+
+    it("an invalid name exits 2 with the exact BDD message and creates no file (BDD \"Error - invalid directive name\")", () => {
+      const before = readdirSync(join(repo, '.wingfoil', 'directives', 'custom')).sort();
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'bad name!');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: invalid directive name (use kebab-case)\n');
+      expect(result.stdout).toBe('');
+      expect(readdirSync(join(repo, '.wingfoil', 'directives', 'custom')).sort()).toEqual(before);
+    });
+
+    it('the created directive is visible to `directives list` (the read side of the same pillar)', () => {
+      expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
+      const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
+      expect(result.status).toBe(0);
+      const listed = JSON.parse(result.stdout) as { path: string; frontmatter: { id: string } }[];
+      expect(listed.map((entry) => entry.frontmatter.id)).toContain('no-direct-db-access');
+    });
+  });
+
+  // task-053-directives-list (P3.4, BDD `p3-directives/P3.4-directives-list.feature`) — the `--role`
+  // value option, driven end-to-end through real `commander` against a THROWAWAY temp repo (the
+  // static fixture root deliberately has no `roles.yaml`, which is the "unassigned" case asserted
+  // above). Commander rejects an unregistered option, so this also proves `--role` is really
+  // declared on the derived command rather than only honoured by the core function.
+  describe('`directives list --role <role>` (task-053, P3.4 Scenario 2)', () => {
+    const DIRECTIVE = (id: string): string =>
+      ['---', `id: ${id}`, `name: "${id}"`, 'type: directive', 'kind: custom', `title: "${id}"`, '---', '', `# ${id}`, ''].join('\n');
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      for (const id of ['testing', 'code-review', 'security-secrets']) {
+        writeFixtureFile(repo, `.wingfoil/directives/custom/${id}.md`, DIRECTIVE(id));
+      }
+      writeFixtureFile(
+        repo,
+        '.wingfoil/roles.yaml',
+        'version: 1.0\nassignments:\n  developer:\n    - testing\n  reviewer:\n    - code-review\nglobal:\n  - security-secrets\n',
+      );
+      commitAll(repo, 'seed directives + roles.yaml');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('lists only the developer-assigned directives (incl. globals), exit 0', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      expect(value.map((entry) => entry.frontmatter.id).sort()).toEqual(['security-secrets', 'testing']);
+      expect(value.find((entry) => entry.frontmatter.id === 'testing')?.assignment).toBe('developer');
+      expect(result.stderr).toBe('');
+    });
+
+    it('without --role, lists every directive with its assignment (or "unassigned")', () => {
+      const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as Array<{ frontmatter: { id: string }; assignment: string }>;
+      expect(value.map((entry) => `${entry.frontmatter.id}=${entry.assignment}`)).toEqual([
+        'code-review=reviewer',
+        'security-secrets=global (all roles)',
+        'testing=developer',
+      ]);
     });
   });
 

@@ -72,20 +72,20 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dna.set, memory.add — task-025/020)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes `dna.set` + `memory.add` — the mutating ops', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.create, dna.set, memory.add — task-050/025/020)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes `directive.create` + `dna.set` + `memory.add` — the mutating ops', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
-    // ...and task-025 (`dna.dnaSet`) + task-020 (`memory.memoryAdd`) are the mutating core ops, so they
-    // — and only they — are registered under Tools. task-021's `memory.memorySearch` is `mutates:
-    // false` (a read, per spec-006 §3), so it registers as a Resource, not a Tool, and does not widen
-    // this list; the next mutating op arrives with a later task-022+.
+    // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`) + task-050
+    // (`directive.directiveCreate`) are the mutating core ops, so they — and only they — are
+    // registered under Tools. task-021's `memory.memorySearch` is `mutates: false` (a read, per
+    // spec-006 §3), so it registers as a Resource, not a Tool, and does not widen this list.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['dnaSet', 'memoryAdd']);
+    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['directiveCreate', 'dnaSet', 'memoryAdd']);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['dna.set', 'memory.add']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add']);
   });
 
   it('no Prompts channel is advertised — nothing mutating can flow through Prompts', async () => {

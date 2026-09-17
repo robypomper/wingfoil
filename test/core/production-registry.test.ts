@@ -12,11 +12,16 @@ import { CORE_MODULES } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('CORE_MODULES — production registry', () => {
-  it('registers the currently-existing operations, incl. the mutating ops `dna.dnaSet` (task-025) + `memory.memoryAdd` (task-020)', () => {
+  it('registers the currently-existing operations, incl. the mutating ops `dna.dnaSet` (task-025), `memory.memoryAdd` (task-020) + `directive.directiveCreate` (task-050)', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
     expect(flat).toEqual([
+      // task-050-directive-create registers a `directive` (SINGULAR) module, because
+      // `CoreModule.name` IS the `wingfoil <noun>` segment and both the P3.1 BDD and spec-006 §3's
+      // own CLI/MCP columns spell that noun `directive create` — while P3.4's list command keeps the
+      // plural `directives list`. See task-050's Execution Notes (design decision D1).
+      'directive.directiveCreate',
       'directives.directivesList',
       'dna.dnaSet',
       'dna.dnaShow',
@@ -28,9 +33,10 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('two operations mutate today — `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
+  it('three operations mutate today — `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1) + `memory.memoryAdd` (P1.3); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
+      'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
     ]);

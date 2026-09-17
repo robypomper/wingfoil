@@ -1,0 +1,30 @@
+// TEST-RUNTIME ONLY compiler options (task-065-fix-commander-esm-jest-harness, bug-007).
+// Referenced solely by `jest.config.js`'s ts-jest transform — never by `npm run build`
+// (`tsconfig.build.json`), by `npx tsc --noEmit` (`tsconfig.json`) or by `npm run docs:api`
+// (typedoc reads `tsconfig.build.json`). Everything not listed here is inherited unchanged, so the
+// project's real type-checking semantics stay the ones in `tsconfig.json`.
+//
+// Why `module: CommonJS` instead of the inherited `Node16`: under `Node16`, TypeScript PRESERVES
+// `await import('commander')` in CommonJS output — exactly right for the published CLI, since
+// `commander` v15 is ESM-only and real node can `import()` it from a CommonJS module. Jest's
+// CommonJS runtime, however, has no dynamic-import callback, so that preserved `import()` throws
+// `TypeError: A dynamic import callback was invoked without --experimental-vm-modules` and
+// `src/cli/program.ts` / `src/cli.ts` could not be loaded by any test at all (bug-007). Compiling
+// the test runtime with `module: CommonJS` downlevels the same source to `require('commander')`,
+// which `jest.config.js`'s `transformIgnorePatterns` then lets ts-jest resolve by transforming
+// `commander`'s own ESM on the way in.
+//
+// `moduleResolution` has to move with `module` (TypeScript rejects `node16` resolution unless
+// `module` is `node16`), and `node10` resolution is deprecation-gated in TypeScript 6 — hence
+// `ignoreDeprecations`. This is the only debt the harness carries: when TypeScript 7 removes
+// `node10` resolution, this file must be revisited (see the task's Execution Notes).
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "ignoreDeprecations": "6.0",
+    // `commander`'s own `.js` sources are transformed by the same ts-jest transformer.
+    "allowJs": true
+  }
+}
