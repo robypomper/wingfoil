@@ -27,7 +27,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { registerReadOnlyResources } from './index';
+import { registerReadOnlyResources, registerRolePrompts } from './index';
 
 /** Construction/connection options for the production MCP server. */
 export interface McpServerOptions {
@@ -54,6 +54,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     version: options.version ?? '0.0.0',
   });
   registerReadOnlyResources(server, { resolveRoot: options.resolveRoot });
+  registerRolePrompts(server, { resolveRoot: options.resolveRoot });
   return server;
 }
 

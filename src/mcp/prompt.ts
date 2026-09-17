@@ -32,6 +32,8 @@
 import { join } from 'path';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ErrorCode, GetPromptRequestSchema, ListPromptsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { loadDirectives, loadDnaYaml, loadRolesYaml, resolveRoleDirectives } from '../core';
 import type { DirectiveFile } from '../core';
@@ -58,6 +60,15 @@ const ROLE_PROMPT_NAME_SUFFIX = '-session';
  */
 export function roleSessionPromptName(role: string): string {
   return `${role}${ROLE_PROMPT_NAME_SUFFIX}`;
+}
+
+/**
+ * The P5.2.2 undefined-role refusal, verbatim from `p5-interaction/P5.2.2-mcp-prompts.feature`
+ * (Scenario "Error - requesting a prompt for an undefined role"): `no prompt for undefined role '<role>'`.
+ * Raised as `InvalidParams` — the code the MCP SDK itself uses for an unknown prompt name.
+ */
+function undefinedRolePromptError(role: string): McpError {
+  return new McpError(ErrorCode.InvalidParams, `no prompt for undefined role '${role}'`);
 }
 
 /**
@@ -103,21 +114,8 @@ function composeRolePromptText(role: string, directives: readonly RolePromptDire
 }
 
 /**
- * Register one `{role}-session` Prompt per role in `dna.yaml`'s `team.roles` catalogue (spec-004
- * §3.1), each resolving and embedding that role's directives at request time (§3.2).
- *
- * The two reads happen at deliberately different times, because spec-004 asks for different things:
- *
- * - **The role set is read once, here.** §3.1: "`prompts/list` returns this fixed set derived from DNA
- *   at server start — it is not hand-maintained." So `loadDnaYaml` runs during registration; a role
- *   added to `dna.yaml` afterwards is advertised by the next server, not this one. A missing or
- *   invalid `dna.yaml` therefore fails loudly at construction rather than producing a server with a
- *   silently empty Prompts channel.
- * - **Directives are resolved per request, in the handler.** §3.2: "resolved at session-start time —
- *   not cached from server boot … a directive assigned to R after server start but before the next
- *   `prompts/get("{R}-session")` call MUST appear in that next call's output". That is the second half
- *   of REQ-INT-02's Fit Criterion, and it is why `loadRolesYaml`/`loadDirectives` are called inside the
- *   callback — the same "no server-lifetime cache" contract every Resource in `src/mcp` already follows.
+ * Build the `prompts/get` result for `role`: resolve its directives against the project **now**
+ * (spec-004 §3.2 — per request, never cached from server boot) and compose them into one message.
  *
  * `resolveRoleDirectives` also returns operator diagnostics (`warnings`, e.g. dl-029's "no directives
  * assigned to role 'intern'"); they are **not** embedded in the prompt. spec-004 §3.2 defines the
@@ -125,28 +123,62 @@ function composeRolePromptText(role: string, directives: readonly RolePromptDire
  * instruction text would put an unratified string into the payload — the same reasoning
  * `src/core/context.ts` gives for keeping its own warnings out of the serialized context envelope.
  */
-export function registerRolePrompts(server: McpServer, options: RegisterRolePromptsOptions): void {
-  const dna = loadDnaYaml(options.resolveRoot());
+function buildRolePrompt(root: string, role: string): GetPromptResult {
+  const { directives } = resolveRoleDirectives(loadDirectives(root), loadRolesYaml(root), role);
+  const text = composeRolePromptText(
+    role,
+    directives.map((file) => ({ id: file.frontmatter.id, body: readDirectiveBody(root, file) })),
+  );
+  // MCP's `PromptMessage.role` is the two-value enum `"user" | "assistant"` (the SDK's
+  // `PromptMessageSchema`), so spec-004 §3.2's illustrative `role: "system"` is not representable on
+  // this protocol by any conformant server; `user` is the only wire role that can deliver
+  // instructional content. Open as `dl-039-spec-004-prompt-example-corrections`.
+  return { messages: [{ role: 'user', content: { type: 'text', text } }] };
+}
 
-  for (const { name: role } of dna.team.roles) {
-    server.registerPrompt(
-      roleSessionPromptName(role),
-      { description: `session instructions for the '${role}' role, embedding its assigned directives (read-only)` },
-      () => {
-        const root = options.resolveRoot();
-        const { directives } = resolveRoleDirectives(loadDirectives(root), loadRolesYaml(root), role);
-        const text = composeRolePromptText(
-          role,
-          directives.map((file) => ({ id: file.frontmatter.id, body: readDirectiveBody(root, file) })),
-        );
-        // MCP's `PromptMessage.role` is the two-value enum `"user" | "assistant"` (the SDK's
-        // `PromptMessageSchema`), so spec-004 §3.2's illustrative `role: "system"` is not
-        // representable on this protocol by any conformant server. The normative half of §3.2 — the
-        // message *content* embedding 100% of the role's directives — is what `text` above carries;
-        // `user` is the only wire role that can deliver instructional content. Flagged in this task's
-        // Execution Notes as a candidate editorial correction to spec-004 §3.2's example.
-        return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text } }] };
-      },
-    );
-  }
+/**
+ * Register one `{role}-session` Prompt per role in `dna.yaml`'s `team.roles` catalogue (spec-004
+ * §3.1), each resolving and embedding that role's directives at request time (§3.2), and refusing a
+ * session prompt for a role DNA does not declare (P5.2.2's undefined-role scenario).
+ *
+ * The two reads happen at deliberately different times, because spec-004 asks for different things:
+ *
+ * - **The role set is read once, here.** §3.1: "`prompts/list` returns this fixed set derived from DNA
+ *   at server start — it is not hand-maintained." So `loadDnaYaml` runs during registration; a role
+ *   added to `dna.yaml` afterwards is advertised by the next server, not this one, and is "undefined"
+ *   to this one. A missing or invalid `dna.yaml` therefore fails loudly at construction rather than
+ *   producing a server with a silently empty Prompts channel.
+ * - **Directives are resolved per request, in the handler** — see {@link buildRolePrompt}. That is
+ *   the second half of REQ-INT-02's Fit Criterion ("a newly assigned directive appears on the next
+ *   session start").
+ *
+ * **Why the low-level handlers, not `McpServer.registerPrompt`** (task-058). The high-level API
+ * answers an unregistered name with its own `Prompt <name> not found` before any WingFoil code runs,
+ * so the BDD's `no prompt for undefined role 'wizard'` cannot be expressed through it. This function
+ * therefore owns `prompts/list` and `prompts/get` on `server.server` — the same pattern
+ * `./read-only.ts`'s `registerWriteRefusalHandler` uses — and a later `registerPrompt` on the same
+ * server fails loudly ("A request handler for prompts/list already exists") instead of being silently
+ * shadowed. A requested name that is not `{role}-session`-shaped keeps the SDK-equivalent
+ * `Prompt <name> not found` wording: it names no role, so it is not an undefined-role request.
+ *
+ * Call before the server is connected (MCP capabilities cannot be registered after connecting).
+ */
+export function registerRolePrompts(server: McpServer, options: RegisterRolePromptsOptions): void {
+  const roles = new Set(loadDnaYaml(options.resolveRoot()).team.roles.map(({ name }) => name));
+  const prompts = [...roles].map((role) => ({
+    name: roleSessionPromptName(role),
+    description: `session instructions for the '${role}' role, embedding its assigned directives (read-only)`,
+  }));
+
+  server.server.registerCapabilities({ prompts: {} });
+  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts }));
+  server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
+    const { name } = request.params;
+    if (!name.endsWith(ROLE_PROMPT_NAME_SUFFIX)) {
+      throw new McpError(ErrorCode.InvalidParams, `Prompt ${name} not found`);
+    }
+    const role = name.slice(0, -ROLE_PROMPT_NAME_SUFFIX.length);
+    if (!roles.has(role)) throw undefinedRolePromptError(role);
+    return buildRolePrompt(options.resolveRoot(), role);
+  });
 }
