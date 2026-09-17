@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
 ref: "P1.6"
-bug: ""
+bug: ["bug-016-stale-pass2-exit-code-tsdoc"]
 depends_on: ["task-036-frontmatter-lifecycle-validation"]
 tmpl_version: 260703
 ---

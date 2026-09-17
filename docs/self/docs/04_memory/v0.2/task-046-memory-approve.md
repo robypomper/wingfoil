@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
 ref: "P1.7"
-bug: ""
+bug: ["bug-017-agent-authority-guarantee-untested"]
 depends_on: ["task-040-role-based-approval-authority", "task-041-mandatory-reason-on-verbs"]
 tmpl_version: 260703
 ---

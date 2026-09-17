@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
 ref: "dl-018-release-publishing-strategy"
-bug: ""
+bug: ["bug-020-bin-path-autocorrected-at-publish"]
 depends_on: ["task-059-publish-metadata"]
 tmpl_version: 260703
 ---

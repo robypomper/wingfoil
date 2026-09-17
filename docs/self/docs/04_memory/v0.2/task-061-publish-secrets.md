@@ -7,7 +7,7 @@ release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
 ref: "dl-018-release-publishing-strategy"
-bug: ""
+bug: ["bug-015-scan-reads-worktree-not-index"]
 depends_on: ["task-060-publish-pipeline"]
 tmpl_version: 260703
 ---
