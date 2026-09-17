@@ -2,8 +2,7 @@
 id: "task-070-license-file"
 type: task
 title: "Add the MIT LICENSE file the package claims but does not ship"
-status: in-progress
-rejection_reason: "The LICENSE file is correct (paragraph-identical to SPDX MIT, byte-identical to the choosealicense MIT template, approver-confirmed copyright line), npm packs it without a files edit, and the task-059 allowlist update is correct. The AC1 test "contains the grant, condition and disclaimer paragraphs unmodified" (test/cli/license-file.test.ts:67-72) only asserts containment: a LICENSE with an extra restriction clause appended or inserted between paragraphs still passes (verified by mutation, 8/8 green), so the full-and-unmodified clause of AC1 is not guarded. Replace the three toContain assertions with an equality check on the whole normalised file."
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "distribution", "governance"]
