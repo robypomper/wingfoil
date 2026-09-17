@@ -244,24 +244,64 @@ correcting.
 
 | Gate | Command | Result |
 |---|---|---|
-| tests | `npx jest` | `Test Suites: 86 passed, 86 total` · `Tests: 1186 passed, 1186 total` |
-| coverage | `npx jest --coverage` | `All files | 98.33 | 90.43 | 98.46 | 98.95`; `main` @ `9c83ca2` measured in a detached scratch worktree: `98.32 | 90.33 | 98.46 | 98.94` — non-regressing on all four |
+| tests | `npx jest` | `Test Suites: 91 passed, 91 total` · `Tests: 1281 passed, 1281 total` |
+| coverage | `npx jest --coverage` | `All files | 98.37 | 91.02 | 98.63 | 99.06`; `main` @ `5f286af` measured in a detached scratch worktree: `98.35 | 90.93 | 98.62 | 99.05` — non-regressing on all four |
 | build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
 | full types | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026) |
 | lint.clean | `npm run lint` | exit 0 |
 | docs.api | `npm run docs:api` | exit 0 |
 
-**`security-secrets` / spec-007 over this task's own files** (`scanText` from `dist/validation/secret-scan.js`):
-`publish.yml`, `.gitignore`, `secret-scan.ts`, `publish-pipeline.test.ts`, this task file, `bug-015` →
-0 blocking / 0 warnings / 0 info; `security-secrets.md` → 0 / 0, info = `dotenv-style-secret-line/placeholder-value`,
-`generic-api-key-assignment/fenced-example`, `dotenv-style-secret-line/fenced-example`;
-`publish-secrets.test.ts` → 0 / 0, info = `generic-api-key-assignment/placeholder-value` (the
-`XXXXXXXXXXXXXXXXXXXX` fake token). `scanProjectSurface(repoRoot)` → `filesScanned 219`, 0 blocking,
-0 warnings, 3 info (the directive's examples). **Exception, stated plainly:**
-`test/validation/secret-scan.test.ts` scans to 23 blocking / 1 warning — it is the scanner's own fixture
-suite and must hold *detectable* fake shapes; `main`'s copy scans to 19 under the same (promoted) pattern
-set, the 4 new ones reuse its existing `sk_live_fake…` literal. It is outside the scan surface; the
-spec-007 hatch meant for it (`security-ignore`) is unreachable in this repository — proposed element.
+**`security-secrets` / spec-007 over this task's own files.** Re-run at this HEAD with a scratch script
+that calls `scanText` per file and then `scanProjectSurface(process.cwd())`, both from
+`dist/validation/secret-scan.js` (`node …/scan.cjs <the nine files>`) — its verbatim output:
+
+```
+.github/workflows/publish.yml: blocking=0 warnings=0 info=[]
+.gitignore: blocking=0 warnings=0 info=[]
+src/validation/secret-scan.ts: blocking=0 warnings=0 info=[]
+test/cli/publish-pipeline.test.ts: blocking=0 warnings=0 info=[]
+test/cli/publish-secrets.test.ts: blocking=0 warnings=0 info=[generic-api-key-assignment/placeholder-value]
+test/validation/secret-scan.test.ts: blocking=24 warnings=1 info=[generic-api-key-assignment/placeholder-value]
+docs/self/.wingfoil/directives/custom/security-secrets.md: blocking=0 warnings=0 info=[dotenv-style-secret-line/placeholder-value generic-api-key-assignment/fenced-example dotenv-style-secret-line/fenced-example]
+docs/self/docs/04_memory/v0.2/task-061-publish-secrets.md: blocking=0 warnings=0 info=[]
+docs/self/docs/04_memory/bugs/bug-015-scan-reads-worktree-not-index.md: blocking=0 warnings=0 info=[]
+surface: filesScanned=248 blocking=0 warnings=0 info=3
+```
+
+The one `info` in `publish-secrets.test.ts` is the `XXXXXXXXXXXXXXXXXXXX` fake token; the three on the
+surface are the directive's own worked examples. **Exception, stated plainly, with the count corrected
+(the first-pass note said 23 blocking / 4 new fixture lines — stale: `df9797a` added a sixth fixture
+line after that sentence was written, and the approver's reject was for exactly this):**
+`test/validation/secret-scan.test.ts` scans to **24 blocking / 1 warning**. It is the scanner's own
+fixture suite and must hold *detectable* fake shapes. `main`'s copy scans to **19 blocking / 1 warning**
+under the same (promoted) pattern set — `git show main:test/validation/secret-scan.test.ts` piped through
+the same `scanText`. The delta is exactly **5 added lines** plus **1 rename**, from
+`git diff main...HEAD -- test/validation/secret-scan.test.ts | grep -E "^[+-]" | grep -E "sk_live_fake|NPM_TOKEN=|MY_TOKEN="`:
+five added `api_key: "sk_live_fake…"` fixtures (the suite's existing fake literal, elided here so this
+document does not itself trip the gate — spec-007 §3 placeholder hygiene) (bug-015's four staged-vs-worktree cases +
+the empty-surface-roots case), and one dotenv fixture renamed `MY_TOKEN=` → `NPM_TOKEN=` (added and
+removed, so it is not part of the +5). It is outside the scan surface; the spec-007 hatch meant for it
+(`security-ignore`) is unreachable in this repository — filed on `main`, not re-proposed here.
+
+### second pass — role: developer (after the approver's reject `8b53313`)
+
+Rejected for one false claim only: the fixture-count sentence above (now corrected in place, with the
+command and its output). Nothing else was changed in code, tests, workflow or directive — the reject
+body records that all six ACs, their mutation-checked tests and the gates were verified as correct.
+
+`git merge main` (`8c2c972`, dl-035 — merge, never rebase) brought task-045 (memory submit, including
+bug-027's fix: `commitPaths` now commits with `git commit --only -- <paths>`), task-058, task-055 and the
+wave-2 findings ingest (`bug-028..bug-041`, `dl-046..dl-060`). Re-read after the merge, for staleness:
+`spec-015` §5, `spec-007` §2/§3, `adr-009` §5, `dl-036`, `dl-045` and `bug-015` are unchanged by it
+— `git diff --name-status 9c83ca2 5f286af -- docs/self/docs/04_memory/design docs/self/.wingfoil .github scripts`
+lists, apart from added `bug-*`/`dl-*` files, exactly three modifications: `dl-039`, `dl-040` and
+`spec-006` (a one-line change), none of them cited here. So no sentence above needed correcting beyond
+the count; `npm ci` was re-run and every gate re-run post-merge (table above is that run).
+
+Findings this task raised are now filed on `main` and are **not** re-proposed: `bug-037` (the
+`dotenv-style-secret-line` leading-prefix gap, plus spec-007 §2's stale `warn` note), `dl-057` (publish.yml
+hardening a–g, including the trusted-publishing decision and `--userconfig`), `dl-056` (the first real
+publishing run + `bug-022` inside the release gate).
 
 ### review-ready summary
 
@@ -290,4 +330,5 @@ docs/02_requirements/02_bdd/features/` → no match. REQ-SEC-08's feature tracea
 5. **`.gitignore` gains `.npmrc`** — a future *non-secret* project `.npmrc` (e.g. `engine-strict`) would
    need an explicit un-ignore.
 6. Trusted publishing, SHA-pinning, `timeout-minutes`, the staging `stop()` SIGKILL fallback and
-   annotated-tag enforcement are **not** done here (design table) — handed back as proposed elements.
+   annotated-tag enforcement are **not** done here (design table) — they are filed on `main` as
+   `dl-057` (and `dl-056` for the first real run), so nothing is left only in these notes.
