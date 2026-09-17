@@ -9,9 +9,38 @@
 # Trigger: a `vX.Y.Z` tag push. The tag is created on `main` after the release branch merges (dl-024);
 # the gate refuses a tag whose commit is not on `main`.
 #
-# NOT wired here — spec-015 §5, task-061: the registry token (from the Actions secret store) and the
-# transient `.npmrc` the promote step authenticates with. Until task-061 lands, promote fails ENEEDAUTH
-# and nothing reaches npm.
+# ── Secrets, release authorization and rollback (spec-015 §5, adr-009 §5, adr-006; task-061) ──
+#
+#   Where the publish credential lives: ONLY in the GitHub Actions secret store, as `NPM_TOKEN`, scoped
+#   to the `npm-publish` environment. The promote publish step — and nothing else in this workflow —
+#   maps it into its env, writes a transient `.npmrc` in the runner workspace holding the literal line
+#   `//registry.npmjs.org/:_authToken=${NPM_TOKEN}` (npm expands the reference when it reads the file,
+#   so the token value is never written to disk), publishes, and deletes the file on exit. Promote has
+#   no checkout, so there is no git tree to commit that file from; `.npmrc` is also git-ignored.
+#   Provenance does not use the token: it is signed through GitHub OIDC (`id-token: write`, promote only).
+#   Locally, a developer's own token stays in their `~/.npmrc`, outside the repository.
+#
+#   Approver runbook — every step below is a human action by the `approver` role (adr-006); agents never
+#   hold approval authority and never handle the token:
+#   1. One-time setup: Settings → Environments → create `npm-publish`; add the approver as its
+#      required reviewer; restrict its deployment tags to `v*`. Until this is done GitHub creates the environment
+#      unprotected on the first run, and promote would NOT wait for approval.
+#   2. Provide the secret: create a granular npm access token with publish rights, scoped as narrowly as
+#      npm allows (ideally `wingfoil` only), with the shortest practical expiry; store it as the environment secret `NPM_TOKEN` of `npm-publish`
+#      (not a repository secret, so only a job the approver let through can read it).
+#   3. Rotate: before the token expires, or at once if exposure is suspected — create a new token,
+#      overwrite the `NPM_TOKEN` environment secret, then revoke the old token on npmjs.com.
+#   4. Authorize a release: the tag `vX.Y.Z` is pushed on `main` (spec-015 §4); gate and stage run
+#      unattended; promote then waits in `npm-publish` until the approver reviews the run and approves
+#      the deployment. Rejecting it ends the run with nothing published.
+#   Before the FIRST real publish, bug-023 (engines.node floor) must be fixed — see "Node version" below.
+#
+#   Rollback posture: a failed stage (staging publish, install or dl-023 smoke) blocks promote — `needs:
+#   stage` means promote never runs. For a bad version that did reach npm, do NOT use `npm unpublish`
+#   (restricted by npm's unpublish policy, and it removes a version others may already depend on); instead
+#        npm deprecate wingfoil@X.Y.Z "broken: <reason> — upgrade to X.Y.Z+1"
+#   run by the approver with their own credentials, then ship the fix as a patch release through this
+#   same tag flow.
 #
 # Node version: pinned once in `env.NODE_VERSION` to 22.12.0 — the lowest version every dependency accepts
 # (commander@15 declares `engines.node >=22.12.0`). `package.json` still declares `engines.node >=18.0.0`,
@@ -56,6 +85,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -86,6 +116,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -99,6 +131,7 @@ jobs:
   promote:
     needs: stage
     runs-on: ubuntu-24.04
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
@@ -110,6 +143,15 @@ jobs:
         with:
           name: ${{ env.TARBALL_ARTIFACT }}
           path: dist-pack
-      - name: Publish the staged tarball to npm with provenance (spec-015 §3 stage 4)
+      - name: Publish the staged tarball to npm with provenance (spec-015 §3 stage 4, §5 transient .npmrc)
         if: ${{ !env.ACT }}
-        run: npm publish dist-pack/*.tgz --provenance --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is not set in the npm-publish environment (see the approver runbook in this file)"
+            exit 1
+          fi
+          trap 'rm -f .npmrc' EXIT
+          printf '%s\n' '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+          npm publish dist-pack/*.tgz --provenance --access public

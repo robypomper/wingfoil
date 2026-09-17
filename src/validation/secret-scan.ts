@@ -92,7 +92,8 @@ export const SECRET_PATTERNS: readonly SecretPattern[] = [
   {
     id: 'jwt-like',
     description: 'JSON Web Token shape (header.payload.signature, base64url segments)',
-    severity: 'warn',
+    // promoted warn → block by dl-036-secret-scan-warn-severity-vs-req-sec-08 (spec-007 §2 amended)
+    severity: 'block',
     // spec-007 §2: '\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b'
     regex: /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/,
   },
@@ -107,7 +108,8 @@ export const SECRET_PATTERNS: readonly SecretPattern[] = [
   {
     id: 'dotenv-style-secret-line',
     description: '.env-style KEY=VALUE line where KEY names a credential',
-    severity: 'warn',
+    // promoted warn → block by dl-036-secret-scan-warn-severity-vs-req-sec-08 (spec-007 §2 amended)
+    severity: 'block',
     // spec-007 §2 (case-insensitive per its `(?im)` marker; the `m` is a no-op here because the
     // scan procedure already evaluates one line at a time, so `^`/`$` anchor to that line either way):
     // '^[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
@@ -153,7 +155,7 @@ export interface ScanResult {
   readonly info: readonly ExemptFinding[];
   /**
    * How many files' text this result covers — `1` from {@link scanText}, the number of non-binary
-   * tracked files actually read from {@link scanProjectSurface} (binaries skipped per spec-007 §1
+   * indexed files actually read from {@link scanProjectSurface} (binaries skipped per spec-007 §1
    * are not counted, because their content was never examined).
    *
    * Without it an empty `blocking` list is ambiguous: a caller — or an assertion — cannot tell
@@ -298,27 +300,75 @@ export function isBinaryContent(buf: Buffer): boolean {
 /**
  * Default scan-surface roots (spec-007 §1): `.wingfoil/` once `init` exists, plus the current
  * self-hosted analog (`docs/self/.wingfoil/`, `docs/self/docs/04_memory/`) "applied by analogy until
- * the tool-managed root exists". Only roots that actually exist under a given project root are
- * queried — {@link scanProjectSurface} is safe to call before `init` has ever run.
+ * the tool-managed root exists". A root with no indexed files contributes nothing, so
+ * {@link scanProjectSurface} is safe to call before `init` has ever run.
  */
 export const SCAN_SURFACE_ROOTS = ['.wingfoil', 'docs/self/.wingfoil', 'docs/self/docs/04_memory'] as const;
 
 /** Default path (root-relative) of the `security-ignore` glob list (spec-007 §3). */
 export const DEFAULT_IGNORE_FILE = '.wingfoil/security-ignore';
 
+/** One index entry under the scan surface: its root-relative path and the blob id staged for it. */
+interface IndexedBlob {
+  readonly path: string;
+  readonly blob: string;
+}
+
+/** `git ls-files -s` mode of a gitlink (submodule commit) — not a blob, nothing to read. */
+const GITLINK_MODE = '160000';
+
 /**
- * List every tracked-or-staged file (`git ls-files` — the index, so staged-but-uncommitted files are
- * included too, per spec-007 §1) under `surfaceRoots`, restricted to the roots that exist. Mirrors
- * `src/storage/commit.ts`'s `execFileSync('git', ['-C', root, ...])` primitive style.
+ * List every indexed (tracked or staged, spec-007 §1) blob under `surfaceRoots`, in git's path order.
+ * `-z` keeps paths unquoted; gitlinks are skipped. An unmerged path contributes one entry per conflict
+ * stage — each is content that could be committed. A surface root absent from the index yields no
+ * entries (git accepts an unmatched pathspec), so there is no on-disk existence check: the index is
+ * the only source. Mirrors `src/storage/commit.ts`'s `execFileSync('git', ['-C', root, ...])` style.
  */
-function listTrackedFiles(root: string, surfaceRoots: readonly string[]): string[] {
-  const existingRoots = surfaceRoots.filter((r) => existsSync(join(root, r)));
-  if (existingRoots.length === 0) return [];
-  const out = execFileSync('git', ['-C', root, 'ls-files', '--', ...existingRoots], {
+function listIndexedBlobs(root: string, surfaceRoots: readonly string[]): IndexedBlob[] {
+  if (surfaceRoots.length === 0) return [];
+  const out = execFileSync('git', ['-C', root, 'ls-files', '-s', '-z', '--', ...surfaceRoots], {
     encoding: 'utf-8',
     env: process.env,
   });
-  return out.split('\n').filter((line) => line.length > 0);
+  const entries: IndexedBlob[] = [];
+  for (const record of out.split('\0')) {
+    const tab = record.indexOf('\t');
+    if (tab < 0) continue; // the trailing empty record after the last NUL
+    const [mode, blob] = record.slice(0, tab).split(' ');
+    if (mode === GITLINK_MODE || blob === undefined) continue;
+    entries.push({ path: record.slice(tab + 1), blob });
+  }
+  return entries;
+}
+
+/**
+ * Read every blob's bytes from the object store in ONE `git cat-file --batch` call, returned in the
+ * order of `blobs`. Each response is `<id> blob <size>\n<size bytes>\n`; any other header (e.g.
+ * `<id> missing`) means the index names an object the repository does not have, which is corruption,
+ * not a scan result — it throws.
+ */
+function readBlobs(root: string, blobs: readonly string[]): Buffer[] {
+  if (blobs.length === 0) return [];
+  const out = execFileSync('git', ['-C', root, 'cat-file', '--batch'], {
+    input: `${blobs.join('\n')}\n`,
+    env: process.env,
+    maxBuffer: Number.POSITIVE_INFINITY,
+  });
+  const contents: Buffer[] = [];
+  let offset = 0;
+  for (const blob of blobs) {
+    const headerEnd = out.indexOf(0x0a, offset);
+    const header = out.subarray(offset, headerEnd).toString('utf-8');
+    const match = /^([0-9a-f]+) blob (\d+)$/.exec(header);
+    if (headerEnd < 0 || match === null || match[1] !== blob) {
+      throw new Error(`git cat-file could not read indexed blob ${blob}: "${header}"`);
+    }
+    const start = headerEnd + 1;
+    const end = start + Number(match[2]);
+    contents.push(out.subarray(start, end));
+    offset = end + 1; // skip the LF that terminates each object's content
+  }
+  return contents;
 }
 
 /**
@@ -377,8 +427,18 @@ export interface ScanProjectOptions {
 
 /**
  * Run the full scan procedure (spec-007 §4) over `root`'s tracked/staged content under the scan
- * surface (§1): list files via `git ls-files`, skip binaries (§1), apply the `security-ignore` list
- * (§3) as a per-file `pathIgnored` flag, and scan every remaining file's text with {@link scanText}.
+ * surface (§1): list the indexed blobs via `git ls-files -s`, read them from the object store, skip
+ * binaries (§1), apply the `security-ignore` list (§3) as a per-file `pathIgnored` flag, and scan every
+ * remaining file's text with {@link scanText}.
+ *
+ * **Contract — the git index, not the working tree (`bug-015`).** Both the file list and the content
+ * come from the index: the scan judges exactly what the next commit would contain, which is what the
+ * pre-commit / pre-publish gate of spec-007 §4 step 5 must judge. So a file deleted on disk but still
+ * indexed is scanned from its staged blob; a staged deletion is not listed; an unstaged edit — clean or
+ * leaky — is not seen until it is staged. (Before `bug-015` the list came from the index but the bytes
+ * from disk, so an unstaged deletion threw `ENOENT` and took the whole scan down.) The
+ * `security-ignore` file itself is read from disk: it configures the scan, it is not scanned content.
+ * `root` must be a git work tree.
  *
  * This is the concrete entry point the REQ-SEC-08 Fit Criterion ("a scan of committed `.wingfoil/`
  * content matches 0 known secret patterns") is checkable against: `scanProjectSurface(root).blocking`
@@ -391,13 +451,14 @@ export function scanProjectSurface(root: string, options: ScanProjectOptions = {
   const ignoreFilePath = options.ignoreFilePath ?? DEFAULT_IGNORE_FILE;
   const ignoreGlobs = loadIgnoreGlobs(join(root, ignoreFilePath));
 
-  const files = listTrackedFiles(root, surfaceRoots);
+  const entries = listIndexedBlobs(root, surfaceRoots);
+  const contents = readBlobs(root, entries.map((entry) => entry.blob));
   const results: ScanResult[] = [];
-  for (const relPath of files) {
-    const buf = readFileSync(join(root, relPath));
-    if (isBinaryContent(buf)) continue;
-    const pathIgnored = matchesIgnoreGlob(relPath, ignoreGlobs);
-    results.push(scanText(buf.toString('utf-8'), relPath, { pathIgnored }));
-  }
+  entries.forEach((entry, index) => {
+    const buf = contents[index] ?? Buffer.alloc(0);
+    if (isBinaryContent(buf)) return;
+    const pathIgnored = matchesIgnoreGlob(entry.path, ignoreGlobs);
+    results.push(scanText(buf.toString('utf-8'), entry.path, { pathIgnored }));
+  });
   return mergeScanResults(results);
 }
