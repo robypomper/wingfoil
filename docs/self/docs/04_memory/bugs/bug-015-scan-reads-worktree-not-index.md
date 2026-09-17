@@ -2,7 +2,7 @@
 id: "bug-015-scan-reads-worktree-not-index"
 type: bug
 title: "scanProjectSurface enumerates the git index but reads the working tree, so a staged deletion throws ENOENT instead of reporting"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
