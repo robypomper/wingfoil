@@ -109,7 +109,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // `commander` seam as the rest of this file (see the module doc).
   program
     .command('mcp')
-    .description('start the WingFoil MCP server (read-only Resources) over stdio')
+    .description('start the WingFoil MCP server (read-only Resources and role Prompts) over stdio')
     .action(async () => {
       const globalOpts = program.opts<{ format: string }>();
       const format = isValidFormat(globalOpts.format) ? globalOpts.format : 'console';

@@ -2,9 +2,11 @@
  * Shared validation error types and exit codes (spec-009-validation-strategy §3).
  *
  * A single {@link ValidationError} carries the full list of mapped issues from one validation run
- * so no failure is ever silently dropped. Its {@link ValidationError.exitCode} follows spec-009 §3:
- * parse / cross-field integrity failures exit `2`; all other (field-level, mapped, or generic)
- * validation failures exit `1` — matching spec-008's exit-code table.
+ * so no failure is ever silently dropped. Its {@link ValidationError.exitCode} follows spec-009 §3,
+ * which keys the code on the **nature** of the failure, not on the pass that detects it: parse and
+ * system-integrity failures exit `2`; every other validation failure — field-level, mapped, generic,
+ * and business-rule failures detected in Pass 2 (e.g. `E_INVALID_TRANSITION`, `E_INVALID_STATE`) —
+ * exits `1`, matching spec-008's exit-code table.
  */
 
 /** A single mapped validation failure — one Zod issue or one semantic-check failure. */
@@ -17,6 +19,12 @@ export interface ValidationIssue {
   readonly file: string;
   /** Human-readable description (typically the raw Zod message). */
   readonly message: string;
+  /**
+   * Optional longer explanation kept apart from {@link message} — for a failure whose `message` is a
+   * pinned contract string, the diagnostic that says *why* travels here instead of replacing it
+   * (`dl-032-illegal-transition-message-contract`, option (c)). Absent for most issues.
+   */
+  readonly detail?: string;
 }
 
 /**
@@ -26,8 +34,11 @@ export interface ValidationIssue {
 export const EXIT_VALIDATION = 1;
 
 /**
- * Process exit code for a parse or cross-field / system-integrity failure — `E_YAML_PARSE_ERROR`
- * and Pass-2 semantic failures (spec-009 §3, spec-008 exit table).
+ * Process exit code for a parse or system-integrity failure — `E_YAML_PARSE_ERROR`, and the
+ * cross-file integrity checks that presuppose a parseable tree: the input could not be understood,
+ * or the installation is inconsistent (spec-009 §3, spec-008 exit table). **Not** every Pass-2
+ * failure: spec-009 §3 keys exit codes on the nature of the failure, not the pass, so a business-rule
+ * failure found in Pass 2 (an illegal transition, an invalid state) exits {@link EXIT_VALIDATION}.
  */
 export const EXIT_INTEGRITY = 2;
 
@@ -71,9 +82,12 @@ export class ValidationError extends Error {
   }
 
   /**
-   * Build a Pass-2 semantic / cross-field failure. Exits `2` (integrity): these checks enforce
-   * rules that span more than one field or another artefact, so they are treated as
-   * system-integrity failures, not plain field validation (spec-009 §1, §3).
+   * Build a **system-integrity** failure detected after parsing. Exits `2` ({@link EXIT_INTEGRITY}).
+   * Use it only when the input could not be understood or the installation is inconsistent (e.g. a
+   * loader's cross-file check, a malformed `id_pattern`). It is **not** the constructor for every
+   * Pass-2 check: spec-009 §3 keys exit codes on the nature of the failure, not the detecting pass,
+   * so a business-rule failure found in Pass 2 (`E_INVALID_TRANSITION`, `E_INVALID_STATE`) is built
+   * with the plain constructor and exits `1`.
    */
   static semantic(issues: ValidationIssue[]): ValidationError {
     return new ValidationError(issues, EXIT_INTEGRITY);
