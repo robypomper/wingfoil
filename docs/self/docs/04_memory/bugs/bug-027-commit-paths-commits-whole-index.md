@@ -5,7 +5,7 @@ title: "commitPaths commits the whole git index, so pre-staged files leak into w
 status: triaged
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.2"
 contributor: ""
 credit: ""
