@@ -234,3 +234,69 @@ package.json` prints nothing — so the covered-line set is unchanged by constru
   `test/cli/publish-metadata.test.ts` (2 hunks, +3/−3).
 - Left alone deliberately: `bug-022` (`npm-distribution.test.ts` packs without `--ignore-scripts`) and
   task-059's other two findings; `README.md` (owned by the `user-docs` gate, already agrees).
+
+### second pass (after reject `a651335`) — role: developer
+
+**Rejection reason (approver, `git show a651335`):** the LICENSE, its packing and the task-059 allowlist
+change are correct, but the AC1 case "contains the grant, condition and disclaimer paragraphs unmodified"
+only asserted containment, so a LICENSE with an extra restriction clause (appended, or inserted between
+paragraphs) stayed 8/8 green and the "full, unmodified MIT text" clause of AC1 was not guarded. Replace
+the three `toContain` checks with an equality check on the whole normalised file.
+
+**Defect reproduced first, against the unchanged test** (backup copy in the session scratchpad,
+restored afterwards):
+
+```
+$ printf '\nThe Software may not be used for commercial purposes.\n' >> LICENSE
+$ npx jest test/cli/license-file.test.ts
+Tests:       8 passed, 8 total
+$ cp <scratchpad>/LICENSE.orig LICENSE
+```
+
+**red** — commit `daf7057 test(cli): task-070-license-file — failing test for a LICENSE with an added
+clause (whole-file equality)`. The three `toContain` checks became one case,
+`is exactly the MIT text — nothing added, removed or reordered`:
+`expect(normalise(licenseText())).toBe(normalise(['MIT License', COPYRIGHT_LINE, MIT_GRANT, MIT_CONDITION, MIT_DISCLAIMER].join(' ')))`.
+Classification unchanged (AC1 red-first). Mutation evidence with the new assertion:
+
+```
+== appended clause   (printf '\nThe Software may not be used for commercial purposes.\n' >> LICENSE)
+  ● LICENSE file (task-070) — AC1 full MIT text › is exactly the MIT text — nothing added, removed or reordered
+Tests:       1 failed, 7 passed, 8 total
+== inserted clause   (same sentence inserted after "copies or substantial portions of the Software.", before the disclaimer)
+  ● LICENSE file (task-070) — AC1 full MIT text › is exactly the MIT text — nothing added, removed or reordered
+Tests:       1 failed, 7 passed, 8 total
+$ cp <scratchpad>/LICENSE.orig LICENSE && git diff --quiet -- LICENSE && echo restored
+LICENSE restored (git diff --quiet exit 0)
+== restored
+Tests:       8 passed, 8 total
+```
+
+**green** — no production change: `LICENSE` was already correct (approver-verified), so the unmutated file
+passes. `LICENSE`, packing behaviour and `test/cli/publish-metadata.test.ts` untouched in this pass
+(`git diff --stat febfff1 daf7057` → only `test/cli/license-file.test.ts`).
+
+**Optional item (second `npm pack`) — not done.** The two suites run in separate jest module registries,
+so reusing `publish-metadata.test.ts`'s memoized manifest would need a new shared helper or a
+cross-suite cache; not trivial, and it would widen the edit into the file `task-060` may touch.
+
+**main sync (`dl-035`):** `git merge main` (main at `f4b3613`) → merge commit `76febe6`, no conflicts
+(brought in `spec-006`, `spec-008` only); `npm ci` re-run.
+
+**Gates after the merge:**
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest` | `Test Suites: 81 passed, 81 total` · `Tests: 1096 passed, 1096 total` |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=4` | exit 0 · **98.29 / 90.18 / 98.44 / 98.93** (stmts/branches/funcs/lines) — unchanged |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full types | `npx tsc --noEmit -p tsconfig.json` | exit 2 — only `bug-026` `test/core/directive-create.test.ts(159,19) TS2339` |
+| `lint.clean` | `npm run lint` | exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit 0 |
+
+### review-ready summary (second pass)
+
+- Rejection addressed: AC1's text check is whole-file equality; both mutation shapes named in the reason
+  (appended, inserted between paragraphs) now fail, and the real LICENSE passes.
+- AC2–AC5 verdicts from the first pass stand; nothing they cover was touched.
+- `memory.submit` clears `rejection_reason` (CLAUDE.md §5.1).
