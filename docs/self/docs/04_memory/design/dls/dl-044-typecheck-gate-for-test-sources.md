@@ -40,6 +40,31 @@ instance, and recorded `tsc --noEmit` as a hand-run "AC (b) regression guard". A
 gate — and REQ-SYS-07 / the `determinism` directive say to prefer explicit declared config over
 inferred behaviour.
 
+### Correction — the gap is wider and older than the framing above
+
+The paragraphs above describe what `task-065` changed, and they are accurate as far as they go. But
+they invite a wrong reading: that `npm test` *used to* type-check `test/**` and stopped. It never did.
+
+`tsconfig.json` sets **`isolatedModules: true`**, which puts ts-jest in **transpile-only** mode. What
+survives transpile-only is **emit-level** diagnostics — and TS1479, the probe used above, is exactly
+that: a statement about what the import will compile to. A purely **semantic** error does not
+surface. Measured on both sides rather than inferred: a file containing
+`const n: number = "definitely not a number"` **passes `npx jest` at `ab19a05` (pre-`task-065`) and at
+`a3ddf1e` (post)**, while `npx tsc --noEmit -p tsconfig.json` reports it in both.
+
+So `task-065` narrowed which *emit* errors surface. It did not remove a type-check gate, because
+there was none to remove. Semantic type checking of `test/**` has been absent for the whole project's
+life, behind `tsconfig.build.json`'s `exclude: test` on one side and transpile-only ts-jest on the
+other.
+
+**There is a live instance**: `bug-026-type-error-on-main-untested-by-any-gate` — a TS2339 sitting on
+`main` in `test/core/directive-create.test.ts:159`, which arrived with `task-050` and passed that
+task's dev-loop, its independent review and its merge with every declared gate green.
+
+This strengthens the recommendation below rather than weakening it, and it changes what the check has
+to be: not a restoration of something lost, but a **new** gate, and one that must run the full-project
+`tsconfig.json` (which includes `test/`) rather than `tsconfig.build.json`.
+
 ## Decision
 
 Open, with a recommendation.
@@ -78,4 +103,5 @@ the typecheck gate, so nobody noticed when it stopped being one.
 - Record the regression in `task-065`'s Execution Notes (the instance is recorded; the regression is
   not).
 
-Related: `dl-034` (precedent), `task-065`, `bug-007`, `REQ-SYS-07`.
+Related: `dl-034` (precedent), `task-065`, `bug-007`, `REQ-SYS-07`,
+`bug-026-type-error-on-main-untested-by-any-gate` (the live instance), `task-050` (where it entered).
