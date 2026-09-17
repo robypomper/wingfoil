@@ -184,7 +184,7 @@ changes under `src/`, **zero** changes to `package.json` (no dependency added, r
 - `1b8c8b0` corrects two assertions that were written from expectation rather than observation, before
   the config change made them runnable: commander's `program.opts()` carries **only** `{format:
   'console'}` before a parse (the negatable `--no-color`/`--no-interactive` resolve to `true` only
-  once argv is read), and `jest.isolateModulesAsync` hands the entrypoint its **own** module registry,
+  once argv is read), and `jest.isolateModules` hands the entrypoint its **own** module registry,
   so its `CORE_MODULES` is a different instance of the same declaration — compared structurally now,
   not by identity.
 
