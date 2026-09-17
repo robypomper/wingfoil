@@ -293,7 +293,7 @@ Commit `e5155ed`. As designed. Two things worth recording:
 
 ### refactor — role: developer
 
-Commit `9b1ec74`: `spec-006` §3's `memoryReject` row drops its `*(planned)*` marker (§3 defines the
+Commit `0c26b2d`: `spec-006` §3's `memoryReject` row drops its `*(planned)*` marker (§3 defines the
 marker as "not yet registered"; the operation is now registered). No code refactor: the verb is one
 linear function that already reuses every existing seam, `renderRejectDocument` is a two-call pure
 function, and the three `frontmatter-edit` fixes are each one expression. Skipped an invented refactor
@@ -307,7 +307,7 @@ rather than done, so a reviewer can decide it belongs to whichever of task-046/0
 
 ### Merge of `main` (dl-035)
 
-`ee6fb6b` merges `main` at `652dbfa` (dl-051/053/054 approvals and their edits, `task-057`, `spec-004`
+`d29bc17` merges `main` at `652dbfa` (dl-051/053/054 approvals and their edits, `task-057`, `spec-004`
 §4.3's new bracket paragraph, `spec-012` §5.1, and the new `dl-061`). No conflict. Re-read after the
 merge, and the effect on this task's notes:
 
