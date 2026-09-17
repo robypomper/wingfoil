@@ -369,9 +369,13 @@ Added to `test/storage/git-backed-storage.test.ts`: `describe('A directive chang
 scenario 2)')`, which starts from an already-tracked `directives/custom/no-direct-db-access.md`, edits
 it, commits, and then asserts
 
-- `git status --porcelain` is exactly `` ` M <path>\n` `` **before** the commit — compared untrimmed,
-  because the leading column is index status and trimming it away would let an added-file (`A `) or
-  untracked (`??`) result pass the line that is supposed to prove the file pre-existed;
+- `git status --porcelain` is exactly `` ` M <path>\n` `` **before** the commit — the assertion that
+  the file pre-existed this edit (`??` untracked and `A ` added both fail it) — compared untrimmed so
+  porcelain's two-column `XY` code stays positional: `X` is index status, `Y` is worktree status, so
+  ` M` (worktree-modified) is told apart from `M ` (index-modified) by column, not by counting the
+  spaces that survive a trim;
+  <br>*(Corrected in the third pass. This originally read "trimming it away would let an added-file
+  (`A `) or untracked (`??`) result pass". False — see `third pass` below.)*
 - exactly one new commit, touching exactly that one path, tree clean afterwards;
 - `git show HEAD:<path>` is the new content;
 - **`git show HEAD~1:<path>` is the prior content** — the second `Then` clause, asserted directly
@@ -418,10 +422,31 @@ right and only the prose was wrong.
 `src/storage/templates.ts:16` and `:411` also say "sorted by path", but both refer to
 `templateScaffold` only, which genuinely sorts — left alone.
 
-**Not done, deliberately:** `dl-031`'s own Actions item — amending REQ-SEC-10's title and Description
-in `docs/02_requirements/03_sard/05_security-compliance.md` to say *schema-checked* — remains
-**undone**. It is dl-031's follow-up, not this task's, and nothing here should be read as claiming
-otherwise.
+**`dl-031`'s Actions item (a) is already discharged — nothing is handed on.** Amending REQ-SEC-10's
+title and Description to say *schema-checked* was done by `9d74d80` ("docs: implement dl-031 —
+REQ-SEC-10 is a schema check, not an integrity check", 2026-09-14), which is an ancestor of this
+branch's start point `d933cbe` (`git merge-base --is-ancestor 9d74d80 d933cbe` → exit 0). On this
+branch `docs/02_requirements/03_sard/05_security-compliance.md:98-101` reads:
+
+```
+### REQ-SEC-10 — Schema checks on built-in templates
+
+* **Description:** Built-in directive and workflow templates are schema-checked before installation during
+  `init`.
+```
+
+and its `Traceability` line carries the scoping sentence too ("Scoped to schema validation by
+`dl-031-req-sec-10-integrity-depth`"). So the SARD already says what `dl-031` decided, and this task
+neither needed to change it nor leaves it outstanding.
+
+> *[Third pass. Where this paragraph now stands, the second pass asserted the exact opposite — that
+> the amendment "remains **undone**" — and repeated it in the hand-off list. It was false, and it was
+> checkable in one `sed -n '98,101p'`. Worse, the branch already contradicted it twice:
+> `src/core/builtin-integrity.ts:8` (inherited from `task-044`) says dl-031 "**retitled** the
+> requirement", past tense, and that module's opening line already quotes the NEW title; and this
+> task's own `design` note cites dl-031's ratified scope correctly. I read the decision and its
+> consequence, then asserted the state of the file without opening the file — the same root cause this
+> task names for itself two sections above, in the pass whose purpose was to stop doing it.]*
 
 ### review (second pass) — developer
 
@@ -469,4 +494,76 @@ run; worktree and branch left in place.
 - `bug-018-init-storage-bypasses-integrity-guard` — closed in code here, still `triaged`; closed by
   hand (no `bug:` back-reference, so `bug.sync_state` is a no-op).
 - `bug-025-directive-validation-message-not-emitted` — `open`, filed in this pass, unscheduled.
-- `dl-031`'s REQ-SEC-10 title/Description amendment — dl-031's, not this task's.
+
+That is the whole list — two items. A third bullet claiming `dl-031`'s REQ-SEC-10 amendment was still
+outstanding was removed in the third pass: it was already done before this branch existed
+(`9d74d80`), so listing it inflated the hand-off with work nobody owes.
+
+---
+
+## Third pass — rejected `527fefa` (in-review → in-progress)
+
+**Not reopened.** The reviewer re-verified the whole second pass and it held: byte-identity of the
+protected material (`git diff --exit-code 8ac9452..HEAD` on the three files, exit 0), every gate
+number, all three greps, `bug-025`'s two-commit discipline and its CLI output reproduced after a
+rebuild, and the sorting-comment provenance confirmed by `git log -S` (`layout.ts`'s wording from
+task-018's `7892282`, mine from `3d2f6a3`). They also probed the scenario-2 test harder than I had —
+deleting the `Given` pre-commit so the file is newly created makes it fail on `ls-files` with
+`Received: ""` — so it genuinely cannot pass on a created file. No code and no test logic changed in
+this pass; two prose corrections only, plus the comment stating one of them.
+
+**Both defects were the same one, and it is the one this task had already diagnosed for itself:
+asserting the state of a file without opening the file.**
+
+### 1. The `dl-031` claim was false (corrected above, under `refactor (second pass)`)
+
+I wrote that dl-031's Actions item (a) — retitling REQ-SEC-10 to *schema-checked* — "remains undone",
+and listed it as handed on. It was done on 2026-09-14 by `9d74d80`, before this branch started.
+Verified this pass by opening the file and by ancestry, not from the reject message:
+
+```
+$ sed -n '98,101p' docs/02_requirements/03_sard/05_security-compliance.md
+### REQ-SEC-10 — Schema checks on built-in templates
+
+* **Description:** Built-in directive and workflow templates are schema-checked before installation during
+  `init`.
+
+$ git merge-base --is-ancestor 9d74d80 d933cbe && echo ancestor
+ancestor
+```
+
+The aggravating detail is that the branch already told me twice. `src/core/builtin-integrity.ts:8`
+says dl-031 "retitled the requirement" — past tense — and line 2 of that same module quotes the new
+title verbatim. My own `design` note cites dl-031's ratified scope correctly. I had the decision and
+its consequence in hand and still described the SARD's contents from memory.
+
+### 2. The untrimmed-porcelain justification was false (corrected above, under `red (second pass)`)
+
+The assertion itself is correct and stays exactly as written — the reviewer verified it. Only my
+stated reason was wrong: I claimed trimming "would let an added-file (`A `) or untracked (`??`)
+result pass". Measured in a scratch repo, all four states:
+
+| state | raw porcelain | trimmed |
+|---|---|---|
+| untracked | `?? d/` | `?? d/` |
+| staged add | `A  d/f.md` | `A  d/f.md` |
+| unstaged modification (what the test expects) | `` ` M d/f.md` `` | `M d/f.md` |
+| staged modification | `M  d/f.md` | `M  d/f.md` |
+
+Against the trimmed expectation `M d/f.md`, every other row is still unequal — including staged
+modification, which differs by an internal double space. So trimming would have rejected all three;
+the protection I claimed was never at stake.
+
+What untrimmed actually buys is that porcelain's two-column `XY` code stays **positional** — `X` index
+status, `Y` worktree status — so ` M` and `M ` are read by column instead of by counting leftover
+spaces. That is legibility, and it is not nothing: the ambiguity is exactly what produced this line's
+first, wrong expectation of `M  ` for a file that was never staged. Both the note and the test comment
+now say that, and neither claims strictness the comparison does not have.
+
+### The mechanical guard, adopted
+
+Before any sentence asserting that something is done, undone, covered or uncovered: run the command
+that settles it, and put the command in the note. Pass two applied this to three greps and all three
+claims were correct; the two claims that were not checked are the two that were false. Every state
+claim in this pass carries its command — the two greps above, `sed -n '98,101p'`,
+`git merge-base --is-ancestor`, and the four-row porcelain table.

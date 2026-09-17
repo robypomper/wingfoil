@@ -131,9 +131,14 @@ describe('A directive change is versioned (P3.5 scenario 2)', () => {
 
     // When — its content is edited and saved, then committed.
     writeDocument(join(repo, rel), after);
-    // ` M` = tracked and modified in the working tree — NOT `??` (untracked) or `A ` (newly added).
-    // Compared untrimmed: the leading column is index status, and trimming it away would let an
-    // added-file result pass this line.
+    // ` M` = tracked, clean in the index, modified in the working tree — NOT `??` (untracked) or
+    // `A ` (newly added), which is what proves the file pre-existed this edit.
+    // Compared UNTRIMMED so porcelain's two-column `XY` code stays positional: X is index status, Y
+    // is worktree status, so ` M` (worktree-modified) and `M ` (index-modified) are told apart by
+    // column rather than by counting the spaces that survive a trim. That is legibility, not extra
+    // strictness — measured, a trimmed comparison still rejects `?? d/`, `A  path` and `M  path`
+    // alike. The ambiguity is real though: it is what made this line's first expectation `M  `, the
+    // staged form, for a file that was never staged.
     expect(git(repo, ['status', '--porcelain'])).toBe(` M ${rel}\n`);
     commitPaths(repo, [rel], 'refactor(directives): widen no-direct-db-access to jobs');
 
