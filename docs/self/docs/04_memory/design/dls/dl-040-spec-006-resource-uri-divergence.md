@@ -95,3 +95,27 @@ test exercises.
   `task-053` (third — the `--role` capability gap, not a URI divergence), `task-039` (owns
   `src/mcp/registrar.ts`'s area this cycle), `spec-004` §2 (the Resource contract),
   `dl-042-directives-list-output-contract` (the same command's payload shape).
+
+## Review addendum (2026-09-17)
+
+Recorded from the Wave 2 review of the `dl-041` implementation (`ebfb1e3`); verified on `main`
+(`8a6a091`). No change to this decision-log's status, options or recommendation.
+
+**(a) Correction to Context — the `memorySearch` divergence does not exist.** Context says `spec-006` §3
+pins `wingfoil://memory/search/{query}`. It does not, and never did: `spec-006-core-domain-api.md:135`
+reads `Resource wingfoil://memory/search`, which is exactly what the registrar derives
+(`test/core/parity.test.ts:161`), and `git log -S'memory/search/{query}' -- docs/self/docs/04_memory/design/specs/spec-006-core-domain-api.md`
+→ no commit. Only `memoryHistory` diverges on this axis (`:141`, `wingfoil://memory/history/{id}` vs the
+derived `wingfoil://memory/history`). The URI-column count in Context is therefore one parameterised
+divergence plus the `directivesList` capability gap — not two divergences — before (b).
+
+**(b) A divergence this decision-log does not list: `pathsQuery`.** `spec-006` §3 (`:150`) pins
+`Resource wingfoil://dna/paths`. The operation is registered as op `paths` on module `paths`
+(`src/core/index.ts:815-820`), so the registrar derives `wingfoil://paths`, which the parity test pins
+(`test/core/parity.test.ts:162`). Unlike `memoryHistory`, this is not a missing-parameter problem —
+option 1 (parameter metadata) would not close it; it is a naming mismatch between the §3 URI and the
+registered module. It also breaks §3's `{module}{Verb}` naming (function `pathsQuery` vs op `paths`),
+the same shape `dl-046` raises for the bootstrap rows. `dl-041` recorded the `module` column for this row
+(`paths`) but deliberately left the URI column to this decision-log. Whichever option is chosen should
+state `pathsQuery`'s outcome explicitly: amend §3 to `wingfoil://paths`, or register the op so that it
+derives `wingfoil://dna/paths`.
