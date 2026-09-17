@@ -48,7 +48,7 @@ import {
   loadWorkflowsYaml,
   type WorkflowsLoadResult,
 } from './loaders';
-import { loadDirectiveListing, type DirectiveListEntry } from './directives-list';
+import { loadDirectiveListing, type DirectiveListing } from './directives-list';
 import { checkAssignable, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
@@ -68,15 +68,16 @@ export {
   loadWorkflowsYaml,
 } from './loaders';
 export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
-export { assembleExecutionContext, resolveRoleDirectives } from './context';
+export { assembleExecutionContext, resolveRoleDirectives, selectDirectivesById } from './context';
 export {
   buildDirectiveListing,
   loadDirectiveListing,
   GLOBAL_ASSIGNMENT,
   UNASSIGNED_ASSIGNMENT,
 } from './directives-list';
-export type { DirectiveListEntry } from './directives-list';
+export type { DirectiveListEntry, DirectiveListing } from './directives-list';
 export type {
+  DirectiveSelection,
   ExecutionContext,
   ExecutionContextElement,
   ExecutionContextInputs,
@@ -776,9 +777,9 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
  *
  * This replaces the bare `wrapReadOnly(loadDirectives)` registration task-006 wired in: the payload
  * keeps every field that registration returned (`path`, `frontmatter`, per entry, unchanged) and adds
- * the role annotation P3.4 requires.
+ * the role annotation P3.4 requires. Since task-055 (dl-042) the value is `{ entries, warnings }`.
  */
-const directivesListFn: CoreFn<unknown, DirectiveListEntry[]> = async (params) => {
+const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
   const { root, options } = params as DirectivesListParams;
   return loadOrError(() => loadDirectiveListing(root, options?.role));
 };

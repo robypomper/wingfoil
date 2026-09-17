@@ -15,12 +15,15 @@
  * `task-069-fix-archived-excluded-from-agent-context` adds REQ-STATE-06's archived-exclusion contract
  * (`dl-028-archived-states-excluded-from-context`, `bug-010-deprecated-reaches-agent-context`) — the
  * gap this module's own header used to document as deliberately unfixed.
+ *
+ * `task-055-auto-load-directives-by-role` adds `dl-037` (custom/ wins over built-in/, shadow reported),
+ * `dl-042` D's dangling-binding warning, and the P3.6 BDD scenarios transcribed one-to-one.
  */
 import { existsSync } from 'fs';
 import { join } from 'path';
 
-import { assembleExecutionContext, resolveRoleDirectives } from '../../src/core/context';
-import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml } from '../../src/core/loaders';
+import { assembleExecutionContext, resolveRoleDirectives, selectDirectivesById } from '../../src/core/context';
+import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml, type DirectiveFile } from '../../src/core/loaders';
 import { ValidationError } from '../../src/validation';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -236,13 +239,146 @@ describe('resolveRoleDirectives — role-scoped directive resolution (REQ-STATE-
       expect(resolveIds('developer')).toEqual(['code-quality', 'doc-versioning', 'testing']);
     });
 
-    it('picks the same duplicate regardless of input order (total, path-based tie-break)', () => {
+    // task-055 — T1 AC-4, RED-FIRST: dl-037 A.1 flipped the accidental "smallest path wins" rule
+    // (which picked `built-in/` because 'b' < 'c'); this assertion used to pin `built-in`.
+    it('picks the same duplicate regardless of input order, and `custom/` wins (dl-037 A.1)', () => {
       const directives = loadDirectives(repo);
       const roles = loadRolesYaml(repo);
       const forward = resolveRoleDirectives(directives, roles, 'developer').directives;
       const reversed = resolveRoleDirectives([...directives].reverse(), roles, 'developer').directives;
       expect(reversed.map((d) => d.path)).toEqual(forward.map((d) => d.path));
-      expect(forward.find((d) => d.frontmatter.id === 'testing')?.path).toContain('built-in');
+      const testing = forward.find((d) => d.frontmatter.id === 'testing');
+      expect(testing?.path).toBe(join('directives', 'custom', 'testing.md'));
+      expect(testing?.frontmatter.name).toBe('Testing');
+    });
+  });
+
+  // task-055-auto-load-directives-by-role — dl-037 (A.1 + B.1), spec-012 §5 as amended.
+  describe('dl-037 — custom/ wins over built-in/, and the shadowed file is reported', () => {
+    function file(path: string, id: string, name: string): DirectiveFile {
+      return { path, frontmatter: { id, name, type: 'directive', kind: 'custom', title: name } as DirectiveFile['frontmatter'] };
+    }
+
+    beforeEach(() => {
+      writeFixtureFile(repo, '.wingfoil/directives/built-in/testing.md', directiveMd('testing', 'Testing (built-in)'));
+    });
+
+    // T1 AC-5, RED-FIRST: the loser used to be dropped in silence.
+    it('reports the shadowed directive through `warnings`, naming the id, both files and the winner', () => {
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
+      const builtIn = join('directives', 'built-in', 'testing.md');
+      const custom = join('directives', 'custom', 'testing.md');
+      expect(resolution.warnings).toEqual([`directive 'testing' defined in ${builtIn}, ${custom}; using ${custom}`]);
+    });
+
+    it('does not report a shadowed id the role is not bound to', () => {
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'reviewer');
+      expect(resolution.warnings).toEqual([]);
+    });
+
+    it('custom/ wins even when the built-in arrives with Windows separators (REQ-SEC-07 discriminator)', () => {
+      const files = [
+        file('directives\\built-in\\testing.md', 'testing', 'Built-in'),
+        file('directives\\custom\\testing.md', 'testing', 'Custom'),
+      ];
+      const { directives } = resolveRoleDirectives(files, loadRolesYaml(repo), 'developer');
+      expect(directives.find((d) => d.frontmatter.id === 'testing')?.frontmatter.name).toBe('Custom');
+    });
+
+    it('two files in the same tier break the tie on the smallest path, input-order independent', () => {
+      const files = [
+        file('directives/custom/z/testing.md', 'testing', 'Z'),
+        file('directives/custom/a/testing.md', 'testing', 'A'),
+      ];
+      const roles = loadRolesYaml(repo);
+      expect(resolveRoleDirectives(files, roles, 'developer').directives[0]?.frontmatter.name).toBe('A');
+      expect(resolveRoleDirectives([...files].reverse(), roles, 'developer').directives[0]?.frontmatter.name).toBe('A');
+    });
+
+    it('the same file handed in twice still resolves to one directive (comparator tie is stable)', () => {
+      const same = file('directives/custom/testing.md', 'testing', 'Only');
+      const { byId } = selectDirectivesById([same, same]);
+      expect([...byId.values()]).toEqual([same]);
+    });
+
+    // Second pass (rejection_reason): the shadow warning's path list is ascending regardless of input
+    // order — fed in reverse, the warning string must be byte-identical (REQ-SYS-07).
+    it('names the shadowing files in ascending path order even when the input arrives reversed', () => {
+      const files = [
+        file('directives/custom/testing.md', 'testing', 'Custom'),
+        file('directives/built-in/testing.md', 'testing', 'Built-in'),
+      ];
+      const expected = [
+        "directive 'testing' defined in directives/built-in/testing.md, directives/custom/testing.md; using directives/custom/testing.md",
+      ];
+      expect(selectDirectivesById(files).warnings).toEqual(expected);
+      expect(selectDirectivesById([...files].reverse()).warnings).toEqual(expected);
+    });
+
+    it('selectDirectivesById is the shared rule: every shadowed id, sorted, without a role filter', () => {
+      writeFixtureFile(repo, '.wingfoil/directives/built-in/code-review.md', directiveMd('code-review', 'Code Review (built-in)'));
+      const { byId, warnings } = selectDirectivesById(loadDirectives(repo));
+      expect([...byId.keys()]).toEqual(['code-quality', 'code-review', 'doc-versioning', 'testing']);
+      expect(byId.get('code-review')?.path).toBe(join('directives', 'custom', 'code-review.md'));
+      expect(warnings.map((w) => w.split(' defined')[0])).toEqual(["directive 'code-review'", "directive 'testing'"]);
+    });
+  });
+
+  // task-055 — T1 AC-8, RED-FIRST: dl-042 D's "dangling binding" — a role bound to an id with no file.
+  describe('dl-042 D — a dangling binding is reported, never silently skipped', () => {
+    it('warns for a role-assigned id with no directive file', () => {
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', 'version: 1.0\nassignments:\n  developer:\n    - testing\n    - ghost-rule\nglobal:\n  - doc-versioning\n');
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
+      expect(resolution.directives.map((d) => d.frontmatter.id)).toEqual(['doc-versioning', 'testing']);
+      expect(resolution.warnings).toEqual(["directive 'ghost-rule' bound to role 'developer' has no directive file"]);
+    });
+
+    // Second pass (rejection_reason): dangling ids are reported ascending, never in roles.yaml order.
+    it('reports several dangling ids in ascending id order, not roles.yaml listing order', () => {
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', 'version: 1.0\nassignments:\n  developer:\n    - zeta-rule\n    - alpha-rule\n    - testing\nglobal: []\n');
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer');
+      expect(resolution.warnings).toEqual([
+        "directive 'alpha-rule' bound to role 'developer' has no directive file",
+        "directive 'zeta-rule' bound to role 'developer' has no directive file",
+      ]);
+    });
+
+    it('warns for a dangling global too, after the no-assignments warning (fixed order)', () => {
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', 'version: 1.0\nassignments: {}\nglobal:\n  - security-secrets\n  - doc-versioning\n');
+      const resolution = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'intern');
+      expect(resolution.warnings).toEqual([
+        "no directives assigned to role 'intern'",
+        "directive 'security-secrets' bound to role 'intern' has no directive file",
+      ]);
+    });
+  });
+
+  // task-055 — P3.6 BDD acceptance, transcribed scenario by scenario
+  // (`docs/02_requirements/02_bdd/features/p3-directives/P3.6-auto-load-by-role.feature`).
+  // T1 AC-1..AC-3: CHARACTERIZATION — task-037 already built this; pinned here with the feature's own
+  // Background (developer → testing + code-quality; reviewer → code-review; intern unbound).
+  describe('P3.6 — auto-load directives by role (BDD acceptance)', () => {
+    function executeUnder(role: string) {
+      writeTask(repo, 'task-101-alpha', 'Alpha task');
+      return assembleFrom(repo, role, 'task', 'task-101-alpha');
+    }
+
+    it('Scenario: Directives auto-load at task execution — testing + code-quality, 100% of the role\'s set', () => {
+      const context = executeUnder('developer');
+      const ids = context.directives.map((d) => d.frontmatter.id);
+      expect(ids).toEqual(expect.arrayContaining(['testing', 'code-quality']));
+      const assigned = loadRolesYaml(repo).assignments['developer'] ?? [];
+      expect(assigned.every((id) => ids.includes(id))).toBe(true);
+    });
+
+    it('Scenario: Only the executing role\'s directives are loaded — code-review is NOT loaded', () => {
+      expect(executeUnder('developer').directives.map((d) => d.frontmatter.id)).not.toContain('code-review');
+    });
+
+    it("Scenario: Edge - a role with no assigned directives — only globals, plus the warning", () => {
+      const context = executeUnder('intern');
+      expect(context.directives.map((d) => d.frontmatter.id)).toEqual(loadRolesYaml(repo).global);
+      expect(context.warnings).toContain("no directives assigned to role 'intern'");
     });
   });
 });
