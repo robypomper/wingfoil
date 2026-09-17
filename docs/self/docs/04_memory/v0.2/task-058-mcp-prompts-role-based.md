@@ -83,3 +83,90 @@ implementation choices the contract leaves open, taken inside it:
 
 Gap noted for the approver (not resolved here): spec-004 §3 does not mention the undefined-role refusal
 at all, so an implementer reading only the spec would miss it — see final report, proposed element.
+
+### red — developer
+
+`test/mcp/mcp-prompts.feature.test.ts` (new) — one `it` per `P5.2.2-mcp-prompts.feature` scenario, titles
+quoting the scenarios, against the production `createMcpServer` over the SDK in-memory transport + a real
+`Client`, plus two edge cases of the refusal. `test/mcp/server.test.ts`'s "scope (spec-014 §3)" case
+inverted: `caps.prompts` now defined, `caps.tools` still undefined.
+
+Observed (`npx jest test/mcp/mcp-prompts.feature.test.ts test/mcp/server.test.ts`): **6 failed, 4 passed**.
+Failure reasons, all the stated one (no Prompts channel on the production server):
+`McpError: MCP error -32601: Method not found` (×2), `Expected: -32602 / Received: -32601` (×2),
+`Received string: "MCP error -32601: Method not found"`, `caps?.prompts` `Received: undefined`.
+No characterization ACs; nothing fabricated.
+
+### green — developer
+
+- `src/mcp/server.ts`: `createMcpServer` now calls `registerRolePrompts(server, { resolveRoot })` after
+  `registerReadOnlyResources` (spec-014 §3).
+- `src/mcp/prompt.ts`: `registerRolePrompts` owns `prompts/list` / `prompts/get` on `server.server`
+  (design note above) — role set read once from DNA; `{role}-session` for a DNA role → per-request
+  `buildRolePrompt` (same `resolveRoleDirectives` composition as task-039, unchanged); `-session` name
+  for a non-DNA role → `no prompt for undefined role '<role>'`; other names → `Prompt <name> not found`.
+
+Result: `npx jest test/mcp test/cli` → **207 passed / 207**.
+
+### refactor — developer
+
+- **Defect found by a stdio smoke run, fixed test-first.** Built `dist/` and drove `node dist/cli.js mcp`
+  with the SDK `StdioClientTransport` against a temp repo carrying `docs/self/.wingfoil/{dna,roles}.yaml`
+  + `directives/custom/*.md`: the refusal arrived as `MCP error -32602: MCP error -32602: no prompt for
+  undefined role 'wizard'` — `McpError` pre-prefixes its own message and the client prefixes again. Tests
+  tightened to exact `toBe("MCP error -32602: no prompt for undefined role 'wizard'")` → **2 failed**
+  (`Received: "MCP error -32602: MCP error -32602: …"`); fix: throw a plain `Error` carrying
+  `code: InvalidParams` (`promptRequestError`) → pass. Re-run of the smoke prints the 8 `*-session`
+  prompts of this project's DNA and `MCP error -32602: no prompt for undefined role 'wizard'`.
+- Pinned the "owns its handlers" claim: a later `registerPrompt` on a `createMcpServer` server throws
+  `A request handler for prompts/list already exists`.
+- Docs brought in line: `src/mcp/prompt.ts` / `server.ts` / `index.ts` module comments (no longer "not
+  wired"), `src/cli/program.ts` `mcp` help text → "(read-only Resources and role Prompts)".
+- Observed behaviour change: `wingfoil mcp` in a repo whose `.wingfoil/dna.yaml` is missing now exits
+  at start (`error: ENOENT: … .wingfoil/dna.yaml`, exit 1, via `src/cli.ts`'s last-resort handler —
+  observed with the smoke repo after `rm .wingfoil/dna.yaml`) instead of starting and failing per request.
+
+**Merge.** `git merge main` (dl-035, merge not rebase) brought in `ebfb1e3` (dl-041: spec-006 §3 `module`
+column, spec-008 §1 `directives` noun) — merge commit `4072d4a`, no conflict. Re-read spec-006 §3 after
+the merge (`grep -n -i "prompt" spec-006-core-domain-api.md` → no hit): these notes and the code cite
+neither spec-006 nor spec-008, and no Tool/Resource name here derives from them. dl-040 stays open and is
+untouched (`createMcpServer` still does not call `registerCoreModules`).
+
+Gates (post-merge, worktree):
+
+| Check | Command | Result |
+|---|---|---|
+| tests | `npx jest` | **81 suites, 1094 passed / 1094** |
+| coverage | `npx jest --coverage` | global **98.31 stmts / 90.44 branch / 98.47 funcs / 98.94 lines** (baseline `79f9fda`: 98.29 / 90.18 / 98.44 / 98.93, 1087 tests); `src/mcp/prompt.ts` 100/100/100/100; `src/mcp/server.ts` 69.23 lines — uncovered 72-75 is the pre-existing `startMcpServer` stdio seam (baseline 66.66, lines 67-70) |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| all types | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026, pre-existing) |
+| `lint.clean` | `npm run lint` | exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit 0 |
+
+### review-ready summary
+
+**BDD coverage** (`p5-interaction/P5.2.2-mcp-prompts.feature`), all in `test/mcp/mcp-prompts.feature.test.ts`:
+
+| Scenario | Test |
+|---|---|
+| Auto-load role prompt at session start | › `Scenario: Auto-load role prompt at session start` |
+| Prompt reflects the current directive assignments | › `Scenario: Prompt reflects the current directive assignments` |
+| Error - requesting a prompt for an undefined role | › `Scenario: Error - requesting a prompt for an undefined role` (+ edges: role bound in roles.yaml but not in DNA; non-`-session` name) |
+
+REQ-INT-02 registrar contract remains pinned by task-039's `test/mcp/role-prompts.test.ts` (9/9 passing,
+unchanged file).
+
+**For the reviewer / approver.**
+1. *Mechanism change to task-039's registrar*: handlers moved from `McpServer.registerPrompt` to the
+   low-level `server.server` API (only way to emit the BDD string); prompts capability is now `{}`
+   instead of the SDK's `{ listChanged: true }` (the list is fixed at start, so no change notification is
+   ever sent).
+2. *spec-004 §3 is silent on the undefined-role refusal* the BDD mandates, and on the error code chosen
+   (`InvalidParams`) — raised as a proposed element, not edited here.
+3. *dl-039 not decided*: `role: "user"` and id-ascending order are task-039's and unchanged; no P5.2.2
+   scenario depends on either.
+4. *task-055 coupling*: `buildRolePrompt` calls `resolveRoleDirectives(loadDirectives(root),
+   loadRolesYaml(root), role)` and discards `warnings`. A signature change there (dl-037 shadow warnings)
+   conflicts only at that one call; shadow warnings would, like dl-029's, not reach the agent via Prompts.
+5. Directive bodies carry their own `# Directive — …` H1 inside each `## Directive: {id}` block (seen in
+   the smoke run) — heading levels invert; spec-004 §3.2 says "full directive body", so left as is.
