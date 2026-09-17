@@ -145,48 +145,60 @@ function buildRolePrompt(root: string, role: string): GetPromptResult {
 }
 
 /**
- * Register one `{role}-session` Prompt per role in `dna.yaml`'s `team.roles` catalogue (spec-004
- * §3.1), each resolving and embedding that role's directives at request time (§3.2), and refusing a
- * session prompt for a role DNA does not declare (P5.2.2's undefined-role scenario).
+ * The DNA role catalogue as `dna.yaml` declares it **now**, in declaration order. Read per request (see
+ * {@link registerRolePrompts}); a missing or invalid `dna.yaml` throws the loader's own error, which the
+ * SDK returns to the client as that request's error — the same way `wingfoil://dna` reports it.
+ */
+function loadRoleNames(root: string): string[] {
+  return loadDnaYaml(root).team.roles.map(({ name }) => name);
+}
+
+/**
+ * Register the role-scoped Prompts channel: one `{role}-session` Prompt per role in `dna.yaml`'s
+ * `team.roles` catalogue (spec-004 §3.1), each embedding that role's directives (§3.2), and a refusal
+ * for a session prompt naming a role DNA does not declare (P5.2.2's undefined-role scenario).
  *
- * The two reads happen at deliberately different times, because spec-004 asks for different things:
+ * **Nothing is read here — every read happens per request** (task-058 second pass, rejection `ff13321`).
+ * spec-014 §2 requires `createMcpServer` to perform "no I/O at construction time beyond wiring
+ * handlers", so the DNA role catalogue is loaded inside the `prompts/list` / `prompts/get` handlers,
+ * next to the per-request directive resolution spec-004 §3.2 already mandated (REQ-INT-02's "a newly
+ * assigned directive appears on the next session start"). Two consequences, both deliberate:
  *
- * - **The role set is read once, here.** §3.1: "`prompts/list` returns this fixed set derived from DNA
- *   at server start — it is not hand-maintained." So `loadDnaYaml` runs during registration; a role
- *   added to `dna.yaml` afterwards is advertised by the next server, not this one, and is "undefined"
- *   to this one. A missing or invalid `dna.yaml` therefore fails loudly at construction rather than
- *   producing a server with a silently empty Prompts channel.
- * - **Directives are resolved per request, in the handler** — see {@link buildRolePrompt}. That is
- *   the second half of REQ-INT-02's Fit Criterion ("a newly assigned directive appears on the next
- *   session start").
+ * - `wingfoil mcp` starts in a git root with no `.wingfoil/dna.yaml` (e.g. a repository that has not
+ *   run `wingfoil init`) exactly as the Resources channel always has; the missing DNA surfaces as the
+ *   error of each Prompts request instead of aborting the process start.
+ * - spec-004 §3.1's "fixed set derived from DNA at server start" is served as the DNA role set **at
+ *   request time**: a role added to `dna.yaml` while the server runs is listed on the next
+ *   `prompts/list`. That tension between spec-014 §2 and spec-004 §3.1 is open for the approver.
  *
- * **Why the low-level handlers, not `McpServer.registerPrompt`** (task-058). The high-level API
- * answers an unregistered name with its own `Prompt <name> not found` before any WingFoil code runs,
- * so the BDD's `no prompt for undefined role 'wizard'` cannot be expressed through it. This function
- * therefore owns `prompts/list` and `prompts/get` on `server.server` — the same pattern
- * `./read-only.ts`'s `registerWriteRefusalHandler` uses — and a later `registerPrompt` on the same
- * server fails loudly ("A request handler for prompts/list already exists") instead of being silently
- * shadowed. A requested name that is not `{role}-session`-shaped keeps the SDK-equivalent
- * `Prompt <name> not found` wording: it names no role, so it is not an undefined-role request.
+ * **Why the low-level handlers, not `McpServer.registerPrompt`.** The high-level API answers an
+ * unregistered name with its own `Prompt <name> not found` before any WingFoil code runs, so the BDD's
+ * `no prompt for undefined role 'wizard'` cannot be expressed through it (and it would need the role
+ * set at registration time). This function therefore owns `prompts/list` and `prompts/get` on
+ * `server.server` — the same pattern `./read-only.ts`'s `registerWriteRefusalHandler` uses — and a
+ * later `registerPrompt` on the same server fails loudly ("A request handler for prompts/list already
+ * exists") instead of being silently shadowed. A requested name that is not `{role}-session`-shaped
+ * keeps the SDK-equivalent `Prompt <name> not found` wording: it names no role, so it is not an
+ * undefined-role request, and it is answered without reading anything.
  *
  * Call before the server is connected (MCP capabilities cannot be registered after connecting).
  */
 export function registerRolePrompts(server: McpServer, options: RegisterRolePromptsOptions): void {
-  const roles = new Set(loadDnaYaml(options.resolveRoot()).team.roles.map(({ name }) => name));
-  const prompts = [...roles].map((role) => ({
-    name: roleSessionPromptName(role),
-    description: `session instructions for the '${role}' role, embedding its assigned directives (read-only)`,
-  }));
-
   server.server.registerCapabilities({ prompts: {} });
-  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts }));
+  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({
+    prompts: loadRoleNames(options.resolveRoot()).map((role) => ({
+      name: roleSessionPromptName(role),
+      description: `session instructions for the '${role}' role, embedding its assigned directives (read-only)`,
+    })),
+  }));
   server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
     const { name } = request.params;
     if (!name.endsWith(ROLE_PROMPT_NAME_SUFFIX)) {
       throw promptRequestError(`Prompt ${name} not found`);
     }
     const role = name.slice(0, -ROLE_PROMPT_NAME_SUFFIX.length);
-    if (!roles.has(role)) throw undefinedRolePromptError(role);
-    return buildRolePrompt(options.resolveRoot(), role);
+    const root = options.resolveRoot();
+    if (!loadRoleNames(root).includes(role)) throw undefinedRolePromptError(role);
+    return buildRolePrompt(root, role);
   });
 }

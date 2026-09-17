@@ -46,11 +46,11 @@ export interface McpServerOptions {
 
 /**
  * Construct the production `McpServer` and register the read-only Resources and role Prompts channels
- * on it (spec-014 §3). Synchronous and transport-free — no stdio, no process side effects — so a test
- * can connect it over the SDK's in-memory transport and drive it with a real `Client`. The one read it
- * performs is the Prompts channel's `dna.yaml` role catalogue (spec-004 §3.1, "derived from DNA at
- * server start"), so a missing or invalid `dna.yaml` throws here rather than yielding a server whose
- * Prompts channel is silently empty.
+ * on it (spec-014 §3). Pure and synchronous — no transport, no stdio, no filesystem read, no process
+ * side effects (spec-014 §2: "no I/O at construction time beyond wiring handlers"); every handler
+ * resolves the root and reads the project per request. So a test can connect it over the SDK's
+ * in-memory transport and drive it with a real `Client`, and `wingfoil mcp` never fails to start
+ * because of the project's content.
  */
 export function createMcpServer(options: McpServerOptions): McpServer {
   const server = new McpServer({
