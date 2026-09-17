@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "Open-source harness for AI-assisted software development that makes the process deterministic — Project Memory, Project DNA, Project Directives, Project Workflow, and a CLI + MCP interaction layer.",
   "license": "MIT",
+  "author": "Roberto Pompermaier <robypomper@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robypomper/wingfoil.git"
+  },
+  "homepage": "https://github.com/robypomper/wingfoil#readme",
+  "bugs": {
+    "url": "https://github.com/robypomper/wingfoil/issues"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
@@ -15,6 +24,11 @@
     "dist",
     "README.md"
   ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
