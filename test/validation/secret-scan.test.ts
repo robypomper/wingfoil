@@ -324,6 +324,14 @@ describe('scanProjectSurface — reads the git index, not the working tree (bug-
     expect(scanProjectSurface(repo).blocking).toEqual([]);
   });
 
+  it('scans nothing for an empty surface-root list (not the whole index)', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'outside.md', 'api_key: "sk_live_fake1234567890abcdef"\n');
+    git(repo, ['add', '-A']);
+
+    expect(scanProjectSurface(repo, { surfaceRoots: [] })).toEqual({ blocking: [], warnings: [], info: [], filesScanned: 0 });
+  });
+
   it('skips a gitlink (submodule) entry — a commit id, not a blob to read', () => {
     repo = makeTempGitRepo();
     writeFixtureFile(repo, '.wingfoil/dna.yaml', 'modules: [core]\n');

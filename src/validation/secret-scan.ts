@@ -317,6 +317,9 @@ interface IndexedBlob {
 /** `git ls-files -s` mode of a gitlink (submodule commit) — not a blob, nothing to read. */
 const GITLINK_MODE = '160000';
 
+/** One `git ls-files -s -z` record: mode, object id, stage, then a tab and the raw path. */
+const INDEX_RECORD_RE = /^(\d+) ([0-9a-f]+) \d\t([\s\S]+)$/;
+
 /**
  * List every indexed (tracked or staged, spec-007 §1) blob under `surfaceRoots`, in git's path order.
  * `-z` keeps paths unquoted; gitlinks are skipped. An unmerged path contributes one entry per conflict
@@ -332,11 +335,10 @@ function listIndexedBlobs(root: string, surfaceRoots: readonly string[]): Indexe
   });
   const entries: IndexedBlob[] = [];
   for (const record of out.split('\0')) {
-    const tab = record.indexOf('\t');
-    if (tab < 0) continue; // the trailing empty record after the last NUL
-    const [mode = '', blob = ''] = record.slice(0, tab).split(' ');
-    if (mode === GITLINK_MODE) continue;
-    entries.push({ path: record.slice(tab + 1), blob });
+    // `<mode> <object id> <stage>\t<path>`; the trailing empty record after the last NUL never matches
+    const match = INDEX_RECORD_RE.exec(record);
+    if (match === null || match[1] === GITLINK_MODE) continue;
+    entries.push({ path: match[3] as string, blob: match[2] as string });
   }
   return entries;
 }
