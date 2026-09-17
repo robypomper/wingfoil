@@ -141,9 +141,10 @@ Two production edits, nothing else:
 
 1. **`src/storage/layout.ts`** — `scaffoldFiles()` now returns
    `.wingfoil/directives/built-in/.gitkeep` + `.wingfoil/directives/custom/.gitkeep` in place of the
-   single flat `.wingfoil/directives/.gitkeep`. Lexical ordering is preserved
-   (`directives/built-in/… < directives/custom/… < dna.yaml`), so the list stays sorted and
-   byte-identical run to run (REQ-SYS-07).
+   single flat `.wingfoil/directives/.gitkeep`. The two entries sit where the old one sat, so the
+   list keeps its fixed order and its byte-identical output run to run (REQ-SYS-07).
+   *(Corrected in the second pass: this originally added "so the list stays sorted". The list is not
+   sorted and never was — see `refactor (second pass)` below.)*
 2. **`src/core/init.ts`** — `initWingfoilStorage` gains guard 3 (REQ-SEC-10) and the optional
    `builtinTemplates` override. It binds `const files = scaffoldFiles()` **once**, derives
    `builtinTemplateSources(files)`, calls `verifyBuiltinTemplates`, returns a `VALIDATION` `coreErr`
@@ -287,13 +288,137 @@ Before this task that same call returned `{ ok: true }` and wrote the scaffold (
   as its own notes and this task's AC state.
 
 **Scope actually delivered, and what it is not.** P3.5's scenario 1 (storage layout) is met on both
-init paths. P3.5's scenarios 2 and 3 are untouched and were already covered elsewhere: scenario 2 ("a
-directive change is versioned") by the storage layer's commit primitives
-(`test/storage/git-backed-storage.test.ts` commits a `directives/custom/*.md` edit); scenario 3
-("missing required field 'name'") by `src/directives/schema.ts` and `test/directives/schema.test.ts`.
+init paths.
+
+> **Both "already covered" claims that stood here were false, and the approver rejected the task for
+> them (`8247503`).** They read: scenario 2 "already covered … by `test/storage/git-backed-storage.test.ts`
+> [which] commits a `directives/custom/*.md` edit", and scenario 3 "already covered … by
+> `src/directives/schema.ts` and `test/directives/schema.test.ts`". Both are corrected in place below
+> rather than deleted, because a coverage claim that turned out to be wrong is itself worth leaving on
+> the record. The two greps that settle it were re-run in this worktree, not taken on trust:
+> `grep -rn "HEAD~\|HEAD^" test/` → **0**, and
+> `grep -rn "invalid directive: missing required field" src/ test/` → **0** (the string occurs exactly
+> once in the repository, in the feature file itself).
+
+The failure mode behind both: I described what those files are *about* rather than what they
+*execute*. `git-backed-storage.test.ts` is about directive files being versioned, and
+`schema.test.ts` is about a missing `name` being rejected — but the first never edits an existing
+file and the second never asserts a message.
+
+**Scenario 2 — "A directive change is versioned" — was NOT covered; it is covered now.** The test I
+cited (`test/storage/git-backed-storage.test.ts`, the P1.1 block) *creates* a directive file: it
+asserts the porcelain status is exactly `?? .wingfoil/directives/custom/testing.md`, which is the
+assertion that the path did **not** previously exist, then commits it. There is no edit, so neither
+`Then` clause of scenario 2 was reachable from it — and the second clause, "the previous version is
+retrievable from history", was unreachable from anywhere in the suite: no test read a prior revision
+at all. Closed in this pass by a new `describe` block in the same file, "A directive change is
+versioned (P3.5 scenario 2)" — details under `red (second pass)`.
+
+**Scenario 3 — "Error - a directive file missing required header fields" — is HALF covered, and the
+uncovered half is now `bug-025`.** `test/directives/schema.test.ts:49` does discharge the first
+clause, "loading reports the file as invalid": `DirectiveFrontmatter` marks `name` required, so the
+file fails and `wingfoil directives list` exits 1. The second clause, `And the message is "invalid
+directive: missing required field 'name'"`, is **not implemented** — the real message is Zod's
+generic text. Observed on the compiled CLI:
+
+```
+$ wingfoil directives list
+error: E_VALIDATION name (/…/.wingfoil/directives/custom/no-direct-db-access.md): Invalid input: expected string, received undefined
+exit=1
+```
+
+Not fixed here: emitting that string means editing `src/core/loaders.ts` / `src/directives/`, which
+`task-050` (P3.1) and `task-053` (P3.4) hold concurrently. Filed instead as
+**`bug-025-directive-validation-message-not-emitted`** (`open`, severity `low`, `feature: P3.5`,
+`release: ""` — scheduling is `build-backlog`'s stamp per dl-016). That matters because `task-054` is
+the **only** element in Memory carrying `ref: "P3.5"` (`grep -rln 'ref: *"\?P3\.5' docs/self/docs/04_memory/`
+→ one file, this one), so an unimplemented clause left as prose in a done task's notes would have had
+nothing scheduling it.
+
 `src/directives/` was deliberately not opened — `task-050` and `task-053` are editing it concurrently.
 
 **Files changed:** `src/storage/layout.ts`, `src/core/init.ts` (both behaviour), `src/storage/templates.ts`,
 `src/core/builtin-integrity.ts` (both comments only), `test/core/project-directives.test.ts` (new),
 `test/storage/builtin-template-sources.test.ts`. No change to `src/directives/`, `src/core/index.ts`,
-`package.json`, or `jest.config.js`.
+`package.json`, or `jest.config.js`. *(Second pass adds `test/storage/git-backed-storage.test.ts`; the
+file list is restated in full under `review (second pass)`.)*
+
+---
+
+## Second pass — rejected `8247503` (in-review → in-progress)
+
+**What was NOT in question.** The approver's reject body and an independent reviewer both confirmed
+the P3.5 scenario-1 code, the `bug-018` code and their tests are correct, and had mutation-tested the
+symmetry pin from both sides (deleting guard 3 alone → 2 red; deleting guard 5 alone → 2 red; moving
+guard 3 inside the `try` after `initStorage` → 2 red, killed by the `existsSync('.wingfoil') === false`
+assertions). Every gate number reported in the first pass reproduced, including the +12 delta and its
+`latency-budget-placement` explanation. **None of that code or those tests was touched in this pass.**
+
+The rejection was about the two false coverage claims corrected above, plus the sortedness wording.
+
+### red (second pass) — developer
+
+**T1 classification — one AC, characterization, and it must pass on first run.** P3.5 scenario 2's
+behaviour (git-backed versioning of a directive file) is not new: `writeDocument` + `commitPaths`
+already do it, and `initStorage` has been committing directive files since task-018. What was missing
+was an assertion, not a capability. Per dl-014/T1 and the `testing` directive, a characterization AC
+is exempt from `red`'s failing-test requirement, and **no red was fabricated** — no production line
+was changed for this test, and none was needed.
+
+Added to `test/storage/git-backed-storage.test.ts`: `describe('A directive change is versioned (P3.5
+scenario 2)')`, which starts from an already-tracked `directives/custom/no-direct-db-access.md`, edits
+it, commits, and then asserts
+
+- `git status --porcelain` is exactly `` ` M <path>\n` `` **before** the commit — compared untrimmed,
+  because the leading column is index status and trimming it away would let an added-file (`A `) or
+  untracked (`??`) result pass the line that is supposed to prove the file pre-existed;
+- exactly one new commit, touching exactly that one path, tree clean afterwards;
+- `git show HEAD:<path>` is the new content;
+- **`git show HEAD~1:<path>` is the prior content** — the second `Then` clause, asserted directly
+  rather than inferred from the commit succeeding. This is the first `HEAD~`/`HEAD^` read in the
+  entire suite.
+
+**It passed on the first run of the final assertion set, as a characterization test should.** One
+honest wrinkle: the first execution failed, and the failure was in *my assertion*, not in the
+behaviour — I had written `` `M  ${rel}` `` (staged-modification, two columns) against a `.trim()`ed
+porcelain string, and git reports an unstaged edit as `` ` M ` ``. Fixing the expectation to the
+untrimmed, correct form made it green with no production change. Recorded rather than quietly
+rewritten, because "it went red once" should not be mistaken for red-first evidence: it was a test
+bug, and the versioning behaviour under test never changed.
+
+**Non-vacuity check.** A passing characterization test earns less trust than a failing one, so the key
+assertion was mutated: changing `git show HEAD~1:<path>` to expect the *new* content makes the test
+fail (`1 failed, 5 passed`), and restoring it returns 6/6. The history read is doing real work.
+
+### refactor (second pass) — developer
+
+**The sortedness claim was false; corrected in two places.** `scaffoldFiles()` is not lexically
+sorted, and my first-pass refactor asserted it was. Verified empirically rather than by eye:
+
+```
+scaffoldFiles is lexically sorted?   false
+templateScaffold is lexically sorted? true
+```
+
+The single inversion is `.wingfoil/memory/.gitkeep` before `.wingfoil/memory.yaml`: `'.'` (0x2E)
+sorts before `'/'` (0x2F), so a real sort puts `memory.yaml` first. Determinism is unaffected —
+REQ-SYS-07 needs the order *fixed*, which a hand-written literal is, not *sorted* — so the code is
+right and only the prose was wrong.
+
+- `src/storage/templates.ts` — "returns a path-sorted list — **as does `scaffoldFiles`**" was my
+  addition and is the one outright false clause; the surrounding claim about `templateScaffold` was
+  pre-existing and is true. Rewritten to say the derivation needs the caller's order *reproducible*,
+  not sorted, and to name why each of the two callers qualifies.
+- `src/storage/layout.ts` — "in a fixed lexical order" was **inherited from task-018**, not written by
+  me, but it is false by the same argument and I carried it forward unexamined. Rewritten to "a fixed,
+  hand-written order", with the `0x2E`/`0x2F` reason spelled out and an explicit warning not to
+  "fix" it by sorting.
+- The green-phase note above ("the list stays sorted") was corrected in place.
+
+`src/storage/templates.ts:16` and `:411` also say "sorted by path", but both refer to
+`templateScaffold` only, which genuinely sorts — left alone.
+
+**Not done, deliberately:** `dl-031`'s own Actions item — amending REQ-SEC-10's title and Description
+in `docs/02_requirements/03_sard/05_security-compliance.md` to say *schema-checked* — remains
+**undone**. It is dl-031's follow-up, not this task's, and nothing here should be read as claiming
+otherwise.

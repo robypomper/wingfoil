@@ -94,3 +94,56 @@ describe('Persisting a pillar state file produces exactly one tracked change (P1
     expect(readdirSync(join(repo, '.wingfoil', 'directives', 'custom'))).toContain('testing.md');
   });
 });
+
+/**
+ * task-054-project-directives, second pass — `p3-directives/P3.5-project-directives.feature`
+ * scenario 2, "A directive change is versioned":
+ *
+ *   Given a custom directive "no-direct-db-access" exists
+ *   When its content is edited and saved
+ *   Then the change is captured as a git commit
+ *   And the previous version is retrievable from history
+ *
+ * Distinct from the P1.1 scenario above it, which CREATES a directive file (it asserts the porcelain
+ * status is exactly `?? …/testing.md`, i.e. the path did not previously exist) and therefore cannot
+ * speak to either clause here: there is no prior content to edit, and no earlier revision to read
+ * back. This one starts from an ALREADY TRACKED file and reads the superseded revision out of git —
+ * the `HEAD~1` read is the whole point of the second clause, so it is asserted directly rather than
+ * inferred from the commit succeeding.
+ */
+describe('A directive change is versioned (P3.5 scenario 2)', () => {
+  let repo: string;
+  afterEach(() => removeTempDir(repo));
+
+  it('captures an edit to an existing directive as a commit, prior version still retrievable', () => {
+    repo = makeTempGitRepo();
+    initStorage(repo);
+
+    const rel = '.wingfoil/directives/custom/no-direct-db-access.md';
+    const before = '---\nname: no-direct-db-access\n---\n\nNo direct DB access from controllers.\n';
+    const after = '---\nname: no-direct-db-access\n---\n\nNo direct DB access from controllers or jobs.\n';
+
+    // Given — the directive exists AND is tracked (the precondition the P1.1 test above establishes).
+    writeDocument(join(repo, rel), before);
+    commitPaths(repo, [rel], 'feat(directives): add no-direct-db-access');
+    expect(git(repo, ['ls-files', rel]).trim()).toBe(rel);
+    const commitsBeforeEdit = Number(git(repo, ['rev-list', '--count', 'HEAD']).trim());
+
+    // When — its content is edited and saved, then committed.
+    writeDocument(join(repo, rel), after);
+    // ` M` = tracked and modified in the working tree — NOT `??` (untracked) or `A ` (newly added).
+    // Compared untrimmed: the leading column is index status, and trimming it away would let an
+    // added-file result pass this line.
+    expect(git(repo, ['status', '--porcelain'])).toBe(` M ${rel}\n`);
+    commitPaths(repo, [rel], 'refactor(directives): widen no-direct-db-access to jobs');
+
+    // Then — the change is captured as a git commit (exactly one, touching exactly this path).
+    expect(Number(git(repo, ['rev-list', '--count', 'HEAD']).trim())).toBe(commitsBeforeEdit + 1);
+    expect(git(repo, ['show', '--name-only', '--format=', 'HEAD']).trim()).toBe(rel);
+    expect(git(repo, ['status', '--porcelain'])).toBe('');
+    expect(git(repo, ['show', `HEAD:${rel}`])).toBe(after);
+
+    // And — the previous version is retrievable from history.
+    expect(git(repo, ['show', `HEAD~1:${rel}`])).toBe(before);
+  });
+});
