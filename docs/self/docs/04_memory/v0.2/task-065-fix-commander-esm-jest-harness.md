@@ -260,3 +260,58 @@ plus the 2 extra `it.each` cases the new files add to `latency-budget-placement.
     it today.
   - `src/cli/program.ts` line 145's default-parameter branch stays uncovered by design (unreachable
     through Commander).
+
+### Post-review — the regression this task introduced, and the elements filed from it
+
+Added after the independent review. The instance was recorded during `green`; **the regression it is
+an instance of was not**, and that is the more important half.
+
+**`dl-044-typecheck-gate-for-test-sources` — `test/**` lost its only standing typecheck gate.**
+Before this change ts-jest read `tsconfig.json` (`module: Node16`), so **`npm test` itself** enforced
+the project's real module semantics on test sources. It now reads `tsconfig.test.json`
+(`CommonJS`/`Node10`), which is strictly more permissive. The reviewer proved it by dropping one probe
+file containing `import { Command } from 'commander'` into each tree:
+
+| | `npx jest` | `npx eslint` | `npx tsc --noEmit` |
+|---|---|---|---|
+| baseline `d933cbe` | **FAILS** (TS1479) | — | fails |
+| head | **PASSES** | exit 0 | **fails** TS1479 |
+
+Nothing else covers the gap: `tsc --noEmit` is not among `dev-loop`'s `refactor.checks.post`
+(`dev-loop.yaml:73`), `typedoc.json` reads `tsconfig.build.json` which `exclude`s `test`,
+`test/global-setup.cjs:23` builds `src` only, and `eslint.config.js` is not type-aware. Recording
+`tsc --noEmit` as a hand-run AC(b) guard — which is what these notes did — is a human habit, not a
+gate, and REQ-SYS-07 / the `determinism` directive say to prefer explicit declared config over
+inferred behaviour. `dl-044` proposes adding `typecheck.clean`, exactly as `dl-034` added
+`lint.clean`. **The `ignoreDeprecations: "6.0"` pin is tracked as an item inside `dl-044`** rather
+than as its own bug: it is a loud time-bomb (hard TS5107 error, not silent drift) and is documented
+where it lives.
+
+The harness change itself should **not** be reverted to restore the gate. That the old coverage
+existed at all was an accident — nobody chose ts-jest as the typecheck gate, which is why nobody
+noticed when it stopped being one.
+
+**Bugs filed from the same review:**
+
+- `bug-022-npm-pack-prepack-rebuilds-dist` — `npm-distribution.test.ts:117` runs `npm pack` without
+  `--ignore-scripts`, so `prepack` rebuilds the shared `dist/` mid-suite while other workers spawn
+  from it. Its sibling `publish-metadata.test.ts:79` already passes the flag. Same class as the closed
+  `bug-003`, in a different disguise.
+- `bug-023-engines-node-floor-contradicts-commander` — `engines: node >=18` against `commander@15`'s
+  `>=22.12`. A **published-contract** defect, not a harness note: `spec-015` §1 pins the wrong floor
+  under "Unchanged", `task-059` is `done` and never validated `engines` against the dependency tree,
+  and `task-060`'s staging smoke runs on CI's Node ≥22 so it would not catch it. **Scheduled v0.3** by
+  the approver; must land before `task-060`/`task-061` publish for real.
+- `bug-021-core-index-excluded-from-coverage` — the coverage-discovery mechanism described above,
+  originally disclosed by `task-049`. Worth recording what the review **measured rather than
+  assumed**: the reported ~98 % is *not* materially overstated. Re-running with the exclusion removed
+  moves statements 98.18 → 98.30, branches 89.75 → 90.07 and lines 98.90 → 98.95 — all up. Only
+  functions drops (98.40 → 81.64), and that is an artifact: a barrel such as `src/dna/index.ts`
+  compiles to 19 `Object.defineProperty(exports, …, { get: … })` thunks, each counted by istanbul as
+  an uncovered function. The one genuine hole is `src/core/index.ts`. This branch also **closed** the
+  two files that were invisible at baseline (`src/cli/program.ts`, `src/cli.ts`), taking the count of
+  glob-selected-but-undiscovered files from two to zero.
+
+**Correction to the counts in these notes:** the two new suites hold **22 + 7 = 29** cases, not
+17 + 12. The total is what the reviewer's machine-diff confirms (966 + 29 + 2 = 997, the +2 being
+`latency-budget-placement`'s file-scan rows); only the split was misreported.
