@@ -2,7 +2,7 @@
 id: "task-064-fix-init-directive-scaffold-schema"
 type: task
 title: "Fix bug-006: `init` must scaffold directive .md that pass the directives schema"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Low"
 tags: ["v0.2", "cli"]
