@@ -2,7 +2,7 @@
 id: "task-059-publish-metadata"
 type: task
 title: "Publish metadata: complete package.json publish surface (dl-018 T1)"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
