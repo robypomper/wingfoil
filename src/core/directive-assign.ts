@@ -99,8 +99,8 @@ function parseRoles(text: string, filePath: string): CoreResult<{ raw: Record<st
  *   re-parse equals the validated input with `assignments.<role>` replaced by a string list
  *   (`setRoleAssignmentsInText`'s self-check), and the whole-file `dump` serializes exactly that object.
  *
- * Commits through `commitPaths`, which today commits the whole index (bug-027, being fixed in
- * task-045) — callers must not rely on that behaviour.
+ * Commits through `commitPaths`, which since bug-027's fix (`git commit --only -- <paths>`) records
+ * exactly the path it is given and leaves anything else staged untouched.
  *
  * @param root - Project root.
  * @param role - The role whose list is updated (already validated by the caller).

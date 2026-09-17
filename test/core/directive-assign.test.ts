@@ -9,9 +9,9 @@
  * Exercises the REAL registered `CORE_MODULES` operation against THROWAWAY temp git repos carrying the
  * real `wingfoil init` scaffold, never this repository's own `.wingfoil/`.
  *
- * bug-027 note: `commitPaths` currently commits the whole index. These tests start every call from a
- * clean index and assert the commit contains exactly `.wingfoil/roles.yaml`; they deliberately do NOT
- * depend on (or test) the whole-index behaviour — that regression test belongs to bug-027's fix.
+ * bug-027 (fixed in task-045, on `main` since this branch merged it): `commitPaths` now commits only
+ * the paths it is handed, so the assign commit is scoped even when unrelated work is staged — pinned
+ * at this call path by the "a change someone else staged" case below.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -133,6 +133,17 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe(message);
     expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
     expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  // bug-027 at this call path: assign must not sweep in whatever the caller has staged.
+  it('a change someone else staged is NOT swept into the `wf(directive): assign` commit, and stays staged', async () => {
+    writeFixtureFile(repo, 'other.txt', 'staged by someone else');
+    execFileSync('git', ['-C', repo, 'add', 'other.txt'], { encoding: 'utf-8' });
+
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' } });
+    expect(result.ok).toBe(true);
+    expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
+    expect(gitOut(repo, ['diff', '--cached', '--name-only'])).toBe('other.txt');
   });
 
   // AC4 — comment/format preservation: exactly one added line, every other byte intact.
