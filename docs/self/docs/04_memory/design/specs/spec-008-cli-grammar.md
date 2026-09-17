@@ -32,8 +32,11 @@ wingfoil [global-flags] <noun> <verb> [args] [flags]      # pillar/verb form, e.
 wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. `init`, `paths`, `audit`
 ```
 
-- `<noun>` is a pillar namespace (`memory`, `dna`, `directive`, `workflow`, `agent`) or a flat command
-  (`init`, `paths`, `audit`).
+- `<noun>` is a pillar namespace (`memory`, `dna`, `directive`, `directives`, `workflow`, `agent`) or a
+  flat command (`init`, `paths`, `audit`). The Directives pillar deliberately exposes two nouns —
+  singular `directive` (`create`, `assign`, `remove`) and plural `directives` (`list`) — each the
+  `CoreModule.name` its operations register under (`spec-006-core-domain-api` §3 `module` column,
+  `dl-041-spec-006-module-grouping-vs-core-module-name`).
 - Global flags (§2) may appear anywhere after `wingfoil` — before or after `<noun>`/`<verb>`. If a flag is
   repeated, the last occurrence wins.
 - Unknown `<noun>` or `<noun> <verb>` tokens produce `E_UNKNOWN_COMMAND` (exit `2`, REQ-INT-04) with a
@@ -204,3 +207,9 @@ exits `0`.
 
 Cross-checked every claim against `docs/self/.wingfoil/dna.yaml` (`tech_stack.cli` = Commander.js +
 chalk) and `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-04, REQ-INT-05, REQ-INT-08).
+
+**Revision (2026-09-17) — `directives` added to §1's noun list, per
+`dl-041-spec-006-module-grouping-vs-core-module-name`.** The list named only the singular `directive`,
+although `wingfoil directives list` (BDD `P3.4-directives-list.feature`) has shipped on the `directives`
+module since `task-006`. Edited in place without a supersede or a state change (the `spec-001`
+precedent `dl-041` cites).
