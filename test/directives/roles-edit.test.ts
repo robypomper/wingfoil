@@ -164,6 +164,18 @@ describe('setRoleAssignmentsInText — a role with no assignments entry yet (dl-
     );
   });
 
+  it('inserts under an `assignments:` block that has no entries yet, at the default indentation', () => {
+    expect(setRoleAssignmentsInText('assignments:\nglobal: []\n', 'qa', ['testing'])).toBe(
+      'assignments:\n  qa:\n    - testing\nglobal: []\n',
+    );
+  });
+
+  it('uses key indentation + 2 for items when no sibling has a block list to copy', () => {
+    expect(setRoleAssignmentsInText('assignments:\n  qa: []\nglobal: []\n', 'developer', ['testing'])).toBe(
+      'assignments:\n  qa: []\n  developer:\n    - testing\nglobal: []\n',
+    );
+  });
+
   it('returns the text unchanged for an absent role and an empty `next`', () => {
     expect(setRoleAssignmentsInText(SCAFFOLD, 'qa', [])).toBe(SCAFFOLD);
   });
@@ -192,6 +204,13 @@ describe('setRoleAssignmentsInText — refuses (undefined) whatever it cannot ed
     ['tab indentation', 'assignments:\n\tdeveloper:\n\t\t- testing\nglobal: []\n'],
     ['mixed line endings', 'assignments:\r\n  developer:\n    - testing\nglobal: []\n'],
     ['text that is not YAML', 'assignments:\n  developer:\n    - [unclosed\n'],
+    // The re-parse self-check: `qa` aliases `developer`'s list, so appending to it would silently
+    // change `qa` too — the edit is refused rather than applied.
+    ['a lone CR line ending', 'assignments:\r  developer:\r    - testing\rglobal: []\r'],
+    ['a flow-mapping child line', 'assignments:\n  {developer: [testing], qa: [testing]}\nglobal: []\n'],
+    ['a tagged/null key line the editor cannot re-render', 'assignments:\n  developer: ~\nglobal: []\n'],
+    ['invalid YAML outside the assignments block', 'assignments:\n  developer:\n    - testing\nglobal: [unclosed\n'],
+    ['a list another role aliases', 'assignments:\n  developer: &d\n    - testing\n  qa: *d\nglobal: []\n'],
   ])('%s', (_label, text) => {
     expect(setRoleAssignmentsInText(text, 'developer', ['testing', 'security'])).toBeUndefined();
   });
@@ -202,6 +221,11 @@ describe('setRoleAssignmentsInText — refuses (undefined) whatever it cannot ed
     const next = setRoleAssignmentsInText(SCAFFOLD, 'developer', ['testing', 'code-quality', 'determinism']);
     expect(next).toBeDefined();
     expect(assignmentsOf(next as string).developer).toEqual(['testing', 'code-quality', 'determinism']);
+  });
+
+  it('refuses an id whose rendering would span several lines — appended or inserted', () => {
+    expect(setRoleAssignmentsInText(SCAFFOLD, 'reviewer', ['code-review', 'traceability', 'two\nlines'])).toBeUndefined();
+    expect(setRoleAssignmentsInText(SCAFFOLD, 'qa', ['two\nlines'])).toBeUndefined();
   });
 
   it('is deterministic: the same inputs give byte-identical output', () => {

@@ -75,32 +75,25 @@ function mappingEntry(body: string): { key: string; value: unknown } | undefined
   return { key: keys[0] as string, value: (parsed as Record<string, unknown>)[keys[0] as string] };
 }
 
-function hasOwn(object: object, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(object, key);
-}
-
 function sameJson(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /**
  * Read `edited` back and confirm `assignments.<role>` is exactly `next` while every other top-level
- * key and every other role is unchanged — the safety net behind the textual edit.
+ * key and every other role is unchanged — the safety net behind the textual edit (it catches, e.g., a
+ * YAML alias elsewhere in the file that would silently change along with the edited list).
  */
 function readsBackAs(original: string, edited: string, role: string, next: readonly string[]): boolean {
   const before = tryLoad(original) as Record<string, unknown> | undefined;
   const after = tryLoad(edited) as Record<string, unknown> | undefined;
-  if (!before || !after || typeof after !== 'object') return false;
+  if (!before || !after) return false;
   const beforeAssignments = { ...(before.assignments as Record<string, unknown>) };
   const afterAssignments = { ...(after.assignments as Record<string, unknown>) };
-  if (next.length === 0 && !hasOwn(beforeAssignments, role)) {
-    if (hasOwn(afterAssignments, role)) return false;
-  } else if (!sameJson(afterAssignments[role], next)) {
-    return false;
-  }
+  const roleMatches = sameJson(afterAssignments[role], next);
   delete beforeAssignments[role];
   delete afterAssignments[role];
-  return sameJson({ ...before, assignments: beforeAssignments }, { ...after, assignments: afterAssignments });
+  return roleMatches && sameJson({ ...before, assignments: beforeAssignments }, { ...after, assignments: afterAssignments });
 }
 
 /**

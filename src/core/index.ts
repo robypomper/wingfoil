@@ -802,9 +802,10 @@ const directivesListFn: CoreFn<unknown, DirectiveListEntry[]> = async (params) =
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
  * under a `memoryXxx` name would misrepresent it as the latter. As of
  * task-025-implement-dna-set the registry has its FIRST mutating operation — `dna.dnaSet`
- * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020) and `directive.directiveCreate`
- * (P3.1, task-050) have since joined it, and the remaining spec-006 §3 mutating functions
- * (`memorySubmit`, `directiveAssign`, `workflowStart`, ...) are still later tasks' scope. The
+ * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020), `directive.directiveCreate`
+ * (P3.1, task-050) and `directive.directiveAssign` (P3.2, task-051) have since joined it, and the
+ * remaining spec-006 §3 mutating functions (`memorySubmit`, `directiveRemove`, `workflowStart`, ...)
+ * are still later tasks' scope. The
  * REQ-SYS-05 parity test in `test/core/parity.test.ts` runs against this exact array, so it is now a
  * live regression guard: each of those mutating ops must appear as both a CLI command and an MCP
  * Tool, or the diff fails.

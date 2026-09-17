@@ -28,7 +28,7 @@ import type { DnaYaml } from '../dna/schema';
 import { setRoleAssignmentsInText } from '../directives/roles-edit';
 import { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, writeDocument } from '../storage';
-import { parseYaml, toValidationError, ValidationError } from '../validation';
+import { parseYaml, toValidationError, type ValidationError } from '../validation';
 
 import type { DirectiveFile } from './loaders';
 import type { CoreError, CoreResult } from './types';
@@ -76,8 +76,9 @@ function parseRoles(text: string, filePath: string): CoreResult<{ raw: Record<st
   try {
     raw = parseYaml(text, filePath);
   } catch (error) {
-    if (error instanceof ValidationError) return validationError(error);
-    throw error;
+    // `parseYaml` wraps every YAML syntax failure in a `ValidationError` and throws nothing else
+    // (`src/validation/yaml.ts`).
+    return validationError(error as ValidationError);
   }
   const parsed = RolesYaml.safeParse(raw);
   if (!parsed.success) return validationError(toValidationError(parsed.error, filePath));
@@ -94,7 +95,9 @@ function parseRoles(text: string, filePath: string): CoreResult<{ raw: Record<st
  * - The edit goes through `setRoleAssignmentsInText`, keeping every comment and unrelated line. When it
  *   cannot apply, a whole-file `dump` is used only if the file contains no `#` at all; otherwise the
  *   result is `CONFLICT` and the file is left untouched.
- * - The exact bytes about to be written are re-validated against `RolesYaml` (`VALIDATION` otherwise).
+ * - No second schema pass on the output is needed: the in-place edit is only accepted when its
+ *   re-parse equals the validated input with `assignments.<role>` replaced by a string list
+ *   (`setRoleAssignmentsInText`'s self-check), and the whole-file `dump` serializes exactly that object.
  *
  * Commits through `commitPaths`, which today commits the whole index (bug-027, being fixed in
  * task-045) — callers must not rely on that behaviour.
@@ -142,9 +145,6 @@ export function updateRoleAssignments(
     }
     serialized = wholeFile();
   }
-
-  const written = parseRoles(serialized, filePath);
-  if (!written.ok) return written;
 
   writeDocument(filePath, serialized);
   const sha = commitPaths(root, [ROLES_YAML_PATH], message);

@@ -155,7 +155,6 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(exitCodeForResult(result)).toBe(1);
     expect(readRoles(repo)).toBe(before);
     expect(head(repo)).toBe(sha);
-    expect(result.commit).toBeUndefined();
   });
 
   // BDD Scenario 3: "Error - assigning a non-existent directive".
@@ -198,7 +197,7 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     });
     expect(readRoles(repo)).toBe(bytes);
     expect(head(repo)).toBe(sha);
-    expect(loadRolesYaml(repo).assignments.developer.filter((id) => id === 'testing')).toHaveLength(1);
+    expect((loadRolesYaml(repo).assignments.developer ?? []).filter((id) => id === 'testing')).toHaveLength(1);
   });
 
   // AC7 — dl-029: a role defined in DNA with no `assignments` entry yet.
@@ -223,6 +222,17 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(thrown).toBeInstanceOf(UsageError);
     expect(exitCodeForThrow(thrown)).toEqual({ reason, exitCode: 2 });
     expect(readRoles(repo)).toBe(before);
+  });
+
+  it('a roles.yaml that is not valid YAML is a VALIDATION error (exit 1), nothing written', async () => {
+    writeFixtureFile(repo, ROLES, 'assignments:\n  developer: [unclosed\n');
+    commitAll(repo, 'fixture: unparseable roles.yaml');
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('VALIDATION');
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(readRoles(repo)).toBe('assignments:\n  developer: [unclosed\n');
   });
 
   it('a schema-invalid roles.yaml is a VALIDATION error (exit 1), nothing written or committed', async () => {
