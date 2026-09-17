@@ -2,7 +2,8 @@
 id: "task-055-auto-load-directives-by-role"
 type: task
 title: "Implement Auto-Load Directives by Role"
-status: in-review
+status: in-progress
+rejection_reason: "dl-037 (custom/ wins, decided by REQ-SEC-07's directory check, total tiebreak), dl-042 A+D ({entries, warnings}; no-assignments and dangling warnings under --role) and P3.6 are implemented correctly; mutation testing confirms the winner and every warning kind, and all Execution Notes claims were re-verified (red 34/84 at d23f8e7, five read sites, the test/mcp grep). Rejected because the promised warning order is not pinned by any test: removing the `.sort()` at src/core/context.ts:172 (dangling ids) or :121 (shadow-warning paths) leaves all 69 context and listing tests green, although the TSDoc and design decision D3 promise ascending order on a REQ-SYS-07 path. Add a test with two dangling ids in reverse order and one feeding selectDirectivesById reversed input, then resubmit. D4 (dangling warning in ExecutionContext.warnings, including dangling globals) is accepted by the approver; a decision-log amending spec-012 §5 is filed separately."
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
