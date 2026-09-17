@@ -122,7 +122,7 @@ not listed, and an unstaged clean edit cannot hide a staged secret. TSDoc and th
 
 | # | AC | Class | Evidence (command run at design) |
 |---|---|---|---|
-| AC1 | `NPM_TOKEN` from the Actions secret store only, transient `.npmrc` at publish time, never committed | red-first | `grep -n "NPM_TOKEN\|npmrc" .github/workflows/publish.yml` → only the header comment "NOT wired here"; `grep -n npmrc .gitignore` → no match |
+| AC1 | `NPM_TOKEN` from the Actions secret store only, transient `.npmrc` at publish time, never committed | red-first | `grep -n "NPM_TOKEN\|npmrc" .github/workflows/publish.yml` → one hit, line 13, the header comment deferring the `.npmrc` to task-061 (no `NPM_TOKEN` at all); `grep -n npmrc .gitignore` → no match |
 | AC2 | document approver providing/rotating the secret + authorizing the tagged release (`adr-006`) | red-first | `grep -niE "rotat\|environment" .github/workflows/publish.yml` → no match; promote has no `environment:` |
 | AC3 | rollback: `npm deprecate` + patch over `npm unpublish`; failed staging smoke blocks promotion | split: **rollback doc red-first** (`grep -n deprecate .github/workflows/publish.yml` → no match) / **smoke-blocks-promotion characterization** — already true: `promote.needs: stage` and `publish-staging.cjs` exits non-zero on smoke failure (both asserted by task-060's suites) |
 | AC4 | dl-036.1: `jwt-like`, `dotenv-style-secret-line` `warn → block` in code; widen the REQ-SEC-08 Fit-Criterion test | red-first | `secret-scan.ts` declares both `severity: 'warn'` (read above) |
@@ -168,3 +168,125 @@ not listed, and an unstaged clean edit cannot hide a staged secret. TSDoc and th
 | SIGKILL fallback in `publish-staging.cjs` `stop()` | **not in scope** | spec-015 §3 staging-script robustness (task-060's ground); no credential involved (the staging token is throwaway and scrubbed) |
 | enforce §4 annotated tag | **not in scope** | §4 is done ground; and whether `actions/checkout` preserves an annotated tag object on a tag push cannot be verified offline — an unverified check could fail the first real release |
 | trusted publishing vs `NPM_TOKEN` | **approver decision, §5 kept** | see above |
+
+### red — role: developer
+
+Commit `6a3b02f test(validation): …`. New suite `test/cli/publish-secrets.test.ts` (12); widened
+`test/validation/secret-scan.test.ts`; `publish-pipeline.test.ts` › "carries no registry credential"
+narrowed to gate + stage (task-060 wrote it to be narrowed here).
+
+Observed red — `npx jest test/validation/secret-scan.test.ts` → `Tests: 9 failed, 35 passed, 44 total`;
+`npx jest test/cli/publish-secrets.test.ts test/cli/publish-pipeline.test.ts` →
+`Tests: 10 failed, 17 passed, 27 total`. Reasons, per AC:
+
+- AC1: `maps secrets.NPM_TOKEN…` `Expected: {"NPM_TOKEN": "${{ secrets.NPM_TOKEN }}"} / Received: undefined`;
+  `.npmrc line` / fake-npm run cases fail on the missing step script; `git check-ignore` exit 1;
+  `persist-credentials` undefined. `fails before writing anything… when the secret is not configured`:
+  `Expected: not 0` — today's step calls npm with no secret check.
+- AC2/AC3 doc: `Expected: "npm-publish" / Received: undefined`; runbook/rollback regexes do not match.
+- AC4: severity cases `Expected: "block" / Received: "warn"` (×2 patterns), the pinned blocking-set case.
+- AC5: both directive cases (no `<!-- example -->` etc. in `security-secrets.md`).
+- AC6 (bug-015): `ENOENT: no such file or directory, open '/tmp/wf-storage-…/.wingfoil/leaky.md'` at
+  `secret-scan.ts:397` (`readFileSync`); the two staged-vs-unstaged cases fail on deep equality because
+  the working tree was read.
+
+Passing at red, by design (guards, not ACs forced red): `keeps the promote job checkout-free` (true since
+task-060), `removes the .npmrc after a successful publish` (vacuous until a `.npmrc` is written — paired
+with the "publishes … while the .npmrc exists" case), `does not list a staged deletion at all` (`git rm`
+removes both index entry and file, so the old reader agreed), and the narrowed pipeline case.
+
+### green — role: developer
+
+Commit `fcd5142 feat(validation): …`.
+
+- `src/validation/secret-scan.ts`: `jwt-like`, `dotenv-style-secret-line` → `severity: 'block'` (comment
+  cites dl-036); `scanProjectSurface` lists **and reads** the index (`git ls-files -s -z` + one
+  `git cat-file --batch`), contract written into its TSDoc (bug-015).
+- `.github/workflows/publish.yml`: promote `environment: npm-publish`; the publish step maps
+  `NPM_TOKEN` from `secrets.NPM_TOKEN` into its own env only, fails fast when empty, writes the literal
+  spec-015 §5 line to `.npmrc` (single-quoted), `trap 'rm -f .npmrc' EXIT`, then task-060's unchanged
+  `npm publish dist-pack/*.tgz --provenance --access public`; `persist-credentials: false` on both
+  checkouts; header runbook (environment setup, provide/rotate/revoke, authorize, rollback) replaces
+  the "NOT wired here" paragraph.
+- `.gitignore`: `.npmrc` (the file had no trailing newline — the first append produced `.idea.npmrc`;
+  caught by the `git check-ignore` case, fixed before commit).
+- `docs/self/.wingfoil/directives/custom/security-secrets.md`: "The secret scan, and how to document a
+  credential without tripping it" — the three §3 exclusions with worked examples. The placeholder
+  example first sat indented under a list item and matched **nothing** (see proposed element on the
+  dotenv regex), which the "only because they use the hatch" case caught; it is now at column 0.
+
+Registry host check, not assumed: the token line is scoped to `registry.npmjs.org`; publishing a
+*tarball* still honours the manifest's `publishConfig.registry` — npm 11.6.2 source
+`/usr/local/lib/node_modules/npm/lib/commands/publish.js` `#getManifest` reads the manifest via pacote
+for a non-directory spec and then `flatten(filteredPublishConfig, opts)`.
+
+`npx jest` → `Test Suites: 86 passed, 86 total` / `Tests: 1162 passed, 1162 total`.
+
+### refactor — role: developer
+
+Commits `79c3d94 refactor(validation): … pair indexed paths with their blobs in
+one reader; pin gitlink skip and missing-blob failure` and `df9797a refactor(validation): … parse index records
+with one regex; pin the empty surface-root guard`. The new cases were mutation-checked, not just added:
+disabling the gitlink skip → `git cat-file could not read the indexed blob of .wingfoil/vendored` (red);
+deleting the `trap` line in `publish.yml` → the two `.npmrc`-removal cases fail; swapping the
+single-quoted `.npmrc` line for a double-quoted one (shell-expanded token on disk) → the unexpanded-line
+case and the fake-npm "never writing the token value" case fail. The first refactor alone dropped global
+branch coverage below main (89.97 vs 90.18); the second removed the untaken destructuring defaults and
+covered the empty-roots guard.
+
+`git merge main` (`38512c8`, dl-035) brought task-055 only: `git diff --stat 8a6a091 9c83ca2` lists
+`src/core/{context,directives-list,index}.ts`, their tests and task-055's file — nothing this task cites
+(`spec-015`, `spec-007`, `dl-036`, `dl-045`, `bug-015`, `publish.yml`, the scanner), so no note needed
+correcting.
+
+**Gates (after the merge, from this worktree):**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest` | `Test Suites: 86 passed, 86 total` · `Tests: 1186 passed, 1186 total` |
+| coverage | `npx jest --coverage` | `All files | 98.33 | 90.43 | 98.46 | 98.95`; `main` @ `9c83ca2` measured in a detached scratch worktree: `98.32 | 90.33 | 98.46 | 98.94` — non-regressing on all four |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full types | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026) |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**`security-secrets` / spec-007 over this task's own files** (`scanText` from `dist/validation/secret-scan.js`):
+`publish.yml`, `.gitignore`, `secret-scan.ts`, `publish-pipeline.test.ts`, this task file, `bug-015` →
+0 blocking / 0 warnings / 0 info; `security-secrets.md` → 0 / 0, info = `dotenv-style-secret-line/placeholder-value`,
+`generic-api-key-assignment/fenced-example`, `dotenv-style-secret-line/fenced-example`;
+`publish-secrets.test.ts` → 0 / 0, info = `generic-api-key-assignment/placeholder-value` (the
+`XXXXXXXXXXXXXXXXXXXX` fake token). `scanProjectSurface(repoRoot)` → `filesScanned 219`, 0 blocking,
+0 warnings, 3 info (the directive's examples). **Exception, stated plainly:**
+`test/validation/secret-scan.test.ts` scans to 23 blocking / 1 warning — it is the scanner's own fixture
+suite and must hold *detectable* fake shapes; `main`'s copy scans to 19 under the same (promoted) pattern
+set, the 4 new ones reuse its existing `sk_live_fake…` literal. It is outside the scan surface; the
+spec-007 hatch meant for it (`security-ignore`) is unreachable in this repository — proposed element.
+
+### review-ready summary
+
+`tests.bdd.run`: no BDD feature exists for this task — `grep -rlniE "secret|npm_token|npmrc|publish"
+docs/02_requirements/02_bdd/features/` → no match. REQ-SEC-08's feature traceability points at
+`P3.8-builtin-directive-templates.feature` (task-057's). Acceptance tests are the suites below.
+
+| AC | Class | Test(s) |
+|---|---|---|
+| AC1 `NPM_TOKEN` secret store only, transient `.npmrc`, never committed | red-first | `publish-secrets.test.ts` › maps secrets.NPM_TOKEN into the promote publish step only; › writes the spec-015 §5 .npmrc line…; › keeps the promote job checkout-free…; › git-ignores .npmrc…; › does not persist the GitHub token into any checkout…; the four `promote publish step … executed with a fake npm` cases; `publish-pipeline.test.ts` › gate and stage carry no registry credential… |
+| AC2 approver provides/rotates + authorizes the release | red-first | `publish-secrets.test.ts` › runs promote in the protected `npm-publish` environment…; › documents the approver runbook… |
+| AC3 rollback posture | red-first (doc) + characterization (smoke blocks promote) | `publish-secrets.test.ts` › documents rollback as npm deprecate + a patch release…; `publish-pipeline.test.ts` › runs gate → stage → promote as a strict `needs` chain; `publish-staging.test.ts` › fails (exit 1) when smoke fails, and still tears down |
+| AC4 dl-036 promotion + widened Fit Criterion | red-first | `secret-scan.test.ts` › classifies each pattern block/warn severity…; › blocks on a JWT-shaped string; › blocks on a .env-style credential line…; REQ-SEC-08 Fit Criterion › gates on the dl-036 blocking set… |
+| AC5 escape hatch discoverable | red-first | `secret-scan.test.ts` › escape hatch documented… › names all three spec-007 §3 exclusions; › its own worked examples pass the scan only because they use the hatch |
+| AC6 bug-015 index contract | red-first | `secret-scan.test.ts` › reads the git index, not the working tree (bug-015) — all 7 cases |
+
+**For the reviewer / approver:**
+1. **Nothing here has run against GitHub or npm.** The promote step's shell was executed with a fake
+   `npm`; the `.npmrc` env expansion was probed with npm 11.6.2 only (CI's npm is 10.9 per the brief).
+2. **The approval gate is nominal until the approver configures `npm-publish`** (required reviewer,
+   `v*` tags, environment secret) — GitHub creates a missing referenced environment unprotected.
+3. **`persist-credentials: false` on gate** makes its `git fetch --no-tags origin main` anonymous: fine
+   for a public repository, fails closed for a private one.
+4. **bug-015 contract changes observable behaviour:** unstaged edits are no longer scanned. That is the
+   point for a commit/publish gate, but a caller wanting "what is on disk" now has no entry point.
+5. **`.gitignore` gains `.npmrc`** — a future *non-secret* project `.npmrc` (e.g. `engine-strict`) would
+   need an explicit un-ignore.
+6. Trusted publishing, SHA-pinning, `timeout-minutes`, the staging `stop()` SIGKILL fallback and
+   annotated-tag enforcement are **not** done here (design table) — handed back as proposed elements.
