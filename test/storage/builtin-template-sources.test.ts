@@ -14,7 +14,7 @@
  * integrity check"; `p4-workflow/P4.17-builtin-workflow-templates.feature` "Error - a built-in
  * workflow template is structurally invalid".
  */
-import type { ScaffoldFile } from '../../src/storage/layout';
+import { scaffoldFiles, type ScaffoldFile } from '../../src/storage/layout';
 import {
   BUILTIN_DIRECTIVES_DIR,
   BUILTIN_WORKFLOWS_DIR,
@@ -127,5 +127,20 @@ describe('builtinTemplateSources — total coverage of the real scaffold', () =>
       const dotfiles = builtinPathsOf(files).filter(isDotfile).length;
       expect(skipped).toBe(dotfiles);
     }
+  });
+
+  /**
+   * task-054-project-directives: the same property over the OTHER scaffold. `scaffoldFiles()` — the
+   * P1.1 minimal skeleton `initWingfoilStorage` writes — now reserves `.wingfoil/directives/built-in/`
+   * too (P3.5), so it has a built-in-directory path of its own for the derivation to account for. This
+   * is the structural half of `bug-018`; `test/core/project-directives.test.ts` asserts the behavioural
+   * half (that `initWingfoilStorage` actually runs the guard over this derived list before writing).
+   */
+  it('accounts for every non-dotfile built-in path in the minimal skeleton too (scaffoldFiles)', () => {
+    const files = scaffoldFiles();
+    // The skeleton must reserve a built-in directory, or the property below is vacuous.
+    expect(builtinPathsOf(files).length).toBeGreaterThan(0);
+    const skipped = builtinPathsOf(files).length - builtinTemplateSources(files).length;
+    expect(skipped).toBe(builtinPathsOf(files).filter(isDotfile).length);
   });
 });

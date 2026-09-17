@@ -48,3 +48,88 @@ Layout per `spec-011`. Core of the Directives pillar.
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### design (architect)
+
+**`agent.read_related` (`dl-015`)** — `depends_on: []`, so there is nothing to read; the gate is a
+no-op for this task.
+
+**`agent.verify_specs`** — no missing artefact, `design` passes through with no approval gate:
+
+- `spec-011-storage-layout` (`approved`) already specifies the `directives/{built-in,custom}` split
+  and states that `built-in/` holds "only `.gitkeep` (empty)" today. That is the layout contract this
+  task realizes in the scaffold; nothing to add.
+- `spec-013-directive-frontmatter-schema` (`approved`) covers directive file contents — not touched
+  here (the split is about directories, and `task-064` already made the generated `custom/*.md`
+  frontmatter schema-valid).
+- `dl-031-req-sec-10-integrity-depth` (`ready`) fixes the depth of the `bug-018` guard: schema
+  validation **is** the REQ-SEC-10 contract. No digest, no manifest, no checksum is in scope.
+
+**`agent.classify_acs` (T1)** — state of the two write paths as actually read in
+`src/storage/layout.ts`, `src/storage/templates.ts` and `src/core/init.ts` at `8456f28`:
+
+| # | Acceptance criterion | Path | Class | Evidence |
+|---|---|---|---|---|
+| A1 | `.wingfoil/directives/` contains `built-in/` **and** `custom/` after `wingfoil init` | `initWingfoilProject` → `templateScaffold` | **characterization** | `templateScaffold` already emits `directives/built-in/.gitkeep` + ten `directives/custom/*.md`; asserted by `test/storage/templates.test.ts` "creates the directives built-in/custom split (spec-011)" |
+| A2 | …and on the minimal skeleton path too | `initWingfoilStorage` → `scaffoldFiles` | **red-first** | `scaffoldFiles()` emits a single flat `.wingfoil/directives/.gitkeep` — no split at all |
+| A3 | both subfolders are **tracked by git** (BDD `And both are tracked by git`) | both | **red-first** | no test anywhere runs `git ls-files` over `.wingfoil/directives/`; `test/storage/templates.test.ts` asserts the in-memory `ScaffoldFile[]` path list only, and `test/core/init-project.test.ts` asserts `existsSync` only |
+| A4 | `bug-018` — both write paths run the REQ-SEC-10 built-in integrity guard before writing | `initWingfoilStorage` | **red-first** | `src/core/init.ts:75` calls `initStorage(root)` with no guard; only `initWingfoilProject` (lines 142-146) derives sources and calls `verifyBuiltinTemplates` |
+
+A1 is exempt from `red`'s failing-test requirement (plan §3.3); A2/A3/A4 must fail first.
+
+**Why A4 has to land in this task.** A2 is what arms it: once `scaffoldFiles()` emits
+`.wingfoil/directives/built-in/`, the minimal skeleton owns a built-in asset directory on a write path
+that checks nothing. Today nothing escapes only because `builtinSourceOf` (`src/storage/templates.ts`)
+returns `null` for any basename starting with `.`, and `.gitkeep` is the only thing in there. That is a
+fact about the current *content*, not a guarantee — exactly the shape `task-044` was rejected for, and
+the one `bug-018`'s reporter predicted.
+
+**Design decisions:**
+
+1. `scaffoldFiles()` replaces `directives/.gitkeep` with `directives/built-in/.gitkeep` +
+   `directives/custom/.gitkeep`. Two placeholders, because git tracks files, not directories — the BDD
+   "both are tracked by git" clause is only satisfiable via a tracked entry inside each.
+2. Scope held to the **directives** split. `workflows/{built-in,custom}` stays out of the minimal
+   skeleton: that is P4.17 ground, and `scaffoldFiles()` is deliberately the P1.1 skeleton, not the
+   full spec-011 layout (which `templateScaffold` already provides).
+3. `initWingfoilStorage` computes `scaffoldFiles()` **once**, runs the same
+   `builtinTemplateSources` → `verifyBuiltinTemplates` derivation `initWingfoilProject` runs, and
+   passes that same array to `initStorage`. Deriving from the array that is about to be written is the
+   property that makes "installed but unchecked" unrepresentable; re-calling `scaffoldFiles()` for the
+   write would reintroduce the drift by the back door.
+4. Guard order mirrors `initWingfoilProject`: git-repo → git identity → REQ-SEC-10. `verifyBuiltinTemplates`
+   is pure and touches no disk, so running it before the write satisfies REQ-SEC-10's "before writing
+   partial assets" ordering.
+5. `initWingfoilStorage` gains the same optional test-only `builtinTemplates` override
+   `initWingfoilProject` already carries, so the symmetry can be exercised through both public entry
+   points by one shared table rather than asserted twice in different shapes.
+
+### red (developer)
+
+Two files, both driving the production entry points (no test-only reimplementation of the layout):
+
+- **`test/core/project-directives.test.ts`** (new) — the P3.5 BDD scenario "Directive storage layout
+  exists after init", plus the `bug-018` guard, each asserted as a `describe.each` table over
+  **both** write paths. Git tracking is checked with `git ls-files .wingfoil/directives` (plus
+  `git status --porcelain --untracked-files=all` empty), because `existsSync` cannot discharge the
+  BDD's `And both are tracked by git`.
+- **`test/storage/builtin-template-sources.test.ts`** — one added case extending the existing
+  "total coverage of the real scaffold" property from `templateScaffold` to `scaffoldFiles()`.
+
+**Observed red — `npx jest test/core/project-directives.test.ts test/storage/builtin-template-sources.test.ts`:
+2 suites failed, 5 tests failed / 16 passed (21 total).** The five:
+
+1. `P3.5 … initWingfoilStorage › creates .wingfoil/directives/ with a built-in/ and a custom/ subfolder`
+   — `existsSync(.wingfoil/directives/built-in)` `Expected: true / Received: false`.
+2. `P3.5 … initWingfoilStorage › tracks BOTH subfolders in git` — no tracked path starts with
+   `.wingfoil/directives/built-in/`.
+3. `bug-018 … initWingfoilStorage › aborts with a VALIDATION error naming the failing template` —
+   `Received: {"ok": true}`: the corrupted source list was accepted and the scaffold written.
+4. `bug-018 … initWingfoilStorage › fails closed on an unrecognized built-in kind` — same `{"ok": true}`.
+5. `builtinTemplateSources … scaffoldFiles` — `builtinPathsOf(scaffoldFiles()).length`
+   `Expected: > 0 / Received: 0`.
+
+**T1 correction from the observed run.** Every `initWingfoilProject` row in both tables passed
+unchanged, including the git-tracking one. So A3 is red-first on the **skeleton** path only; on the
+`wingfoil init` path it was already true, just never asserted — characterization, like A1. A2 and A4
+are red-first as classified. No fabricated red was needed anywhere.
