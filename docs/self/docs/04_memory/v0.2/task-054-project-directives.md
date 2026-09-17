@@ -158,3 +158,107 @@ Guard order matches `initWingfoilProject` — git-repo, then identity, then REQ-
 test/storage/builtin-template-sources.test.ts` → 2 suites passed, 21 tests passed.
 Full suite `npx jest --maxWorkers=2` → **75 suites / 978 tests, all passing** (baseline at `8456f28`
 was 74 suites / 966 tests; +1 suite, +12 tests). `npx tsc -p tsconfig.build.json` exit 0.
+
+### refactor (developer)
+
+Documentation only — no behaviour change (the suite count and results are identical before and after).
+Four doc comments were corrected because the change invalidated what they asserted:
+
+- `src/storage/layout.ts` — module header and `scaffoldFiles`: the skeleton's `directives/` is now a
+  `{built-in,custom}` split; why two `.gitkeep`s rather than one (git tracks files, not directories,
+  and P3.5 requires *both* subfolders tracked); why `built-in/` being an asset directory is what
+  obliges the REQ-SEC-10 guard on this path; and why `workflows/{built-in,custom}` stays out (P4.17).
+- `src/core/init.ts` — module header now states that BOTH write paths run the REQ-SEC-10 check over
+  the array they are about to write, and `initWingfoilStorage`'s own comment documents its three
+  guards, the `builtinTemplates` override, and the `dl-031` "schema validation, no digest" scope.
+- `src/core/builtin-integrity.ts` — `verifyBuiltinTemplates`' "Callers (namely `initWingfoilProject`)"
+  line was stale the moment guard 3 landed; it now names both callers and states the rule that
+  generated them (every `initStorage` write path is one).
+- `src/storage/templates.ts` — the module header claimed task-018 deferred the `directives/{built-in,
+  custom}` split to `templateScaffold`; that is no longer where it exclusively lives.
+  `builtinTemplateSources`' comment now records that both scaffolds flow through it.
+
+**Gates, all observed in this worktree at this commit:**
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **75 suites / 978 tests passed**, 0 failed |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **global 98.11% stmts / 89.70% branch / 98.33% funcs / 98.85% lines** |
+| `docs.api.build` + `public-complete` | `npm run docs:api` | exit **0** |
+| (build typecheck) | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (`dl-034`) | `npx eslint .` | exit **0** |
+
+Per-file coverage for the touched files: `src/storage/layout.ts` **100 / 100 / 100 / 100**;
+`src/core/builtin-integrity.ts` **100 / 100 / 100 / 100**; `src/storage/templates.ts`
+**100 / 95 / 100 / 100** (uncovered branch: line 457, the `sort` comparator's equal-paths arm,
+pre-existing); `src/core/init.ts` **93.18 / 95 / 100 / 95.23** — the two uncovered lines, 117 and 192,
+are the pre-existing `catch` → `coreErr({code: 'IO'})` arms of the two init functions, unchanged here.
+
+### end-to-end verification (compiled CLI / compiled `dist`, not tests)
+
+`npm run build`, then a fresh `git init` repo under the scratch dir.
+
+**1. The real CLI, `wingfoil init` (`initWingfoilProject` path):**
+
+```
+$ node dist/cli.js init --template Scrum
+{ "root": "…/e2e-init", "template": "Scrum", "files": [ ".wingfoil/directives/built-in/.gitkeep",
+  ".wingfoil/directives/custom/architecture.md", … ] }
+exit=0
+
+$ ls -la .wingfoil/directives/
+drwxrwxr-x 2 … built-in
+drwxrwxr-x 2 … custom
+
+$ git ls-files .wingfoil/directives
+.wingfoil/directives/built-in/.gitkeep
+.wingfoil/directives/custom/architecture.md
+.wingfoil/directives/custom/code-quality.md
+.wingfoil/directives/custom/code-review.md
+.wingfoil/directives/custom/determinism.md
+.wingfoil/directives/custom/doc-versioning.md
+.wingfoil/directives/custom/documentation.md
+.wingfoil/directives/custom/security-secrets.md
+.wingfoil/directives/custom/security.md
+.wingfoil/directives/custom/testing.md
+.wingfoil/directives/custom/traceability.md
+
+$ git status --porcelain --untracked-files=all
+(empty)
+
+$ git log --oneline
+021603d chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)
+```
+
+`git ls-files` — not `ls` — is the proof: both subfolders hold entries in git's index, so a fresh
+clone reconstructs them (REQ-SYS-01).
+
+**2. The skeleton path (`initWingfoilStorage`), driven against compiled `dist/core`.** It has no CLI
+surface — `src/core/init.ts`'s header says it is deliberately not registered in `CORE_MODULES` until a
+verb exists — so it is exercised directly:
+
+```
+$ node -e "require('…/dist/core').initWingfoilStorage(process.cwd())"
+{ "ok": true, "files": [ ".wingfoil/directives/built-in/.gitkeep",
+  ".wingfoil/directives/custom/.gitkeep", ".wingfoil/dna.yaml", ".wingfoil/memory/.gitkeep",
+  ".wingfoil/memory.yaml", ".wingfoil/workflows.yaml" ] }
+
+$ git ls-files .wingfoil/directives
+.wingfoil/directives/built-in/.gitkeep
+.wingfoil/directives/custom/.gitkeep
+
+$ git status --porcelain --untracked-files=all
+(empty)
+```
+
+**3. The `bug-018` guard, same compiled build, fresh repo:**
+
+```
+$ node -e "…initWingfoilStorage(process.cwd(), [{name:'security', kind:'directive',
+           content:'truncated, no frontmatter\n'}])"
+{ "ok": false, "error": { "code": "VALIDATION",
+  "message": "built-in directive template integrity check failed: security" } }
+.wingfoil written? -> false
+```
+
+Before this task that same call returned `{ ok: true }` and wrote the scaffold (red evidence #3).

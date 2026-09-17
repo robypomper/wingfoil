@@ -6,9 +6,10 @@
  * substrate `wingfoil init` (task-029) builds its interactive wizard on top of. It deliberately does
  * NOT implement the CLI command, prompt for values, or populate the full spec-011 layout with real
  * pillar content: `scaffoldFiles()` returns only the minimal committed skeleton the P1.1 acceptance
- * contract requires (`dna.yaml`/`memory.yaml`/`workflows.yaml` + the `memory/` and `directives/`
- * subfolders), and `initStorage` takes an optional `files` override so task-029's wizard can pass its
- * own richer, spec-011-complete file set (with real content) through the exact same write+commit path.
+ * contract requires (`dna.yaml`/`memory.yaml`/`workflows.yaml` + the `memory/` and
+ * `directives/{built-in,custom}/` subfolders), and `initStorage` takes an optional `files` override so
+ * task-029's wizard can pass its own richer, spec-011-complete file set (with real content) through
+ * the exact same write+commit path.
  */
 import { join } from 'path';
 
@@ -35,14 +36,30 @@ const DNA_STUB = 'version: 1\n# Project DNA (P2.4) — populated by `wingfoil in
 const MEMORY_STUB = 'version: 1\ntypes: {}\n# Memory registry (P1.13) — populated by task-029.\n';
 const WORKFLOWS_STUB = 'version: 1\nincludes: []\n# Workflow config (P4.1) — populated by task-029.\n';
 // Git does not track empty directories, so each required subfolder carries a `.gitkeep` placeholder;
-// this makes `memory/` and `directives/` real, committed, git-tracked directories (P1.1 scenario 1).
+// this makes `memory/` and `directives/{built-in,custom}/` real, committed, git-tracked directories
+// (P1.1 scenario 1; P3.5 scenario 1's "And both are tracked by git" — see `scaffoldFiles`).
 const GITKEEP = '';
 
 /**
  * The default `.wingfoil/` skeleton: exactly the files the P1.1 acceptance contract
- * (P1.1-git-backed-storage.feature scenario 1) requires, in a fixed lexical order. Pure and
- * deterministic — no wall-clock, no environment read — so repeated calls are byte-identical
+ * (P1.1-git-backed-storage.feature scenario 1) and the P3.5 directive-layout contract
+ * (p3-directives/P3.5-project-directives.feature scenario 1) require, in a fixed lexical order. Pure
+ * and deterministic — no wall-clock, no environment read — so repeated calls are byte-identical
  * (REQ-SYS-07) and callers may compare/diff the set safely.
+ *
+ * `directives/` is split into `built-in/` and `custom/` per spec-011-storage-layout, each reserved by
+ * its own `.gitkeep`: P3.5 requires BOTH subfolders to be tracked by git, and git tracks files rather
+ * than directories, so one placeholder per subfolder is the minimum that discharges it
+ * (task-054-project-directives).
+ *
+ * That split is also why `initWingfoilStorage` (`src/core/init.ts`) runs the REQ-SEC-10 built-in
+ * integrity guard over this list before writing it: `directives/built-in/` is a built-in ASSET
+ * directory, so anything non-dotfile ever added here must be schema-checked first. Adding such a file
+ * needs no edit there — `builtinTemplateSources` derives the checked set from whatever this function
+ * returns (bug-018-init-storage-bypasses-integrity-guard).
+ *
+ * `workflows/{built-in,custom}/` is deliberately NOT part of this skeleton: it is P4.17 ground, and
+ * the complete spec-011 layout is `templateScaffold`'s job (see ./templates).
  */
 export function scaffoldFiles(): ScaffoldFile[] {
   return [

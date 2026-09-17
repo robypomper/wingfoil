@@ -134,16 +134,18 @@ function policyFor(kind: BuiltinTemplateKind): IntegrityPolicy | undefined {
  * Schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no unordered
  * iteration), and return the FIRST one that fails — or `null` when every source is valid (including
  * the trivial, always-passing case of an empty list, which is what `src/storage/templates.ts`'s
- * `builtinTemplateSources` derives from today's scaffold: no built-in template content ships yet).
+ * `builtinTemplateSources` derives from either of today's two scaffolds: each reserves its built-in
+ * directories with a `.gitkeep` only, and no built-in template content ships yet).
  *
  * FAILS CLOSED on an unrecognized `kind`: a source whose kind has no {@link INTEGRITY_POLICY} entry is
  * reported as a failure ({@link unknownKindMessage}) rather than skipped or thrown on — it cannot be
  * checked, so it must not be installed.
  *
- * Callers (namely `initWingfoilProject`, `src/core/init.ts`) MUST run this before writing any file:
- * REQ-SEC-10's fit criterion requires the abort to happen "before writing partial assets" — this
- * function itself never writes or reads from disk, so calling it before the scaffold write is
- * sufficient to satisfy that ordering.
+ * Callers — `initWingfoilProject` AND `initWingfoilStorage`, both in `src/core/init.ts`; every
+ * `initStorage` write path there is one — MUST run this before writing any file: REQ-SEC-10's fit
+ * criterion requires the abort to happen "before writing partial assets". This function itself never
+ * writes or reads from disk, so calling it before the scaffold write is sufficient to satisfy that
+ * ordering.
  */
 export function verifyBuiltinTemplates(
   sources: readonly BuiltinTemplateSource[],
