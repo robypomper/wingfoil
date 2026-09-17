@@ -1,7 +1,7 @@
 ---
 id: "dl-040-spec-006-resource-uri-divergence"
 type: decision-log
-title: "Two core operations now diverge from spec-006 §3's Resource-URI column, and nothing tracks it"
+title: "Core operations diverge from spec-006 §3's Resource-URI column, and nothing tracks it"
 status: in-discussion
 context: "dev-loop-review"
 release: "v0.3"
@@ -28,6 +28,22 @@ only elements that mention it are three `done` task files and the spec itself.
 
 It will widen again. Every future operation taking an argument reproduces it by construction, and each
 one will be recorded the same way — in notes nobody re-reads.
+
+**Third occurrence, `directivesList` (`task-053`, v0.2)** — and it is worth stating precisely, because
+it is the same *cause* wearing different clothes. `task-053` added a `--role` filter to
+`directives list`. `spec-006` §3 pins that operation's Resource as the zero-argument
+`wingfoil://directives/list`, and the registrar emits exactly that — so unlike the first two
+occurrences **there is no divergence from the URI column**. What is missing is the ability to express
+the filter at all: `registerCoreModules` calls `options.buildParams({moduleName, operationName, root})`
+(`src/mcp/registrar.ts:80-84`), a context with no `options` field, so no operation can pass one —
+`src/core/registry.ts:63,186` already documents that "the MCP surface never populates them". An MCP
+consumer cannot request the filtered listing, so returning the full inventory is the correct
+degeneration, not a silent loss of data.
+
+That makes the count **two spec divergences and one capability gap, from one root cause**: no
+parameter metadata on `CoreOperation`. Option 1 below closes all three; options 2 and 3 close neither
+this one nor the next. Recorded here rather than in `task-053`'s Execution Notes precisely because
+this decision-log's own complaint is that occurrences accumulate in notes nobody re-reads.
 
 Worth noting what is **not** broken: `createMcpServer` registers only `registerReadOnlyResources` and
 deliberately does not call `registerCoreModules`, so no running MCP surface is affected today. The
@@ -76,4 +92,6 @@ test exercises.
 - Either way: delete the now-redundant gap notes from the source comments, so the record lives in one
   place.
 - Related: `task-021` (first occurrence, `memorySearch`), `task-049` (second, `memoryHistory`),
-  `task-039` (owns `src/mcp/registrar.ts`'s area this cycle), `spec-004` §2 (the Resource contract).
+  `task-053` (third — the `--role` capability gap, not a URI divergence), `task-039` (owns
+  `src/mcp/registrar.ts`'s area this cycle), `spec-004` §2 (the Resource contract),
+  `dl-042-directives-list-output-contract` (the same command's payload shape).
