@@ -323,6 +323,25 @@ describe('scanProjectSurface — reads the git index, not the working tree (bug-
 
     expect(scanProjectSurface(repo).blocking).toEqual([]);
   });
+
+  it('skips a gitlink (submodule) entry — a commit id, not a blob to read', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'modules: [core]\n');
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '--quiet', '-m', 'seed']);
+    const head = git(repo, ['rev-parse', 'HEAD']).trim();
+    git(repo, ['update-index', '--add', '--cacheinfo', `160000,${head},.wingfoil/vendored`]);
+
+    expect(scanProjectSurface(repo).filesScanned).toBe(1);
+  });
+
+  it('throws on an index entry whose blob is missing from the object store (corruption, not a verdict)', () => {
+    repo = makeTempGitRepo();
+    const absent = '1'.repeat(40);
+    git(repo, ['update-index', '--add', '--cacheinfo', `100644,${absent},.wingfoil/ghost.md`]);
+
+    expect(() => scanProjectSurface(repo)).toThrow(/could not read the indexed blob of \.wingfoil\/ghost\.md/);
+  });
 });
 
 /**

@@ -334,41 +334,42 @@ function listIndexedBlobs(root: string, surfaceRoots: readonly string[]): Indexe
   for (const record of out.split('\0')) {
     const tab = record.indexOf('\t');
     if (tab < 0) continue; // the trailing empty record after the last NUL
-    const [mode, blob] = record.slice(0, tab).split(' ');
-    if (mode === GITLINK_MODE || blob === undefined) continue;
+    const [mode = '', blob = ''] = record.slice(0, tab).split(' ');
+    if (mode === GITLINK_MODE) continue;
     entries.push({ path: record.slice(tab + 1), blob });
   }
   return entries;
 }
 
 /**
- * Read every blob's bytes from the object store in ONE `git cat-file --batch` call, returned in the
- * order of `blobs`. Each response is `<id> blob <size>\n<size bytes>\n`; any other header (e.g.
+ * Read every entry's staged bytes from the object store in ONE `git cat-file --batch` call, preserving
+ * `entries` order. Each response is `<id> blob <size>\n<size bytes>\n`; any other header (e.g.
  * `<id> missing`) means the index names an object the repository does not have, which is corruption,
  * not a scan result — it throws.
  */
-function readBlobs(root: string, blobs: readonly string[]): Buffer[] {
-  if (blobs.length === 0) return [];
+function readIndexedBlobs(
+  root: string,
+  entries: readonly IndexedBlob[],
+): { readonly path: string; readonly content: Buffer }[] {
+  if (entries.length === 0) return [];
   const out = execFileSync('git', ['-C', root, 'cat-file', '--batch'], {
-    input: `${blobs.join('\n')}\n`,
+    input: `${entries.map((entry) => entry.blob).join('\n')}\n`,
     env: process.env,
     maxBuffer: Number.POSITIVE_INFINITY,
   });
-  const contents: Buffer[] = [];
   let offset = 0;
-  for (const blob of blobs) {
+  return entries.map(({ path, blob }) => {
     const headerEnd = out.indexOf(0x0a, offset);
     const header = out.subarray(offset, headerEnd).toString('utf-8');
     const match = /^([0-9a-f]+) blob (\d+)$/.exec(header);
-    if (headerEnd < 0 || match === null || match[1] !== blob) {
-      throw new Error(`git cat-file could not read indexed blob ${blob}: "${header}"`);
+    if (match === null || match[1] !== blob) {
+      throw new Error(`git cat-file could not read the indexed blob of ${path}: "${header}"`);
     }
     const start = headerEnd + 1;
     const end = start + Number(match[2]);
-    contents.push(out.subarray(start, end));
     offset = end + 1; // skip the LF that terminates each object's content
-  }
-  return contents;
+    return { path, content: out.subarray(start, end) };
+  });
 }
 
 /**
@@ -451,14 +452,11 @@ export function scanProjectSurface(root: string, options: ScanProjectOptions = {
   const ignoreFilePath = options.ignoreFilePath ?? DEFAULT_IGNORE_FILE;
   const ignoreGlobs = loadIgnoreGlobs(join(root, ignoreFilePath));
 
-  const entries = listIndexedBlobs(root, surfaceRoots);
-  const contents = readBlobs(root, entries.map((entry) => entry.blob));
   const results: ScanResult[] = [];
-  entries.forEach((entry, index) => {
-    const buf = contents[index] ?? Buffer.alloc(0);
-    if (isBinaryContent(buf)) return;
-    const pathIgnored = matchesIgnoreGlob(entry.path, ignoreGlobs);
-    results.push(scanText(buf.toString('utf-8'), entry.path, { pathIgnored }));
-  });
+  for (const { path, content } of readIndexedBlobs(root, listIndexedBlobs(root, surfaceRoots))) {
+    if (isBinaryContent(content)) continue;
+    const pathIgnored = matchesIgnoreGlob(path, ignoreGlobs);
+    results.push(scanText(content.toString('utf-8'), path, { pathIgnored }));
+  }
   return mergeScanResults(results);
 }
