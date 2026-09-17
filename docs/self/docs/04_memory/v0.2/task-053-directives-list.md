@@ -2,7 +2,7 @@
 id: "task-053-directives-list"
 type: task
 title: "Implement `wingfoil directives list`"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p3"]
@@ -278,3 +278,76 @@ directives/custom/traceability.md          architect, product-owner, reviewer
 
 That reproduces `roles.yaml` exactly, including its own comment that the generic `security` stand-in
 is deliberately left unbound — the `unassigned` case, on real data.
+
+### review (developer side) — handover to the reviewer
+
+**`tests.bdd.run` — P3.4 scenario-by-scenario, with the test that proves each.**
+
+| BDD scenario / clause | met | proving test |
+|---|---|---|
+| Sc.1 "the output includes the 6 built-in directives and `no-direct-db-access`" | yes | `test/core/directives-list.test.ts` › *the output includes the 6 built-in directives and "no-direct-db-access"* (T1 characterization) |
+| Sc.1 "each directive shows its assigned roles" | yes | *each directive shows its assigned roles* — `testing → ['developer','qa']`, `code-review → ['reviewer']`, `no-direct-db-access → ['developer']` |
+| Sc.1 "(or `unassigned`)" | yes, **character-exact** | *a directive no role names shows the exact string "unassigned"* asserts `toBe('unassigned')` — lowercase, single word, no punctuation, exactly the feature file's token. Also asserted end-to-end in `test/cli/program.integration.test.ts` against the compiled CLI. |
+| Sc.2 "only directives assigned to `developer` are listed, including `testing`" | yes | *only directives assigned to "developer" are listed, including "testing"* + *includes the `global` directives…* (the full result is exactly `no-direct-db-access`, `security-secrets`, `testing`); end-to-end in `program.integration.test.ts` › *lists only the developer-assigned directives (incl. globals), exit 0* |
+| Sc.3 (edge) "exactly the 6 built-in directives are listed" | yes | *exactly the 6 built-in directives are listed* (T1 characterization) |
+
+`--format json` / `--format yaml` / `console` all carry the same payload, so `unassigned` reads
+identically in every format (spec-005 §2 / REQ-INT-05).
+
+**How the "6 built-in directives" clause is satisfied *today*, and what changes with `task-057`.**
+`.wingfoil/directives/built-in/` in this repository holds only a `.gitkeep`; the six P3.8 stand-ins
+(`architecture`, `code-quality`, `code-review`, `documentation`, `security`, `testing`) live under
+`custom/`, and `task-057-builtin-directive-templates` ships the real built-ins later. Nothing in this
+implementation assumes a built-in set exists, or counts to six, or reads the `built-in/` directory by
+name: it lists **whatever `.md` files `loadDirectives` finds under `.wingfoil/directives/**`**, in
+either subtree. So the clause is satisfied *structurally* — the tests seed six files under
+`built-in/` in a throwaway repo and get six entries back — while against the live self-config the
+same command returns the ten `custom/` files (transcript in the refactor notes above).
+
+When `task-057` lands, two things happen and neither needs a change here: the six built-ins simply
+appear as six more entries; and because their ids are *exactly* the six `custom/` stand-in ids, each
+becomes a **shadowed pair** — both files listed, same id, different `path`, same roles. Pinned by
+`test/core/directives-list.test.ts` › *lists both files sharing an id, each with its own path*, so
+the day `task-057` merges, the behaviour is already specified rather than discovered.
+
+**Shadowed files: the listing shows every file on disk, not the resolved set.** Reasoning in the
+design notes above; restated because it is the one judgement call in this task. `resolveRoleDirectives`
+deduplicates by id for *context assembly*; this command is an *inventory* and must not hide a file
+that exists — `spec-012` §5 (as amended by `dl-037` option B.1) requires a shadowed directive be
+"reported, never silently dropped", and hiding one here would be that defect in the one command whose
+purpose is directive visibility. **`dl-037`'s precedence rule and its shadow warning are NOT
+implemented in this task** — that gap is still `task-055-auto-load-directives-by-role`'s, and
+`src/core/context.ts:110`'s smallest-path tie-break is untouched.
+
+**Observed final numbers** (all re-run on this branch at `refactor` head):
+
+- `npx jest --maxWorkers=2` → **`Test Suites: 75 passed, 75 total`**, **`Tests: 987 passed, 987 total`**
+- `npx jest --coverage --maxWorkers=2` → All files **98.14% stmts / 89.92% branch / 98.36% funcs /
+  98.87% lines** (≥80 global); `src/core/directives-list.ts` **100/100/100/100**
+- `npm run docs:api` exit 0 · `npx tsc -p tsconfig.build.json` exit 0 · `npx eslint .` exit 0
+
+**Concurrency.** `src/core/index.ts` was edited in three places only: the `./loaders` import (dropped
+the two names that became unused), the export block (added the new module's exports), and the
+`directivesList` operation entry + its new `directivesListFn` above `CORE_MODULES`. Nothing else in
+the `directives` module block was reordered or reformatted (`task-050-directive-create`).
+`src/storage/layout.ts` (`task-054`), `package.json` and `jest.config.js` (`task-065`) were not
+touched.
+
+**Left for someone else — please convert rather than leave in these notes:**
+
+1. **No approved tech-spec covers this command's output shape.** The added fields are grounded in
+   `spec-012` §5 and the BDD's own wording, and the pre-existing `path`/`frontmatter` pair is
+   preserved verbatim, but the entry shape itself is [AUTHORING]-level — the same position
+   `src/directives/schema.ts` has held since task-004. Candidate follow-up: a
+   `spec-*-directives-list-output` pinning `DirectiveListEntry` and the `unassigned` /
+   `global (all roles)` tokens.
+2. **`--built-in` / `--custom` / `--all` filters are not implemented.** `docs/01_vision/X_cli-cmds.md`
+   sketches them (and a `scope` column) for `directives list`; **no BDD scenario requires them**, so
+   they were deliberately left out rather than invented. Same document also lists `directive id, name,
+   type (built-in/custom), roles assigned, scope` as the display columns — `id`/`name`/`tags`/`ref`
+   arrive inside `frontmatter`, but there is no derived `built-in`-vs-`custom` field on the entry
+   today (the `path` prefix and `frontmatter.kind` both carry it, and picking one of them as
+   *the* source is exactly what item 1's spec should decide).
+3. **A `console` rendering for this command.** `--format console` prints pretty JSON, per
+   `renderSuccess`'s documented fallback. A human-facing table is a reasonable ask and needs the same
+   spec as item 1.
