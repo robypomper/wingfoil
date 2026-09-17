@@ -540,6 +540,91 @@ types:
     });
   });
 
+  // task-047-memory-reject (P1.8, BDD `p1-memory/P1.8-memory-reject.feature`) — the first
+  // approver-gated verb, so this is also the first place the real CLI is asserted to produce the
+  // `[from → to]` subject bracket + `Approver:`/`Reason:` body (dl-054, CLAUDE.md §5.1) and to
+  // enforce REQ-SEC-03/REQ-SEC-04 through `commander`'s own `--reason <value>` option.
+  describe('`memory reject <id> --reason <text>` — the first approver-gated verb (task-047, P1.8)', () => {
+    const MEMORY_YAML = `version: 1
+types:
+  task:
+    path: "docs/memory/task/{id}.md"
+    states:
+      sequence: [draft, pending, backlog, in-progress, in-review, approved, done]
+      gates:
+        pending: { reject: draft }
+        in-review: { reject: in-progress }
+      waiting: [backlog, approved]
+`;
+    // `makeTempGitRepo`'s local git identity, holding the `approver` role (REQ-SEC-03).
+    const DNA_YAML = `version: 1.1
+modules:
+  - name: core
+    path: src/core
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+team:
+  members:
+    - name: WingFoil Test
+      email: wf-test@example.invalid
+      roles: [ approver ]
+  roles:
+    - name: approver
+paths:
+  sources: [ src/ ]
+`;
+    let repo: string;
+    const doc = (id: string, status: string): string =>
+      ['---', `id: ${id}`, 'type: task', 'title: "A task"', `status: ${status}`, '---', '', 'Body.', ''].join('\n');
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
+      writeFixtureFile(repo, 'docs/memory/task/task-101.md', doc('task-101', 'pending'));
+      writeFixtureFile(repo, 'docs/memory/task/task-200.md', doc('task-200', 'draft'));
+      commitAll(repo, 'seed');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it("sc.1 `memory reject task-101 --reason 'tests missing'` sets `status: draft` + `rejection_reason`, records the reason in the commit, exit 0", () => {
+      const result = runCliInRoot(repo, 'memory', 'reject', 'task-101', '--reason', 'tests missing');
+      expect(result.status).toBe(0);
+      const content = readFileSync(join(repo, 'docs/memory/task/task-101.md'), 'utf-8');
+      expect(content).toContain('status: draft');
+      expect(content).toContain('rejection_reason: "tests missing"');
+      expect(execFileSync('git', ['-C', repo, 'log', '-1', '--format=%B'], { encoding: 'utf-8' }).trim()).toBe(
+        'wf(task): reject task-101 [pending → draft]\n\nApprover: WingFoil Test <wf-test@example.invalid> (approver)\nReason: tests missing',
+      );
+    });
+
+    it('sc.2 `memory reject task-200` on a document in no gate state exits 1, state unchanged', () => {
+      const result = runCliInRoot(repo, 'memory', 'reject', 'task-200', '--reason', 'x');
+      expect(result.status).toBe(1);
+      // dl-032's contract message; `<to>` is dl-053's rule, owned by task-046 (see Execution Notes).
+      expect(result.stderr).toMatch(/^error: illegal transition draft -> \S+ for type 'task'\n$/);
+      expect(readFileSync(join(repo, 'docs/memory/task/task-200.md'), 'utf-8')).toContain('status: draft');
+    });
+
+    it('sc.3 `memory reject task-101` without `--reason` exits 2 (REQ-SEC-04), state unchanged', () => {
+      const result = runCliInRoot(repo, 'memory', 'reject', 'task-101');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: --reason\n');
+      expect(readFileSync(join(repo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+    });
+
+    it('REQ-SEC-03: a git identity holding no `approver` role exits 1, state unchanged', () => {
+      execFileSync('git', ['-C', repo, 'config', 'user.email', 'ray@example.invalid'], { encoding: 'utf-8' });
+      const result = runCliInRoot(repo, 'memory', 'reject', 'task-101', '--reason', 'x');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: user not authorized to approve type 'task'\n");
+      expect(readFileSync(join(repo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+    });
+  });
+
   // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
   // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
   // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real

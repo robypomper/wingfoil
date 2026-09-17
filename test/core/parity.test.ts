@@ -136,9 +136,10 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // task-025-implement-dna-set + task-020-implement-memory-add + task-050-directive-create make
     // this a LIVE parity guard (not vacuously-empty): each mutating op must be reachable as a CLI
     // command AND an MCP Tool, 0 unmatched.
-    // task-045-memory-submit adds `memory submit` (P1.6).
-    expect(cli).toEqual(['directive create', 'dna set', 'memory add', 'memory submit']);
-    expect(tools).toEqual(['directive create', 'dna set', 'memory add', 'memory submit']);
+    // task-045-memory-submit adds `memory submit` (P1.6); task-047-memory-reject adds
+    // `memory reject` (P1.8).
+    expect(cli).toEqual(['directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
+    expect(tools).toEqual(['directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
@@ -168,7 +169,8 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // now advertises.
     expect(hasAnyMutatingOperation(CORE_MODULES)).toBe(true);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add', 'memory.submit']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add', 'memory.reject', 'memory.submit']);
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/reject');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/submit');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/create');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://dna/set');
