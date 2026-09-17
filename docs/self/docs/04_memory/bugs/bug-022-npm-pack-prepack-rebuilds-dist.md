@@ -1,45 +1,47 @@
 ---
 id: "bug-022-npm-pack-prepack-rebuilds-dist"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "npm-distribution.test.ts runs npm pack without --ignore-scripts, rebuilding the shared dist/ mid-suite"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`test/cli/npm-distribution.test.ts:117` calls `npm pack --dry-run --json` **without**
+`--ignore-scripts`, so npm runs the `prepack` hook — `npm run build` → `tsc -p tsconfig.build.json` —
+which writes `dist/` while other jest workers are spawning `node dist/cli.js`.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. `npx jest --maxWorkers=4`
+2. `test/cli/npm-distribution.test.ts` reaches its `npm pack` call.
+3. `tsc` rewrites `dist/` while a concurrent subprocess suite is executing from it.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The suite inspects the packed file list without mutating the shared build output — the way its
+sibling already does: `test/cli/publish-metadata.test.ts:79` calls the same command **with**
+`--ignore-scripts`, and its header comment says why.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+`dist/` is rebuilt mid-run, defeating the single-build `globalSetup` introduced for `bug-003`.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+Same class as **`bug-003`** (closed), in a different disguise: bug-003 was scoped to the
+`rmSync(dist) + tsc` form in a `beforeAll`. Risk here is lower — an overwrite, not a delete — but it
+is a live flake source at `--maxWorkers>1` and it is currently unowned.
+
+Fix is one argument: add `--ignore-scripts`, matching the sibling suite.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+Raised from `task-065`'s dev-loop review (v0.2). Severity `low`.

@@ -1,45 +1,62 @@
 ---
 id: "bug-023-engines-node-floor-contradicts-commander"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "package.json declares engines node >=18 but commander@15 requires >=22.12 — published contract is false"
+status: open
+severity: "medium"
+release-origin: "v0.2"
+release: "v0.3"
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`package.json:16` declares `"node": ">=18.0.0"`, while the installed `commander@15` declares
+`"engines": {"node": ">=22.12.0"}`. The package advertises support for a Node floor its own
+dependency tree does not accept.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. On Node 18: `npm i -g wingfoil` (or install the packed tarball).
+2. npm emits `EBADENGINE`.
+3. With `engine-strict=true` in `.npmrc`, the install **hard-fails**.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The declared `engines.node` floor is one every dependency actually supports.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The floor is three majors below what `commander@15` requires.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+This is a **published-contract defect, not a test-harness note**. Node 18+ is a declared product
+constraint in `dna.yaml` (`stacks.technologies`) and in the product brief, and
+`spec-015-packaging-publishing:60` actively pins `engines: node >=18` under "Unchanged" — so the
+**approved spec ratifies the wrong floor** and has to move with the fix.
+
+**Nobody owns it today.** `task-059-publish-metadata` is `done` and its acceptance criteria never
+validated `engines` against the dependency tree; `test/cli/publish-metadata.test.ts` makes no
+`engines` assertion at all; and `task-060`'s Verdaccio staging smoke runs `npm install -g wingfoil`
+on CI's Node (≥22), so it will not catch this.
+
+Runtime may well survive on Node 18 — commander's only notable builtin use is
+`stripVTControlCharacters` from `node:util` (Node ≥16.11), plus optional chaining — but the declared
+contract is wrong either way, and guessing that it works is not a contract.
+
+Fix shape: decide the real floor (raise ours, or pin an older commander), correct `package.json` and
+`spec-015` §1 together, and pin it with an assertion in `publish-metadata.test.ts` that every
+dependency's `engines.node` range is satisfied by ours — so the next dependency bump cannot
+reintroduce it silently.
+
+**Scheduled v0.3 by the approver.** It blocks nothing in v0.2 development, but it must land before
+`task-060` / `task-061` publish for real.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+Raised from `task-065`'s dev-loop review (v0.2). Severity `medium` — wrong published contract, no
+development impact. `release: v0.3` per the approver's scheduling decision.

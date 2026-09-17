@@ -1,45 +1,51 @@
 ---
 id: "bug-024-commander-parse-errors-exit-1"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "commander parse errors exit 1 where spec-008 and REQ-INT-04 require 2"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P5.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+A missing option value or an unknown option is rejected by commander with exit code **1**, while
+`spec-008-cli-grammar` line 39 ("unknown tokens → 2") and line 115 ("Required arg missing → exit 2"),
+and REQ-INT-04's Fit Criterion, all require **2**.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. `wingfoil directives list --role` (option declared, value missing) → exit **1**
+2. `wingfoil directives list --rol x` (unknown option) → exit **1**
+3. `wingfoil memory search --tag` → exit **1** (identical, so this is not specific to one command)
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Exit **2** — the usage-error code, as every hand-written usage error in `src/core` already returns
+via `UsageError` → `exitCodeForThrow`.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Commander's own parse failure path exits 1 before any core code runs, so `exitCodeForThrow` never
+sees it.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Pre-existing and surface-wide**, not introduced by any current task — confirmed identical on
+`memory search --tag`. `task-012-cli-exit-code-contract` deferred "unknown-command → 2 /
+missing-arg → 2" to owning tasks, and no element was ever opened, so it has been unowned since.
+
+Scope of a fix is the commander layer for **all** value options, not one command: configure
+commander's `exitOverride` / error handling so its parse failures map onto the same exit-code
+contract as core-originated usage errors.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+Raised from `task-053`'s dev-loop review (v0.2). Severity `low`: the error message is correct and
+nothing is corrupted; only the exit code contradicts the spec, which matters for scripted consumers
+and for REQ-INT-04's Fit Criterion.
