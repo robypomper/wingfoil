@@ -186,3 +186,55 @@ describe('P5.2.2 — edges of the undefined-role refusal', () => {
     );
   });
 });
+
+/**
+ * Second pass (rejection ff13321, B1): the DNA role catalogue is read **per request**, never while
+ * `createMcpServer` builds the server — spec-014 §2 "no I/O at construction time beyond wiring
+ * handlers". The consequence is that spec-004 §3.1's "fixed set derived from DNA at server start" is
+ * served as "the DNA role set at request time"; that spec-014 §2 vs spec-004 §3.1 tension is raised
+ * for the approver as a decision-log, and the last case below pins the side taken until it is decided.
+ */
+describe('P5.2.2 — the DNA role catalogue is read at request time, not at construction (spec-014 §2)', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = seedFixtureRepo();
+  });
+
+  afterEach(() => removeTempDir(root));
+
+  it('createMcpServer performs no I/O at construction: resolveRoot is never invoked while wiring', () => {
+    const resolveRoot = jest.fn(() => root);
+
+    createMcpServer({ resolveRoot });
+
+    expect(resolveRoot).not.toHaveBeenCalled();
+  });
+
+  it('a repo with no dna.yaml still yields a connectable server, and each Prompts request surfaces the missing DNA as an error', async () => {
+    const bare = makeTempGitRepo();
+    try {
+      const bareClient = await connectProductionClient(bare);
+
+      expect(bareClient.getServerCapabilities()?.prompts).toBeDefined();
+      await expect(bareClient.listPrompts()).rejects.toThrow(/dna\.yaml/);
+      await expect(bareClient.getPrompt({ name: 'developer-session' })).rejects.toThrow(/dna\.yaml/);
+    } finally {
+      removeTempDir(bare);
+    }
+  });
+
+  it('a role added to dna.yaml after the server started is listed and served on the next request', async () => {
+    const client = await connectProductionClient(root);
+    const before = (await client.listPrompts()).prompts.map((prompt) => prompt.name);
+    expect(before).not.toContain('wizard-session');
+
+    writeFixtureFile(root, '.wingfoil/dna.yaml', DNA_YAML.replace('    - name: reviewer', '    - name: reviewer\n    - name: wizard'));
+    writeFixtureFile(root, '.wingfoil/roles.yaml', ROLES_YAML_BINDING_WIZARD);
+
+    const after = (await client.listPrompts()).prompts.map((prompt) => prompt.name);
+    expect(after).toEqual(['developer-session', 'reviewer-session', 'wizard-session']);
+    const text = promptText(await client.getPrompt({ name: 'wizard-session' }));
+    expect(text).toContain('## Directive: security');
+  });
+});

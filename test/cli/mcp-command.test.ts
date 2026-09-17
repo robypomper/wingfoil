@@ -6,6 +6,8 @@
  * `startMcpServer` is only wired as the default `deps.start`; here it is always overridden.
  */
 import { runMcp, type McpCliDeps } from '../../src/cli/mcp-command';
+import { createMcpServer } from '../../src/mcp/server';
+import { makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
 
 describe('runMcp — the `wingfoil mcp` command handler (spec-014 §1)', () => {
   let exitSpy: jest.SpyInstance;
@@ -56,6 +58,36 @@ describe('runMcp — the `wingfoil mcp` command handler (spec-014 §1)', () => {
     const emitted = stderrSpy.mock.calls.map((call) => String(call[0])).join('');
     expect(emitted).toContain('not a WingFoil project');
   });
+
+  // task-058-mcp-prompts-role-based, second pass (rejection ff13321, B1): building the production
+  // server reads nothing, so a git root with no `.wingfoil/dna.yaml` (e.g. this repository's own root,
+  // dl-026) starts cleanly under every output format instead of escaping `runMcp` as a raw ENOENT.
+  // `start` builds the REAL production server (createMcpServer) but never opens stdio.
+  it.each(['console', 'json'] as const)(
+    'with --format %s, a git root without .wingfoil/dna.yaml builds the real server without an error or exit',
+    async (format) => {
+      const bare = makeTempGitRepo();
+      try {
+        let built = 0;
+        await runMcp(
+          deps({
+            resolveRoot: () => bare,
+            format,
+            start: async (options) => {
+              createMcpServer(options);
+              built += 1;
+            },
+          }),
+        );
+
+        expect(built).toBe(1);
+        expect(exitSpy).not.toHaveBeenCalled();
+        expect(stderrSpy).not.toHaveBeenCalled();
+      } finally {
+        removeTempDir(bare);
+      }
+    },
+  );
 
   it('the injected start receives a resolveRoot that returns the already-resolved root (resolved once, up front)', async () => {
     let resolveCount = 0;
