@@ -2,7 +2,7 @@
 id: "task-055-auto-load-directives-by-role"
 type: task
 title: "Implement Auto-Load Directives by Role"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
