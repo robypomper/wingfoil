@@ -96,6 +96,13 @@ describe('setFrontmatterField', () => {
     expect(parsed(out)).toEqual({ title: 'one', tags: [] });
   });
 
+  it('(d) a multi-line quoted value with an escaped `\\"` or a doubled `\'\'` is spanned to its REAL closing quote', () => {
+    const doubleQuoted = '---\ntitle: "say \\"hi\\"\n  and \\" more"\ntags: []\n---\n';
+    expect(setFrontmatterField(doubleQuoted, 'title', 'one')).toBe('---\ntitle: one\ntags: []\n---\n');
+    const singleQuoted = "---\ntitle: 'it''s\n  still '' open'\ntags: []\n---\n";
+    expect(setFrontmatterField(singleQuoted, 'title', 'one')).toBe('---\ntitle: one\ntags: []\n---\n');
+  });
+
   it('(a)/(d) replaces a `|` block scalar containing a blank line as a whole', () => {
     const doc = '---\nrejection_reason: |\n  First.\n\n  Second.\nstatus: draft\n---\nbody\n';
     const out = setFrontmatterField(doc, 'rejection_reason', 'short');
@@ -135,6 +142,11 @@ describe('removeFrontmatterField', () => {
   it('removes the indented lines of a nested block value too', () => {
     const doc = '---\nid: a\nrejection_reason:\n  - line one\n  - line two\ntags: []\n---\nbody\n';
     expect(removeFrontmatterField(doc, 'rejection_reason')).toBe('---\nid: a\ntags: []\n---\nbody\n');
+  });
+
+  it('an empty value followed only by a comment on the key line still spans its nested block', () => {
+    const doc = '---\nrejection_reason: # list\n  - a\n  - b\ntags: []\n---\n';
+    expect(removeFrontmatterField(doc, 'rejection_reason')).toBe('---\ntags: []\n---\n');
   });
 
   it('is a no-op (same string) when the key is absent', () => {

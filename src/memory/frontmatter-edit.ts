@@ -175,9 +175,9 @@ export function setFrontmatterField(content: string, key: string, value: string)
   if (index === -1) return assemble(before, [...lines, entry], after);
   const header = lines[index]!;
   const { valueEnd, closed } = scanHeaderValue(header, key);
-  // A closed value keeps what follows it on the key line (spaces, `# comment`, `\r`); a multi-line
-  // quoted value's key line only keeps its `\r`.
-  const tail = closed ? header.slice(valueEnd) : header.endsWith('\r') ? '\r' : '';
+  // A value that ended on the key line keeps what followed it there (spaces, `# comment`); line
+  // endings are restored by `assemble`.
+  const tail = closed ? header.slice(valueEnd) : '';
   return assemble(before, [...lines.slice(0, index), `${entry}${tail}`, ...lines.slice(entryEnd(lines, index, key))], after);
 }
 
