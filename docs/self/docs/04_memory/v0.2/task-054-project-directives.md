@@ -2,7 +2,7 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
@@ -156,8 +156,19 @@ Guard order matches `initWingfoilProject` — git-repo, then identity, then REQ-
 
 **Observed after green:** `npx jest test/core/project-directives.test.ts
 test/storage/builtin-template-sources.test.ts` → 2 suites passed, 21 tests passed.
-Full suite `npx jest --maxWorkers=2` → **75 suites / 978 tests, all passing** (baseline at `8456f28`
-was 74 suites / 966 tests; +1 suite, +12 tests). `npx tsc -p tsconfig.build.json` exit 0.
+Full suite `npx jest --maxWorkers=2` → **75 suites / 978 tests, all passing**. `npx tsc -p
+tsconfig.build.json` exit 0.
+
+The baseline at `8456f28` was re-measured (74 suites / 966 tests) in a throwaway clone rather than
+quoted from memory, and the +12 reconciled per suite via `jest --json`:
+
+| Suite | base → head | why |
+|---|---|---|
+| `test/core/project-directives.test.ts` | 0 → 10 | new suite (2 P3.5 cases + 3 `bug-018` cases, each × 2 write paths) |
+| `test/storage/builtin-template-sources.test.ts` | 10 → 11 | the one added derivation-coverage case |
+| `test/core/latency-budget-placement.test.ts` | 78 → 79 | **not mine to claim**: its `it.each` enumerates every file under `test/`, so adding any test file adds one case |
+
+No other suite's count moved.
 
 ### refactor (developer)
 
@@ -262,3 +273,26 @@ $ node -e "…initWingfoilStorage(process.cwd(), [{name:'security', kind:'direct
 ```
 
 Before this task that same call returned `{ ok: true }` and wrote the scaffold (red evidence #3).
+
+### review (developer side)
+
+- `tests.bdd.passing` — the P3.5 acceptance suite and every suite bearing on the changed surface pass:
+  `npx jest test/core/project-directives.test.ts test/directives/schema.test.ts
+  test/storage/templates.test.ts test/storage/builtin-template-sources.test.ts test/core/init.test.ts
+  test/core/init-project.test.ts` → **72 passed / 72 total**.
+- Full suite at the submit commit: **75 suites / 978 tests passed**. Gates as tabled under `refactor`
+  (eslint 0, tsc 0, `docs:api` 0, coverage 98.11% global).
+- `bug.sync_state` — no-op: this task's `bug:` field is empty. `bug-018` is closed by hand afterwards,
+  as its own notes and this task's AC state.
+
+**Scope actually delivered, and what it is not.** P3.5's scenario 1 (storage layout) is met on both
+init paths. P3.5's scenarios 2 and 3 are untouched and were already covered elsewhere: scenario 2 ("a
+directive change is versioned") by the storage layer's commit primitives
+(`test/storage/git-backed-storage.test.ts` commits a `directives/custom/*.md` edit); scenario 3
+("missing required field 'name'") by `src/directives/schema.ts` and `test/directives/schema.test.ts`.
+`src/directives/` was deliberately not opened — `task-050` and `task-053` are editing it concurrently.
+
+**Files changed:** `src/storage/layout.ts`, `src/core/init.ts` (both behaviour), `src/storage/templates.ts`,
+`src/core/builtin-integrity.ts` (both comments only), `test/core/project-directives.test.ts` (new),
+`test/storage/builtin-template-sources.test.ts`. No change to `src/directives/`, `src/core/index.ts`,
+`package.json`, or `jest.config.js`.
