@@ -2,7 +2,7 @@
 id: "task-063-fix-dna-set-comment-preservation"
 type: task
 title: "Fix bug-004: `dna set` must preserve YAML comments ([SPEC]/[AUTHORING])"
-status: approved
+status: done
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "dna"]
