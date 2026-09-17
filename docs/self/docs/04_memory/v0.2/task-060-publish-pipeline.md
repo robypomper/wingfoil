@@ -129,3 +129,139 @@ not done here), `dl-018` (ready, T3), `dl-023` (ready — the smoke reused at st
    `NPM_TOKEN`/transient `.npmrc` wiring is `spec-015` §5 = `task-061`. Until then a real tag push would
    reach promote and fail `ENEEDAUTH` — safe (nothing publishes). The publish step is also skipped under
    `act` (`!env.ACT`), so a local `act` run can never publish.
+
+### red — role: developer
+
+Commit `06a42bc test(cli): … failing test for spec-015 §2–§4 publish gate, staging, workflow and bug-020 bin`.
+Four new suites under `test/cli/` (kept apart from `publish-metadata.test.ts`, whose allowlist `task-070`
+edits in parallel): `publish-pipeline.test.ts` (15), `check-release-tag.test.ts` (7),
+`publish-staging.test.ts` (15), `e2e-smoke.test.ts` (5).
+
+Observed red — `npx jest test/cli/publish-pipeline.test.ts test/cli/e2e-smoke.test.ts test/cli/publish-staging.test.ts test/cli/check-release-tag.test.ts`:
+
+```
+Cannot find module '../../scripts/e2e-smoke.cjs' from 'test/cli/e2e-smoke.test.ts'
+Cannot find module '../../scripts/publish-staging.cjs' from 'test/cli/publish-staging.test.ts'
+Cannot find module '../../scripts/check-release-tag.cjs' from 'test/cli/check-release-tag.test.ts'
+Test Suites: 4 failed, 4 total
+Tests:       14 failed, 1 passed, 15 total
+```
+
+Reasons, per AC: AC1 `Expected: "npm run build && npm test && npm run lint" / Received: undefined`; AC2
+`Received: undefined` for `publish:staging` + the three script modules absent; AC3/AC4 every workflow case
+fails on the missing `.github/workflows/publish.yml`; AC5 `bin` deep-equality diff (`./dist/cli.js`) and
+`Expected substring: not "auto-corrected"` with npm's own warning as the received stderr. The 1 pass is
+`leaves the existing build/prepack/test/lint scripts unchanged` — a guard on spec-015 §2's "existing
+scripts unchanged", true before and after by design, not an AC red. Nothing fabricated.
+
+`tag scheme` cases were first written inside `publish-pipeline.test.ts`; its import of the missing
+`check-release-tag.cjs` masked the other 14 assertion-level reds behind a single "suite failed to run",
+so they were moved to their own suite before committing red.
+
+### green — role: developer
+
+Commit `5236a2e feat(cli): …`.
+
+- `package.json`: `bin.wingfoil` → `dist/cli.js` (bug-020); `prepublishOnly` and `publish:staging` added.
+  `package-lock.json` needs no change — `grep -n '"bin"' -A2 package-lock.json` already shows
+  `"wingfoil": "dist/cli.js"` (npm normalised it when the lock was written).
+- `scripts/check-release-tag.cjs` (+ `.d.cts`) — spec-015 §4.
+- `scripts/e2e-smoke.cjs` (+ `.d.cts`) — dl-023 smoke: `--help`, `--version`, then per template (Scrum,
+  Kanban) a throwaway git repo driven through `init`, `dna show`, `dna set`, `memory add`, `paths config
+  --list`, `directives list`, `workflow list`, and a clean working tree. **Gap vs dl-023:** `memory
+  submit` is listed there but has no CLI verb yet (task-045).
+- `scripts/publish-staging.cjs` (+ `.d.cts`) — design decisions 1–5 above.
+- `.github/workflows/publish.yml` — gate → stage → promote; `act` instructions in its header.
+- `eslint.config.js` — a `scripts/**/*.cjs` block (`js.configs.recommended`, CommonJS globals) and
+  `scripts/**/*.d.cts` added to the TS block. Before this, `npx eslint --print-config
+  scripts/publish-staging.cjs` showed `"rules": {}` — the scripts would have passed `lint.clean`
+  unlinted. After: 57 `no-*` rules on the `.cjs`, the typescript-eslint set on the `.d.cts`.
+
+Two test-side corrections rode along, both found on the first green run, neither weakening an assertion:
+`node -e 'process.exit(3)' --help` exits 0 (node takes `--help` for itself), so the case now passes `--`;
+the Verdaccio `storage:` value is asserted in the JSON-quoted form the config writes (paths may hold spaces).
+
+**bug-020 — the gate output after the change** (offline, localhost registry — never npmjs):
+`npm publish --dry-run --ignore-scripts --offline --registry http://localhost:4873/ --provenance=false 2>&1 | grep -E "warn|Publishing|total files|^\+"`
+
+```
+npm notice total files: 278
+npm warn This command requires you to be logged in to http://localhost:4873/ (dry-run)
+npm notice Publishing to http://localhost:4873/ with tag latest and public access (dry-run)
++ wingfoil@0.1.0
+```
+
+The three `auto-corrected … "bin[wingfoil]" … was invalid and removed` lines (present in the design-time
+run) are gone. The one remaining `warn` — "requires you to be logged in (dry-run)" — is expected for an
+unauthenticated dry run and will also appear in CI's gate step; it is not a manifest problem.
+
+**Real-flow checks that could be run offline:**
+`node scripts/e2e-smoke.cjs --expect-version 0.1.0 -- node "$PWD/dist/cli.js"` → 18 `ok` lines, exit 0
+(the first attempt with a relative `dist/cli.js` failed because steps run inside a temp dir — usage note
+added in refactor); `node scripts/check-release-tag.cjs v0.1.0` → exit 0, `… v0.2.0` → exit 1 with
+`does not match package.json version 0.1.0`; `node scripts/publish-staging.cjs --bogus` → exit 2.
+
+**Not run, and cannot be in this task:** the real `publish:staging` (installing Verdaccio and proxying
+dependencies contacts npmjs), the workflow on GitHub or under `act`, and provenance generation. The
+effectful half of `publish-staging.cjs` (`realEffects`: Verdaccio install/start/ping, the adduser `PUT`,
+the tarball publish and global install) has therefore **never executed**; only its orchestration and
+pure builders are tested. First real run is the approver's/`task-061`'s.
+
+### refactor — role: developer
+
+Commit `99c23d5 refactor(cli): …` — the smoke's `--help` check is built immutably instead of mutating the
+check object; usage note that a script path after `--` must be absolute; `test/cli/entrypoint.test.ts`
+header comment still quoted `"./dist/cli.js"` (`grep -rn "\./dist/cli.js" test src README.md docs/self/.wingfoil`
+→ that one hit), updated. Then `git merge main` (`a4a3972`, dl-035): main brought only
+`spec-006`/`spec-008` edits — `git diff --stat 79f9fda main -- docs/ package.json test/cli .github scripts eslint.config.js`
+lists nothing this task cites, so no note needed correcting.
+
+**Gates (after the merge, from this worktree):**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest` | `Test Suites: 84 passed, 84 total` · `Tests: 1133 passed, 1133 total` |
+| coverage | `npx jest --coverage` | `All files | 98.29 | 90.18 | 98.44 | 98.93` (stmts/branches/funcs/lines), no threshold failure |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full types | `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (pre-existing bug-026) |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+Coverage is non-regressing by construction: `git diff main...HEAD -- src | wc -l` → `0`; `jest`'s
+`collectCoverageFrom` is `src/**`, so the scripts are neither counted nor able to lower it.
+
+`security-secrets`: `scanText` from `dist/validation/secret-scan.js` over `scripts/*.cjs`,
+`.github/workflows/publish.yml`, `package.json` and the two publish test files → `blocking: [], warnings: []`
+for every file. The staging token is generated at runtime, written `0600` into the temp work dir, deleted
+at teardown; the workflow contains no `NPM_TOKEN`/`NODE_AUTH_TOKEN`/`_authToken` (asserted).
+
+### review-ready summary
+
+`tests.bdd.run`: no BDD feature exists for this task — `grep -rlni "npm\|publish\|verdaccio"
+docs/02_requirements/02_bdd/features/` → no match; REQ-SYS-09 is "verified directly against the
+npm-publish acceptance test". The acceptance tests are the four suites below plus task-059's two.
+
+| AC | Class | Test(s) |
+|---|---|---|
+| AC1 `prepublishOnly` | red-first | `publish-pipeline.test.ts` › declares `prepublishOnly` as build && test && lint, in that order |
+| AC2 `publish:staging` | red-first | `publish-pipeline.test.ts` › declares `publish:staging` …; `publish-staging.test.ts` (all 15: order, tarball reuse, teardown on 6 failure points, provenance off, no uplink for `wingfoil`, env scrubbing); `e2e-smoke.test.ts` (all 5, incl. the real smoke against `dist/cli.js`) |
+| AC3 `publish.yml` + §4 tags | red-first | `publish-pipeline.test.ts` › publish workflow (9 structural cases); `check-release-tag.test.ts` (7) |
+| AC4 `act` docs | red-first | `publish-pipeline.test.ts` › documents how to exercise the workflow locally with `act` |
+| AC5 bug-020 | red-first | `publish-pipeline.test.ts` › declares `bin.wingfoil` as `dist/cli.js`; › `npm publish --dry-run` … no longer auto-corrects the manifest |
+
+**For the reviewer / approver:**
+1. **Deviation from spec-015 §3 wording** — CI stage starts Verdaccio through the script, not as an
+   "official image as a CI service" (design decision 4). Needs a spec-015 §3 amendment or a reversal.
+2. **Never executed end to end** — `realEffects` in `publish-staging.cjs`, the workflow itself, and
+   provenance (see green). `verdaccio@6` is pinned to a major only: an exact pin needs a registry lookup,
+   which this task may not do.
+3. **bug-023 must land before a real publish.** CI pins Node `22.12.0` (the true floor of the dependency
+   tree); `engines.node >=18.0.0` stays untested and false, and the workflow header says so.
+4. **Promote has no auth until task-061** — a real tag push would fail `ENEEDAUTH` at promote after gate
+   and stage pass. No GitHub `environment:` approval gate is set on promote either; whether the approver's
+   release authorisation (`adr-006`, spec-015 §5) becomes a protected environment is task-061's call.
+5. **dl-023 drift** — the smoke omits `memory submit` (no verb yet); nothing reschedules adding it when
+   task-045 lands unless it becomes an element.
+6. `bug-022` untouched; every `npm` call this task adds to the test suite passes `--ignore-scripts`. The
+   staging script's own local `npm pack` does run `prepack` (it rebuilds the checkout's `dist/`), which is
+   intended outside Jest and never happens in a test.
