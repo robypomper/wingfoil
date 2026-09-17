@@ -2,13 +2,14 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: in-review
+status: in-progress
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.5"
 bug: ""
 depends_on: []
+rejection_reason: "P3.5 scenarios 2 and 3 are asserted as already covered elsewhere and neither is: the cited git-backed-storage test creates a new file rather than editing a tracked one, and no test in the suite reads prior content (zero HEAD~/HEAD^ occurrences), so scenario 2's 'previous version is retrievable from history' clause is uncovered; scenario 3's exact message exists only in the feature file (zero occurrences in src/ and test/). task-054 is the only element carrying ref: P3.5, so nothing else schedules these clauses. Separately, the refactor introduced a false claim that scaffoldFiles() is path-sorted. The P3.5 scenario-1 and bug-018 code is correct and needs no change."
 tmpl_version: 260703
 ---
 
