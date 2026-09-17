@@ -163,3 +163,40 @@ the globals and excluding `code-review`/`architecture`; `--role <unbound role>` 
 the globals (dl-029); a directive id colliding with an `Object.prototype` member resolving to
 `unassigned`; missing `roles.yaml` ⇒ all `unassigned`, exit 0; schema-invalid `roles.yaml` ⇒
 `VALIDATION`; and both halves of a shadowed id staying visible, with and without `--role`.
+
+### green — role: developer (directives: code-quality, testing, determinism)
+
+New module **`src/core/directives-list.ts`** — `buildDirectiveListing` (pure: files + `roles.yaml` →
+annotated entries, with the optional `role` filter) and `loadDirectiveListing` (the filesystem half).
+Placed in `src/core` for the same reason `resolveRoleDirectives` is: `DirectiveFile` is declared in
+`src/core/loaders.ts`, so `src/directives` would have needed a `core → directives → core` cycle.
+
+`src/core/index.ts` edit is confined to `directivesList`: the operation now declares
+`options: [{ name: 'role' }]` and calls a new `directivesListFn` (same `loadOrError` mapping every
+other read-only pillar query uses) instead of `wrapReadOnly(loadDirectives)`; the now-unused
+`loadDirectives`/`DirectiveFile` names were dropped from that file's `./loaders` **import** (their
+`export ... from './loaders'` re-export lines are untouched, so nothing downstream lost a symbol).
+No other operation, and no other part of the `directives` module block, was touched
+(`task-050-directive-create` is editing that block concurrently).
+
+Behaviour, point by point:
+
+- `roles` is built by inverting `roles.yaml` `assignments` into a **`Map` keyed by directive id** —
+  a `Map`, not an object, because ids come from files on disk and one named `constructor` /
+  `__proto__` would otherwise resolve through `Object.prototype` (the same hazard `ownAssignments`
+  guards from the other direction in `src/core/context.ts`). Role names are walked in sorted order,
+  so each `roles` array is ascending without a second sort (REQ-SYS-07).
+- `global: true` for an id in `roles.yaml` `global`; its `roles` stays `[]` because enumerating "every
+  role" would mean reading `dna.yaml`'s role catalogue — a different pillar (REQ-SYS-02) — and would
+  still miss a role with no `assignments` entry of its own.
+- `assignment` = `roles.join(', ')`, prefixed by `global (all roles)` when global, and exactly
+  `unassigned` when neither binds.
+- `--role R` keeps an entry when `R`'s own assignments name it **or** it is global (`spec-012` §5).
+- `roles.yaml` is read only when present; when present it goes through the validating `loadRolesYaml`,
+  so a schema-invalid file is still `VALIDATION` / exit 1.
+
+`npx tsc --noEmit -p tsconfig.json` → exit 0.
+`npx jest test/core/directives-list.test.ts test/cli/program.integration.test.ts --maxWorkers=2` →
+**`Tests: 50 passed, 50 total`** (2 suites).
+Full suite `npx jest --maxWorkers=2` → **`Test Suites: 75 passed, 75 total`, `Tests: 986 passed, 986
+total`**.
