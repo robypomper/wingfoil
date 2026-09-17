@@ -6,6 +6,14 @@
  * "Error - a built-in workflow template is structurally invalid").
  */
 import { verifyBuiltinTemplates, type BuiltinTemplateSource } from '../../src/core/builtin-integrity';
+import type { ScaffoldFile } from '../../src/storage/layout';
+import {
+  BUILTIN_DIRECTIVES_DIR,
+  TEMPLATES,
+  builtinTemplateSources,
+  templateScaffold,
+  type TemplateDefinition,
+} from '../../src/storage/templates';
 
 const VALID_DIRECTIVE: BuiltinTemplateSource = {
   name: 'security',
@@ -165,4 +173,48 @@ describe('verifyBuiltinTemplates — fail-closed on an unrecognized kind (REQ-SE
     const failure = verifyBuiltinTemplates([VALID_DIRECTIVE, alien('plugin'), VALID_WORKFLOW]);
     expect(failure?.name).toBe('mystery');
   });
+});
+
+/**
+ * bug-006 / task-064 — the REAL generator output, run through the REAL guard.
+ *
+ * The fixtures above are hand-written sources; this block feeds the bytes
+ * `src/storage/templates.ts`'s `directiveMd()` actually produces into `verifyBuiltinTemplates`, by
+ * re-homing each scaffolded directive under `BUILTIN_DIRECTIVES_DIR` and deriving the sources exactly
+ * as `initWingfoilProject`'s guard 5 does. That is the ordering hazard `task-044` and its reviewer
+ * both reproduced and `task-057-builtin-directive-templates` inherited as a `depends_on`: the moment
+ * `task-057` adds a file under `directives/built-in/`, this is the check that decides whether
+ * `wingfoil init` writes anything at all. With `bug-006` unfixed it failed on `architecture` (the
+ * first directive in scaffold order) with
+ * `built-in directive template integrity check failed: architecture`.
+ *
+ * Kept as a PROPERTY over `TEMPLATES` rather than a fixed expectation, so it keeps biting if a later
+ * template or directive is added with different frontmatter.
+ */
+describe('verifyBuiltinTemplates accepts the real init directive generator output (bug-006)', () => {
+  /**
+   * The scaffold's directive documents, re-homed under the built-in directory guard 5 watches.
+   *
+   * The filter deliberately mirrors `builtinSourceOf`'s own rule — everything under the directives
+   * tree that is NOT a dotfile placeholder — rather than selecting on `.md`. The guard classifies by
+   * DIRECTORY, not by extension (that is its fail-closed reading), so an extension filter here would
+   * make the property narrower than the thing it claims to prove: a future non-`.md`, non-dotfile
+   * directive asset would be checked by `init` and silently skipped by this test.
+   */
+  const asBuiltinDirectives = (def: TemplateDefinition): ScaffoldFile[] =>
+    templateScaffold(def)
+      .filter((f) => {
+        const base = f.path.slice(f.path.lastIndexOf('/') + 1);
+        return f.path.startsWith('.wingfoil/directives/') && base !== '' && !base.startsWith('.');
+      })
+      .map((f) => ({ path: `${BUILTIN_DIRECTIVES_DIR}/${f.path.slice(f.path.lastIndexOf('/') + 1)}`, content: f.content }));
+
+  it.each(TEMPLATES.map((t) => [t.name, t] as const))(
+    '%s: every generated directive passes the REQ-SEC-10 guard (init does not abort)',
+    (_name, def) => {
+      const sources = builtinTemplateSources(asBuiltinDirectives(def));
+      expect(sources.length).toBeGreaterThan(0);
+      expect(verifyBuiltinTemplates(sources)).toBeNull();
+    },
+  );
 });

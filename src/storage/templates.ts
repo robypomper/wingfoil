@@ -137,8 +137,12 @@ function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
  *
  * Returns `[]` for today's scaffold, which still reserves both built-in directories with a `.gitkeep`
  * only. That is a fact about the current scaffold CONTENT, not a property of this function: the
- * moment an asset is added it is checked, with no edit here. See this task's Execution Notes for the
- * ordering hazard that creates for `task-057` (`bug-006`/`task-064` must land first).
+ * moment an asset is added it is checked, with no edit here — which is precisely the ordering hazard
+ * `task-057` (P3.8 built-in directives) inherits. That hazard is now CLOSED on the directive side:
+ * `task-064` fixed `bug-006`, so {@link directiveMd}'s output satisfies `DirectiveFrontmatter` and a
+ * directive generated from it passes the guard wherever it is written
+ * (`test/core/builtin-integrity.test.ts`, "accepts the real init directive generator output"). A
+ * built-in asset authored some OTHER way still has to satisfy its pillar schema on its own.
  */
 export function builtinTemplateSources(files: readonly ScaffoldFile[]): BuiltinTemplateSource[] {
   const sources: BuiltinTemplateSource[] = [];
@@ -263,7 +267,7 @@ ${types}
 
 function rolesYaml(): string {
   return `# Directive role assignments (P3.2/P3.7) — scaffolded by \`wingfoil init\`.
-# Binds directives to roles by NAME, independent of the built-in/custom subfolder holding the file.
+# Binds directives to roles by directive ID, independent of the built-in/custom subfolder holding the file.
 version: 1
 
 assignments:
@@ -319,11 +323,33 @@ ${includes}
 `;
 }
 
+/**
+ * One scaffolded Directives-pillar document: YAML frontmatter + the rule text body.
+ *
+ * The frontmatter carries every field `spec-013-directive-frontmatter-schema` marks required — `id`,
+ * `name`, `type: directive`, `kind`, `title` — because that spec's realization,
+ * `DirectiveFrontmatter` (`src/directives/schema.ts`), is what `loadDirectives` (`src/core/loaders.ts`)
+ * validates every directive file against: a scaffold missing any of them makes `wingfoil directives
+ * list` fail `E_VALIDATION` on a freshly-`init`'d project (bug-006-init-directive-scaffold-schema-invalid,
+ * the Directives sibling of the `dna.yaml`/`memory.yaml` defect bug-005 fixed).
+ *
+ * `id` is the filename stem, per spec-013 ("Stable directive identifier … matches the filename stem").
+ * That is not cosmetic: it is the key `resolveRoleDirectives` (`src/core/context.ts`, spec-012 §5)
+ * binds roles on, and {@link rolesYaml} lists exactly those stems in its `assignments`/`global` blocks
+ * — so any other value would leave every scaffolded role binding dangling. Keep the two in step.
+ *
+ * `kind: custom` is correct for `directives/custom/`, the only place {@link templateScaffold} writes a
+ * directive today; a P3.8 built-in template (`task-057`) is `kind: built-in`, and spec-013 keeps `kind`
+ * a plain `string` precisely so that needs no schema change.
+ */
 function directiveMd(d: (typeof DIRECTIVES)[number]): string {
   const ref = d.p38 ? '\nref: [P3.8]' : '';
   return `---
+id: ${d.name}
 name: ${d.name}
-kind: custom${ref}
+type: directive
+kind: custom
+title: "${d.title}"${ref}
 ---
 
 # ${d.title}

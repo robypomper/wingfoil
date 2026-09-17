@@ -2,7 +2,7 @@
 id: "bug-006-init-directive-scaffold-schema-invalid"
 type: bug
 title: "wingfoil init scaffolds directive .md files that fail the directives schema"
-status: planned
+status: in-review
 severity: "high"
 release-origin: "v0.1"
 release: "v0.2"
