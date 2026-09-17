@@ -158,3 +158,78 @@ Every failure is for the stated reason — `LICENSE` is absent (`Received: false
 the AC2 characterization pair (README, dna.yaml) and the placeholder edge case (vacuous on an absent
 file; it bites once the file exists). `publish-metadata.test.ts` stays green (11/11): the allowlist now
 tolerates `LICENSE`, which is harmless while it is absent.
+
+### green — role: developer
+
+Commit `d592e74 chore(cli): task-070-license-file — add the MIT LICENSE with the approver-confirmed
+copyright line`. Only file: `LICENSE` (21 lines) — heading `MIT License`, `Copyright (c) 2026 Roberto
+Pompermaier`, then the standard SPDX `MIT` grant / condition / disclaimer paragraphs. `package.json`,
+`README.md`, `dna.yaml` untouched (AC2: already agree).
+
+**AC4 — the task-059 guard went red as designed.** Ran `main`'s unmodified copy of the suite against the
+new `LICENSE` (`git show main:test/cli/publish-metadata.test.ts > test/cli/zz-main-allowlist.test.ts &&
+npx jest test/cli/zz-main-allowlist.test.ts`, temp file deleted afterwards, never committed):
+
+```
+  ● publish metadata (task-059) — shipped file surface › packs exactly `dist` + docs — nothing else reaches the tarball
+    +   "LICENSE",
+Tests:       1 failed, 10 passed, 11 total
+```
+
+With the updated allowlist: `npx jest test/cli/license-file.test.ts test/cli/publish-metadata.test.ts`
+→ `Tests: 19 passed, 19 total`.
+
+**AC3 — real `npm pack --dry-run` (prepack rebuild included, 8.5 s; `| grep -v "dist/"`), no `files` edit:**
+
+```
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE
+npm notice 15.9kB README.md
+npm notice 1.7kB package.json
+npm notice Tarball Details
+npm notice package size: 250.8 kB
+npm notice total files: 279
+```
+
+`LICENSE` is packed and total files went 278 → 279 with `files` still `["dist", "README.md"]`
+(`grep -n '"files"' -A3 package.json`). npm's automatic inclusion is confirmed, so `files` is **not**
+edited — which also keeps task-059's `keeps files as the reviewed allowlist` case and `spec-015` §1's
+"stays `["dist", "README.md"]`" intact. (278 on this branch vs task-059's 266: `dist/` grew with later
+v0.2 merges; not this task's change.)
+
+### refactor — role: developer
+
+No refactor commit: the production change is a static text file with nothing to restructure, and the new
+test file already follows its sibling's conventions (`--ignore-scripts`, sorted/normalised comparisons).
+Not fabricating one.
+
+**Gates (run in the worktree at `d592e74`):**
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest` | `Test Suites: 81 passed, 81 total` · `Tests: 1096 passed, 1096 total` |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=4` | exit 0 · All files **98.29 % stmts · 90.18 % branches · 98.44 % funcs · 98.93 % lines** |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| full types | `npx tsc --noEmit -p tsconfig.json` | exit 2 — only the pre-existing `bug-026` error `test/core/directive-create.test.ts(159,19): error TS2339` |
+| `lint.clean` | `npm run lint` | exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit 0 |
+
+Coverage non-regression: this task adds no `src/` code — `git diff --stat main...HEAD -- src jest.config.js
+package.json` prints nothing — so the covered-line set is unchanged by construction.
+
+### review-ready summary
+
+- **BDD:** no feature file covers licensing (`grep -rli licen docs/02_requirements/02_bdd/features/` → no
+  output); REQ-SYS-09 is verified by the packaging suites. Acceptance tests: `test/cli/license-file.test.ts`
+  (8 cases) + `test/cli/publish-metadata.test.ts` (11) + `test/cli/npm-distribution.test.ts` — all green.
+- **AC1** met — `LICENSE` with full MIT text and the copyright line the approver confirmed on 2026-09-17
+  (via the orchestrator); 4 AC1 cases, red → green.
+- **AC2** met — `package.json` `license`, `README.md` §License, `dna.yaml` `project.license` and `LICENSE`
+  all MIT; nothing needed reconciling (grep evidence under `design`); 3 cases.
+- **AC3** met — real pack lists `LICENSE`, `files` unchanged; 1 case.
+- **AC4** met — allowlist updated (one filter term + header clause); guard shown red against `main`'s copy.
+- **AC5** met — gates table above.
+- Files touched outside this task file: `LICENSE` (new), `test/cli/license-file.test.ts` (new),
+  `test/cli/publish-metadata.test.ts` (2 hunks, +3/−3).
+- Left alone deliberately: `bug-022` (`npm-distribution.test.ts` packs without `--ignore-scripts`) and
+  task-059's other two findings; `README.md` (owned by the `user-docs` gate, already agrees).
