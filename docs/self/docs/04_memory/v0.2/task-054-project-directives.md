@@ -2,7 +2,7 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: approved
+status: done
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
