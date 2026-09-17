@@ -8,3 +8,10 @@
 export const MODULE_NAME = 'directives' as const;
 
 export { DirectiveFrontmatter, RolesYaml } from './schema';
+
+export {
+  INVALID_DIRECTIVE_NAME_MESSAGE,
+  directiveTitleFromName,
+  isValidDirectiveName,
+  renderCustomDirective,
+} from './create';

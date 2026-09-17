@@ -19,7 +19,12 @@ import { generateId, parseYaml, toValidationError, ValidationError } from '../va
 import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
 import { DNA_KEY_ALIASES, isValidKeyPath, setDnaValue, setDnaValueInText } from '../dna/set';
-import { commitPaths, readDocument, StorageError, writeDocument } from '../storage';
+import {
+  INVALID_DIRECTIVE_NAME_MESSAGE,
+  isValidDirectiveName,
+  renderCustomDirective,
+} from '../directives/create';
+import { commitPaths, documentExists, readDocument, StorageError, writeDocument } from '../storage';
 import {
   findMemoryDocumentById,
   hasNumericToken,
@@ -623,6 +628,66 @@ const memoryHistoryFn: CoreFn<unknown, MemoryHistoryResult> = async (params) => 
 };
 
 /**
+ * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
+ * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
+ * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
+ * `wingfoil directive create --name <NAME>`. `options` is optional only because the seam itself is;
+ * {@link directiveCreateFn} rejects an absent `--name` as a usage error (exit 2).
+ */
+export interface DirectiveCreateParams {
+  readonly root: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/**
+ * `directive create` `CoreOperation.fn` (P3.1, `mutates: true` — the FIRST Directives-pillar mutation
+ * and the pillar's first CLI verb; spec-006-core-domain-api §3 directives table). Follows `dna set`'s
+ * mutating-op template (task-025) exactly, over the Directives pillar instead of `dna.yaml`:
+ *
+ * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
+ * 2. **Argument validation** — both failures are usage errors (`throw new UsageError` → exit **2**,
+ *    mapped by `exitCodeForThrow`): an absent `--name` uses spec-008-cli-grammar §4's exact
+ *    `missing required argument: --<name>` wording (same as `memoryAdd`), and a non-kebab-case name
+ *    uses P3.1's exact `invalid directive name (use kebab-case)` message
+ *    ({@link INVALID_DIRECTIVE_NAME_MESSAGE}). Because {@link isValidDirectiveName} runs before any
+ *    path is built, a traversal-shaped name (`../x`, `a/b`, `/etc/passwd`) can never reach the write.
+ * 3. **Already-exists check** — a file at `.wingfoil/directives/custom/<name>.md` makes this a domain
+ *    `CONFLICT` (the input is well-formed; the target is taken), returned NOT thrown, with P3.1's exact
+ *    `directive already exists: <name>` message → exit 1 via `exitCodeForError`. Nothing is written, so
+ *    the BDD's "no file is overwritten" holds by construction. The check is scoped to `custom/` only,
+ *    per `X_cli-cmds.md`'s "Unique within custom directives" — `built-in/` holds package-shipped
+ *    templates a user does not author against (spec-011's built-in/custom split).
+ * 4. **Render + persist + commit** — {@link renderCustomDirective} produces the whole document as a
+ *    pure function of `name` (REQ-SYS-07: no clock, no randomness, so two runs are byte-identical),
+ *    satisfying `DirectiveFrontmatter` (spec-013) so the new file loads through `loadDirectives`
+ *    alongside the ten `wingfoil init` scaffolds. Then `writeDocument` + `commitPaths` on the ONE
+ *    scoped path — exactly one commit, `wf(directive): create <name>` — and the sha rides
+ *    `CoreResult.commit`, the same shape `dnaSet` returns for `wf(dna): set <key>`.
+ */
+const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async (params) => {
+  const { root, options } = params as DirectiveCreateParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const name = options?.name;
+  if (name === undefined) throw new UsageError('missing required argument: --name');
+  if (!isValidDirectiveName(name)) throw new UsageError(INVALID_DIRECTIVE_NAME_MESSAGE);
+
+  const relativePath = `.wingfoil/directives/custom/${name}.md`;
+  const absolutePath = join(root, '.wingfoil', 'directives', 'custom', `${name}.md`);
+  if (documentExists(absolutePath)) {
+    return coreErr({ code: 'CONFLICT', message: `directive already exists: ${name}` });
+  }
+
+  writeDocument(absolutePath, renderCustomDirective(name));
+  const message = `wf(directive): create ${name}`;
+  const sha = commitPaths(root, [relativePath], message);
+  return coreOk({ name, path: relativePath }, { sha, message });
+};
+
+/**
  * The production `CoreModule` registry (spec-006 §2, §4). `src/cli`'s command registrar and
  * `src/mcp`'s Tool/Resource registrar both import this exact array — see spec-006 §4.1: "no
  * duplicated or hand-copied operation list in either surface module".
@@ -721,6 +786,35 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'workflowList',
         mutates: false,
         fn: wrapReadOnly<WorkflowsLoadResult>(loadWorkflowsYaml),
+      },
+    },
+  },
+  // task-050-directive-create (P3.1). A `directive` (SINGULAR) module, DISTINCT from the `directives`
+  // module above, because `CoreModule.name` IS the wire-visible `wingfoil <noun>` segment
+  // (`buildCliCommands`, `src/cli/registrar.ts`) and the `{module}.{verb}` MCP Tool name
+  // (`deriveMcpToolName`, `src/mcp/registrar.ts`) — and the P3 pillar deliberately exposes TWO nouns:
+  // `wingfoil directive create|assign|remove` (BDD P3.1/P3.2/P3.3; spec-008-cli-grammar §1 lists the
+  // noun as singular `directive`) alongside `wingfoil directives list` (BDD P3.4). spec-006 §3's own
+  // directives table pins both spellings on adjacent rows (`wingfoil directive create` + Tool
+  // `directive.create`; `wingfoil directives list` + Resource `wingfoil://directives/list`). Filing
+  // `directiveCreate` under the plural module would instead derive `wingfoil directives
+  // directive-create` (`deriveVerb` kebab-cases the whole name when it does not start with the module
+  // name), contradicting all of the above — so a second module is what realizes the approved contract
+  // without touching `deriveVerb` or either registrar. Placed last purely to keep this task's diff off
+  // the concurrently-edited `directives` block; `enumerateOperations` sorts, so position is inert.
+  {
+    name: 'directive',
+    operations: {
+      // The FIRST Directives-pillar mutation (P3.1) — `mutates: true`, so by construction an MCP Tool
+      // (`directive.create`) + CLI command (`wingfoil directive create`), and the third op the
+      // REQ-SYS-05 parity test guards (alongside `dna.set` and `memory.add`). `--name` is declared
+      // `required` as metadata; `directiveCreateFn` itself enforces it (throwing a `UsageError` →
+      // exit 2), matching `memoryAdd`'s `--type`/`--title` precedent.
+      directiveCreate: {
+        name: 'directiveCreate',
+        mutates: true,
+        options: [{ name: 'name', required: true }],
+        fn: directiveCreateFn,
       },
     },
   },
