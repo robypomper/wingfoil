@@ -5,7 +5,7 @@ title: "No test anywhere pins the guarantee that an AI agent holding `approver` 
 status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""

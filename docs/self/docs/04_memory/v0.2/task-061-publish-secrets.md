@@ -39,6 +39,20 @@ into documentation, i.e. the most likely tripper of the pattern being promoted. 
 Beware the self-reference: this task's own `.env`-style examples are written into a scanned surface
 (`docs/self/docs/04_memory/`), so it must use the §3 hatch on its own documentation or it will fail
 the gate it is landing.
+
+**`bug-015` — guard the scanner against a staged deletion before a gate consumes it.**
+`scanProjectSurface` builds its file list from `listTrackedFiles`, which enumerates the **git index**,
+then reads each path with `readFileSync`, which reads the **working tree**. A path tracked in the index
+but absent from disk throws `ENOENT` and takes the whole scan down instead of reporting.
+
+Harmless in a clean checkout, which is why it survived two review passes of `task-043`. It stops being
+harmless at the call site the scanner exists for — a commit-time or pre-publish gate runs against a
+working tree where staged deletions are ordinary, and this task is the one wiring secret handling into
+the publish path. Decide the contract deliberately while you are here: either the scanner reports on
+**what is committed** (read blobs via `git show :path`), or on **what is on disk at tracked paths**
+(current behaviour, plus an existence guard) — and say which in the TSDoc. `task-043`'s Fit-Criterion
+test also calls its surface "this repository's own **committed** surface", which is only true under the
+first reading. `bug-015` needs closing by hand — no `bug:` back-reference.
 ## Implementation Notes
 
 Source: `dl-018` T4; contract `spec-015` §5; requirement REQ-SYS-09/REQ-SEC-08. Depends on the pipeline (`task-060`).

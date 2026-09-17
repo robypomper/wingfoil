@@ -5,7 +5,7 @@ title: "scanProjectSurface enumerates the git index but reads the working tree, 
 status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""

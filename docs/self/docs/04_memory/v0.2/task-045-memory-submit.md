@@ -22,6 +22,20 @@ See `docs/02_requirements/02_bdd/features/p1-memory/P1.6-memory-submit.feature`.
 
 Key scenario: `wingfoil memory submit task-101` → frontmatter `status: pending`, transition recorded in git, exit 0.
 
+
+**`bug-016` — correct the two stale TSDoc blocks while you are in this neighbourhood.**
+`src/validation/errors.ts` still encodes the blanket "Pass-2 semantic failures exit `2`" rule in two
+places — the `EXIT_INTEGRITY` constant (~line 30) and the `ValidationError.semantic` factory (~line 74)
+— and both cite `spec-009` §3 by name. That rule was repudiated when `spec-009` §3 was rewritten to key
+exit codes on the nature of the failure rather than the detecting pass, and `task-036` already shipped a
+Pass-2 failure (`E_INVALID_STATE`) that exits `1`, so the tree contains a counterexample to its own
+documentation.
+
+This lands here because you already own `dl-032`'s realignment of `E_INVALID_TRANSITION`'s message and
+exit code in the same call path — `illegal()` in `src/memory/state-machine.ts` is what reaches
+`ValidationError.semantic`. The factory itself is **not** wrong to exist: its other six call sites
+(`loaders`, `id`, `query`) are genuine parse/integrity checks that correctly keep `2`. Only the prose
+generalises. `bug-016` needs closing by hand — no `bug:` back-reference from this task.
 ## Implementation Notes
 
 Depends on REQ-STATE-01 frontmatter lifecycle (`task-036`). First of the v0.2 memory verbs.

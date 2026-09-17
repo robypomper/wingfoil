@@ -5,7 +5,7 @@ title: "Two TSDoc blocks in src/validation/errors.ts still encode the Pass-2-alw
 status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""

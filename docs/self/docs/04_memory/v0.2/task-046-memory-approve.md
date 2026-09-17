@@ -22,6 +22,20 @@ See `docs/02_requirements/02_bdd/features/p1-memory/P1.7-memory-approve.feature`
 
 Key scenario: `wingfoil memory approve task-101 --reason 'meets standards'` → advances to approved state; commit records approver + timestamp + reason; exit 0.
 
+
+**`bug-017` — pin the guarantee this task's whole authority model rests on.** Nothing anywhere asserts
+that an AI agent holding `approver` via `team.agents[].executes_as` gains **no** approval authority.
+`resolveMemberRoles` reads `dna.team.members` only and never mentions `team.agents`, so the property
+holds structurally — but nothing would fail if a future edit introduced an agent fallback, which is
+exactly what `task-034` shipped on its first pass and was rejected for.
+
+One characterization case in `test/core/approval-authority.test.ts` closes it: a `DnaYaml` fixture with
+`team.agents: [{ executes_as: ['approver'], approval_authority: true }]` and **no** member holding
+`approver`, asserting `requireApprovalAuthority` refuses. Use `approval_authority: true` deliberately —
+`task-034`'s second rejection turned on the fact that **no code anywhere reads that field**; it is a
+declarative `dna.yaml` marker enforced by governance (`adr-006`, CLAUDE.md §4/§8). A test that sets it
+`true` and still expects refusal pins both halves at once: agents get nothing from `executes_as`, and
+nothing from the marker either. `bug-017` needs closing by hand — no `bug:` back-reference.
 ## Implementation Notes
 
 Depends on REQ-SEC-03 approval authority (`task-040`) + REQ-SEC-04 mandatory reason (`task-041`). Mirrors the manual `wf(...): approve` commit convention this planning phase used.

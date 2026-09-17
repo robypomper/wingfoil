@@ -5,7 +5,7 @@ title: "initWingfoilStorage is the one write path that calls initStorage without
 status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P5.1.1"
 contributor: ""
 credit: ""
