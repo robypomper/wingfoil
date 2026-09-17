@@ -148,3 +148,96 @@ has; P5.2.3 is scheduled in `minor-v0.4` (`grep -n P5.2.3 docs/self/docs/04_memo
 | spec-010 — required fields non-empty on submit; `rejection_reason` removed; one scoped commit `wf(type): submit id` with no bracket, readable by `memory history` as `operation: submit` | **red-first** | no submit code path exists |
 | dl-032 — contract message + `detail` + exit 1 on the transition engine path | **red-first** | as sc.2; `ValidationIssue` has no `detail` field |
 | bug-016 — correct the two TSDoc blocks in `src/validation/errors.ts` | **characterization (documentation only)** | prose; no behaviour changes — `semantic()` still exits `2` for its remaining five callers, pinned by the existing suite. Verified by reading the rewritten blocks, not by a test; no red fabricated. |
+
+### red — role: developer
+
+Commit `b01966f`. New suites `test/memory/commit-message.test.ts`, `test/memory/frontmatter-edit.test.ts`,
+`test/memory/submit.test.ts`, `test/core/memory-submit.test.ts`; a `resolveTypeTransition` block in
+`test/memory/state-machine.test.ts`, whose existing exit-code test was flipped `2 → 1`; the three
+registry/parity lists (`production-registry`, `parity`, `read-only-agent-channel`) gain
+`memorySubmit`. Observed red, for the stated reasons:
+
+```
+npx jest test/memory/commit-message.test.ts test/memory/frontmatter-edit.test.ts test/memory/submit.test.ts \
+  test/memory/state-machine.test.ts test/core/memory-submit.test.ts test/core/production-registry.test.ts \
+  test/core/parity.test.ts test/mcp/read-only-agent-channel.test.ts
+Test Suites: 8 failed, 8 total
+Tests:       27 failed, 73 passed, 100 total
+```
+
+Causes: `Cannot find module '../../src/memory/{commit-message,submit,frontmatter-edit}'`;
+`resolveTypeTransition is not a function`; the flipped exit-code test `Expected: 1, Received: 2`;
+`fixture bug: "memorySubmit" operation not registered on the memory module`; the registry lists
+lacking `memorySubmit`.
+
+### green — role: developer
+
+Commit `214c3ac`. As designed, with one refinement found while writing the `release` test: from the
+canonical target state itself the rule printed a self-loop (`planning -> planning`), so `<to>` falls
+back to the next state in `sequence` there (`planning -> in-development`); both cases are tested.
+`resolveTypeTransition` rethrows only `ValidationError`s. bug-016's two TSDoc blocks were rewritten
+to the nature-of-failure rule, with `semantic()` described as the constructor for integrity failures
+specifically. `ValidationIssue.detail` added (optional).
+
+### Merge of `main` (dl-035)
+
+`bd96dc6` merges `main` at `f4b3613` (dl-041's implementation: `spec-006` §3 `module` column,
+`spec-008` §1 noun list). No conflict. Re-read after the merge:
+`grep -n memorySubmit docs/self/docs/04_memory/design/specs/spec-006-core-domain-api.md` → the row
+names module `memory` — the module `memorySubmit` registers on. The same section defines *(planned)*
+as "not yet registered", so the refactor commit drops the marker from that one row (spec-006 has no
+version field to bump). spec-008 §2 (`--reason` required only on approve/reject), §5 and §7 (bare
+`<id>`), cited in design, read unchanged after the merge.
+
+### refactor — role: developer
+
+Commit `b13672e`: `frontmatter-edit` uses `map`/`findIndex` instead of indexed access with `?? ''`
+fallbacks (branch coverage of the file 85.71 → 100); a missing `status` is reported as `''` rather than
+the text `undefined` (new test); `test/cli/program.integration.test.ts` drives the three P1.6 scenarios
+through the real compiled `commander` wiring (stderr lines and exit codes as the feature states them);
+the `spec-006` marker above.
+
+Dogfood check (not a gate): a scratch clone of this branch, `memorySubmit` called with
+`root = <clone>/docs/self` — `task-045-memory-submit` `in-progress → in-review` produced one commit
+`wf(task): submit task-045-memory-submit` touching only that file; `task-036` (`done`) returned
+`illegal transition done -> pending for type 'task'` with detail "the last state in `sequence`".
+Through the CLI this is not reachable: `resolveProjectRoot` refuses any cwd other than the git root,
+and the dogfooded config is under `docs/self/`.
+
+### review-ready summary
+
+**Gates** (worktree, after the merge and refactor):
+
+| Command | Result |
+|---|---|
+| `npx jest --maxWorkers=4` | 84/84 suites, 1137/1137 tests passed |
+| `npx jest --coverage --maxWorkers=4` | All files 98.29 stmts · 90.43 branches · 98.53 funcs · 98.99 lines. Baseline, same command on `main` `f4b3613` in a scratch worktree: 98.29 · 90.18 · 98.44 · 98.93 — no metric regresses |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026, pre-existing) |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+
+New files: `commit-message.ts`, `frontmatter-edit.ts`, `submit.ts` 100% on all four metrics;
+`memory-transition.ts` 100% lines, one uncovered branch (line 93, the rethrow of a
+non-`ValidationError`); `state-machine.ts`'s only uncovered lines (240–241) are the pre-existing
+exhaustive `default` arm.
+
+**BDD P1.6 → tests**
+
+| Scenario | Tests |
+|---|---|
+| sc.1 submit a draft | `test/core/memory-submit.test.ts` "P1.6 sc.1: moves a draft to `status: pending`…"; `test/cli/program.integration.test.ts` "sc.1 `memory submit task-101`…" |
+| sc.2 illegal transition | `test/core/memory-submit.test.ts` "P1.6 sc.2: an illegal transition (approved -> pending)…"; `program.integration` "sc.2 `memory submit task-200`…"; `test/memory/state-machine.test.ts` "BDD P1.6 sc.2 against the REAL `task` machine…" |
+| sc.3 not found | `test/core/memory-submit.test.ts` "P1.6 sc.3…"; `program.integration` "sc.3 `memory submit task-999`…" |
+
+`P5.2.3` (MCP) is `minor-v0.4` scope; its sc.2 string comes from the same `resolveTypeTransition`,
+but no MCP-channel test is claimed here.
+
+**T1 outcome:** every red-first AC had a genuine failing test first (above); bug-016 stayed a
+documentation-only characterization with no fabricated red.
+
+**For the approver:** (1) the `<to>` rule in the contract message is a choice the specs do not make
+(design, green); (2) submit emits the spec-004 §4.3 subject with no `[from → to]` bracket, while
+hand-made `wf(task): submit … [in-progress → in-review]` commits in this repository carry one — the
+tool follows the spec; (3) required-field enforcement follows spec-010's rules, but submit does not
+check that template placeholder comments were replaced — nothing defines that check mechanically.
