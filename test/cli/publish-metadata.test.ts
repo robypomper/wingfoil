@@ -21,8 +21,8 @@
  * On the manifest check: `npm-distribution.test.ts` asserts *inclusion* (`dist/cli.js` and `README.md`
  * are there) and two spot exclusions. That is satisfiable by a tarball that also ships something it
  * should not, so this file tightens it to an **exhaustive allowlist** — every packed path must be
- * `dist/**`, `README.md`, or `package.json`. A package that leaked `docs/self/` or dropped `dist/`
- * fails here.
+ * `dist/**`, `README.md`, `LICENSE` (npm packs it regardless of `files`; task-070), or `package.json`.
+ * A package that leaked `docs/self/` or dropped `dist/` fails here.
  *
  * Deterministic: both the parsed `package.json` and `npm pack --dry-run`'s file selection are pure
  * functions of the working tree — no clock, no network, no ordering assumptions (path sets are
@@ -145,7 +145,7 @@ describe('publish metadata (task-059) — shipped file surface', () => {
 
   it('packs exactly `dist` + docs — nothing else reaches the tarball', () => {
     const unexpected = packedPaths()
-      .filter((p) => !p.startsWith('dist/') && p !== 'README.md' && p !== 'package.json')
+      .filter((p) => !p.startsWith('dist/') && p !== 'README.md' && p !== 'LICENSE' && p !== 'package.json')
       .sort();
     expect(unexpected).toEqual([]);
   });
