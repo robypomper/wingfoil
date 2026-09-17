@@ -147,13 +147,15 @@ describe('task-030 — production MCP server (createMcpServer), spec-014 §2', (
     expect(String((error as Error).message)).not.toContain(WRITE_REFUSAL_MESSAGE);
   });
 
-  it('scope (spec-014 §3): the v0.1 server exposes ONLY the read-only Resources channel — no Tools, no Prompts', async () => {
+  it('scope (spec-014 §3): the server exposes the read-only Resources and Prompts channels — no Tools', async () => {
     const caps = client.getServerCapabilities();
     expect(caps?.resources).toBeDefined();
+    // task-058-mcp-prompts-role-based (P5.2.2, v0.2): spec-014 §3 "when Prompts ship (P5.2.2, v0.2),
+    // it adds their registrar" — the role-scoped Prompts channel (spec-004 §3) is now wired on.
+    expect(caps?.prompts).toBeDefined();
     // No mutating Tool channel is advertised — in particular the task-025 `dna.set` Tool is NOT
-    // registered on the read-only v0.1 server (Tools are P5.2.3/v0.4 scope).
+    // registered on the read-only server (Tools are P5.2.3/v0.4 scope).
     expect(caps?.tools).toBeUndefined();
-    expect(caps?.prompts).toBeUndefined();
   });
 
   it('the DNA and Workflow Resources are also reachable on the production server (spec-004 §2.1)', async () => {

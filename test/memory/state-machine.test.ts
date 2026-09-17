@@ -28,6 +28,7 @@ import {
   isArchivedStatus,
   resolveStateMachine,
   resolveTransitionTarget,
+  resolveTypeTransition,
   SUPERSEDED_STATE,
   validateFrontmatterState,
 } from '../../src/memory/state-machine';
@@ -175,14 +176,16 @@ describe('resolveTransitionTarget — illegal transitions are rejected, target n
     expect(resolveTransitionTarget(taskMachine(), 'bogus-state', 'deprecate')).toBe(DEPRECATED_STATE);
   });
 
-  it('thrown error is a Pass-2 `ValidationError` carrying `E_INVALID_TRANSITION` and exits 2 (spec-009 §3)', () => {
+  it('thrown error is a Pass-2 `ValidationError` carrying `E_INVALID_TRANSITION` and exits 1 (spec-009 §3 as rewritten under dl-032)', () => {
     try {
       resolveTransitionTarget(taskMachine(), 'pending', 'submit', 'docs/04_memory/v0.1/task-x.md');
       throw new Error('expected resolveTransitionTarget to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);
       const validationError = error as ValidationError;
-      expect(validationError.exitCode).toBe(2);
+      // dl-032: an illegal transition is understood input a rule refused — `1`, not the `2` reserved
+      // for parse/integrity failures (spec-009 §3; REQ-INT-04; `EXIT_CODE_BY_ERROR.INVALID_TRANSITION`).
+      expect(validationError.exitCode).toBe(1);
       expect(validationError.issues).toHaveLength(1);
       expect(validationError.issues[0]!.code).toBe(E_INVALID_TRANSITION);
       expect(validationError.issues[0]!.file).toBe('docs/04_memory/v0.1/task-x.md');
@@ -528,5 +531,93 @@ describe('isArchivedStatus — the shared archived-status predicate (dl-028, REQ
 
   it('every archived status in the set is reported archived (set and predicate cannot drift)', () => {
     for (const status of ARCHIVED_STATUSES) expect(isArchivedStatus(status)).toBe(true);
+  });
+});
+
+describe('resolveTypeTransition — the dl-032 illegal-transition contract (P1.6 sc.2, P5.2.3 sc.2)', () => {
+  function expectContract(fn: () => unknown, message: string, detail: RegExp): void {
+    try {
+      fn();
+      throw new Error('expected resolveTypeTransition to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      const validationError = error as ValidationError;
+      expect(validationError.exitCode).toBe(1);
+      expect(validationError.issues).toHaveLength(1);
+      const issue = validationError.issues[0]!;
+      expect(issue.code).toBe(E_INVALID_TRANSITION);
+      expect(issue.path).toBe('status');
+      expect(issue.message).toBe(message);
+      // The shipped explanatory text survives as the detail (dl-032 option (c)).
+      expect(issue.detail).toMatch(detail);
+    }
+  }
+
+  it('returns the same legal target the engine does', () => {
+    expect(resolveTypeTransition(memoryYaml, 'task', 'draft', 'submit')).toBe('pending');
+    expect(resolveTypeTransition(memoryYaml, 'task', 'in-progress', 'submit')).toBe('in-review');
+    expect(resolveTypeTransition(memoryYaml, 'release', 'draft', 'submit')).toBe('planning');
+  });
+
+  it('BDD P1.6 sc.2 against the REAL `task` machine: submit from `approved` → the pinned string, exit 1', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'task', 'approved', 'submit', 'docs/04_memory/v0.2/task-200.md'),
+      "illegal transition approved -> pending for type 'task'",
+      /`waiting` state/,
+    );
+  });
+
+  it('`<to>` is the verb\'s canonical edge for the type — same string on the default machine (approved is terminal there)', () => {
+    const fixture = MemoryYaml.parse(
+      load(`version: 1
+defaults:
+  states:
+    sequence: [draft, pending, approved]
+    gates:
+      pending: { reject: draft }
+types:
+  task:
+    path: "docs/memory/task/{id}.md"
+`),
+    );
+    expectContract(
+      () => resolveTypeTransition(fixture, 'task', 'approved', 'submit'),
+      "illegal transition approved -> pending for type 'task'",
+      /last state in `sequence`/,
+    );
+  });
+
+  it('names the type\'s own canonical submit edge from any other state (release: draft → planning)', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'release', 'in-development', 'submit'),
+      "illegal transition in-development -> planning for type 'release'",
+      /`waiting` state/,
+    );
+  });
+
+  it('never prints a self-loop: from the canonical target itself, `<to>` is the next state in `sequence`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'release', 'planning', 'submit'),
+      "illegal transition planning -> in-development for type 'release'",
+      /`waiting` state/,
+    );
+  });
+
+  it('renders `<to>` as `(none)` when the machine has no legal edge at all for the verb', () => {
+    // `plan` declares no `gates`, so `approve` is legal from nowhere.
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'plan', 'draft', 'approve'),
+      "illegal transition draft -> (none) for type 'plan'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('carries the file path onto the issue', () => {
+    try {
+      resolveTypeTransition(memoryYaml, 'task', 'approved', 'submit', 'docs/x.md');
+    } catch (error) {
+      expect((error as ValidationError).issues[0]!.file).toBe('docs/x.md');
+    }
+    expect.assertions(1);
   });
 });
