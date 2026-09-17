@@ -68,6 +68,13 @@ describe('setFrontmatterField', () => {
     expect(setFrontmatterField(doc, 'rejection_reason', 'why')).toBe('---\r\nid: a\r\nstatus: draft   # c\r\nrejection_reason: why\r\n---\r\nbody\r\n');
   });
 
+  it('(b)/(d) CRLF: replacing a multi-line quoted value and a block scalar keeps CRLF on the rewritten line', () => {
+    const doc = '---\r\ntitle: "first\r\n  end"\r\nnote: |\r\n  a\r\n\r\n  b\r\nstatus: draft\r\n---\r\nbody\r\n';
+    const out = setFrontmatterField(setFrontmatterField(doc, 'title', 'one'), 'note', 'two');
+    expect(out).toBe('---\r\ntitle: one\r\nnote: two\r\nstatus: draft\r\n---\r\nbody\r\n');
+    expect(parsed(out)).toEqual({ title: 'one', note: 'two', status: 'draft' });
+  });
+
   it('(c) a plain value with an unspaced `#` (`dr#aft`) is matched and replaced, not duplicated', () => {
     const doc = '---\nid: a\nstatus: dr#aft\n---\nbody\n';
     const out = setFrontmatterField(doc, 'status', 'pending');
@@ -167,6 +174,13 @@ describe('removeFrontmatterField', () => {
     const out = removeFrontmatterField(doc, 'rejection_reason');
     expect(out).toBe('---\r\nstatus: draft\r\ntags: []\r\n---\r\nbody\r\n');
     expect(parsed(out)).toEqual({ status: 'draft', tags: [] });
+  });
+
+  it('(b) CRLF: removing the LAST entry leaves no stray `\\r` before the closing delimiter', () => {
+    for (const entry of ['rejection_reason: x', 'rejection_reason: |\r\n  a\r\n\r\n  b']) {
+      const doc = `---\r\nid: a\r\n${entry}\r\n---\r\nbody\r\n`;
+      expect(removeFrontmatterField(doc, 'rejection_reason')).toBe('---\r\nid: a\r\n---\r\nbody\r\n');
+    }
   });
 
   it('(e) an indented comment line after a plain value belongs to the mapping, not the value — kept', () => {
