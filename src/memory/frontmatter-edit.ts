@@ -51,14 +51,15 @@ function keyLineRegExp(key: string): RegExp {
 export function setFrontmatterField(content: string, key: string, valueYaml: string): string {
   const { before, lines, after } = locateFrontmatter(content);
   const re = keyLineRegExp(key);
-  const index = lines.findIndex((line) => re.test(line));
-  if (index === -1) {
-    lines.push(`${key}: ${valueYaml}`);
-  } else {
-    const comment = re.exec(lines[index] ?? '')?.[1] ?? '';
-    lines[index] = `${key}: ${valueYaml}${comment}`;
-  }
-  return `${before}${lines.join('\n')}${after}`;
+  let replaced = false;
+  const edited = lines.map((line) => {
+    const match = replaced ? null : re.exec(line);
+    if (!match) return line;
+    replaced = true;
+    return `${key}: ${valueYaml}${match[1] ?? ''}`;
+  });
+  if (!replaced) edited.push(`${key}: ${valueYaml}`);
+  return `${before}${edited.join('\n')}${after}`;
 }
 
 /**
@@ -71,8 +72,8 @@ export function removeFrontmatterField(content: string, key: string): string {
   const { before, lines, after } = locateFrontmatter(content);
   const index = lines.findIndex((line) => line.startsWith(`${key}:`));
   if (index === -1) return content;
-  let end = index + 1;
-  while (end < lines.length && /^[ \t]+\S/.test(lines[end] ?? '')) end += 1;
-  lines.splice(index, end - index);
+  const following = lines.slice(index + 1);
+  const continuation = following.findIndex((line) => !/^[ \t]+\S/.test(line));
+  lines.splice(index, 1 + (continuation === -1 ? following.length : continuation));
   return `${before}${lines.join('\n')}${after}`;
 }

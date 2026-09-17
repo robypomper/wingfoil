@@ -485,6 +485,56 @@ types:
     });
   });
 
+  // task-045-memory-submit (P1.6, BDD `p1-memory/P1.6-memory-submit.feature`) — the three scenarios
+  // driven through the real `commander` wiring, so the exit codes and the `error: <reason>` lines the
+  // feature pins are asserted as a user sees them, not only on the `CoreResult`.
+  describe('`memory submit <id>` — the first Memory transition verb (task-045, P1.6)', () => {
+    const MEMORY_YAML = `version: 1
+types:
+  task:
+    path: "docs/memory/task/{id}.md"
+    states:
+      sequence: [draft, pending, backlog, in-progress, in-review, approved, done]
+      gates:
+        pending: { reject: draft }
+        in-review: { reject: in-progress }
+      waiting: [backlog, approved]
+`;
+    let repo: string;
+    const doc = (id: string, status: string): string =>
+      ['---', `id: ${id}`, 'type: task', 'title: "A task"', `status: ${status}`, '---', '', 'Body.', ''].join('\n');
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeFixtureFile(repo, 'docs/memory/task/task-101.md', doc('task-101', 'draft'));
+      writeFixtureFile(repo, 'docs/memory/task/task-200.md', doc('task-200', 'approved'));
+      commitAll(repo, 'seed');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('sc.1 `memory submit task-101` sets `status: pending`, records one git commit, exit 0', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-101');
+      expect(result.status).toBe(0);
+      expect(readFileSync(join(repo, 'docs/memory/task/task-101.md'), 'utf-8')).toContain('status: pending');
+      expect(execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim()).toBe('wf(task): submit task-101');
+    });
+
+    it('sc.2 `memory submit task-200` (approved) exits 1 with "illegal transition approved -> pending for type \'task\'", state unchanged', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-200');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: illegal transition approved -> pending for type 'task'\n");
+      expect(readFileSync(join(repo, 'docs/memory/task/task-200.md'), 'utf-8')).toContain('status: approved');
+    });
+
+    it('sc.3 `memory submit task-999` exits 1 with "document not found: task-999"', () => {
+      const result = runCliInRoot(repo, 'memory', 'submit', 'task-999');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: document not found: task-999\n');
+    });
+  });
+
   // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
   // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
   // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real

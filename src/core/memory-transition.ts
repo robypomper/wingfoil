@@ -82,7 +82,8 @@ export function prepareMemoryTransition(
   }
 
   const status = found.frontmatter.status;
-  const from = typeof status === 'string' ? status : String(status);
+  // A missing or non-string `status` is reported as an invalid state, never as the text 'undefined'.
+  const from = typeof status === 'string' ? status : String(status ?? '');
   try {
     validateFrontmatterState(machine, type, from, found.path);
     const to = resolveTypeTransition(memoryYaml, type, from, op, found.path);

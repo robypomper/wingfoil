@@ -229,6 +229,16 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
     expect(head(repo)).toBe(before);
   });
 
+  it('a document with no `status` at all is an invalid state (exit 1), reported without the text `undefined`', async () => {
+    writeFixtureFile(repo, 'docs/memory/v0.2/task-106.md', '---\nid: task-106\ntype: task\ntitle: "T"\nrelease: "v0.2"\n---\n');
+    commitAll(repo, 'seed 106');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-106' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe("invalid state '' for type 'task'");
+    expect(exitCodeForResult(result)).toBe(1);
+  });
+
   it('a document whose `type` is not registered exits 1 with the `memory add` unknown-type message', async () => {
     writeFixtureFile(repo, 'docs/memory/v0.2/odd.md', '---\nid: odd-1\ntype: unicorn\ntitle: "U"\nstatus: draft\n---\n');
     commitAll(repo, 'seed odd');
