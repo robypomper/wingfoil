@@ -133,9 +133,11 @@ function builtinSourceOf(file: ScaffoldFile): BuiltinTemplateSource | null {
  * than merely untested — the fix `dl-031-req-sec-10-integrity-depth` flagged. (dl-031 ratified that
  * schema validation IS the REQ-SEC-10 contract; there is deliberately no digest or manifest here.)
  *
- * Pure and order-preserving over `files` (REQ-SYS-07): {@link templateScaffold} returns a path-sorted
- * list — as does `scaffoldFiles` (./layout) — so the derived order, and hence
- * `verifyBuiltinTemplates`' first-failure choice, is deterministic.
+ * Pure and order-preserving over `files` (REQ-SYS-07), so the derived order — and hence
+ * `verifyBuiltinTemplates`' first-failure choice — is the caller's own order, deterministic whenever
+ * that is. Both of today's callers qualify, for different reasons: {@link templateScaffold} returns a
+ * genuinely path-sorted list, whereas `scaffoldFiles` (./layout) returns a fixed hand-written literal
+ * that is stable but NOT sorted (see its doc comment). Reproducible is what matters here, not sorted.
  *
  * BOTH scaffolds flow through here since `task-054-project-directives`: `scaffoldFiles()` now reserves
  * `.wingfoil/directives/built-in/` for the P3.5 layout, and `initWingfoilStorage` derives its checked

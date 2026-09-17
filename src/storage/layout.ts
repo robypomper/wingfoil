@@ -43,9 +43,16 @@ const GITKEEP = '';
 /**
  * The default `.wingfoil/` skeleton: exactly the files the P1.1 acceptance contract
  * (P1.1-git-backed-storage.feature scenario 1) and the P3.5 directive-layout contract
- * (p3-directives/P3.5-project-directives.feature scenario 1) require, in a fixed lexical order. Pure
- * and deterministic — no wall-clock, no environment read — so repeated calls are byte-identical
+ * (p3-directives/P3.5-project-directives.feature scenario 1) require, in a fixed, hand-written order.
+ * Pure and deterministic — no wall-clock, no environment read — so repeated calls are byte-identical
  * (REQ-SYS-07) and callers may compare/diff the set safely.
+ *
+ * That order is stable but is NOT a lexical sort, which is worth stating because the literal below
+ * reads like one: `'.'` (0x2E) sorts before `'/'` (0x2F), so sorting these paths would put
+ * `.wingfoil/memory.yaml` BEFORE `.wingfoil/memory/.gitkeep` — the reverse of the order written here.
+ * Determinism never depended on the list being sorted, only on it being fixed, which a literal is; so
+ * this is a property callers must not assume, not a defect to "fix" by sorting. Contrast
+ * `templateScaffold` (./templates), which genuinely does sort its output.
  *
  * `directives/` is split into `built-in/` and `custom/` per spec-011-storage-layout, each reserved by
  * its own `.gitkeep`: P3.5 requires BOTH subfolders to be tracked by git, and git tracks files rather
