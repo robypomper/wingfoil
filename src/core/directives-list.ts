@@ -92,10 +92,15 @@ export interface DirectiveListEntry {
 function rolesByDirectiveId(rolesYaml: RolesYaml | undefined): Map<string, string[]> {
   const byId = new Map<string, string[]>();
   if (rolesYaml === undefined) return byId;
-  for (const role of Object.keys(rolesYaml.assignments).sort()) {
-    for (const id of rolesYaml.assignments[role] ?? []) {
+  // `Object.entries` (own enumerable properties only) rather than `Object.keys` + an index read: it
+  // hands back the id array already typed, with no `?? []` fallback that `noUncheckedIndexedAccess`
+  // would otherwise force onto a key that by construction exists.
+  const assignments = Object.entries(rolesYaml.assignments).sort(([a], [b]) => (a < b ? -1 : 1));
+  for (const [role, ids] of assignments) {
+    for (const id of ids) {
       const roles = byId.get(id);
       if (roles === undefined) byId.set(id, [role]);
+      // A role listing the same directive id twice must not produce a duplicated role name.
       else if (!roles.includes(role)) roles.push(role);
     }
   }

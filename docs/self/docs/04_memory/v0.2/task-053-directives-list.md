@@ -200,3 +200,81 @@ Behaviour, point by point:
 **`Tests: 50 passed, 50 total`** (2 suites).
 Full suite `npx jest --maxWorkers=2` → **`Test Suites: 75 passed, 75 total`, `Tests: 986 passed, 986
 total`**.
+
+### refactor — role: developer (directives: code-quality, testing, determinism)
+
+Two changes, both driven by the coverage report rather than taste:
+
+1. `rolesByDirectiveId` now walks `Object.entries(assignments).sort(...)` instead of
+   `Object.keys(...).sort()` + an index read. The index read forced a `?? []` fallback on a key that
+   by construction exists (`noUncheckedIndexedAccess`), which showed up as a permanently-uncovered
+   branch — a dead path, now gone rather than merely untested.
+2. Added a case for a role listing the same directive id twice (`roles.yaml` hygiene): the role is
+   reported once. That was the second uncovered branch (`!roles.includes(role)`), and it is real
+   behaviour worth pinning, not coverage theatre.
+
+`src/core/directives-list.ts` went 91.3% → **100% branch** (100% stmts/funcs/lines throughout).
+
+**Checks (post), all observed:**
+
+| check | command | result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | `Test Suites: 75 passed, 75 total` · `Tests: 987 passed, 987 total` |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | All files **98.14% stmts / 89.92% branch / 98.36% funcs / 98.87% lines**; `src/core` 98.55/91.07/100/99.18; `directives-list.ts` **100/100/100/100** |
+| `docs.api.build` | `npm run docs:api` | exit 0 |
+| `docs.api.public-complete` | `npx tsc -p tsconfig.build.json` | exit 0; every new export (`DirectiveListEntry` and its fields, `buildDirectiveListing`, `loadDirectiveListing`, `GLOBAL_ASSIGNMENT`, `UNASSIGNED_ASSIGNMENT`, `DirectivesListParams`) carries TSDoc |
+| `lint.clean` (dl-034) | `npx eslint .` | exit 0 |
+
+**End-to-end on the real compiled CLI** (`node dist/cli.js`, run in throwaway repos **outside** the
+worktree, after `npx tsc -p tsconfig.build.json`).
+
+*Scenario 1 + 3 — a repo with the six P3.8 ids under `built-in/` and one custom
+`no-direct-db-access`, `roles.yaml` binding `testing`→developer+qa, `no-direct-db-access`→developer,
+`code-review`→reviewer, `documentation` global:*
+
+```
+$ wingfoil directives list --format json     # ids and assignment only, for brevity
+architecture        -> unassigned
+code-quality        -> unassigned
+code-review         -> reviewer
+documentation       -> global (all roles)
+security            -> unassigned
+testing             -> developer, qa
+no-direct-db-access -> developer
+exit=0
+```
+
+*Scenario 2 — the `--role` filter, and dl-029's unbound role:*
+
+```
+$ wingfoil directives list --role developer --format json
+documentation       -> global (all roles)
+testing             -> developer, qa
+no-direct-db-access -> developer
+exit=0
+
+$ wingfoil directives list --role architect --format json
+documentation       -> global (all roles)
+exit=0
+```
+
+*Scenario 3 (edge) — after deleting `custom/`, exactly the six built-ins are listed, exit 0.*
+
+*Against WingFoil's own `docs/self/.wingfoil/` (copied into a scratch repo):*
+
+```
+$ wingfoil directives list --format json
+directives/custom/architecture.md          architect, tech-lead
+directives/custom/code-quality.md          developer
+directives/custom/code-review.md           reviewer, tech-lead
+directives/custom/determinism.md           architect, developer
+directives/custom/doc-versioning.md        global (all roles)
+directives/custom/documentation.md         global (all roles)
+directives/custom/security-secrets.md      global (all roles)
+directives/custom/security.md              unassigned
+directives/custom/testing.md               developer, qa
+directives/custom/traceability.md          architect, product-owner, reviewer
+```
+
+That reproduces `roles.yaml` exactly, including its own comment that the generic `security` stand-in
+is deliberately left unbound — the `unassigned` case, on real data.

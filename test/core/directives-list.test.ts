@@ -210,6 +210,20 @@ describe('directivesList — P3.4 Scenario 2: filter the listing by role', () =>
     expect(ids).toEqual(['security-secrets']);
   });
 
+  // `roles.yaml` hygiene: a role listing the same directive id twice is a config typo, not a reason
+  // to report that role twice on the entry.
+  it('a role listing the same directive id twice reports that role once', async () => {
+    writeFixtureFile(
+      repo,
+      '.wingfoil/roles.yaml',
+      'version: 1.0\nassignments:\n  developer:\n    - testing\n    - testing\nglobal: []\n',
+    );
+    const entries = await listOk(repo);
+    const testing = entries.find((entry) => entry.frontmatter.id === 'testing');
+    expect(testing?.roles).toEqual(['developer']);
+    expect(testing?.assignment).toBe('developer');
+  });
+
   // A directive id that collides with an `Object.prototype` member must not resolve through the
   // prototype chain (same hazard `ownAssignments` guards in `src/core/context.ts`).
   it('a directive id shadowing an Object.prototype member is unassigned, not a prototype member', async () => {
