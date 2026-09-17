@@ -101,9 +101,9 @@ determinism (developer, for red/green/refactor); doc-versioning, documentation, 
 #### verify_specs
 
 No new `tech-spec` needed — every semantic this verb needs is already pinned by an `approved` spec.
-All 16 specs are `approved`, counted from frontmatter only (not from example blocks in spec bodies):
+All 15 specs are `approved`, counted from frontmatter only (not from example blocks in spec bodies):
 `for f in docs/self/docs/04_memory/design/specs/*.md; do awk 'NR>1 && /^---$/{exit} /^status:/{print $NF}' "$f"; done | sort | uniq -c`
-→ `16 approved`.
+→ `15 approved`.
 
 - `spec-001-memory-yaml-schema` — `reject`'s target is `gates.{state}.reject`, taken **verbatim**, and
   need not be a `sequence` member. On this repository's machines: `pending → draft` (default, `task`,
@@ -241,8 +241,8 @@ before `#`) the strict parser objects to — and additionally round-tripped thro
 | P1.8 sc.1 — `memory reject task-101 --reason 'tests missing'` → `status: draft`, commit records identity/timestamp/reason, exit `0` | **red-first** | no `memoryReject` anywhere: `grep -rn "memoryReject" src/` → no output |
 | P1.8 sc.2 — rejecting a non-rejectable document leaves the state unchanged, exit `1` (message per the conflict resolution above) | **red-first** | no operation exists |
 | P1.8 sc.3 — no `--reason` → exit `2`, `missing required argument: --reason`, state unchanged | **red-first** | no operation exists |
-| spec-010 — `rejection_reason` set to the reason verbatim; `status` to the gate's reject target; nothing else changes; a following `memory.submit` clears it | **red-first** | `grep -rn "rejection_reason" src/ --include=*.ts` shows only the *removal* side (`submit.ts`) — nothing sets it |
-| REQ-SEC-03 — a principal without the `approver` role is refused, `user not authorized to approve type '<type>'`, exit `1`, state unchanged | **red-first** | `requireApprovalAuthority` exists (task-040) but has **no** production call site: `grep -rn "requireApprovalAuthority" src/ \| grep -v approval-authority.ts` → only a doc-comment mention in `builtin-asset.ts`; task-040's own notes call it "not yet wired" |
+| spec-010 — `rejection_reason` set to the reason verbatim; `status` to the gate's reject target; nothing else changes; a following `memory.submit` clears it | **red-first** | `grep -rn "rejection_reason" src/ --include=*.ts` → 7 hits, all either the *removal* side (`submit.ts`, `core/index.ts`'s submit doc-comment) or prose anticipating this task (`frontmatter-edit.ts:157`); no code sets the field |
+| REQ-SEC-03 — a principal without the `approver` role is refused, `user not authorized to approve type '<type>'`, exit `1`, state unchanged | **red-first** | `requireApprovalAuthority` exists (task-040) but has **no** production call site: `grep -rn "requireApprovalAuthority" src/ \| grep -v approval-authority.ts` → two hits, both doc-comment mentions (`git-identity.ts:58`, `builtin-asset.ts:130`) — no call |
 | REQ-SEC-04 — reason mandatory (P1.8 sc.3 above) | **red-first** | `requireReason` exists with no production call site either (`grep -rn "requireReason" src/ \| grep -v require-reason.ts` → none) |
 | dl-054 — subject carries `[from → to]`; body carries `Approver:` and `Reason:` | **red-first** | no reject commit is produced by any code |
 | Arbitrary reason text is serialized YAML-safely and round-trips | **red-first** | the code path does not exist; `toYamlScalar` itself is already covered by task-045's own test, so the new assertion is on the *verb*, end to end |
