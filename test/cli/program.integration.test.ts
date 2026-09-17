@@ -48,11 +48,12 @@
  * update this test alongside that change.
  */
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 import { load as yamlLoad } from 'js-yaml';
 
+import { initWingfoilProject } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../storage/helpers/git-fixture';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -477,6 +478,68 @@ types:
       expect(result.status).toBe(2);
       expect(result.stderr).toBe('error: missing required argument: memory history <id>\n');
       expect(result.stdout).toBe('');
+    });
+  });
+
+  // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
+  // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
+  // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real
+  // `wingfoil init` scaffold, so the created directive is checked against the ten it ships with.
+  describe('`directive create --name <name>` — first Directives-pillar mutating command (task-050, P3.1)', () => {
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      const init = initWingfoilProject(repo, 'Scrum');
+      if (!init.ok) throw new Error(`fixture bug: wingfoil init failed — ${init.error.message}`);
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('creates the file under .wingfoil/directives/custom/, commits it, and exits 0 (BDD "Create a new custom directive")', () => {
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const created = join(repo, '.wingfoil', 'directives', 'custom', 'no-direct-db-access.md');
+      expect(existsSync(created)).toBe(true);
+      expect(readFileSync(created, 'utf-8')).toContain('id: no-direct-db-access');
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(directive): create no-direct-db-access');
+      const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
+        encoding: 'utf-8',
+      }).trim();
+      expect(changed).toBe('.wingfoil/directives/custom/no-direct-db-access.md');
+    });
+
+    it('a duplicate name exits 1 with the exact BDD message and overwrites nothing (BDD "Error - ... already exists")', () => {
+      expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
+      const created = join(repo, '.wingfoil', 'directives', 'custom', 'no-direct-db-access.md');
+      const before = readFileSync(created, 'utf-8');
+
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: directive already exists: no-direct-db-access\n');
+      expect(result.stdout).toBe('');
+      expect(readFileSync(created, 'utf-8')).toBe(before);
+    });
+
+    it("an invalid name exits 2 with the exact BDD message and creates no file (BDD \"Error - invalid directive name\")", () => {
+      const before = readdirSync(join(repo, '.wingfoil', 'directives', 'custom')).sort();
+      const result = runCliInRoot(repo, 'directive', 'create', '--name', 'bad name!');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: invalid directive name (use kebab-case)\n');
+      expect(result.stdout).toBe('');
+      expect(readdirSync(join(repo, '.wingfoil', 'directives', 'custom')).sort()).toEqual(before);
+    });
+
+    it('the created directive is visible to `directives list` (the read side of the same pillar)', () => {
+      expect(runCliInRoot(repo, 'directive', 'create', '--name', 'no-direct-db-access').status).toBe(0);
+      const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
+      expect(result.status).toBe(0);
+      const listed = JSON.parse(result.stdout) as { path: string; frontmatter: { id: string } }[];
+      expect(listed.map((entry) => entry.frontmatter.id)).toContain('no-direct-db-access');
     });
   });
 
