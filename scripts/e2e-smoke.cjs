@@ -15,7 +15,8 @@
  *
  * Usage:
  *   node scripts/e2e-smoke.cjs [--expect-version X.Y.Z]                  # drives `wingfoil` on PATH
- *   node scripts/e2e-smoke.cjs [--expect-version X.Y.Z] -- node dist/cli.js
+ *   node scripts/e2e-smoke.cjs [--expect-version X.Y.Z] -- node "$PWD/dist/cli.js"
+ * Every step runs inside a throwaway directory, so a script path after `--` must be absolute.
  */
 'use strict';
 
@@ -123,11 +124,10 @@ function runSmoke(options) {
   const done = () => ({ ok: checks.every((c) => c.ok), checks });
 
   const help = invoke(['--help'], tmpdir());
-  const helpCheck = commandCheck('wingfoil --help', help, false);
-  if (helpCheck.ok && !help.stdout.includes('Usage: wingfoil')) {
-    helpCheck.ok = false;
-    helpCheck.detail = 'stdout does not contain "Usage: wingfoil"';
-  }
+  const helpExit = commandCheck('wingfoil --help', help, false);
+  const helpUsage = help.stdout.includes('Usage: wingfoil');
+  const helpCheck =
+    helpExit.ok && !helpUsage ? { ...helpExit, ok: false, detail: 'stdout does not contain "Usage: wingfoil"' } : helpExit;
   if (!record(helpCheck)) return done();
 
   if (options.expectedVersion !== undefined) {
