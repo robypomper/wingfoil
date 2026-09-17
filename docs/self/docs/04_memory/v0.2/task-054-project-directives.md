@@ -2,14 +2,13 @@
 id: "task-054-project-directives"
 type: task
 title: "Implement Project Directives (custom + built-in storage layout)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p3"]
 ref: "P3.5"
 bug: ""
 depends_on: []
-rejection_reason: "Second pass delivered all four required fixes honestly and verifiably, but introduced a new false claim of the same genus the task was rejected for. The notes assert that dl-031's Actions item (amend REQ-SEC-10 to say schema-checked) remains undone; it was already done by 9d74d80 on 2026-09-14, which predates this branch point, and the amended text sits in docs/02_requirements/03_sard/05_security-compliance.md:98-101 on this very branch. The branch also contradicts itself: src/core/builtin-integrity.ts:8 says dl-031 retitled the requirement, and the task's own design note cites dl-031 correctly. Separately, the stated reason for the untrimmed porcelain comparison is wrong — a trimmed comparison would also reject an added or untracked file; what untrimmed actually discriminates is the index column from the worktree column. Two sentences; no code or test change."
 tmpl_version: 260703
 ---
 
@@ -567,3 +566,24 @@ that settles it, and put the command in the note. Pass two applied this to three
 claims were correct; the two claims that were not checked are the two that were false. Every state
 claim in this pass carries its command — the two greps above, `sed -n '98,101p'`,
 `git merge-base --is-ancestor`, and the four-row porcelain table.
+
+### Confirming gate run (third pass)
+
+No behaviour changed in this pass — one test *comment* and the notes — so every number is expected to
+be, and is, identical to the second pass:
+
+| Check | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest --maxWorkers=2` | **75 suites / 979 tests passed**, 0 failed |
+| `tests.coverage(min: 80)` | `npx jest --coverage --maxWorkers=2` | **global 98.11% stmts / 89.70% branch / 98.33% funcs / 98.85% lines** |
+| `docs.api.build` + `public-complete` | `npm run docs:api` | exit **0** |
+| (build typecheck) | `npx tsc -p tsconfig.build.json` | exit **0** |
+| `lint.clean` (`dl-034`) | `npx eslint .` | exit **0** |
+
+Per-file coverage for the touched files also unmoved: `src/storage/layout.ts` and
+`src/core/builtin-integrity.ts` 100/100/100/100; `src/storage/templates.ts` 100/95/100/100 (line 459,
+the `files.sort` equal-paths arm); `src/core/init.ts` 93.18/95/100/95.23 (lines 117, 192, the
+pre-existing `IO` catch arms).
+
+**Files changed in the third pass:** `test/storage/git-backed-storage.test.ts` (comment only — the
+assertion is byte-identical) and this task's Memory file. Nothing else.
