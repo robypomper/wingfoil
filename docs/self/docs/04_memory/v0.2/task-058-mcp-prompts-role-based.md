@@ -2,8 +2,7 @@
 id: "task-058-mcp-prompts-role-based"
 type: task
 title: "Implement MCP Prompts (role-based)"
-status: in-progress
-rejection_reason: "P5.2.2's three scenarios work on the production server and every gate is green, but the task changes `wingfoil mcp` startup without a test and against an approved spec. `createMcpServer` now reads `dna.yaml` when the server is built, contradicting spec-014 §2's \"no I/O at construction time\". A missing `dna.yaml` exits 1 through `src/cli.ts`'s last-resort handler as a raw ENOENT that ignores `--format json`, not through `runMcp`'s format-aware pre-flight. Making the registrar tolerate a missing `dna.yaml` leaves all 208 mcp/cli tests green. The notes mention the change but never check it against spec-014 or propose an element. Also, `test/mcp/read-only-agent-channel.test.ts:91` still grounds REQ-SEC-05 on \"no Prompts channel is advertised\", which this task made false. Route the startup failure through `runMcp` with a test (or defer the DNA read), re-ground the channel-enumeration test on the shipped surface, and raise the spec-004/spec-014 gaps as decision-logs."
+status: in-review
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p5"]
