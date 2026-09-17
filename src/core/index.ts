@@ -675,8 +675,11 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
   if (name === undefined) throw new UsageError('missing required argument: --name');
   if (!isValidDirectiveName(name)) throw new UsageError(INVALID_DIRECTIVE_NAME_MESSAGE);
 
+  // One spelling of the location, reused for the existence check, the write and the commit scope, so
+  // the three can never drift apart. `join` normalizes the separators, so the POSIX form is also the
+  // correct absolute path on Windows; the root-relative form is what `commitPaths` stages.
   const relativePath = `.wingfoil/directives/custom/${name}.md`;
-  const absolutePath = join(root, '.wingfoil', 'directives', 'custom', `${name}.md`);
+  const absolutePath = join(root, relativePath);
   if (documentExists(absolutePath)) {
     return coreErr({ code: 'CONFLICT', message: `directive already exists: ${name}` });
   }
@@ -706,10 +709,12 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
  * under a `memoryXxx` name would misrepresent it as the latter. As of
  * task-025-implement-dna-set the registry has its FIRST mutating operation — `dna.dnaSet`
- * (`mutates: true`, P2.1); the remaining spec-006 §3 mutating functions (`memoryAdd`,
- * `directiveCreate`, `workflowStart`, ...) are still task-020..030's scope. The REQ-SYS-05 parity
- * test in `test/core/parity.test.ts` runs against this exact array, so it is now a live regression
- * guard: `dna set` must appear as both a CLI command and an MCP Tool, or the diff fails.
+ * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020) and `directive.directiveCreate`
+ * (P3.1, task-050) have since joined it, and the remaining spec-006 §3 mutating functions
+ * (`memorySubmit`, `directiveAssign`, `workflowStart`, ...) are still later tasks' scope. The
+ * REQ-SYS-05 parity test in `test/core/parity.test.ts` runs against this exact array, so it is now a
+ * live regression guard: each of those mutating ops must appear as both a CLI command and an MCP
+ * Tool, or the diff fails.
  */
 export const CORE_MODULES: readonly CoreModule[] = [
   {
