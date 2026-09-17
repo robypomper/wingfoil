@@ -128,7 +128,8 @@ phases:
     const result = await findOperation('directives', 'directivesList').fn({ root: repo });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value as unknown[]).toHaveLength(1);
+      // dl-042 (task-055): the payload is `{ entries, warnings }`, no longer a bare array.
+      expect((result.value as { entries: unknown[] }).entries).toHaveLength(1);
     }
   });
 

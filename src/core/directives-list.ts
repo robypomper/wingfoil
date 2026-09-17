@@ -17,9 +17,14 @@
  *   be "reported, never silently dropped"; a listing that hid one would reproduce exactly the defect
  *   dl-037 was raised about, in the one command whose purpose is directive visibility.
  *
- * Choosing the winner between two same-id files, and emitting the shadow warning, therefore stays
- * entirely in `resolveRoleDirectives` and is `task-055-auto-load-directives-by-role`'s to close —
- * nothing here implements, duplicates, or pre-empts that precedence rule.
+ * **Warnings** (`dl-042-directives-list-output-contract` A + D, task-055-auto-load-directives-by-role).
+ * The payload is {@link DirectiveListing} — `entries` plus a `warnings` channel — so the two things a
+ * reader cannot see in the inventory are said out loud: which of two same-id files is in force, and
+ * whether a role is bound at all. Neither is computed here. Without a role filter the warnings are
+ * {@link selectDirectivesById}'s shadow warnings over every file; with `--role` they are exactly
+ * {@link resolveRoleDirectives}' warnings for that role (no-assignments, dangling binding, shadowed
+ * ids). Both live in `./context.ts`, so the precedence rule the listing reports is the one context
+ * assembly applies — it is never implemented twice.
  *
  * **Placement.** This lives in `src/core` rather than `src/directives` for the same reason
  * `resolveRoleDirectives` does: the {@link DirectiveFile} shape it operates on is declared in
@@ -35,6 +40,7 @@ import { join } from 'path';
 import { documentExists } from '../storage';
 import type { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 
+import { resolveRoleDirectives, selectDirectivesById } from './context';
 import { loadDirectives, loadRolesYaml, type DirectiveFile } from './loaders';
 
 /**
@@ -81,6 +87,21 @@ export interface DirectiveListEntry {
 }
 
 /**
+ * The `directives list` payload (`dl-042-directives-list-output-contract`): the inventory and the
+ * operator diagnostics about it, side by side. `[AUTHORING]` like {@link DirectiveListEntry} (dl-042 C).
+ */
+export interface DirectiveListing {
+  /** One entry per directive file on disk — never deduplicated (see the module doc comment). */
+  readonly entries: readonly DirectiveListEntry[];
+  /** Shadowed ids (always); no-assignments and dangling-binding warnings (with a role filter). Fixed
+   * order, empty when there is nothing to report. */
+  readonly warnings: readonly string[];
+}
+
+/** `roles.yaml` as seen when the file is absent: nothing bound, no globals. */
+const NO_BINDINGS: RolesYaml = { assignments: {}, global: [] };
+
+/**
  * Invert `roles.yaml`'s `assignments` (role → directive ids) into directive id → role names.
  *
  * A `Map` rather than a plain object on purpose: the keys are directive ids read from files on disk,
@@ -115,7 +136,7 @@ function renderAssignment(roles: readonly string[], isGlobal: boolean): string {
 
 /**
  * Annotate `directiveFiles` with their `roles.yaml` bindings, optionally keeping only those bound to
- * `role`.
+ * `role`, and attach the warnings described on {@link DirectiveListing}.
  *
  * `rolesYaml` is optional: `undefined` means the project has no `roles.yaml`, which is "nothing is
  * bound yet" (every entry `unassigned`), not a failure — the Directives files and `roles.yaml` are
@@ -131,7 +152,7 @@ export function buildDirectiveListing(
   directiveFiles: readonly DirectiveFile[],
   rolesYaml: RolesYaml | undefined,
   role?: string,
-): DirectiveListEntry[] {
+): DirectiveListing {
   const byId = rolesByDirectiveId(rolesYaml);
   const globalIds = new Set<string>(rolesYaml?.global ?? []);
 
@@ -149,7 +170,10 @@ export function buildDirectiveListing(
       assignment: renderAssignment(roles, isGlobal),
     });
   }
-  return entries;
+  const warnings = role === undefined
+    ? selectDirectivesById(directiveFiles).warnings
+    : resolveRoleDirectives(directiveFiles, rolesYaml ?? NO_BINDINGS, role).warnings;
+  return { entries, warnings };
 }
 
 /**
@@ -162,7 +186,7 @@ export function buildDirectiveListing(
  * raises a `ValidationError` (surfaced as `VALIDATION`, exit 1) rather than being silently downgraded
  * to "nothing is bound". Only a genuinely absent file is tolerated.
  */
-export function loadDirectiveListing(root: string, role?: string): DirectiveListEntry[] {
+export function loadDirectiveListing(root: string, role?: string): DirectiveListing {
   const directiveFiles = loadDirectives(root);
   const rolesYaml = documentExists(join(root, '.wingfoil', 'roles.yaml')) ? loadRolesYaml(root) : undefined;
   return buildDirectiveListing(directiveFiles, rolesYaml, role);
