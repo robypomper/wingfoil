@@ -2,7 +2,7 @@
 id: "task-047-memory-reject"
 type: task
 title: "Implement `wingfoil memory reject`"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
