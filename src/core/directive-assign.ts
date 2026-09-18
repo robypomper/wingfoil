@@ -9,6 +9,9 @@
  *   `.wingfoil/directives/**` (built-in or custom alike: assignment binds by id and modifies no asset,
  *   dl-037/dl-030). Everything is checked before anything is written, so a request is applied whole
  *   or not at all.
+ * - {@link checkUnreferenced} — the mirror-image pre-write validation for `directive remove` (P3.3,
+ *   task-052): REQ-SEC-07 clause (b), refusing to remove a directive any role — or `global` — still
+ *   binds, naming the referrer.
  * - {@link updateRoleAssignments} — the ONE read → edit → validate → write → commit path for
  *   `.wingfoil/roles.yaml`. It edits through the comment-preserving `setRoleAssignmentsInText`
  *   (`src/directives/roles-edit.ts`); only when that cannot apply does it consider a whole-file
@@ -64,6 +67,61 @@ export function checkAssignable(
   const known = new Set(directiveFiles.map((file) => file.frontmatter.id));
   const unknown = ids.find((id) => !known.has(id));
   return unknown === undefined ? undefined : { code: 'NOT_FOUND', message: `unknown directive: ${unknown}` };
+}
+
+/**
+ * REQ-SEC-07 clause (b) for the Directives surface — *"removal of a still-referenced custom asset is
+ * rejected naming the referrer"* — assigned to `task-052-directive-remove` by
+ * `dl-030-req-sec-07-referenced-asset-ownership` (`ready`, option (b)). The counterpart to
+ * {@link checkAssignable}: that one guards a binding being *made*, this one guards an asset being
+ * removed while a binding still names it. It lives here for the same reason, over the same
+ * `roles.yaml` shape.
+ *
+ * `roles.yaml` binds by directive **`frontmatter.id`** (`src/directives/schema.ts`'s `RolesYaml`), so
+ * the comparison is against the id, never the filename.
+ *
+ * Two referrer kinds, checked in this order:
+ *
+ * 1. A role whose own `assignments` entry names the id → P3.3's verbatim message
+ *    `cannot remove '<id>': still assigned to role '<role>'`
+ *    (`p3-directives/P3.3-directive-remove.feature`, "Error - removing a directive still referenced"
+ *    — do not reword). When several roles bind it the **alphabetically first** is named: the message
+ *    must be a pure function of the file's content, never of YAML mapping order (REQ-SYS-07), and
+ *    `directives-list.ts` already walks role names in the same ascending order.
+ * 2. `roles.yaml`'s `global` list, which binds the directive to *every* role
+ *    (`spec-012-context-loader-relevance-filtering` §5) and is therefore the strongest reference of
+ *    all. `[AUTHORING]`: P3.3 pins only the per-role wording, and a global binding cannot be phrased
+ *    in it without naming a role the file does not name — so the message is
+ *    `cannot remove '<id>': still assigned to every role via roles.yaml 'global'`. Recorded in
+ *    `task-052-directive-remove`'s Execution Notes and raised for ratification, not assumed settled.
+ *
+ * A directive referenced from a *workflow* step is deliberately not checked: `src/workflow/schema.ts`
+ * has no field that can reference a directive, so P3.3's "or workflow step" precondition is vacuous
+ * today, and P4.9's workflow half of clause (b) has no owner in v0.2 per `dl-030`.
+ *
+ * @param rolesYaml - The loaded `roles.yaml`, or `undefined` when the project has none — "no bindings
+ *   yet" (task-051/task-053's reading), not a failure.
+ * @param id - The directive id about to be removed.
+ * @returns `undefined` when nothing references it; otherwise a `CONFLICT` error (exit 1) carrying the
+ *   message above. `CONFLICT` and not `VALIDATION`: the request is well-formed and the *state*
+ *   refuses it — the same distinction `directiveCreate` draws for `directive already exists: <name>`,
+ *   as against `requireCustomAsset`'s `VALIDATION` for a request inadmissible on its own terms.
+ */
+export function checkUnreferenced(rolesYaml: RolesYaml | undefined, id: string): CoreError | undefined {
+  if (rolesYaml === undefined) return undefined;
+  // `Object.entries` (own enumerable properties only) + an explicit ascending sort, never YAML
+  // mapping order — REQ-SYS-07, and the same walk `directives-list.ts` uses.
+  const [boundRole] = Object.entries(rolesYaml.assignments)
+    .filter(([, ids]) => ids.includes(id))
+    .map(([role]) => role)
+    .sort((a, b) => (a < b ? -1 : 1));
+  if (boundRole !== undefined) {
+    return { code: 'CONFLICT', message: `cannot remove '${id}': still assigned to role '${boundRole}'` };
+  }
+  if (rolesYaml.global.includes(id)) {
+    return { code: 'CONFLICT', message: `cannot remove '${id}': still assigned to every role via roles.yaml 'global'` };
+  }
+  return undefined;
 }
 
 function validationError(error: ValidationError): CoreResult<never> {

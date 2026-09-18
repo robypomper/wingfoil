@@ -138,8 +138,8 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // command AND an MCP Tool, 0 unmatched.
     // task-051-directive-assign adds `directive assign` (P3.2); task-045-memory-submit adds
     // `memory submit` (P1.6); task-047-memory-reject adds `memory reject` (P1.8).
-    expect(cli).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
-    expect(tools).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
+    expect(cli).toEqual(['directive assign', 'directive create', 'directive remove', 'dna set', 'memory add', 'memory reject', 'memory submit']);
+    expect(tools).toEqual(['directive assign', 'directive create', 'directive remove', 'dna set', 'memory add', 'memory reject', 'memory submit']);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 

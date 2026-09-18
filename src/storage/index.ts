@@ -14,7 +14,7 @@ export type { InitState } from './init-state';
 export { renderMemoryPath, resolveMemoryPath } from './memory-path';
 export { extractFrontmatter, splitFrontmatter } from './frontmatter';
 export type { FrontmatterSplit } from './frontmatter';
-export { readDocument, documentExists, writeDocument } from './document';
+export { readDocument, documentExists, removeDocument, writeDocument } from './document';
 export { commitPaths } from './commit';
 export type { CommitOptions } from './commit';
 export { initStorage, scaffoldFiles, WINGFOIL_DIR, INIT_COMMIT_MESSAGE } from './layout';
