@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 Wave 2 review findings (defects on main)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2-wave2-review-findings"
 element: ""
@@ -122,3 +122,44 @@ Not part of this plan's execution: the agent stops at `open`.
 
 **Completion:** the plan reaches `done` when every bug is `triaged` (or `closed` as wontfix) — i.e.
 after the approver gate, not at the end of `capture`.
+
+## Second batch (2026-09-18) — `capture` run 2
+
+The same `capture` phase, run a second time as the Wave 2 reviews continued. The review of
+`task-047-memory-reject` raised one defect. Same rules as run 1: re-verified by running the command
+rather than transcribing the review, with the reader and writer both already on `main`
+(`task-049-memory-history` at `b205cf5`, `task-045-memory-submit` at `b5f6676`). The agent stops at
+`open`.
+
+**`main` moved during the run.** The batch was verified at `61c5510`; `task-047-memory-reject` was then
+approved and merged (`c03cca9`, `57c412f`, `e890cf9`), taking `main` to `9147d84`. Everything was
+re-verified against `9147d84` — `audit.ts:125-126`, `require-reason.ts:39-45` and
+`commit-message.ts:56-63` are unchanged; the only moving number is the approve/reject commit count, which
+went from 155 to 156 with 66 multi-line reasons either way, and `bug-042` carries the recount.
+
+Not a new plan: this is a continuation of the run above, so it appends here rather than duplicating the
+phase definition, the checks and the triage handoff.
+
+**Preconditions:** next free bug number was `bug-042` (`ls docs/self/docs/04_memory/bugs` → last entry
+`bug-041-frontmatter-edit-yaml-edge-cases`).
+
+**Produces:** `docs/04_memory/bugs/bug-042-*.md`, at `status: open`.
+
+| Bug | Source | Defect | Proposed severity |
+|---|---|---|---|
+| `bug-042-reason-text-has-no-contract-against-commit-trailer` | `task-047` review | `--reason` free text meets a single-line `Approver:`/`Reason:` trailer with no contract: a multi-line reason is truncated on read (66 of `main`'s 156 approve/reject commits are affected), a blank `--reason ""` exits 0 and makes `memory history` report approver **and** reason as null, and a multi-line reason can forge a second `Approver:` line in the audit record | medium |
+
+Filed as one bug, not three: one root cause and one code path — `requireReason`,
+`formatMemoryCommitMessage`, `parseCommitReason`/`parseApprovalMetadata` — which `task-046`, `task-047`
+and `task-048` all share. Explicitly **not** a duplicate of `bug-024-commander-parse-errors-exit-1`
+(`--reason` given with no value at all exiting `1` instead of `2`, a commander parse failure before any
+core code runs).
+
+**Triage handoff for this batch** (the `triage` phase above is unchanged): **`bug-042`** before
+`task-046` is approved — it is `in-review` on this exact code path — and while
+`task-048-memory-deprecate` (`in-progress` at `b6175b7`) is still being written, since it inherits two of
+its three faces. `task-047` merged with all three in place, so the path is already live on `main`. Its fix needs a `spec-008` §2 decision on what "Recorded
+verbatim" means for a multi-line reason, so it is not an in-task silent fix.
+
+**Completion** (amends the line above): the plan reaches `done` when all **fifteen** bugs — `bug-028`..
+`bug-041` from run 1 and `bug-042` from this one — are `triaged` (or `closed` as wontfix).
