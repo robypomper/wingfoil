@@ -247,8 +247,16 @@ the commit message (the timestamp comes from the git commit itself).
 Callable from any state, on any type (§5). Not an approval gate — no `Approver:` line required — but a
 `Reason:` keeps the audit trail meaningful.
 
-1. Change **only** the `status` field to `deprecated` (or a type-specific deprecate-adjacent state
-   first, e.g. `accepted → superseded` for `adr`/`tech-spec` when a later element replaces this one).
+1. Change **only** the `status` field to `deprecated` — for **every** type, `adr`/`tech-spec`
+   included. `deprecated` is a reserved implicit wildcard target, legal from any state and never
+   declared in a machine (spec-001; `src/memory/schema.ts` rejects a machine that declares it), so it
+   is what the shipped `wingfoil memory deprecate` writes and what a hand-made retirement must write
+   too — otherwise the same operation yields a different state by hand than through the tool.
+   **`superseded` is not a deprecate target**: `memory.yaml` declares it a `waiting` edge
+   (`adr`/`tech-spec`: `waiting: [accepted]`), i.e. a state no CLI verb may assign, reached only by a
+   later element's `supersedes:`. That engine trigger does not exist yet (`grep -rn supersedes src/`
+   → nothing), so **no element should be moved to `superseded` by hand at all** until it does; retire
+   the replaced one with `deprecate` and name its replacement in the `Reason:`.
 2. Commit message format — subject + optional body:
    ```
    wf({type}): deprecate {id1}, {id2} [{old-state} → deprecated]
