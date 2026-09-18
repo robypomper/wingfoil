@@ -595,11 +595,88 @@ types:
     );
   });
 
-  it('never prints a self-loop: from the canonical target itself, `<to>` is the next state in `sequence`', () => {
+  // dl-053-illegal-transition-target-for-verbless-edges (`ready`, ratified with option 1): `<to>` is
+  // the verb's FIRST legal edge in `sequence` order; when the document is already AT that target the
+  // message names the NEXT legal edge of the SAME verb; `(none)` when the verb has no other target.
+  // It must never name the next state in `sequence` regardless of verb — the shipped fallback did,
+  // printing a forward move for a `reject` and an engine-only `waiting` edge for an `approve`.
+  it('dl-053: from the verb\'s own canonical target, `<to>` is the NEXT legal edge of the SAME verb — `release`/`submit` has none, so `(none)`', () => {
     expectContract(
       () => resolveTypeTransition(memoryYaml, 'release', 'planning', 'submit'),
-      "illegal transition planning -> in-development for type 'release'",
+      "illegal transition planning -> (none) for type 'release'",
       /`waiting` state/,
+    );
+  });
+
+  it('dl-053: `approve` never names an engine-only `waiting` edge — task `backlog` prints the next approve target, not `in-progress`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'task', 'backlog', 'approve'),
+      "illegal transition backlog -> approved for type 'task'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `reject` never names a forward move — task `draft` prints the next reject target, not `pending`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'task', 'draft', 'reject'),
+      "illegal transition draft -> in-progress for type 'task'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: the canonical edge is kept when it already differs from `<from>` (task `approved`/`approve`)', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'task', 'approved', 'approve'),
+      "illegal transition approved -> backlog for type 'task'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `adr` — `approve` has one target, so from `accepted` (that target) it is `(none)`, not the `sequence` successor `superseded`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'adr', 'accepted', 'approve'),
+      "illegal transition accepted -> (none) for type 'adr'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `adr` — `reject`\'s only target is `draft`, so from `draft` it is `(none)`, not the forward `pending`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'adr', 'draft', 'reject'),
+      "illegal transition draft -> (none) for type 'adr'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `decision-log` — `approve` from `draft` still names the edge `approve` would take (`ready`)', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'decision-log', 'draft', 'approve'),
+      "illegal transition draft -> ready for type 'decision-log'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `decision-log` — `reject`\'s only target is `draft`, so from `draft` it is `(none)`, not the forward `in-discussion`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'decision-log', 'draft', 'reject'),
+      "illegal transition draft -> (none) for type 'decision-log'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `bug` has three approve gates — from `triaged` (the first target) the next approve target is named, not the `waiting` successor `planned`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'bug', 'triaged', 'approve'),
+      "illegal transition triaged -> resolved for type 'bug'",
+      /not a `gates` state/,
+    );
+  });
+
+  it('dl-053: `bug` — from `closed` (the first reject target) a later reject target is named instead of `(none)`', () => {
+    expectContract(
+      () => resolveTypeTransition(memoryYaml, 'bug', 'closed', 'reject'),
+      "illegal transition closed -> in-progress for type 'bug'",
+      /not a `gates` state/,
     );
   });
 

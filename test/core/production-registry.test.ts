@@ -27,6 +27,7 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaSet',
       'dna.dnaShow',
       'memory.memoryAdd',
+      'memory.memoryApprove',
       'memory.memoryDeprecate',
       'memory.memoryHistory',
       'memory.memoryReject',
@@ -37,13 +38,14 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('seven operations mutate today — `directive.directiveAssign` (P3.2), `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3), `memory.memorySubmit` (P1.6), `memory.memoryReject` (P1.8) + `memory.memoryDeprecate` (P1.9); the rest are read-only', () => {
+  it('eight operations mutate today — `directive.directiveAssign` (P3.2), `directive.directiveCreate` (P3.1), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3), `memory.memorySubmit` (P1.6), `memory.memoryApprove` (P1.7), `memory.memoryReject` (P1.8) + `memory.memoryDeprecate` (P1.9); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveAssign',
       'directive.directiveCreate',
       'dna.dnaSet',
       'memory.memoryAdd',
+      'memory.memoryApprove',
       'memory.memoryDeprecate',
       'memory.memoryReject',
       'memory.memorySubmit',

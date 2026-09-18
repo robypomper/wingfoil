@@ -252,24 +252,31 @@ const NO_TARGET = '(none)';
  * `submit` on `task` or on the default machine: `pending`; on `release`: `planning`). A verb names no
  * target of its own, so the message needs a rule; this one reproduces the string BDD `P1.6` sc.2 and
  * `P5.2.3` sc.2 pin (`approved -> pending` for `task`) on both the default machine and the real `task`
- * machine, where the literal forward edge out of `approved` is `done`. Two refinements keep the message
- * honest: when that canonical target IS `currentState` it would print a self-loop, so the next state in
- * `sequence` is named instead; when the machine has no legal edge for `op` at all, `(none)`.
+ * machine, where the literal forward edge out of `approved` is `done`.
+ *
+ * What happens when that canonical target IS `currentState` — printing it would be a self-loop — is
+ * ratified by `dl-053-illegal-transition-target-for-verbless-edges` (option 1): **keep walking
+ * `sequence` for the next legal edge of the SAME verb**, and render {@link NO_TARGET} when the verb
+ * has no other target. It must never name the next state in `sequence` regardless of verb — the
+ * earlier fallback did, printing `draft -> pending` for a `reject` (a rejection shown as a forward
+ * move) and `backlog -> in-progress` for an `approve` (a `waiting` edge no verb drives), misinforming
+ * exactly the user who has just made an illegal call. Every `<to>` printed here is therefore a real
+ * target of the verb the user typed, on this type's own machine.
+ *
  * A pure function of `(machine, currentState, op)` walked in `sequence` order (REQ-SYS-07).
  */
 function contractTarget(machine: StateMachine, currentState: string, op: TransitionOp): string {
-  let canonical: string | undefined;
   for (const state of machine.sequence) {
+    let target: string;
     try {
-      canonical = resolveTransitionTarget(machine, state, op);
-      break;
+      target = resolveTransitionTarget(machine, state, op);
     } catch {
-      // not legal from this state — keep walking the chain
+      continue; // `op` is not legal from this state — keep walking the chain
     }
+    // dl-053: a self-loop is not a transition; keep looking for a different target of this same verb.
+    if (target !== currentState) return target;
   }
-  if (canonical !== currentState) return canonical ?? NO_TARGET;
-  const index = machine.sequence.indexOf(currentState);
-  return machine.sequence[index + 1] ?? NO_TARGET;
+  return NO_TARGET;
 }
 
 /**
