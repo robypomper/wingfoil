@@ -91,14 +91,15 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
     // spec-006 §3), so it registers as a Resource, not a Tool, and does not widen this list.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
     // task-045-memory-submit adds `memory.memorySubmit` (P1.6); task-051-directive-assign adds
-    // `directive.directiveAssign` (P3.2); task-047-memory-reject adds `memory.memoryReject` (P1.8),
-    // the first approver-gated Tool.
+    // `directive.directiveAssign` (P3.2); task-046-memory-approve and task-047-memory-reject add
+    // `memory.memoryApprove` (P1.7) and `memory.memoryReject` (P1.8), the approver-gated Tools.
     expect(mutatingOps.map((op) => op.name).sort()).toEqual([
       'directiveAssign',
       'directiveCreate',
       'directiveRemove',
       'dnaSet',
       'memoryAdd',
+      'memoryApprove',
       'memoryReject',
       'memorySubmit',
     ]);
@@ -109,6 +110,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'directive.remove',
       'dna.set',
       'memory.add',
+      'memory.approve',
       'memory.reject',
       'memory.submit',
     ]);

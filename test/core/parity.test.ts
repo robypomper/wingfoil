@@ -137,9 +137,12 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // this a LIVE parity guard (not vacuously-empty): each mutating op must be reachable as a CLI
     // command AND an MCP Tool, 0 unmatched.
     // task-051-directive-assign adds `directive assign` (P3.2); task-045-memory-submit adds
-    // `memory submit` (P1.6); task-047-memory-reject adds `memory reject` (P1.8).
-    expect(cli).toEqual(['directive assign', 'directive create', 'directive remove', 'dna set', 'memory add', 'memory reject', 'memory submit']);
-    expect(tools).toEqual(['directive assign', 'directive create', 'directive remove', 'dna set', 'memory add', 'memory reject', 'memory submit']);
+    // `memory submit` (P1.6); task-046-memory-approve adds `memory approve` (P1.7);
+    // task-047-memory-reject adds `memory reject` (P1.8); task-052-directive-remove adds
+    // `directive remove` (P3.3).
+    const expected = ['directive assign', 'directive create', 'directive remove', 'dna set', 'memory add', 'memory approve', 'memory reject', 'memory submit'];
+    expect(cli).toEqual(expected);
+    expect(tools).toEqual(expected);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
@@ -176,12 +179,15 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'directive.remove',
       'dna.set',
       'memory.add',
+      'memory.approve',
       'memory.reject',
       'memory.submit',
     ]);
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/assign');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/approve');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/reject');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/submit');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/approve');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/create');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://dna/set');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/add');
