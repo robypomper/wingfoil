@@ -710,6 +710,62 @@ paths:
     });
   });
 
+  // task-048-memory-deprecate (P1.9, BDD `p1-memory/P1.9-memory-deprecate.feature`) — driven through
+  // real `commander`, so this is where `--reason` is asserted OPTIONAL at the CLI surface
+  // (`dl-027-req-sec-04-deprecate-reason-scope`, option (a)) and where the commit is asserted to carry
+  // the `[from → to]` bracket but NO `Approver:` line.
+  describe('`memory deprecate <id> [--reason <text>]` — the wildcard retire verb (task-048, P1.9)', () => {
+    const MEMORY_YAML = `version: 1
+defaults:
+  states:
+    sequence: [draft, pending, approved]
+    gates:
+      pending: { reject: draft }
+types:
+  decision:
+    path: "docs/memory/decisions/{id}.md"
+`;
+    let repo: string;
+    const doc = (id: string, status: string): string =>
+      ['---', `id: ${id}`, 'type: decision', 'title: "A decision"', `status: ${status}`, '---', '', 'Body.', ''].join('\n');
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+      writeFixtureFile(repo, 'docs/memory/decisions/decision-12.md', doc('decision-12', 'approved'));
+      writeFixtureFile(repo, 'docs/memory/decisions/decision-88.md', doc('decision-88', 'deprecated'));
+      commitAll(repo, 'seed');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it("sc.1 `memory deprecate decision-12 --reason 'superseded by decision-20'` sets `status: deprecated`, keeps the file, exit 0", () => {
+      const result = runCliInRoot(repo, 'memory', 'deprecate', 'decision-12', '--reason', 'superseded by decision-20');
+      expect(result.status).toBe(0);
+      expect(readFileSync(join(repo, 'docs/memory/decisions/decision-12.md'), 'utf-8')).toContain('status: deprecated');
+      expect(execFileSync('git', ['-C', repo, 'log', '-1', '--format=%B'], { encoding: 'utf-8' }).trim()).toBe(
+        'wf(decision): deprecate decision-12 [approved → deprecated]\n\nReason: superseded by decision-20',
+      );
+    });
+
+    it('dl-027: `memory deprecate decision-12` with NO `--reason` exits 0 (the flag is optional on this verb)', () => {
+      const result = runCliInRoot(repo, 'memory', 'deprecate', 'decision-12');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(readFileSync(join(repo, 'docs/memory/decisions/decision-12.md'), 'utf-8')).toContain('status: deprecated');
+      expect(execFileSync('git', ['-C', repo, 'log', '-1', '--format=%B'], { encoding: 'utf-8' }).trim()).toBe(
+        'wf(decision): deprecate decision-12 [approved → deprecated]',
+      );
+    });
+
+    it('sc.3 `memory deprecate decision-88` (already deprecated) exits 1, state unchanged', () => {
+      const result = runCliInRoot(repo, 'memory', 'deprecate', 'decision-88', '--reason', 'x');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: document already deprecated: decision-88\n');
+      expect(readFileSync(join(repo, 'docs/memory/decisions/decision-88.md'), 'utf-8')).toBe(doc('decision-88', 'deprecated'));
+    });
+  });
+
   // task-050-directive-create (P3.1, BDD `p3-directives/P3.1-directive-create.feature`) — the first
   // Directives-pillar mutating command, driven end-to-end through real `commander` (a required
   // `--name` value option). The project root is a THROWAWAY temp git repo initialized by the real
