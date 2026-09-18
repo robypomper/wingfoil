@@ -92,12 +92,13 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
     // task-045-memory-submit adds `memory.memorySubmit` (P1.6); task-051-directive-assign adds
     // `directive.directiveAssign` (P3.2); task-047-memory-reject adds `memory.memoryReject` (P1.8),
-    // the first approver-gated Tool.
+    // the first approver-gated Tool; task-048-memory-deprecate adds `memory.memoryDeprecate` (P1.9).
     expect(mutatingOps.map((op) => op.name).sort()).toEqual([
       'directiveAssign',
       'directiveCreate',
       'dnaSet',
       'memoryAdd',
+      'memoryDeprecate',
       'memoryReject',
       'memorySubmit',
     ]);
@@ -107,6 +108,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'directive.create',
       'dna.set',
       'memory.add',
+      'memory.deprecate',
       'memory.reject',
       'memory.submit',
     ]);

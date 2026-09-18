@@ -165,9 +165,9 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'wingfoil://workflow/list',
     ]);
     // `directive.directiveAssign`, `directive.directiveCreate`, `dna.dnaSet`, `memory.memoryAdd`,
-    // `memory.memorySubmit` + `memory.memoryReject` are `mutates: true` → registered
-    // ONLY as Tools (never Resources), so they do NOT appear above; they are the Tools the surface
-    // now advertises.
+    // `memory.memorySubmit`, `memory.memoryReject` + `memory.memoryDeprecate` are `mutates: true` →
+    // registered ONLY as Tools (never Resources), so they do NOT appear above; they are the Tools the
+    // surface now advertises.
     expect(hasAnyMutatingOperation(CORE_MODULES)).toBe(true);
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
@@ -175,10 +175,12 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'directive.create',
       'dna.set',
       'memory.add',
+      'memory.deprecate',
       'memory.reject',
       'memory.submit',
     ]);
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/assign');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/deprecate');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/reject');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/submit');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/create');
