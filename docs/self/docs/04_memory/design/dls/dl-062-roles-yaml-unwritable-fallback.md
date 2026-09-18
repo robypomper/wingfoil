@@ -15,8 +15,10 @@ tmpl_version: 260703
 `task-051-directive-assign` is merged (`143e4da`; finalized at `0362845`), so all of the following is on
 `main`. `updateRoleAssignments` (`src/core/directive-assign.ts:112-152`) is the one
 read → edit → validate → write → commit path for `.wingfoil/roles.yaml`, and its own module doc
-(`:12-16`) states that `directive remove` (P3.3, `task-052`, `backlog`) and multi-directive assignment
-(P3.7, `task-056`, `backlog`) are meant to reuse it rather than re-derive it.
+(`:12-16`) states that `directive remove` (P3.3, `task-052`) and multi-directive assignment
+(P3.7, `task-056`, `backlog`) are meant to reuse it rather than re-derive it. **`task-052` turned out not
+to be a consumer, and cannot be — see the Review addendum (2026-09-18) below, which corrects this
+paragraph and adds a second question to the Decision.**
 
 It edits through the comment-preserving `setRoleAssignmentsInText` (`src/directives/roles-edit.ts:118`).
 That function returns `undefined` by design — "anything it cannot edit provably yields `undefined`,
@@ -84,9 +86,10 @@ is precisely `bug-019`'s lesson as `directive-assign.ts:16` records it. What is 
 other piece of hand-authoring, silently, at exit 0.
 
 **Neither branch violates a specification today** — that is the point. There is nothing to cite either
-way, so `task-052` and `task-056` will each have to invent an answer, and nothing makes them invent the
-same one. That is the determinism risk REQ-SYS-07 exists to prevent ("prefer explicit declared config
-over inferred behaviour"), arriving through two tasks rather than one.
+way, so every task that writes `roles.yaml` has to invent an answer, and nothing makes two of them invent
+the same one. That is the determinism risk REQ-SYS-07 exists to prevent ("prefer explicit declared config
+over inferred behaviour"). *(As written this sentence named `task-052` and `task-056`; `task-052` never writes
+`roles.yaml` at all — see the Review addendum (a). `task-056` remains.)*
 
 **How reachable is branch (b)?** Less than it first looks, and worth stating so the decision is not
 over-weighted. The `wingfoil init` scaffold writes a `roles.yaml` that *does* carry comments
@@ -98,9 +101,10 @@ too.
 
 ## Decision
 
-*Approver to choose. One question, three options; the recommendation is the third.*
+*Approver to choose. Q1 below, three options, the recommendation is the third — plus **Q2**, added by the
+Review addendum (2026-09-18) at the end of this document.*
 
-### What happens when `setRoleAssignmentsInText` cannot apply?
+### Q1 — What happens when `setRoleAssignmentsInText` cannot apply?
 
 1. **Keep today's behaviour and specify it.** Both branches stay; the CONFLICT message and the no-`#`
    dump fallback are written into `spec-011` as the declared `roles.yaml` write contract, and the message
@@ -165,18 +169,18 @@ propose.
 
 ## Actions
 
-- Owner **approver**: choose 1, 2 or 3 — and, if 3, ratify the flag's spelling.
+- Owner **approver**: on **Q1**, choose 1, 2 or 3 — and, if 3, ratify the flag's spelling. On **Q2**
+  (Review addendum, 2026-09-18), ratify the `global`-binding refusal wording or name a replacement.
 - Amend `spec-011-storage-layout` with the `roles.yaml` write contract, as a dated Revision note
   (`dl-047`: tech-specs carry no `version:` field). Cheapest merged with `dl-060`'s `:105`/`:118`
   correction and `bug-040`'s stale-wording fix in one edit of that file.
 - If the CONFLICT message survives: pin its exact text in `spec-008-cli-grammar` alongside the other
   fixed error strings, so `task-052`/`task-056` inherit the wording instead of copying the source.
-- Hand the outcome explicitly to `task-052-directive-remove` and
-  `task-056-role-based-directive-assignment` at their design step: `dl-015`'s `read_related` covers
-  `depends_on` tasks and **not** decision-logs, so neither will read this on its own. **`task-052` is
-  already in flight** — a worktree and branch `task/task-052-directive-remove` exist
-  (`git worktree list`), its tip at `main` (`9147d84`) and its task document still `backlog` — so this
-  needs to reach it before its design step, not after.
+- Hand the outcome explicitly to `task-056-role-based-directive-assignment` at its design step:
+  `dl-015`'s `read_related` covers `depends_on` tasks and **not** decision-logs, so it will not read this
+  on its own. *(Superseded in part by the Review addendum below: `task-052-directive-remove` was named
+  here too and is **not** a consumer — it read this DL at design and established that `directive remove`
+  never writes `roles.yaml`. `task-056` remains the one outstanding handoff.)*
 - If option 2 or 3: `test/core/directive-assign.test.ts:326` pins today's CONFLICT case and needs the
   branch-(b) case pinned beside it.
 
@@ -188,3 +192,122 @@ Related: `bug-004-dna-set-strips-yaml-comments`, `bug-019-dna-set-fallback-silen
 `spec-008-cli-grammar` §5/§6, `spec-011-storage-layout` `:105`/`:118`,
 `src/core/directive-assign.ts:138-147`, `src/directives/roles-edit.ts:114-118`, P3.2, P3.3, P3.7,
 REQ-SYS-07.
+
+## Review addendum (2026-09-18)
+
+Recorded from the Wave 2 review of `task-052-directive-remove` (branch `task/task-052-directive-remove`,
+HEAD `a624067`, `in-review`, **not merged** — read read-only with `git show`). Verified against `main` at
+`b7e39f9`. **Two changes: a correction to the Context above, and a second question added to the Decision.**
+
+### (a) Correction — `task-052` is not a second consumer, and cannot be
+
+The Context says `updateRoleAssignments`'s module doc expects `directive remove` to reuse that writer.
+The module doc does say so (`src/core/directive-assign.ts:2-4`: "built so `directive remove` (P3.3,
+task-052) and multi-directive assignment (P3.7, task-056) reuse the same two pieces"), and `task-051`
+wrote it in good faith. **P3.3 makes it impossible.** Scenario 2
+(`docs/02_requirements/02_bdd/features/p3-directives/P3.3-directive-remove.feature:16-20`) refuses a
+still-assigned directive — `cannot remove 'legacy-rule': still assigned to role 'developer'` — rather than
+unbinding it, so a removal has **no `roles.yaml` write to make** and never reaches the
+`setRoleAssignmentsInText` → fallback path this decision-log is about.
+
+Verified, not inferred:
+
+- On `main` (`b7e39f9`), `grep -rn "updateRoleAssignments\|setRoleAssignmentsInText" src/` shows exactly
+  **one call site**: `src/core/index.ts:1118`, inside `directiveAssignFn` (declared `:1099`). Everything
+  else is the definition, the re-export, or doc comments.
+- On the `task-052` branch (`a624067`), `grep -rn "updateRoleAssignments(" src/` shows the **same single
+  call site** — `src/core/index.ts:1031`, again inside `directiveAssignFn` (`:1012`). `directiveRemoveFn`
+  is declared at `:1091` and does not call it. (The line numbers differ from `main` only because the
+  branch forked before `task-048`/`task-049` merged.)
+- `task-052` recorded the same conclusion itself and flagged it for this document
+  (`docs/self/docs/04_memory/v0.2/task-052-directive-remove.md:155-164` at `a624067`): "**This task
+  deliberately does not** … `directive remove` therefore never reaches the `setRoleAssignmentsInText` →
+  fallback path dl-062 is about, and changes nothing in it. Flagged in the final report so dl-062's author
+  knows P3.3 is not, after all, a second consumer of that decision."
+
+**What this changes here.** The "this will spread" framing is weaker than written. The Rationale's first
+bullet ("Two more consumers, no rule … one fact and three rules") should read **one** other prospective
+consumer: `task-056-role-based-directive-assignment` (P3.7, still `backlog`), which does write `roles.yaml`.
+So today the undeclared behaviour has **exactly one consumer**, `directive assign` itself, with one more
+scheduled. That is a smaller determinism risk than the Context implies — though not zero, and it does not
+touch Q1's substance: the `#`-presence branch is still an unspecified behaviour on a shipped command, and
+option 3 is still the recommendation. It does mean the decision is less urgent than "before `task-052`
+reaches design", which it no longer needs to.
+
+**Also stale in the Context and Actions, corrected in place above:** `task-052` was described as
+`backlog`. It is `in-review` on its branch at `a624067` (`main` still carries the `backlog` document,
+since the branch is unmerged), and it passed its design step having already read this DL — so the Actions'
+"this needs to reach it before its design step" is moot, not outstanding.
+
+### (b) Second question, added on the approver's instruction
+
+#### Q2 — How does the refusal read when a directive is bound through `roles.yaml`'s `global` list?
+
+P3.3 pins exactly one refusal string, scenario 2's role form:
+`cannot remove '<id>': still assigned to role '<role>'`. A **`global`** binding has no role to name — it
+is the reference that applies to every role — so the pinned form cannot be phrased for it without naming a
+role the file does not name. `task-052` ships, as `[AUTHORING]` with no spec or feature behind it
+(`task-052-directive-remove.md:189-193` at `a624067`):
+
+```
+cannot remove '<id>': still assigned to every role via roles.yaml 'global'
+```
+
+pinned by its own test, and raised it as the task's first "known weak spot" for ratification
+(`:347-348`).
+
+**Reachable on a plain `wingfoil init`, verified end to end** (throwaway project, branch build):
+
+```
+$ node <clone>/dist/cli.js init --template Scrum
+$ cat .wingfoil/roles.yaml | tail -5
+global:
+  - doc-versioning
+  - documentation
+  - security-secrets
+$ ls .wingfoil/directives/custom
+determinism.md  doc-versioning.md  security-secrets.md  traceability.md
+
+$ node <clone>/dist/cli.js directive remove doc-versioning
+error: cannot remove 'doc-versioning': still assigned to every role via roles.yaml 'global'   # exit 1
+$ node <clone>/dist/cli.js directive remove traceability
+error: cannot remove 'traceability': still assigned to role 'architect'                        # exit 1
+```
+
+So this is not a corner case: the scaffold puts three directives in `global:`, two of them custom
+(`doc-versioning`, `security-secrets`), and the very first `directive remove` a new user tries on one of
+them hits the unspecified string. **Refusing rather than warning is judged right** and is not in question
+here — a `global` binding is the strongest reference there is, and refusing matches REQ-SEC-07 clause (b)
+("removal of a still-referenced custom asset is rejected naming the referrer"). This is a **wording
+ratification**.
+
+Options:
+
+1. **Ratify `task-052`'s wording as shipped** *(recommended)*:
+   `cannot remove '<id>': still assigned to every role via roles.yaml 'global'`. It names the referrer
+   REQ-SEC-07 asks for (the `global` list, which is what the referrer actually is), it parallels the role
+   form closely enough to read as one family, and it is already implemented and pinned by a test, so
+   ratifying costs a spec line and no code. Cost: one more `[AUTHORING]` string that only a spec entry
+   keeps stable.
+2. **Reuse the role form with a pseudo-role**, e.g.
+   `cannot remove '<id>': still assigned to role 'global'`. One message shape for both cases, and the
+   simplest thing for a caller to parse. But `global` is not a role — it is a sibling key of
+   `assignments:` in `roles.yaml` and is not in `dna.yaml`'s role list — so the message would name
+   something the file does not contain, which is exactly what the role form was avoiding.
+3. **Name the roles it expands to**, e.g.
+   `cannot remove '<id>': still assigned to every role (architect, developer, product-owner, qa,
+   reviewer, tech-lead)`. Most informative and closest to "naming the referrer" literally. But it reads
+   the role set out of `dna.yaml` rather than `roles.yaml`, grows without bound, and needs a fixed order
+   to stay deterministic (REQ-SYS-07) — cost out of proportion to the gain.
+
+**Where the ratified answer lands:** alongside Q1's, in `spec-008-cli-grammar` next to the other pinned
+error strings (the same destination Q1's CONFLICT message has), and/or in the `roles.yaml` write-contract
+subsection of `spec-011-storage-layout` that Q1 requires anyway. Whichever option wins, `task-052`'s test
+pin needs to match it before that task is approved — which makes Q2, unlike Q1, **blocking on
+`task-052`'s approval**.
+
+**Related for this addendum:** `task-052-directive-remove` (`a624067`: `:155-164`, `:189-193`,
+`:347-348`), `task-056-role-based-directive-assignment`, P3.3 `:16-20`, REQ-SEC-07,
+`dl-030-req-sec-07-referenced-asset-ownership`, `dl-066-p3-3-workflow-step-precondition-vacuous`
+(the other half of P3.3's referrer question), `src/core/index.ts:1099-1120`,
+`src/core/directive-assign.ts:2-4`.
