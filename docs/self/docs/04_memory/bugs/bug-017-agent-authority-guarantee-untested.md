@@ -2,7 +2,7 @@
 id: "bug-017-agent-authority-guarantee-untested"
 type: bug
 title: "No test anywhere pins the guarantee that an AI agent holding `approver` via executes_as gains no approval authority"
-status: planned
+status: in-review
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
