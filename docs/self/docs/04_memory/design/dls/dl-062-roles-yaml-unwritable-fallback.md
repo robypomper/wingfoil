@@ -2,7 +2,7 @@
 id: "dl-062-roles-yaml-unwritable-fallback"
 type: decision-log
 title: "What `directive assign` does when roles.yaml cannot be edited in place: a spec-less CONFLICT message on one branch, a silent whole-file reformat on the other"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
