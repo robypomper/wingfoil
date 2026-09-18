@@ -255,7 +255,7 @@ describe('CORE_MODULES memory.memoryDeprecate — P1.9 fit criteria', () => {
       await memoryDeprecateFn()({ root: repo });
     } catch (error) {
       expect(error).toBeInstanceOf(UsageError);
-      expect(exitCodeForThrow(error)).toBe(2);
+      expect(exitCodeForThrow(error)).toEqual({ reason: 'missing required argument: memory deprecate <id>', exitCode: 2 });
     }
     expect(head(repo)).toBe(before);
   });
