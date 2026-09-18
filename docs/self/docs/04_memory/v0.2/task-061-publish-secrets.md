@@ -2,7 +2,7 @@
 id: "task-061-publish-secrets"
 type: task
 title: "Publish secrets: CI secret store + rollback posture (dl-018 T4)"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release"]
