@@ -2,7 +2,7 @@
 id: "task-046-memory-approve"
 type: task
 title: "Implement `wingfoil memory approve`"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Critical"
 tags: ["v0.2", "p1"]
