@@ -78,22 +78,24 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, dna.set, memory.add, memory.submit — task-051/050/025/020/045)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes `directive.assign` + `directive.create` + `dna.set` + `memory.add` + `memory.submit` — the mutating ops', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, directive.remove, dna.set, memory.add, memory.approve, memory.deprecate, memory.reject, memory.submit — task-051/050/052/025/020/046/048/047/045)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes all nine mutating ops — `directive.assign`, `directive.create`, `directive.remove`, `dna.set`, `memory.add`, `memory.approve`, `memory.deprecate`, `memory.reject` + `memory.submit`', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
     // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`), task-050
-    // (`directive.directiveCreate`), task-051 (`directive.directiveAssign`) + task-045
-    // (`memory.memorySubmit`) are the mutating core ops, so they — and only they — are
-    // registered under Tools. task-021's `memory.memorySearch` is `mutates: false` (a read, per
-    // spec-006 §3), so it registers as a Resource, not a Tool, and does not widen this list.
+    // (`directive.directiveCreate`), task-051 (`directive.directiveAssign`), task-052
+    // (`directive.directiveRemove`) + task-045 (`memory.memorySubmit`) are among the mutating core
+    // ops, so they — and only the mutating ones — are registered under Tools. task-021's
+    // `memory.memorySearch` is `mutates: false` (a read, per spec-006 §3), so it registers as a
+    // Resource, not a Tool, and does not widen this list.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
     // task-045-memory-submit adds `memory.memorySubmit` (P1.6); task-051-directive-assign adds
     // `directive.directiveAssign` (P3.2); task-046-memory-approve and task-047-memory-reject add
     // `memory.memoryApprove` (P1.7) and `memory.memoryReject` (P1.8), the approver-gated Tools;
-    // task-048-memory-deprecate adds `memory.memoryDeprecate` (P1.9), the retire verb.
+    // task-048-memory-deprecate adds `memory.memoryDeprecate` (P1.9), the retire verb;
+    // task-052-directive-remove adds `directive.directiveRemove` (P3.3), the first deleting Tool.
     expect(mutatingOps.map((op) => op.name).sort()).toEqual([
       'directiveAssign',
       'directiveCreate',

@@ -1,7 +1,19 @@
 /**
- * Role → directive assignment support for `wingfoil directive assign` (task-051-directive-assign,
- * P3.2), built so `directive remove` (P3.3, task-052) and multi-directive assignment (P3.7, task-056)
- * reuse the same two pieces instead of re-deriving them:
+ * Role ↔ directive binding support — the `roles.yaml`-facing half of the Directives pillar's
+ * commands. It began as `wingfoil directive assign`'s support module (task-051-directive-assign,
+ * P3.2), whose two pieces were built so that `directive remove` (P3.3, task-052) and
+ * multi-directive assignment (P3.7, task-056) would not re-derive them; it now holds **three**
+ * pieces, because P3.3 turned out to need a different one:
+ *
+ * **What `directive remove` actually uses.** It uses {@link checkUnreferenced} — which task-052
+ * *contributed* here, it did not inherit it — and it uses **neither** of the two task-051 pieces.
+ * Not {@link checkAssignable}: a removal has no role argument to validate. And, importantly, **not**
+ * {@link updateRoleAssignments}: P3.3 Scenario 2 *refuses* a still-assigned directive rather than
+ * unbinding it, so a removal has no `roles.yaml` write to make at all and never reaches the
+ * `setRoleAssignmentsInText` → fallback path below. (Correcting task-051's original prediction, which
+ * `dl-062-roles-yaml-unwritable-fallback` quotes from this doc range as evidence that P3.3 would be a
+ * second consumer of that fallback decision. It is not.) P3.7 remains an unbuilt prediction, not an
+ * observed fact.
  *
  * - {@link checkAssignable} — the pre-write validation: the role must be defined in `dna.yaml`
  *   (REQ-SYS-08, via task-034's binding resolver `isRoleDefined`/`UnknownRoleError` — never the
