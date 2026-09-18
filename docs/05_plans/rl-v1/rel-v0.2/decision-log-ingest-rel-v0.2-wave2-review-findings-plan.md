@@ -3,7 +3,7 @@ id: "decision-log-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Decision-log ingest — v0.2 Wave 2 review findings (spec-level conflicts)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "decision-log-ingest"
 phase: "rel-v0.2-wave2-review-findings"
 element: ""
@@ -102,3 +102,49 @@ Not part of this plan's execution: the agent stops at `in-discussion`.
 
 **Completion:** the plan reaches `done` when all fifteen DLs are `ready` (or rejected/deprecated) — i.e.
 after the approver gate, not at the end of `capture`.
+
+## Second batch (2026-09-18) — `capture` run 2
+
+The same `capture` phase, run a second time as the Wave 2 reviews continued: the reviews of
+`task-046-memory-approve` (branch `task/task-046-memory-approve`, `62c7459`, `in-review`),
+`task-047-memory-reject` and `task-051-directive-assign` (merged, `143e4da`) raised three further
+findings no task can resolve alone. Same rules as run 1 — every claim re-verified against the repository,
+unmerged evidence read read-only with `git show` and labelled with branch and sha, each DL states the
+conflict from source, lists options and recommends without pre-deciding, and the agent stops at
+`in-discussion`.
+
+**`main` moved during the run.** The batch was verified at `61c5510`; `task-047-memory-reject` was then
+approved and merged (`c03cca9`, `57c412f`, `e890cf9`), taking `main` to `9147d84`. Every claim was
+re-verified against `9147d84` afterwards and all of them still hold — `P1.8-memory-reject.feature:18` and
+REQ-SEC-03 are unchanged, and `memoryRejectFn` is now on `main` at `src/core/index.ts:776-795`. The three
+DLs are written against `9147d84`, and `dl-063`/`dl-064` say explicitly which of their claims moved from
+a branch to `main`.
+
+Not new plans: this is a continuation of the run above, so it appends here rather than duplicating the
+phase definition, the checks and the approver handoff.
+
+**Preconditions:** next free DL number was `dl-062` (`ls docs/self/docs/04_memory/design/dls` → last
+numbered entry `dl-061-dev-loop-reject-bug-sync`).
+
+**Produces:** `docs/04_memory/design/dls/dl-062-*.md` .. `dl-064-*.md`, all at `status: in-discussion`.
+
+| DL | Source | Question |
+|---|---|---|
+| `dl-062-roles-yaml-unwritable-fallback` | `task-051` review | What `directive assign` does when `roles.yaml` cannot be edited in place: a spec-less `CONFLICT` message when the file has a `#`, a silent whole-file `dump` when it has none — inherited by `task-052` and `task-056` |
+| `dl-063-p1-8-reject-message-and-authority-trace` | `task-047` review | P1.8 sc.2 pins an illegal-transition message contradicting REQ-STATE-01 / `dl-032` / `dl-053` and false for four types; plus REQ-SEC-03 mentions only *approve*, so `memory reject`'s authority gate traces to nothing |
+| `dl-064-approver-gated-verb-preflight-order` | `task-046` + `task-047` | Two unspecified choices both verbs made alone and `task-048` inherits: legality checked before authority, and three `git config` identity reads per operation |
+
+**Approver handoff for this batch** (the `approve` phase above is unchanged):
+
+- **`dl-063`** is now **overdue**, not upcoming: `task-047` merged with the deviation shipped, so both
+  its amendments (the P1.8 feature line, REQ-SEC-03's scope) are their own piece of work. Its clause B
+  still bears on `task-046`.
+- **`dl-064`** before `task-046` is approved and before `task-048-memory-deprecate` (`in-progress` at
+  `b6175b7`) finishes; its option B.1 is assigned to whichever of `task-046` and `task-048` lands last —
+  `task-047` is no longer a candidate.
+- **`dl-062`** before `task-052-directive-remove` reaches `design` — its branch and worktree already
+  exist (tip at `main`, document still `backlog`) — and before `task-056-role-based-directive-assignment`;
+  both reuse `updateRoleAssignments`.
+
+**Completion** (amends the line above): the plan reaches `done` when all **eighteen** DLs — `dl-046`..
+`dl-060` from run 1 and `dl-062`..`dl-064` from this one — are `ready` (or rejected/deprecated).
