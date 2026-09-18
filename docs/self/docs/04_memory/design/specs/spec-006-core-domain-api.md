@@ -137,7 +137,7 @@ exposure it backs.
 | `memorySubmit`       | `memory`               | true    | `wingfoil memory submit` | Tool `memory.submit`          |
 | `memoryApprove`      | `memory` *(planned)*   | true    | `wingfoil memory approve`| Tool `memory.approve`         |
 | `memoryReject`       | `memory`               | true    | `wingfoil memory reject` | Tool `memory.reject`          |
-| `memoryDeprecate`    | `memory` *(planned)*   | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
+| `memoryDeprecate`    | `memory`               | true    | `wingfoil memory deprecate` | Tool `memory.deprecate`    |
 | `memoryHistory`      | `memory`               | false   | `wingfoil memory history`| Resource `wingfoil://memory/history/{id}` |
 
 **DNA pillar** (P2, `src/dna`):
