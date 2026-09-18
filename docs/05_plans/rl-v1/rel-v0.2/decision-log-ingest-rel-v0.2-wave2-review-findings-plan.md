@@ -3,7 +3,7 @@ id: "decision-log-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Decision-log ingest — v0.2 Wave 2 review findings (spec-level conflicts)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "decision-log-ingest"
 phase: "rel-v0.2-wave2-review-findings"
 element: ""
@@ -148,3 +148,71 @@ numbered entry `dl-061-dev-loop-reject-bug-sync`).
 
 **Completion** (amends the line above): the plan reaches `done` when all **eighteen** DLs — `dl-046`..
 `dl-060` from run 1 and `dl-062`..`dl-064` from this one — are `ready` (or rejected/deprecated).
+
+## Third batch (2026-09-18) — `capture` run 3
+
+The same `capture` phase, run a third time as the Wave 2 reviews continued: the implementer and the
+independent review of `task-048-memory-deprecate` (merged, `6e7a0e2`) and the review of
+`task-052-directive-remove` (branch `task/task-052-directive-remove`, `a624067`, `in-review`, **not
+merged**) raised two further findings no task can resolve alone. Same rules as runs 1 and 2 — every claim
+re-verified by running the command rather than transcribing the review, unmerged evidence read read-only
+with `git show` and labelled with branch and sha, each DL states the conflict from source, lists options
+and recommends without pre-deciding, and the agent stops at `in-discussion`.
+
+**`main` did not move during this run.** The batch was verified at `b7e39f9` throughout and every claim
+is written against that sha. `CLAUDE.md` §5.1 *had* moved just before it: `e078314` corrected
+`memory.deprecate`'s step by approver decision, which is why `dl-065` records that correction as already
+made rather than carrying it.
+
+Not new plans: this is a continuation of the runs above, so it appends here rather than duplicating the
+phase definition, the checks and the approver handoff.
+
+**Preconditions:** next free DL number was `dl-065` (`ls docs/self/docs/04_memory/design/dls` → last
+numbered entry `dl-064-approver-gated-verb-preflight-order`).
+
+**Produces:** `docs/04_memory/design/dls/dl-065-*.md` and `dl-066-*.md`, both at `status: in-discussion`;
+plus a body-only amendment to `dl-062-roles-yaml-unwritable-fallback` (already `in-discussion`) — a
+dated `## Review addendum (2026-09-18)` section, no frontmatter and no status change, in its own
+`docs(self)` commit.
+
+| DL | Source | Question |
+|---|---|---|
+| `dl-065-how-superseded-is-ever-reached` | `task-048` + its review | `superseded` is a `waiting` edge no verb, workflow action, engine trigger or scheduled task can produce, so it is reachable by nothing at all; meanwhile `spec-010:125` still says `deprecate` writes it, and `spec-004` §4.3 still calls `deprecate` "approver-gated" against `dl-027`/REQ-SEC-04 |
+| `dl-066-p3-3-workflow-step-precondition-vacuous` | `task-052` review | P3.3 sc.1's "not assigned to any role **or workflow step**" has no referrer to check — nothing in the workflow pillar can name a directive (`grep -in "directive" src/workflow/schema.ts` → no hit), so clause (b) can only ever read `roles.yaml` |
+
+**Corrections this run made to its own inputs** (recorded so the next run does not re-inherit them):
+
+- `grep -rn "supersedes" src/` does **not** return nothing, as both the brief and `e078314`'s commit body
+  state — it returns two TSDoc prose lines (`src/core/index.ts:936`, `src/memory/state-machine.ts:100`).
+  The substantive claim (no code *implements* the trigger) holds; `dl-065` carries the corrected form.
+- `SUPERSEDED_STATE`'s TSDoc (`src/memory/state-machine.ts:75-80`) is itself wrong in the other
+  direction — it says `superseded` is "reached along the forward `sequence` by `approve`", which
+  `spec-001:75` makes illegal on a `waiting` state. `dl-065` files it as a third document needing the
+  same correction, rather than citing it as a clean authority.
+- P3.3's "or workflow step" sits in **scenario 1's `Given`** (`:10`), not in the Background as
+  `task-052`'s notes say; and it is not simply vacuous — `spec-003:100` routes directives to a step
+  through its `role`, so `roles.yaml` already covers the only reference path that exists. `dl-066` states
+  both.
+
+**Why `dl-066` is a new DL rather than a note on `dl-030`:** `dl-030-req-sec-07-referenced-asset-ownership`
+is `ready` — settled — and a `ready` decision-log is not reopened to carry a new open question. `dl-030`
+asks *who builds* the workflow-side check; `dl-066` asks whether the thing that check would look for can
+exist at all. `dl-066` states the dependency between the two answers explicitly.
+
+**Approver handoff for this batch** (the `approve` phase above is unchanged):
+
+- **`dl-065`** is not urgent for any in-flight task — `task-048` merged with the correct behaviour — but
+  its Q2 (`spec-010:125`) is an amendment to an `approved` spec that stays wrong until taken, and its Q1
+  determines whether a `supersedes:` trigger task enters the next `release-planning` run.
+- **`dl-066`** is low urgency: nothing is mis-refusing today. It should reach whoever picks up **P4.9**,
+  the obligation `dl-030` parked, since that message's shape depends on the answer.
+- **`dl-062`**'s addendum adds **Q2**, which is **blocking on `task-052`'s approval** — that task ships
+  an `[AUTHORING]` refusal string for the `global` case, pinned by a test, and the test pin must match
+  whichever wording is ratified. Its handoff line above is otherwise superseded: `task-052` reached
+  `in-review` having already read `dl-062` at design, and is **not** a consumer of
+  `updateRoleAssignments`; `task-056-role-based-directive-assignment` is the one outstanding handoff for
+  Q1.
+
+**Completion** (amends the line above): the plan reaches `done` when all **twenty** DLs — `dl-046`..
+`dl-060` from run 1, `dl-062`..`dl-064` from run 2 and `dl-065`..`dl-066` from this one — are `ready`
+(or rejected/deprecated).

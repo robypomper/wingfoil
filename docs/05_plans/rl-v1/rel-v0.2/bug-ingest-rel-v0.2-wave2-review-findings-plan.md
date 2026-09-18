@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 Wave 2 review findings (defects on main)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-wave2-review-findings"
 element: ""
@@ -163,3 +163,60 @@ verbatim" means for a multi-line reason, so it is not an in-task silent fix.
 
 **Completion** (amends the line above): the plan reaches `done` when all **fifteen** bugs — `bug-028`..
 `bug-041` from run 1 and `bug-042` from this one — are `triaged` (or `closed` as wontfix).
+
+## Third batch (2026-09-18) — `capture` run 3
+
+The same `capture` phase, run a third time as the Wave 2 reviews continued. The review of
+`task-052-directive-remove` (branch `task/task-052-directive-remove`, `a624067`, `in-review`, **not
+merged**) raised one defect; a second was found while preparing this batch, by cloning `main` properly
+instead of reusing a worktree; a third is documentation decay in the enumeration suites the Wave-2 verbs
+kept widening. Same rules as runs 1 and 2: every claim re-verified by running the command rather than
+transcribing the review, unmerged evidence read read-only with `git show` and labelled with branch and
+sha. The agent stops at `open`.
+
+**`main` did not move during this run.** Everything was verified at `b7e39f9` and every line number,
+count and command output below is written against that sha.
+
+Not a new plan: this is a continuation of the runs above, so it appends here rather than duplicating the
+phase definition, the checks and the triage handoff.
+
+**Preconditions:** next free bug number was `bug-043` (`ls docs/self/docs/04_memory/bugs` → last entry
+`bug-042-reason-text-has-no-contract-against-commit-trailer`).
+
+**Produces:** `docs/04_memory/bugs/bug-043-*.md` .. `bug-045-*.md`, all at `status: open`.
+
+| Bug | Source | Defect | Proposed severity |
+|---|---|---|---|
+| `bug-043-npm-ci-fails-on-stale-package-lock` | this run (fresh clone of `main`) | `npm ci` exits 1 in any fresh clone — `lock file's @emnapi/wasi-threads@1.2.2 does not satisfy @emnapi/wasi-threads@1.2.3` — because `package-lock.json` records no top-level `@emnapi/core`/`@emnapi/runtime` for `@napi-rs/wasm-runtime`'s peers; blocks every fresh worktree and the first step of the `adr-009`/`spec-015` pipeline (`.github/workflows/publish.yml:99`) | medium |
+| `bug-044-symlinked-directives-custom-escapes-confinement` | `task-052` review | A symlinked `.wingfoil/directives/custom` → outside the root lets `directive remove` unlink the outside file, then `commitPaths` throws a raw `Command failed: git … add --` that is not a `CoreError`; `requireCustomAsset` is textual and `resolveConfinedMemoryPath` is both textual and Memory-only, so neither catches it. Self-inflicted (the owner must plant the symlink) | medium |
+| `bug-045-mutating-op-enumeration-titles-stale` | this run (verification sweep) | Eight titles and module docs across `production-registry`/`parity`/`read-only-agent-channel` name counts and mutating-op lists their own assertions have outgrown — three still say "zero mutating ops today"; the suites pass, so nothing catches it | low |
+
+Filed as three bugs, not one: they share nothing but the wave that surfaced them — a dependency lock, a
+path-confinement hole on an unmerged branch, and test prose.
+
+**Corrections this run made to its own inputs** (recorded so the next run does not re-inherit them):
+
+- `bug-044`'s raw error does **not** escape unhandled. `src/cli/registrar.ts:115-123` catches it and
+  `exitCodeForThrow` (`src/core/exit-code.ts:62-71`) maps it to exit `1`. What it bypasses is
+  `exitCodeForError` — the mapped-`CoreError` path — so the defect is a *leaky, unmapped* message, not a
+  crash. And `git status` is **clean** afterwards, not "deleted-but-uncommitted": the victim lives outside
+  the repository, so there is no dirty-tree signal at all. `bug-044` carries both corrections.
+- Not every title in `bug-045`'s scope is stale: `test/core/production-registry.test.ts:41` ("eight
+  operations mutate today — …") is **correct on `main`**, and is listed in the bug as the one that was
+  kept current — and as the one the next mutating op must edit again.
+
+**Triage handoff for this batch** (the `triage` phase above is unchanged):
+
+- **`bug-044`** before **`task-052-directive-remove` is approved** — it describes that branch's own code,
+  which is not on `main` yet, so it should reach that task's reviewer/approver before the merge rather
+  than after. Its fix interacts with `bug-027-commit-paths-commits-whole-index` (both are `commitPaths`'
+  contract) and with `dl-030`'s parked P4.9 obligation, which inherits the same store.
+- **`bug-043`** is independent of every in-flight task and is a one-command `chore` fix, but it gates
+  anything run on a clean checkout — including the publish pipeline, which has never executed on a clean
+  runner (`dl-056-first-real-publishing-run`). Worth triaging early for that reason alone.
+- **`bug-045`** is low and has an obvious host: `task-052`'s AC4 already widens all three enumerations,
+  so whoever lands the ninth mutating op can fix the eight entries in the same change.
+
+**Completion** (amends the line above): the plan reaches `done` when all **eighteen** bugs — `bug-028`..
+`bug-041` from run 1, `bug-042` from run 2 and `bug-043`..`bug-045` from this one — are `triaged` (or
+`closed` as wontfix).
