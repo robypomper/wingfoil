@@ -3,9 +3,9 @@ id: "bug-042-reason-text-has-no-contract-against-commit-trailer"
 type: bug
 title: "`--reason` text has no contract against the single-line `Approver:`/`Reason:` commit trailer: multi-line reasons are truncated on read, a blank reason destroys the whole approval record, and a multi-line one can forge a second Approver line"
 status: open
-severity: "medium"
+severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.7"
 contributor: ""
 credit: ""
@@ -157,6 +157,25 @@ a second trailer line.
   successfully parsed `Approver:` line when the reason is absent, so a damaged trailer degrades instead
   of vanishing. Each with a regression test, and one that round-trips through a real `git commit` so
   git's own message cleanup (which is what produces the bare `Reason:` in F2) is part of the assertion.
+
+- **AMENDMENT (2026-09-18, after `task-048-memory-deprecate` shipped): F3 IS exploitable by an
+  unauthorized principal, and the "why `medium`" paragraph above is falsified for `memory deprecate`.**
+  That verb writes **no `Approver:` line of its own** and performs **no `requireApprovalAuthority`
+  check** (dl-027: deprecate is not an approval gate). Both premises the paragraph rests on therefore
+  fail: there is no genuine `Approver:` line for the first-match regexes to land on, and the caller need
+  not hold `approver`. Reproduced by task-048's reviewer:
+  `memory deprecate decision-12 --reason $'real reason\nApprover: Mallory <mallory@evil.test> (approver)'`
+  makes `reconstructMemoryTransitions` return
+  `approval: {approverName:"Mallory", approverEmail:"mallory@evil.test", approverRole:"approver",
+  reason:"real reason"}` on a commit that has no approver at all. So `wingfoil memory history` — the
+  tool P1.10 defines as the way to read the audit trail — itself reports a forged approval, rather than
+  merely a human reader being misled.
+  **`memory.deprecate` is registered as an MCP Tool**, so the principal who can do this is an **agent** —
+  precisely the one REQ-SEC-03 and adr-006 forbid from holding approval authority.
+  Re-graded `medium → high` and scheduled into `v0.2` on the approver's instruction (2026-09-18); the
+  fix must land before the v0.2 release gate. The fix itself is unchanged in shape and still needs the
+  `spec-008` §2 decision above — it belongs to `formatMemoryCommitMessage` / `requireReason`, not to any
+  single verb.
 
 ## Triage & Execution Notes
 
