@@ -309,12 +309,14 @@ this task's and task-046's marker removals (no contradiction); `dl-062-roles-yam
 had meanwhile been filed on `main` and the design note above was corrected in place to name it and to
 state why P3.3 is **not** a consumer of it.
 
-**Gates, all run in this worktree after the merge — commands and results:**
+**Gates — the figures below are from the SECOND-PASS run, after the merge of `main` at `b7e39f9`
+(see the second-pass section at the end of these notes). They supersede the first-pass numbers
+(99 suites / 1506 tests, at `main` `05d09de`); the coverage percentages are unchanged.**
 
 | Command | Result |
 |---|---|
-| `npx jest --maxWorkers=2` (inside the coverage run) | **99 suites / 1506 tests, 0 failed** |
-| `npx jest --coverage --maxWorkers=2` | All files **98.54 / 92.27 / 98.75 / 99.15** (stmts/branch/funcs/lines) — global ≥ 80 ✓, non-regressing vs the 98.05/88.13/98.09/98.66 task-042 recorded. `src/core/directive-assign.ts` **100/100/100/100**, `src/storage/document.ts` **100/100/100/100** |
+| `npx jest --maxWorkers=2` (inside the coverage run) | **100 suites / 1527 tests, 0 failed** |
+| `npx jest --coverage --maxWorkers=2` | All files **98.54 / 92.27 / 98.75 / 99.15** (stmts/branch/funcs/lines) — global ≥ 80 ✓, non-regressing vs the 98.05/88.13/98.09/98.66 task-042 recorded. `src/core/directive-assign.ts` **100/100/100/100**, `src/storage/document.ts` **100/100/100/100**, `src/core/builtin-asset.ts` **100/100/100/100** |
 | `npx tsc -p tsconfig.build.json --noEmit` | **exit 0** |
 | `npx tsc --noEmit -p tsconfig.json` | exit 2 — **only** the pre-existing `bug-026` error `test/core/directive-create.test.ts(159,19) TS2339`, untouched |
 | `npm run lint` | **exit 0** (`lint.clean`, hard-reject — dl-034) |
@@ -350,10 +352,91 @@ path, since P3.3 refuses instead of unbinding), `test/core/directive-create.test
 2. `checkUnreferenced` checks `roles.yaml` only. Nothing else in the repository can reference a
    directive today (`grep -n "directive" src/workflow/schema.ts` → no hit), but if a future pillar
    gains directive references, clause (b) must grow a second referrer source.
-3. Removing a custom file that shadows a built-in **silently changes which directive is in force** for
-   every role bound to that id. That is dl-037's precedence working as specified and the test pins it,
-   but the command emits no warning about it; whether it should is a product question, not a defect.
+3. Removing a custom file that shadows a built-in changes which file defines that id — but it changes
+   **no role's in-force directive set, ever**, and that is provable rather than merely untested.
+   `checkUnreferenced` refuses whenever `assignments[*] ∋ id` **or** `global ∋ id`, and
+   `resolveRoleDirectives` (`src/core/context.ts`) composes a role's in-force set from exactly
+   `assignments[role] ∪ global` — so any id whose removal could move a role's set is refused before
+   the deletion, and the set of roles affected by a *permitted* shadow removal is empty by
+   construction. A fresh `wingfoil init` shows this directly: AC8's test had to **create** its own
+   custom shadow of `security`, because `security` is the one shipped built-in the scaffold binds to
+   nobody. What a permitted shadow removal does change is the **inventory** — `directives list` loses
+   the custom entry and spec-012 §5.1's kind-3 shadow warning, and a *later* binding of that id would
+   resolve to the built-in. That is dl-037's precedence working as specified, and the AC8 test pins
+   both halves.
 
 No secrets committed; every commit stages explicit paths; `node_modules` is not tracked.
 
 `status: in-progress → in-review`.
+
+---
+
+## Execution Notes — second pass (after review reject `b2faf9f`, `in-review → in-progress`)
+
+The first pass above is left as the historical record, except the gate table, which was updated in
+place because a gate record must state what was actually last observed. The reject confirmed the
+**implementation** and returned the task for **three textual corrections it introduced** — sentences
+that had become false, not behaviour that was wrong. The independent review's own findings
+(structural path safety over fourteen hostile names; clause (a) keyed on the directory and not on
+frontmatter, proven by forging `kind:` in both directions; clause (b) deterministic and lethal to all
+five mutations tried; the deletion commit scoped to one path with a pre-staged file surviving; every
+gate figure reproduced verbatim) are recorded here without restating them as claims of my own. **No
+`src/` behaviour changed in this pass** — `git diff` over the pass touches only doc comments, test
+titles/comments, and these notes.
+
+### Corrections made
+
+1. **`test/core/production-registry.test.ts` — "eight operations mutate today", naming eight, over an
+   assertion listing nine.** The count decayed the moment `directive.directiveRemove` joined the
+   registry. Corrected to **nine**, with `directive.directiveRemove` (P3.3) named in the title beside
+   the other eight.
+2. **`src/core/directive-assign.ts` module doc (the range `dl-062-roles-yaml-unwritable-fallback`
+   cites as its evidence).** It still said `directive remove` would "reuse the same two pieces". Both
+   halves were wrong after this task: the module now holds **three** pieces, and `directive remove`
+   reuses **neither** original — not `checkAssignable` (a removal has no role argument to validate)
+   and, materially, not `updateRoleAssignments`, because P3.3 Sc.2 *refuses* a still-assigned
+   directive instead of unbinding it, so a removal has no `roles.yaml` write to make and never reaches
+   the `setRoleAssignmentsInText` → fallback path at all. The doc now says so, marks `checkUnreferenced`
+   as task-052's **contribution** rather than an inheritance, names dl-062 explicitly, and keeps P3.7
+   labelled as an unbuilt prediction rather than an observed fact.
+3. **Weak spot 3 asserted an unreachable gap.** It claimed a shadow removal "silently changes which
+   directive is in force for every role bound to that id". `checkUnreferenced` refuses whenever
+   `assignments[*] ∋ id` **or** `global ∋ id`, and `resolveRoleDirectives` composes a role's in-force
+   set from exactly `assignments[role] ∪ global` — so the set of roles a *permitted* shadow removal can
+   affect is empty by construction, not merely untested. (The reviewer's confirmation on a fresh init
+   matches what AC8's own fixture already showed: the test had to create its own shadow of `security`,
+   the one shipped built-in the scaffold binds to nobody.) Replaced with the correct statement — a
+   permitted shadow removal changes the **inventory** (`directives list` loses the entry and
+   spec-012 §5.1's kind-3 warning) and where a *future* binding of that id would resolve, and nothing
+   else. A future task reading the old sentence would have chased a gap that does not exist.
+
+### Sibling titles brought current (same decay, already present on `main`)
+
+- `test/core/parity.test.ts` — both `it` titles now enumerate all **nine** mutating ops (they had
+  omitted `memory approve` and `memory reject` before this task touched the file), and the comment
+  above the Tools assertion was corrected the same way. Also added the missing
+  `not.toContain('wingfoil://directive/remove')` guard, so this task's own mutating op is asserted to
+  be a Tool and never a Resource, like its eight siblings.
+- `test/mcp/read-only-agent-channel.test.ts` — `describe`/`it` titles and the two enumerating comments
+  brought current for the same reason.
+
+These are the same class of defect the orchestrator is filing repo-wide; only the occurrences inside
+the enumerations this task edits are corrected here, and nothing out of scope was touched.
+
+### Merge with `main` (dl-035 — merge, never rebase)
+
+`git merge main` at **`b7e39f9`** (`main` had gained `task-046-memory-approve` and
+`task-048-memory-deprecate` since the first pass). One conflict, again in `test/core/parity.test.ts`
+and again in the mutating-op literal: `main`'s list had `memory deprecate`, this branch's had
+`directive remove`. Resolved as the sorted union of all nine, kept in the single `expected` constant
+the first pass introduced so the CLI and Tool assertions cannot drift apart. Every other shared
+enumeration (`production-registry`, `read-only-agent-channel`, and parity's own Tools list)
+auto-merged into the correct union; each was re-read and verified by hand afterwards rather than
+trusted.
+
+Post-merge re-run of every gate: the table in the first-pass summary above, now reading **100 suites /
+1527 tests, 0 failed**, coverage unchanged at **98.54 / 92.27 / 98.75 / 99.15**, `tsc -p
+tsconfig.build.json` exit 0, `tsc -p tsconfig.json` exit 2 with only `bug-026`, `lint` exit 0,
+`docs:api` exit 0.
+
+`status: in-progress → in-review`; `rejection_reason` removed from the frontmatter (spec-010).
