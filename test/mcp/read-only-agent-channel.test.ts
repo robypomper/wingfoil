@@ -96,6 +96,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
     expect(mutatingOps.map((op) => op.name).sort()).toEqual([
       'directiveAssign',
       'directiveCreate',
+      'directiveRemove',
       'dnaSet',
       'memoryAdd',
       'memoryReject',
@@ -105,6 +106,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'directive.assign',
       'directive.create',
+      'directive.remove',
       'dna.set',
       'memory.add',
       'memory.reject',

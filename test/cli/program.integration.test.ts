@@ -54,6 +54,7 @@ import { join } from 'path';
 import { load as yamlLoad } from 'js-yaml';
 
 import { initWingfoilProject } from '../../src/core';
+import { renderCustomDirective } from '../../src/directives/create';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../storage/helpers/git-fixture';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -745,6 +746,61 @@ paths:
       const before = head();
       expect(runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer').status).toBe(0);
       expect(head()).toBe(before);
+    });
+  });
+
+  // task-052-directive-remove (P3.3, BDD `p3-directives/P3.3-directive-remove.feature`) — the bare
+  // `<name>` positional driven end-to-end through real `commander`, against a THROWAWAY repo carrying
+  // the real `wingfoil init` scaffold (six built-ins since task-057) plus an unbound custom directive.
+  describe('`directive remove <name>` (task-052, P3.3)', () => {
+    const CUSTOM = join('.wingfoil', 'directives', 'custom', 'legacy-rule.md');
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      const init = initWingfoilProject(repo, 'Scrum');
+      if (!init.ok) throw new Error(`fixture bug: wingfoil init failed — ${init.error.message}`);
+      writeFixtureFile(repo, '.wingfoil/directives/custom/legacy-rule.md', renderCustomDirective('legacy-rule'));
+      commitAll(repo, 'fixture: add custom directive legacy-rule');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('removes an unreferenced custom directive, committing only that deletion (BDD Sc.1)', () => {
+      const result = runCliInRoot(repo, 'directive', 'remove', 'legacy-rule');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(existsSync(join(repo, CUSTOM))).toBe(false);
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(directive): remove legacy-rule');
+      const changed = execFileSync('git', ['-C', repo, 'show', '--name-status', '--format=', 'HEAD'], {
+        encoding: 'utf-8',
+      }).trim();
+      expect(changed).toBe('D\t.wingfoil/directives/custom/legacy-rule.md');
+    });
+
+    it('a directive still assigned to a role exits 1 with the exact BDD message (BDD Sc.2)', () => {
+      expect(runCliInRoot(repo, 'directive', 'assign', '--directive', 'legacy-rule', '--role', 'developer').status).toBe(0);
+      const result = runCliInRoot(repo, 'directive', 'remove', 'legacy-rule');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: cannot remove 'legacy-rule': still assigned to role 'developer'\n");
+      expect(result.stdout).toBe('');
+      expect(existsSync(join(repo, CUSTOM))).toBe(true);
+    });
+
+    it("a built-in directive exits 1 with REQ-SEC-07's exact message (BDD Sc.3)", () => {
+      const result = runCliInRoot(repo, 'directive', 'remove', 'testing');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: built-in directives cannot be removed\n');
+      expect(result.stdout).toBe('');
+      expect(existsSync(join(repo, '.wingfoil', 'directives', 'built-in', 'testing.md'))).toBe(true);
+    });
+
+    it('a missing <name> exits 2 (usage error, spec-008 §5)', () => {
+      const result = runCliInRoot(repo, 'directive', 'remove');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: directive remove <name>\n');
     });
   });
 

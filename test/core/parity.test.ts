@@ -173,6 +173,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'directive.assign',
       'directive.create',
+      'directive.remove',
       'dna.set',
       'memory.add',
       'memory.reject',

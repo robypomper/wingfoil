@@ -23,6 +23,7 @@ describe('CORE_MODULES — production registry', () => {
       // plural `directives list`. See task-050's Execution Notes (design decision D1).
       'directive.directiveAssign',
       'directive.directiveCreate',
+      'directive.directiveRemove',
       'directives.directivesList',
       'dna.dnaSet',
       'dna.dnaShow',
@@ -41,6 +42,7 @@ describe('CORE_MODULES — production registry', () => {
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveAssign',
       'directive.directiveCreate',
+      'directive.directiveRemove',
       'dna.dnaSet',
       'memory.memoryAdd',
       'memory.memoryReject',
