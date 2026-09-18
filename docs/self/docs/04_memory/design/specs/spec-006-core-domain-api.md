@@ -156,7 +156,7 @@ per-directive mutations (BDD P3.1–P3.3), plural `directives` for the listing (
 | function            | module                   | mutates | CLI                        | MCP                          |
 |----------------------|---------------------------|---------|------------------------------|--------------------------------|
 | `directiveCreate`    | `directive`               | true    | `wingfoil directive create`  | Tool `directive.create`       |
-| `directiveAssign`    | `directive` *(planned)*   | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
+| `directiveAssign`    | `directive`               | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
 | `directiveRemove`    | `directive` *(planned)*   | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
 | `directivesList`     | `directives`              | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
 

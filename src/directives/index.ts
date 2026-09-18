@@ -5,8 +5,10 @@
  * `src/core`'s loader wires it through the shared validation pipeline. `./create`
  * (task-050-directive-create, P3.1) adds the pillar's first *authoring* helpers — the kebab-case
  * name rule and the generated file's content — which `src/core`'s `directiveCreate` operation
- * composes with the git-identity pre-flight, write and commit. Further Directives behavior lands in
- * later tasks.
+ * composes with the git-identity pre-flight, write and commit. `./roles-edit`
+ * (task-051-directive-assign, P3.2) adds the pure, comment-preserving `roles.yaml` assignment edit that
+ * `src/core`'s `directiveAssign` writes through (and that P3.3 remove / P3.7 multi-assign are designed
+ * to reuse). Further Directives behavior lands in later tasks.
  */
 export const MODULE_NAME = 'directives' as const;
 
@@ -18,3 +20,5 @@ export {
   isValidDirectiveName,
   renderCustomDirective,
 } from './create';
+
+export { setRoleAssignmentsInText, withAssignedDirectives } from './roles-edit';

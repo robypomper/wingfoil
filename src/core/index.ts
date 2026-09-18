@@ -24,6 +24,7 @@ import {
   isValidDirectiveName,
   renderCustomDirective,
 } from '../directives/create';
+import { withAssignedDirectives } from '../directives/roles-edit';
 import { commitPaths, documentExists, readDocument, StorageError, writeDocument } from '../storage';
 import {
   findMemoryDocumentById,
@@ -45,12 +46,14 @@ import {
 } from '../memory';
 
 import {
+  loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
   loadWorkflowsYaml,
   type WorkflowsLoadResult,
 } from './loaders';
 import { loadDirectiveListing, type DirectiveListing } from './directives-list';
+import { checkAssignable, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
@@ -786,6 +789,61 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
 };
 
 /**
+ * `wingfoil directive assign --directive <id> --role <role>` params (P3.2, task-051-directive-assign).
+ * Both values ride the value-bearing `ParamsContext.options` seam, as `directive create`'s `--name`
+ * does; {@link directiveAssignFn} rejects an absent one as a usage error (exit 2).
+ */
+export interface DirectiveAssignParams {
+  readonly root: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `directive assign` success shape: the binding requested and the role's resulting assignment list. */
+export interface DirectiveAssignResult {
+  readonly directive: string;
+  readonly role: string;
+  readonly assignments: readonly string[];
+}
+
+/**
+ * `directive assign` `CoreOperation.fn` (P3.2, `mutates: true`; spec-006 §3 row `directiveAssign`,
+ * module `directive` per dl-041). Same mutating-op order as {@link directiveCreateFn}:
+ *
+ * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
+ * 2. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2.
+ * 3. Load `dna.yaml` and every directive file; `checkAssignable` returns P3.2's exact
+ *    `unknown role '<role>' (not defined in dna.yaml)` / `unknown directive: <id>` as `NOT_FOUND`
+ *    (exit 1), role first. Nothing has been written at this point.
+ * 4. `updateRoleAssignments` appends the id (`withAssignedDirectives`: idempotent, order-preserving)
+ *    through the comment-preserving `roles.yaml` writer and makes one commit,
+ *    `wf(directive): assign <id> to <role>`, staging only `.wingfoil/roles.yaml`. An already-assigned
+ *    directive is a success with no write and no commit (P3.7 "Binding is idempotent").
+ */
+const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params) => {
+  const { root, options } = params as DirectiveAssignParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const directive = options?.directive;
+  if (directive === undefined) throw new UsageError('missing required argument: --directive');
+  const role = options?.role;
+  if (role === undefined) throw new UsageError('missing required argument: --role');
+
+  const dna = loadOrError(() => loadDnaYaml(root));
+  if (!dna.ok) return dna;
+  const directiveFiles = loadOrError(() => loadDirectives(root));
+  if (!directiveFiles.ok) return directiveFiles;
+  const invalid = checkAssignable(dna.value, directiveFiles.value, role, [directive]);
+  if (invalid) return coreErr(invalid);
+
+  const message = `wf(directive): assign ${directive} to ${role}`;
+  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, [directive]), message);
+  if (!updated.ok) return updated;
+  return coreOk({ directive, role, assignments: updated.value.assignments }, updated.commit);
+};
+
+/**
  * `directives list` `CoreOperation.fn` (P3.4, `mutates: false` — spec-006 §3 directives table). Wraps
  * `loadDirectiveListing` (`./directives-list.ts`, which carries the annotation rules and the
  * rationale for not deduplicating shadowed ids) in the same `loadOrError` mapping every read-only
@@ -820,9 +878,10 @@ const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
  * under a `memoryXxx` name would misrepresent it as the latter. As of
  * task-025-implement-dna-set the registry has its FIRST mutating operation — `dna.dnaSet`
- * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020) and `directive.directiveCreate`
- * (P3.1, task-050) have since joined it, and the remaining spec-006 §3 mutating functions
- * (`memorySubmit`, `directiveAssign`, `workflowStart`, ...) are still later tasks' scope. The
+ * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020), `directive.directiveCreate`
+ * (P3.1, task-050), `directive.directiveAssign` (P3.2, task-051) and `memory.memorySubmit` (P1.6,
+ * task-045) have since joined it, and the remaining spec-006 §3 mutating functions
+ * (`memoryApprove`, `directiveRemove`, `workflowStart`, ...) are still later tasks' scope. The
  * REQ-SYS-05 parity test in `test/core/parity.test.ts` runs against this exact array, so it is now a
  * live regression guard: each of those mutating ops must appear as both a CLI command and an MCP
  * Tool, or the diff fails.
@@ -935,6 +994,17 @@ export const CORE_MODULES: readonly CoreModule[] = [
         mutates: true,
         options: [{ name: 'name', required: true }],
         fn: directiveCreateFn,
+      },
+      // P3.2 (task-051-directive-assign) — on this SINGULAR module per dl-041 B, so `deriveVerb` yields
+      // `assign`: CLI `wingfoil directive assign`, Tool `directive.assign`.
+      directiveAssign: {
+        name: 'directiveAssign',
+        mutates: true,
+        options: [
+          { name: 'directive', required: true },
+          { name: 'role', required: true },
+        ],
+        fn: directiveAssignFn,
       },
     },
   },

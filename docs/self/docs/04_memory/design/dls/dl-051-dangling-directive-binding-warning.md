@@ -2,7 +2,7 @@
 id: "dl-051-dangling-directive-binding-warning"
 type: decision-log
 title: "Ratify the dangling-binding warning in directive resolution (and so in context assembly), and the shadow-warning text"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
@@ -85,3 +85,14 @@ receive.
 
 Related: `dl-029`, `dl-037`, `dl-042` (D), `dl-050` (who sees these warnings), `spec-012` §5,
 `task-055-auto-load-directives-by-role`, `task-069`.
+
+> **Correction (2026-09-17) — the placeholders in Decision point 3.** That point spells the shadow
+> warning as `directive '<id>' defined in <path>, <path>; using <winner path>`. **The two paths are
+> illustrative of the two-file case, not part of the format.** The ratified form — as the approve
+> commit `8c3fe35` records it, and as `src/core/context.ts:122` emits it
+> (`` `directive '${id}' defined in ${paths.join(', ')}; using ${winner.path}` ``) — is
+> `directive '<id>' defined in <paths>; using <winner>`, where `<paths>` is **every** file defining
+> that id, in ascending path order, joined with `, ` (three same-id files produce three paths) and
+> `<winner>` is the path the precedence rule selects. Nothing in the decision changes; this only
+> prevents the literal two-path spelling being implemented as the format. The authoritative table is
+> `spec-012` §5.1, added by this decision's Action (`920f9cd`).

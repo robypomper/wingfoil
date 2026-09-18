@@ -2,10 +2,10 @@
 id: "bug-041-frontmatter-edit-yaml-edge-cases"
 type: bug
 title: "frontmatter-edit: unspaced `#` after a value written over an empty value; column-0 comment inside a column-0 sequence; append after a trailing keep-chomped block scalar"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.6"
 contributor: ""
 credit: ""

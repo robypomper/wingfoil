@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2-plan"
 type: plan
 title: "Dev-loop — v0.2 (Project Directives + role-based context + publishing pipeline)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "dev-loop"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -209,7 +209,9 @@ Each bug has exactly **one** fix task, so the aggregate rule collapses to 1:1: t
 ### 3.6 `review` — role: reviewer
 
 - `tests.bdd.run` — the task's BDD acceptance suite must pass.
-- `memory.submit` — task: `in-progress → in-review`.
+- `memory.submit` — task: `in-progress → in-review`. The commit subject is **plain** —
+  `wf(task): submit {task.id}`, **no** `[from → to]` bracket (`dl-054-submit-commit-subject-bracket`,
+  option 2; `spec-004` §4.3). The bracket belongs to the approver-gated verbs only.
 - `bug.sync_state` — task-063/064/065: linked bug `in-progress → in-review`.
 - **Checks (pre):** `tests.bdd.passing`.
 - **Approval:** `by_role: approver`. **Fallback:** reject → `red`, task reset to `in-progress`.

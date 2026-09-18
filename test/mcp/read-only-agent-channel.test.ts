@@ -78,21 +78,33 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.create, dna.set, memory.add — task-050/025/020)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes `directive.create` + `dna.set` + `memory.add` — the mutating ops', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, dna.set, memory.add, memory.submit — task-051/050/025/020/045)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes `directive.assign` + `directive.create` + `dna.set` + `memory.add` + `memory.submit` — the mutating ops', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
     expect(client.getServerCapabilities()?.tools).toBeDefined();
-    // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`) + task-050
-    // (`directive.directiveCreate`) are the mutating core ops, so they — and only they — are
+    // ...and task-025 (`dna.dnaSet`), task-020 (`memory.memoryAdd`), task-050
+    // (`directive.directiveCreate`), task-051 (`directive.directiveAssign`) + task-045
+    // (`memory.memorySubmit`) are the mutating core ops, so they — and only they — are
     // registered under Tools. task-021's `memory.memorySearch` is `mutates: false` (a read, per
     // spec-006 §3), so it registers as a Resource, not a Tool, and does not widen this list.
     const mutatingOps = CORE_MODULES.flatMap((module) => Object.values(module.operations)).filter((op) => op.mutates);
-    // task-045-memory-submit adds `memory.memorySubmit` (P1.6).
-    expect(mutatingOps.map((op) => op.name).sort()).toEqual(['directiveCreate', 'dnaSet', 'memoryAdd', 'memorySubmit']);
+    expect(mutatingOps.map((op) => op.name).sort()).toEqual([
+      'directiveAssign',
+      'directiveCreate',
+      'dnaSet',
+      'memoryAdd',
+      'memorySubmit',
+    ]);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['directive.create', 'dna.set', 'memory.add', 'memory.submit']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'directive.assign',
+      'directive.create',
+      'dna.set',
+      'memory.add',
+      'memory.submit',
+    ]);
   });
 
 });

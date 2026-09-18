@@ -2,7 +2,7 @@
 id: "dl-053-illegal-transition-target-for-verbless-edges"
 type: decision-log
 title: "Which `<to>` the illegal-transition message prints when the verb has no legal edge from the current state"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
