@@ -2,7 +2,7 @@
 id: "task-048-memory-deprecate"
 type: task
 title: "Implement `wingfoil memory deprecate`"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "p1"]
