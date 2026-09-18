@@ -129,7 +129,7 @@ describe('REQ-SYS-05 parity — fixture registry (representative mutating + read
 });
 
 describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODULES)', () => {
-  it('reports 0 unmatched operations — the mutating ops `directive assign`, `directive create`, `dna set`, `memory add` + `memory submit` are on BOTH surfaces (task-051/050/025/020/045)', async () => {
+  it('reports 0 unmatched operations — the mutating ops `directive assign`, `directive create`, `dna set`, `memory add`, `memory submit` + `memory reject` are on BOTH surfaces (task-051/050/025/020/045/047)', async () => {
     const cli = actualMutatingCliCommands(CORE_MODULES).sort();
     const tools = (await actualMcpToolsAsCliForm(CORE_MODULES)).sort();
 
@@ -137,13 +137,13 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // this a LIVE parity guard (not vacuously-empty): each mutating op must be reachable as a CLI
     // command AND an MCP Tool, 0 unmatched.
     // task-051-directive-assign adds `directive assign` (P3.2); task-045-memory-submit adds
-    // `memory submit` (P1.6).
-    expect(cli).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory submit']);
-    expect(tools).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory submit']);
+    // `memory submit` (P1.6); task-047-memory-reject adds `memory reject` (P1.8).
+    expect(cli).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
+    expect(tools).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory reject', 'memory submit']);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
-  it('the read-only production operations are Resources, the mutating ops (`directive assign`, `directive create`, `dna set`, `memory add`, `memory submit`) are Tools, never both', async () => {
+  it('the read-only production operations are Resources, the mutating ops (`directive assign`, `directive create`, `dna set`, `memory add`, `memory submit`, `memory reject`) are Tools, never both', async () => {
     const server = new McpServer({ name: 'parity-test-prod', version: '0.0.0' });
     registerCoreModules(server, CORE_MODULES as CoreModule[], {
       resolveRoot: () => '/fixture-root',
@@ -164,8 +164,8 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'wingfoil://paths',
       'wingfoil://workflow/list',
     ]);
-    // `directive.directiveAssign`, `directive.directiveCreate`, `dna.dnaSet`, `memory.memoryAdd` +
-    // `memory.memorySubmit` are `mutates: true` → registered
+    // `directive.directiveAssign`, `directive.directiveCreate`, `dna.dnaSet`, `memory.memoryAdd`,
+    // `memory.memorySubmit` + `memory.memoryReject` are `mutates: true` → registered
     // ONLY as Tools (never Resources), so they do NOT appear above; they are the Tools the surface
     // now advertises.
     expect(hasAnyMutatingOperation(CORE_MODULES)).toBe(true);
@@ -175,9 +175,11 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'directive.create',
       'dna.set',
       'memory.add',
+      'memory.reject',
       'memory.submit',
     ]);
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/assign');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/reject');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/submit');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/create');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://dna/set');

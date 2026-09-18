@@ -37,6 +37,7 @@ import {
   reconstructMemoryTransitions,
   renderAddDocument,
   REJECTION_REASON_FIELD,
+  renderRejectDocument,
   renderSubmitDocument,
   resolveTypeDirectory,
   searchMemoryDocuments,
@@ -55,7 +56,9 @@ import {
 import { loadDirectiveListing, type DirectiveListing } from './directives-list';
 import { checkAssignable, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
-import { requireGitIdentity } from './git-identity';
+import { requireGitIdentity, readGitIdentity } from './git-identity';
+import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
+import { requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule } from './registry';
@@ -713,6 +716,98 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
 };
 
 /**
+ * `wingfoil memory reject <id> --reason <text>` params (P1.8, task-047-memory-reject). The id rides
+ * the bare `ParamsContext.positional` seam (spec-008-cli-grammar §7 names
+ * `memory reject <id> --reason ...` explicitly); the reason rides task-020's value-bearing
+ * `ParamsContext.options` seam, exactly as `memory add`'s `--type`/`--title` do. Both are optional
+ * here only because the seams are — {@link memoryRejectFn} refuses either absence as a usage error
+ * (exit `2`).
+ */
+export interface MemoryRejectParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `memory reject` success shape: the document, the transition it went through, and the reason recorded. */
+export interface MemoryRejectResult {
+  readonly id: string;
+  /** Root-relative path of the rejected document. */
+  readonly path: string;
+  readonly from: string;
+  readonly to: string;
+  /** The `--reason` text, exactly as given — the same string written to frontmatter and to the commit body. */
+  readonly reason: string;
+}
+
+/**
+ * `memory reject` `CoreOperation.fn` (P1.8, `mutates: true`; spec-006-core-domain-api §3) — the FIRST
+ * approver-gated verb, so the first operation that enforces REQ-SEC-03 (role authority) and REQ-SEC-04
+ * (mandatory reason) and the first to emit a commit with a `[from → to]` subject bracket and an
+ * `Approver:`/`Reason:` body (`dl-054-submit-commit-subject-bracket`, CLAUDE.md §5.1). Order, every
+ * refusal before the single write:
+ *
+ * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`.
+ * 3. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
+ *    `missing required argument: --reason` (exit `2`, P1.8 sc.3).
+ * 4. **Load `memory.yaml`** and **{@link prepareMemoryTransition}** with op `reject` — not found,
+ *    unknown type, no machine, invalid state, or an illegal transition (the document is in no `gates`
+ *    state), each a `CoreResult.error` at exit `1` carrying `dl-032`'s pinned contract message. The
+ *    target is the type's `gates.<from>.reject` value, taken verbatim (`spec-001`), so it need not be
+ *    a `sequence` member.
+ * 5. **{@link requireApprovalAuthority}** (REQ-SEC-03) — exit `1` with
+ *    `user not authorized to approve type '<type>'`. It runs AFTER step 4 because that message names
+ *    the element **type**, which is a fact of the document and is known only once the document has
+ *    been located; nothing is written in steps 1-5, so "the state is unchanged" holds either way.
+ * 6. **Edit + commit** — `status` set to the reject target and `rejection_reason` to the reason
+ *    verbatim (spec-010 field-write ownership: reject is the one verb that writes two fields), then
+ *    one commit scoped to that file. `commitMemoryTransition`'s post-condition re-parses the rendered
+ *    document and refuses (`VALIDATION`, exit `1`, nothing written) unless `status` AND
+ *    `rejection_reason` hold their expected values and no other field moved.
+ *
+ * The `Approver:` identity is the live git identity at `root` — the same one step 5 checked and the
+ * same one git records as the commit author, so the body line can never disagree with the attribution
+ * (adr-001/adr-006) — under the `APPROVER_ROLE` the authority was exercised as.
+ */
+const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
+  const { root, positional: id, options } = params as MemoryRejectParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory reject <id>');
+  }
+  const reason = requireReason(options);
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const prepared = prepareMemoryTransition(root, loaded.value, id, 'reject');
+  if (!prepared.ok) return prepared;
+  const { type, path, from, to, content } = prepared.value;
+
+  const dna: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
+  if (!dna.ok) return dna;
+  const authorized = requireApprovalAuthority(root, dna.value, type);
+  if (!authorized.ok) return authorized;
+
+  const { name, email } = readGitIdentity(root);
+  const message = formatMemoryCommitMessage({
+    type,
+    op: 'reject',
+    ids: [id],
+    transition: { from, to },
+    approver: { name, email, role: APPROVER_ROLE },
+    reason,
+  });
+  const rendered = renderRejectDocument(content, to, reason);
+  const committed = commitMemoryTransition(root, prepared.value, rendered, message, { [REJECTION_REASON_FIELD]: reason });
+  if (!committed.ok) return committed;
+  return coreOk({ id, path, from, to, reason }, { sha: committed.value, message });
+};
+
+/**
  * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
  * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
  * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
@@ -936,6 +1031,17 @@ export const CORE_MODULES: readonly CoreModule[] = [
       // P1.6 (task-045-memory-submit) — `mutates: true`: CLI `wingfoil memory submit <id>` + MCP Tool
       // `memory.submit`. The id rides the bare `positional` seam (spec-008 §7); no flags, no options.
       memorySubmit: { name: 'memorySubmit', mutates: true, fn: memorySubmitFn },
+      // P1.8 (task-047-memory-reject) — `mutates: true`: CLI `wingfoil memory reject <id> --reason
+      // <text>` + MCP Tool `memory.reject`. The FIRST approver-gated operation (REQ-SEC-03) and the
+      // first with a `required` value option: `required` is declarative metadata only (Commander
+      // registers every declared option the same way), so `memoryRejectFn` enforces it via
+      // `requireReason` (REQ-SEC-04, task-041). The id rides the bare `positional` seam (spec-008 §7).
+      memoryReject: {
+        name: 'memoryReject',
+        mutates: true,
+        options: [{ name: 'reason', required: true }],
+        fn: memoryRejectFn,
+      },
     },
   },
   {
