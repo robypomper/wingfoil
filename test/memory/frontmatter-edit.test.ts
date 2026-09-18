@@ -252,3 +252,57 @@ describe('verifyFrontmatterEdit — the post-condition checked before any transi
     expect(verifyFrontmatterEdit(before, 'no frontmatter', { status: 'pending' })).toEqual(['rendered document has no frontmatter block']);
   });
 });
+
+/**
+ * `bug-041-frontmatter-edit-yaml-edge-cases` (absorbed by `task-047-memory-reject`, dl-045). Three
+ * YAML shapes the editor mishandled. G1 is the one a real verb can reach: `memory reject` is the only
+ * writer of `rejection_reason` (spec-010), and a template or hand edit declaring that key with an
+ * empty value and an inline comment produced `rejection_reason: "…"# comment` — which js-yaml accepts,
+ * so `verifyFrontmatterEdit` did NOT catch it, and a stricter conforming parser rejects. Each case is
+ * pinned byte-exactly (the missing space IS the defect, so bytes are the contract) and re-parsed.
+ */
+describe('bug-041 — YAML shapes the line-based editor got wrong', () => {
+  it('G1: a value written over an EMPTY, commented key keeps the comment separated by whitespace', () => {
+    const before = '---\nid: x\nstatus: draft\nrejection_reason:   # set by memory.reject\n---\n';
+    const out = setFrontmatterField(before, 'rejection_reason', 'needs tests');
+    expect(out).toBe('---\nid: x\nstatus: draft\nrejection_reason: "needs tests" # set by memory.reject\n---\n');
+    expect(parsed(out)).toEqual({ id: 'x', status: 'draft', rejection_reason: 'needs tests' });
+  });
+
+  it('G1: the same defect on a plain-token value (`status:  # todo`), which js-yaml DID mis-parse', () => {
+    const before = '---\nid: x\nstatus:  # todo\n---\n';
+    const out = setFrontmatterField(before, 'status', 'pending');
+    expect(out).toBe('---\nid: x\nstatus: pending # todo\n---\n');
+    expect(parsed(out).status).toBe('pending');
+  });
+
+  it('G1: a comment already separated from the value keeps exactly its original spacing', () => {
+    const before = '---\nid: x\nstatus: draft   # auto-set by wingfoil\n---\n';
+    expect(setFrontmatterField(before, 'status', 'pending')).toBe('---\nid: x\nstatus: pending   # auto-set by wingfoil\n---\n');
+  });
+
+  it('G2: removes a key whose value is a column-0 sequence containing a column-0 comment', () => {
+    const before = '---\nid: x\nrejection_reason:\n- a\n# note\n- b\nstatus: draft\n---\n';
+    const out = removeFrontmatterField(before, 'rejection_reason');
+    expect(out).toBe('---\nid: x\nstatus: draft\n---\n');
+    expect(parsed(out)).toEqual({ id: 'x', status: 'draft' });
+  });
+
+  it('G2: a column-0 comment AFTER the last sequence item still belongs to the parent mapping — kept', () => {
+    const before = '---\nid: x\nrejection_reason:\n- a\n# trailing note\nstatus: draft\n---\n';
+    expect(removeFrontmatterField(before, 'rejection_reason')).toBe('---\nid: x\n# trailing note\nstatus: draft\n---\n');
+  });
+
+  it('G3: an absent key is appended after the last NON-BLANK line, so a trailing keep-chomped block scalar is unchanged', () => {
+    const before = '---\nid: x\nnotes: |+\n  a\n\n---\n';
+    const out = setFrontmatterField(before, 'status', 'pending');
+    expect(out).toBe('---\nid: x\nnotes: |+\n  a\nstatus: pending\n\n---\n');
+    expect(parsed(out).notes).toBe(parsed(before).notes);
+    expect(verifyFrontmatterEdit(before, out, { status: 'pending' })).toEqual([]);
+  });
+
+  it('G3: with no trailing blank line the key is still appended last (the ordinary case is unchanged)', () => {
+    const before = '---\nid: x\nnotes: "a"\n---\n';
+    expect(setFrontmatterField(before, 'status', 'pending')).toBe('---\nid: x\nnotes: "a"\nstatus: pending\n---\n');
+  });
+});

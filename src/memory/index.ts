@@ -85,6 +85,7 @@ export { formatMemoryCommitMessage } from './commit-message';
 export type { CommitApprover, MemoryCommitMessageInput } from './commit-message';
 export { removeFrontmatterField, setFrontmatterField, verifyFrontmatterEdit } from './frontmatter-edit';
 export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
+export { renderRejectDocument } from './reject';
 export {
   auditAttribution,
   isValidAttribution,

@@ -24,6 +24,7 @@ import {
   isValidDirectiveName,
   renderCustomDirective,
 } from '../directives/create';
+import { withAssignedDirectives } from '../directives/roles-edit';
 import { commitPaths, documentExists, readDocument, StorageError, writeDocument } from '../storage';
 import {
   findMemoryDocumentById,
@@ -36,6 +37,7 @@ import {
   reconstructMemoryTransitions,
   renderAddDocument,
   REJECTION_REASON_FIELD,
+  renderRejectDocument,
   renderSubmitDocument,
   resolveTypeDirectory,
   searchMemoryDocuments,
@@ -46,14 +48,16 @@ import {
 } from '../memory';
 
 import {
+  loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
   loadWorkflowsYaml,
   type WorkflowsLoadResult,
 } from './loaders';
 import { loadDirectiveListing, type DirectiveListing } from './directives-list';
+import { checkAssignable, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
-import { readGitIdentity, requireGitIdentity } from './git-identity';
+import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
@@ -803,6 +807,98 @@ const memoryApproveFn: CoreFn<unknown, MemoryApproveResult> = async (params) => 
 };
 
 /**
+ * `wingfoil memory reject <id> --reason <text>` params (P1.8, task-047-memory-reject). The id rides
+ * the bare `ParamsContext.positional` seam (spec-008-cli-grammar §7 names
+ * `memory reject <id> --reason ...` explicitly); the reason rides task-020's value-bearing
+ * `ParamsContext.options` seam, exactly as `memory add`'s `--type`/`--title` do. Both are optional
+ * here only because the seams are — {@link memoryRejectFn} refuses either absence as a usage error
+ * (exit `2`).
+ */
+export interface MemoryRejectParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `memory reject` success shape: the document, the transition it went through, and the reason recorded. */
+export interface MemoryRejectResult {
+  readonly id: string;
+  /** Root-relative path of the rejected document. */
+  readonly path: string;
+  readonly from: string;
+  readonly to: string;
+  /** The `--reason` text, exactly as given — the same string written to frontmatter and to the commit body. */
+  readonly reason: string;
+}
+
+/**
+ * `memory reject` `CoreOperation.fn` (P1.8, `mutates: true`; spec-006-core-domain-api §3) — the FIRST
+ * approver-gated verb, so the first operation that enforces REQ-SEC-03 (role authority) and REQ-SEC-04
+ * (mandatory reason) and the first to emit a commit with a `[from → to]` subject bracket and an
+ * `Approver:`/`Reason:` body (`dl-054-submit-commit-subject-bracket`, CLAUDE.md §5.1). Order, every
+ * refusal before the single write:
+ *
+ * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`.
+ * 3. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
+ *    `missing required argument: --reason` (exit `2`, P1.8 sc.3).
+ * 4. **Load `memory.yaml`** and **{@link prepareMemoryTransition}** with op `reject` — not found,
+ *    unknown type, no machine, invalid state, or an illegal transition (the document is in no `gates`
+ *    state), each a `CoreResult.error` at exit `1` carrying `dl-032`'s pinned contract message. The
+ *    target is the type's `gates.<from>.reject` value, taken verbatim (`spec-001`), so it need not be
+ *    a `sequence` member.
+ * 5. **{@link requireApprovalAuthority}** (REQ-SEC-03) — exit `1` with
+ *    `user not authorized to approve type '<type>'`. It runs AFTER step 4 because that message names
+ *    the element **type**, which is a fact of the document and is known only once the document has
+ *    been located; nothing is written in steps 1-5, so "the state is unchanged" holds either way.
+ * 6. **Edit + commit** — `status` set to the reject target and `rejection_reason` to the reason
+ *    verbatim (spec-010 field-write ownership: reject is the one verb that writes two fields), then
+ *    one commit scoped to that file. `commitMemoryTransition`'s post-condition re-parses the rendered
+ *    document and refuses (`VALIDATION`, exit `1`, nothing written) unless `status` AND
+ *    `rejection_reason` hold their expected values and no other field moved.
+ *
+ * The `Approver:` identity is the live git identity at `root` — the same one step 5 checked and the
+ * same one git records as the commit author, so the body line can never disagree with the attribution
+ * (adr-001/adr-006) — under the `APPROVER_ROLE` the authority was exercised as.
+ */
+const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
+  const { root, positional: id, options } = params as MemoryRejectParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory reject <id>');
+  }
+  const reason = requireReason(options);
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const prepared = prepareMemoryTransition(root, loaded.value, id, 'reject');
+  if (!prepared.ok) return prepared;
+  const { type, path, from, to, content } = prepared.value;
+
+  const dna: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
+  if (!dna.ok) return dna;
+  const authorized = requireApprovalAuthority(root, dna.value, type);
+  if (!authorized.ok) return authorized;
+
+  const { name, email } = readGitIdentity(root);
+  const message = formatMemoryCommitMessage({
+    type,
+    op: 'reject',
+    ids: [id],
+    transition: { from, to },
+    approver: { name, email, role: APPROVER_ROLE },
+    reason,
+  });
+  const rendered = renderRejectDocument(content, to, reason);
+  const committed = commitMemoryTransition(root, prepared.value, rendered, message, { [REJECTION_REASON_FIELD]: reason });
+  if (!committed.ok) return committed;
+  return coreOk({ id, path, from, to, reason }, { sha: committed.value, message });
+};
+
+/**
  * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
  * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
  * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
@@ -879,6 +975,61 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
 };
 
 /**
+ * `wingfoil directive assign --directive <id> --role <role>` params (P3.2, task-051-directive-assign).
+ * Both values ride the value-bearing `ParamsContext.options` seam, as `directive create`'s `--name`
+ * does; {@link directiveAssignFn} rejects an absent one as a usage error (exit 2).
+ */
+export interface DirectiveAssignParams {
+  readonly root: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `directive assign` success shape: the binding requested and the role's resulting assignment list. */
+export interface DirectiveAssignResult {
+  readonly directive: string;
+  readonly role: string;
+  readonly assignments: readonly string[];
+}
+
+/**
+ * `directive assign` `CoreOperation.fn` (P3.2, `mutates: true`; spec-006 §3 row `directiveAssign`,
+ * module `directive` per dl-041). Same mutating-op order as {@link directiveCreateFn}:
+ *
+ * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
+ * 2. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2.
+ * 3. Load `dna.yaml` and every directive file; `checkAssignable` returns P3.2's exact
+ *    `unknown role '<role>' (not defined in dna.yaml)` / `unknown directive: <id>` as `NOT_FOUND`
+ *    (exit 1), role first. Nothing has been written at this point.
+ * 4. `updateRoleAssignments` appends the id (`withAssignedDirectives`: idempotent, order-preserving)
+ *    through the comment-preserving `roles.yaml` writer and makes one commit,
+ *    `wf(directive): assign <id> to <role>`, staging only `.wingfoil/roles.yaml`. An already-assigned
+ *    directive is a success with no write and no commit (P3.7 "Binding is idempotent").
+ */
+const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params) => {
+  const { root, options } = params as DirectiveAssignParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const directive = options?.directive;
+  if (directive === undefined) throw new UsageError('missing required argument: --directive');
+  const role = options?.role;
+  if (role === undefined) throw new UsageError('missing required argument: --role');
+
+  const dna = loadOrError(() => loadDnaYaml(root));
+  if (!dna.ok) return dna;
+  const directiveFiles = loadOrError(() => loadDirectives(root));
+  if (!directiveFiles.ok) return directiveFiles;
+  const invalid = checkAssignable(dna.value, directiveFiles.value, role, [directive]);
+  if (invalid) return coreErr(invalid);
+
+  const message = `wf(directive): assign ${directive} to ${role}`;
+  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, [directive]), message);
+  if (!updated.ok) return updated;
+  return coreOk({ directive, role, assignments: updated.value.assignments }, updated.commit);
+};
+
+/**
  * `directives list` `CoreOperation.fn` (P3.4, `mutates: false` — spec-006 §3 directives table). Wraps
  * `loadDirectiveListing` (`./directives-list.ts`, which carries the annotation rules and the
  * rationale for not deduplicating shadowed ids) in the same `loadOrError` mapping every read-only
@@ -913,9 +1064,10 @@ const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
  * module (which operates on Memory *documents* — `memoryAdd`, `memorySearch`, ...); registering it
  * under a `memoryXxx` name would misrepresent it as the latter. As of
  * task-025-implement-dna-set the registry has its FIRST mutating operation — `dna.dnaSet`
- * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020) and `directive.directiveCreate`
- * (P3.1, task-050) have since joined it, and the remaining spec-006 §3 mutating functions
- * (`memorySubmit`, `directiveAssign`, `workflowStart`, ...) are still later tasks' scope. The
+ * (`mutates: true`, P2.1); `memory.memoryAdd` (P1.3, task-020), `directive.directiveCreate`
+ * (P3.1, task-050), `directive.directiveAssign` (P3.2, task-051) and `memory.memorySubmit` (P1.6,
+ * task-045) have since joined it, and the remaining spec-006 §3 mutating functions
+ * (`memoryApprove`, `directiveRemove`, `workflowStart`, ...) are still later tasks' scope. The
  * REQ-SYS-05 parity test in `test/core/parity.test.ts` runs against this exact array, so it is now a
  * live regression guard: each of those mutating ops must appear as both a CLI command and an MCP
  * Tool, or the diff fails.
@@ -980,6 +1132,17 @@ export const CORE_MODULES: readonly CoreModule[] = [
         options: [{ name: 'reason', required: true }],
         fn: memoryApproveFn,
       },
+      // P1.8 (task-047-memory-reject) — `mutates: true`: CLI `wingfoil memory reject <id> --reason
+      // <text>` + MCP Tool `memory.reject`. The FIRST approver-gated operation (REQ-SEC-03) and the
+      // first with a `required` value option: `required` is declarative metadata only (Commander
+      // registers every declared option the same way), so `memoryRejectFn` enforces it via
+      // `requireReason` (REQ-SEC-04, task-041). The id rides the bare `positional` seam (spec-008 §7).
+      memoryReject: {
+        name: 'memoryReject',
+        mutates: true,
+        options: [{ name: 'reason', required: true }],
+        fn: memoryRejectFn,
+      },
     },
   },
   {
@@ -1038,6 +1201,17 @@ export const CORE_MODULES: readonly CoreModule[] = [
         mutates: true,
         options: [{ name: 'name', required: true }],
         fn: directiveCreateFn,
+      },
+      // P3.2 (task-051-directive-assign) — on this SINGULAR module per dl-041 B, so `deriveVerb` yields
+      // `assign`: CLI `wingfoil directive assign`, Tool `directive.assign`.
+      directiveAssign: {
+        name: 'directiveAssign',
+        mutates: true,
+        options: [
+          { name: 'directive', required: true },
+          { name: 'role', required: true },
+        ],
+        fn: directiveAssignFn,
       },
     },
   },
