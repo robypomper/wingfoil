@@ -687,6 +687,67 @@ paths:
     });
   });
 
+  // task-051-directive-assign (P3.2, BDD `p3-directives/P3.2-directive-assign.feature`) — two required
+  // value options driven end-to-end through real `commander`, against a THROWAWAY repo carrying the
+  // real `wingfoil init` scaffold with `testing` unbound from `developer` (the Sc.1 precondition).
+  describe('`directive assign --directive <id> --role <role>` (task-051, P3.2)', () => {
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      const init = initWingfoilProject(repo, 'Scrum');
+      if (!init.ok) throw new Error(`fixture bug: wingfoil init failed — ${init.error.message}`);
+      const rolesPath = join(repo, '.wingfoil', 'roles.yaml');
+      const scaffold = readFileSync(rolesPath, 'utf-8');
+      writeFixtureFile(repo, '.wingfoil/roles.yaml', scaffold.replace('    - code-quality\n    - testing\n', '    - code-quality\n'));
+      commitAll(repo, 'fixture: unbind testing from developer');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('assigns, commits only roles.yaml, and `directives list --role developer` now lists testing (BDD Sc.1)', () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(directive): assign testing to developer');
+      const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
+        encoding: 'utf-8',
+      }).trim();
+      expect(changed).toBe('.wingfoil/roles.yaml');
+
+      const listed = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
+      expect(listed.status).toBe(0);
+      // dl-042 (task-055): the listing payload is `{ entries, warnings }`.
+      const { entries } = JSON.parse(listed.stdout) as { entries: Array<{ frontmatter: { id: string } }> };
+      const ids = entries.map((e) => e.frontmatter.id);
+      expect(ids).toContain('testing');
+    });
+
+    it("an undefined role exits 1 with the exact BDD message (BDD Sc.2)", () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'wizard');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe("error: unknown role 'wizard' (not defined in dna.yaml)\n");
+      expect(result.stdout).toBe('');
+    });
+
+    it('a non-existent directive exits 1 with the exact BDD message (BDD Sc.3)', () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'ghost', '--role', 'developer');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: unknown directive: ghost\n');
+      expect(result.stdout).toBe('');
+    });
+
+    it('re-assigning is idempotent: exit 0 and no new commit', () => {
+      expect(runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer').status).toBe(0);
+      const head = (): string => execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+      const before = head();
+      expect(runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer').status).toBe(0);
+      expect(head()).toBe(before);
+    });
+  });
+
   // task-053-directives-list (P3.4, BDD `p3-directives/P3.4-directives-list.feature`) — the `--role`
   // value option, driven end-to-end through real `commander` against a THROWAWAY temp repo (the
   // static fixture root deliberately has no `roles.yaml`, which is the "unassigned" case asserted
