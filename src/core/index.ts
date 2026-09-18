@@ -899,6 +899,97 @@ const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
 };
 
 /**
+ * `wingfoil memory deprecate <id> [--reason <text>]` params (P1.9, task-048-memory-deprecate). The id
+ * rides the bare `ParamsContext.positional` seam (`spec-008-cli-grammar` §7 names
+ * `memory deprecate <id>` explicitly); the reason rides task-020's value-bearing
+ * `ParamsContext.options` seam. Unlike `memory reject`'s, this `--reason` is genuinely OPTIONAL —
+ * `spec-008` §2 ("optional elsewhere (e.g. `memory deprecate`)") and
+ * `dl-027-req-sec-04-deprecate-reason-scope` option (a), which narrowed REQ-SEC-04 to the approval
+ * gates — so {@link memoryDeprecateFn} reads it directly and never calls `requireReason`.
+ */
+export interface MemoryDeprecateParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `memory deprecate` success shape: the document, the edge it took, and the reason if one was given. */
+export interface MemoryDeprecateResult {
+  readonly id: string;
+  /** Root-relative path of the deprecated document — still present in the repository (P1.9 sc.1). */
+  readonly path: string;
+  readonly from: string;
+  readonly to: string;
+  /** The `--reason` text exactly as given, or `undefined` when the optional flag was omitted. */
+  readonly reason?: string;
+}
+
+/**
+ * `memory deprecate` `CoreFn` (P1.9, `mutates: true`; spec-006-core-domain-api §3) — the retire verb.
+ * It rides `spec-001-memory-yaml-schema`'s **implicit wildcard edge**: `deprecated` is "a built-in
+ * wildcard edge from *any* state to a reserved `deprecated` state, always legal", never declared in a
+ * type's `sequence`/`gates`/`waiting`. The target therefore comes from the engine
+ * (`prepareMemoryTransition` → `resolveTypeTransition`, itself resolved from `memory.yaml`), never
+ * from a literal here — so this one function retires a `task` sitting in a `waiting` state, an
+ * `accepted` `adr`, a terminal `decision-log`, and a type that falls back to `defaults.states`, with
+ * no per-type branch. (`adr`/`tech-spec`'s `superseded` is NOT this verb's target: it is a `waiting`
+ * edge fired by a later element's `supersedes:` field — see `SUPERSEDED_STATE` in
+ * `src/memory/state-machine.ts` and this task's Execution Notes, decision D1.)
+ *
+ * Order, every refusal before the single write:
+ *
+ * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`.
+ * 3. **Load `memory.yaml`** and **{@link prepareMemoryTransition}** with op `deprecate` — not found,
+ *    unknown type, no machine, or a `status` that is not a state of the type, each a
+ *    `CoreResult.error` (exit `1`). There is no illegal-transition branch: the wildcard edge is legal
+ *    from every state.
+ * 4. **Already-deprecated guard** (P1.9 sc.3) — `VALIDATION` `document already deprecated: <id>`
+ *    (exit `1`), state unchanged. It lives here rather than in the state machine because the engine
+ *    must keep the edge legal from *any* state; the condition is expressed as "the document is
+ *    already AT the resolved target", so it never hard-codes a state name.
+ * 5. **Edit + commit** — `status` set to the target and **nothing else** (spec-010 field-write
+ *    ownership: this verb is `status`-only, so `rejection_reason` and every other field survive
+ *    untouched — enforced, not assumed, by `commitMemoryTransition`'s re-parse post-condition, which
+ *    refuses the write if any unowned field moved). One commit scoped to that file, subject
+ *    `wf(<type>): deprecate <id> [<from> → deprecated]` (`dl-054` / `spec-004` §4.3: the bracket
+ *    belongs to `approve`/`reject`/`deprecate`), with a `Reason:` body line **only** when `--reason`
+ *    was given.
+ *
+ * Deliberately absent: no `Approver:` line and no `requireApprovalAuthority` call. `deprecate` is not
+ * an approval gate — REQ-SEC-03's Fit Criterion is scoped to an *approve* attempt, and REQ-SEC-04's
+ * own Traceability line (as amended by `dl-027`) says so in as many words: "`memory deprecate` is not
+ * an approval gate (no `Approver:` line, no authority check)". `memory history` (P1.10) already reads
+ * that shape back — it parses `Reason:` independently of `Approver:` for exactly this verb.
+ */
+const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params) => {
+  const { root, positional: id, options } = params as MemoryDeprecateParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory deprecate <id>');
+  }
+  const reason = options?.reason;
+
+  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
+  if (!loaded.ok) return loaded;
+
+  const prepared = prepareMemoryTransition(root, loaded.value, id, 'deprecate');
+  if (!prepared.ok) return prepared;
+  const { type, path, from, to, content } = prepared.value;
+  if (from === to) {
+    return coreErr({ code: 'VALIDATION', message: `document already deprecated: ${id}` });
+  }
+
+  const message = formatMemoryCommitMessage({ type, op: 'deprecate', ids: [id], transition: { from, to }, reason });
+  const rendered = setFrontmatterField(content, 'status', to);
+  const committed = commitMemoryTransition(root, prepared.value, rendered, message);
+  if (!committed.ok) return committed;
+  return coreOk({ id, path, from, to, reason }, { sha: committed.value, message });
+};
+
+/**
  * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
  * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
  * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
@@ -1142,6 +1233,17 @@ export const CORE_MODULES: readonly CoreModule[] = [
         mutates: true,
         options: [{ name: 'reason', required: true }],
         fn: memoryRejectFn,
+      },
+      // P1.9 (task-048-memory-deprecate) — `mutates: true`: CLI `wingfoil memory deprecate <id>
+      // [--reason <text>]` + MCP Tool `memory.deprecate`. `--reason` is declared WITHOUT `required`,
+      // unlike `memoryReject`'s: `spec-008` §2 and `dl-027-req-sec-04-deprecate-reason-scope`
+      // (option (a), already applied to REQ-SEC-04) make it optional on this verb, which is not an
+      // approval gate. The id rides the bare `positional` seam (spec-008 §7).
+      memoryDeprecate: {
+        name: 'memoryDeprecate',
+        mutates: true,
+        options: [{ name: 'reason' }],
+        fn: memoryDeprecateFn,
       },
     },
   },
