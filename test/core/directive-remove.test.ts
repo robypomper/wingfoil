@@ -153,7 +153,12 @@ describe('CORE_MODULES directive.directiveRemove — P3.3 scenarios (initialized
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.message).toBe("cannot remove 'legacy-rule': still assigned to role 'developer'");
+    // CONFLICT, not VALIDATION: the request is well-formed and the STATE refuses it — the same
+    // distinction `directiveCreate` draws for `directive already exists: <name>`.
+    expect(result.error).toEqual({
+      code: 'CONFLICT',
+      message: "cannot remove 'legacy-rule': still assigned to role 'developer'",
+    });
     expect(exitCodeForResult(result)).toBe(1);
     // "the directive is not removed"
     expect(existsSync(file)).toBe(true);
@@ -176,7 +181,8 @@ describe('CORE_MODULES directive.directiveRemove — P3.3 scenarios (initialized
     // NOT the generic `cannot remove 'testing': not a directive under 'directives/custom/'` that
     // `requireCustomAsset('directive', 'testing')` returns for a bare NAME — task-042's reviewer
     // recorded that gap, and closing it is this task's hand-off.
-    expect(result.error.message).toBe('built-in directives cannot be removed');
+    // task-042's `requireCustomAsset` returns `VALIDATION` for a failed structural pre-condition.
+    expect(result.error).toEqual({ code: 'VALIDATION', message: 'built-in directives cannot be removed' });
     expect(exitCodeForResult(result)).toBe(1);
     expect(existsSync(file)).toBe(true);
     expect(readFileSync(file, 'utf-8')).toBe(bytes);
@@ -242,7 +248,10 @@ describe('CORE_MODULES directive.directiveRemove — REQ-SEC-07 clause (b): ever
     const result = await directiveRemoveFn()({ root: repo, positional: 'traceability' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.message).toBe("cannot remove 'traceability': still assigned to role 'architect'");
+    expect(result.error).toEqual({
+      code: 'CONFLICT',
+      message: "cannot remove 'traceability': still assigned to role 'architect'",
+    });
     expect(existsSync(join(repo, CUSTOM_DIR, 'traceability.md'))).toBe(true);
   });
 
@@ -252,7 +261,10 @@ describe('CORE_MODULES directive.directiveRemove — REQ-SEC-07 clause (b): ever
     const result = await directiveRemoveFn()({ root: repo, positional: 'doc-versioning' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.message).toBe("cannot remove 'doc-versioning': still assigned to every role via roles.yaml 'global'");
+    expect(result.error).toEqual({
+      code: 'CONFLICT',
+      message: "cannot remove 'doc-versioning': still assigned to every role via roles.yaml 'global'",
+    });
     expect(exitCodeForResult(result)).toBe(1);
     expect(existsSync(join(repo, CUSTOM_DIR, 'doc-versioning.md'))).toBe(true);
   });

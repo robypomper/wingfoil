@@ -157,7 +157,7 @@ per-directive mutations (BDD P3.1–P3.3), plural `directives` for the listing (
 |----------------------|---------------------------|---------|------------------------------|--------------------------------|
 | `directiveCreate`    | `directive`               | true    | `wingfoil directive create`  | Tool `directive.create`       |
 | `directiveAssign`    | `directive`               | true    | `wingfoil directive assign`  | Tool `directive.assign`       |
-| `directiveRemove`    | `directive` *(planned)*   | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
+| `directiveRemove`    | `directive`               | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
 | `directivesList`     | `directives`              | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
 
 **Workflow pillar** (P4, `src/workflow`):
@@ -284,3 +284,13 @@ enumerating the registry with `enumerateOperations`/`deriveVerb`/`deriveMcpToolN
 `deriveMcpResourceUri`; *(planned)* values follow the operations' BDD feature files. No other column
 changed — the Resource-URI column is `dl-040-spec-006-resource-uri-divergence`'s scope. Edited in place
 without a supersede or a state change, per the `spec-001` precedent `dl-041` cites.
+
+**Revision (2026-09-18) — `directiveRemove`'s *(planned)* marker dropped, per
+`task-052-directive-remove`.** The operation is now registered in `CORE_MODULES` on the singular
+`directive` module (`src/core/index.ts`), so its `module` value is no longer a claim read off its BDD
+feature file but the module it actually registers under, and §3's preamble rule ("an unmarked value is
+the module the operation is registered under today") applies to it. Verified by enumerating the real
+registry — `deriveVerb('directive', 'directiveRemove') === 'remove'` and
+`deriveMcpToolName('directive', 'remove') === 'directive.remove'`, asserted in
+`test/core/directive-remove.test.ts`. No other cell changed; edited in place without a supersede or a
+state change, per the same precedent the 2026-09-17 revision cites.
