@@ -80,8 +80,9 @@ determinism (developer, for red/green/refactor); doc-versioning, documentation, 
   `setFrontmatterField` (`src/memory/frontmatter-edit.ts`), `resolveTypeTransition` /
   `resolveStateMachine` (`src/memory/state-machine.ts`).
 - **`task-047-memory-reject` — read, `done`.** Its `memoryRejectFn` is the structural model for
-  `memoryDeprecateFn` (identity → id → load → prepare → render → commit), and `renderRejectDocument`
-  the model for `renderDeprecateDocument`. Its bug-041 fixes to `frontmatter-edit.ts` (separating
+  `memoryDeprecateFn` (identity → id → load → prepare → render → commit). Its `renderRejectDocument`
+  is NOT mirrored — see the `green` note on why this verb calls `setFrontmatterField` directly instead
+  of adding a one-call `renderDeprecateDocument`. Its bug-041 fixes to `frontmatter-edit.ts` (separating
   space before a re-attached `#` tail; column-0 comment inside a nested block; append after the last
   non-blank line) are inherited as-is — this verb writes through the same editor, so the same three
   shapes are safe here without re-fixing anything.
@@ -285,3 +286,171 @@ No `--reason` step: it is read, never refused (D2).
 | REQ-SEC-01 — unconfigured git identity refuses before any write | **red-first** | no operation exists |
 | REQ-SYS-05 / spec-004 §4.1 — `mutates: true` ⇒ registered as MCP Tool `memory.deprecate` and NOT as a Resource; the four enumeration literals | **red-first** | `grep -rn "memoryDeprecate" test/` → 1 hit, a doc-comment in `require-reason.test.ts:11`; the lists in `test/core/production-registry.test.ts` (×2), `test/core/parity.test.ts` and `test/mcp/read-only-agent-channel.test.ts` (×2) do not contain it |
 | spec-006 §3 — drop the stale `*(planned)*` marker on the `memoryDeprecate` row | **characterization (documentation only)** | prose; no behaviour, so no test and no fabricated red |
+
+### red — role: developer
+
+Commit `573543d`. New suite `test/core/memory-deprecate.test.ts` (four describes: P1.9 fit criteria,
+the spec-001 wildcard table, the REQ-STATE-06/P1.9 sc.2 exclusion round trip, the REQ-SEC-01
+pre-flight); a `memory deprecate` block appended to `test/cli/program.integration.test.ts` (the real
+compiled `dist/` driven through real `commander`); `memoryDeprecate` / `memory.deprecate` added to the
+enumeration literals in `test/core/production-registry.test.ts` (×2), `test/core/parity.test.ts` and
+`test/mcp/read-only-agent-channel.test.ts` (×2).
+
+Observed red, for the stated reasons:
+
+```
+npx jest test/core/memory-deprecate.test.ts test/core/production-registry.test.ts \
+  test/core/parity.test.ts test/mcp/read-only-agent-channel.test.ts
+Test Suites: 4 failed, 4 total
+Tests:       21 failed, 20 passed, 41 total
+```
+
+Causes: `fixture bug: "memoryDeprecate" operation not registered on the memory module` (every
+behavioural case) and the four enumeration lists lacking the new entries. The CLI block was run
+separately (`npx jest test/cli/program.integration.test.ts -t "task-048"` → `3 failed`), since it
+spawns the compiled `dist/` and so fails with `error: unknown command 'deprecate'` rather than on a
+missing module. **No characterization case was forced red**: the only characterization AC (spec-006's
+`*(planned)*` marker) is documentation and carries no test at all.
+
+### green — role: developer
+
+Commit `18e987a`. `memoryDeprecateFn` + the `memoryDeprecate` registry entry in `src/core/index.ts`
+(one contiguous block after `memoryRejectFn`, per the wave brief's rule 7), plus `setFrontmatterField`
+added to the existing `../memory` import list. Nothing else in `src/` changed — in particular
+**`src/memory/state-machine.ts` is untouched** (D1/dl-053).
+
+Three things worth recording:
+
+- **No new `src/memory/deprecate.ts`.** `submit` and `reject` each own a `render*Document` helper
+  because each writes **two** things (`status` + remove `rejection_reason`; `status` + set
+  `rejection_reason`). Deprecate writes one field, and that is exactly `setFrontmatterField`'s job, so a
+  `renderDeprecateDocument` would be a pure one-call alias — needless indirection under the
+  code-quality directive. The spec-010 field-write-ownership statement lives in `memoryDeprecateFn`'s
+  TSDoc instead, and the "nothing else moved" half is *enforced* by `commitMemoryTransition`'s
+  post-condition rather than documented.
+- **Two assertions in the new suite were wrong, not the production code** (found by running, not by
+  reading): `exitCodeForThrow` returns `{reason, exitCode}`, not a bare number — corrected to the
+  `toEqual({...})` shape `test/core/memory-reject.test.ts` already uses; and `test/core/parity.test.ts`
+  carries a **fifth** enumeration literal (the `cli`/`tools` pair at `:141-142`) that the design's
+  survey of "four list literals" had missed. Both fixed in the green commit.
+- `formatMemoryCommitMessage` needed no change: passing `transition` with `approver` omitted and
+  `reason` left `undefined` already yields the subject-only form dl-027 requires.
+
+### refactor — role: developer
+
+Commit `954c3b2`: `spec-006` §3's `memoryDeprecate` row drops its `*(planned)*` marker (§3 defines the
+marker as "not yet registered"; the operation is now registered — the same edit task-045 and task-047
+made to their own rows). `spec-006` carries no `version` field, so the doc-versioning directive's bump
+does not apply.
+
+No code refactor. The verb is one linear function that reuses every existing seam, and the alternative
+— extracting the four-step preamble `memorySubmitFn`/`memoryApproveFn`/`memoryRejectFn`/
+`memoryDeprecateFn` share — is the same one `task-047` recorded and deliberately left: the shared part
+*is* `prepareMemoryTransition`, and the extraction would edit three sibling verbs for no behavioural
+gain. Recorded rather than invented, so a reviewer can decide it belongs to a follow-up that owns all
+four call sites at once (it is now a genuine 4-way duplication, not a 2-way one — see the final
+report).
+
+### Merge of `main` (dl-035)
+
+`b5f9977` merges `main` at `05d09de` (task-046-memory-approve merged, `bug-017` closed, the
+`ingest/wave2-round3` batch). **Three conflicts, all in enumeration literals, all resolved as a sorted
+union — never a concatenation:** `test/core/production-registry.test.ts` (flat list + mutating list +
+the count in the `it(...)` title, now "eight operations mutate today"), `test/core/parity.test.ts`
+(the `cli`/`tools` pair, the Tools list, and the `not.toContain` Resource lines) and
+`test/mcp/read-only-agent-channel.test.ts` (mutating-op names + Tool names). `memoryApprove` sorts
+before `memoryDeprecate`, so every list reads `memoryAdd, memoryApprove, memoryDeprecate, …`.
+`src/core/index.ts` and `spec-006` §3 auto-merged cleanly (task-046's additions sit above this task's).
+
+Re-read after the merge, with the effect on this task's notes:
+
+- **`dl-053`'s corrected `contractTarget` IS now on the branch** (task-046 shipped it; the self-loop
+  fallback now keeps walking for another target of the same verb instead of naming the next `sequence`
+  state). The design's statement that it was not yet on `main` was true when written and is now
+  superseded — **and it changes nothing here**, for the reason D1 gives: `resolveTransitionTarget`
+  returns before any legality check for `op === 'deprecate'`, so `contractTarget` is unreachable from
+  this verb and no test of this task references it. Verified after the merge:
+  `sed -n '/function contractTarget/,/^}/p' src/memory/state-machine.ts` shows the dl-053 form, and the
+  full suite is green.
+- **`dl-064-approver-gated-verb-preflight-order` (`in-discussion`, NEW) — read; it names `task-048`.**
+  Clause A (legality checked before authority) does **not** bind this verb: it performs no authority
+  check at all (D3), so it has no combined-failure ordering to declare. Clause B (the git identity being
+  read three times per operation) is *lighter* here than on `approve`/`reject`: `memoryDeprecateFn`
+  calls `requireGitIdentity` once and never calls `readGitIdentity`, because there is no `Approver:`
+  line to render. If clause A is ratified as a written pre-flight sequence in `spec-006`, that sequence
+  should say explicitly that its authority step is absent on `deprecate`, or this verb will read as
+  non-conformant.
+- **`dl-063-p1-8-reject-message-and-authority-trace` (`in-discussion`, NEW)** — read. It is `task-047`'s
+  P1.8-sc.2 message conflict, filed. No deprecate scenario is involved: P1.9 has no illegal-transition
+  scenario, because the wildcard edge has no illegal case.
+- **`dl-062-roles-yaml-unwritable-fallback` (`in-discussion`, NEW)** — read, not applicable (Directives
+  pillar).
+- No requirement, BDD feature or spec this task cites changed in the merge. Checked directly:
+  `git diff 573543d HEAD --stat -- docs/02_requirements` → empty; the only
+  `docs/self/docs/04_memory/design` files touched are `dl-062`/`dl-063`/`dl-064` (new) and `spec-006`
+  (task-046's `memoryApprove` row plus this task's own `memoryDeprecate` row).
+
+### review-ready summary
+
+**Gates** (run in the worktree, after the `main` merge; each command and its tail reproduced):
+
+| Command | Result |
+|---|---|
+| `npx jest --maxWorkers=4` | **99/99 suites, 1502/1502 tests passed** |
+| `npx jest --coverage --maxWorkers=4` | All files **98.53** stmts · **92.22** branches · **98.74** funcs · **99.14** lines |
+| Baseline, same command on `main` `05d09de` in a scratch worktree | **98.53 · 92.22 · 98.74 · 99.14** — identical, so no metric regresses, and all are ≥ 80 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit **2**, only `test/core/directive-create.test.ts(159,19): error TS2339` (bug-026, pre-existing, untouched) |
+| `npm run lint` | exit **0** |
+| `npm run docs:api` | exit **0** |
+
+Coverage is flat rather than up because the new code is small and fully exercised: the only production
+change is `memoryDeprecateFn` (every branch — identity refusal, blank id, not-found, already-deprecated,
+reason present, reason absent — has a test) plus one import line.
+
+**BDD `P1.9-memory-deprecate.feature` → tests**
+
+| Scenario | Tests |
+|---|---|
+| sc.1 Deprecate an approved document | `test/core/memory-deprecate.test.ts` "P1.9 sc.1: `deprecate decision-12 --reason ...` sets `status: deprecated`, keeps the file, exit 0" — asserts the frontmatter, the byte-exact document (only `status` changed), `git ls-files` + `existsSync` for "the file remains present in the repository", the exact `%B`, the single scoped commit, and exit `0`; plus `test/cli/program.integration.test.ts` "sc.1 `memory deprecate decision-12 --reason 'superseded by decision-20'` …" through the real compiled CLI |
+| sc.2 Deprecated documents are excluded from default agent context | `test/core/memory-deprecate.test.ts` "an `accepted` adr is in the assembled context; after `memory deprecate` it is not" — the real `filterRelevantMemoryDocuments` (spec-012 §6) is called **before and after** the real verb, so the exclusion is *proven on this verb's output*, not asserted; the companion case does the same round trip through default `memory search` and shows `--status deprecated` still resolves it (REQ-STATE-06 / task-038 AC2) |
+| sc.3 Error — deprecating an already-deprecated document | `test/core/memory-deprecate.test.ts` "P1.9 sc.3: deprecating an already-deprecated document exits 1, state unchanged, no new commit" (byte-identical file, unchanged HEAD, clean `git status`); `program.integration` "sc.3 `memory deprecate decision-88` (already deprecated) exits 1, state unchanged" |
+
+Beyond the feature file: `spec-001`'s wildcard edge as a 7-row table (`task` in `backlog`/`in-review`/
+`done`, `adr` in `accepted` **and** in `superseded`, `decision-log` in terminal `ready`, and the
+REQ-STATE-08 `defaults.states` fallback — every row lands on `deprecated` and carries the
+`[from → deprecated]` subject); `spec-010`'s status-only write with a `rejection_reason` left intact;
+`dl-027`'s optional `--reason` at both the core and the real-`commander` surface; `dl-054`'s subject
+bracket and the **absence** of an `Approver:` line, asserted explicitly; REQ-SEC-01 (isolated git
+config); `bug-027`'s scoped commit; `spec-008` §7's missing-`<id>` usage error (exit `2`) and the
+not-found refusal (exit `1`); REQ-SYS-05 parity across all five enumeration literals.
+
+**T1 outcome:** every red-first AC had a genuine failing test first (the run and its causes are in the
+`red` section). The one characterization AC is documentation-only and correctly carries no test.
+
+**For the approver / reviewer**
+
+1. **D1 is the one judgement call in this task.** `spec-010`'s field-write row and CLAUDE.md §5.1 both
+   say `memory.deprecate` may write "a type-specific deprecate-adjacent state first, e.g.
+   `accepted → superseded`", while `spec-001`, `memory.yaml`'s `waiting: [accepted]`, REQ-STATE-06 (as
+   amended by `dl-028`) and the shipped engine all say `superseded` is a `supersedes:`-driven edge no
+   CLI verb takes. This task implements the engine's reading and files the wording conflict as a
+   proposed decision-log. If the approver reads `spec-010` the other way, the change is confined to
+   this one verb — but it would require a declarative "deprecate-adjacent state" field in `memory.yaml`,
+   since nothing there marks `superseded` as one today.
+2. **Refusal ordering has no authority step here**, unlike `approve`/`reject` — see the `dl-064`
+   acknowledgement above. Worth a reviewer's explicit confirmation that "deprecate is not gated" is
+   still the intent now that four verbs exist.
+3. **`superseded → deprecated` is allowed.** A superseded `adr` is not "already deprecated" under the
+   `from === to` guard, so it can still be deprecated; both states are archived, so nothing about
+   context or search changes. No spec or BDD scenario covers it; pinned by a test row so the behaviour
+   is at least visible.
+4. **Inherited `--reason` defects, not fixed here** (D7): `bug-042-reason-text-has-no-contract-against-commit-trailer`
+   (blank reason accepted, multi-line reason can inject a forged trailer, `memory history` truncates to
+   the first line) and `bug-024` (`--reason` with no value exits 1). This verb makes the trailer-injection
+   case one notch worse, because it writes **no** `Approver:` line of its own — a second line reading
+   `Approver: …` inside a `--reason` would make `memory history` report an approver for a verb that has
+   none. Evidence for the existing bug; deliberately not patched privately.
+5. **The 4-way preamble duplication** (`identity → <id> → load memory.yaml → prepareMemoryTransition`)
+   now spans `memorySubmitFn`, `memoryApproveFn`, `memoryRejectFn` and `memoryDeprecateFn`. Left
+   un-extracted here for the reason `task-047` gave; proposed as a follow-up in the final report.
