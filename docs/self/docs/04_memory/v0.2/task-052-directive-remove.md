@@ -2,7 +2,7 @@
 id: "task-052-directive-remove"
 type: task
 title: "Implement `wingfoil directive remove`"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "p3"]
