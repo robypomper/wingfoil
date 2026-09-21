@@ -438,3 +438,45 @@ release-planning had already run when the bug was filed, the approver scheduled 
 stamping `release: "v0.2"`, and no phase was left to move the status — so the fix task drove it, with
 the reasoning in that commit's body. Left there, the bug could never have advanced: `triaged`/`planned`
 have no CLI verb and the only reject edge to `closed` starts from `open`.
+
+#### post-merge re-verification — `main` at `ba2cad0`
+
+`main` moved again between the review-ready summary and the submit, so it was merged a second time
+(`dl-035` — merge, never rebase) and **every gate was re-run on the merged tree**, not carried over.
+The second merge brought exactly one file, a new task document
+(`docs/self/docs/04_memory/v0.2/task-079-spec-015-staging-and-node-floor-corrections.md`); no conflict,
+and nothing these notes cite.
+
+```
+$ npx tsc --noEmit -p tsconfig.json; echo $?
+0
+```
+
+**That is the headline, and it is the reason to read it twice: this is the first clean full typecheck
+in the release.** Every other agent's brief still lists
+`test/core/directive-create.test.ts(159,19) TS2339` as an allowed exception; on this branch the command
+produces no output at all, so that allowance now describes nothing and any future output is a genuine
+new defect.
+
+| Gate | Command | Result at `ba2cad0` merged |
+|---|---|---|
+| **full types (AC1)** | `npx tsc --noEmit -p tsconfig.json; echo $?` | exit **0**, no output |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| tests + coverage | `npx jest --coverage --maxWorkers=2` | exit **0** — 100 suites / **1591** tests; statements **98.54%**, branches **92.30%**, functions **98.76%**, lines **99.15%** (unchanged from `main`, threshold 80 met) |
+| lint (`lint.clean`) | `npm run lint` | exit **0** |
+| API docs (`docs.api.*`) | `npm run docs:api` | exit **0** |
+| BDD P3.1 Scenario 2 | `npx jest test/core/directive-create.test.ts -t "a second create with the same name exits 1 with the exact message and overwrites nothing"` | **1 passed**, 14 skipped |
+
+Cited elements re-read on the merged tree: `dl-044` still `in-discussion` with `release: ""` — so AC7's
+premise holds and the gate remains v0.3's to decide; `dl-045` still `ready`; `bug-026`'s body untouched
+by `main`. The standing-rule sweep re-run post-merge still returns **36** hits outside this task's own
+file, and `grep -rn "bug-026\|directive-create.test" CLAUDE.md docs/05_plans docs/self/.wingfoil
+docs/01_vision` returns **no match** — no governing document states the exception as a rule for future
+work.
+
+**Unchanged by any of this: `main` becomes clean but stays ungated.** Nothing in the repository runs
+`npx tsc --noEmit -p tsconfig.json` — not `npm test` (`isolatedModules: true` keeps ts-jest
+transpile-only over `test/**`), not `tsconfig.build.json` (it excludes `test/`), not eslint. This task
+adds no `typecheck` script, no CI step, no `checks:` entry and no Jest assertion that shells out to
+`tsc`; that is `dl-044`'s ground, deferred to v0.3 by approver decision. A clean run here is a cleared
+instance, **not** a guard against the next one.
