@@ -314,3 +314,45 @@ AC3 re-checked on the edited file rather than on memory: `:158`
 `expect(head(repo)).toBe(shaBefore);` is present and untouched, and it is the assertion that carries
 the "no second commit was produced" claim. `:151`/`:153`/`:154`/`:157` — `ok === false`, the exact
 `CONFLICT` message, exit code 1, byte-identical file — are all present and untouched too.
+
+### refactor — role: developer
+
+Nothing to refactor: the change is a single deletion, so there is no new code to tidy and no structure
+to improve. All gates were run in the worktree after the deletion, on `bfdff78`.
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --maxWorkers=2` (as part of the coverage run) | exit **0** — 100 suites / **1591** tests passed, identical to the pre-edit baseline |
+| coverage | `npx jest --coverage --maxWorkers=2` | exit **0** — statements **98.54%** (2235/2268), branches **92.30%** (1103/1195), functions **98.76%** (399/404), lines **99.15%** (2001/2018); threshold 80 met on all four |
+| **full types (AC1)** | `npx tsc --noEmit -p tsconfig.json; echo $?` | exit **0**, no output — was exit 2 before |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| lint (`lint.clean`, `dl-034`) | `npm run lint` | exit **0** |
+| API docs (`docs.api.*`, `dl-013`) | `npm run docs:api` | exit **0** |
+
+**Coverage is non-regressing and, to the digit, unchanged.** The same four numbers are recorded in
+`task-074-fix-engines-node-floor`'s notes for `main` (98.54 / 92.30 / 98.76 / 99.15). That is the
+expected outcome and a small confirmation of the diagnosis: the deleted line exercised no `src/` code
+path, because it could not — it read a property off an object without executing anything.
+
+A note on the coverage run's stderr, so nobody reads it as a break: it contains
+`fatal: unable to auto-detect email address` and `fatal: not a git repository` lines. Those come from
+fixtures that deliberately exercise `requireGitIdentity`'s failure path (`task-014`, REQ-SEC-01) and
+the no-repo path; the run exits 0 with every suite passing.
+
+AC5 and AC7 verified by diff rather than by assertion:
+
+```
+$ git diff --stat main...HEAD -- src
+                                   # (no output)
+$ git diff --name-only main...HEAD
+docs/self/docs/04_memory/bugs/bug-026-type-error-on-main-untested-by-any-gate.md
+docs/self/docs/04_memory/v0.2/task-076-fix-vacuous-assertion-type-error.md
+test/core/directive-create.test.ts
+$ git diff main...HEAD -- package.json .github docs/self/.wingfoil/workflows test/lint docs/05_plans | wc -l
+0
+$ grep -n '"typecheck"' package.json
+                                   # (no match — no typecheck script exists, and none was added)
+```
+
+No product code (AC5). No `typecheck` npm script, no CI step, no `checks:` entry in any workflow YAML,
+no asserting suite under `test/lint/` (AC7) — `dl-044` keeps that ground.
