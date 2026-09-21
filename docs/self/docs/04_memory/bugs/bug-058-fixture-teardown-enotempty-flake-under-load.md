@@ -2,7 +2,7 @@
 id: "bug-058-fixture-teardown-enotempty-flake-under-load"
 type: bug
 title: "`removeTempDir` teardown races the fixture's own git processes: flaky `ENOTEMPTY … rmdir '/tmp/wf-storage-*/.git'` under load"
-status: planned
+status: in-review
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
@@ -14,10 +14,19 @@ tmpl_version: 260703
 
 ## Summary
 
-`test/core/relevance.test.ts:126` calls `removeTempDir(root)` in its `finally`, and that teardown can
-fail with `ENOTEMPTY: directory not empty, rmdir '/tmp/wf-storage-*/.git'` thrown from
-`test/storage/helpers/git-fixture.ts:72`, failing the suite. **This is a flaky teardown race under
-load, not a deterministic container failure** — see the two readings below, which disagree.
+`test/core/relevance.test.ts`'s REQ-PERF-05 fit-criterion scenario calls `removeTempDir(root)` in its
+`finally`, and that teardown can fail with `ENOTEMPTY: directory not empty, rmdir` on the fixture's
+`.git`, thrown from the exported `removeTempDir` in `test/storage/helpers/git-fixture.ts`, failing
+the suite. **This is a flaky teardown race under load, not a deterministic container failure** — see
+the two readings below, which disagree.
+
+<!-- dl-075 (`ready`), fix-on-touch: both call sites were cited here as bare `path:line` offsets,
+     which task-082-fix-fixture-teardown-flake then invalidated by rewriting `removeTempDir` itself.
+     Converted to the exported symbol and the scenario name, which the files carry. The offsets in
+     "Steps to Reproduce", in the captured stack trace and in the `sed` transcripts below are left
+     as they are: dl-075 keeps them legal as an honest record of what was read, and the transcripts
+     name the commit (`b505473`) they were read at. -->
+
 
 ## Steps to Reproduce
 
