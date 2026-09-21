@@ -267,7 +267,9 @@ YAML, no CI step and no asserting suite under `test/lint/` is added here.
 #### Standing-rule sweep (Implementation Notes' last bullet)
 
 `grep -rn "bug-026" --include="*.md" --include="*.yaml" --include="*.json" --include="*.ts" .` over the
-repository (run on `main`, node_modules excluded) returns 40 hits. Every one of them is either (a) a
+repository (node_modules excluded, and this task's own file excluded since its notes add hits of their
+own) returns **36** hits — re-run after the `main` merge at `7bb95d6`, which is the number that counts.
+Every one of them is either (a) a
 **past observation** inside a merged task's Execution Notes or approve-commit reason — `task-045`,
 `046`, `047`, `048`, `051`, `052`, `055`, `056`, `057`, `058`, `060`, `061`, `070`, `073`, `074` — true
 as of when it was written and **not edited here**; or (b) a cross-reference from `dl-044`, `bug-044`,
@@ -356,3 +358,83 @@ $ grep -n '"typecheck"' package.json
 
 No product code (AC5). No `typecheck` npm script, no CI step, no `checks:` entry in any workflow YAML,
 no asserting suite under `test/lint/` (AC7) — `dl-044` keeps that ground.
+
+### review-ready summary — role: reviewer
+
+**The change is one deleted line.** `test/core/directive-create.test.ts:159`,
+`expect(second.commit).toBeUndefined();`, is gone. Nothing else in `test/`, nothing at all in `src/`.
+The branch touches three files: that test, this task document, and `bug-026`'s frontmatter status.
+
+**AC1 is the point and it is met.** `npx tsc --noEmit -p tsconfig.json` exits **0** with no output on
+this branch, re-verified after the `main` merge at `7bb95d6`. On `main` the same command exits **2**
+with exactly one error. The standing exception — "only the pre-existing bug-026 TS2339 is allowed" —
+that every wave-2 agent had to be briefed about in order to read its own typecheck gate no longer has
+an instance, so the command is binary again: any output is a new defect.
+
+**Read this next sentence before treating that as progress in the safety sense.** `main` is now clean
+but **still ungated** (AC7). No gate anywhere runs `tsc --noEmit -p tsconfig.json`: `tsconfig.json`'s
+`isolatedModules: true` keeps ts-jest transpile-only so `npm test` never semantically typechecks
+`test/**`; `tsconfig.build.json` excludes `test/`; eslint is not type-aware in this way. The same class
+of error can land tomorrow and reach `main` unnoticed, exactly as this one did through `task-050`'s
+dev-loop, review and merge. Declaring the gate is `dl-044-typecheck-gate-for-test-sources`
+(`in-discussion`, `release: ""`), left to v0.3 by the approver's 2026-09-17 decision; this task adds no
+`typecheck` script, no CI step, no `checks:` entry and no asserting suite, and the diff proves it.
+
+**Why deletion rather than repair.** The line was not merely redundant, it was **unfalsifiable**: after
+`if (second.ok) return;` the value is `coreErr`'s `{ ok: false, error }`, which never carries a `commit`
+key regardless of what `directive create` does, so the assertion could not fail for any implementation.
+Its intent — the `:156` comment's "no second commit was produced" — is carried by the line above it,
+`expect(head(repo)).toBe(shaBefore)`, which reads the fixture repo's real HEAD and *would* fail. The
+one repair that compiles, `expect('commit' in second).toBe(false)` before the guard, asserts the shape
+of `coreErr`'s return rather than the absence of a commit, and the compiler proves that statically
+already — that is precisely why the original fails to compile. It would be the same dead weight in a
+different spelling, and it would sit in P3.1's acceptance suite asserting a `src/core/types.ts`
+invariant. Full argument and the three-variant typecheck matrix are under `### design`.
+
+**bug-026's own suggested fix is wrong, and that is now on the record.** Its Notes read "Delete the
+vacuous line, or move it before the narrowing guard." Moving it fails — `tsc` reports
+`(152,19) TS2339: Property 'commit' does not exist on type 'CoreResult<unknown>'` — because a property
+declared on one arm of a union is not accessible on the union. Reproduced here rather than cited.
+`bug-026`'s body is **not** edited by this branch (only its `status`); the correction lives in these
+notes for the approver to place if it should live in the bug.
+
+**BDD acceptance.** P3.1 Scenario 2, "Error - creating a directive whose name already exists"
+(`docs/02_requirements/02_bdd/features/p3-directives/P3.1-directive-create.feature:14-18`), is covered
+by `test/core/directive-create.test.ts` →
+`AC2: a second create with the same name exits 1 with the exact message and overwrites nothing`.
+Run in isolation on the merged branch:
+`npx jest test/core/directive-create.test.ts -t "a second create with the same name exits 1 with the exact message and overwrites nothing"` →
+**1 passed**, 14 skipped. Whole file: **15 passed / 15**. Every assertion the scenario requires — and
+the two that exceed it, the byte-identical file and the unmoved `HEAD` — survives; only the empty one
+was removed.
+
+**Gates, re-run after `git merge main` (`7bb95d6`, docs-only: CLAUDE.md, product-brief, dna.yaml,
+dl-001):**
+
+| Gate | Result |
+|---|---|
+| `npx jest --coverage --maxWorkers=2` | exit **0** — 100 suites / **1591** tests |
+| coverage | statements **98.54%**, branches **92.30%**, functions **98.76%**, lines **99.15%** — identical to `main`'s recorded figures, threshold 80 met |
+| `npx tsc --noEmit -p tsconfig.json` | exit **0** ← AC1 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npm run lint` | exit **0** |
+| `npm run docs:api` | exit **0** |
+
+Cited elements re-read after the merge: `dl-044` still `in-discussion` / `release: ""` (so AC7's
+premise holds), `dl-045` still `ready`, `bug-026`'s body untouched by `main`. The standing-rule sweep
+was re-run post-merge and its conclusion is unchanged — no governing document (no workflow YAML, no
+plan, no `CLAUDE.md` sentence) states the exception as a rule for future work.
+
+**For the approver.** One thing is not this branch's to settle: the only place the bug-026 exception is
+written as a *standing instruction for future work* is the orchestrator's per-wave agent brief, which
+lives outside the repository. Now that the error is gone, that sentence is not merely stale but
+actively misleading — it tells the next agent to tolerate output from a command that should produce
+none. Removing it is an orchestration act, flagged here rather than attempted.
+
+**State left by this branch.** `task-076` `in-progress → in-review`; `bug-026`
+`triaged → planned → in-progress` at `start` and `in-progress → in-review` here. The
+`triaged → planned` hop is a `waiting` edge that `release-planning` normally drives; v0.2's
+release-planning had already run when the bug was filed, the approver scheduled it out of band by
+stamping `release: "v0.2"`, and no phase was left to move the status — so the fix task drove it, with
+the reasoning in that commit's body. Left there, the bug could never have advanced: `triaged`/`planned`
+have no CLI verb and the only reject edge to `closed` starts from `open`.
