@@ -2,7 +2,7 @@
 id: "dl-063-p1-8-reject-message-and-authority-trace"
 type: decision-log
 title: "P1.8 sc.2 pins an illegal-transition message that contradicts REQ-STATE-01, dl-032 and dl-053 and is false for four types; and P1.8 has no authority scenario at all"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
