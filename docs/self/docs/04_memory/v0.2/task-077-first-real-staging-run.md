@@ -2,7 +2,7 @@
 id: "task-077-first-real-staging-run"
 type: task
 title: "First real staging run: execute `npm run publish:staging` and the gate + stage jobs under `act`, and record every command and its output"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release", "distribution"]

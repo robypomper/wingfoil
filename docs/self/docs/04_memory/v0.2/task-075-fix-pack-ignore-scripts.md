@@ -2,7 +2,7 @@
 id: "task-075-fix-pack-ignore-scripts"
 type: task
 title: "Fix bug-022: run npm-distribution's `npm pack` with `--ignore-scripts`, so the release gate cannot rebuild dist/ mid-suite"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "release", "testing"]
