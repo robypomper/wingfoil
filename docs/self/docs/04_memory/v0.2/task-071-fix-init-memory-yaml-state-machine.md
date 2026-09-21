@@ -2,7 +2,7 @@
 id: "task-071-fix-init-memory-yaml-state-machine"
 type: task
 title: "Fix bug-030: a freshly `wingfoil init`-ed project must be able to run every Memory transition verb"
-status: approved
+status: done
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "memory", "init"]
