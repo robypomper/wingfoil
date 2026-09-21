@@ -124,6 +124,11 @@ describe('removeTempDir — teardown must never fail a passing test (bug-058)', 
   // than a stub. Weaker than the stubbed tests (the writer does not always win the race, and this
   // test passes either way), so it corroborates rather than proves; the stubbed tests above are the
   // actual guard.
+  //
+  // The writer is bounded by an iteration count rather than by a deadline, and the parent kills it
+  // in `finally` regardless: `test/core/latency-budget-placement.test.ts` (bug-011) forbids any test
+  // file from both spawning a child and reading the wall clock, and that rule is textual and
+  // deliberately strict. Nothing here is being timed, so there is no reason to reach for a clock.
   it('survives a directory being written into concurrently by another process', () => {
     const dir = makeFixtureShapedDir(500);
     const git = join(dir, '.git');
@@ -133,11 +138,9 @@ describe('removeTempDir — teardown must never fail a passing test (bug-058)', 
         '-e',
         `const {writeFileSync,mkdirSync}=require('fs');
          const g=${JSON.stringify(git)};
-         const end=Date.now()+700;
-         let n=0;
-         while(Date.now()<end){
+         for(let n=0;n<200000;n++){
            try{ mkdirSync(g,{recursive:true}); }catch(e){}
-           try{ writeFileSync(g+'/index.lock.'+(n++),'x'); }catch(e){}
+           try{ writeFileSync(g+'/index.lock.'+n,'x'); }catch(e){}
          }`,
       ],
       { stdio: 'ignore', detached: true },
