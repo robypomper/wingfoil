@@ -163,7 +163,8 @@ one.
 - Either way: `task-045-memory-submit`, `task-046-memory-approve` and `task-047-memory-reject` are the
   verbs that will one day emit these commits, so B's outcome is a constraint on `task-047` in
   particular. `dl-015`'s `read_related` covers `depends_on` tasks and **not** decision-logs, so this
-  outcome must be handed to them explicitly at their design step.
+  outcome must be handed to them explicitly at their design step. *(All three are now `done` and merged —
+  see the Scheduling addendum (2026-09-21) below; the handoff is no longer available.)*
 - No back-fill is needed for `bug-015`: `8203f4a` already records the back-edge and `83c6509` the
   return. This decision is about making the next one automatic.
 
@@ -172,3 +173,29 @@ fallback), `dl-019` (plans as the engine stand-in), `dl-053` (verbless edges —
 fallback's own legality), `task-061-publish-secrets`, `task-045-memory-submit`,
 `task-047-memory-reject`, `bug-015-scan-reads-worktree-not-index`, `dev-loop.yaml` v1.3 (`:37`, `:90`,
 `:94`, `:104`, `:105`), `memory.yaml` (`:170`, the `bug` `gates` block), P1.7, P1.10.
+
+## Scheduling addendum (2026-09-21) — unscheduled obligation for v0.3
+
+All three verbs this decision-log names as future emitters of these commits are now `done` and
+merged: `task-045-memory-submit` (`cf4ce8f`), `task-046-memory-approve` (`1914195`) and
+`task-047-memory-reject` (`57c412f`) — as is `task-061-publish-secrets`, the run whose hand-made
+workaround prompted this. Clause B's outcome was described as "a constraint on `task-047` in
+particular"; `task-047` closed on 2026-09-18, so that constraint has nowhere to land.
+
+Clause A was never a task in the first place: it amends `dev-loop.yaml` (the fourth `bug.sync_state`
+call site on `review`'s reject fallback), which under the no-engine interim regime also means amending
+the v0.2 dev-loop plan under `docs/05_plans/rl-v1/rel-v0.2/`.
+
+This document is therefore left `in-discussion` with `release: ""` on purpose. That pair is exactly what
+`release-planning`'s `reconcile-governance` selection filter picks up
+(`where: { type: [decision-log, adr], status: [in-discussion, pending], release: ["", "{release.version}"] }`,
+`release-planning.yaml:45`), so the next run sweeps it, approves it, and `build-backlog` places the work
+it implies. It is an **unscheduled obligation** in the shape `dl-030` established for REQ-SEC-07's P4.9
+half: recorded here, placed by the next `release-planning`, never added to a release already
+`in-development` (`dl-034` point 4 bounds that exception to bugs blocking work in flight, which this is
+not).
+
+**Consequence for whoever ratifies it:** the hand-it-to-the-inheritor instruction in Actions above can no
+longer be executed — there is no task left to hand it to. The outcome needs **its own task** out of
+`build-backlog`. This addendum exists because nothing else would have said so: `dl-015`'s `read_related`
+covers `depends_on` tasks and not decision-logs, and nothing re-opens a `done` task's notes.

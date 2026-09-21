@@ -163,10 +163,11 @@ a side effect of this one.
   than upcoming** — the same position `dl-051` found itself in once `task-055` merged ahead of its
   `spec-012` §5 amendment. Nothing will re-open `task-047` to carry them; they are their own piece of
   work.
-- Hand the outcome to **`task-046-memory-approve`** (`in-review` at `62c7459`, same shared helper, so
+- ~~Hand the outcome to **`task-046-memory-approve`** (`in-review` at `62c7459`, same shared helper, so
   before its review pass) and to **`task-048-memory-deprecate`** (`in-progress` at `b6175b7`), which
-  touches the same feature family. `dl-015`'s `read_related` covers `depends_on` tasks and **not**
-  decision-logs, so both need it handed over explicitly.
+  touches the same feature family.~~ *(Both are now `done` and merged — see the Scheduling addendum
+  (2026-09-21) below.)* `dl-015`'s `read_related` covers `depends_on` tasks and **not** decision-logs,
+  which is why no task read this on its own.
 - If clause B adds a BDD scenario, the production behaviour it asserts already exists on `main`
   (`src/core/index.ts:792`), so the new scenario needs a test rather than an implementation — and
   `task-047`'s BDD-to-test table (`:355`) should gain the row, even though the task itself is closed.
@@ -178,3 +179,29 @@ by no gate), `bug-032-spec-004-stale-illegal-transition-example` (the same messa
 `P1.6-memory-submit.feature:21`, `P1.7-memory-approve.feature`, `P1.8-memory-reject.feature:18`,
 `P5.2.3-mcp-tools.feature:18`, REQ-STATE-01, REQ-SEC-03, REQ-SEC-04, `docs/self/.wingfoil/memory.yaml`
 (the per-type `gates` blocks), `src/core/approval-authority.ts:66-72`.
+
+## Scheduling addendum (2026-09-21) — unscheduled obligation for v0.3
+
+The Actions above already record `task-047-memory-reject` as `done` and both amendments as *overdue
+rather than upcoming*. That now holds for the other two named inheritors as well:
+`task-046-memory-approve` finalized at `1914195` and `task-048-memory-deprecate` at `d9867dc`, both on
+2026-09-18. The parenthetical states "(`in-review` at `62c7459`)" and "(`in-progress` at `b6175b7`)";
+both are stale.
+
+Neither clause needs production code: clause A amends one BDD line, clause B amends REQ-SEC-03 and adds
+a scenario whose behaviour already exists on `main` (`src/core/approval-authority.ts`), so it needs a
+test rather than an implementation.
+
+This document is therefore left `in-discussion` with `release: ""` on purpose. That pair is exactly what
+`release-planning`'s `reconcile-governance` selection filter picks up
+(`where: { type: [decision-log, adr], status: [in-discussion, pending], release: ["", "{release.version}"] }`,
+`release-planning.yaml:45`), so the next run sweeps it, approves it, and `build-backlog` places the work
+it implies. It is an **unscheduled obligation** in the shape `dl-030` established for REQ-SEC-07's P4.9
+half: recorded here, placed by the next `release-planning`, never added to a release already
+`in-development` (`dl-034` point 4 bounds that exception to bugs blocking work in flight, which this is
+not).
+
+**Consequence for whoever ratifies it:** the hand-it-to-the-inheritor instruction in Actions above can no
+longer be executed — there is no task left to hand it to. The outcome needs **its own task** out of
+`build-backlog`. This addendum exists because nothing else would have said so: `dl-015`'s `read_related`
+covers `depends_on` tasks and not decision-logs, and nothing re-opens a `done` task's notes.
