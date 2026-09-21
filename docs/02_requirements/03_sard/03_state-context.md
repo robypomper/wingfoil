@@ -19,6 +19,17 @@
   rides as the issue's detail rather than replacing it. The exit code is **`1`**, per BDD P1.6 and
   REQ-INT-04 (an illegal transition is a logic error, not a usage/argument error); `spec-009` §3 has been
   rewritten to key exit codes on the nature of the failure rather than on the detecting pass.
+  `<to>` — a transition verb (`submit`, `approve`, `reject`) names no target of its own, and an illegal call has
+  none from `<from>` — is the verb's **canonical edge** on that type's machine: the target the verb reaches from
+  the first state, in `sequence` order, from which it is legal (`submit` on `task` → `pending`, which is the string
+  BDD P1.6 and P5.2.3 pin, while the literal forward edge out of `approved` is `done`). When that target is the
+  document's own current state — a self-loop is not a transition — the message names the **next legal edge of the
+  same verb**, and `(none)` when the verb has no legal edge reaching any other state (including when it has none at
+  all). It is never the next state in `sequence` regardless of verb: that would print a forward move for a `reject`
+  (`draft -> pending`) or an engine-only `waiting` edge for an `approve` (`backlog -> in-progress`), misinforming
+  exactly the user who has just made an illegal call. Every printed `<to>` is therefore a real target of the verb
+  the user typed. Ratified by `dl-053-illegal-transition-target-for-verbless-edges` (2026-09-17, option 1); a pure
+  function of `(machine, from, verb)` walked in `sequence` order, per REQ-SYS-07.
 * **Traceability:** Feature P1.6 (US-3-09, BDD `p1-memory/P1.6-memory-submit.feature`); Feature P4.11 (US-4-08,
   BDD `p4-workflow/P4.11-deliverables.feature`); Feature P4.13 (US-1-02, BDD `p4-workflow/P4.13-state-deduction.feature`).
 
