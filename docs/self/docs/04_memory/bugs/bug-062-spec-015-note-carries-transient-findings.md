@@ -23,9 +23,9 @@ those land, the paragraph becomes false and nothing brings a reader back to dele
 
 ## Steps to Reproduce
 
-1. `sed -n '232,239p' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md` — the
-   paragraph beginning "*Out of this revision's scope, recorded so §3 is not read as a statement that
-   the pipeline runs today:*".
+1. `grep -n "Out of this revision's scope" docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`
+   — one hit, the opening of the paragraph at fault (cited by its own words rather than by a line
+   offset, per `dl-075`'s option A; the offset it sat at when this was written was `:232`).
 2. Read it as a future reader will: it says stage 1 is "currently unable to complete on a runner",
    naming two specific failures, and cites no element id for either.
 3. `grep -n 'bug-05' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md` — no
