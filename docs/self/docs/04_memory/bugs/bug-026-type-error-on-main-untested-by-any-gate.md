@@ -2,10 +2,10 @@
 id: "bug-026-type-error-on-main-untested-by-any-gate"
 type: bug
 title: "A TypeScript error sits on main in test/core/directive-create.test.ts, and no gate reports it"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
