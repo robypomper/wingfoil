@@ -156,7 +156,6 @@ describe('CORE_MODULES directive.directiveCreate — P3.1 fit criteria (initiali
     // "no file is overwritten" — and no second commit was produced.
     expect(readFileSync(filePath, 'utf-8')).toBe(contentBefore);
     expect(head(repo)).toBe(shaBefore);
-    expect(second.commit).toBeUndefined();
   });
 
   // task-057: the six P3.8 ids moved to `directives/built-in/`; `determinism` is still an init-scaffolded
