@@ -494,32 +494,60 @@ $ npm run docs:api                         →  exit 0
 ```
 
 Coverage is **non-regressing at the gate**, which is the project-level figure `dev-loop.yaml`'s
-`tests.coverage(min: 80)` measures: `main`'s last recorded numbers (task-056's approve commit) were
-98.54 / 92.30 / 98.76 / 99.15, and all four are higher here. The two files this task creates or
-rewrites are `commit-message.ts` **100/100/100/100** and `require-reason.ts` **100/100/100/100**.
-
-**`audit.ts`'s own figures go slightly DOWN, and the first version of this note claimed the opposite.**
-Retracted. Measured, with the commands that settle it:
+`tests.coverage(min: 80)` measures. Both sides measured rather than quoted second-hand — `main` was
+run in its own clean `--depth 1` clone at `b505473`, this branch in the worktree at the same commit
+merged in:
 
 ```
-$ npx jest --coverage | grep -E "All files|audit\.ts"
-All files    | 98.58 | 92.59 | 98.8 | 99.17 |
-  audit.ts   | 97.10 | 61.76 |  100 |   100 | 106,186-245,320
-$ node -e '<sum coverage/coverage-final.json for src/memory/audit.ts>'
-audit.ts branches: 21/34 61.76% | statements: 67/69 97.10%
+main @ b505473   All files  98.54 / 92.29 / 98.76 / 99.15   (102 suites, 1644 tests)
+this branch      All files  98.58 / 92.58 / 98.81 / 99.18   (104 suites, 1697 tests)
 ```
 
-task-049 recorded 97.26 stmts / 62.16 branch for this file. **97.10 and 61.76 are lower, not higher**,
-and the earlier sentence ("up from the 62.16 task-049 recorded") was false — about a number in the
-audit record, which is the worst place to be wrong in this particular task. What actually happened is
-arithmetic: this task **removes covered code from `audit.ts`** — `REASON_LINE_RE`'s match and
-`parseApprovalMetadata`'s all-or-nothing early return moved into `commit-message.ts`, which sits at
-100% — while the file's uncovered positions are unchanged. All 13 uncovered branches are destructuring
-defaults that cannot fire because their regex always captures (`sha = ''` in `auditAttribution`,
-`approverName = ''` in `parseApprovalMetadata`, and the pairs in `readStatusAt` and
-`verifyTransitionConsistency`); the same misses over a smaller denominator is a lower percentage.
-Nothing this task adds is untested, but the honest statement is "down on the file, up on the project",
-not "up".
+All four are higher. The two files this task creates or rewrites are `commit-message.ts`
+**100/100/100/100** and `require-reason.ts` **100/100/100/100**.
+
+**`audit.ts`'s own figures go slightly DOWN — 97.26/62.16 on `main` to 97.10/61.76 here.** Two earlier
+versions of this paragraph got this wrong and are retracted (see the retraction log at the end of these
+notes). What follows is the branch map itself rather than a story about it, enumerated with the command
+that produces it, run on both trees:
+
+```
+$ npx jest --coverage    # then, over coverage/coverage-final.json for src/memory/audit.ts:
+$ node -e 'const{branchMap,b}=require("./coverage/coverage-final.json")[k];
+           for(const id in b) b[id].forEach((h,i)=>
+             console.log(branchMap[id].type+"@L"+branchMap[id].locations[i].start.line, h?"":"MISS"))'
+
+main @ b505473   23/37 covered, 14 missed:
+  default-arg@L105 x5   (auditAttribution's `[sha = '', authorName = '', …]`)
+  default-arg@L150 x1   (parseCommitReason's `const [, reason = ''] = reasonMatch`)
+  default-arg@L167 x3   (parseApprovalMetadata's `[, approverName = '', …]`)
+  if@L220, if@L223, cond-expr@L226   (readStatusAt's three error paths)
+  default-arg@L301 x2   (verifyTransitionConsistency's `[, declaredFromRaw = '', …]`)
+
+this branch   21/34 covered, 13 missed:
+  default-arg@L106 x5, default-arg@L186 x3, if@L239, if@L242, cond-expr@L245, default-arg@L320 x2
+```
+
+The two lists are the same misses at shifted line numbers, minus one: **`default-arg@L150`, the
+`reason = ''` in `parseCommitReason`, which this task deleted along with the first-line capture.** So
+
+- **missed branches go 14 → 13, not "unchanged"**, and
+- **10 of the 13 are destructuring defaults** (5 + 3 + 2), not all 13. The other three —
+  `if@L239`, `if@L242`, `cond-expr@L245` — are ordinary untested error paths in `readStatusAt`
+  (`!frontmatter`, non-object YAML, non-string `status`). `readStatusAt` destructures nothing, so the
+  "pairs" an earlier version of this paragraph attributed to it do not exist.
+
+The percentage therefore is **not** explained by "the same misses over a smaller denominator": the same
+14 over the new 34 would be 58.82%, and the measured figure is 61.76%. Both sides of the ratio moved —
+covered 23 → 21, missed 14 → 13, total 37 → 34 — because the code this task removes from `audit.ts`
+(the `Reason:` match, and `parseApprovalMetadata`'s all-or-nothing `|| reason === null`) was mostly
+*covered* branch weight, and it moved into `commit-message.ts`, which is at 100%. Removing a
+better-than-average slice lowers the average of what is left. That is the whole effect.
+
+**What matters, and what the enumeration above actually proves: the 13 are a strict subset of `main`'s
+14.** Not one uncovered branch in `audit.ts` is new, so nothing this task adds to that file is
+untested. The honest summary is "down on the file, up on the project" — and the *reason* it is down is
+a shrinking denominator with a shrinking numerator, not a constant numerator.
 
 ### review-ready summary
 
@@ -629,12 +657,10 @@ opposite of what this correction is for.
 
 **2 — the false coverage sentence, retracted** (`568e1cf`). It claimed `audit.ts`'s branch coverage
 was "up from the 62.16 task-049 recorded"; measured it is **61.76**, down, and statements 97.10
-against 97.26. The refactor section now carries the measurement, the two commands that settle it, and
-the actual cause (this task *removes* covered code from `audit.ts` into `commit-message.ts`, which is
-at 100%, while the file's 13 uncovered branches — all destructuring defaults that cannot fire — are
-unchanged; the same misses over a smaller denominator is a lower percentage). The gate itself is the
-project-level figure and is genuinely non-regressing; that is now stated separately from the per-file
-number rather than blurred with it.
+against 97.26. The gate itself is the project-level figure and is genuinely non-regressing; that is
+now stated separately from the per-file number rather than blurred with it. **The replacement
+paragraph was itself wrong in three particulars and was rewritten again in the second rejection pass
+— see below.**
 
 **3 — N3, the corpus test on a shallow clone** (`b4791f6`). The case located its commit with
 `git log --grep` against the repository and threw unless it found exactly one. `actions/checkout`
@@ -711,3 +737,72 @@ $ npm run lint                             →  exit 0
 $ npm run docs:api                         →  exit 0
 $ (inside a git clone --depth 1)  npx jest →  102 suites / 1644 tests passed
 ```
+
+---
+
+### second rejection pass — `304d163` (`in-review → in-progress`)
+
+Rejected on **one paragraph**: the replacement I wrote for the coverage sentence the first reject was
+about. Everything else was re-verified and stands — the corpus counts reproduced at all three refs
+under a counter the reviewer wrote independently, bug-042's amendment preserving the original command
+with a pointer, the N3 fixture byte-identical to the real commit body, the depth-1 clone failing
+before the fix and passing after, both guard mutations failing loudly, N4's provenance split proven
+against real git, and no behaviour changed. None of it is touched here.
+
+**The paragraph was wrong in three particulars, all measurable, all now measured.** It said `audit.ts`'s
+uncovered positions were *unchanged*, that *all 13* uncovered branches were destructuring defaults, and
+that *the same misses over a smaller denominator* explained the drop. Measured on both trees — `main`
+in its own `--depth 1` clone at `b505473`, this branch in the worktree — with the enumeration now
+printed in the refactor section above:
+
+| | `main` @ `b505473` | this branch | |
+|---|---|---|---|
+| branches covered / total | 23 / 37 | 21 / 34 | |
+| **missed** | **14** | **13** | **not "unchanged"** |
+| of which destructuring defaults | 11 | **10** | **not "all 13"** |
+| of which `readStatusAt` error paths | 3 (`if@L220`, `if@L223`, `cond-expr@L226`) | 3 (`if@L239`, `if@L242`, `cond-expr@L245`) | `readStatusAt` destructures nothing — it has no "pairs" |
+| branch % | 62.16 | 61.76 | |
+
+The one miss that disappeared is `default-arg@L150` on `main` — `parseCommitReason`'s
+`const [, reason = ''] = reasonMatch` — deleted along with the first-line capture. And the arithmetic
+the paragraph asserted does not reproduce the figure: the same 14 misses over the new 34 would be
+**58.82%**, not the measured **61.76%**. Both sides of the ratio moved, because the branch weight this
+task removes from `audit.ts` was mostly *covered*.
+
+**The conclusion was true and survives intact, but it now rests on the enumeration instead of on a
+story: the branch's 13 missed branches are a strict subset of `main`'s 14** — same list, shifted line
+numbers, minus the deleted one — so no uncovered branch in `audit.ts` is new and nothing this task adds
+to that file is untested.
+
+**Retraction log for this one number**, since three versions of it now exist in this document's
+history and a task's Execution Notes have no later gate that could correct them:
+
+1. *first submit* — "its branch figure is up from the 62.16 task-049 recorded". **False**: it is down.
+2. *first rejection pass* (`568e1cf`) — "the file's uncovered positions are unchanged … all 13 …
+   destructuring defaults … the same misses over a smaller denominator". **False in three
+   particulars**, as tabulated above.
+3. *this pass* — the enumerated branch map, both trees, with the command that prints it.
+
+The lesson for the notes, not just for this line: both false versions were *explanations* written to
+account for a number, not readings of the artefact that produces it. The artefact —
+`coverage/coverage-final.json`'s `branchMap` — was available each time and takes one command to
+enumerate.
+
+**Merged `main` at `b505473`** and re-ran every gate there on a clean `npm ci`. `bug-026` is closed, so
+the full typecheck now has **no allowed exception** — and it exits 0 on this branch, printing nothing:
+
+```
+$ npx jest                                 →  104 suites / 1697 tests passed
+$ npx jest --coverage                      →  All files 98.58 / 92.58 / 98.81 / 99.18
+$ npx tsc -p tsconfig.build.json --noEmit  →  exit 0
+$ npx tsc --noEmit -p tsconfig.json        →  exit 0   (no exception; bug-026 closed)
+$ npm run lint                             →  exit 0
+$ npm run docs:api                         →  exit 0
+```
+
+`audit.ts`'s branch map is unchanged by the merge — still 21/34 with the same 13 misses.
+
+**Not mine, noted:** `main` was briefly red on `test/validation/secret-scan.test.ts`, because
+`bug-055`'s own report body quotes the secret-shaped fixture it is about. Fixed on `main` in `895ff4a`,
+which is an ancestor of this branch (`git merge-base --is-ancestor 895ff4a HEAD` → true), so this
+merge gives a genuinely green baseline rather than one that merely predates the ingest.
