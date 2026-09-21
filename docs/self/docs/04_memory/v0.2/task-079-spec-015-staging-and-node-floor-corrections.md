@@ -2,7 +2,7 @@
 id: "task-079-spec-015-staging-and-node-floor-corrections"
 type: task
 title: "Amend spec-015 as dated Revision notes: §3 stage 2 to the Verdaccio the staging script actually starts (dl-052), and §1's now-settled 'Node.js 18+ is deliberately NOT settled here' caveat (adr-010)"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "documentation", "release", "distribution"]
