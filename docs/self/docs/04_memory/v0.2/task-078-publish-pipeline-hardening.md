@@ -2,7 +2,7 @@
 id: "task-078-publish-pipeline-hardening"
 type: task
 title: "Publish-pipeline hardening (dl-057 a, c, f, g): SHA-pin the actions, bound Verdaccio's SIGTERM, forbid shell tracing in promote, name the npm config file explicitly"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "release", "security"]
