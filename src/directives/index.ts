@@ -21,4 +21,4 @@ export {
   renderCustomDirective,
 } from './create';
 
-export { setRoleAssignmentsInText, withAssignedDirectives } from './roles-edit';
+export { parseDirectiveIds, setRoleAssignmentsInText, withAssignedDirectives } from './roles-edit';

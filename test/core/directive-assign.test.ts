@@ -363,7 +363,13 @@ describe('CORE_MODULES directive.directiveAssign — P3.7 scenarios (multi-direc
     });
     // Exactly two added lines, nothing removed or moved.
     expect(gitOut(repo, ['diff', '--numstat', 'HEAD~1', 'HEAD'])).toBe(`2\t0\t${ROLES}`);
-    expect(readRoles(repo)).toBe(before.replace('    - determinism\n', '    - determinism\n    - code-quality\n    - security\n'));
+    // Anchored on the `developer:` key — `- determinism` also occurs under `architect:`.
+    expect(readRoles(repo)).toBe(
+      before.replace(
+        '  developer:\n    - determinism\n',
+        '  developer:\n    - determinism\n    - code-quality\n    - security\n',
+      ),
+    );
   });
 
   it('assigns a duplicated id once, and names it once in the commit subject', async () => {

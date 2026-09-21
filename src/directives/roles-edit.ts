@@ -32,6 +32,36 @@ export function withAssignedDirectives(current: readonly string[], ids: readonly
   return next;
 }
 
+/**
+ * Parse the CLI `--directive "a,b,c"` value into the directive ids it names (P3.7, US-4-06,
+ * task-056-role-based-directive-assignment): split on commas, trim each segment, drop the empty ones,
+ * and de-duplicate keeping each id's FIRST position.
+ *
+ * The comma-separated spelling follows `memory add --tags "a,b"` (`parseTags`, `src/memory/add.ts`),
+ * the project's existing list-valued option: the CLI option seam carries one `string` per `--{name}`
+ * (`CliCommand.options` → `ParamsContext.options`), so a list travels inside the value rather than as
+ * a repeated flag. A value with no comma yields a one-element list, which is why P3.2's single-id
+ * invocation is byte-for-byte unchanged.
+ *
+ * De-duplication happens here rather than being left to {@link withAssignedDirectives} — which also
+ * de-duplicates — because this list is *echoed*: it becomes `DirectiveAssignResult.directives` and the
+ * ids named in the commit subject, and `--directive testing,testing` must not produce a subject naming
+ * `testing` twice.
+ *
+ * @param raw - The raw `--directive` value.
+ * @returns The ids, in argument order, without duplicates; **empty** when the value contributes none
+ *   (`""`, `"  "`, `","`), which the caller treats as a missing argument rather than as an empty id —
+ *   `directiveAssignFn`, spec-008 §4.
+ */
+export function parseDirectiveIds(raw: string): string[] {
+  const ids: string[] = [];
+  for (const segment of raw.split(',')) {
+    const id = segment.trim();
+    if (id.length > 0 && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 interface Line {
   readonly indent: number;
   readonly body: string;
