@@ -88,3 +88,125 @@ zero offset, so widening these regexes weakens no specified behaviour.
      AC classification (dl-014/T1, `testing` directive): AC2/AC3 are red-first — the failure is
      reproducible today in a git >= 2.55 environment and must be shown red first; AC4/AC5/AC6 are
      characterization. -->
+
+### design — role: architect
+
+Branch `task/task-081-fix-timestamp-offset-assertions`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-081`, forked from `main` at `0cf643f`
+(`wf(decision-log): approve dl-075-no-bare-line-offsets-in-memory`). Install:
+`npm ci --prefer-offline --no-audit --no-fund` → `added 500 packages in 9s`, exit 0.
+
+#### `agent.read_related` (`dl-015`, HARD gate)
+
+`depends_on: []`, so the gate is satisfied vacuously — there is no upstream task whose Execution Notes
+must be acknowledged. The elements this task's instructions name were read in full on `main` at
+`0cf643f`:
+
+| Element | State read | What it changes here |
+|---|---|---|
+| `bug-057-timestamp-assertions-reject-zulu-offset` | `planned`, `release: "v0.2"`, severity high | The source bug. Its claims (the two literals, the reference literal, the git-2.43 local rendering, the 2.55.0 image) are each **re-measured** below rather than trusted; all held. |
+| `task-077-first-real-staging-run` (this task's `ref`) | `done` | Origin of the finding (its **F3**). Two facts taken from it and re-measured here: the `catthehacker/ubuntu:act-24.04` route to a git ≥ 2.55, and that its **F4** (`bug-058`, an `ENOTEMPTY` fixture-teardown race in `removeTempDir`) is *independent* of F3 — relevant because F4 can surface in a full-suite container run and must not be absorbed here. |
+| `dl-075-no-bare-line-offsets-in-memory` | `ready` (`0cf643f`) | Binds the citations below: durable positions cite a symbol / heading / verbatim quotation + the sha read at; bare `path:line` stays legal in these Execution Notes, where a stale offset is an honest record. |
+| `dl-045-absorbed-bug-back-reference` | `ready` | Why `bug: ["bug-057-…"]` is a list and why `bug.sync_state` drives bug-057 from this task. |
+
+#### `agent.verify_specs`
+
+No new `tech-spec` is needed and none was scaffolded; the design gate is **pass-through** (no approver
+decision at `design`). The contract under test is unchanged: P1.2 (`docs/02_requirements/02_bdd/
+features/p1-memory/P1.2-audit-trail.feature`) and P1.7 require the audit trail to carry an **ISO-8601**
+timestamp; neither names a spelling for a zero offset. `spec-015` §2 requires `prepublishOnly` to be
+passable in the release gate, which is the property these two assertions currently break on CI. The
+change is confined to two test sources; **no `src/` file is touched** (AC in Implementation Notes).
+
+#### The environment — the bug IS reproducible here, contrary to the plan's assumption
+
+The task and the bug both assume the defect can only be *argued* locally. That is true of the host
+toolchain and false of the machine as a whole: the runner image is already in the local docker cache,
+so a real red/green in a git ≥ 2.55, UTC environment was available and was used. Measured, not assumed:
+
+```
+$ git --version                                     # host
+git version 2.43.0
+$ git log -1 --format=%aI                           # host, repo HEAD
+2026-09-21T21:57:15+02:00
+$ docker images --format '{{.Repository}}:{{.Tag}}' | grep catthehacker
+catthehacker/ubuntu:act-24.04
+$ docker run --rm catthehacker/ubuntu:act-24.04 bash -lc 'git --version; cd /tmp && git init -q r && cd r && git -c user.name=t -c user.email=t@t.t commit -q --allow-empty -m x && git log -1 --format=%aI; TZ=UTC git log -1 --format=%aI; node --version'
+git version 2.55.0
+2026-09-21T19:58:45Z
+2026-09-21T19:58:45Z      # TZ=UTC — same Z rendering
+v24.19.0
+```
+
+So the two halves of the failing condition — "git ≥ 2.55" and "UTC" — are both obtainable, and AC2/AC3
+can be satisfied as written instead of by argument. The host remains unable to produce the input
+(2.43.0 writes `+00:00` even under `TZ=UTC`), which is why every red/green run below is a **container**
+run and every run labelled "host" is only evidence for AC5.
+
+#### T1 — AC classification (`dl-014` / testing directive)
+
+The task's template comment pre-classified AC2/AC3 red-first and AC4/AC5/AC6 characterization; that
+holds, and is now backed by a real red rather than by the prediction.
+
+| AC | Class | Evidence / what settles it |
+|---|---|---|
+| AC1 — both assertions use `(?:Z\|[+-]\d{2}:\d{2})` | red-first (same edit as AC2/AC3) | The edit itself; verified by the sweep command re-run after the change (`### refactor`). |
+| AC2 — suite passes under `TZ=UTC` with git ≥ 2.55 | **red-first** | Container run of the two named suites, `git --version` printed alongside, exit code recorded — red in `### red`, green in `### green`. |
+| AC3 — red before green, identical command | **red-first** | The same command string run twice, on the pre-fix and post-fix trees; both runs quoted. |
+| AC4 — no other assertion carries the literal | characterization | The sweep command and its full output, recorded in `### design` below and re-run in `### refactor`. Settled by running it, not by reading the bug. |
+| AC5 — `+HH:MM` still passes | characterization | Host run (git 2.43.0, `TZ=Europe/Rome`) of the same two suites: they passed before the change and must still pass after. This is the one thing the host *can* measure that the container cannot. |
+| AC6 — gates stay green | characterization | Gate table in `### refactor`. |
+| AC7 — `bug-057` carried to `resolved` | characterization (process) | `bug.sync_state` commits; this dev-loop stops at `in-review`, so `resolved`/`closed` belong to the approver's `done` phase, not to this agent. |
+
+No red was fabricated and no dead code was added: the failing tests already exist — they *are* the
+artefact under repair — so `red` writes no new test and its commit is absent by construction (see
+`### red`).
+
+#### AC4 — the sweep, run rather than assumed
+
+```
+$ grep -rn '\[+-\]\\d{2}:\\d{2}' test/ src/
+test/core/memory-approve.test.ts:168:    expect(gitOut(repo, ['log', '-1', '--format=%aI'])).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+test/core/memory-history.test.ts:77:const ISO_8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/;
+test/memory/versioning-audit-trail.test.ts:61:      expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+test/cli/program.integration.test.ts:471:        expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
+```
+
+Four hits, **two** of them defective. The other two already carry the alternation: the `ISO_8601`
+constant in `test/core/memory-history.test.ts` (declared `/** %aI — strict ISO-8601 with a numeric UTC
+offset (or Z) … */`) and the `entry.timestamp` assertion in `test/cli/program.integration.test.ts`. The
+latter is the shape AC1 names, and it is the shape adopted verbatim.
+
+The literal in the sweep only catches one spelling of the mistake, so the sweep was widened rather than
+stopped there:
+
+```
+$ grep -rnE 'T.d\{2\}.*\\d\{2\}:\\d\{2\}' test/ src/      # any regex over a T hh:mm:ss + zone
+test/core/memory-approve.test.ts:168          # defective (above)
+test/memory/history.test.ts:56:      expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+test/memory/versioning-audit-trail.test.ts:61 # defective (above)
+test/memory/audit.test.ts:294:      expect(t.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+$ grep -rnE '\\\+\\d\{2\}|\[\+-\]\\d\{4\}|[+-]\\d\{4\}' test/ src/    # other zone spellings, e.g. +HHMM
+(no output)
+```
+
+`test/memory/history.test.ts:56` and `test/memory/audit.test.ts:294` are **legitimately unaffected**:
+both are unanchored (no `$`) and assert nothing at all about the zone, so `Z` and `+02:00` match
+equally. That is the AC4 "legitimately offset-only" record — except that neither is offset-only; they
+are zone-agnostic, which is why they were never in the failure set. Both were confirmed passing in the
+container run below.
+
+#### No production path parses `%aI` (Implementation Notes' third bullet)
+
+Checked rather than assumed, so that the "separate finding" branch of that bullet can be closed:
+
+```
+$ grep -rnE '/\^?\\d\{4\}|new RegExp' src/
+src/validation/id.ts:87, src/memory/add.ts:103, src/validation/secret-scan.ts:216,415  # ids, YAML keys, secret patterns
+```
+
+None of them reads a date. `%aI` appears in `src/memory/audit.ts` and `src/memory/history.ts` only as a
+`git log` **format field** (`AUDIT_LOG_FIELDS` / `LOG_FIELDS`), and the value is passed through
+untouched: `auditAttribution`'s `valid` flag comes from `isValidAttribution(authorName, authorEmail)`,
+which never looks at the date. So nothing in `src/` narrows the zone, and there is no second finding to
+file from this bullet.
