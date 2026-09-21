@@ -95,3 +95,213 @@ land before `task-060` / `task-061` publish for real", and those are v0.2 tasks.
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### `design` — role: architect
+
+Branch `task/task-074-fix-engines-node-floor`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-074-fix-engines-node-floor`, cut from `main` at `8f2bce8`.
+Task `in-progress` from `start` (`599e4ac`); `bug-023` synced `planned → in-progress` (`230b7d2`).
+
+**Environment deviation — `node_modules` is a symlink, not an `npm ci` install.** `npm ci` is broken
+repo-wide (`bug-043-npm-ci-fails-on-stale-package-lock`, being fixed in parallel by `task-073`), so
+per the orchestrator's instruction this worktree's `node_modules` is a symlink to
+`/home/robypomper/Workspaces/WingFoil2/node_modules`:
+
+```
+$ ln -s /home/robypomper/Workspaces/WingFoil2/node_modules \
+        /home/robypomper/Workspaces/.wf2-wt/task-074-fix-engines-node-floor/node_modules
+```
+
+This matters for this task specifically, because the whole task reads the **installed tree**. Two
+consequences, both accepted deliberately: (a) the tree observed here is the one `main` resolves today,
+not one re-resolved from `package-lock.json`; (b) `package-lock.json` is **not touched** by this task —
+`task-073` owns it. Relevant fs calls (`existsSync`/`readFileSync`) follow symlinks, so the guard added
+by AC3 reads the same tree either way.
+
+**`agent.read_related` (`dl-015`, HARD gate) — `depends_on: ["task-059-publish-metadata"]`,
+acknowledged.** Read `docs/self/docs/04_memory/v0.2/task-059-publish-metadata.md` §Execution Notes in
+full. What this task takes from it:
+
+- **It owns `test/cli/publish-metadata.test.ts`, the file AC3 edits**, and states that file's design
+  contract in its module doc: *metadata only* — no script, no workflow file, no credential is asserted
+  there (§2–§5 of `spec-015` belong to `task-060`/`task-061`). `engines` is a `package.json` *metadata*
+  field, so AC3's guard sits inside that boundary; it asserts nothing about the pipeline.
+- **The exhaustive-allowlist design**: the file tightened `npm-distribution.test.ts`'s inclusion checks
+  into an allowlist so "a tarball that also ships something it should not" fails. AC3's guard is the
+  same shape one field over — an *exhaustive* sweep of the dependency closure rather than a spot check
+  on `commander` — chosen for the same reason: a spot check on commander would pass the day someone
+  adds a different dependency with a higher floor.
+- **The `--ignore-scripts` convention (AC5)**: `packedPaths()` runs
+  `npm pack --dry-run --json --ignore-scripts`, memoized, because jest's `globalSetup` has already
+  built `dist/`. **This task adds nothing that packs**, so AC5 is satisfied by construction rather than
+  by a new flag — the guard reads `package.json` and `node_modules/**/package.json` only, spawning no
+  subprocess at all. `bug-022` is untouched.
+- **Why nobody caught this**: task-059's own T1 table lists four ACs (attribution fields,
+  `publishConfig`, `files` review, pack manifest). `engines` appears in `spec-015` §1 only under
+  *Unchanged*, so it was never in that task's scope — which is exactly `bug-023`'s "nobody owns it
+  today", confirmed by reading rather than assumed.
+- Its precedent for the boundary this task hits: task-059 declined to fix `bin.wingfoil`'s `./` prefix
+  **because `spec-015` listed it under "Unchanged"**, and routed it to the approver (later `bug-020`,
+  then an in-place spec amendment). `engines: node >=18` is listed in the *same sentence* of the same
+  "Unchanged" line. The difference is that AC4 of this task explicitly authorizes the spec amendment,
+  so the spec moves with the code here instead of being deferred.
+
+**`agent.verify_specs` — no new `tech-spec` needed; `design` is a pass-through (no approver gate).**
+`spec-015` §1 already governs the `package.json` publish surface including `engines`, and AC4 directs
+this task to amend it in place as a dated Revision note (`dl-047`: tech-specs carry no `version:`
+field) rather than supersede it. `adr-009` is `accepted` and states no Node floor (verified below).
+`REQ-SYS-09` is the traceability anchor. No `memory.add(type: tech-spec)` invoked.
+
+**However, `verify_specs` did surface an authority conflict the task's own survey missed — see
+"AC2 — survey re-run" row `adr-005`.** That is reported to the approver, not resolved here.
+
+#### AC2 — survey re-run (this worktree, `8f2bce8`, 2026-09-21)
+
+Every row re-checked by running the command in the *Observed* column; rows the task's table did not
+contain are marked **NEW**.
+
+| Claim | Where | Command run | Observed | Disagrees? |
+|---|---|---|---|---|
+| `engines.node` | `package.json:16` | `sed -n '15,17p' package.json` | `">=18.0.0"` | **yes** — the defect |
+| commander's own floor | `node_modules/commander/package.json` | `node -e "…require('./node_modules/commander/package.json')…"` | `15.0.0`, `engines.node = ">=22.12.0"` | — (the constraint) |
+| **Whole production closure** **NEW** | 109 packages reachable from `dependencies` | tree walk, see "The floor, computed" below | max floor `>=22.12.0` (commander); next highest `>=18.14.1` (`@hono/node-server`) | — commander is the **single** binding constraint |
+| CI Node version | `.github/workflows/publish.yml:78` `NODE_VERSION: '22.12.0'` (used `:91`, `:123`, `:141`) | `grep -rn "node-version\|NODE_VERSION" .github/workflows/` | one pinned version, no matrix; only one workflow file exists | **no** for the value — but its **comment** at `:45-48` asserts "`package.json` still declares `engines.node >=18.0.0` … which is currently false: bug-023". That sentence becomes false the moment this task lands ⇒ **comment must move with the fix** |
+| `spec-015-packaging-publishing` | `:60`, "Unchanged" | `grep -n -i node …spec-015…` | `engines: node >=18` — **the only `node` mention in the file** | **yes** — AC4 |
+| `adr-009-npm-publishing-pipeline` | whole doc | `grep -n -i "node" …adr-009…` → `rc=1`, no output | states no Node floor | **no** — confirmed, nothing to change |
+| `README.md` | `:115` | `grep -n -i node README.md` | `This installs the \`wingfoil\` binary (Node.js 18+ required).` — the file's only `node` mention | **yes** — handed to the `user-docs` gate (`dl-013`), see below |
+| `dna.yaml` | `:73-75` `stacks.technologies` → `Node.js` | `sed -n '68,80p' …dna.yaml` | `version: "18+"` | **yes** — but it is *config tracing to `adr-005`* (below), so it moves when the ADR does, not before |
+| Product brief (**vision**) | `docs/01_vision/01_product-brief.md:267` | `grep -n Node …01_product-brief.md` | `**Language & Runtime:** TypeScript, Node.js 18+ (npm)` | **yes** — **not edited.** Vision is authoritative over config (CLAUDE.md §10.1); an approver/spec-level decision |
+| `CLAUDE.md` | `:18`, `:92` | `grep -n Node CLAUDE.md` | `Node.js 18+` twice | **yes** — **not edited** (`dl-025`: no workflow gate owns `CLAUDE.md`; `bug-008`) |
+| **`adr-005-typescript-node-stack`** **NEW** | title, `:25`, `:45`, `:56` | repo-wide `grep -rn -E "Node\.?js ?1[68]\+\|\"node\": *\">=18"` | `status: accepted` — its **title** is "TypeScript on Node.js 18+, distributed via npm"; `:45` "Requires contributors and CI to standardize on Node.js 18+ as a baseline" | **yes — and this is the root authority.** The brief, `dna.yaml`, `dl-001` and `CLAUDE.md` all restate *this* ADR. **Not edited** — see "Boundary" |
+| **`dl-001-typescript-over-python`** **NEW** | `:19`, `:35` | same sweep | `ready` — "Adopt TypeScript with **Node.js 18+** runtime", "recorded in `dna.yaml`" | **yes** — moves with `adr-005`. **Not edited** |
+| `@types/node` pin **NEW** | `package.json` devDeps, `18.19.130` | `node -e` engines sweep | pinned `^18` deliberately (task-001 notes: "matching the `engines.node >=18.0.0` floor") | **yes, indirectly** — a devDependency; moving it needs `package-lock.json`, owned by `task-073`. **Not touched**; reported |
+
+Net correction to the task's own table: it had **7** rows and missed the three that matter most —
+`adr-005` (the accepted ADR the other four documents derive from), `dl-001`, and the `publish.yml`
+*comment* (it checked the value, not the prose). It was right that `adr-009` states no floor and that
+CI pins a single version.
+
+#### The floor, computed (not assumed)
+
+Walked the **production** closure only — `dependencies`, transitively, resolved node-style through the
+installed tree. That is the correct scope: `files: ["dist", "README.md"]` means a consumer of
+`wingfoil` installs `dependencies` and nothing else, so `engines` advertises a contract about *that*
+closure. 109 packages; 81 declare an `engines.node`; the binding maximum is:
+
+```
+commander            15.0.0   >=22.12.0     <-- binding
+@hono/node-server    1.19.14  >=18.14.1
+@modelcontextprotocol/sdk 1.29.0 >=18
+express / send / router / type-is / …       >= 18
+everything else                             <= 18
+```
+
+So **the only floor that is true of the tree as it stands is `>=22.12.0`.**
+
+#### AC1 — the decision, and what it costs
+
+Two coherent resolutions; the bug names both.
+
+**Option B — pin commander below 15 (keeping the declared 18+ true).** Rejected, on three independent
+grounds, each checked here:
+
+1. It requires regenerating `package-lock.json`, which this task is explicitly forbidden to touch
+   (`bug-043` / `task-073` own it, in parallel, this release).
+2. It reverses work that landed *in this release*. `commander@15` is ESM-only
+   (`node -p "require('…/commander/package.json').type"` → `module`; single `default` export
+   condition), and `task-065-fix-commander-esm-jest-harness` (`bug-007`) rebuilt the entire Jest/TS
+   harness around exactly that — `jest.config.js`'s `transformIgnorePatterns: ['/node_modules/(?!commander/)']`
+   plus `tsconfig.test.json`. `src/cli/program.ts:14`'s module doc names *"downgrading `commander`"* as
+   the alternative it deliberately rejected.
+3. Nothing documents commander@15 as accidental, so "pin it lower" is not restoring an intent — it is
+   a new dependency decision, which is ADR territory, not a fix task's.
+
+**Option A — raise `engines.node` to `>=22.12.0`. CHOSEN.** It is the only value provably true of the
+installed tree (above), it is the value CI already runs, and `publish.yml:45`'s own comment already
+calls `22.12.0` "the lowest version every dependency accepts".
+
+*Does runtime actually survive on Node 18?* bug-023 says it may, and the evidence points that way but
+does not settle it: commander's only builtin imports are `node:events`, `node:child_process`,
+`node:path`, `node:fs`, `node:process` and `stripVTControlCharacters` from `node:util` (Node ≥16.11) —
+`grep -rn "from 'node:" node_modules/commander/lib/*.js` — and a scan for post-18 APIs
+(`styleText`, `Object.groupBy`, `Promise.withResolvers`, `util.parseArgs`, `process.getBuiltinModule`, …)
+returns **nothing**. The published CLI loads it through a preserved dynamic `import()` from CJS
+(`src/cli/program.ts:68`), supported since Node 12.17. **But no Node 18 runtime exists in this
+environment** (`node -v` → `v22.21.0`, no nvm), so this was *not* executed, and per bug-023 "guessing
+that it works is not a contract". The declared floor must be the one we can prove, which is 22.12.0.
+
+*What raising it costs users — measured, REQ-SYS-09 Fit Criterion.* REQ-SYS-09's criterion is that
+`npm install -g wingfoil` puts `wingfoil` on PATH. Probed offline with a throwaway package declaring an
+unsatisfiable `engines.node` (`>=99.0.0`) on `node v22.21.0` / `npm 11.6.2`, installed from a local
+tarball into a throwaway prefix:
+
+```
+$ npm install -g --prefix …/prefix --offline …/engtest-demo-1.0.0.tgz
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'engtest-demo@1.0.0',
+npm warn EBADENGINE   required: { node: '>=99.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.21.0', npm: '11.6.2' } }
+added 1 package in 860ms                          EXIT=0
+$ …/prefix/bin/engtest-demo   ->  hello            # binary installed and runs
+
+$ npm install -g --engine-strict --prefix …/prefix2 --offline …/engtest-demo-1.0.0.tgz
+npm error code EBADENGINE … Required: {"node":">=99.0.0"}   EXIT=1
+$ ls …/prefix2/bin  ->  No such file or directory   # nothing installed
+```
+
+So raising the floor **does not lock anyone out by default**: npm warns and installs anyway, and the
+binary still lands on PATH. It hard-fails only under `engine-strict=true`, which is opt-in and is the
+correct outcome for a runtime we do not test. The cost of raising is therefore a warning for Node
+18/20 users; the cost of *not* raising is that the package makes a claim it cannot honour — and that
+under `engine-strict` the current declaration is the one that mis-sorts (it lets a Node-18 install
+through silently). Node 18 reached end-of-life 2025-04-30 and Node 20 on 2026-04-30 (public Node.js
+release schedule; **not verifiable offline from this worktree** — flagged as such rather than asserted
+as measured), so as of 2026-09-21 a `>=22.12.0` floor excludes only already-unsupported runtimes.
+
+#### Boundary — what this task does NOT change, and why
+
+`adr-005-typescript-node-stack` is `accepted` and its **title** is the 18+ claim. The product brief
+(`docs/01_vision/`), `dna.yaml:73-75`, `dl-001` and `CLAUDE.md` are all restatements of it. Per
+CLAUDE.md §10.1 the vision wins over config, and a fix task cannot supersede an accepted ADR. So:
+
+- **Changed here** (the implementation contract, which is what `bug-023` is about): `package.json`
+  `engines.node`, `spec-015` §1 (AC4 authorizes it), the now-stale `publish.yml` comment, and the AC3
+  guard.
+- **Reported, not changed**: `docs/01_vision/01_product-brief.md:267`, `adr-005`, `dl-001`,
+  `dna.yaml:73-75`, `CLAUDE.md:18/:92`, `README.md:115`, `@types/node`'s `^18` pin.
+- `README.md:115` specifically: **handed to the `user-docs` release gate (`dl-013`)**, which owns that
+  file, rather than corrected here — and it should be corrected *after* the approver settles the
+  product-level floor, because the README states the **product's** floor, not `package.json`'s. It is
+  wrong today either way (it promises Node 18 for a package that cannot run there), so this task makes
+  it no more wrong; it makes the contradiction visible instead of hidden.
+
+This leaves the repository in a knowingly-split state for as long as the approver takes: `package.json`
+will say `>=22.12.0` while the vision says `18+`. That is deliberate and is the lesser of the two — the
+alternative is shipping a manifest that is false to npm itself.
+
+#### T1 — acceptance-criteria classification (`dl-014`, `testing` directive)
+
+| # | Acceptance criterion | Classification | Justification |
+|---|---|---|---|
+| AC1 | the floor is decided and stated | **red-first** (carried by AC3's assertion) | the decision's *executable* form is the guard; `package.json` on `main` declares `>=18.0.0`, which the guard rejects. Not a separate test |
+| AC2 | every claim of the floor checked individually, table corrected | **characterization — documentation only, no test** | it is a survey of documents. Pinning it with a test would mean asserting the content of `README.md`/`CLAUDE.md`/the vision, which this task is explicitly forbidden to own. Evidence is the commands above; no test is written, and none is fabricated to look like one |
+| AC3 | regression guard: every dependency's `engines.node` satisfied by ours | **red-first** | verified first that the file makes no such assertion today: `grep -n "engines" test/cli/publish-metadata.test.ts` → **`rc=1`, no output**. The new test fails on `main`'s `>=18.0.0` for a genuine reason (commander requires `>=22.12.0`) |
+| AC4 | `spec-015` §1 moves with `package.json` | **characterization — documentation only** | a Memory/spec edit; the repo has no test asserting spec prose, and inventing one here would be dead weight |
+| AC5 | no new instance of the `bug-022` race | **characterization (by construction)** | the guard spawns **no** subprocess — it reads `package.json` and `node_modules/**/package.json`. Verified by the absence of `execFileSync` in the added block; the file's existing `packedPaths()` already passes `--ignore-scripts` and is untouched |
+| AC6 | gates green | **characterization** | the standing `dev-loop` `refactor` gates |
+
+One genuinely red-first criterion (AC3, carrying AC1). No red is fabricated for AC2/AC4/AC5/AC6.
+
+**BDD coverage.** `grep -rln "engines\|Node.js 18\|npm install -g" docs/02_requirements/02_bdd/features/`
+finds no scenario about the engines floor — the acceptance contract here is REQ-SYS-09
+(`docs/02_requirements/03_sard/01_architecture.md`), whose fit criterion is the `npm install -g` probe
+recorded above, not a `.feature` scenario. Stated rather than left implicit, per rule 1.
+
+**No `semver` dependency is added.** The guard needs range arithmetic, and `require('semver')` in this
+tree resolves to **6.3.1** (`typeof semver.subset` → `undefined`; `subset` arrived in 7.x). semver 7 is
+present only nested under devDependencies (`node_modules/ts-jest/node_modules/semver` etc.), which is a
+hoisting accident, not a contract. Declaring `semver` would require a `package-lock.json` change —
+forbidden here. So the guard carries a small, explicit range evaluator that **throws on any syntax it
+does not understand**, and that evaluator has its own unit tests in the same file. Loud over clever:
+a future dependency using a range form the evaluator cannot read fails the suite instead of being
+silently skipped.
