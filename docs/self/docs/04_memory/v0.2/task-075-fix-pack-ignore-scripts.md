@@ -105,3 +105,131 @@ by `dl-056` clause B), `release: "v0.2"`. Ratifying decision: `dl-056-first-real
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### design — role: architect
+
+Worktree `/home/robypomper/Workspaces/.wf2-wt/task-075-fix-pack-ignore-scripts`, branch
+`task/task-075-fix-pack-ignore-scripts` from `main` at `a7d783a`. Dependencies installed with a real
+`npm ci --prefer-offline --no-audit --no-fund` (exit 0, 343 entries in `node_modules/`), not a
+symlink to the primary worktree — `bug-043-npm-ci-fails-on-stale-package-lock` is closed and
+`task-073` merged, so the lockfile installs cleanly. Toolchain: node `v22.21.0`, npm `11.6.2`.
+
+Directives auto-loaded (`roles.yaml`): architect — architecture, determinism, traceability; developer
+(later phases) — code-quality, testing, determinism; global — doc-versioning, documentation,
+security-secrets.
+
+**`agent.read_related` (dl-015, HARD gate).** `depends_on: []`, so the task-notes half of the gate is
+vacuous — there is no upstream task whose Execution Notes could defer work here. Read and
+acknowledged instead, as the elements this task is derived from:
+
+- **`dl-056-first-real-publishing-run`** (`ready`), clause B and its approve commit `3655166`. The
+  approver's recorded reason ratifies the **one-argument** fix and rejects the alternative verbatim:
+  "the fix is the one-argument one — `--ignore-scripts`, as test/cli/publish-metadata.test.ts already
+  does — rather than running the gate's tests serially… the serial workaround would hide it only in
+  CI". Same commit: "bug-022's fix must precede the first tag." AC7(a) follows from this, not from a
+  preference of mine.
+- **`bug-022-npm-pack-prepack-rebuilds-dist`** — the defect report; its severity was lifted
+  `low → medium` and `release: "v0.2"` stamped in `cccfa60`, the same commit that took it
+  `open → triaged`.
+- **`dl-045-absorbed-bug-back-reference`** (`ready`), sub-question 2 — see the state-edge note below.
+- **`dl-034-lint-gate-in-dev-loop`** (`ready`), point 6 — the exception that does *not* apply here.
+- **`dl-014`/T1** via the `testing` directive — the classification rule applied below.
+
+**Which bug edges this task drove, and why.** `bug-022` was `triaged` at task start, **not**
+`planned` — `memory.yaml`'s `bug.states.waiting` is `[triaged, planned]`, and `triaged → planned` is
+the edge `release-planning`'s `build-backlog` drives when it schedules a bug into a release. v0.2's
+release-planning had already run when `dl-056` clause B re-graded `bug-022`, so the scheduling act
+happened out of band: it is `cccfa60`, which stamped `release: "v0.2"` and the new severity in one
+commit. That is a real scheduling event, so **`dl-045` sub-question 2 governs — "`planned` is
+required, with no exception… the commit that assigns the bug and stamps its `release:` **is** the
+scheduling act" — and `dl-034` point 6 (which allows skipping `planned`) does **not**, because that
+exception is explicitly limited to bugs "scheduled under this authorisation", where no scheduling act
+had occurred at all. So `start` drove **two** waiting edges in one sync commit,
+`[triaged → planned → in-progress]`, with the out-of-band origin named in the commit body — the shape
+`f16d57d` used for `bug-026`/`task-076` two days earlier.
+
+**`agent.verify_specs`.** No new `tech-spec` is needed; the design gate passes through without an
+approver.
+
+- `grep -rn "ignore-scripts" docs/self/docs/04_memory/design/specs/ docs/02_requirements/` → no
+  output. No approved spec legislates lifecycle scripts in the test suite, which is why the task
+  carries `ref: dl-056-first-real-publishing-run` rather than a `REQ-*`.
+- `spec-015` (`approved`) covers the published manifest (§1) and the pipeline stages (§3–§5); the
+  packed file list this suite asserts is unchanged by this task (measured below), so nothing in
+  `spec-015` is touched or contradicted.
+
+**BDD acceptance scenarios: none exist for this task, and that is a fact, not an omission.**
+`grep -rln "npm pack\|npm install -g\|distribut" docs/02_requirements/02_bdd/features/` → no output;
+`grep -rn "REQ-SYS-09" docs/02_requirements/02_bdd/` → no output. The five pillar directories cover
+P1–P5 command surface only. `test/cli/npm-distribution.test.ts` **is** the executable acceptance test
+for REQ-SYS-09's fit criterion (its own header says so), so the `review` gate's `tests.bdd.passing`
+check reduces here to "that suite, and the full suite, green".
+
+**The race, measured rather than asserted.** `bug-022`'s text names the mechanism; these are the
+commands that settle it, all run in this worktree with `dist/` already built exactly as jest's
+`globalSetup` builds it (`npx tsc -p tsconfig.build.json`).
+
+1. *The pack really does rewrite `dist/`.* `stat -c '%n %Y %i' dist/cli.js dist/core/index.js`,
+   then `npm pack --dry-run --json`, then the same `stat`:
+
+   ```
+   before : dist/cli.js 1789981693 9728190 | dist/core/index.js 1789981693 9728133
+   after  : dist/cli.js 1789981709 9728190 | dist/core/index.js 1789981709 9728133
+   stderr : > wingfoil@0.1.0 build
+            > tsc -p tsconfig.build.json
+   ```
+
+   mtimes move, inodes do not — `tsc` truncates and rewrites in place, so a concurrent reader is not
+   protected by an atomic rename. With `--ignore-scripts` added, the same measurement leaves both
+   mtimes at `1789981709` and prints nothing on stderr.
+
+2. *The window is observable.* A probe (`scratchpad/tear-probe.cjs`) records the final size of all 77
+   `dist/**/*.js`, starts the pack, and polls every 1 ms for any file that is absent or shorter than
+   its final size:
+
+   ```
+   mode=noflag packExit=0 filesWatched=77 samples=8907 anomalies=12
+     core/index.js: final=70428 observed=0
+     validation/secret-scan.js: final=18152 observed=8192
+     storage/index.js: final=6579 observed=0   (+9 more)
+   mode=noflag packExit=0 filesWatched=77 samples=8489 anomalies=9
+   mode=flag   packExit=0 filesWatched=77 samples=1462 anomalies=0
+   ```
+
+   `dist/core/index.js` — required by every `node dist/cli.js` spawn — is observed at **0 bytes**
+   while the pack runs. That is the failure window, and `--ignore-scripts` closes it (0 anomalies).
+
+3. *An end-to-end jest failure did **not** reproduce here, and I am not claiming one.* Two attempts:
+   - 6 × `npx jest --maxWorkers=4` over the six suites that spawn `node dist/cli.js`
+     (`npm-distribution`, `program.integration`, `journey-0a.integration`, `entrypoint`,
+     `core/query-latency`, `core/latency-budget-placement`) → **189/189 passed, 6/6 runs, 0
+     failures**.
+   - A tighter probe (`scratchpad/spawn-race.cjs`) keeping 6 concurrent `node dist/cli.js --version`
+     processes in flight for the whole pack → **374 spawns over 3 runs, 0 failures**.
+
+   So: the corruption window is demonstrated directly (2), but landing a `require()` inside it on
+   this 12-core machine did not happen in ~374 attempts. The honest reading is that the flake is
+   low-probability per run and depends on worker scheduling — which is exactly why it is worth
+   removing rather than waiting to observe in a tagged release, where `publish.yml`'s `gate` job runs
+   `npm run prepublishOnly` → `npm test` (`.github/workflows/publish.yml:105-107`;
+   `grep -n maxWorkers jest.config.js package.json` → no output, so the worker count is the runner's
+   core count). A first probe using `node dist/cli.js paths` was **discarded as invalid**: it fails
+   identically with and without the flag because there is no `.wingfoil/` at the repo root
+   (CLAUDE.md §3), so it measured nothing.
+
+**T1 classification (`dl-014` / `testing` directive).**
+
+| AC | Class | Why | Test |
+|---|---|---|---|
+| 1 — the call carries `--ignore-scripts`, assertions unchanged | **characterization** | the packed manifest is unchanged and already correct; what changes is a side effect on `dist/` that no assertion inside the suite can observe. No red is available without fabricating one. | `test/cli/npm-distribution.test.ts` — `` `npm pack --dry-run --json` includes the compiled dist/ bin + README.md… `` (passes before and after) |
+| 2 — the flag does not hollow out the test | **characterization** (measurement, not code) | evidence, recorded below under `green` | same test + the recorded path-set comparison |
+| 3 — no `npm pack` under `test/` runs lifecycle scripts any more | **red-first** | the *standing property* is new: nothing checked it, which is how this outlier survived three sibling fixes. A guard that cannot fail before the fix would be worthless, and this one does fail. | `test/lint/pack-ignore-scripts.test.ts` (new) |
+| 4 — the reason is written in the suite header | **characterization** (documentation) | prose; asserted by review, not by a runtime check | n/a |
+| 5 — honest classification, no fabricated red | **n/a** (process) | this table plus the reproduction report above | n/a |
+| 6 — gates green | **characterization** | pre-existing gates | recorded under `refactor` |
+
+AC3 is the only genuine red in this task. It is not scope creep: AC3 asks for a standing property
+("**no** `npm pack` under `test/` runs lifecycle scripts **any more**"), and a grep pasted into a
+Markdown file cannot hold that property — the next author who copies the three-argument form gets no
+signal. The guard lives in `test/lint/`, the repo-hygiene home established by
+`test/lint/lint-clean.test.ts` (`dl-034`).
