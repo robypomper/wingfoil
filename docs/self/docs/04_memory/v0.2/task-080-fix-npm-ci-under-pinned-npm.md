@@ -2,7 +2,7 @@
 id: "task-080-fix-npm-ci-under-pinned-npm"
 type: task
 title: "Make the release gate installable under the npm the pipeline pins (npm 10.9.0 / Node 22.12.0)"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "release", "distribution", "dependencies"]
