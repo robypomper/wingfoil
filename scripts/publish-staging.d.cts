@@ -28,6 +28,12 @@ export interface StagingEffects {
   makeWorkDir(): string;
   /** Delete the work dir (teardown). */
   removeWorkDir(dir: string): void;
+  /**
+   * Delete the work dir's `npmrc` — the first step of teardown, so the throwaway `_authToken` is the
+   * shortest-lived artefact of a run rather than the longest (task-083, `bug-059`). Must be a no-op
+   * when the file is not there (teardown runs on paths where no token was ever written).
+   */
+  removeToken(dir: string): void;
   /** Pack the package into `paths.pack`; returns the tarball path. */
   packTarball(paths: StagingPaths, env: NodeJS.ProcessEnv): string;
   /** Install and start Verdaccio; resolves once it answers. */
@@ -54,6 +60,31 @@ export interface StagingOptions {
   readonly effects: StagingEffects;
   /** Environment to derive the staging environment from (defaults to `process.env`). */
   readonly baseEnv?: NodeJS.ProcessEnv;
+  /**
+   * Arm the interrupt handlers (task-083). Omitted — as every offline test omits it — `runStaging`
+   * installs nothing on any process; the real `main()` passes `{ target: process, die: raiseSignal }`.
+   */
+  readonly interrupts?: TeardownHandlerOptions;
+}
+
+/** The part of `process` {@link installTeardownHandlers} uses; faked in tests. */
+export interface SignalTarget {
+  on(signal: string, handler: () => unknown): unknown;
+  removeListener(signal: string, handler: () => unknown): unknown;
+}
+
+/** Options for {@link installTeardownHandlers}. */
+export interface TeardownHandlerOptions {
+  /** The teardown to run before dying. Must be idempotent: the `finally` path may call it too. */
+  readonly teardown?: () => Promise<void>;
+  /** Progress sink; supplied by {@link runStaging} from its effects. */
+  readonly log?: (line: string) => void;
+  /** How to end the process once teardown is done (default: re-raise the signal). */
+  readonly die?: (signal: string) => void | Promise<void>;
+  /** Where the handlers are installed (default: `process`). */
+  readonly target?: SignalTarget;
+  /** Which signals to handle (default: {@link TEARDOWN_SIGNALS}). */
+  readonly signals?: readonly string[];
 }
 
 /** Options for {@link stopProcess}. */
@@ -74,6 +105,8 @@ export const REGISTRY_STOP_TIMEOUT_MS: number;
 export const SIGKILL_GRACE_MS: number;
 /** The Verdaccio package spec installed for staging. */
 export const VERDACCIO_PACKAGE: string;
+/** The catchable signals that run teardown before this script dies (task-083, `bug-059`). */
+export const TEARDOWN_SIGNALS: readonly string[];
 
 /** Work-dir layout for one staging run. */
 export function stagingPaths(root: string): StagingPaths;
@@ -91,3 +124,8 @@ export function parseArgs(argv: readonly string[]): { tarball?: string };
 export function runStaging(options: StagingOptions): Promise<number>;
 /** Stop a child: `SIGTERM`, bounded wait, `SIGKILL` — always resolves (dl-057 item c). */
 export function stopProcess(child: ChildProcess, options?: StopProcessOptions): Promise<void>;
+/**
+ * Run `teardown` on every signal in `signals`, then die *by* that signal; returns the uninstall.
+ * Re-entrant signals are absorbed, and a teardown that throws still exits (task-083, `bug-059`).
+ */
+export function installTeardownHandlers(options: TeardownHandlerOptions): () => void;

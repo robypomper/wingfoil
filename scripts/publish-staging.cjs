@@ -10,7 +10,12 @@
  *      `publishConfig.provenance: true` would otherwise apply, see task-059's handoff);
  *   5. `npm install --global wingfoil@<version>` from staging into a work-dir prefix and cache;
  *   6. run the dl-023 smoke (`scripts/e2e-smoke.cjs`) against the `wingfoil` now on PATH;
- *   7. tear down — stop Verdaccio, delete the work dir — on success and on every failure.
+ *   7. tear down — remove the token, stop Verdaccio, delete the work dir — on success, on every
+ *      failure, and on an interrupt: `SIGINT`, `SIGTERM` or `SIGHUP` delivered to this script runs the
+ *      same teardown and then re-raises the signal, so the run still dies with the conventional
+ *      `128 + N` status (task-083, `bug-059`). The one case NOT covered is `SIGKILL`, which POSIX
+ *      forbids catching: nothing can tear down after it, which is why the token is removed first, so
+ *      the credential is never the thing that outlives the run.
  *
  * The same script runs on a developer machine and in `.github/workflows/publish.yml`'s stage job; that is
  * the point (adr-009: no debugging CI through throwaway commits). It needs network access to npmjs (to
@@ -45,6 +50,23 @@ const REGISTRY_START_TIMEOUT_MS = 60_000;
 const REGISTRY_STOP_TIMEOUT_MS = 10_000;
 /** How long `SIGKILL` gets before {@link stopProcess} resolves regardless (dl-057 item c). */
 const SIGKILL_GRACE_MS = 2_000;
+/**
+ * The signals that must run teardown before this process dies (task-083, `bug-059`). Chosen from what
+ * actually delivers them, not from the list of what exists:
+ *
+ * - `SIGINT` — Ctrl-C, the way a developer ends a run that spends a minute installing Verdaccio, and
+ *   the case `bug-059` measured;
+ * - `SIGTERM` — bare `kill`, `timeout(1)`, `docker stop`, systemd, and the escalation a CI runner uses
+ *   on a cancelled or timed-out step. Handling both means the runner's exact escalation order need not
+ *   be guessed: whichever arrives first, teardown runs;
+ * - `SIGHUP` — a closed terminal or a dropped SSH session, which leaks in exactly the same way with
+ *   nobody present to notice the orphan.
+ *
+ * Deliberately absent: `SIGKILL`, which POSIX forbids catching (see the header — this script does not
+ * claim to cover it); `SIGQUIT`, whose contract is *terminate now and dump core*, so honouring the
+ * non-graceful exit is correct rather than a gap; and `SIGUSR1`, which node reserves for the inspector.
+ */
+const TEARDOWN_SIGNALS = Object.freeze(['SIGINT', 'SIGTERM', 'SIGHUP']);
 
 /** Every file and directory one staging run uses, all under its work dir. */
 function stagingPaths(root) {
@@ -136,12 +158,102 @@ function parseArgs(argv) {
 }
 
 /**
- * The staging flow over injectable effects. Resolves to the process exit code (0 = staged and smoked).
- * Teardown (registry stop, work-dir removal) runs on every path.
+ * Die *by* `signal` rather than translating it into an exit code (task-083 AC3): remove this script's
+ * own handler so the default disposition applies again, then re-send the signal to itself. A caller
+ * then sees the conventional `128 + N` with `WIFSIGNALED` set — 130 for `SIGINT` — indistinguishable
+ * from the un-handled death it already expects, where `process.exit(130)` would report a normal exit
+ * that happens to carry that number and `process.exitCode = 1` would make an interrupt look like a
+ * staging failure.
+ *
+ * The flush is not decoration: `process.stdout.write` is synchronous to a TTY or a file but
+ * **asynchronous to a pipe**, which is what a CI step gives this script, so re-raising immediately
+ * after logging can truncate the very line that says teardown ran.
  */
-async function runStaging({ name, version, tarball, effects, baseEnv = process.env }) {
+async function raiseSignal(signal) {
+  await new Promise((flushed) => process.stdout.write('', flushed));
+  process.removeAllListeners(signal);
+  process.kill(process.pid, signal);
+}
+
+/**
+ * Install `teardown` on every signal in `signals` (task-083, `bug-059`) and return the uninstall.
+ *
+ * Three properties the handler must have, and how each is obtained:
+ *
+ *  - **it must not double-run teardown** — the caller passes a teardown that is itself idempotent
+ *    ({@link runStaging} memoises one promise), so this handler and the `finally` await the same work;
+ *  - **it must not re-enter** — a second signal while teardown is in flight returns the in-flight
+ *    promise and logs one line, rather than racing a second stop-and-delete over the same child and
+ *    the same directory. Impatience buys nothing here: teardown is bounded at {@link
+ *    REGISTRY_STOP_TIMEOUT_MS} + {@link SIGKILL_GRACE_MS} plus one `rm`;
+ *  - **it must always exit** — `die` runs from a `finally`, so a teardown that throws still ends the
+ *    process instead of wedging it with the registry still up.
+ */
+function installTeardownHandlers({ teardown, log, die = raiseSignal, target = process, signals = TEARDOWN_SIGNALS }) {
+  const installed = [];
+  let interrupting;
+  const uninstall = () => {
+    for (const [signal, handler] of installed.splice(0)) target.removeListener(signal, handler);
+  };
+  for (const signal of signals) {
+    const handler = () => {
+      if (interrupting) {
+        log(`${signal} received again — teardown is already running and is bounded; ignoring`);
+        return interrupting;
+      }
+      interrupting = (async () => {
+        log(`interrupted by ${signal} — running teardown`);
+        try {
+          await teardown();
+          log(`teardown complete after ${signal}: registry stopped, work dir removed — exiting on ${signal}`);
+        } catch (error) {
+          log(`teardown after ${signal} FAILED: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+          uninstall();
+          await die(signal);
+        }
+      })();
+      return interrupting;
+    };
+    installed.push([signal, handler]);
+    target.on(signal, handler);
+  }
+  return uninstall;
+}
+
+/**
+ * The staging flow over injectable effects. Resolves to the process exit code (0 = staged and smoked).
+ * Teardown (token removal, registry stop, work-dir removal) runs on every path, including an
+ * interrupt when `interrupts` is given (task-083; `main` gives it, the offline tests do not).
+ */
+async function runStaging({ name, version, tarball, effects, baseEnv = process.env, interrupts }) {
   const workDir = effects.makeWorkDir();
   let registry;
+  let teardownRun;
+  /**
+   * The one teardown, memoised: the `finally` below and a signal handler both call it, and whoever
+   * arrives second awaits the work already in flight instead of starting a second one (task-083 AC6).
+   *
+   * The token goes first, before the registry it authenticates against and before the bulk removal
+   * (AC4). No signal this script handles can leave the work dir behind — the handler above absorbs a
+   * second one rather than exiting early — but `SIGKILL` and a power cut can, and this ordering costs
+   * three lines to make the credential the shortest-lived artefact of a run instead of the longest.
+   */
+  const teardown = () =>
+    (teardownRun ??= (async () => {
+      try {
+        effects.removeToken(workDir);
+      } finally {
+        try {
+          if (registry) await registry.stop();
+        } finally {
+          effects.removeWorkDir(workDir);
+        }
+      }
+    })());
+  const uninstall = interrupts
+    ? installTeardownHandlers({ ...interrupts, teardown, log: effects.log })
+    : undefined;
   try {
     const paths = stagingPaths(workDir);
     const env = stagingEnv(baseEnv, paths);
@@ -162,9 +274,9 @@ async function runStaging({ name, version, tarball, effects, baseEnv = process.e
     return 1;
   } finally {
     try {
-      if (registry) await registry.stop();
+      await teardown();
     } finally {
-      effects.removeWorkDir(workDir);
+      if (uninstall) uninstall();
     }
   }
 }
@@ -221,6 +333,8 @@ function realEffects(repoRoot, log) {
   return {
     makeWorkDir: () => mkdtempSync(join(tmpdir(), 'wingfoil-staging-')),
     removeWorkDir: (dir) => rmSync(dir, { recursive: true, force: true }),
+    // `force` so this is a no-op before `createToken` has run, or after a partial teardown.
+    removeToken: (dir) => rmSync(stagingPaths(dir).userconfig, { force: true }),
     packTarball: (paths, env) => {
       mkdirSync(paths.pack, { recursive: true });
       const out = spawnSync('npm', ['pack', '--json', '--pack-destination', paths.pack], {
@@ -288,6 +402,9 @@ async function main() {
     version,
     tarball: tarball === undefined ? undefined : resolve(tarball),
     effects: realEffects(repoRoot, log),
+    // The real run — and only the real run — arms the interrupt handlers (task-083). The offline
+    // orchestration tests call `runStaging` without this option and so install nothing on `process`.
+    interrupts: { target: process, die: raiseSignal },
   });
 }
 
@@ -307,7 +424,9 @@ module.exports = {
   REGISTRY_STOP_TIMEOUT_MS,
   SIGKILL_GRACE_MS,
   STAGING_REGISTRY,
+  TEARDOWN_SIGNALS,
   VERDACCIO_PACKAGE,
+  installTeardownHandlers,
   stagingPaths,
   verdaccioConfig,
   stagingEnv,

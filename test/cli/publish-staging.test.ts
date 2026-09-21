@@ -332,6 +332,8 @@ describe('publish:staging (task-083) — teardown on SIGINT/SIGTERM/SIGHUP', () 
       let raised: Promise<void> | undefined;
       const interrupted: StagingEffects = {
         ...effects,
+        // The handler logs through the staging log sink, not through a sink of its own.
+        log: signals.log,
         npm: (args, env, paths) => {
           effects.npm(args, env, paths);
           // bug-059's moment: the registry is up and the token is already on disk. The main flow
