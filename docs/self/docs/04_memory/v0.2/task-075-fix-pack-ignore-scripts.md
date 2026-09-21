@@ -233,3 +233,158 @@ AC3 is the only genuine red in this task. It is not scope creep: AC3 asks for a 
 Markdown file cannot hold that property — the next author who copies the three-argument form gets no
 signal. The guard lives in `test/lint/`, the repo-hygiene home established by
 `test/lint/lint-clean.test.ts` (`dl-034`).
+
+### red — role: developer
+
+`test/lint/pack-ignore-scripts.test.ts` (new). It walks `test/**/*.ts` in sorted order, matches
+`execFileSync|spawnSync|execFile|spawn('npm', [ … ])` argument-array literals whose first element is
+`'pack'` or `'publish'`, and asserts every one contains `'--ignore-scripts'`. A companion case asserts
+the scan found ≥ 5 call sites (≥ 4 of them `pack`) and that `cli/npm-distribution.test.ts` is among
+them, so a change of call shape fails the gate instead of quietly making it vacuous.
+
+`npx jest test/lint/pack-ignore-scripts.test.ts` on the pre-fix tree — a real red, naming the
+offender:
+
+```
+● … › runs every one of them with --ignore-scripts, so none rebuilds the shared dist/
+    - Array []
+    + Array [
+    +   "cli/npm-distribution.test.ts: npm pack — ['pack', '--dry-run', '--json']",
+    + ]
+Tests: 1 failed, 1 passed, 2 total
+```
+
+The AC1/AC2/AC4 characterization ACs contributed no red, by design (T1): the pre-existing
+`npm-distribution` assertions pass before and after.
+
+### green — role: developer
+
+Two edits to `test/cli/npm-distribution.test.ts`, both inside the one test file the bug names:
+
+1. `['pack', '--dry-run', '--json']` → `['pack', '--dry-run', '--json', '--ignore-scripts']` (now at
+   `:129` after the header grew). The four assertions are byte-identical — `dist/cli.js` and
+   `README.md` present, nothing under `docs/self/.wingfoil` or `test/`.
+2. The header comment gained a "**Why `npm pack` carries `--ignore-scripts`**" paragraph (AC4),
+   naming `bug-022`, `dl-056` clause B, the measured truncation window and the release-gate exposure —
+   matching what `publish-metadata.test.ts:29` and `license-file.test.ts:16` already do.
+
+`npx jest test/lint/pack-ignore-scripts.test.ts test/cli/npm-distribution.test.ts` → **2 suites, 7
+tests passed**.
+
+**AC2 — the flag does not hollow out the test.** `test/global-setup.cjs` opened and read: it is
+`rmSync(dist)` + `execSync('npx tsc -p tsconfig.build.json')`, run once before the worker pool exists.
+It therefore produces `dist/cli.js` (confirmed by `ls dist/` after running exactly that command:
+`cli.js`, `cli.d.ts`, `cli.js.map` plus the nine module directories); `README.md`, the other asserted
+path, is a committed file and needs no build at all. So the suite's assertions have their inputs
+without `prepack`. Measured rather than assumed — same working tree, `dist/` present, both forms of
+the command, packed path sets compared as sorted arrays:
+
+```
+count no-flag: 311  count flag: 311
+only in NO-FLAG: []   only in FLAG: []
+identical: true
+has dist/cli.js: true | has README.md: true
+any docs/self/.wingfoil: false | any test/: false
+```
+
+The lists are **identical**, so nothing is hollowed out and no alternative guarantee for `dist/` is
+needed beyond the `globalSetup` build the suite already relies on.
+
+**AC3 — re-derived after the fix, not copied from the bug text.**
+
+```
+$ grep -rn "'pack'" test/
+test/core/builtin-directive-templates.test.ts:251:  … ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+test/lint/pack-ignore-scripts.test.ts:41:          const LIFECYCLE_SUBCOMMANDS = ['pack', 'publish'];
+test/lint/pack-ignore-scripts.test.ts:90:          expect(sites.filter((s) => s.subcommand === 'pack')…
+test/cli/publish-metadata.test.ts:86:              … ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+test/cli/license-file.test.ts:102:                … ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+test/cli/npm-distribution.test.ts:129:             … ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+```
+
+Six hits, of which **four** are real `npm pack` call sites (the other two are the new guard's own
+literals) — the count of four the Description predicted, re-derived rather than trusted. All four
+carry the flag.
+
+**The wider sweep the bug text did not do** — every npm invocation in `test/` and `scripts/`:
+
+```
+$ grep -rnE "(execFileSync|spawnSync|execFile|spawn)\('npm'" test/ scripts/
+test/core/builtin-directive-templates.test.ts:251  pack     --ignore-scripts  OK
+test/cli/publish-metadata.test.ts:86               pack     --ignore-scripts  OK
+test/cli/npm-distribution.test.ts:129              pack     --ignore-scripts  OK  (this task)
+test/cli/license-file.test.ts:102                  pack     --ignore-scripts  OK
+scripts/publish-staging.cjs:187                    pack     (none)            --  outside test/
+```
+
+Plus, in `test/`, two matches that a grep for "npm" also surfaces and that run no lifecycle script:
+`test/cli/publish-pipeline.test.ts:92` spawns `npm publish --dry-run --offline --ignore-scripts …`
+(already compliant, and counted by the guard), and `test/cli/publish-secrets.test.ts:90` *writes* a
+fake `npm` shell script into a temp dir rather than calling npm. `test/cli/publish-staging.test.ts`
+asserts against injected fakes. `grep -n "npm" scripts/e2e-smoke.cjs scripts/check-release-tag.cjs`
+→ no output: neither script invokes npm.
+
+So **`test/` is now clean, and exactly one call site outside it still runs lifecycle scripts**:
+`scripts/publish-staging.cjs:187`, `spawnSync('npm', ['pack', '--json', '--pack-destination', …])`.
+It is **not** a second instance of `bug-022` — it runs from `npm run publish:staging`, never under
+jest, so no concurrent worker is reading `dist/`. It is left untouched deliberately: AC7(c) puts the
+publish pipeline out of scope and `task-078-publish-pipeline-hardening` is editing that same script in
+parallel. Reported to the orchestrator as an observation rather than fixed here — see the review
+summary.
+
+### refactor — role: developer
+
+No restructuring step was needed: the change is one argument, one header paragraph and one
+self-contained guard file, and nothing in `src/` moved
+(`git diff --name-only main...HEAD | grep '^src/'` → no output). Gate results are in the review
+summary below.
+
+### review-ready summary — role: reviewer
+
+**What changed.** One argument, one header paragraph, one new guard suite:
+
+| File | Change |
+|---|---|
+| `test/cli/npm-distribution.test.ts` | `--ignore-scripts` added to the `npm pack` argv (`:129`); header gains the "why" paragraph (AC4). Assertions untouched. |
+| `test/lint/pack-ignore-scripts.test.ts` | **new** — repo-hygiene gate holding AC3's standing property, plus a non-vacuity case. |
+| `docs/self/docs/04_memory/v0.2/task-075-…md` | these Execution Notes. |
+| `docs/self/docs/04_memory/bugs/bug-022-…md` | `status` only, via `bug.sync_state`. |
+
+No `src/` file, no `package.json`, no `jest.config.js`, no `.github/workflows/publish.yml`, no
+`scripts/` file — AC7(a)/(b)/(c) all held: no `--runInBand`, no `maxWorkers`, no workflow edit.
+
+**Sync with `main`** (`dl-035` — merge, never rebase): `git merge main` at `ba2cad0` (task-079 +
+the adr-010 cascade) merged cleanly, no conflicts, no overlap with the files above. Re-read after the
+merge: `task-079-spec-015-staging-and-node-floor-corrections` is `backlog` and documentation-only on
+`spec-015`, so the `verify_specs` sentence in the design section (spec-015 covers the manifest and the
+pipeline, and this task touches neither) is still accurate. Gates below were all run **after** the
+merge.
+
+**Gates** (run in the worktree at `e92724d`, node v22.21.0 / npm 11.6.2):
+
+| Command | Result |
+|---|---|
+| `npx jest` | **exit 0** — 101 suites / **1594 tests** passed (was 100 / 1591 on `main`; +1 suite, +3 tests, all mine) |
+| `npx jest --coverage` | **exit 0** — All files **98.54 %** stmts / **92.3 %** branch / **98.76 %** funcs / **99.15 %** lines, threshold 80 met |
+| `npx tsc -p tsconfig.build.json --noEmit` | **exit 0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit 2 — **only** `test/core/directive-create.test.ts(159,19) TS2339`, the pre-existing `bug-026` error owned by `task-076`. Nothing from this branch. |
+| `npm run lint` | **exit 0** (`lint.clean`, `dl-034`) |
+| `npm run docs:api` | **exit 0** |
+
+Coverage is non-regressing by construction, not by comparison alone: no `src/` file changed and the
+new suite imports nothing from `src/`, so the set of production lines executed is identical to
+`main`'s.
+
+**BDD.** No BDD feature covers npm packaging — `grep -rln "npm pack\|npm install -g\|distribut"
+docs/02_requirements/02_bdd/features/` and `grep -rn "REQ-SYS-09" docs/02_requirements/02_bdd/` both
+return nothing. `test/cli/npm-distribution.test.ts` *is* REQ-SYS-09's executable acceptance test, and
+it passes.
+
+**Honest weak spot for the approver.** The end-to-end flake was **not** reproduced: 6/6 clean runs of
+the six `dist/`-spawning suites at `--maxWorkers=4`, and 374 concurrent `node dist/cli.js --version`
+spawns across 3 probe runs, all green. What *is* demonstrated directly is the corruption window the
+flake needs — `dist/core/index.js` observed at 0 bytes mid-pack, 12 and 9 such observations in two
+runs, 0 with the flag (design section, item 2). So the justification here is "the unsafe window is
+real and measured, and it now sits inside the release gate", not "I watched a test fail". A reviewer
+who wants a stronger claim would have to run the suite under artificial CPU pressure; I did not, and
+I am not asserting a result I did not observe.
