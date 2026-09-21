@@ -228,3 +228,64 @@ pinned version — which is entirely offline and deterministic (it reads two fil
 which is exactly the property whose absence produces `bug-056`. It also catches the specific silent
 revert measured under `green` (D1). AC1/AC2 remain proven by recorded `npm ci` runs, not by Jest, and
 AC6 is satisfied because the test never looks at npm's output: it never runs npm.
+
+### red — the reproduction (executable) and the deterministic test
+
+**R1 — AC1/AC2 red: the gate's own command, under the gate's own npm, on `main`.** Cloned `main` into
+the scratchpad, **outside every worktree**, so no symlinked `node_modules` could mask the result
+(`task-073`'s Execution Notes and `bug-043`'s analysis both warn about exactly this):
+
+```
+$ git clone -q --branch main /home/robypomper/Workspaces/WingFoil2 <scratch>/mainclone
+$ cd <scratch>/mainclone && git log --oneline -1
+0cf643f wf(decision-log): approve dl-075-no-bare-line-offsets-in-memory [in-discussion → ready]
+$ node -v && <npm109> --version
+v22.21.0
+10.9.0
+$ <npm109> ci --dry-run --no-audit --no-fund ; echo EXIT=$?
+npm error code EUSAGE
+npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+npm error Missing: @emnapi/core@1.11.3 from lock file
+npm error Missing: @emnapi/runtime@1.11.3 from lock file
+EXIT=1
+```
+
+Reproduced at this branch's base rather than at `bug-056`'s `b505473`, and with the same two missing
+packages — the defect is head-independent. (`node -v` is the host's 22.21.0; the *npm* is 10.9.0, which
+is the variable under test. Node's own version is not implicated: the same bytes pass under 11.6.2 on
+this very Node, which is the asymmetry `bug-056` is about.)
+
+**R2 — the deterministic red: `test/cli/lockfile-peer-overrides.test.ts`.** The AC1/AC2 red above is an
+executable reproduction, not a suite, and by `dl-069` E3 no suite can replace it. What *can* be
+asserted offline is the structural property whose absence produces it. Run in this worktree, before any
+fix:
+
+```
+$ npx jest test/cli/lockfile-peer-overrides.test.ts ; echo EXIT=$?
+● package.json overrides (task-080) — shape › declares at least one override …
+    expect(received).toBeGreaterThan(expected)   Expected: > 0   Received: 0
+● package-lock.json (task-080 AC4) — required peer edges resolve from the lock › hoists every
+  required peer any hoisted package declares
+    - Array []
+    + Array [
+    +   "@napi-rs/wasm-runtime -> @emnapi/core",
+    +   "@napi-rs/wasm-runtime -> @emnapi/runtime",
+    + ]
+Tests: 2 failed, 5 passed, 7 total
+EXIT=1
+```
+
+The failing list is **exactly** the two packages npm 10.9 reports missing, derived independently: the
+test never runs npm and never reads its output (AC6) — it walks the lock's own hoisted entries and
+reports every *required* peer edge with no hoisted entry to resolve from. Peers carrying
+`peerDependenciesMeta.<name>.optional: true` are exempt, and the exemption is measured rather than
+assumed: scanning both locks with that rule shows **11 unhoisted peer edges at `main`, 9 of them
+optional** (jest's `node-notifier` ×4, `eslint -> jiti`, `dedent -> babel-plugin-macros`,
+`jest-config -> esbuild-register`/`ts-node`, `@modelcontextprotocol/sdk -> @cfworker/json-schema`) —
+and the 2 non-optional ones are the `@emnapi` pair. After the fix the same scan reports 9, all
+optional. So the assertion is non-vacuous both ways: it fails today for the two edges that matter and
+would fail again the moment either is dropped from the lock.
+
+The remaining five assertions in that file (`overrides` shape, exact-version pins, lock entry at the
+pinned version, no stale pin) pass vacuously with no `overrides` block present and become load-bearing
+under `green`; they are the durability half, aimed at D1 below.
