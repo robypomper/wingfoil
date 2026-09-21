@@ -155,6 +155,31 @@ Worked example (two separate commits): `wf(release-line): add rl-v1` then `wf(re
 > emit, and what `wingfoil memory history` (P1.10) will read back — so follow it exactly, and keep each
 > operation to its own commit.
 
+### The `Reason:` block — the shape every reason must have
+
+`approve`, `reject` and `deprecate` all record a `Reason:`; `submit` and `add` record none. Its shape is
+**declared**, not free-form (`dl-067-reason-trailer-contract`, `ready`; `spec-008-cli-grammar` §2), and
+the rule is the same whether the commit is written by `wingfoil memory <verb>` or by hand:
+
+- **A reason is a block, and it may span lines.** `Reason:` carries the remainder of its own line plus
+  every following body line, up to (exclusive) the commit's trailing trailer paragraph
+  (`Co-Authored-By:` and friends) or the end of the body. Multi-paragraph reasons are normal here — 79
+  of `main`'s 171 approve/reject commits have one — and `wingfoil memory history` now reads all of it.
+- **It may never be blank.** An empty or whitespace-only reason leaves a bare `Reason:` that no reader
+  can parse; the CLI refuses it at exit `2` on every verb that takes `--reason`, `deprecate` included.
+- **No line of a reason may begin with `Approver:` or `Reason:`.** Such a line is indistinguishable
+  from the trailer itself, and on `deprecate` — which writes no `Approver:` line of its own and
+  performs no authority check — one would make `memory history` report an approval that never
+  happened. Ordinary `Key: value` prose (`Action: amend spec-015 §3`) is fine; only those two keys are
+  reserved.
+- **A reason may not END with a paragraph made entirely of `Key: value` lines**, because a reader
+  cannot tell it from the commit's own trailer block. Add a closing sentence, or fold the lines into
+  prose.
+- **Whitespace is normalized, and that is the contract.** Per-line trailing whitespace is stripped,
+  runs of blank lines collapse to one, leading and trailing blank lines are dropped — this is git's own
+  `cleanup=whitespace`, which `git commit -m` applies regardless, so what a reader gets back is exactly
+  what was declared rather than approximately what was typed. Interior indentation is preserved.
+
 ### `memory.add` — register a new element (draft)
 
 1. Create the file at the path given by the type's `path` pattern (resolved under `docs/self/` — except
@@ -203,8 +228,10 @@ two must appear explicitly in the commit message.
    ```
   - `Approver:` body line — full identity as `Name <email> (role)` so `wingfoil memory history`
     can surface it per **P1.10** even when git author and approver differ.
-  - `Reason:` body line — **mandatory** (`--reason` is a required argument per P1.7 Scenario 2;
-    omitting it is an error).
+  - `Reason:` block — **mandatory** (`--reason` is a required argument per P1.7 Scenario 2; omitting
+    it is an error), and it must have the shape the `Reason:` block section above declares — in
+    particular it may span lines, but may never be blank and may never contain a line beginning
+    `Approver:`.
 4. If an approval ever *does* change an artifact outside Memory, that change belongs in the **same
    commit** — an approval and its side effect must not be separable. Note this has **not yet happened**:
    no `wf(…): approve` commit in this repository's history touches anything outside
@@ -229,9 +256,10 @@ the commit message (the timestamp comes from the git commit itself).
    `open → closed` or `in-review/resolved → in-progress` for `bug` (§5 table). At the same time, set
    the document's `rejection_reason` frontmatter field to the `--reason` text given to the reject
    command — this is in addition to the reason already recorded in the commit body below; the
-   frontmatter copy is a convenience so the reason is visible without walking git history. A later
-   `memory.submit` on this document clears `rejection_reason` again (it reflects only the most recent
-   reject, not a history).
+   frontmatter copy is a convenience so the reason is visible without walking git history, and it
+   carries the **same** text as the `Reason:` block, normalized identically (the two sinks are fed
+   from one rule, so they cannot disagree about what the reason was). A later `memory.submit` on this
+   document clears `rejection_reason` again (it reflects only the most recent reject, not a history).
 2. Commit message format — subject + mandatory body:
    ```
    wf({type}): reject {id1}, {id2} [{old-state} → {new-state}]
@@ -245,7 +273,10 @@ the commit message (the timestamp comes from the git commit itself).
 ### `memory.deprecate` — retire an element
 
 Callable from any state, on any type (§5). Not an approval gate — no `Approver:` line required — but a
-`Reason:` keeps the audit trail meaningful.
+`Reason:` keeps the audit trail meaningful. Precisely **because** this verb writes no `Approver:` line
+and runs no authority check, it is the one where a trailer-shaped reason would forge an approval
+record: the `Reason:` block rules above apply here in full, and a reason that is given must be
+non-blank (`--reason` itself stays optional, `dl-027`).
 
 1. Change **only** the `status` field to `deprecated` — for **every** type, `adr`/`tech-spec`
    included. `deprecated` is a reserved implicit wildcard target, legal from any state and never
