@@ -33,7 +33,7 @@
  * `dist/` is built once by jest's `globalSetup` (bug-003-cli-integration-dist-race) — never rebuilt here.
  */
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { TEMPLATES } from '../../src/storage/templates';
@@ -80,6 +80,30 @@ function statusOf(repo: string, relativePath: string): string {
   return match?.[1] ?? '';
 }
 
+/**
+ * Register the repository's git identity as a `team.members[]` entry holding the `approver` role, the
+ * way a real user configures their project, and commit it (the working-tree-clean invariant below).
+ *
+ * This is **not** a workaround for the bug under test: `wingfoil init` deliberately scaffolds
+ * `team.members: []`, and `memory approve`/`reject` gate on REQ-SEC-03 approval authority
+ * (`requireApprovalAuthority`, `src/core/approval-authority.ts`, adr-006 — authority is a role held by
+ * a `dna.yaml` member matching the live git identity). Without this step those two verbs refuse with
+ * `user not authorized to approve type 'task'` — the verb's OWN rule, applied after the state machine
+ * resolved, which is exactly the boundary AC1 draws ("each verb's own argument requirements still
+ * apply … what must not happen is state-machine resolution failing before the verb's own logic runs").
+ * Granting the role here is what lets the four verbs be driven to completion so the STATE each writes
+ * can be asserted.
+ */
+function grantApproverRole(repo: string): void {
+  const dnaPath = join(repo, '.wingfoil', 'dna.yaml');
+  const scaffolded = readFileSync(dnaPath, 'utf-8');
+  const member = '  members:\n    - name: WingFoil Test\n      email: wf-test@example.invalid\n      roles: [approver]';
+  expect(scaffolded).toContain('  members: []');
+  writeFileSync(dnaPath, scaffolded.replace('  members: []', member), 'utf-8');
+  git(repo, ['add', '.wingfoil/dna.yaml']);
+  git(repo, ['commit', '--quiet', '-m', 'configure approver']);
+}
+
 describe('a freshly `wingfoil init`-ed project runs every Memory transition verb (bug-030, AC1)', () => {
   beforeAll(() => {
     // Built once by test/global-setup.cjs before any worker starts — just assert it is there.
@@ -96,6 +120,7 @@ describe('a freshly `wingfoil init`-ed project runs every Memory transition verb
         repo = makeTempGitRepo();
         const init = wingfoil(repo, 'init', '--template', def.name);
         expect([init.status, init.stderr]).toEqual([0, '']);
+        grantApproverRole(repo);
         const added = wingfoil(repo, 'memory', 'add', '--type', 'task', '--title', 'Smoke task', '--format', 'json');
         expect([added.status, added.stderr]).toEqual([0, '']);
         const value = JSON.parse(added.stdout) as { id: string; path: string };
@@ -118,6 +143,27 @@ describe('a freshly `wingfoil init`-ed project runs every Memory transition verb
         expect(commitCount(repo) - before).toBe(1);
       });
 
+      it('`memory reject --reason` completes on the gate: pending -> draft, in exactly one commit', () => {
+        // `reject` runs before `approve` because the scaffolded machine allows no other order: its one
+        // gate is `pending`, and `approved` is the terminal `sequence` entry with no edge back. (The
+        // rejection reason is also written to the document's `rejection_reason` field by the verb —
+        // asserted below, after the resubmit that clears it again.)
+        const before = commitCount(repo);
+        const run = wingfoil(repo, 'memory', 'reject', documentId, '--reason', 'needs work');
+        expect([run.status, run.stderr]).toEqual([0, '']);
+        expect(statusOf(repo, documentPath)).toBe('draft');
+        expect(readFileSync(join(repo, documentPath), 'utf-8')).toContain('needs work');
+        expect(commitCount(repo) - before).toBe(1);
+      });
+
+      it('`memory submit` again after the rejection: draft -> pending, in exactly one commit', () => {
+        const before = commitCount(repo);
+        const run = wingfoil(repo, 'memory', 'submit', documentId);
+        expect([run.status, run.stderr]).toEqual([0, '']);
+        expect(statusOf(repo, documentPath)).toBe('pending');
+        expect(commitCount(repo) - before).toBe(1);
+      });
+
       it('`memory approve --reason` completes: pending -> approved, in exactly one commit', () => {
         const before = commitCount(repo);
         const run = wingfoil(repo, 'memory', 'approve', documentId, '--reason', 'fresh-init smoke');
@@ -126,22 +172,14 @@ describe('a freshly `wingfoil init`-ed project runs every Memory transition verb
         expect(commitCount(repo) - before).toBe(1);
       });
 
-      it('`memory reject --reason` completes on the gate: pending -> draft, in exactly one commit', () => {
-        // Walk back to the gate state first (`approved` is not a `gates` key), so `reject` is
-        // exercised on the edge the scaffolded machine actually declares.
-        const backToDraft = wingfoil(repo, 'memory', 'reject', documentId, '--reason', 'needs work');
-        expect(backToDraft.status).not.toBe(0); // `approved` is not a gate — refused by the engine, not by resolution
-        expect(backToDraft.stderr).not.toMatch(/REQ-STATE-08/);
-
-        const resubmit = wingfoil(repo, 'memory', 'submit', documentId);
-        expect(resubmit.status).toBe(0);
-        expect(statusOf(repo, documentPath)).toBe('pending');
-
-        const before = commitCount(repo);
-        const run = wingfoil(repo, 'memory', 'reject', documentId, '--reason', 'needs work');
-        expect([run.status, run.stderr]).toEqual([0, '']);
-        expect(statusOf(repo, documentPath)).toBe('draft');
-        expect(commitCount(repo) - before).toBe(1);
+      it('an illegal verb is refused by the ENGINE, not by state-machine resolution', () => {
+        // `approved` is not a `gates` key, so `reject` has no edge from it. The refusal must be the
+        // dl-032 contract message — bug-030's failure would have prevented the verb from ever getting
+        // this far.
+        const run = wingfoil(repo, 'memory', 'reject', documentId, '--reason', 'too late');
+        expect(run.status).toBe(1);
+        expect(run.stderr).toContain("illegal transition approved -> draft for type 'task'");
+        expect(statusOf(repo, documentPath)).toBe('approved');
       });
 
       it('`memory deprecate` completes from any state: -> deprecated, in exactly one commit', () => {
