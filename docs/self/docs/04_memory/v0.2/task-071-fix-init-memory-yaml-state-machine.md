@@ -620,10 +620,15 @@ test/core/memory-approve.test.ts test/core/memory-reject.test.ts test/core/memor
 
 #### `git merge main` before submit (dl-035 — merge, never rebase)
 
-`main` moved four times while this task ran, and was merged each time, never rebased: `7aeeb91` →
+`main` moved five times while this task ran, and was merged each time, never rebased: `7aeeb91` →
 `f304bf7` (`dl-067` ratified) → `bcc66a9` (`task-073`, the lockfile fix) → `a7d783a` (`task-074` /
-`adr-010`, the Node-22 engines floor, plus `dl-068`/`dl-069` and `bug-046..049`). Every merge was
-clean — no conflicts in any of them, and none touched a file this task changed.
+`adr-010`, the Node-22 engines floor, plus `dl-068`/`dl-069` and `bug-046..049`) → `7bb95d6`
+(`docs/adr-010-cascade`: `CLAUDE.md`, the product brief, `docs/self/.wingfoil/dna.yaml`, `dl-001`).
+Every merge was clean — no conflicts in any of them, and none touched a file this task changed. The
+last one is **docs-only** (`git diff --stat a7d783a main` → 4 files, none under `src/` or `test/`), so
+the Gates table's numbers, measured at `a7d783a`, still describe this tree; `npx jest`
+(101 suites / 1627 tests), `npm run lint` (0) and `npx tsc -p tsconfig.build.json --noEmit` (0) were
+re-run after it to confirm.
 
 After the final merge the sources these notes cite were re-opened, not assumed:
 
