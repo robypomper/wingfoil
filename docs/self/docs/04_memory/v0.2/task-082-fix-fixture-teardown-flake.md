@@ -2,7 +2,7 @@
 id: "task-082-fix-fixture-teardown-flake"
 type: task
 title: "Make `removeTempDir` teardown race-proof so `ENOTEMPTY` on a fixture's `.git` can no longer fail a passing test"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "testing", "release"]
