@@ -2,7 +2,7 @@
 id: "bug-056-npm-ci-fails-under-pinned-npm-10-9"
 type: bug
 title: "`npm ci` fails in the release gate under npm 10.9.0 — the npm the pinned NODE_VERSION 22.12.0 bundles"
-status: in-progress
+status: in-review
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
