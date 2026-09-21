@@ -979,3 +979,97 @@ task text:
 
 `bug-023` (`closed`, `task-074` `done`) is no longer a blocker: `publish.yml`'s "must land before a real
 publish" note is satisfied, and the gate ran with `engines.node >= 22.12.0` in place.
+
+### review-ready summary — role: reviewer
+
+**Sync with `main` (dl-035 — merge, never rebase).** `git merge main --no-edit` → `8f7facb`, clean. The
+merge brought `CLAUDE.md`, `docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml`,
+`dl-001` and the new `task-079`. Checked, not assumed, that it invalidates nothing recorded above:
+
+```
+$ git diff --name-only HEAD^1 HEAD -- src test scripts .github package.json package-lock.json
+                                                        # (empty)
+$ git rev-parse HEAD:.github/workflows/publish.yml HEAD:scripts/publish-staging.cjs
+78b96651128708c6ca9bd3be748a40e58d4871b2                # unchanged — the bytes this run tested
+10d21ff09f530ad78a95d2937aa34ed2e371cc21                # unchanged
+```
+
+`dna.yaml` did move, and several suites load it, so **the full gate set was re-run after the merge**:
+
+| Gate (post-merge, at `8f7facb`) | Result |
+|---|---|
+| `npx jest` | exit **0** — 100 suites / 1591 tests |
+| `npx jest --coverage` | exit **0** — All files **98.54 %** / 92.3 % / 98.76 % / 99.15 % (identical to pre-merge; `src/` untouched) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit **2** — only the permitted bug-026 error |
+| `npm run lint` | exit **0** |
+| `npm run docs:api` | exit **0** |
+| `git status --porcelain` | empty |
+
+`task-079` (new, `backlog`) is adjacent but not in conflict: it amends `spec-015` §3 stage 2 to the
+Verdaccio the script actually starts (`dl-052`) — which this run confirms is `verdaccio@6` → **6.10.4**
+installed into a throwaway prefix, not "the official image as a CI service" — and §1's Node caveat.
+Neither amendment is made here.
+
+**What was run, in one place.** Everything in this task is a real execution; nothing is simulated.
+
+| # | Command | Exit | Outcome |
+|---|---|---|---|
+| 1 | `npm run publish:staging` (host) | **0** | 7/7 stages, 18/18 smoke, 113 s |
+| 2 | teardown probes after 1 | — | registry down, work dir gone |
+| 3 | `npm run publish:staging -- --tarball /nonexistent/…` | **1** | failure after registry start → **teardown ran** |
+| 4 | `kill -INT` mid-run | — | **teardown did NOT run** → F1 |
+| 5 | `npm run publish:staging` again, with the orphan alive | **1** | "already in use" → the leak is self-perpetuating |
+| 6 | `act -j gate` (worktree, workflow verbatim) | **1** | `fatal: not a git repository` → F5 |
+| 7 | `act -j gate` (clone at `a7d783a`, workflow verbatim) | **1** | tag + ancestor checks **pass**; `npm ci` fails → **F2** |
+| 8 | `act push` (probe A: `npm ci`→`npm install`) | **1** | 3 suites fail → **F3** (×2), **F4** |
+| 9 | `act push` (probe A + `TZ=Europe/Rome`) | **1** | 1 suite fails → isolates F3 from F4 |
+| 10 | `act push` (probe B: also gate-minus-tests) | **0** | **all three jobs succeed** → AC4, AC5 |
+| 11 | the six dev-loop gates, twice (pre- and post-merge) | — | green both times |
+
+**AC status.** AC1 ✅ · AC2 ✅ (both paths run; the interrupt path *fails*, which is the finding) ·
+AC3 ✅ (`act` installed and run; the honest result is that the gate cannot pass) · AC4 ✅ (handoff
+works, verified by SHA-256) · AC5 ✅ (promote inert, shown by its complete step list) · AC6 ✅ (8
+deviations, 6 proposed as elements) · AC7 ✅ (**not cleared**, with the list) · AC8 ✅
+(`git diff --stat main...HEAD` → this file only, 1 file changed) · AC9 ✅ (twice).
+
+**The headline, stated plainly so it cannot be missed:** *the v0.2 publish pipeline cannot complete a
+release today.* Its first job dies at `npm ci` under the npm its own `NODE_VERSION` pin installs (F2),
+and if that were fixed it would die at `prepublishOnly` on any UTC runner (F3) and in the runner
+container (F4). None of these is visible from a developer machine, from the unit tests, or from
+reading the workflow — only from running it. That is precisely the outcome `dl-056` clause A option 1
+was chosen to buy, and it was bought before a tag existed rather than during a public release.
+
+**Honest limits of this run — what a reviewer should not read into it.**
+
+1. **Three of the four `act` runs used a modified copy of the workflow.** The repository file was never
+   touched; each probe's one-line diff is recorded verbatim, and every *failure* above (F2/F3/F4) came
+   from a run of the **unmodified** workflow or from a probe that changed nothing bearing on that
+   failure. But run 10 — the only one where all three jobs succeed — is **not** the gate as written: it
+   ran `npm install` instead of `npm ci` and `build && lint` instead of the test suite. It proves the
+   *plumbing*, not the gate.
+2. **`act` is not GitHub.** It substitutes `docker cp` for `actions/checkout`, ignores `environment:`
+   (so the approval gate is untested — F7), and does not enforce the artifact digest. Anything this run
+   says about those three is a statement about `act`.
+3. **F3's CI relevance rests on one unverified fact**: git's version on GitHub's own `ubuntu-24.04`
+   image. The failing condition is "UTC runner + git ≥ 2.55"; GitHub runners are UTC, and the image
+   here ships 2.55.0. If GitHub's image ships an older git, F3 does not fire there — worth one command
+   on the first real run.
+4. **The timings are not clean-room.** Warm caches, and other Wave-2 jobs competing for CPU throughout.
+   Use them as lower bounds.
+5. **Nothing was published, pushed or tagged.** `git tag -l | wc -l` → 0 before and after; no `git
+   push` was run; the only network writes were to `http://localhost:4873/` inside a throwaway
+   Verdaccio (and, in run 10, inside a container's own namespace). No npm token was requested,
+   supplied, read or written at any point.
+
+**Proposed elements** (not created here — parallel worktrees would collide on ids; handed to the
+orchestrator): **F1** bug/high (SIGINT leaks Verdaccio + work dir + token, and bricks later runs);
+**F2** bug/high (`npm ci` fails under the pinned Node's npm 10.9 — release blocker); **F3** bug/high
+(two tests assert a `[+-]HH:MM` git offset; git ≥ 2.55 emits `Z` on a UTC runner); **F4** bug/medium
+(`relevance.test.ts` fixture-teardown `ENOTEMPTY` in the runner container); **F5** bug/low (the `act`
+recipe in `publish.yml`'s header cannot work from a git worktree and does not say so); **F6**
+decision-log (the gate asserts "on `origin/main`", i.e. push `main` before tagging — a release
+precondition no document states). **F7** and **F8** are recorded in the notes only, by design.
+Already filed, re-checked, and deliberately **not** re-filed: `bug-022`, `bug-046`, `bug-048`,
+`dl-069`, `dl-068` (whose Action 3 is now done), and the GitHub push-protection allowlisting of the
+`secret-scan.test.ts` fixtures, which the orchestrator reports is being filed separately.
