@@ -2,7 +2,7 @@
 id: "dl-067-reason-trailer-contract"
 type: decision-log
 title: "What `--reason` records against a line-oriented `Approver:`/`Reason:` commit trailer: refuse newlines, escape them, or declare the reason a block"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
