@@ -103,21 +103,23 @@ Branch `task/task-074-fix-engines-node-floor`, worktree
 `/home/robypomper/Workspaces/.wf2-wt/task-074-fix-engines-node-floor`, cut from `main` at `8f2bce8`.
 Task `in-progress` from `start` (`599e4ac`); `bug-023` synced `planned → in-progress` (`230b7d2`).
 
-**Environment deviation — `node_modules` is a symlink, not an `npm ci` install.** `npm ci` is broken
-repo-wide (`bug-043-npm-ci-fails-on-stale-package-lock`, being fixed in parallel by `task-073`), so
-per the orchestrator's instruction this worktree's `node_modules` is a symlink to
-`/home/robypomper/Workspaces/WingFoil2/node_modules`:
+**Environment — symlinked `node_modules` during the first pass, a real `npm ci` after.** `npm ci` was
+broken repo-wide when this task started (`bug-043-npm-ci-fails-on-stale-package-lock`), so per the
+orchestrator's instruction the first pass symlinked this worktree's `node_modules` to
+`/home/robypomper/Workspaces/WingFoil2/node_modules`. That mattered here specifically, because the
+whole task reads the **installed tree**: the tree observed was the one `main` resolved, not one
+re-resolved from `package-lock.json` (fs calls follow symlinks, so the AC3 guard read the same tree
+either way).
+
+**Superseded on the rejection pass.** `task-073` is `done` and merged (`2151946`), so `npm ci` works
+again; the symlink was removed and replaced with a real install before every number below was re-taken:
 
 ```
-$ ln -s /home/robypomper/Workspaces/WingFoil2/node_modules \
-        /home/robypomper/Workspaces/.wf2-wt/task-074-fix-engines-node-floor/node_modules
+$ rm node_modules && npm ci --no-audit --no-fund
+added 500 packages in 9s                                             # exit 0
 ```
 
-This matters for this task specifically, because the whole task reads the **installed tree**. Two
-consequences, both accepted deliberately: (a) the tree observed here is the one `main` resolves today,
-not one re-resolved from `package-lock.json`; (b) `package-lock.json` is **not touched** by this task —
-`task-073` owns it. Relevant fs calls (`existsSync`/`readFileSync`) follow symlinks, so the guard added
-by AC3 reads the same tree either way.
+Every gate figure in the `refactor` table, and the closure counts above, are from that real install.
 
 **`agent.read_related` (`dl-015`, HARD gate) — `depends_on: ["task-059-publish-metadata"]`,
 acknowledged.** Read `docs/self/docs/04_memory/v0.2/task-059-publish-metadata.md` §Execution Notes in
@@ -187,7 +189,7 @@ CI pins a single version.
 Walked the **production** closure only — `dependencies`, transitively, resolved node-style through the
 installed tree. That is the correct scope: `files: ["dist", "README.md"]` means a consumer of
 `wingfoil` installs `dependencies` and nothing else, so `engines` advertises a contract about *that*
-closure. 109 packages; 81 declare an `engines.node`; the binding maximum is:
+closure. 109 packages; **80** declare an `engines.node` (29 declare none); the binding maximum is:
 
 ```
 commander            15.0.0   >=22.12.0     <-- binding
@@ -340,7 +342,7 @@ satisfied" would have shipped still-broken.
 
 **Guard design, and what was deliberately *not* done.**
 
-- **Production closure only** (`dependencies`, transitively — 109 packages, 81 with an
+- **Production closure only** (`dependencies`, transitively — 109 packages, **80** with an
   `engines.node`). `files: ["dist", "README.md"]` means that is exactly what a consumer installs, so
   it is what `engines` makes a promise about. Verified that including devDependencies would be wrong
   *and* immediately red for a reason this task cannot fix: `eslint@10.6.0` / `@eslint/js@10.0.1`
@@ -359,9 +361,10 @@ satisfied" would have shipped still-broken.
 
 ### `green` — role: developer
 
-`package.json:16` `">=18.0.0"` → `">=22.12.0"` — one field, nothing else. `package-lock.json` is
-**not** touched (it carries its own copy of the root `engines` at `:35`; refreshing it belongs to
-`task-073-fix-stale-package-lock` / `bug-043`, and the two must not race — see "Sequencing" below).
+`package.json:16` `">=18.0.0"` → `">=22.12.0"` — one field. `package-lock.json` carries its own copy
+of that block and is refreshed to match on the rejection pass (one line, `npm install
+--package-lock-only`); see "`package-lock.json`'s `engines` mirror" under `refactor` for why that is
+in scope here and why nothing else repairs it.
 
 ```
 $ npx jest test/cli/publish-metadata.test.ts
@@ -396,7 +399,11 @@ and `@eslint/js@10.0.1` declare `^20.19.0 || ^22.13.0 || >=24`, which `22.12.0` 
 pipeline (`task-060`'s ground) and needs a lockfile-aware decision, so the comment now records the gap
 and the defect is proposed as its own element rather than fixed here.
 
-**Gates** (run in this worktree, after `git merge main`):
+**Gates.** Re-run in full on the **rejection pass**, after merging `main` at `bcc66a9` (which brought
+`task-073`'s lockfile fix `2151946`, `dl-067`, and the `dl-063`/`dl-053` doc actions) and against a
+**real `npm ci` install** — not the earlier symlinked `node_modules`. Every figure below is from that
+run; they are unchanged from the pre-merge pass, which is the expected result for a change that
+touches no file under `src/`.
 
 | Command | Result |
 |---|---|
@@ -412,38 +419,79 @@ Coverage is **non-regressing by construction, not just by measurement**: `jest.c
 `src/`** — the diff is `package.json`, `test/`, `.github/`, and Memory documents. The numbers above
 are the measured confirmation.
 
-**Sequencing against `task-073-fix-stale-package-lock`** (the task file asks for this explicitly).
-`task-073` regenerates `package-lock.json`; this task edits `package.json`'s `engines` block, which
-the lockfile mirrors at `:35` (`"node": ">=18.0.0"`). They do not conflict textually — different
-files — but a lockfile regenerated from the *old* `package.json` would re-pin the stale floor. **This
-task landed its `package.json` change first within its own branch; whichever merges to `main` second
-must be the one that re-runs its own check.** Concretely: if `task-073` merges after this, its
-regenerated lock will pick up `>=22.12.0` automatically and nothing is needed; if it merges *before*,
-its lock still carries `>=18.0.0` at `:35` and someone must refresh it. Neither task pins a different
-`commander`, so no dependency resolution changes either way. Flagged for the orchestrator rather than
-resolved here, since this worktree must not touch `package-lock.json`.
+**`package-lock.json`'s `engines` mirror — fixed here, in scope, and the one exception to this
+task's "do not touch the lockfile" boundary.** `package-lock.json` carries its **own copy** of the
+root manifest's `engines` block (`packages[""].engines`). Raising `package.json` to `>=22.12.0` puts
+that copy out of date, and **nothing downstream repairs it** — all four legs measured in this
+worktree, not reasoned about:
+
+| Claim | How it was checked | Result |
+|---|---|---|
+| `task-073`'s lock was already committed at the old floor | `node -p "require('./package-lock.json').packages[''].engines.node"`, on this branch right after merging `main` (`2151946`) | `>=18.0.0` |
+| merging does not re-run npm | `git merge main --no-edit` into this branch | clean merge; lock still `>=18.0.0` while the manifest reads `>=22.12.0` |
+| the two never conflict | that same merge **did** touch `package-lock.json` (task-073's own fix) and reported no conflict — the drift is between *different files*, so no merge machinery can see it | no conflict |
+| `npm ci` neither detects nor repairs it | `npm ci --no-audit --no-fund` with the lock at `>=18.0.0` and the manifest at `>=22.12.0` | **exit 0**, `added 500 packages in 9s`, **zero** `EBADENGINE` lines |
+
+The drift is therefore silent at every stage, and it is caused by *this* change. **An earlier revision
+of these notes said the opposite** — that if `task-073` merged second "its regenerated lock will pick
+up `>=22.12.0` automatically and nothing is needed". That was false, and it was the sentence an
+orchestrator would have acted on. It is corrected here rather than quietly deleted, because the
+failure mode — a lockfile silently contradicting its own manifest — is the same class of defect as
+`bug-023` itself, one file over.
+
+`task-073` is now `done` and merged (`2151946`), so the instruction is unconditional and current:
+refresh the mirror inside this task.
+
+```
+$ npm install --package-lock-only --no-audit --no-fund
+up to date in 1s
+$ git diff --stat package-lock.json
+ package-lock.json | 2 +-     # one line: ">=18.0.0" -> ">=22.12.0" in packages[""].engines
+```
+
+The diff is **exactly the engines mirror** — no `version`, `resolved` or `integrity` field moves,
+because neither task changes a dependency range. Verified afterwards in a **throwaway clone of this
+branch**, so the check is what someone else would get rather than what this worktree happens to hold:
+
+```
+$ git clone --branch task/task-074-fix-engines-node-floor --single-branch <worktree> …/clonecheck
+$ cd …/clonecheck && npm ci --no-audit --no-fund
+added 500 packages in 9s                                             # exit 0; 0 EBADENGINE lines
+$ node -p "require('./package.json').engines.node"                   -> >=22.12.0
+$ node -p "require('./package-lock.json').packages[''].engines.node" -> >=22.12.0
+```
+
+Nothing **asserts** that agreement yet: the AC3 guard checks the *manifest* against the installed
+tree, not the manifest against the lock. Routed as its own element rather than absorbed here.
 
 ### `review-ready summary` — role: reviewer
 
-Merged `main` (`7aeeb91`) into `task/task-074-fix-engines-node-floor` (`dl-035` — merge, never
-rebase). The merge brought `spec-004`, two SARD files, `bug-026` (`open → triaged`) and four new task
-files (`task-075`..`task-078`); **none of the documents this task cites changed**, verified with
-`git diff --name-only 659b42e HEAD | grep -E 'spec-015|dl-047|dl-054|dl-045|dl-015|dl-013|dl-025|bug-022|bug-023|publish.yml|package.json|publish-metadata|adr-005|dl-001|README|dna.yaml|01_product-brief'`
-→ `rc=1`, no output. All gates re-run after the merge, same numbers as the table above.
+Merged `main` twice, never rebased (`dl-035`): first at `7aeeb91` (`spec-004`, two SARD files,
+`bug-026` `open → triaged`, and `task-075`..`task-078`), then on the rejection pass at `bcc66a9`
+(`task-073`'s lockfile fix `2151946`, `dl-067`, the `dl-063`/`dl-053` doc actions). **None of the
+documents this task cites changed in either merge** —
+`git diff --name-only <pre-merge> HEAD | grep -E 'spec-015|dl-047|dl-054|dl-045|dl-015|dl-013|dl-025|bug-022|bug-023|publish.yml|package.json|publish-metadata|adr-005|dl-001|README|dna.yaml|01_product-brief'`
+→ `rc=1` both times. Every gate was re-run after each merge, on a real `npm ci` install the second
+time; the numbers are identical.
 
-**What landed.** `git diff --stat main HEAD` — six files, no source file among them:
+**What landed.** `git diff --stat main HEAD` — seven files, **no file under `src/`**:
 
 ```
-.github/workflows/publish.yml                                     |  14 +-   (header comment only)
-docs/self/docs/04_memory/bugs/bug-023-…md                         |   2 +-   (status sync)
-docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md | 37 +-
-docs/self/docs/04_memory/v0.2/task-074-fix-engines-node-floor.md  | 328 +
-package.json                                                      |   2 +-   (engines.node)
-test/cli/publish-metadata.test.ts                                 | 337 +
+.github/workflows/publish.yml                                          |  14 +-  (header comment only)
+docs/self/docs/04_memory/bugs/bug-023-…md                              |   2 +-  (status sync)
+docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md |  37 +-
+docs/self/docs/04_memory/v0.2/task-074-fix-engines-node-floor.md       | 412 +
+package-lock.json                                                      |   2 +-  (engines mirror only)
+package.json                                                           |   2 +-  (engines.node)
+test/cli/publish-metadata.test.ts                                      | 337 +
 ```
 
-`git diff --name-only main HEAD | grep -E 'package-lock.json|README.md|CLAUDE.md|01_product-brief|adr-005|dl-001|dna.yaml'`
-→ `rc=1`: every out-of-bounds file is genuinely untouched, not just intended to be.
+`package-lock.json` is in that list deliberately, and it is the **one** boundary this task crosses —
+see "`package-lock.json`'s `engines` mirror" under `refactor`: the drift is caused by this change,
+nothing downstream repairs it, and the diff is the single mirrored line. Every *other* out-of-bounds
+file is genuinely untouched, not merely intended to be:
+`git diff --name-only main HEAD | grep -E 'README.md|CLAUDE.md|01_product-brief|adr-005|dl-001|dna.yaml'`
+→ `rc=1`, no output.
 
 **AC-by-AC.**
 
@@ -475,10 +523,11 @@ BDD gate is discharged by the suite this task extends. The behavioural suites we
    advertise satisfies every production dependency — which is exactly the `EBADENGINE` semantics — and
    refuses any `engines.node` that is not a plain `>=x.y.z`. A future compound range would have to
    teach the guard first. Deliberate, documented at `parseNodeFloor`, but it is a narrowing.
-3. **The repository is now knowingly split** between `package.json` (`>=22.12.0`) and the
-   product-level "Node.js 18+" in `adr-005` / the vision / `dna.yaml` / `README.md` / `CLAUDE.md`.
-   That split is the approver's to close (see below); until then, anyone reading only the vision gets
-   the wrong floor.
+3. **The repository is knowingly split** between `package.json` (`>=22.12.0`) and the product-level
+   "Node.js 18+" in `adr-005` / the vision / `dna.yaml` / `README.md` / `CLAUDE.md`. The approver has
+   since decided the floor stays 22.12 and routed the document cascade elsewhere (see below), so the
+   split is now *scheduled* rather than open — but until that cascade lands, anyone reading only the
+   vision still gets the wrong floor.
 4. **Not proven: whether the CLI actually runs on Node 18.** No Node 18 is installed here
    (`node -v` → `v22.21.0`). The static evidence says it probably would; the contract is set to what
    is provable, not to what is likely.
@@ -495,13 +544,69 @@ and an **accepted ADR**:
 - `README.md:115`, `CLAUDE.md:18/:92` — restatements
 
 Per CLAUDE.md §10.1 vision wins over config, and a fix task cannot supersede an accepted ADR, so all
-six are left untouched. Closing the split needs an ADR superseding `adr-005`'s runtime clause (or an
-explicit decision that 18+ was always an aspiration and the manifest is the contract), then the vision
-edit, then `dna.yaml`, then `README.md` through the `user-docs` gate (`dl-013`), then `CLAUDE.md`
-(`dl-025`/`bug-008`). Proposed as elements in the handover rather than filed here — parallel worktrees
-must not mint ids.
+six are left untouched here.
+
+**DECIDED (approver, 2026-09-21, on this task's rejection):** the floor **stays Node 22.12** — the
+measured evidence beats the compatibility claim, since npm only warns by default and Node 18 and 20
+are both EOL. So `package.json`'s `>=22.12.0` is the ratified value, not a provisional one, and the
+document cascade that follows from it — a new ADR superseding `adr-005`, then the vision, `dl-001`,
+`dna.yaml`, `README.md` via `dl-013`, `CLAUDE.md` via `dl-025` — **is being filed separately and is
+not this task's**. Recorded here so a later reader does not mistake the untouched 18+ documents for an
+oversight: they are scheduled, not missed.
 
 **Handover to `task-077-first-real-staging-run`.** Its AC7 lists `bug-023` among the things the v0.2
 `release-publishing` phase is waiting on, citing `publish.yml:45-48`. Those lines now say the opposite
 (the floor is reconciled and guarded), so `task-077` should re-read them rather than copy its own
 planning-time list — which is what its AC7 already instructs.
+
+### `red` → `review` (rejection pass) — role: developer
+
+Rejected by the approver at `ac32276` (`in-review → in-progress`) for **two notes-only corrections**;
+the implementation itself was independently re-verified and explicitly stands. Nothing in
+`package.json`, `test/cli/publish-metadata.test.ts`, `spec-015` or `.github/workflows/publish.yml`'s
+comment was altered on this pass except as listed below.
+
+**1. The Sequencing paragraph was false, and it was the sentence an orchestrator would act on.** It
+claimed that if `task-073` merged after this task, "its regenerated lock will pick up `>=22.12.0`
+automatically and nothing is needed". It will not: `task-073`'s lock was *already committed* at
+`>=18.0.0`, so there is nothing left to regenerate, and none of merge, `merge-tree` or `npm ci`
+notices the disagreement. The paragraph is replaced by
+"`package-lock.json`'s `engines` mirror" under `refactor`, which states the correct instruction
+unconditionally and measures all four legs. **The lockfile refresh is now done inside this task**
+(`npm install --package-lock-only`, one line, verified by `npm ci` in a throwaway clone of this
+branch) — the single exception to the "do not touch `package-lock.json`" boundary, because the drift
+is caused by this change and nothing downstream repairs it.
+
+*Why the original claim was wrong is worth keeping:* it reasoned about what `npm install` **would**
+do to a lockfile it regenerates, and silently carried that over to a lockfile that had **already been
+written**. That is precisely the failure the `claims about file state` rule names — asserting the
+future state of a file instead of running the command that settles it. The replacement paragraph
+leads with the commands.
+
+**2. "81 declare an `engines.node`" was 80.** Re-measured by instrumenting the guard's own walk rather
+than by counting a printed list:
+
+```
+$ node -e "<the guard's productionClosure walk, verbatim>"
+closure packages          : 109
+declaring engines.node    : 80
+no engines.node           : 29
+```
+
+Corrected at both occurrences (`design` → "The floor, computed"; `red` → "Guard design"). The 109
+total and both binding constraints are unchanged and were re-confirmed on this pass. The original 81
+came from eyeballing the earlier ad-hoc probe's output instead of counting it — same class of error as
+(1), one order of magnitude smaller.
+
+**3. Environment and gates re-taken.** `main` merged at `bcc66a9` (bringing `2151946`, `dl-067`,
+`dl-063`/`dl-053`); the symlinked `node_modules` was removed and replaced with a real
+`npm ci --no-audit --no-fund` (exit 0, 500 packages — `bug-043` is closed, so the symlink workaround
+is no longer needed). All six gates re-run against that install: **identical figures**, which is the
+expected result for a change that touches no file under `src/`. The `refactor` gate table now says so
+explicitly.
+
+**Not re-proposed.** The four findings routed at first submit (lock↔manifest `engines` drift being
+unasserted; `spec-015` §1's "must equal" being stricter than the guard's "satisfies"; CI's
+`NODE_VERSION` not satisfying `eslint@10`'s own engines; `@types/node` still pinned `^18`) are being
+filed as their own elements by the orchestrator. They are left recorded in the notes above as
+evidence, not repeated as fresh proposals.
