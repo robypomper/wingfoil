@@ -311,3 +311,84 @@ pin needs to match it before that task is approved — which makes Q2, unlike Q1
 `dl-030-req-sec-07-referenced-asset-ownership`, `dl-066-p3-3-workflow-step-precondition-vacuous`
 (the other half of P3.3's referrer question), `src/core/index.ts:1099-1120`,
 `src/core/directive-assign.ts:2-4`.
+
+## Implementation scheduling (2026-09-21)
+
+Body-only note, recorded by the out-of-band `build-backlog` batch of 2026-09-21. **No frontmatter
+change**: status stays `ready` (the ratification in `4cd1876` stands, and `dl-017` gives `ready` no
+successor), and `release:` stays empty — stamping it is `build-backlog`'s act (`dl-016` §4,
+`dl-045` point 2), and that phase has not run for the release named below.
+
+### 1. The `--force` implementation is scheduled to **v0.3**, not v0.2
+
+The approver scheduled the work this document ratifies — Q1 option 3, with the flag spelled `--force`
+(`4cd1876`) — into **v0.3**. It is deliberately *not* being pulled into v0.2 alongside the four bugs
+scheduled out of band on the same day (`bug-023`, `bug-030`, `bug-042`, `bug-043`, under `dl-034`
+point 4). Those meet that exception's bar — *argue from blocked work, not from convenience* — because
+each is a defect that gates work already in flight. This is new behaviour on a shipped command, gating
+nothing: `directive assign` works today, and `task-056-role-based-directive-assignment`, the one
+remaining prospective consumer identified in the Review addendum, is itself unscheduled.
+
+Placement, concretely: the element stays `ready` with an empty `release:`, which is what
+`release-planning`'s **`build-backlog`** phase selects — "For each in-scope `ready` DL, create the
+task(s) it implies (the DL STAYS `ready` — dl-017)" (`.wingfoil/workflows/custom/release-planning.yaml`).
+Note that `reconcile-governance` is *not* the phase that picks this up: its filter is
+`status: [in-discussion, pending]`, which a `ready` DL does not match. So the handoff is to v0.3's
+`build-backlog`, and the Actions above are its input unchanged.
+
+### 2. The `--force` work must build a success-warning channel, because none exists
+
+Q1 option 3 requires that "the CLI warns on stderr what the rewrite will normalize", and the approve
+commit makes that load-bearing rather than decorative: "the stderr warning enumerating the
+normalizations is not optional decoration: it is the part that makes the flag honest". That needs a way
+for a **successful** operation to carry warnings from core out to the operator — `CoreResult` → CLI
+stderr → MCP Tool result. **There is no such channel today.** Verified on `main` at `91258a7`:
+
+- `grep -rn "warnings" src/core/types.ts src/cli/registrar.ts` → **no output**. `CoreResult`'s success
+  arm is `{ ok: true, value, commit? }` (`coreOk` in `src/core/types.ts`); it has no warnings field.
+- The registrar's success path is `process.stdout.write(renderSuccess(result.value, format))`
+  (`src/cli/registrar.ts`). Nothing on that path writes to stderr; only the failure path emits
+  (`emitError`).
+- The one `warnings` on the surface today is a **payload field of a single operation**, not a channel:
+  `DirectiveListing = { entries, warnings }` (`src/core/directives-list.ts`, from `task-055` /
+  `dl-042`). Being part of the value, it is rendered *into stdout* by `renderSuccess` under every
+  `--format`, which is the opposite of what option 3 asks for.
+
+So the scheduled work includes the channel itself plus its **rendering rule** across
+`--format console|json|yaml`: what goes to stderr, what (if anything) appears in the JSON/YAML payload,
+and how an MCP Tool result carries a warning when there is no stderr at all. `spec-008` §2's
+`--verbose` row is the nearest existing rule — "Emit diagnostic logs to stderr in plain text, even
+under `--format json`/`yaml`. Never alters stdout" — and is the obvious precedent, but it governs
+*opt-in* diagnostics, not an unconditional warning attached to a destructive success; a precedent, not
+an answer.
+
+Two neighbours share this gap and should be closed with it rather than after it:
+`dl-050-execution-context-warnings-reach-no-operator` (`in-discussion`) is the same missing channel for
+directive-resolution warnings, and `dl-051-dangling-directive-binding-warning` (`ready`) ratified a
+warning text that reaches no operator for the same reason.
+
+### 3. Correction — this document's Action naming `spec-008` §2 as the flag's home is wrong
+
+Q1 option 3 above costs "one more flag plus a `spec-008` §2 entry for it". That citation does not hold.
+Verified: `spec-008-cli-grammar` §2 is titled **"Global flags"** and its lead line reads "Accepted by
+every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08". `--force` is ratified for
+`directive assign` only — a command-specific flag — so a table of flags every command accepts is not
+where it belongs.
+
+**Stated honestly, because it complicates the correction rather than settling it:** §2 *already*
+carries a command-specific flag. The `--reason <text>` row in that same table says it is "**Required**
+on approval-gate commands (`memory approve`, `memory reject`); optional elsewhere (e.g.
+`memory deprecate`)" — i.e. not accepted-and-meaningful on every command either. So the precedent for
+putting a per-command flag in §2 exists inside the very section being corrected.
+
+What that means, and the limit of this note: choosing the replacement home is the spec owner's call —
+a new per-command-flag section, or §2 with its lead line corrected to stop claiming universality, or
+something else — and **this note deliberately does not pick one**. What it does settle is that the
+Action must not be executed as written: citing "§2 — Global flags" for `--force` would either mis-state
+the flag as global or lean silently on an existing inconsistency, and whichever way that is resolved
+should be resolved on purpose.
+
+This affects only the flag's placement. The document's other `spec-008` Action — pinning the exact
+CONFLICT message and the ratified `global`-binding refusal wording "alongside the other fixed error
+strings" — is unaffected: §6 fixes the error *format* (REQ-INT-08) and carries no flag table, so where
+those strings land is independent of where `--force` is documented.
