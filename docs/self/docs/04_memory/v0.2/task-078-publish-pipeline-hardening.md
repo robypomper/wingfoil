@@ -272,3 +272,189 @@ breaks the suite; the SHA half is unasserted.
   (`$*`), whereas the env var would need the harness to record the environment as well; and it cannot
   be silently dropped by the `env:` block that carries the secret. `$PWD` is used, not a relative path,
   because the point of the item is to stop depending on how npm resolves a path against its own cwd.
+
+### red — role: developer
+
+Commit `452efe6 test(cli): …`. Two suites widened, no new file.
+
+Observed red — `npx jest test/cli/publish-secrets.test.ts test/cli/publish-staging.test.ts` →
+`Tests: 8 failed, 33 passed, 41 total`. Reasons, per AC:
+
+- AC4/AC5 (c), five cases: `TypeError: (0 , publish_staging_cjs_1.stopProcess) is not a function` —
+  the export does not exist; and `expect(REGISTRY_STOP_TIMEOUT_MS).toBe(10000)` →
+  `Received: undefined`.
+- AC7 (f): "turns tracing off explicitly as its very first command" →
+  `Expected: "set +x" / Received: "if [ -z \"${NPM_TOKEN:-}\" ]; then"`.
+- AC8 (g): "names that .npmrc explicitly on the publish command" →
+  `Expected substring: "--userconfig \"$PWD/.npmrc\""` against the unmodified step body.
+- AC9 (g): the fake-npm case, `--userconfig <abs>/.npmrc` absent from the recorded argv.
+
+Passing at red, by design — the five `carries no <tracing form>` cases (AC6). The step contains no
+tracing today, so these are **characterization**: a red would have to be fabricated. AC6 asks for a
+mutation instead, below.
+
+**AC6 mutation proof.** `set -x` was added to the promote publish step, the tracing cases re-run, and
+the file restored (`git diff --stat .github/workflows/publish.yml` → empty after each). Run at `red`
+and again after the `main` merge (the merge touched no code — `git show --stat 7074786` lists only
+`CLAUDE.md`, `01_product-brief.md`, `dna.yaml`, `dl-001` and the new `task-079` file):
+
+| mutation injected into the step | `npx jest test/cli/publish-secrets.test.ts -t 'carries no'` |
+|---|---|
+| *(none — the committed file)* | `16 skipped, 5 passed` |
+| `set -x` | `1 failed, 16 skipped, 4 passed` |
+| `set -euxo pipefail` | `1 failed, 16 skipped, 4 passed` |
+| `set -o xtrace` | `2 failed, 16 skipped, 3 passed` |
+| `bash -x ./x.sh` | `1 failed, 16 skipped, 4 passed` |
+| `export SHELLOPTS=xtrace` | `2 failed, 16 skipped, 3 passed` (run at `red`) |
+
+The `set -euxo pipefail` row is the reason the pattern is
+`set\s+-[a-zA-Z]*x[a-zA-Z]*(\s|$)` and not `…x\b`: the first draft of the test, written before the
+mutations were run, used `\b` and **missed** `-euxo` — tracing hidden inside a short-option cluster,
+which is how it would most plausibly arrive. Caught by running the mutation rather than by reading the
+regex; the pattern was widened at `red`, before any production edit.
+
+### green — role: developer
+
+Commit `5261607 feat(cli): …`. `npx jest test/cli/publish-secrets.test.ts test/cli/publish-staging.test.ts
+test/cli/publish-pipeline.test.ts` → `Test Suites: 3 passed, Tests: 56 passed`.
+
+- **(a)** eight `uses:` lines rewritten to `@<40-char sha> # <tag>` using the table in `design`.
+- **(c)** `stopProcess(child, {hasExited, timeoutMs, killGraceMs})` added at module level and exported;
+  `startRegistry`'s closure becomes `const stop = () => stopProcess(child, { hasExited: () => exited })`.
+  SIGTERM → `REGISTRY_STOP_TIMEOUT_MS` (10 s) → SIGKILL → `SIGKILL_GRACE_MS` (2 s) → resolve regardless.
+  Both timers are `unref()`ed and cleared when `exit` arrives first, so a healthy stop is as immediate
+  as before (**AC5**). Both call sites are the same function: the start-timeout path
+  (`publish-staging.cjs:218`, `await stop()` before throwing) and `runStaging`'s teardown (`:157`,
+  `await registry.stop()`). They cannot double-stop — when `startRegistry` throws, `registry` is never
+  assigned, so the `finally`'s `if (registry)` is false.
+- **(f)** `set +x` is the step's first command; `NPM_TOKEN` is first named on the line after it.
+- **(g)** `--userconfig "$PWD/.npmrc"` appended to the publish command; the `.npmrc` write, the
+  `trap 'rm -f .npmrc' EXIT` and the unexpanded `${NPM_TOKEN}` reference are byte-identical to before
+  (`git diff main...HEAD -- .github/workflows/publish.yml` shows those three lines unchanged) — **AC8**.
+
+**Reverse mutation for (c) — AC4's "fails if the escalation is removed".** With the `setTimeout`
+escalation block replaced by `void timeoutMs; void killGraceMs;`:
+`npx jest test/cli/publish-staging.test.ts -t 'stopProcess'` → `Tests: 2 failed, 15 skipped, 3 passed`
+("escalates to SIGKILL when the child ignores SIGTERM" and "resolves even for a child that never exits
+at all"). Restored → `15 skipped, 5 passed`.
+
+### refactor — role: developer
+
+Commit `d9753fd refactor(cli): …`.
+
+- `publish.yml` header gains a "Pinned actions and the promote step's shell" section: the two
+  re-resolution commands, the plain statement that nothing enforces the pin, and why the step disables
+  xtrace and names its config file — **AC3** and **AC7** answered where a reader of the pipeline will
+  look, not only here.
+- One shared-config line: `clearTimeout: 'readonly'` added beside the `setTimeout: 'readonly'` already
+  allowed for `scripts/**/*.cjs` in `eslint.config.js`. `npm run lint` fails without it
+  (`scripts/publish-staging.cjs 197:18 error 'clearTimeout' is not defined no-undef`) — that globals
+  list is an explicit allowlist, and `stopProcess` clears its escalation timer when the child exits
+  first. The alternative, leaving stray timers to fire against an already-reaped child, was rejected.
+- One rephrasing forced by an existing assertion: the header names the publish-secrets suite as "the
+  publish-secrets suite under `test/cli/`" rather than by full filename, because
+  `publish-secrets.test.ts:52` scans this file's **raw text** for `/secrets\.[A-Za-z_]+/g` and the
+  filename itself matches `secrets.test`. Writing it out first turned that case red
+  (`Received: ["secrets.test", "secrets.NPM_TOKEN"]`). Noted as a proposed element — the assertion is
+  correct in intent but matches prose, not only workflow expressions.
+
+### review-ready summary — role: developer → reviewer
+
+**Scope delivered: `dl-057` items (a), (c), (f), (g), all ratified option 1 in approve commit `0924712`.**
+
+| Item | What landed | Where |
+|---|---|---|
+| (a) | all 8 `uses:` pinned to a verified full commit SHA + version comment | `.github/workflows/publish.yml` |
+| (c) | `stopProcess`: SIGTERM → 10 s → SIGKILL → 2 s → resolve, always | `scripts/publish-staging.cjs`, `.d.cts` |
+| (f) | `set +x` first; five tracing forms asserted absent, plus no `shell:` override | `publish.yml`, `test/cli/publish-secrets.test.ts` |
+| (g) | `--userconfig "$PWD/.npmrc"`, asserted against the recording fake `npm` | same two files |
+
+**Excluded, on purpose — their absence is not an oversight** (AC12, and the same three items the
+ratification sequences *after* the first real run):
+
+- **(b) `timeout-minutes` on every job** — ratified option 1 is "sized from the first real run
+  (`dl-056`)". That sizing input does not exist yet: `task-077-first-real-staging-run` is producing it
+  while this task runs. Left to v0.3 release-planning with `task-077`'s timings as input. Note (b)
+  would not have helped item (c) anyway: a job timeout is a CI construct and the hang (c) closes is a
+  *local* one, which is exactly the argument the approve commit gives for doing (c) separately.
+- **(d) the annotated-tag requirement** — ratified option **2 for now** (relax `spec-015` §4 to "a
+  `vX.Y.Z` tag"), revisited once a real run shows what `actions/checkout` does with an annotated tag on
+  a tag-push checkout. Neither the check nor the spec amendment is done here; the amendment edits an
+  `approved` tech-spec and needs a dated Revision note (`dl-047`), a separate act.
+- **(e) trusted publishing (OIDC)** — ratified option 1: keep `NPM_TOKEN` for the first publish and
+  revisit after it. A decision to do **nothing now**, recorded so it is not read as forgotten.
+
+**Nothing was published, pushed, tagged, or sent to a registry, and no GitHub setting was touched.**
+Every lookup was a read-only `git ls-remote` / `gh api` GET against public `actions/*` repositories.
+The suite remains offline: the `stopProcess` cases drive `node -e` children that open no socket, and
+the promote-step cases run the real step body against the recording fake `npm` already in place since
+`task-061`.
+
+**Secret-scan self-check (`dl-036`, `spec-007`).** Every file this branch touches, scanned with the
+repository's own `scanText`, after `npm run build`:
+
+```
+node -e "const {scanText}=require('./dist/validation/secret-scan.js'); …"
+.github/workflows/publish.yml                    blocking=0 warn=0 info=
+scripts/publish-staging.cjs                      blocking=0 warn=0 info=
+scripts/publish-staging.d.cts                    blocking=0 warn=0 info=
+test/cli/publish-secrets.test.ts                 blocking=0 warn=0 info=generic-api-key-assignment:placeholder-value
+test/cli/publish-staging.test.ts                 blocking=0 warn=0 info=
+eslint.config.js                                 blocking=0 warn=0 info=
+docs/…/task-078-publish-pipeline-hardening.md    blocking=0 warn=0 info=
+SCAN CLEAN (0 blocking across 7 files)
+```
+
+The single `info` is `task-061`'s pre-existing `FAKE_TOKEN = 'XXXXXXXXXXXXXXXXXXXX'`, exempted as
+`placeholder-value` by `spec-007` §3, not a line this task wrote. No token — real or
+realistic-looking — appears anywhere on the branch.
+
+**AC10 — the token still never reaches disk or a log.** Re-confirmed, not assumed: the three
+pre-existing fake-npm cases still pass unchanged (`publish-secrets.test.ts:122` — the `.npmrc` npm saw
+equals the literal `//registry.npmjs.org/:_authToken=${NPM_TOKEN}` line, not a value; `.npmrc` removed
+after success and after a failing publish). `git diff main...HEAD -- .github/workflows/publish.yml`
+shows the `printf` line untouched. The new `set +x` strengthens the same property on the log side.
+
+**Sync with `main`.** `git merge main` (`7074786`) at `ba2cad0` — clean, no conflicts. It carried
+`CLAUDE.md`, `01_product-brief.md`, `dna.yaml`, `dl-001` and the new `task-079-spec-015-staging-and-
+node-floor-corrections` (`status: backlog`). Re-read after merging: `task-079` amends `spec-015` §1 and
+§3 only (the Node floor caveat and stage 2's Verdaccio description); it does not touch §4 or §5, which
+are the sections these notes cite, and it is documentation-only, so no sentence above went stale. All
+gates were re-run after the merge; the numbers below are the post-merge ones.
+
+**BDD acceptance.** `grep -rln 'publish\|npm' docs/02_requirements/02_bdd/features/` finds no `.feature`
+scenario for the publishing pipeline: `spec-015`/`adr-009`/`REQ-SYS-09` are its contract, as they were
+for `task-059`/`060`/`061`. The asserting suites are `test/cli/publish-secrets.test.ts`,
+`test/cli/publish-staging.test.ts` and `test/cli/publish-pipeline.test.ts`.
+
+**Gates — post-merge, in the worktree** (`/home/robypomper/Workspaces/.wf2-wt/task-078-publish-pipeline-hardening`):
+
+| Command | Result |
+|---|---|
+| `npx jest` | `Test Suites: 100 passed, 100 total · Tests: 1605 passed, 1605 total` |
+| `npx jest --coverage` | `All files 98.54 % stmts · 92.3 % branch · 98.76 % funcs · 99.15 % lines` (≥ 80, non-regressing) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0, no output |
+| `npx tsc --noEmit -p tsconfig.json` | exit 2 — **only** `test/core/directive-create.test.ts(159,19): error TS2339`, the pre-existing `bug-026` error, untouched |
+| `npm run lint` | exit 0 (`lint.clean`) |
+| `npm run docs:api` | exit 0 (`docs.api.*`) |
+
+`npm ci --prefer-offline --no-audit --no-fund` → exit 0 at the start of the run: a real install into a
+fresh worktree, `bug-043` being closed.
+
+**Known weak spots a reviewer should check.**
+
+1. **Nothing enforces the pins** (AC3, stated rather than implied). The SHA and its `# vX.Y.Z` comment
+   can drift apart silently; `ls -A .github/` → `workflows` only, so there is no Dependabot to keep
+   them honest. AC3 forbids adding an enforcement gate here. A reviewer who wants one should file it,
+   not expect it.
+2. **The `set +x` line itself could still be traced** if a future editor sets `SHELLOPTS=xtrace` in the
+   runner environment — bash would echo that one line before disabling tracing. It names no secret, so
+   the exposure is nil, but the guarantee is "nothing after line 1", not "nothing at all".
+3. **`--userconfig` was not exercised against a real npm.** The fake `npm` records the flag; that the
+   flag makes npm read that file is `dl-057`'s locally verified finding (npm 11.6.2), not something this
+   branch re-proved. The first real publish is the check.
+4. **Timing in two `stopProcess` cases.** They drive real child processes with a 250 ms escalation and a
+   30 s one. Neither asserts on a clock — the deaf-child case asserts the exit *signal* is `SIGKILL` and
+   the well-behaved one that it is `SIGTERM`, which is what "did not wait out the interval" means here —
+   but they do spawn processes, so a pathologically loaded machine could in principle flip the first.
+   The two fake-child cases that cover "always resolves" use no real process and no real clock.
