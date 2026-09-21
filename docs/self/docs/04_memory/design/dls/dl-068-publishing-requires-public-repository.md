@@ -115,6 +115,29 @@ should be confirmed against vendor documentation before it is relied on:
 - **npmjs granular access tokens can only select packages that already exist.** Not checkable without
   driving the npmjs web UI as the token owner, which was not done.
 
+**E6 — added 2026-09-21, from `task-077-first-real-staging-run` finding F7: the armed gate of E3 is
+unverifiable by any local means.** `act` ignores a job's `environment:` key entirely. In `task-077`'s
+full `act push` run, `promote` started **straight after `stage`, unapproved** — no reviewer prompt, no
+wait. The key it ignores is the one E3's protection rules hang off:
+
+```
+$ grep -n "environment:" .github/workflows/publish.yml
+162:    environment: npm-publish
+```
+
+So the required-reviewer rule measured in E3 — *the sole human control on publishing*, per `adr-006`
+and `task-061`'s runbook — is armed on GitHub and **cannot be exercised anywhere else**. Every local
+rehearsal route the project has (`act`, `npm run publish:staging`, `npm run prepublishOnly`) runs past
+it without touching it, and `promote`'s own `if: ${{ !env.ACT }}` guard means a local run cannot even
+observe what an unapproved promote would have done. The first time that gate is ever tested is the
+first real `vX.Y.Z` tag push — the one run where a failure is public.
+
+This does not change this DL's decision: E3 already established the rule exists and is armed, and F7
+adds no doubt about that. What it adds is that E3's evidence is the *only* evidence there will be until
+a release happens, and that "consistency, not proof" (E3's own closing words) is therefore a permanent
+state, not a gap the first rehearsal closes. The approver should expect the first tag push to be the
+gate's first exercise and plan for it — including what to do if the reviewer prompt does not appear.
+
 ## Decision
 
 The approver's decision, 2026-09-21: **make the repository public before the first publish** —
@@ -204,7 +227,11 @@ cost, and still forces the `adr-009`/`spec-015` provenance amendment.
 4. **Verify E5's three vendor-policy claims** against npm and GitHub documentation before the first
    publish, and record the outcome here. If the provenance/public-repo premise turns out to be wrong,
    option (b)'s cost drops sharply and this decision is worth re-opening.
-5. **Confirm the `npm-publish` environment's branch policy.** E3 shows
+5. **Plan the first tag push as the approval gate's first exercise** (E6). `act` cannot test
+   `environment:`, so the required-reviewer prompt has never fired. Decide beforehand who watches the
+   run, and what happens if `promote` proceeds without prompting — the failure mode of an ignored
+   `environment:` is a publish, not a halt. Owner: approver.
+6. **Confirm the `npm-publish` environment's branch policy.** E3 shows
    `deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}` and
    `can_admins_bypass: true`. The runbook (step 1) says to "restrict its deployment tags to `v*`";
    whether the custom policy actually contains that pattern was **not** read here. Owner: approver.
@@ -216,6 +243,9 @@ cost, and still forces the `adr-009`/`spec-015` provenance amendment.
   stage 4 (promote with provenance), §5 (config locations & secrets).
 - **Blocks / precedes:** `dl-056-first-real-publishing-run` (`ready`),
   `task-077-first-real-staging-run` (`backlog`), `task-078-publish-pipeline-hardening` (`backlog`).
+- **Informed by:** `task-077-first-real-staging-run` (`done`) finding F7, folded in as E6 above;
+  `dl-074-tag-must-be-on-pushed-main` (`in-discussion`), the other release precondition that surfaced
+  in the same run — Action 3 here is the empty-remote bootstrap, `dl-074` is `main` staying current.
 - **Derives from:** `dl-018-release-publishing-strategy` (`ready`, why publishing was deferred),
   `dl-057-publish-pipeline-hardening` (`ready`), `task-060-publish-pipeline` (`done`, built
   `publish.yml`), `task-061-publish-secrets` (`done`, built the `npm-publish` environment gate and its

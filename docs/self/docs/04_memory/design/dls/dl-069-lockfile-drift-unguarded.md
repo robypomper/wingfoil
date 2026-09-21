@@ -143,6 +143,49 @@ normal work. This ingest deliberately ran a real `npm ci` in a fresh worktree in
 confirming `main` is currently healthy. That is the state this decision wants to keep, not a reason to
 believe it will hold.
 
+### Amendment — 2026-09-21, from `task-077-first-real-staging-run` finding F2 (`bug-056`)
+
+**E6's conclusion is false as stated, and this amendment corrects it.** "`main` is currently healthy"
+holds **only under npm 11.6**, which is the npm that ingest happened to run (`npm 11.6.2`, recorded in
+E1's environment line). Under npm **10.9.0** — the npm Node 22.12.0 bundles, and Node 22.12.0 is what
+`.github/workflows/publish.yml:106` pins in `env.NODE_VERSION` — the same lockfile bytes fail:
+
+```
+$ /…/npm109/node_modules/.bin/npm --version
+10.9.0
+$ /…/npm109/node_modules/.bin/npm ci --dry-run --no-audit --no-fund ; echo EXIT=$?
+npm error code EUSAGE
+npm error Missing: @emnapi/core@1.11.3 from lock file
+npm error Missing: @emnapi/runtime@1.11.3 from lock file
+EXIT=1
+$ npm -v && npm ci --dry-run --no-audit --no-fund >/dev/null 2>&1 ; echo EXIT=$?
+11.6.2
+EXIT=0
+$ curl -sS https://nodejs.org/dist/index.json | node -e '…select v22.12.0…'
+v22.12.0 npm 10.9.0 lts Jod
+```
+
+`task-077-first-real-staging-run` observed the same failure in the real gate, under `act`, on the
+unmodified workflow; it is filed as `bug-056-npm-ci-fails-under-pinned-npm-10-9` (`open`, high, release
+blocker). E1's diagnosis was right and its verdict was wrong: the unlocked `@emnapi` peers are not a
+future risk here, they are a present failure of the release gate.
+
+**Two consequences for the options below**, drawn by the reviewer of `task-077` (approve commit
+`ac10060`) and recorded here rather than acted on — the choice is still the approver's:
+
+1. **Option (b) — the `overrides` pin — is now the only option that actually unblocks the gate.** The
+   Decision text below recommends (a) and calls (b) "a patch on one hole, not a guard". That reasoning
+   stands as *prevention* of the next drift; it no longer describes the present situation, in which one
+   specific hole is holding the release. (b) closes it; (a) cannot, because a CI job only reports a
+   failure it cannot repair.
+2. **Option (a) catches this class only if it runs on `NODE_VERSION` 22.12.0.** A push-triggered job on
+   any other Node — or on a runner whose npm has been upgraded — would have gone green throughout,
+   exactly as every local run did. If (a) is chosen, the job must pin the same `NODE_VERSION` the
+   publish pipeline pins, and that pin is part of the decision, not an implementation detail.
+
+Unchanged by this amendment: S1 (key any guard on `npm ci`'s exit code, never on its message — E4), and
+E3's finding that no offline Jest test can do this job.
+
 ## Decision
 
 Two options are open for guarding lockfile drift. They are presented with a recommendation; the
@@ -226,6 +269,9 @@ is no reason to expect the next drift to arrive through the same package.
 
 ## Relations
 
+- **Corrected by:** `bug-056-npm-ci-fails-under-pinned-npm-10-9` (`open`) and
+  `task-077-first-real-staging-run` (`done`) finding F2 — see the amendment above; fix task
+  `task-080-fix-npm-ci-under-pinned-npm`.
 - **Derives from:** `task-073-fix-stale-package-lock` (`done`) and its review;
   `bug-043-npm-ci-fails-on-stale-package-lock` (`closed` — this instance fixed; its "Suggested fix"
   explicitly deferred the CI pairing this DL takes up).
