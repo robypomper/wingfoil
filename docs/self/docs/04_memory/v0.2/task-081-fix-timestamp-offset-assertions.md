@@ -2,7 +2,7 @@
 id: "task-081-fix-timestamp-offset-assertions"
 type: task
 title: "Accept git's `Z` zero-offset in the two `%aI` timestamp assertions so `prepublishOnly` passes on a UTC runner"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "release", "testing"]
