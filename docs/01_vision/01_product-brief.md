@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.2
-**Date:** 2026-06-23  
+**Version:** 1.3
+**Date:** 2026-09-21  
 **Status:** Approved
 
 ---
@@ -264,7 +264,7 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 
 ## Technical Stack
 
-**Language & Runtime:** TypeScript, Node.js 18+ (npm)  
+**Language & Runtime:** TypeScript, Node.js 22.12+ (npm)  
 **Storage:** Git (local file-backed, YAML + Markdown)  
 **CLI:** Commander.js, chalk for formatting  
 **MCP Server:** Model Context Protocol (stdio transport, Anthropic SDK)  
