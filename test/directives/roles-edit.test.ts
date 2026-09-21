@@ -13,7 +13,7 @@
  */
 import { load } from 'js-yaml';
 
-import { setRoleAssignmentsInText, withAssignedDirectives } from '../../src/directives/roles-edit';
+import { parseDirectiveIds, setRoleAssignmentsInText, withAssignedDirectives } from '../../src/directives/roles-edit';
 
 /** The exact shape `wingfoil init` scaffolds (`rolesYaml()`, src/storage/templates.ts), comments included. */
 const SCAFFOLD = `# Directive role assignments (P3.2/P3.7) — scaffolded by \`wingfoil init\`.
@@ -78,6 +78,44 @@ describe('withAssignedDirectives — assignment set semantics', () => {
     const current = ['a'];
     withAssignedDirectives(current, ['b']);
     expect(current).toEqual(['a']);
+  });
+});
+
+// task-056-role-based-directive-assignment (P3.7, US-4-06) — the `--directive a,b,c` value parser.
+// De-duplication happens HERE, not only in `withAssignedDirectives`, because the parsed list is also
+// what the result payload and the commit subject echo back: `--directive testing,testing` must not
+// produce a subject naming `testing` twice.
+describe('parseDirectiveIds — the comma-separated `--directive` value (P3.7)', () => {
+  it('parses a single id to a one-element list (P3.2 keeps working unchanged)', () => {
+    expect(parseDirectiveIds('testing')).toEqual(['testing']);
+  });
+
+  it('splits on commas, in argument order', () => {
+    expect(parseDirectiveIds('testing,code-quality,security')).toEqual(['testing', 'code-quality', 'security']);
+  });
+
+  it('trims whitespace around every id and around the separators', () => {
+    expect(parseDirectiveIds('  testing , code-quality ,security  ')).toEqual([
+      'testing',
+      'code-quality',
+      'security',
+    ]);
+  });
+
+  it('de-duplicates, keeping the FIRST occurrence position (deterministic echo — REQ-SYS-07)', () => {
+    expect(parseDirectiveIds('testing,code-quality,testing,security,code-quality')).toEqual([
+      'testing',
+      'code-quality',
+      'security',
+    ]);
+  });
+
+  it('drops empty segments rather than producing empty ids', () => {
+    expect(parseDirectiveIds('testing,,security,')).toEqual(['testing', 'security']);
+  });
+
+  it.each(['', '   ', ',', ' , , '])('yields an empty list for a value contributing no ids (%p)', (raw) => {
+    expect(parseDirectiveIds(raw)).toEqual([]);
   });
 });
 
