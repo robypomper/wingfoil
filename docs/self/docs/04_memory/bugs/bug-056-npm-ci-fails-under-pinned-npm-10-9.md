@@ -2,7 +2,7 @@
 id: "bug-056-npm-ci-fails-under-pinned-npm-10-9"
 type: bug
 title: "`npm ci` fails in the release gate under npm 10.9.0 — the npm the pinned NODE_VERSION 22.12.0 bundles"
-status: planned
+status: closed
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
@@ -31,7 +31,8 @@ fixed: the gate is step 1 of the pipeline and it never reaches the tests, the pa
 
 ## Expected Behavior
 
-`spec-015` §3 stage 1 and `publish.yml:98-99` make `npm ci` the gate's first step, and `bug-043` was
+`spec-015` §3 stage 1 and the `gate` job's opening step in `.github/workflows/publish.yml` — the step
+named `Install`, whose `run:` is exactly `npm ci` — make `npm ci` the gate's first step, and `bug-043` was
 closed / `task-073` marked `done` on the premise that the lockfile installs. `npm ci` must therefore
 exit 0 under the npm that the pipeline's own `NODE_VERSION` pin selects.
 
@@ -66,8 +67,10 @@ The failing error text is what `task-077-first-real-staging-run` captured from t
 run against the unmodified workflow (`Missing: @emnapi/core@1.11.3` / `@emnapi/runtime@1.11.3`), so this
 is the gate's failure, reproduced here without `act` at all.
 
-**The npm is chosen by the pin, not by chance.** `.github/workflows/publish.yml:106` declares
-`NODE_VERSION: '22.12.0'`, consumed by all three `setup-node` steps (`:119`, `:151`, `:169`). Which npm
+**The npm is chosen by the pin, not by chance.** `.github/workflows/publish.yml` declares the workflow
+key `env.NODE_VERSION: '22.12.0'`, consumed by all three `actions/setup-node` steps as
+`node-version: ${{ env.NODE_VERSION }}` (verified at `main` `0cf643f`: `grep -n "NODE_VERSION"` returns
+the `env:` key plus three `node-version:` uses). Which npm
 that installs, taken from Node's own release index rather than from report:
 
 ```
