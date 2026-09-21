@@ -164,8 +164,10 @@ describe('CORE_MODULES memory.memoryApprove — P1.7 fit criteria', () => {
     );
     expect(result.commit).toEqual({ sha: head(repo), message });
 
-    // P1.7's ISO-8601 timestamp is git's own, never written into the message (P1.2/P1.10).
-    expect(gitOut(repo, ['log', '-1', '--format=%aI'])).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+    // P1.7's ISO-8601 timestamp is git's own, never written into the message (P1.2/P1.10). The zone
+    // must be explicit, but either legal spelling of it counts: git >= 2.55 renders a zero offset as
+    // `Z` where 2.43 wrote `+00:00`, so demanding `[+-]HH:MM` fails on any UTC runner (bug-057).
+    expect(gitOut(repo, ['log', '-1', '--format=%aI'])).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
   });
 
   it('P1.7 sc.1: the review hand-off gate reaches the literally-named `approved` state (in-review → approved)', async () => {

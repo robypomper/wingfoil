@@ -51,14 +51,16 @@ describe('P1.2 — Every state change records author and timestamp (BDD scenario
     commitPaths(repo, [DOC_PATH], 'wf(task): submit task-101');
 
     // The commit records author identity + an ISO-8601 timestamp (both sourced from git itself, per
-    // `commitPaths`'s doc comment) — audited with 0 "unknown author".
+    // `commitPaths`'s doc comment) — audited with 0 "unknown author". The timestamp's zone must be
+    // explicit, but either legal spelling of it counts: git >= 2.55 renders a zero offset as `Z`
+    // where 2.43 wrote `+00:00`, so demanding `[+-]HH:MM` fails on any UTC runner (bug-057).
     const entries = auditAttribution(repo, [DOC_PATH]);
     expect(entries).toHaveLength(2);
     expect(entries.every((e) => e.valid)).toBe(true);
     for (const entry of entries) {
       expect(entry.authorName).toBe('WingFoil Test');
       expect(entry.authorEmail).toBe('wf-test@example.invalid');
-      expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+      expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
     }
 
     // The commit message references the document id; the new state is derived from the frontmatter
