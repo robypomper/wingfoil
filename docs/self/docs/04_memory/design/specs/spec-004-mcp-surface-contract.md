@@ -216,8 +216,12 @@ and MCP paths identically, since item 2 makes their commit shape one and the sam
   }
 }
 // → success: { "committed": true, "commit": "<sha>", "old_state": "in-review", "new_state": "approved" }
-// → illegal transition: MCP tool-error, message identical to CLI's
-//   "illegal transition: task cannot go from draft to approved"
+// → illegal transition (the same call on a `task` in `draft`): MCP tool-error, message identical
+//   to the CLI's — REQ-STATE-01's pinned string, `dl-032` option (c):
+//   "illegal transition draft -> backlog for type 'task'"
+//   `<to>` is `approve`'s canonical edge on the `task` machine (`pending -> backlog`), not the next
+//   state in `sequence`, per `dl-053-illegal-transition-target-for-verbless-edges`; the engine's
+//   explanation ("not a `gates` state — `approve` is only legal from a gate") rides as the detail.
 ```
 
 ## Consequences
@@ -254,3 +258,17 @@ verb does not have to rediscover it. The decision changes nothing already writte
 format is unchanged, `task-045`'s shipped subject builder already conforms, and no commit message was
 rewritten. Edited in place without a supersede or a state change, per the `spec-001` precedent
 `dl-041` cites.
+
+**Revision (2026-09-21) — §4.3's illegal-transition example carries the ratified message, per
+`dl-053-illegal-transition-target-for-verbless-edges` (and `dl-032`, `bug-032`).** The example ended
+with `illegal transition: task cannot go from draft to approved`, a pre-`dl-032` wording that
+`dl-032`'s implementation (`2cd936f`) never reached — the one MCP-side rendering of the refusal
+contradicted REQ-STATE-01, BDD `P1.6` sc.2 and `P5.2.3` sc.2, while §4.3 item 3 promises the MCP path
+is "rejected identically to the CLI path". It now shows the string the shipped engine emits for that
+example's own call (`approve` on a `task` in `draft`):
+`illegal transition draft -> backlog for type 'task'`, with `<to>` computed as `approve`'s canonical
+edge by `contractTarget` (`src/memory/state-machine.ts`) under `dl-053` option 1 — verified by running
+`resolveTypeTransition` against `docs/self/.wingfoil/memory.yaml`, not transcribed. The spec's contract
+is unchanged: only an illustrative comment moved, and no Tool is registered on the running server yet.
+Edited in place without a supersede or a state change, per the `spec-001` precedent `dl-041` cites; the
+tech-spec template carries no `version:` field, so this dated note is the record (`dl-047`).
