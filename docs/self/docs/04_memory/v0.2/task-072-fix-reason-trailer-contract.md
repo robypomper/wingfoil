@@ -360,3 +360,200 @@ rather than the architect's assumption.
 **Gate state: STOPPED at `design`, awaiting the approver.** No `red` test written, no production code
 touched. `tech-spec.approved` cannot be satisfied until spec-008 §2 is revised and re-approved;
 `frontmatter.required` and `depends_on.acknowledged` are satisfied (see `read_related` above).
+
+#### design, resumed — the decision came back
+
+Ratified as **`dl-067-reason-trailer-contract`** (`ready`; approve commit `f304bf7`, read in full —
+the body carries the ratified wording, not only the option letter). **Option C, the declared block**,
+with S1 and S3–S5 as recommended and **S2 answered "refuse"**: a declared-but-empty `--reason` is a
+usage error on `memory deprecate` too, changing a merged verb's behaviour. dl-067 also ruled on the
+accepted consequence explicitly — the multi-line commits already on `main` start reading back in full
+— so that is implemented and asserted, not treated as a regression.
+
+**Correction carried, with my own re-measurement.** dl-067 found that bug-042's 66/156 and this task's
+own 72/169 both came from an awk measure that stops at the **first blank line**, so both undercount:
+five reasons resume after a blank line. Under the block rule actually implemented the figure is
+**79 of 171** on `main` at `7aeeb91`. Re-measured here with a block-accurate script rather than taken
+on trust (`scratchpad/measure.js`, reproducing the termination rule): **80 of 172** at `f304bf7` and
+**81 of 173** at `bcc66a9` — the count grows because each new approve commit is itself multi-line. All
+three agree; the figure quoted in the code and the specs is dl-067's ratified **79/171**. The worked
+case is `546b76e` (`wf(task): approve task-054-project-directives`), where the old reader keeps
+**64 of 3298** characters — 2% — confirmed independently.
+
+**T1 re-derivation:** the table above was written against option C and stands unchanged. The one
+addition is the `trailing-trailer-paragraph` refusal (see the review summary), classified
+**red-first** — nothing refuses it today because the block reader it protects does not exist today.
+
+### red — role: developer
+
+Commit `c2350e3`. Two new suites plus additions to two existing ones:
+
+- `test/memory/reason-trailer.test.ts` (new) — the grammar itself: `normalizeReason`, `reasonDefect`,
+  `parseReasonBlock` (through `parseCommitReason`), `parseApproverTrailerLine`, the formatter's own
+  refusal, two round trips through a **real `git commit`** (AC6), and the real-history case below.
+- `test/core/reason-trailer-verbs.test.ts` (new) — all four verbs end to end against the real,
+  registered `CORE_MODULES` operations, in throwaway git repos.
+- `test/core/require-reason.test.ts` — the boundary: blank, reserved-trailer-line, normalization, and
+  the new `optionalReason`.
+- `test/memory/audit.test.ts` — clause 6's degradation, and the F3 forged-approver case.
+
+Observed red, for the stated reasons:
+
+```
+$ npx jest test/memory/reason-trailer.test.ts test/core/reason-trailer-verbs.test.ts \
+           test/core/require-reason.test.ts test/memory/audit.test.ts
+Test Suites: 4 failed, 4 total
+Tests:       31 failed, 39 passed, 70 total
+```
+
+Causes, each the defect rather than a missing import: `normalizeReason`/`reasonDefect`/
+`parseReasonBlock`/`parseApproverTrailerLine`/`optionalReason` did not exist; `REASON_LINE_RE` returned
+`'first line'` for a multi-paragraph body; `requireReason({reason: ''})` returned `''` instead of
+throwing; and the F3 case reproduced **bug-042's amendment exactly** —
+`parseApprovalMetadata('Reason: real reason\nApprover: Mallory <mallory@evil.test> (approver)')`
+returned `{approverName: 'Mallory', …, reason: 'real reason'}` on a body with no approver at all.
+
+Two of the 31 turned out to be **test** bugs, both corrected before `green` and both worth recording,
+because each was the implementation telling me something true:
+
+1. `reasonDefect('ratified.\n\nAction: amend spec-015 §3 as a dated Revision note')` returned
+   `trailing-trailer-paragraph`, and it was right to: I had invented that example. The real commit it
+   was drawn from (`58ac6f9`) ends with an `Action:` paragraph whose *second and third lines are
+   ordinary prose*, so it is not a trailer paragraph. The case now quotes the real wrapping. This is
+   why the measured "0 of 172 reason blocks end in an all-trailer paragraph" matters — it is a claim
+   about how approvers actually wrap, not about whether they write `Action:`.
+2. The `memorySubmit` characterization ran against a `pending` document, where `submit` is an illegal
+   transition (a gate state's forward edge needs `approve`) and no message is built at all. Fixed to a
+   `draft` document, so the case actually reaches the formatter it is about.
+
+### green — role: developer
+
+Commit `078a522`. Minimum implementation, in the three owners the task names plus their two barrels:
+
+| Change | Where | dl-067 clause |
+|---|---|---|
+| `normalizeReason` — git's `cleanup=whitespace`, declared | `src/memory/commit-message.ts` | 3 |
+| `reasonDefect` / `reasonDefectMessage` — blank, reserved trailer line, trailing trailer paragraph | same | 4 |
+| `parseReasonBlock` — the block, terminated by git's trailing trailer paragraph or end of body | same | 2 |
+| `parseApproverTrailerLine` — the `Approver:` line is the body's first, or it is not one | same | 5 |
+| `formatMemoryCommitMessage` writes the normalized reason and **throws** on a defective one | same | 5 |
+| `requireReason` maps a defect to `UsageError` (exit 2) and returns the NORMALIZED text; new `optionalReason` for the optional-flag verb | `src/core/require-reason.ts` | 1, 4, S1, S2 |
+| `memoryDeprecateFn` calls `optionalReason` instead of reading `options?.reason` | `src/core/index.ts` (one 4-line block) | 1, S2 |
+| `parseCommitReason` → `parseReasonBlock`; `APPROVER_LINE_RE` loses `/m` and applies to the anchored line; `parseApprovalMetadata` degrades; `ApprovalMetadata.reason` widens to `string \| null` | `src/memory/audit.ts` | 2, 5, 6, S4 |
+
+Design points worth naming:
+
+- **Where the rule lives, and why not only in `requireReason`.** task-041's notes are explicit that
+  `deprecate` never calls that helper. Putting the rule *only* there would have left the one verb
+  bug-042's amendment shows is exploitable untouched. It lives in `commit-message.ts` — consumed by
+  the boundary (`require-reason.ts`, for the exit code), by the writer (the formatter, so no caller can
+  route around the boundary) and by the reader (`audit.ts`) — which is clause 5, and is what
+  `commit-message.ts`'s module doc has claimed for itself since task-045.
+- **No import cycle introduced.** `src/core/require-reason.ts` imports the module file directly
+  (`../memory/commit-message`), the pattern `src/core/index.ts` already uses for `../memory/schema`,
+  not the `../memory` barrel (which pulls `audit.ts`, which imports `../core`).
+- **Normalizing at the boundary, once,** is what makes `memory reject`'s two sinks agree: spec-010
+  makes it the one verb that writes the reason to frontmatter as well as to the commit.
+- **`parseCommitReason` is kept as a thin alias** over `parseReasonBlock` rather than deleted:
+  task-049 split it out for a reason, `memory history` and `reconstructMemoryTransitions` call it, and
+  the alias is where the "one grammar" relationship is documented.
+
+### refactor — role: developer
+
+No structural refactor. The green implementation is already the shape the design chose — one grammar
+module, three thin consumers — with no duplication to remove and no dead code. Skipped the refactor
+commit honestly rather than fabricating one, the same call `task-041` made.
+
+What this phase *did* carry is **dl-067's own Actions 1 and 2**, part of this task's scope
+(commit `7bbe920`):
+
+- **`spec-008-cli-grammar` §2** (`approved`) — the `--reason` row no longer says "Recorded verbatim";
+  it states the block extent and the declared normal form. A second row pins the three
+  unrecordable-value messages and their exit `2`. Two Notes bullets give the normal form and record why
+  "verbatim" went. Amended **in place as a dated Revision note** (2026-09-21) per
+  `dl-047-tech-specs-carry-no-version-field` and the `spec-001` precedent the 2026-09-17 revision
+  cites — no supersede, no state change. spec-008 carries no `version:` field, so the doc-versioning
+  directive's bump does not apply.
+- **CLAUDE.md §5.1** — one shared "The `Reason:` block" section, since `approve`, `reject` and
+  `deprecate` all record one and `submit`/`add` record none; the three per-verb bullets point at it.
+  The `deprecate` section says why the rules bite hardest there. Style follows `e078314`, the earlier
+  §5.1 correction. CLAUDE.md is owned by no workflow gate (`bug-008`, `dl-025`), which is exactly why
+  dl-067 names this Action explicitly.
+
+Gates, run in the worktree after the `main` merge and a clean `npm ci`:
+
+```
+$ npx jest                                 →  102 suites / 1606 tests passed
+$ npx jest --coverage                      →  All files 98.58 stmts / 92.59 branch / 98.80 funcs / 99.17 lines
+$ npx tsc -p tsconfig.build.json --noEmit  →  exit 0
+$ npx tsc --noEmit -p tsconfig.json        →  exit 2, the single pre-existing bug-026 error only
+$ npm run lint                             →  exit 0
+$ npm run docs:api                         →  exit 0
+```
+
+Coverage is **non-regressing**: `main`'s last recorded figures (task-056's approve commit) were
+98.54 / 92.30 / 98.76 / 99.15, and all four are higher here. The two files this task creates or
+rewrites are `commit-message.ts` **100/100/100/100** and `require-reason.ts` **100/100/100/100**;
+`audit.ts` is 97.10 stmts / 61.76 branch / 100 funcs / 100 lines — its branch figure is up from the
+62.16 task-049 recorded against a smaller file, and the uncovered rows (`106`, `186-245`, `320`) are
+the pre-existing `auditAttribution` and rename-edge paths, not anything added here.
+
+### review-ready summary
+
+**In one sentence:** `--reason` now has a declared contract against the commit trailer — a reason is a
+block that may span lines, may never be blank, may never carry an `Approver:`/`Reason:` line, and is
+recorded in git's own normal form — enforced once, in `src/memory/commit-message.ts`, and consumed by
+the CLI boundary, the writer and the reader alike.
+
+| AC | Where it is satisfied |
+|---|---|
+| 1 — spec decision first, by the approver | `dl-067` (`ready`, `f304bf7`). Design stopped and reported; no code was written before it came back. |
+| 2 — blank/whitespace refused, nothing written | `reason-trailer-verbs.test.ts` "`--reason \"\"` is a usage error at exit 2…" and "a whitespace-only `--reason` is refused the same way", each an `it.each` over approve/reject/deprecate, asserting the exit code, an unchanged `HEAD`, a byte-identical document and a clean `git status`. |
+| 3 — a recorded reason reads back identically | `reason-trailer.test.ts` "a multi-paragraph reason survives git and reads back identically to the declared normal form" (through a real `git commit`), plus the per-verb round trips. |
+| 4 — no second trailer line, any verb | `reason-trailer-verbs.test.ts` "a reason carrying a forged `Approver:` line is refused" (three verbs), "memorySubmit passes no reason at all…" (characterization), and — asserting on `reconstructMemoryTransitions`, as the AC demands — "the forged `Approver:` line is not first, so it is not an approver". |
+| 5 — damaged trailer degrades | `audit.test.ts` "degrades to approver + `reason: null`…" and "…for the bare `Reason:` git cleanup leaves behind". **What `memory history` reports for such a commit:** the real approver, and `reason: null` — inside task-049's pinned contract (both keys always present, `null` where nothing was recorded, nothing invented). **No commit on `main` reads differently for it**: there is none with a bare `Reason:` and none missing a trailer line (dl-067 E6, re-verified). |
+| 6 — at least one real `git commit` | Two: the round trip above, and "a hand-written `Reason: ` still collapses to a bare `Reason:`", which exercises the git cleanup bug-042 identified as invisible to a formatter-only test. |
+| 7 — writer and reader cannot drift | The grammar has one home and three consumers; `reason-trailer.test.ts` asserts the formatter refuses exactly what the boundary refuses, and `audit.test.ts`'s pre-existing "one shared parse, not two" case still holds. |
+| 8 — one fix, four verbs | Every refusal case is an `it.each` over the three verbs that take a reason, plus the `submit` characterization. Not split. |
+| 9 — not `bug-024` | Not absorbed, not in `bug:`, no AC taken. The work never reached commander's parse layer: `bug-024` is `--reason` with **no value**, failing before any core code runs; everything here is a `--reason` that *is* supplied and reaches the trailer. |
+| 10 — gates | Above. |
+
+**BDD acceptance scenarios.** This task changes no scenario's outcome — it constrains an input those
+scenarios do not exercise — so the contract is that they keep passing, and they do:
+`P1.7-memory-approve.feature` sc.1–3 → `test/core/memory-approve.test.ts` (including
+"Error - approving without a reason", whose exact `missing required argument: --reason` string this
+task deliberately did **not** reuse for the new refusals, per dl-067 S1);
+`P1.8-memory-reject.feature` sc.1–3 → `test/core/memory-reject.test.ts`;
+`P1.9-memory-deprecate.feature` sc.1–3 → `test/core/memory-deprecate.test.ts`, whose
+"`--reason` is OPTIONAL — omitting it exits 0" case is untouched (dl-067 S2 refuses an *empty* reason,
+never an absent one).
+
+**Two behaviour changes to look at deliberately, neither of them silent:**
+
+1. **`memory deprecate` with `--reason ""` now exits 2 where it exited 0** (dl-067 S2, ratified). A
+   merged verb's behaviour changed; nothing pinned the old one.
+2. **One pre-existing case was amended, not weakened** — `test/core/memory-reject.test.ts`'s
+   "an arbitrary reason round-trips YAML-safely…". It asserted that `rejection_reason` kept a trailing
+   space the commit body did not (it applied `.trimEnd()` on the body side), and so it *pinned* the
+   divergence between this verb's two sinks. Both now carry the same bytes. The YAML-safety property
+   the case exists for is unchanged and still asserted.
+
+**The one extension beyond dl-067's literal text, for the approver to ratify or strike.** dl-067
+clause 4 refuses exactly two things: a blank reason, and a line beginning `Approver:`/`Reason:`. I
+added a third, `trailing-trailer-paragraph`: a reason whose **final paragraph consists entirely of
+`Key: value` lines** is refused, because `parseReasonBlock` would read that paragraph as git's own
+trailer block and drop it — making clause 3's round-trip equality false for that one input shape, i.e.
+exactly the "silent half" AC3 forbids. It is held to the same evidentiary standard clause 4 was:
+measured over `main`'s 172 approve/reject commits, **0** reason blocks end in such a paragraph, so it
+is compatible with 100% of the corpus. The cost is real but narrow — a reason ending in a lone
+`Action: amend spec-008` line would be refused, and its author would add a closing sentence. The
+alternative is to accept that one shape round-trips lossily and say so in spec-008; either way it
+should be a choice, not a leak.
+
+**Known weak spot.** `reason-trailer.test.ts`'s last case reads a real commit from **this**
+repository's history (located by subject, not sha, so it survives a rewrite) and asserts the exact
+figures 64 and 3298. It is the only test in the suite that depends on the repository's own history —
+which is what was asked for, since it pins the accepted consequence against reality rather than a
+fixture — but a history rewrite that edited that commit's *message* would fail it, and the failure
+would look like a code regression. The `throw` on "expected exactly one commit with subject …" is
+there so a missing commit fails loudly rather than skipping into a vacuous pass (`task-076`'s concern).
