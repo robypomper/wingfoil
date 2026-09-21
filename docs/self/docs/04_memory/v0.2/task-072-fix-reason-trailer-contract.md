@@ -2,7 +2,7 @@
 id: "task-072-fix-reason-trailer-contract"
 type: task
 title: "Fix bug-042: give `--reason` a declared contract against the single-line `Approver:`/`Reason:` commit trailer"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "memory", "audit", "security"]
