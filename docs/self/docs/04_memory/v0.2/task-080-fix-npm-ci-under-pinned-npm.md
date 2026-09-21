@@ -48,8 +48,8 @@ task moves to `in-progress`** — see Implementation Notes.
 3. **AC3 — no regression under the developer npm.** `npm ci --dry-run --no-audit --no-fund` under npm
    11.6.2 still exits 0.
 4. **AC4 — the peers are in the lock.** `grep -n '"node_modules/@emnapi' package-lock.json` lists
-   hoisted entries for **both** `@emnapi/core` and `@emnapi/runtime` (today it lists only
-   `@emnapi/wasi-threads`, at `:565`).
+   hoisted entries for **both** `@emnapi/core` and `@emnapi/runtime` (at `main` `0cf643f` that grep
+   returns a single line, for `"node_modules/@emnapi/wasi-threads"`).
 5. **AC5 — the pinned versions are recorded and justified** in `package.json`, with a comment or an
    Execution-Notes entry naming why an `overrides` block points at a dev-only, optional, transitive
    dependency of `eslint`'s resolver chain — `dl-069` option (b)'s stated cost is precisely that a
@@ -81,8 +81,8 @@ task moves to `in-progress`** — see Implementation Notes.
 
 1. That Node 22.12.0 still bundles npm 10.9.0 — `curl -sS https://nodejs.org/dist/index.json` and read
    the `v22.12.0` row. The pin's npm is the whole premise.
-2. That `.github/workflows/publish.yml` still pins `NODE_VERSION: '22.12.0'` (today `:106`, consumed at
-   `:119`, `:151`, `:169`).
+2. That `.github/workflows/publish.yml` still carries the workflow key `env.NODE_VERSION: '22.12.0'`,
+   consumed by all three `actions/setup-node` steps as `node-version: ${{ env.NODE_VERSION }}`.
 3. The current hoisted `@emnapi` entries in `package-lock.json` (`grep -n '"node_modules/@emnapi'`).
 4. That the failure still reproduces **before** the fix — a red-first AC1 run under npm 10.9.0 — so the
    fix is shown to cause the green, not merely to coexist with it.
@@ -458,3 +458,23 @@ $ grep -rn "npm error\|EUSAGE\|Missing:" test/ src/ scripts/ .github/
 The test reads `package.json` and `package-lock.json` and never invokes npm at all, so there is no
 output for it to key on. `.github/` is untouched by this branch, so the gate's own steps are unchanged:
 the workflow still runs `npm ci` and still fails on its exit code alone (`dl-069` S1).
+
+### dl-075 fix-on-touch — citations converted, meaning unchanged
+
+`dl-075-no-bare-line-offsets-in-memory` is `ready` (approved at `0cf643f`, this branch's base) and its
+disposition is *fix on touch*. Both documents this task edits carried bare `path:line` offsets in
+**durable** positions, so they were converted in the same change. Nothing else in the sentences moved,
+and no code block was touched — a recorded command's output is an honest record of what was read, which
+`dl-075` keeps legal:
+
+| Document | Position | Was | Now |
+|---|---|---|---|
+| this task, AC4 | acceptance criterion | "today it lists only `@emnapi/wasi-threads`, at `:565`" | "at `main` `0cf643f` that grep returns a single line, for `"node_modules/@emnapi/wasi-threads"`" |
+| this task, "Must be re-verified" item 2 | instruction | "still pins `NODE_VERSION: '22.12.0'` (today `:106`, consumed at `:119`, `:151`, `:169`)" | the YAML key path `env.NODE_VERSION` plus the three `node-version: ${{ env.NODE_VERSION }}` uses |
+| `bug-056`, Expected Behavior | durable claim | "`publish.yml:98-99` make `npm ci` the gate's first step" | the `gate` job's step **named `Install`**, whose `run:` is `npm ci` |
+| `bug-056`, Actual Behavior (prose) | durable claim | "`publish.yml:106` declares `NODE_VERSION`… (`:119`, `:151`, `:169`)" | the `env.NODE_VERSION` key and the three `setup-node` `node-version:` uses, with the commit they were read at |
+
+The AC4 edit is a citation change only: the criterion still demands hoisted entries for both peers, and
+the parenthesis still records that exactly one hoisted `@emnapi` entry existed before the fix. Flagged
+here rather than left silent because editing a task's own acceptance criteria mid-flight deserves to be
+visible to the reviewer.
