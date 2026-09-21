@@ -109,3 +109,201 @@ contract the broken pipeline serves.
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### design — role: architect
+
+Branch `task/task-073-fix-stale-package-lock`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-073-fix-stale-package-lock`, created from `main` at `8f2bce8`.
+Environment for every command below: `node v22.21.0`, `npm 11.6.2`, Linux — the same pair bug-043
+reports, so the reproduction is like-for-like.
+
+**`agent.read_related` (dl-015, HARD gate).** `depends_on: []` — no predecessor task's Execution Notes to
+acknowledge. Verified, not assumed:
+`grep -n '^depends_on:' docs/self/docs/04_memory/v0.2/task-073-fix-stale-package-lock.md` → `depends_on: []`.
+The related elements named in the task/bug (`adr-009`, `spec-015`, `dl-056`, `dl-023`, `bug-022`) were read
+directly; their bearing is recorded under *Scope boundaries* below.
+
+**`agent.verify_specs`.** No new `tech-spec` needed. This task changes one build artefact
+(`package-lock.json`) to match a contract that is already specified:
+`spec-015-packaging-publishing` §2/§3 (the gate is "`npm ci`, then `prepublishOnly` … +
+`npm publish --dry-run`") and `REQ-SYS-09` (distribution as an installable npm package). `REQ-SYS-09`
+itself states there is **no behavioural BDD feature** for it —
+`docs/02_requirements/03_sard/01_architecture.md:101-102`: "distribution requirement with no behavioral BDD
+feature; verified directly against the npm-publish acceptance test". So the dev-loop `review` BDD gate has
+no scenario to run for this task; the acceptance evidence is the recorded `npm ci` exit code plus the
+existing packaging suites (`test/cli/npm-distribution.test.ts`, `test/cli/publish-pipeline.test.ts`),
+which run green in the proof tree below.
+
+**T1 acceptance-criterion classification (dl-014 / testing directive).**
+
+| AC | Class | Evidence / test |
+|---|---|---|
+| AC1 — `npm ci` exits 0 in a throwaway clone | **red-first**, but the red is an *executable reproduction*, not a Jest test (see "Why no Jest test" below) | `npm ci` in a clone of `main` → exit **1** (recorded below); the same command in a clone of this branch → exit **0** |
+| AC2 — refresh is its own commit, only `package-lock.json` | characterization | `git show --stat 0f54871` → exactly one file, `3 insertions(+), 3 deletions(-)` |
+| AC3 — lock diff characterized; no direct dependency moves | characterization | scripted `packages{}` diff of the before/after lock + a re-derived direct-dependency comparison (both below) |
+| AC4 — the predicted gap is closed, or the real outcome reported | characterization | `grep -n '"node_modules/@emnapi' package-lock.json` + `npm ls @emnapi/wasi-threads --all` on the refreshed tree — **the prediction is falsified**; see below |
+| AC5 — the refreshed tree is still green | characterization | full gate set re-run **inside the `npm ci` clone of this branch**, not in the warm worktree |
+| AC6 — no product code changes | characterization | `git diff --stat main...HEAD -- src` → empty |
+| AC7 — CI `npm ci` guard stays out of scope | characterization (nothing built) | filed as a proposed element for the orchestrator instead (below) |
+
+**Why no Jest test is added.** A Jest assertion that "the lock is self-consistent" can only be written by
+shelling out to `npm ci` / `npm install --dry-run`, which computes an ideal tree and therefore contacts the
+registry — it would be non-deterministic and network-dependent, which the `testing` directive ("tests are
+deterministic and isolated; no reliance on external services") and the `determinism` directive both forbid.
+The purely offline alternatives were considered and rejected on evidence, not taste: an "every lock entry is
+reachable from the root graph" check would fail **both before and after** the fix, because the offending
+entry is an orphan in either case (`npm ls @emnapi/wasi-threads --all` reports it `extraneous` on the
+*refreshed* tree too). The honest coverage for this defect is a CI job that runs `npm ci` on push — which
+AC7 puts out of scope because it edits `.github/workflows/publish.yml`, owned by `task-060`. Filed as a
+proposed element rather than built here. Per the testing directive: no fabricated red, no dead code.
+
+**Scope boundaries held.** `package.json` untouched — its `engines.node` floor belongs to `task-074`,
+running in parallel; `.github/workflows/publish.yml` untouched — owned by `task-060`; `bug-026` untouched.
+
+### red — the reproduction (executable, not a Jest suite)
+
+Cloned `main` into a throwaway directory **outside every worktree** (the scratchpad), so no symlinked
+`node_modules` could mask the failure:
+
+```
+$ git clone -q --branch main /home/robypomper/Workspaces/WingFoil2 mainclone && cd mainclone
+$ git log --oneline -1
+8f2bce8 wf(decision-log): approve dl-063-p1-8-reject-message-and-authority-trace [in-discussion → ready]
+$ node -v && npm -v
+v22.21.0
+11.6.2
+$ npm ci
+npm error code EUSAGE
+npm error `npm ci` can only install packages when your package.json and package-lock.json or
+npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+npm error Invalid: lock file's @emnapi/wasi-threads@1.2.2 does not satisfy @emnapi/wasi-threads@1.2.3
+$ npm ci >/dev/null 2>&1; echo "REAL_EXIT=$?"
+REAL_EXIT=1
+```
+
+Reproduced verbatim, at `main`'s current head rather than the `b7e39f9`/`91258a7` heads the bug and the task
+description recorded — the defect is head-independent, exactly as bug-043 argued.
+
+### green — the lock refresh (`0f54871`)
+
+Plain `npm install`, no argument, no `package.json` edit, run in the worktree:
+
+```
+$ npm install --no-audit --no-fund
+added 500 packages in 9s          # exit 0
+$ git status --porcelain
+ M package-lock.json
+```
+
+**The whole diff** (`git show --stat 0f54871` → `package-lock.json | 6 +++---`, 1 file changed):
+
+```
+ "node_modules/@emnapi/wasi-threads": {
+-  "version": "1.2.2",
+-  "resolved": ".../wasi-threads-1.2.2.tgz",
+-  "integrity": "sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==",
++  "version": "1.2.3",
++  "resolved": ".../wasi-threads-1.2.3.tgz",
++  "integrity": "sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g==",
+   "dev": true, "license": "MIT", "optional": true,
+```
+
+**AC3 — what moved, exhaustively.** Machine-diffed the two lock files' `packages{}` maps entry by entry
+(`node lockdiff.cjs <before> <after>`, comparing `version`/`resolved` and flagging any other field change):
+
+```
+ADDED (0):
+REMOVED (0):
+VERSION/RESOLVED CHANGED (1):
+  ~ node_modules/@emnapi/wasi-threads: 1.2.2 -> 1.2.3
+OTHER FIELD CHANGES (0):
+```
+
+(a) **The drifted chain:** that single entry — dev, optional, transitive. (b) **Anything else: nothing.** No
+package was added or removed, no other entry's `version`, `resolved` or any other field changed, and
+`lockfileVersion` stays `3`.
+
+Direct dependencies re-derived from `package.json` at execution time (not trusted from the task text) and
+compared one by one — all 16 identical, `version` and `resolved` both:
+
+```
+same @anthropic-ai/sdk 0.110.0 · @eslint/js 10.0.1 · @modelcontextprotocol/sdk 1.29.0 · @types/jest 30.0.0
+     @types/js-yaml 4.0.9 · @types/node 18.19.130 · chalk 4.1.2 · commander 15.0.0 · eslint 10.6.0
+     jest 30.4.2 · js-yaml 4.3.0 · ts-jest 29.4.11 · typedoc 0.28.20 · typescript 6.0.3
+     typescript-eslint 8.62.1 · zod 4.4.3
+direct deps checked: 16, moved: 0
+```
+
+**AC4 — bug-043's prediction is falsified; here is what npm actually did.** bug-043 expected the refreshed
+lock to gain `node_modules/@emnapi/core` and `node_modules/@emnapi/runtime` entries satisfying
+`@napi-rs/wasm-runtime`'s `^1.7.1` peers. It did **not**:
+
+```
+$ grep -n '"node_modules/@emnapi' package-lock.json      # on the refreshed lock
+565:    "node_modules/@emnapi/wasi-threads": {           # ← still the only hoisted @emnapi entry
+$ npm ls @emnapi/wasi-threads --all                      # on the tree npm install produced
+wingfoil@0.1.0 /home/robypomper/Workspaces/.wf2-wt/task-073-fix-stale-package-lock
+└── @emnapi/wasi-threads@1.2.3 extraneous
+```
+
+npm left the two unmet optional peers unlocked and simply re-pinned the **orphan** hoisted
+`@emnapi/wasi-threads` to the version its install-time peer resolution now computes. Why `1.2.3`, confirmed
+against the registry rather than inferred:
+
+```
+$ npm view @emnapi/core@latest version dependencies
+version = '1.11.3'
+dependencies = { tslib: '^2.4.0', '@emnapi/wasi-threads': '1.2.3' }
+$ npm view @emnapi/wasi-threads time --json | tail
+  "1.2.2": "2026-06-08T03:01:05.029Z",  "1.2.3": "2026-07-25T06:53:39.713Z",  "2.1.0": "2026-09-04T07:44:12.206Z"
+```
+
+`@emnapi/core@latest` moved from a release depending on `wasi-threads@1.2.2` to `1.11.3`, which depends on
+`1.2.3` (published 2026-07-25, after the lock's last commit `63a1a4d`). Because the peers are resolved from
+the registry at install time and not recorded in the lock, the hoisted orphan's pinned version must track
+`@emnapi/core@latest`'s dependency — so `npm ci` fails the moment they disagree. **The structural cause is
+therefore not fixed by this commit, only its current instance** (see the proposed elements in the review
+summary): the next `@emnapi/core` release that bumps `wasi-threads` reintroduces the identical failure.
+That is also why no narrower fix exists — the diff is already the minimum (one entry, three lines) — and why
+a *durable* fix would have to change `package.json` (e.g. an `overrides` pin), which AC6/the task scope
+forbid here.
+
+### refactor — gates, run in a real `npm ci` tree
+
+AC1 + AC5 in one run: cloned **this branch** into a throwaway directory outside every worktree, installed
+with `npm ci`, and ran the whole gate set there — so these numbers describe what a fresh CI runner would
+see, not a warm worktree.
+
+```
+$ git clone -q --branch task/task-073-fix-stale-package-lock /home/robypomper/Workspaces/WingFoil2 fixclone
+$ cd fixclone && git log --oneline -1
+0f54871 chore(deps): task-073-fix-stale-package-lock — refresh package-lock.json so npm ci is self-consistent
+$ npm ci --no-audit --no-fund       # added 500 packages in 12s
+$ rm -rf node_modules; npm ci >/dev/null 2>&1; echo "REAL_EXIT=$?"
+REAL_EXIT=0
+$ git status --porcelain            # (empty) — npm ci leaves the lock untouched
+```
+
+| Gate (run in `fixclone`) | Result |
+|---|---|
+| `npm run build` | exit 0 |
+| `npx jest` | exit 0 — **100 suites / 1555 tests passed** |
+| `npx jest --coverage` | exit 0 — All files **98.54 %** stmts / 92.3 % branch / 98.76 % funcs / 99.15 % lines (≥ 80 %, and unchanged by definition: `src/` is byte-identical to `main`) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 2 — **only** the pre-existing bug-026 error: `test/core/directive-create.test.ts(159,19): error TS2339` |
+| `npm run lint` | exit 0 (`lint.clean`) |
+| `npm run docs:api` | exit 0 (`docs.api.*`) |
+
+**AC6** — `git diff --stat main...HEAD -- src` prints nothing; the branch's entire diff against `main` is
+the lock (3 lines) plus this task file and `bug-043`'s status line.
+
+**Does anything assert on the lock or the installed tree?** Checked, not assumed:
+`grep -rn "package-lock\|lockfileVersion\|npm ci\|npm install\|node_modules" test/ src/ .github/ scripts/`
+— **no test asserts anything about `package-lock.json` or the installed tree**. The only matches are
+`test/cli/publish-pipeline.test.ts:128`, which asserts the *string* `npm ci` appears in the workflow's gate
+script in the right order, and `test/cli/publish-staging.test.ts:154,169`, which assert `npm install`
+appears in the staging script — both are text assertions about scripts, not about resolution. In
+`.github/workflows/publish.yml`, `npm ci` appears in exactly **one** job: `gate` (`:99`, step "Install");
+`stage` and `promote` never install dependencies — they consume the tarball artifact `gate` uploads
+(`stage` runs `npm run publish:staging`, a script that requires only node builtins and `scripts/e2e-smoke.cjs`).
+So the defect blocked the pipeline at its first job, and that first job is the one this fix unblocks.
