@@ -2,7 +2,7 @@
 id: "dl-075-no-bare-line-offsets-in-memory"
 type: decision-log
 title: "Memory documents, tech-specs and acceptance criteria cite source locations as bare line offsets, which decay silently — 11 of a 19-citation sample no longer point at what they claimed, and no cheap check detects it"
-status: in-discussion
+status: ready
 context: "documentation-governance"
 release: ""
 contributor: ""
