@@ -15,9 +15,15 @@ Feature: P1.8 (US-4-11) - wingfoil memory reject
     Given the document "task-101" has "status: draft"
     When I run "wingfoil memory reject task-101 --reason 'x'"
     Then the state is unchanged
-    And the command exits with code 1 and message "only pending documents can be rejected (current: draft)"
+    And the command exits with code 1 and message "illegal transition draft -> in-progress for type 'task'"
 
   Scenario: Error - rejecting without a reason
     When I run "wingfoil memory reject task-101"
     Then the state is unchanged
     And the command exits with code 2 and message "missing required argument: --reason"
+
+  Scenario: Error - rejecter lacks approval authority for the type
+    Given the current user does NOT hold an approver role for type "task"
+    When I run "wingfoil memory reject task-101 --reason 'ok'"
+    Then the state is unchanged
+    And the command exits with code 1 and message "user not authorized to approve type 'task'"
