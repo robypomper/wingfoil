@@ -67,10 +67,16 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   installed tree — a dependency bump that raises a floor fails the suite instead of silently making
   the manifest false again. Previously listed under *Unchanged* as `engines: node >=18`, which
   `bug-023` showed was false of the tree; amended by `task-074-fix-engines-node-floor`. **The
-  product-level "Node.js 18+" claim in `adr-005-typescript-node-stack`, `dl-001`, `dna.yaml`
-  `stacks.technologies` and `docs/01_vision/01_product-brief.md` is a separate, approver-level
-  question and is deliberately NOT settled here** — this bullet fixes only what the published
-  manifest asserts about itself.
+  product-level "Node.js 18+" claim — carried by `adr-005-typescript-node-stack`, `dl-001`, `dna.yaml`
+  `stacks.technologies` and `docs/01_vision/01_product-brief.md` — is no longer the open,
+  approver-level question this bullet once deferred: `adr-010-node-22-runtime-floor` settled it
+  (`accepted`, `0627290`), superseding `adr-005` (`superseded`, `a7d783a`), and its cascade
+  (`7bb95d6`) corrected the product brief, `dna.yaml` and `CLAUDE.md`, and added a dated Correction
+  note to `dl-001` instead of rewriting its original sentences.** One occurrence is deliberately left
+  standing: `README.md:115` still reads "Node.js 18+ required" and is owned by the `user-docs` release
+  gate (`dl-013`) per `adr-010` action 5 — settled at the decision level, not yet closed in the
+  user-facing documentation. This bullet still fixes only what the published manifest asserts about
+  itself; see the *Revision (2026-09-21) — §1 Node floor* note below.
 
 Unchanged: `name: wingfoil`, `main`, `types`, `license: MIT`. `version` is driven by the release/tag
 scheme (§4), not hand-edited at publish time.
@@ -89,8 +95,18 @@ Stages, in order (the CI job invokes the same `scripts/publish-staging` a develo
 
 1. **build + gate** — `npm ci`, then `prepublishOnly` (build/test/lint) + `npm publish --dry-run`
    (manifest visibility; must be exactly `dist` + docs per `files`).
-2. **stage** — start **Verdaccio** (`npx verdaccio` locally / official image as a CI service on
-   `http://localhost:4873`), `npm publish` the packed tarball to it (throwaway auth token).
+2. **stage** — start **Verdaccio** from `scripts/publish-staging` itself, in CI exactly as locally:
+   there is no service container (the workflow's `stage` job runs one staging step,
+   `npm run publish:staging -- --tarball <the gate's tarball>`). The script installs a major-pinned
+   **`verdaccio@6`** (`VERDACCIO_PACKAGE`) into a **throwaway per-run work dir** (`stagingPaths` under
+   an `mkdtempSync` temp dir: registry storage, htpasswd, config, the verdaccio install prefix, and
+   npm's own cache/prefix/user+global config, with `stagingEnv` redirecting npm into it and stripping
+   inherited npm credentials), writes a **generated config** (`verdaccioConfig`) in which the package
+   under test has **no `proxy:` uplink** — only the `'**'` catch-all proxies npmjs — and spawns the
+   installed bin with `process.execPath` on `http://localhost:4873/`. Then `npm publish` the packed
+   tarball to it (throwaway user + token registered per run, kept in the work dir). The no-uplink
+   property is what makes the §3 smoke meaningful: a same-named `wingfoil` on npmjs can never satisfy
+   the install. See the *Revision (2026-09-21) — §3 stage 2* note below.
 3. **smoke** — in a clean environment, `npm install -g wingfoil --registry http://localhost:4873`,
    then run the `dl-023` init+CLI e2e smoke (assert `wingfoil --help` on PATH exits 0, and the
    fresh-init CLI surface is schema-valid). Verdaccio is torn down after.
@@ -167,5 +183,86 @@ and `commander@15`'s ESM-only shape is the premise of `task-065`'s Jest/TS harne
 (`src/cli/program.ts`'s module doc names downgrading as the alternative it rejected). Edited in place
 without a supersede or a state change, per the `dl-041` / `task-059` precedent already used for
 `bin.wingfoil` above. This revision is scoped to the **manifest**; the product-level Node floor
-(`adr-005`, the vision package, `dna.yaml`, `README.md`, `CLAUDE.md`) is untouched and left to the
-approver.
+(`adr-005`, the vision package, `dna.yaml`, `README.md`, `CLAUDE.md`) was untouched here and left to
+the approver — **and has since been settled**, by `adr-010-node-22-runtime-floor` (`accepted`,
+`0627290`). Of the five documents named in that list, `adr-005`, the vision package, `dna.yaml` and
+`CLAUDE.md` were corrected by `adr-010`'s cascade; only `README.md` still carries the old claim, under
+the `user-docs` gate. See the *Revision (2026-09-21) — §1 Node floor* note below, which is a separate
+revision from this one.
+
+**Revision (2026-09-21) — §3 stage 2: Verdaccio is started by `scripts/publish-staging` in both
+environments, not as a CI service container, per `dl-052-verdaccio-started-by-staging-script-in-ci`
+(`ready`, approve commit `58ac6f9`, ratified option 1).** §3 stage 2 previously read: "start
+**Verdaccio** (`npx verdaccio` locally / official image as a CI service on `http://localhost:4873`)".
+Both halves of that parenthesis were false of what `task-060-publish-pipeline` shipped, and each is
+checkable in one command:
+
+- *No CI service.* `grep -rn 'services:' .github/workflows/` returns nothing; `.github/workflows/publish.yml`'s
+  `stage` job has exactly one staging step, `run: npm run publish:staging -- --tarball dist-pack/*.tgz`,
+  and `package.json`'s `publish:staging` is `node scripts/publish-staging.cjs` — the same entry point a
+  developer runs, which is what §3's own preamble and `adr-009` §3 require ("the GitHub Actions job
+  merely invokes that script").
+- *No `npx`.* `grep -n 'npx' scripts/publish-staging.cjs` returns nothing. `realEffects.startRegistry`
+  runs `npm install --prefix <workdir>/tools --no-save --no-audit --no-fund verdaccio@6`, reads the
+  installed package's own `bin`, and spawns it with `process.execPath`.
+
+The ratified reason the code is right and the document was wrong (`58ac6f9`): a service container
+starts **before** `actions/checkout`, so it cannot be handed the repository's own config — the config
+that denies the package under test an uplink. Under an image's defaults `wingfoil` would proxy to
+npmjs, and the smoke would stop proving that the tarball it exercises is the one just published,
+which is the entire point of the stage; it would also give CI a code path the local run does not take.
+Option 3 (leave §3 as illustrative) was rejected because "the next person to follow §3 literally would
+weaken the isolation guarantee and believe they were conforming".
+
+Each of the four facts the new text asserts was verified **against the code**, at `main` `b505473`
+(after `task-077` and `task-078` merged), not against `dl-052`'s summary of it: the pin is
+`VERDACCIO_PACKAGE = 'verdaccio@6'`; the work dir is `mkdtempSync(join(tmpdir(), 'wingfoil-staging-'))`
+with every staging path under it (`stagingPaths`) and npm redirected into it (`stagingEnv`); the
+generated config (`verdaccioConfig`) gives the `'wingfoil'` package block no `proxy:` key while `'**'`
+carries `proxy: npmjs`; and both of those config properties are pinned by
+`test/cli/publish-staging.test.ts`. `task-077`'s first real end-to-end run resolved the pin to
+verdaccio **6.10.4** and completed the stage against it. The amended text names functions rather than
+line numbers on purpose: `dl-052`'s own citations and `task-079`'s were both already stale when read,
+and a spec corrected from a stale description is how this text went wrong in the first place.
+
+Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
+`version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` precedent used twice above.
+`dl-052`'s ratified option 1 says "No code changes", and none were made.
+
+*Out of this revision's scope, recorded so §3 is not read as a statement that the pipeline runs
+today:* `task-077`'s first real execution found §3 **stage 1** currently unable to complete on a
+runner — `npm ci` fails under the npm that `publish.yml`'s own Node pin installs, and `prepublishOnly`
+fails on a UTC runner with git ≥ 2.55 — and found that the staging run's teardown, which is what makes
+"throwaway" true, executes on the success and failure paths (`runStaging`'s `finally`) but **not** on
+`SIGINT`, which leaves the registry, the work dir and its live throwaway token behind. Those are
+`task-077`'s findings and are tracked there; this revision changes nothing about them.
+
+**Revision (2026-09-21) — §1 Node floor: the product-level "Node.js 18+" question that §1 recorded as
+"deliberately NOT settled here" has since been settled by `adr-010-node-22-runtime-floor`.** This is a
+**second and separate** revision from the `engines.node` one above: that one changed what the
+**manifest** asserts (`>=22.12.0`, derived from the production dependency closure); this one changes
+nothing normative and only records that the **product-level** claim §1 explicitly deferred is no
+longer open.
+
+- `adr-010-node-22-runtime-floor` is `accepted` — `wf(adr): approve adr-010-node-22-runtime-floor
+  [pending → accepted]`, `0627290` — titled "The runtime floor is Node 22.12+, not Node 18+ —
+  supersedes adr-005's runtime clause".
+- `adr-005-typescript-node-stack` is `superseded` — `wf(adr): deprecate adr-005-typescript-node-stack
+  [accepted → superseded]`, `a7d783a`.
+- Its cascade merged as `7bb95d6` and touched exactly four files: `CLAUDE.md`,
+  `docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml` and
+  `dl-001-typescript-over-python`. In `dl-001` the original sentences (`:19`, `:35`) are deliberately
+  **not** rewritten — a dated *Correction (2026-09-21)* note at `dl-001:37-42` states that wherever
+  that document says "Node.js 18+" the runtime clause now reads 22.12+ — so the record of what v0.1
+  decided stays readable.
+
+**What remains open.** `README.md:115` — "This installs the `wingfoil` binary (Node.js 18+ required)."
+— still asserts the old floor. It is owned by the **`user-docs` release gate** (`dl-013`) per
+`adr-010`'s own action 5, and is out of scope for any tech-spec revision. So the question is settled at
+the decision level and cascaded through the governance and DNA documents, but **not yet closed in the
+user-facing documentation** — do not read this note as saying the cascade is finished.
+
+Both occurrences of the stale framing are corrected in this pass: §1's bullet, and the closing sentence
+of the `engines.node` revision note above, which said the same thing in different words. Same mechanics
+as the revisions above — text edited in place, `status: approved` unchanged, no `version:` bump
+(`dl-047`).
