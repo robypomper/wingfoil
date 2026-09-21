@@ -2,7 +2,7 @@
 id: "bug-022-npm-pack-prepack-rebuilds-dist"
 type: bug
 title: "npm-distribution.test.ts runs npm pack without --ignore-scripts, rebuilding the shared dist/ mid-suite"
-status: triaged
+status: in-review
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"

@@ -20,6 +20,18 @@
  * `program.integration.test.ts` — but two suites clean-rebuilding the SAME `dist/` raced across
  * parallel jest workers (bug-003-cli-integration-dist-race); the shared, pre-worker build removes the
  * race and the redundant second build.
+ *
+ * **Why `npm pack` carries `--ignore-scripts`** (`bug-022`, `dl-056` clause B; the same reason as
+ * `publish-metadata.test.ts` and `license-file.test.ts`): `package.json`'s `"prepack": "npm run
+ * build"` would otherwise re-run `tsc -p tsconfig.build.json` from inside this test and rewrite the
+ * very `dist/` the pre-worker build produced — in place, truncating each file, while sibling workers
+ * spawn `node dist/cli.js` from it. Measured during one such pack: `dist/core/index.js` (final 70428
+ * bytes) observable at 0 bytes, `dist/validation/secret-scan.js` (final 18152) at 8192; with the flag,
+ * none. This is `bug-003` in a different disguise — a rebuild rather than a delete — and since
+ * `task-060` put `npm test` inside `prepublishOnly`, which `.github/workflows/publish.yml`'s `gate`
+ * job runs, it sits inside the release gate. The flag changes nothing this file asserts: the packed
+ * path list is identical with and without it (311 paths, verified), because `globalSetup` has already
+ * built `dist/`. `test/lint/pack-ignore-scripts.test.ts` holds that property for the whole suite.
  */
 import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
@@ -114,7 +126,10 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
   });
 
   it('`npm pack --dry-run --json` includes the compiled dist/ bin + README.md, and excludes docs/self/.wingfoil + test/', () => {
-    const raw = execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+    });
     const [result] = JSON.parse(raw) as PackResult[];
     const paths = (result?.files ?? []).map((f) => f.path);
 
