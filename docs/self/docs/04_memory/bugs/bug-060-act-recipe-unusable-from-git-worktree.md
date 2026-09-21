@@ -50,10 +50,11 @@ gitdir: /home/robypomper/Workspaces/WingFoil2/.git/worktrees/ingest-077
 `.git` is a one-line pointer to an absolute host path. `act` bind-mounts the working directory into the
 container; that path is not mounted, so git inside the container has no repository to find.
 
-**Corroborated accidentally by the reviewer** (`ac10060` review context): two *other* suites failed the
-same way in a bind-mounted container, i.e. the "worktree `.git` is a pointer the container cannot
-follow" mechanism showed up a second time, in a different place, without anyone looking for it. That is
-a stronger signal than one intentional run.
+**Corroborated accidentally during `task-077`'s review**: two *other* suites failed the same way in a
+bind-mounted container — the "worktree `.git` is a pointer the container cannot follow" mechanism
+showing up a second time, in a different place, without anyone looking for it. Reported by the reviewer
+alongside the review rather than in the approve commit `ac10060`, whose text does not mention it; the
+reproduction above (`cat .git`) is what this document rests on.
 
 The recipe as it stands, with the only caveat it does carry (which is about `origin`, not worktrees):
 
