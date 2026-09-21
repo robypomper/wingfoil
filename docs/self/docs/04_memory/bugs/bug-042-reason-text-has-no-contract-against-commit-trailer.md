@@ -39,13 +39,14 @@ that function's own TSDoc (`:141-146` — "a hypothetical multi-paragraph reason
 truncated to its first line here") and is untested.
 
 It is not hypothetical. On `main`, of the 156 `wf(...): approve|reject` commits, **66** carry a `Reason:`
-that continues past its first line:
+that continues past its first line — **corrected to 67; see the 2026-09-21 amendment**, which also
+explains why this command undercounts:
 
 ```
 for sha in $(git log main --format='%H' --grep='^wf(.*): \(approve\|reject\)'); do
   git log -1 --format=%b $sha | awk '/^Reason:/{f=1;next} f&&NF{c++} f&&!NF{exit} END{print c+0}'
 done
-# → 156 commits, 66 with a Reason continuing past line 1
+# → 156 commits, 66 with a Reason continuing past line 1   [undercount — see the 2026-09-21 amendment]
 # e.g. 8c3fe35 (approve dl-051) 10 extra lines; 995dfc0 (approve dl-042) 9; a651335 (reject task-070) 9
 ```
 
@@ -58,7 +59,7 @@ REASON_LINE_RE.exec(body)[1]  ->  "first line of the reason"     # the rest is d
 ```
 
 So once `wingfoil memory history` (P1.10) reads back this repository's own history, every one of those 66
-reasons loses everything after its first line — silently, with no diagnostic.
+(67) reasons loses everything after its first line — silently, with no diagnostic.
 
 **F2 — WRITE side: a blank or whitespace-only `--reason ""` is accepted and destroys the whole record.**
 
@@ -114,7 +115,8 @@ a second trailer line.
 ## Actual Behavior
 
 - F1: `memory history` returns the first line of a multi-line reason and drops the rest, with no warning.
-  66 of `main`'s 156 approve/reject commits are affected.
+  66 of `main`'s 156 approve/reject commits are affected — **67**, corrected; see the 2026-09-21
+  amendment.
 - F2: `--reason ""` exits `0`, commits a bare `Reason:` line, and makes `memory history` report that
   transition with approver **and** reason both `null`.
 - F3: a multi-line reason can place a forged `Approver:` line in the commit body.
@@ -176,6 +178,36 @@ a second trailer line.
   fix must land before the v0.2 release gate. The fix itself is unchanged in shape and still needs the
   `spec-008` §2 decision above — it belongs to `formatMemoryCommitMessage` / `requireReason`, not to any
   single verb.
+
+- **AMENDMENT (2026-09-21) — the affected-corpus count, corrected. Carries `dl-067-reason-trailer-contract`
+  Action 4; made by `task-072-fix-reason-trailer-contract` before its `bug.sync_state` closes this
+  element, since after that the correction would have nowhere to land.**
+  The F1 count above (**66 of 156**) was produced by the `awk` measure printed with it, and that measure
+  **stops at the first blank line**. A reason that resumes after a blank line therefore counts as
+  single-line when it is not — and the fix `dl-067` ratified reads the reason as a **block** running to
+  git's trailing trailer paragraph or the end of the body, so the block rule is the one that says how
+  many reasons are actually affected. Re-measured with a block-accurate script at three points, each
+  figure reproducible:
+
+  | `main` at | approve/reject commits | this report's measure | block-accurate |
+  |---|---|---|---|
+  | `9147d84` — where this bug was filed | 156 | 66 | **67** |
+  | `7aeeb91` — where `dl-067` measured | 171 | 74 | **79** |
+  | `7bb95d6` — when this amendment was written | 176 | 76 | **83** |
+
+  So **the figure for this report is 67 of 156, not 66**: one further commit's reason resumes after a
+  blank line. The original command and number are left in place above rather than rewritten, with a
+  pointer here — they are the record of what was measured at filing, and editing evidence to match a
+  later finding is the opposite of what this correction is for.
+
+  `dl-067` quotes **79 of 171**: that is the same measurement at a later commit, not a competing count
+  of this one. The count grows on its own because each new approve commit is itself usually multi-line.
+
+  **Nothing else in this report moves.** The severity, the three faces, the `high` re-grade and the
+  `v0.2` scheduling all rest on F3's forged-approver path and on F1 being real and systemic, not on
+  the count's exact value — 66, 67 or 83 are all "a large fraction of every approval this project has
+  recorded". What the error does bear on is this bug's own credibility as evidence, which is why
+  `dl-067` made correcting it a ratified Action rather than a note.
 
 ## Triage & Execution Notes
 
