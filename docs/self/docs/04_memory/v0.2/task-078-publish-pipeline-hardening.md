@@ -168,3 +168,107 @@ If AC2's lookup turns out to be impossible in the execution environment, the cor
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### design — role: architect
+
+Branch `task/task-078-publish-pipeline-hardening`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-078-publish-pipeline-hardening`, cut from `main` at
+**`a7d783a`** (`git log --oneline -1 main` → `a7d783a wf(adr): deprecate adr-005-typescript-node-stack`).
+`npm ci --prefer-offline --no-audit --no-fund` → exit 0, a real install (`bug-043` closed), not a
+reuse of the parent tree's `node_modules`.
+
+**Scope confirmed against `dl-057` (`status: ready`) and its approve commit `0924712`.** The commit
+body ratifies option 1 on (a), (c), (f), (g) and closes with: "(a), (c), (f) and (g) do not [depend on
+`dl-056`'s first real run] and can land before it." Items (b), (d), (e) are out of scope here — see
+AC12, and the "Excluded, on purpose" note in the review summary.
+
+**`read_related` (`dl-015`, hard gate).** `depends_on: []` — nothing to acknowledge. Read anyway
+because they own the same two files: `dl-057` in full + `0924712`; `task-061-publish-secrets`'s
+Execution Notes, whose hand-over table states the reason (a) was deferred ("resolving `@v4` to a commit
+SHA needs a GitHub lookup this task may not make; a hand-typed SHA cannot be verified and a wrong one
+breaks or redirects the job holding the token — should land with a verified lookup") and the reason (c)
+was deferred ("spec-015 §3 staging-script robustness … no credential involved"). Both are discharged
+here, (a) by the verified lookup below. `task-077-first-real-staging-run` is `status: backlog` at
+`a7d783a` and runs `act` against these same two files concurrently; coordination, not dependency — it
+reports the pipeline as it stands, this branch does not affect its run.
+
+**`verify_specs`.** No new `tech-spec` needed. `spec-015` §3/§5 (`approved`) and `adr-009` §5
+(`accepted`) already specify the staging flow and the transient-`.npmrc` publish this task hardens;
+nothing here changes what they prescribe — (a), (c), (f), (g) are robustness inside the shapes they
+already fix. The one spec edit `dl-057` foresees is (d)'s amendment of `spec-015` §4, ratified as
+"decide after the first real run" and explicitly out of scope (AC12).
+
+**Verified action-SHA lookup (AC2).** Two independent methods, run today, agreeing exactly. Nothing was
+recalled or hand-typed.
+
+1. `git ls-remote https://github.com/actions/<repo> 'refs/tags/v4*'` — anonymous, no credentials.
+   No `refs/tags/v4^{}` peel line appears for any of the four, so each `v4` is a *lightweight* tag
+   pointing straight at a commit (the only peeled tag in the whole listing is
+   `actions/download-artifact` `refs/tags/v4.1.1^{}`, which is not used here).
+2. `gh api repos/actions/<repo>/git/ref/tags/<ref> --jq '.object.type + .object.sha'` for both the `v4`
+   alias and the exact version tag, plus `gh api repos/actions/<repo>/commits/v4` to confirm the object
+   really is a commit. All read-only GETs.
+
+| `uses:` | pinned SHA | `= refs/tags/` | object type | the `@v4` it replaces resolved to the same SHA |
+|---|---|---|---|---|
+| `actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` | `v4.4.0` | commit | yes |
+| `actions/setup-node` | `49933ea5288caeca8642d1e84afbd3f7d6820020` | `v4.4.0` | commit | yes |
+| `actions/upload-artifact` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | `v4.6.2` | commit | yes |
+| `actions/download-artifact` | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | `v4.3.0` | commit | yes |
+
+Because each pinned SHA is *exactly* what `@v4` resolves to today, this pin changes no behaviour — it
+only freezes the behaviour the pipeline already has. All eight `uses:` lines are pinned, not just
+`promote`'s two: the ratification sets `promote` as the minimum, and there is no reason to leave the
+job that builds and stages the artifact `promote` then publishes on a mutable tag.
+
+**AC3 — how a reader checks a pin later, and what enforces it.** To check one line has not drifted from
+its comment: `git ls-remote https://github.com/actions/checkout refs/tags/v4.4.0` and compare, or
+`gh api repos/actions/checkout/git/ref/tags/v4.4.0 --jq .object.sha`. **Nothing in this repository
+enforces the pin or the comment.** No test asserts the SHA form, no CI step re-resolves the tags, and
+Dependabot is not configured (`ls .github/` → `workflows/` only). The trailing `# v4.4.0` comment is
+documentation for a human, and a wrong comment would not fail anything. That is stated rather than
+implied, and AC3 forbids adding an enforcement gate here — it would be new surface no decision has
+authorised. What *does* still hold: `publish-pipeline.test.ts` and `publish-secrets.test.ts` locate
+steps by `s.uses?.startsWith('actions/<name>@')`, so mangling the action *name* half of any pinned line
+breaks the suite; the SHA half is unasserted.
+
+**T1 — acceptance-criterion classification** (`dl-014` T1, `testing` directive).
+
+| AC | Class | Evidence / test |
+|---|---|---|
+| 1 (a) every `uses:` a full SHA + version comment | **characterization (no new test — AC3)** | AC3 forbids a new enforcement gate, so this AC is discharged by the edit plus the recorded lookup, not by an assertion. Existing `startsWith('actions/…@')` lookups in both publish suites keep passing over the pinned lines. |
+| 2 (a) verified lookup, recorded | **n/a — evidence, not behaviour** | the two-method transcript above; network was available (`git ls-remote` exit 0), so the stop-and-report fallback did not trigger. |
+| 3 (a) pin verifiable afterwards | **n/a — documentation** | the paragraph above, including the plain statement that nothing enforces it. |
+| 4 (c) `stop()` escalates to SIGKILL and always resolves | **red-first** | `publish-staging.test.ts` › "escalates to SIGKILL when the child ignores SIGTERM, and still resolves" — no `stopProcess` export exists, so the import itself fails before the edit. |
+| 5 (c) both call sites still behave; no new latency on a clean run | **characterization** | `publish-staging.test.ts` › "resolves as soon as a well-behaved child exits, without waiting out the interval" (passes on today's logic too, once the function is extracted) + the existing orchestration cases that assert `stopRegistry` runs on every teardown path. |
+| 6 (f) test forbids `set -x` / `xtrace` / `bash -x` in the promote publish step | **characterization, proven by mutation** | `publish-secrets.test.ts` › "runs the publish step with no shell tracing …". The step contains no tracing today, so this assertion passes on first run — a genuine red would have to be fabricated. AC6 asks for the mutation instead: add `set -x`, watch it go red, remove it. Recorded under `red`. |
+| 7 (f) the step's shell runs with tracing explicitly off | **red-first** | same case, second half: `expect(firstLine).toBe('set +x')`. Fails today (the first line is `if [ -z "${NPM_TOKEN:-}" ]; then`). |
+| 8 (g) step names its npm config file explicitly | **red-first** | `publish-secrets.test.ts` › "names the transient .npmrc explicitly …" — `--userconfig` is absent today. |
+| 9 (g) fake-npm test asserts it | **red-first** | same case: the recorded argv must carry `--userconfig <abs>/.npmrc`; the fake `npm` records `$*`, which today has no such flag. |
+| 10 token never on disk / in a log | **characterization** | the three existing fake-npm cases (`npmrc-seen` equals the literal `${NPM_TOKEN}` line, `.npmrc` removed on success and on failure) must keep passing unchanged. |
+| 11 gates green | **characterization** | the six gate commands, run and pasted under `refactor`. |
+| 12 (b)/(d)/(e) excluded | **n/a — documentation** | recorded in the review summary so their absence is not read as an oversight. |
+
+**Design choices to be made explicit (they are decisions, not mechanics):**
+
+- **(c) interval — 10 s, and where the constant lives.** `dl-057` offers 10 s "as an example, not a
+  requirement" (AC4). Kept at 10 s: it is an order of magnitude above a healthy Verdaccio's SIGTERM
+  shutdown and two orders below the 60 s `REGISTRY_START_TIMEOUT_MS` this file already uses, so the
+  escalation can never fire before the start timeout it may be called from. Exposed as
+  `REGISTRY_STOP_TIMEOUT_MS`, overridable per call so the test can drive it in milliseconds instead of
+  sleeping for 10 s (determinism: no wall-clock dependence in the assertion).
+- **(c) shape.** The `stop` closure at `:210-215` is lifted to a module-level, exported `stopProcess`
+  so a test can drive the *real* code (AC4's "the smallest extractable piece of it") rather than a
+  re-implementation. `startRegistry` then just binds it.
+- **(f) mechanism — `set +x` as the step's first line.** GitHub's default `shell: bash` already runs
+  `bash --noprofile --norc -eo pipefail {0}`, so no rc file can turn tracing on; `set +x` closes the
+  remaining route, an `xtrace` inherited through the environment (`SHELLOPTS=xtrace`), before the
+  first command that mentions `NPM_TOKEN`. **Routes it does not close, stated plainly:** a future
+  editor adding `shell: bash -x` to the step, or `defaults.run.shell` at workflow/job level — so the
+  test asserts the absence of both as well as of `set -x` in the body. And the one line that *could*
+  still be traced under an inherited `xtrace` is `set +x` itself, which mentions no secret.
+- **(g) `--userconfig "$PWD/.npmrc"` rather than `NPM_CONFIG_USERCONFIG`.** Both are ratified. The flag
+  keeps the whole contract on one visible line that the existing fake-npm harness already records
+  (`$*`), whereas the env var would need the harness to record the environment as well; and it cannot
+  be silently dropped by the `env:` block that carries the secret. `$PWD` is used, not a relative path,
+  because the point of the item is to stop depending on how npm resolves a path against its own cwd.
