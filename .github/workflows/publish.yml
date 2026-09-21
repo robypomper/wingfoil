@@ -42,10 +42,16 @@
 #   run by the approver with their own credentials, then ship the fix as a patch release through this
 #   same tag flow.
 #
-# Node version: pinned once in `env.NODE_VERSION` to 22.12.0 — the lowest version every dependency accepts
-# (commander@15 declares `engines.node >=22.12.0`). `package.json` still declares `engines.node >=18.0.0`,
-# which this pipeline does NOT test and which is currently false: bug-023. bug-023 must land before a
-# real publish; do not add Node 18/20 here to "cover" the declared floor — npm reports EBADENGINE there.
+# Node version: pinned once in `env.NODE_VERSION` to 22.12.0 — the lowest version every PRODUCTION
+# dependency accepts (commander@15 declares `engines.node >=22.12.0`; @hono/node-server@1.19.14,
+# transitive via @modelcontextprotocol/sdk, declares >=18.14.1). Since task-074 closed bug-023,
+# `package.json` declares that same floor — `engines.node >=22.12.0` — and
+# `test/cli/publish-metadata.test.ts` recomputes it from the installed tree, so the two cannot drift
+# apart again. Do not add Node 18/20 here: the package no longer claims to run there.
+# NOT covered by this pin: some devDependencies want more than 22.12.0 (eslint@10 and @eslint/js@10
+# declare `^20.19.0 || ^22.13.0 || >=24`), so `npm ci` in these jobs emits EBADENGINE warnings for
+# them. Harmless today — no `engine-strict` — but it means 22.12.0 is the floor of the production
+# closure only, not of the dev toolchain.
 #
 # ── Running this workflow locally with `act` (nektos/act) — no throwaway CI-debug commits (adr-009) ──
 #

@@ -15,7 +15,7 @@ Layer (CLI + MCP)**.
 
 - **North Star:** the *Determinism Index* — two independent runs from the same specs + WingFoil config,
   using different AI agents, produce substantially equivalent software.
-- **License:** MIT · **Distribution:** npm (public) · **Tech:** TypeScript / Node.js 18+.
+- **License:** MIT · **Distribution:** npm (public) · **Tech:** TypeScript / Node.js 22.12+.
 
 > **Project status: implementation under way.** The release line `rl-v1` is `active`, **`minor-v0.1` is
 > `released`** and **`minor-v0.2` is `in-development`** (`docs/self/docs/04_memory/planning/`). The
@@ -89,7 +89,7 @@ this config up to date (Memory transitions, workflow execution) do not exist yet
 
 - **Modules:** `core, validation, storage, memory, dna, directives, workflow, cli, mcp-server` — all nine
   exist under `src/`, each at its `dna.yaml` `path:` (note `mcp-server` lives at `src/mcp`).
-- **Stacks** (`stacks.technologies`): TypeScript · Node.js 18+ · npm · Commander.js + chalk (CLI) · MCP
+- **Stacks** (`stacks.technologies`): TypeScript · Node.js 22.12+ · npm · Commander.js + chalk (CLI) · MCP
   over stdio via `@modelcontextprotocol/sdk` · js-yaml (all git-backed YAML) · Zod (validation) · Jest
   (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. The Anthropic SDK is a
   declared dependency but is **not** imported by any `src/` module — `dna.yaml` flags this drift from

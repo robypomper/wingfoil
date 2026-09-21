@@ -2,7 +2,7 @@
 id: adr-005-typescript-node-stack
 type: adr
 title: "TypeScript on Node.js 18+, distributed via npm"
-status: accepted
+status: superseded
 sard_ref: "REQ-SYS-09"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version

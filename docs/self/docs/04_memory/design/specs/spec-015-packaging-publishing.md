@@ -57,8 +57,23 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   with the `./` form, which is why `task-059` correctly declined to fix it in code. Tracked by
   `bug-020-bin-path-autocorrected-at-publish`.
 
-Unchanged: `name: wingfoil`, `main`, `types`, `engines: node >=18`, `license: MIT`. `version` is
-driven by the release/tag scheme (§4), not hand-edited at publish time.
+- `engines.node`: **`>=22.12.0`** — and it is a *derived* value, not a preference. It must equal the
+  highest `engines.node` floor declared anywhere in the **production** dependency closure
+  (`dependencies`, transitively), because `files: ["dist", "README.md"]` means that closure is exactly
+  what a consumer installs. Two packages bind it today: `commander@15` (`>=22.12.0`) and
+  `@hono/node-server@1.19.14` (`>=18.14.1`, reached through `@modelcontextprotocol/sdk`). The floor
+  is written as a plain `>=major.minor.patch` so "the advertised floor" is a single number, and it is
+  enforced by an assertion in `test/cli/publish-metadata.test.ts` that recomputes it from the
+  installed tree — a dependency bump that raises a floor fails the suite instead of silently making
+  the manifest false again. Previously listed under *Unchanged* as `engines: node >=18`, which
+  `bug-023` showed was false of the tree; amended by `task-074-fix-engines-node-floor`. **The
+  product-level "Node.js 18+" claim in `adr-005-typescript-node-stack`, `dl-001`, `dna.yaml`
+  `stacks.technologies` and `docs/01_vision/01_product-brief.md` is a separate, approver-level
+  question and is deliberately NOT settled here** — this bullet fixes only what the published
+  manifest asserts about itself.
+
+Unchanged: `name: wingfoil`, `main`, `types`, `license: MIT`. `version` is driven by the release/tag
+scheme (§4), not hand-edited at publish time.
 
 ### 2. Scripts (publish gate)
 
@@ -136,3 +151,21 @@ Companion to `adr-009` (architecture) — this spec is the file-level contract. 
 artefacts (directive frontmatter, MCP Prompts) are already covered by approved `spec-013` / `spec-004`,
 so no additional specs were scaffolded this phase. Filed `pending` for the `dl-022` spec-review +
 approver sign-off before `approved`.
+
+**Revision (2026-09-21) — §1: `engines.node` moved out of *Unchanged* and pinned to `>=22.12.0` as a
+value derived from the production dependency closure, per `bug-023-engines-node-floor-contradicts-commander`
+and `task-074-fix-engines-node-floor`.** §1 previously ratified `engines: node >=18` under
+*Unchanged* — an approved spec asserting a floor the dependency tree rejects. Verified at
+implementation: `commander@15.0.0` declares `engines.node >=22.12.0` and `@hono/node-server@1.19.14`
+(transitive via `@modelcontextprotocol/sdk`) declares `>=18.14.1`, so the old floor was false by two
+independent packages, not just the one `bug-023` named. Measured consequence on an unsupported
+runtime: npm warns `EBADENGINE` and installs anyway by default (REQ-SYS-09's fit criterion still
+holds), and hard-fails under `engine-strict=true` — so the defect was invisible to `task-060`'s
+staging smoke, which runs on CI's Node 22. The alternative fix — pinning `commander` below 15 to keep
+the 18+ claim true — was rejected: it needs a `package-lock.json` regeneration owned by `task-073`,
+and `commander@15`'s ESM-only shape is the premise of `task-065`'s Jest/TS harness
+(`src/cli/program.ts`'s module doc names downgrading as the alternative it rejected). Edited in place
+without a supersede or a state change, per the `dl-041` / `task-059` precedent already used for
+`bin.wingfoil` above. This revision is scoped to the **manifest**; the product-level Node floor
+(`adr-005`, the vision package, `dna.yaml`, `README.md`, `CLAUDE.md`) is untouched and left to the
+approver.
