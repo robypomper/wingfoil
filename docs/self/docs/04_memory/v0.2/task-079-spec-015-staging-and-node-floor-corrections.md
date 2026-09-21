@@ -412,3 +412,125 @@ than left in one task's notes:
 re-proposed here — re-filing them under new ids would create the duplicate `dl-052` warns about. F1 in
 particular is the reason the amended §3 text says the config and prefix are *generated per run into a
 throwaway work dir* without claiming teardown is unconditional.
+
+### green — role: developer
+
+One commit, one file: `docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`
+(`+105 / -8`). No `red` commit precedes it — every AC is characterization (T1 above), and the testing
+directive forbids fabricating a failing test for behaviour that does not exist. Four edits:
+
+1. **§3 stage 2 body rewritten in place** (AC1). States all five facts `dl-052`'s ratified option 1
+   requires — started by `scripts/publish-staging` in **both** environments, a **major-pinned
+   `verdaccio@6`**, a **throwaway per-run work dir**, a **generated config with no `proxy:` uplink for
+   the package under test**, listening on `http://localhost:4873/` — and adds the *reason* the
+   no-uplink property matters, so a reader of §3 alone knows what they would break by "simplifying" it
+   to a service container. It names `VERDACCIO_PACKAGE`, `stagingPaths`, `stagingEnv` and
+   `verdaccioConfig`: a reader can `grep` any of the four in `scripts/publish-staging.cjs` and land on
+   the code, with no line number to go stale.
+2. **§1's caveat bullet corrected** (AC4). Records `adr-010` `accepted` (`0627290`), `adr-005`
+   `superseded` (`a7d783a`), the cascade (`7bb95d6`) over the brief, `dna.yaml` and `CLAUDE.md`, and
+   `dl-001`'s dated Correction note — and states the remainder explicitly: `README.md:115`, owned by
+   the `user-docs` gate (`dl-013`) per `adr-010` action 5. The phrase used is "settled at the decision
+   level, not yet closed in the user-facing documentation", chosen so it cannot be read as "the cascade
+   is finished".
+3. **The second occurrence handled, not left** (AC6). The closing sentence of the existing
+   `Revision (2026-09-21) — §1: engines.node` note said the same thing in different words ("untouched
+   and left to the approver", naming `README.md` and `CLAUDE.md`). Amended in the same pass to "was
+   untouched here and left to the approver — **and has since been settled**", with the four-of-five /
+   one-remaining split spelled out, so the two notes cannot be read as contradicting each other.
+4. **Two dated Revision notes appended to *Process Notes*** (AC3, AC5), titled
+   `Revision (2026-09-21) — §3 stage 2: …` and `Revision (2026-09-21) — §1 Node floor: …`. They share
+   the existing note's date, so they are distinguished by the section-and-subject in the title, and
+   the Node-floor note opens by saying in as many words that it is "a **second and separate** revision"
+   which "changes nothing normative". Both cite `dl-047` for the absent `version:` bump; the §3 note
+   cites `dl-052` (`58ac6f9`), `task-060-publish-pipeline` and `adr-009` §3.
+
+**The superseded wordings are gone from the normative text and survive only as quotations** — the
+check, and its output:
+
+```
+$ grep -n 'npx verdaccio\|official image as a CI service\|NOT settled here' \
+    docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+196:**Verdaccio** (`npx verdaccio` locally / official image as a CI service on `http://localhost:4873`)".
+241:"deliberately NOT settled here" has since been settled by `adr-010-node-22-runtime-floor`.**
+```
+
+Both hits are inside the new Revision notes, quoting what was replaced — the same thing the existing
+`engines.node` note does with "Previously listed under *Unchanged* as `engines: node >=18`". Neither
+occurs in §1's or §3's body any more.
+
+### review-ready summary — role: reviewer
+
+**Sync with `main` (dl-035 — merge, never rebase).**
+
+```
+$ git merge main --no-edit
+Already up to date.
+$ git rev-parse main; git merge-base main HEAD
+b505473988d4ff9ccea24b56d67d457e8bca3d41
+b505473988d4ff9ccea24b56d67d457e8bca3d41
+```
+
+`main` did not move during this task (the branch was cut from `b505473`, after both contending tasks
+had merged), so there is nothing to re-check for staleness and no merge commit. Gates were run at
+`b92959b` on that base.
+
+**Gates.** Nothing under `src/`, `test/` or `scripts/` was touched, so these characterize an unchanged
+tree rather than a change; they are run to prove the tree is untouched, and they do.
+
+| Gate | Result |
+|---|---|
+| `npx jest` | exit **0** — 102 suites / 1644 tests |
+| `npx jest --coverage` | exit **0** — All files **98.54 %** stmts / **92.29 %** branch / **98.76 %** funcs / **99.15 %** lines (identical to `task-077`'s post-merge figures; `src/` untouched, so non-regressing by construction) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** — `bug-026` is closed (`task-076`); nothing new appeared |
+| `npm run lint` | exit **0** |
+| `npm run docs:api` | exit **0** |
+| `git status --porcelain` | empty |
+
+**BDD acceptance scenarios.** There are none to run for this task, and that is a checked statement, not
+an assumption:
+
+```
+$ grep -rln 'publish\|npm install -g\|package' docs/02_requirements/02_bdd/features/   # no output
+$ grep -rn 'REQ-SYS-09' docs/02_requirements/02_bdd/features/                          # no output
+```
+
+`REQ-SYS-09` — the requirement the whole publishing chain serves — has no BDD coverage anywhere in the
+feature set, so neither `spec-015` nor any task under it has a scenario to satisfy. That is a gap in
+the requirements chain rather than a finding about this task; it is raised in the final report.
+
+**AC status.** AC1 ✅ · AC2 ✅ (all four facts hold against the code at `b505473`; the stop condition was
+not triggered) · AC3 ✅ · AC4 ✅ (with the `README.md` remainder stated, not implied) · AC5 ✅ · AC6 ✅
+(amended, not deferred) · AC7 ✅ (every command and its output is in this section or in *design*) ·
+AC8 ✅ · AC9 ✅ · AC10 ✅.
+
+```
+$ git diff --name-only main...HEAD
+docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+docs/self/docs/04_memory/v0.2/task-079-spec-015-staging-and-node-floor-corrections.md
+$ git diff main...HEAD -- docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md \
+    | grep -c '^[+-]status:\|^[+-]id:\|^[+-]title:\|^[+-]release:'
+0
+```
+
+Two files: the spec, and this task's own Memory file. No frontmatter line of the spec changed —
+`status: approved` is untouched, as AC8 requires.
+
+**What a reviewer should check hardest.**
+
+1. **The amendment's accuracy is load-bearing and was verified against the source, not the summary.**
+   `dl-052`'s citations (`:62`, `:197`, `sed -n 77-78p`) and this task's own ACs (`:200-205`, `:183`,
+   `publish.yml:135`) were **both** stale by the time they were read — `task-078` moved everything
+   below `:37`. Each of the four facts was therefore re-derived from `scripts/publish-staging.cjs` at
+   `b505473` (see *design* → AC2), and the new §3 text cites function names so it cannot decay the
+   same way. If a reviewer checks one thing, check that `verdaccioConfig`'s `'wingfoil'` block still
+   carries no `proxy:` — that is the claim with real consequences.
+2. **The Node-floor note deliberately does not close the question.** It says settled-at-the-decision-
+   level and names `README.md:115` as outstanding under `dl-013`. A reviewer who wants the spec to
+   read "closed" should reject rather than edit: `README.md` belongs to the `user-docs` gate, and
+   `adr-010` action 5 assigns it there.
+3. **Scope of the §3 note's final paragraph.** It records `task-077`'s F1/F2/F3 as *out of scope,
+   unchanged by this revision* — so §3 is not read as asserting the pipeline runs today. That is
+   information a reader of §3 needs, but it is a statement about another task's findings; if the
+   reviewer judges a tech-spec should not carry it, the paragraph can be cut without affecting any AC.
