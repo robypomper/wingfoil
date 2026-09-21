@@ -51,8 +51,6 @@ export interface PreparedMemoryTransition {
  *
  * - no document carries that frontmatter `id` → `NOT_FOUND` `document not found: <id>` (P1.6 sc.3);
  * - its `type` is not registered → `NOT_FOUND` with `memory add`'s unknown-type message;
- * - no state machine applies to the type (REQ-STATE-08: neither `states` nor `defaults.states`) →
- *   `VALIDATION`;
  * - its `status` is not a state of the type → `VALIDATION` `invalid state '<s>' for type '<t>'`
  *   (task-036's `validateFrontmatterState`);
  * - the verb is illegal from that state → `INVALID_TRANSITION` with the `dl-032` contract message
@@ -74,13 +72,13 @@ export function prepareMemoryTransition(
     return coreErr({ code: 'NOT_FOUND', message: `unknown memory type '${String(type)}' (not defined in memory.yaml)` });
   }
 
-  let machine: StateMachine;
-  try {
-    machine = resolveStateMachine(memoryYaml, type);
-  } catch (error) {
-    // The type is registered, so this is REQ-STATE-08's "neither `states` nor `defaults.states`".
-    return coreErr({ code: 'VALIDATION', message: (error as Error).message });
-  }
+  // Always resolves: the type is registered (checked immediately above), and since task-071
+  // (`bug-030-init-memory-yaml-has-no-state-machine`) a registered type with no `states` and no
+  // `defaults.states` falls back to the engine's built-in `DEFAULT_STATE_MACHINE` (REQ-STATE-08)
+  // instead of throwing. The `VALIDATION` refusal that used to guard this call is therefore gone with
+  // the condition it reported — the only throw left in `resolveStateMachine` is for an UNregistered
+  // type, which the `NOT_FOUND` above has already returned for.
+  const machine: StateMachine = resolveStateMachine(memoryYaml, type);
 
   const status = found.frontmatter.status;
   // A missing or non-string `status` is reported as an invalid state, never as the text 'undefined'.

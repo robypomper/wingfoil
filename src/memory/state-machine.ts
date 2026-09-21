@@ -56,16 +56,19 @@
  * `resolveTransitionTarget`'s `deprecate` case above).
  *
  * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
- * `types.<name>.states ?? defaults.states`. task-005's own tests exercise only the real 7 types
- * registered in `docs/self/.wingfoil/memory.yaml`, every one of which declares its own `states`
- * block — so the fallback (`?? defaults.states`) and the "neither declares a machine" throw below
- * were left genuinely uncovered by that task. task-010-default-state-machine-fallback closes that
- * gap with a throwaway fixture type (declared with no `states:` key) in
- * `test/memory/state-machine.test.ts`, proving the fallback end-to-end without any change needed
- * here — the resolution logic below already implemented REQ-STATE-08 correctly.
+ * `types.<name>.states ?? defaults.states ?? `{@link DEFAULT_STATE_MACHINE}. task-005's own tests
+ * exercise only the real types registered in `docs/self/.wingfoil/memory.yaml`, every one of which
+ * declares its own `states` block — so the `?? defaults.states` arm was left uncovered by that task,
+ * and `task-010-default-state-machine-fallback` closed that gap with a throwaway fixture type
+ * (declared with no `states:` key) in `test/memory/state-machine.test.ts`. The **third** arm is
+ * task-071's (`bug-030-init-memory-yaml-has-no-state-machine`): task-010's fixture still *declared* a
+ * `defaults` block, so a file with no machine anywhere — the shape `wingfoil init` scaffolded — was
+ * never resolved by anything, and it threw. See {@link DEFAULT_STATE_MACHINE} for why the engine, not
+ * the config file, owns that default.
  */
 import { ValidationError } from '../validation';
 
+import { StateMachine as StateMachineSchema } from './schema';
 import type { MemoryYaml, StateMachine } from './schema';
 
 /** The reserved implicit-wildcard target state (spec-001) — never declared explicitly anywhere. */
@@ -131,23 +134,78 @@ export const E_INVALID_STATE = 'E_INVALID_STATE';
 export type TransitionOp = 'submit' | 'approve' | 'reject' | 'deprecate';
 
 /**
- * Resolve the state machine that governs `typeName`, per REQ-STATE-08: the type's own `states`
- * block if declared, else `defaults.states`. Throws a plain `Error` (not `ValidationError` — this is
- * a caller-programming-error / config-integrity condition, not a document-transition failure) if the
- * type is not registered at all, or if neither the type nor `defaults` declares a machine.
+ * REQ-STATE-08's default machine, owned by the **engine** rather than by any config file
+ * (`bug-030-init-memory-yaml-has-no-state-machine`, task-071). It is the last arm of
+ * {@link resolveStateMachine}'s resolution: it governs every registered type that declares no `states`
+ * block in a `memory.yaml` that declares no `defaults.states` either.
+ *
+ * **Why the engine owns it.** REQ-STATE-08 states the rule over the *type* — "A Memory type that does
+ * not declare its own `states` uses the default machine" — with no mention of a `defaults` block, and
+ * its Rationale is "reduce config friction for simple types". `spec-001-memory-yaml-schema` makes
+ * `defaults` optional (`defaults: z.object({ states: StateMachine }).optional()`). A `memory.yaml`
+ * that omits `defaults` and registers a type without `states` is therefore a legal file whose types
+ * REQ-STATE-08 still gives a machine — which can only hold if the default exists without being
+ * declared. Before task-071 that combination threw instead, so every project `wingfoil init` created
+ * refused every transition verb (bug-030). BDD `p1-memory/P1.13-memory-element-schema.feature`
+ * scenario 2 is read the same way: its `Given` only puts a type in the file "without a `states`
+ * block", and its `Then` names the machine by value — so its title ("uses the defaults block")
+ * describes the common case rather than a precondition.
+ *
+ * **Why this value.** It is `spec-001`'s own worked `defaults` example, verbatim — not REQ-STATE-08's
+ * literal `draft → pending → approved/rejected → deprecated` wording, which `spec-001` §Consequences
+ * deliberately superseded: the default machine "loses its `rejected` state" ("no document ever records
+ * `status: rejected` again" — a `reject` from the `pending` gate lands straight back on `draft`), and
+ * `deprecated` is the reserved implicit wildcard reachable from any state, never declared in a
+ * `sequence` (the `StateMachine` schema's own `.superRefine()` forbids declaring it). The resulting
+ * legal set is exactly REQ-STATE-08's fit criterion under that encoding: `submit` draft→pending,
+ * `approve` pending→approved, `reject` pending→draft, `deprecate` →`deprecated` from anywhere, and
+ * nothing else.
+ *
+ * Frozen: it is shared by every type that falls back to it, so no consumer may mutate the machine
+ * other types are resolving (a shared constant, built once, with no per-call construction and no
+ * ordering dependence — REQ-SYS-07).
+ */
+export const DEFAULT_STATE_MACHINE: StateMachine = (() => {
+  // Built through the real `StateMachine` schema, so the built-in is held to exactly the structural
+  // rules (`gates` keys ⊆ `sequence`, `"deprecated"` never declared) every hand-written machine is —
+  // a malformed default would otherwise be the one machine nothing validates. Frozen through, so a
+  // consumer cannot mutate what every falling-back type resolves.
+  const machine = StateMachineSchema.parse({
+    sequence: ['draft', 'pending', 'approved'],
+    gates: { pending: { reject: 'draft' } },
+  });
+  Object.freeze(machine.sequence);
+  Object.freeze(machine.gates!['pending']);
+  Object.freeze(machine.gates);
+  return Object.freeze(machine);
+})();
+
+/**
+ * Resolve the state machine that governs `typeName`, per REQ-STATE-08. Three arms, in precedence
+ * order — the first that exists wins:
+ *
+ * 1. the type's own `states` block (`types.<name>.states`);
+ * 2. the file's `defaults.states`, when it declares one — a per-project override of the built-in;
+ * 3. {@link DEFAULT_STATE_MACHINE}, the engine's built-in default (task-071 / bug-030).
+ *
+ * Because arm 3 always applies, **no registered type can fail to resolve a machine**: the previous
+ * "neither the type nor `defaults` declares a machine" throw is gone, and with it the failure that
+ * made every transition verb refuse in a freshly-`wingfoil init`-ed project.
+ *
+ * The one remaining throw is for a type that is **not registered at all**. It is a plain `Error`, not
+ * a `ValidationError`, because it is a caller-programming-error condition rather than a
+ * document-transition failure — and it is not reachable from any CLI or MCP call: every transition
+ * verb goes through `prepareMemoryTransition` (`src/core/memory-transition.ts`), which returns the
+ * `NOT_FOUND` result `unknown memory type '<t>' (not defined in memory.yaml)` (exit `1`) for an
+ * unregistered type *before* calling this function. Only a direct library call naming a type the file
+ * does not register can reach it.
  */
 export function resolveStateMachine(memoryYaml: MemoryYaml, typeName: string): StateMachine {
   const typeEntry = memoryYaml.types[typeName];
   if (!typeEntry) {
     throw new Error(`memory.yaml has no type "${typeName}" registered`);
   }
-  const resolved = typeEntry.states ?? memoryYaml.defaults?.states;
-  if (!resolved) {
-    throw new Error(
-      `type "${typeName}" declares no \`states\` block and \`defaults.states\` is not set (REQ-STATE-08)`,
-    );
-  }
-  return resolved;
+  return typeEntry.states ?? memoryYaml.defaults?.states ?? DEFAULT_STATE_MACHINE;
 }
 
 /**
@@ -292,7 +350,8 @@ function contractTarget(machine: StateMachine, currentState: string, op: Transit
  * exit code is `1`. `<to>` is computed by {@link contractTarget}.
  *
  * @throws {@link ../validation.ValidationError} `E_INVALID_TRANSITION` (exit `1`) as above.
- * @throws `Error` when `typeName` is not registered or no machine applies (see {@link resolveStateMachine}).
+ * @throws `Error` when `typeName` is not registered (see {@link resolveStateMachine}). A registered type
+ *   can no longer fail to resolve a machine: REQ-STATE-08's built-in default is the last fallback.
  */
 export function resolveTypeTransition(
   memoryYaml: MemoryYaml,

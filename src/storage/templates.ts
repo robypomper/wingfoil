@@ -251,6 +251,21 @@ paths:
 `;
 }
 
+/**
+ * The scaffolded `memory.yaml` (P1.13, `spec-001-memory-yaml-schema`) — type registry **plus** the
+ * `defaults.states` machine every scaffolded type runs on.
+ *
+ * That `defaults` block is `bug-030-init-memory-yaml-has-no-state-machine` (task-071): this generator
+ * used to emit types only, while its own header comment promised "(per type) its state machine", so a
+ * freshly-`init`-ed project had no machine anywhere and `resolveStateMachine` refused every transition
+ * verb. The engine now also carries a built-in default (`DEFAULT_STATE_MACHINE`, `src/memory/state-machine.ts`)
+ * for hand-written files that declare nothing; the block is written out here anyway, and the header
+ * comment corrected to describe it, so the machine governing a new project is **visible and editable
+ * in the user's own file** rather than an invisible engine constant. It is `spec-001`'s worked
+ * `defaults` example verbatim, so this stays inside the top-level shape that spec already specifies
+ * (`defaults:` is optional there) — no per-type machine is invented for a starter project, which would
+ * be a product decision beyond this scaffold.
+ */
 function memoryYaml(): string {
   const types = MEMORY_TYPES.map(
     (type) => `  ${type}:
@@ -262,9 +277,20 @@ function memoryYaml(): string {
         required: [id, type, title, status]`,
   ).join('\n');
   return `# Memory element schema (P1.13) — scaffolded by \`wingfoil init\`.
-# One entry per element type: its path pattern, its scaffold template, and (per type) its state
-# machine. There is NO global state machine — customize each type's states for your process.
+# One entry per element type: its path pattern, its id pattern and its scaffold template. Every type
+# below shares the \`defaults\` state machine; give a type its own \`states:\` block to override it for
+# that type only (REQ-STATE-08).
 version: 1
+
+# Default state machine — applies to every type that declares no \`states:\` block of its own.
+# \`sequence\` is the ordered forward chain (\`submit\` walks it); a \`gates\` state's forward edge needs
+# \`approve\` instead, and its \`reject\` target is where a rejection lands. \`deprecated\` is implicit:
+# \`memory deprecate\` reaches it from any state, so it is never listed here.
+defaults:
+  states:
+    sequence: [ draft, pending, approved ]
+    gates:
+      pending: { reject: draft }
 
 types:
 ${types}
