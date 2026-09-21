@@ -183,7 +183,8 @@ describe('publish metadata (task-059) — shipped file surface', () => {
  *
  * Range arithmetic is done here rather than with `semver`. `require('semver')` resolves to 6.3.1 in
  * this tree (no `subset`); semver 7 exists only nested under devDependencies, as a hoisting accident;
- * and declaring the dependency would mean editing `package-lock.json`, which is owned elsewhere. The
+ * and declaring the dependency would mean editing `package-lock.json` beyond the engines mirror this
+ * task already owns — moving resolutions, which is out of scope here. The
  * evaluator below covers the comparator forms npm `engines` ranges actually use and **throws on
  * anything it does not understand**, so an unreadable range fails the suite instead of being quietly
  * treated as satisfied. It has its own unit tests at the bottom of this file.

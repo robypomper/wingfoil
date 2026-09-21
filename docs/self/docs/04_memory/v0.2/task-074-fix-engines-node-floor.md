@@ -479,7 +479,7 @@ time; the numbers are identical.
 .github/workflows/publish.yml                                          |  14 +-  (header comment only)
 docs/self/docs/04_memory/bugs/bug-023-…md                              |   2 +-  (status sync)
 docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md |  37 +-
-docs/self/docs/04_memory/v0.2/task-074-fix-engines-node-floor.md       | 412 +
+docs/self/docs/04_memory/v0.2/task-074-fix-engines-node-floor.md       |   … +   (self-referential: any number written here is stale the moment it is written)
 package-lock.json                                                      |   2 +-  (engines mirror only)
 package.json                                                           |   2 +-  (engines.node)
 test/cli/publish-metadata.test.ts                                      | 337 +
