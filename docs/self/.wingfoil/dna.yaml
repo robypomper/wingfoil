@@ -72,7 +72,7 @@ stacks:
       category: language
     - name: Node.js
       category: runtime
-      version: "18+"
+      version: "22.12+"   # [SPEC] Product Brief §Technical Stack; floor set by adr-010 (supersedes adr-005's runtime clause)
     - name: npm
       category: package-manager
     - name: Commander.js
