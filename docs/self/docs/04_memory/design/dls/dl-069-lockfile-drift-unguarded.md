@@ -2,7 +2,7 @@
 id: "dl-069-lockfile-drift-unguarded"
 type: decision-log
 title: "Lockfile drift is unguarded: the @emnapi peers are still unlocked and `npm ci` runs only in the tag-triggered gate"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: "v0.2"
 contributor: ""
