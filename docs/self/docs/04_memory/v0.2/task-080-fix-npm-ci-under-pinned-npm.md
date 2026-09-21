@@ -390,3 +390,71 @@ core: undefined runtime: undefined
 `test/cli/lockfile-peer-overrides.test.ts` now fails on, so the suite catches the revert before the gate
 does — and it is filed as a proposed element in the review summary, since the durable answer is to make
 developers run the pinned npm rather than to rely on a test noticing.
+
+### refactor — gates, run inside a real `npm ci` tree
+
+No code refactoring was needed: the change is a manifest pin, two lock entries and one test file; `src/`
+is untouched (`git diff --stat main...HEAD -- src` → empty output). What this phase did is run the gates
+where they mean something. A throwaway clone of **this branch** was made in the scratchpad — outside
+every worktree, so nothing is masked by a symlinked `node_modules` — and installed with **npm 10.9.0**,
+i.e. the CI runner's own npm, not the host's:
+
+```
+$ git clone -q --branch task/task-080-fix-npm-ci-under-pinned-npm /home/robypomper/Workspaces/WingFoil2 <scratch>/fixclone
+$ cd <scratch>/fixclone && git log --oneline -1
+469cd1c fix(build): task-080-fix-npm-ci-under-pinned-npm — pin the @emnapi peers and hoist them in the lock
+$ ls -d node_modules
+ls: cannot access 'node_modules': No such file or directory
+$ <npm109> ci --dry-run --no-audit --no-fund ; echo AC1_EXIT=$?      # AC1
+added 528 packages in 3s
+AC1_EXIT=0
+$ ls -d node_modules                                                  # still absent — AC2 starts clean
+ls: cannot access 'node_modules': No such file or directory
+$ <npm109> ci --no-audit --no-fund ; echo AC2_EXIT=$?                 # AC2 — full, non-dry
+added 498 packages in 18s
+AC2_EXIT=0
+$ git status --porcelain                                              # the install rewrites nothing
+(empty)
+$ npm --version && npm ci --dry-run --no-audit --no-fund >/dev/null 2>&1 ; echo AC3_EXIT=$?   # AC3
+11.6.2
+AC3_EXIT=0
+```
+
+So the same bytes now install under both npms, where `main` installs under only one. (The dry run counts
+528 packages and the real install 498: `--dry-run` reports the full ideal tree, the real install skips
+optional packages that do not match this platform. Both exit 0, which is what the AC asks; per AC6 the
+counts are read for understanding, nothing keys on them.)
+
+**Gate set, every command run in `<scratch>/fixclone`** — the npm-10.9.0-installed tree, so these are
+numbers a CI runner would see:
+
+| Gate | Result |
+|---|---|
+| `npx jest` | exit **0** — 105 suites / 1705 tests passed |
+| `npx jest --coverage` | exit **0** — `All files 98.58 %` stmts / 92.58 % branch / 98.81 % funcs / 99.18 % lines |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit **0** — no output at all; `bug-026` is closed (`task-076`) and nothing replaced it |
+| `npm run lint` | exit **0** (`lint.clean`) |
+| `npm run docs:api` | exit **0** (`docs.api.*`) |
+
+**Coverage is non-regressing, measured rather than argued.** The identical command was run on a clean
+`npm ci` clone of `main` at `0cf643f`: `All files 98.58 | 92.58 | 98.81 | 99.18`, 104 suites / 1697
+tests. The branch reports the same four numbers to the hundredth, which is what `src/` being
+byte-identical predicts — and the new test imports nothing from `src/` (`grep -n "src"
+test/cli/lockfile-peer-overrides.test.ts` → no match), so it cannot move them.
+
+**The test-count delta is +8, and all eight are accounted for**: the new file contributes 7 cases, and
+`test/core/latency-budget-placement.test.ts` generates one case **per test source file** via
+`it.each(SCANNED_FILES)`, so a new file under `test/` adds exactly one more. 1697 + 7 + 1 = 1705. Suites
+104 → 105.
+
+**AC6 — nothing added here keys on npm's output**, checked rather than asserted:
+
+```
+$ grep -rn "npm error\|EUSAGE\|Missing:" test/ src/ scripts/ .github/
+(no output — no match anywhere in the repository, the new test file included)
+```
+
+The test reads `package.json` and `package-lock.json` and never invokes npm at all, so there is no
+output for it to key on. `.github/` is untouched by this branch, so the gate's own steps are unchanged:
+the workflow still runs `npm ci` and still fails on its exit code alone (`dl-069` S1).
