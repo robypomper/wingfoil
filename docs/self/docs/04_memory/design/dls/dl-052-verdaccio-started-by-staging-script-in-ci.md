@@ -2,7 +2,7 @@
 id: "dl-052-verdaccio-started-by-staging-script-in-ci"
 type: decision-log
 title: "spec-015 §3 says Verdaccio runs as a CI service container; the shipped pipeline starts it from scripts/publish-staging in CI too — amend the spec"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
