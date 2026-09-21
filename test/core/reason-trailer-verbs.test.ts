@@ -28,6 +28,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { load } from 'js-yaml';
+
 import { CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForThrow } from '../../src/core/exit-code';
@@ -149,14 +151,19 @@ describe('dl-067 across the four transition verbs — a blank `--reason` is refu
   );
 
   it('memorySubmit passes no reason at all, so it has nothing to inject (characterization)', async () => {
+    // A `draft` document, because `submit` off `pending` would be refused as an illegal transition
+    // (`pending` is a gate state — its forward edge needs `approve`) before any message is built.
+    writeFixtureFile(repo, 'docs/memory/decisions/decision-13.md', decisionDoc('decision-13', 'draft'));
+    commitAll(repo, 'seed a draft');
+
     const result = await operationFn('memorySubmit')({
       root: repo,
-      positional: 'decision-12',
+      positional: 'decision-13',
       options: { reason: FORGED },
     });
     expect(result.ok).toBe(true);
     const body = gitOut(repo, ['log', '-1', '--format=%B']);
-    expect(body).toBe('wf(decision): submit decision-12');
+    expect(body).toBe('wf(decision): submit decision-13');
     expect(body).not.toContain('Approver:');
     expect(body).not.toContain('Reason:');
   });
@@ -211,9 +218,8 @@ describe('dl-067 across the four transition verbs — a multi-line reason round-
 
     // spec-010: reject is the one verb that writes the reason to frontmatter too. The two sinks must
     // not diverge — normalizing once, at the boundary, is what guarantees that.
-    const { load } = require('js-yaml') as { load: (input: string) => Record<string, unknown> };
     const raw = readFileSync(join(repo, docPath), 'utf-8');
-    const frontmatter = load(raw.split('---')[1] as string);
+    const frontmatter = load(raw.split('---')[1] as string) as Record<string, unknown>;
     expect(frontmatter.rejection_reason).toBe(NORMALIZED);
   });
 

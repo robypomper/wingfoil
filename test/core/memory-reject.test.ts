@@ -28,6 +28,8 @@ import { CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import { UsageError } from '../../src/core/usage-error';
+import { parseCommitReason } from '../../src/memory/audit';
+import { normalizeReason } from '../../src/memory/commit-message';
 import { splitFrontmatter } from '../../src/storage';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -302,14 +304,31 @@ describe('CORE_MODULES memory.memoryReject — P1.8 fit criteria', () => {
     expect(result.error.message).toBe("user not authorized to approve type 'task'");
   });
 
-  it('spec-008 §2: an arbitrary reason round-trips YAML-safely into frontmatter and verbatim into the commit body', async () => {
+  /**
+   * Amended by `task-072-fix-reason-trailer-contract` (`dl-067-reason-trailer-contract` clause 3,
+   * ratified). This case used to assert that `rejection_reason` kept the text "byte-for-byte as the
+   * user typed it" while the commit body got it `.trimEnd()`-ed — and in doing so it PINNED the
+   * divergence between this verb's two sinks: git's `cleanup=whitespace` strips the trailing spaces
+   * on the way into the commit, nothing stripped them on the way into the frontmatter, so the
+   * authoritative audit record and its frontmatter mirror disagreed about what the reason was.
+   *
+   * dl-067 replaces spec-008 §2's "Recorded verbatim" with a DECLARED normal form, applied once at
+   * the boundary (`requireReason`), so both sinks now carry the same bytes. The YAML-safety property
+   * this case exists for — quotes, colons, `#`, newlines, a leading `-` and unicode all surviving
+   * `setFrontmatterField` — is unchanged and still asserted.
+   */
+  it('spec-008 §2 + dl-067 clause 3: an arbitrary reason round-trips YAML-safely, and both sinks carry the SAME declared normal form', async () => {
     const reason = '- "quoted": yes # not a comment\nline two: \\ ünïcode  ';
+    const recorded = normalizeReason(reason);
+    expect(recorded).toBe('- "quoted": yes # not a comment\nline two: \\ ünïcode');
+
     const result = await memoryRejectFn()({ root: repo, positional: 'task-101', options: { reason } });
     expect(result.ok).toBe(true);
-    // Parsed back through the project's own YAML reader, it is byte-for-byte the text the user typed.
-    expect(frontmatter(repo, 'docs/memory/v0.2/task-101.md').rejection_reason).toBe(reason);
-    // And the commit body records it verbatim, newlines included.
-    expect(gitOut(repo, ['log', '-1', '--format=%B'])).toContain(`Reason: ${reason}`.trimEnd());
+    // Parsed back through the project's own YAML reader: every awkward character survives.
+    expect(frontmatter(repo, 'docs/memory/v0.2/task-101.md').rejection_reason).toBe(recorded);
+    // And the commit body records exactly the same text — no `trimEnd()` gap between the two.
+    expect(gitOut(repo, ['log', '-1', '--format=%B'])).toContain(`Reason: ${recorded}`);
+    expect(parseCommitReason(gitOut(repo, ['log', '-1', '--format=%b']))).toBe(recorded);
   });
 
   it('a reason that looks like a YAML-typed word or a number stays a string', async () => {

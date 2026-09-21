@@ -95,9 +95,15 @@ describe('reasonDefect — dl-067 clause 4: the narrow refusal, and only it', ()
   });
 
   it('accepts generic `Key: value` prose — 8 commits on `main` carry one inside the reason (dl-067 E5)', () => {
-    // Real lines from `3655166`, `58ac6f9` and `1ee7f00`.
+    // Real lines from `3655166`, `58ac6f9` and `1ee7f00`. The `58ac6f9` case is quoted with its real
+    // wrapping: its closing paragraph opens `Action:` but continues onto lines that are ordinary
+    // prose, which is why it is not a trailer paragraph. 0 of main's 172 reason blocks end in one.
     expect(reasonDefect('A: before the v0.2 release-publishing phase, a named task runs npm pack')).toBeNull();
-    expect(reasonDefect('ratified.\n\nAction: amend spec-015 §3 as a dated Revision note')).toBeNull();
+    expect(
+      reasonDefect(
+        'Option 3 was rejected.\n\nAction: amend spec-015 §3 as a dated Revision note (dl-047: tech-specs\ncarry no version field), including the local `npx verdaccio` wording.',
+      ),
+    ).toBeNull();
     expect(reasonDefect('The debt is implicit: this is a known, named debt, not an oversight')).toBeNull();
   });
 

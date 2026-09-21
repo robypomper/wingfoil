@@ -63,7 +63,7 @@ import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
-import { requireReason } from './require-reason';
+import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule } from './registry';
@@ -974,7 +974,10 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
   if (id === undefined || id.trim().length === 0) {
     throw new UsageError('missing required argument: memory deprecate <id>');
   }
-  const reason = options?.reason;
+  // `--reason` is optional here (`dl-027`), but a reason that IS given must be recordable in the
+  // trailer — blank or trailer-shaped is a usage error at exit 2, before anything is read or written
+  // (`dl-067` clauses 1 and 4; `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
+  const reason = optionalReason(options);
 
   const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
   if (!loaded.ok) return loaded;
