@@ -22,6 +22,7 @@ import { load } from 'js-yaml';
 import { MemoryYaml } from '../../src/memory/schema';
 import {
   ARCHIVED_STATUSES,
+  DEFAULT_STATE_MACHINE,
   DEPRECATED_STATE,
   E_INVALID_STATE,
   E_INVALID_TRANSITION,
@@ -278,14 +279,12 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
     expect(machine).toBe(fixtureMemoryYaml.defaults!.states);
   });
 
-  it('throws when neither the type nor `defaults` declares a machine (the other previously-uncovered branch)', () => {
-    const noDefaultsYaml = MemoryYaml.parse({
-      version: 1.1,
-      types: { 'fixture-no-states': { path: 'docs/04_memory/fixtures/{id}.md' } },
-    });
-    expect(() => resolveStateMachine(noDefaultsYaml, 'fixture-no-states')).toThrow(
-      /declares no `states` block and `defaults.states` is not set/,
-    );
+  it('a declared `defaults.states` takes precedence over the built-in default machine (bug-030)', () => {
+    // The fixture's `defaults` machine is value-equal to the built-in, so precedence is asserted by
+    // IDENTITY: what comes back must be the object the file declared, not the engine's constant.
+    const machine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
+    expect(machine).toBe(fixtureMemoryYaml.defaults!.states);
+    expect(machine).not.toBe(DEFAULT_STATE_MACHINE);
   });
 
   it('`memory.add` chain head is `draft` (`sequence[0]`)', () => {
@@ -344,6 +343,86 @@ describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults
     const fallbackMachine = resolveStateMachine(fixtureMemoryYaml, 'fixture-no-states');
     expect(fallbackMachine).toBe(fixtureMemoryYaml.defaults!.states);
     expect(fallbackMachine.sequence).toEqual(['draft', 'pending', 'approved']);
+  });
+});
+
+/**
+ * bug-030-init-memory-yaml-has-no-state-machine (task-071) — the case neither task-005 nor task-010
+ * ever exercised: a `memory.yaml` with a type that declares no `states` **and no `defaults` block at
+ * all**. That file is legal under `spec-001-memory-yaml-schema` (`defaults: # optional`,
+ * `z.object({ states: StateMachine }).optional()`), and REQ-STATE-08 says its types still have a
+ * machine — *"A Memory type that does not declare its own `states` uses the default machine"*, a rule
+ * stated over the type, with no mention of a declared block, whose Rationale is *"reduce config
+ * friction"*. So the engine itself owns the default; a declared `defaults.states` is a per-project
+ * override of it (asserted by identity in the task-010 block above), not the mechanism that creates it.
+ *
+ * BDD `p1-memory/P1.13-memory-element-schema.feature` scenario 2 is read the same way: its title says
+ * "uses the defaults block" but its `Given` only puts a type in the file *without* a `states` block and
+ * its `Then` names the machine **by value**, which is what is asserted here.
+ *
+ * The machine's value is `spec-001`'s own worked `defaults` example, NOT REQ-STATE-08's literal
+ * `draft → pending → approved/rejected → deprecated`: `spec-001` §Consequences deliberately removed the
+ * `rejected` status ("no document ever records `status: rejected` again") and makes `deprecated` the
+ * reserved implicit wildcard that is never declared in a `sequence`. The four verbs below are exactly
+ * REQ-STATE-08's fit criterion — *"accepts exactly the default transitions and rejects any transition
+ * outside them"* — under that encoding.
+ */
+describe('REQ-STATE-08 — no `states` AND no `defaults` block resolves the built-in default machine (bug-030)', () => {
+  // The fresh-`wingfoil init` shape before this fix: types, no machine anywhere in the file.
+  const NO_MACHINE_ANYWHERE = {
+    version: 1.1,
+    types: {
+      note: { path: 'docs/memory/note/{id}.md', id_pattern: 'note-{n}-{slug}' },
+    },
+  };
+  const parsed = MemoryYaml.parse(NO_MACHINE_ANYWHERE);
+
+  it('Pass 1: a file with no `defaults` key is structurally valid (`defaults` is optional, spec-001)', () => {
+    expect(MemoryYaml.safeParse(NO_MACHINE_ANYWHERE).success).toBe(true);
+    expect(parsed.defaults).toBeUndefined();
+  });
+
+  it('resolves the built-in default machine instead of throwing', () => {
+    expect(resolveStateMachine(parsed, 'note')).toBe(DEFAULT_STATE_MACHINE);
+  });
+
+  it('the built-in is spec-001\'s worked `defaults` machine — no `rejected`, no declared `deprecated`', () => {
+    expect(DEFAULT_STATE_MACHINE.sequence).toEqual(['draft', 'pending', 'approved']);
+    expect(DEFAULT_STATE_MACHINE.gates).toEqual({ pending: { reject: 'draft' } });
+    expect(DEFAULT_STATE_MACHINE.sequence).not.toContain('rejected');
+    expect(DEFAULT_STATE_MACHINE.sequence).not.toContain(DEPRECATED_STATE);
+  });
+
+  it('accepts exactly the default transitions (REQ-STATE-08 fit criterion), through `resolveTypeTransition`', () => {
+    expect(resolveTypeTransition(parsed, 'note', 'draft', 'submit')).toBe('pending');
+    expect(resolveTypeTransition(parsed, 'note', 'pending', 'approve')).toBe('approved');
+    expect(resolveTypeTransition(parsed, 'note', 'pending', 'reject')).toBe('draft');
+    expect(resolveTypeTransition(parsed, 'note', 'approved', 'deprecate')).toBe(DEPRECATED_STATE);
+  });
+
+  it('rejects any transition outside them (REQ-STATE-08 fit criterion, second half)', () => {
+    expect(() => resolveTypeTransition(parsed, 'note', 'draft', 'approve')).toThrow(ValidationError);
+    expect(() => resolveTypeTransition(parsed, 'note', 'draft', 'reject')).toThrow(ValidationError);
+    expect(() => resolveTypeTransition(parsed, 'note', 'approved', 'submit')).toThrow(ValidationError);
+    expect(() => resolveTypeTransition(parsed, 'note', 'shipped', 'submit')).toThrow(ValidationError);
+  });
+
+  it('`validateFrontmatterState` agrees with it — every state the verbs write is a legal state', () => {
+    const machine = resolveStateMachine(parsed, 'note');
+    for (const status of ['draft', 'pending', 'approved', DEPRECATED_STATE]) {
+      expect(() => validateFrontmatterState(machine, 'note', status)).not.toThrow();
+    }
+    expect(() => validateFrontmatterState(machine, 'note', 'shipped')).toThrow(ValidationError);
+  });
+
+  it('an unregistered type is still a programming-error throw, not a silent default (AC5)', () => {
+    // The ONE plain-`Error` path left in `resolveStateMachine`. No CLI/MCP call reaches it:
+    // `prepareMemoryTransition` returns NOT_FOUND for an unregistered type before resolving.
+    expect(() => resolveStateMachine(parsed, 'unicorn')).toThrow(/has no type "unicorn" registered/);
+  });
+
+  it('the built-in constant is frozen — no consumer can mutate the machine every project falls back to', () => {
+    expect(Object.isFrozen(DEFAULT_STATE_MACHINE)).toBe(true);
   });
 });
 

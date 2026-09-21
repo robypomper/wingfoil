@@ -302,26 +302,47 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
   });
 });
 
-describe('CORE_MODULES memory.memorySubmit — configuration without any state machine', () => {
+/**
+ * bug-030-init-memory-yaml-has-no-state-machine (task-071) — **this block's expectation is inverted
+ * from what task-045 wrote here.** It used to assert that a config with no per-type `states` and no
+ * `defaults` block made `memory submit` fail with a `VALIDATION` error naming REQ-STATE-08 — and its
+ * own fixture comment said that config was *"the shape `wingfoil init` scaffolds today"*. That is
+ * bug-030's defect written down as an expectation: REQ-STATE-08 says such a type *"uses the default
+ * machine"*, and `spec-001-memory-yaml-schema` makes `defaults` optional, so the file below is legal
+ * and must work. `resolveStateMachine` now falls back to the built-in `DEFAULT_STATE_MACHINE` and the
+ * submit completes. The fixture is kept exactly as it was, so the inversion is legible.
+ */
+describe('CORE_MODULES memory.memorySubmit — configuration with no `states` and no `defaults` (bug-030)', () => {
   let repo: string;
 
   beforeEach(() => {
     repo = makeTempGitRepo();
-    // The shape `wingfoil init` scaffolds today: types with no `states:` and no `defaults:` block.
+    // The shape `wingfoil init` scaffolded before task-071: types with no `states:` and no `defaults:`.
     writeFixtureFile(repo, '.wingfoil/memory.yaml', 'version: 1\ntypes:\n  task:\n    path: docs/memory/task/{id}.md\n');
     writeFixtureFile(repo, 'docs/memory/task/task-1.md', '---\nid: task-1\ntype: task\ntitle: "T"\nstatus: draft\n---\n');
+    writeFixtureFile(repo, 'docs/memory/task/task-2.md', '---\nid: task-2\ntype: task\ntitle: "T"\nstatus: approved\n---\n');
     commitAll(repo, 'seed');
   });
 
   afterEach(() => removeTempDir(repo));
 
-  it('is a VALIDATION error (exit 1) naming REQ-STATE-08, never an escaped throw', async () => {
+  it('submits on the built-in default machine (REQ-STATE-08): draft -> pending, one commit', async () => {
     const before = head(repo);
     const result = await memorySubmitFn()({ root: repo, positional: 'task-1' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toMatchObject({ from: 'draft', to: 'pending' });
+    expect(readFileSync(join(repo, 'docs/memory/task/task-1.md'), 'utf-8')).toContain('status: pending');
+    expect(head(repo)).not.toBe(before);
+  });
+
+  it('still refuses an illegal verb on that machine — the fallback adds a machine, not permissiveness', async () => {
+    const before = head(repo);
+    // `approved` is the last state of the default `sequence`: no forward edge for `submit`.
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-2' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.code).toBe('VALIDATION');
-    expect(result.error.message).toContain('REQ-STATE-08');
+    expect(result.error.code).toBe('INVALID_TRANSITION');
     expect(exitCodeForResult(result)).toBe(1);
     expect(head(repo)).toBe(before);
   });
