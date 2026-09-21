@@ -276,3 +276,41 @@ standing rule for future work**: no workflow YAML, no plan under `docs/05_plans/
 sentence names it. The one place it *is* stated as a standing rule for future work is the
 orchestrator's per-wave agent brief, which lives outside the repository and is not this branch's to
 edit — flagged for the approver rather than changed.
+
+### red — role: developer
+
+**No test was authored and no `test(...)` red commit exists.** Every AC classified characterization at
+`design`, so `red`'s `tests.failing(for: red-first ACs)` check is satisfied over an empty set. The two
+baseline measurements that stand in for it were taken on the branch at `a7d783a` **before** any edit:
+
+| Command | Result |
+|---|---|
+| `npx jest --maxWorkers=2` | exit **0** — `Test Suites: 100 passed, 100 total` · `Tests: 1591 passed, 1591 total` · `Time: 200.714 s` |
+| `npx tsc --noEmit -p tsconfig.json; echo $?` | exit **2**, one line: `test/core/directive-create.test.ts(159,19): error TS2339: Property 'commit' does not exist on type '{ readonly ok: false; readonly error: CoreError; }'.` |
+
+That pair is AC4's evidence, measured rather than assumed: the suite is **green with the error
+present**, which is the whole reason this defect survived `task-050`'s dev-loop, its review and its
+merge. A failing Jest test for AC1 could only be produced by adding an assertion that shells out to
+`tsc` — which is exactly the gate AC7 reserves for `dl-044`. No red was fabricated; no dead code was
+added to force one.
+
+### green — role: developer
+
+Variant **A** applied: `test/core/directive-create.test.ts:159`
+`expect(second.commit).toBeUndefined();` deleted. One line removed, nothing else — the full diff of the
+change is `-    expect(second.commit).toBeUndefined();`.
+
+```
+$ npx tsc --noEmit -p tsconfig.json; echo $?
+0
+```
+
+**Exit 0, no output** (AC1). The standing exception every wave-2 agent has had to be briefed on — "only
+the pre-existing `bug-026` error is allowed" — no longer has an instance to name. The gate is binary
+again: any output at all from that command is now a new defect. It is, to be plain about it, *not* a
+gate anyone runs automatically (see the AC7 sequencing note at `design`); it is simply readable now.
+
+AC3 re-checked on the edited file rather than on memory: `:158`
+`expect(head(repo)).toBe(shaBefore);` is present and untouched, and it is the assertion that carries
+the "no second commit was produced" claim. `:151`/`:153`/`:154`/`:157` — `ok === false`, the exact
+`CONFLICT` message, exit code 1, byte-identical file — are all present and untouched too.
