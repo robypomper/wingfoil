@@ -395,3 +395,43 @@ test/memory/versioning-audit-trail.test.ts:61 (?:Z|[+-]\d{2}:\d{2})   ← fixed
 ```
 
 Four hits, four alternations: no occurrence of the narrow literal remains anywhere in `test/` or `src/`.
+
+### review-ready summary
+
+**What changed.** Two assertion literals in two test sources, from `[+-]\d{2}:\d{2}` to
+`(?:Z|[+-]\d{2}:\d{2})`, plus a three-line comment above each explaining why (`fix(memory)` `a03696d`).
+Nothing under `src/`, no jest/TZ configuration, no new test file, no new Memory element.
+
+**Per-AC disposition** (every row settled by a command quoted above, none by reading the bug):
+
+| AC | Class | Settled by |
+|---|---|---|
+| AC1 both assertions use the alternation | red-first | `grep -rn '\[+-\]\\d{2}:\\d{2}' test/ src/` after the change: 4 hits, all 4 carrying `(?:Z\|[+-]\d{2}:\d{2})` |
+| AC2 passes under `TZ=UTC` with git ≥ 2.55 | red-first | container run, `git version 2.55.0` printed in the same run — two named suites `EXIT=0`, and beyond what the AC asks, the **whole suite** (104/1697) and **`npm run prepublishOnly`** both `EXIT=0` |
+| AC3 red before green, identical command | red-first | same command string at `c5a6643` (`EXIT=1`, 2 failed, `Received string: "2026-09-21T20:00:09Z"`) and at `a03696d` (`EXIT=0`, 19 passed) |
+| AC4 no other assertion carries the literal | characterization | the sweep, plus two widened sweeps for other zone spellings; the two remaining timestamp assertions (`test/memory/history.test.ts`, `test/memory/audit.test.ts`) are unanchored and zone-agnostic, so they are not offset-only and never failed |
+| AC5 `+HH:MM` still passes | characterization | host run under `TZ=Europe/Rome`, git 2.43.0: 19 passed before and after; literal probe shows a zone-less string is still rejected |
+| AC6 gates green | characterization | gate table in `### refactor` — jest, coverage (98.58 % statements), both `tsc --noEmit`, lint, docs:api, all exit 0 |
+| AC7 `bug-057` to `resolved` | process | out of this agent's authority: carried `planned → in-progress` at `start` and `in-progress → in-review` at `submit`; `resolved`/`closed` belong to the approver's `done` phase |
+
+**The CI premise, re-verified at execution time** (Implementation Notes item 3, not taken from the bug):
+
+```
+$ curl -sS https://raw.githubusercontent.com/actions/runner-images/main/images/ubuntu/Ubuntu2404-Readme.md | grep -i '^- Git '
+- Git 2.55.0
+```
+
+**What remains unverified, explicitly.** Nothing was run on GitHub. The claim proved here is "the suite
+and `prepublishOnly` pass under git 2.55.0 with `TZ=UTC`, in the image `task-077` identifies"; the step
+from that to "they pass on GitHub's `ubuntu-24.04` runner" rests on the image readme above plus the
+fact that GitHub runners are UTC — the same two facts `bug-057` rests on, now re-measured rather than
+quoted. Also unverified: whether `bug-058`'s `ENOTEMPTY` teardown race is gone — it simply did not fire
+in either full container run here (104/104 passed twice). It is a race, so two green runs are not
+evidence of a fix; `bug-058` must stay `planned` and was not touched.
+
+**Deliberate non-actions.** No TZ was pinned in jest config (the Implementation Notes forbid it, and it
+would hide the input rather than accept it). No repo-wide guard test against re-narrowing was added —
+that is a change of gate policy, not of this assertion, and it is raised in the final report as a
+proposed `dl` instead of being smuggled in here. No production code was read-and-fixed: nothing in
+`src/` parses `%aI` (checked, `### design`), so the Implementation Notes' "separate finding" branch is
+closed with a negative result rather than left open.
