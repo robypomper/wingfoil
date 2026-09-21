@@ -478,3 +478,61 @@ The AC4 edit is a citation change only: the criterion still demands hoisted entr
 the parenthesis still records that exactly one hoisted `@emnapi` entry existed before the fix. Flagged
 here rather than left silent because editing a task's own acceptance criteria mid-flight deserves to be
 visible to the reviewer.
+
+### review-ready summary — role: reviewer
+
+**What landed.** 32 added lines of fix, one test file, no product code. `package.json` gains an
+`overrides` block scoped to `@napi-rs/wasm-runtime` pinning `@emnapi/core` and `@emnapi/runtime` at
+`1.11.3`, with its rationale in a sibling `"//overrides"` key; `package-lock.json` gains the two
+hoisted entries those pins resolve to, inserted verbatim from an npm-10.9.0 resolution and checked
+against the registry, with **zero deletions and nothing else changed**;
+`test/cli/lockfile-peer-overrides.test.ts` pins the structural property offline. `src/` is untouched
+(`git diff --stat main...HEAD -- src` → empty), `.github/` is untouched, and `NODE_VERSION` and
+`engines.node` are exactly as they were.
+
+**The result the whole task is about:** `npm ci` now exits 0 under **npm 10.9.0**, the npm the pipeline's
+pinned Node 22.12.0 bundles, in a clean clone with no `node_modules` — where `main` exits 1 under the
+identical command — and still exits 0 under the host's npm 11.6.2.
+
+**AC status.** AC1 ✅ (`<npm109> ci --dry-run` → exit 0, clean clone outside every worktree, npm version
+printed alongside). AC2 ✅ (full non-dry `<npm109> ci` → exit 0, `ls -d node_modules` shown absent
+first, and the install rewrote neither manifest nor lock). AC3 ✅ (host npm 11.6.2 dry-run → exit 0).
+AC4 ✅ (`grep -n '"node_modules/@emnapi' package-lock.json` now returns three lines, `@emnapi/core`
+and `@emnapi/runtime` among them; the test asserts it, and failed for exactly those two edges before
+the fix). AC5 ✅ (`"//overrides"` in `package.json` plus the `green` section: what is pinned, why the
+pin is scoped, why exact, and why a dev-only optional transitive edge can only be constrained from the
+top-level manifest). AC6 ✅ (`grep -rn "npm error\|EUSAGE\|Missing:" test/ src/ scripts/ .github/` →
+no match anywhere; the test never runs npm). AC7 ✅ (gate table above — all six commands exit 0, and
+`tsc -p tsconfig.json` is now **clean**, not merely bug-026-only). AC8 ✅ (`bug-056` moved by
+`wf(bug): sync` commits driven off the task's `bug:` field, never by a standalone edit).
+
+**BDD.** None to run, and that is `REQ-SYS-09`'s own position, not an omission: it declares itself a
+"distribution requirement with no behavioral BDD feature", and `grep -rln "npm\|packag"` over
+`docs/02_requirements/02_bdd/features/` returns nothing. The acceptance evidence is the recorded exit
+codes plus the packaging suites, which pass in the `npm ci` tree.
+
+**Weak spots a reviewer should weigh.**
+
+1. **A plain `npm install` under npm 11.x silently reverts this fix** (D1, measured). The `overrides`
+   block does not stop it: that npm does not record these optional peer nodes at all, so it deletes
+   both hoisted entries and leaves a diff that shows only that. `npm ci` never does this, so the gate
+   is safe, and the new test now fails loudly if it happens — but the durable answer is to make local
+   development use the npm the pipeline pins, which is a decision, not this task's to take. Filed as a
+   proposed element.
+2. **The pin freezes a subtree npm otherwise keeps current** — `dl-069` option (b)'s stated cost, now
+   incurred. It must be revisited on any `eslint` / `@unrs/resolver` bump. The mitigations are that the
+   pin is scoped to one package's edges (not tree-wide), that the reason travels with it in
+   `package.json`, and that the test fails if a bump ever leaves the pin pointing at an edge the parent
+   no longer declares.
+3. **`"//overrides"` is published.** npm ignores `//`-prefixed keys but does carry them in the published
+   manifest, so the explanation is visible on the registry page. That is deliberate — attribution is the
+   cost `dl-069` names — but it is a reviewer's call, and deleting the key changes nothing functional.
+4. **`dl-069` is still `in-discussion`.** Only its option (b) is implemented and no CI workflow is
+   added, so option (a) stays fully open; the decision still wants recording in that document's
+   approve commit `Reason:`.
+
+**Proposed elements** (not created here — parallel worktrees would collide on ids; carried to the
+orchestrator in the final report): (1) a **bug** for the npm-11 silent revert measured in D1;
+(2) a **decision-log** on making the local toolchain match the pipeline's (a `packageManager` /
+`engines.npm` declaration, or a documented `.nvmrc`), which is the class `bug-056` came from — every
+local `npm ci` in this repository has run under an npm no CI job will ever use.
