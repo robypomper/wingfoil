@@ -2,10 +2,10 @@
 id: "bug-023-engines-node-floor-contradicts-commander"
 type: bug
 title: "package.json declares engines node >=18 but commander@15 requires >=22.12 — published contract is false"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: "v0.3"
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""

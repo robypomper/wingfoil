@@ -2,10 +2,10 @@
 id: "bug-030-init-memory-yaml-has-no-state-machine"
 type: bug
 title: "`wingfoil init` scaffolds a memory.yaml with no state machine, so no transition verb can run in a fresh project"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.13"
 contributor: ""
 credit: ""
