@@ -2,7 +2,7 @@
 id: "task-056-role-based-directive-assignment"
 type: task
 title: "Implement Role-Based Directive Assignment"
-status: approved
+status: done
 release: "v0.2"
 priority: "High"
 tags: ["v0.2", "p3"]
