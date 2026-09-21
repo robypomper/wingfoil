@@ -914,3 +914,68 @@ suites' real cost once F2/F3/F4 are fixed (the full suite took 2m13s in the cont
 host — assume CI is ~1.7× slower), and `promote`'s timeout must cover the `npm-publish` approval wait,
 which is human latency and unbounded by anything measured here. The table's suggestions are therefore
 "generous enough not to flake", not "tight".
+
+#### AC6 — every deviation, as promised-vs-observed
+
+Each row below is a mismatch between what an artefact promises and what executing it did. None was
+fixed here (`publish.yml` and `publish-staging.cjs` are `task-078`'s files this release; the test files
+belong to their own owners). Every one is handed to the orchestrator as a proposed element in the
+review summary, with the evidence already recorded above.
+
+| # | Promised, and where | Observed | Proposed |
+|---|---|---|---|
+| **F1** | `publish-staging.cjs:19` — teardown runs "on success and on **every** failure"; `dl-057` (c) anticipates only a *stalled* SIGTERM | A `SIGINT` (Ctrl-C) kills the script outright — no handler is installed — orphaning Verdaccio on :4873 and leaving a 268 MB work dir containing a live `_authToken`. The in-use guard then blocks every later run | `bug`, **high** |
+| **F2** | `spec-015` §3 stage 1 / `publish.yml:98-99` — the gate begins with `npm ci`; `bug-043` is `closed` and `task-073` `done` | `npm ci` **fails** under npm 10.9.0 (what `NODE_VERSION: '22.12.0'` installs): `Missing: @emnapi/core@1.11.3` / `@emnapi/runtime@1.11.3 from lock file`. Passes under the developer's npm 11.6.2. The release gate cannot get past its Install step | `bug`, **high** — blocks the release |
+| **F3** | `spec-015` §2 — `prepublishOnly` "must exit non-zero on any failure", i.e. it must be passable on CI | Two tests assert a `[+-]HH:MM` git timestamp offset; git ≥ 2.55 emits `Z` for a zero offset, so `memory-approve.test.ts:168` and `versioning-audit-trail.test.ts:61` fail on any UTC runner. `Z` is valid ISO-8601 — the assertions are wrong | `bug`, **high** — blocks the release |
+| **F4** | same | `test/core/relevance.test.ts:126` fails in the runner container, reproducibly in both runs, with `ENOTEMPTY … rmdir '/tmp/wf-storage-*/.git'` from `removeTempDir`; passes on the host | `bug`, **medium** |
+| **F5** | `publish.yml:50-62` — the `act` recipe, offered to any developer | From a **git worktree** every git-dependent step dies with `fatal: not a git repository: (null)`, because a worktree's `.git` is a file naming a host path absent in the container. The recipe gives no warning, and Wave-2 tasks all run in worktrees | `bug`, **low** (doc/recipe defect) |
+| **F6** | `spec-015` §4 and `dl-024` — the tag is "created **on `main`**" | The gate asserts the commit is an ancestor of **`origin/main`**, i.e. of the *pushed* main. Measured: `a7d783a` passes, today's local `main` `ba2cad0` **fails** (4 unpushed commits). A correct check, but a release precondition — "push `main` before tagging" — that no document states | `decision-log` |
+| **F7** | `adr-006` / `task-061` runbook — the approver's required-reviewer gate on `environment: npm-publish` is the sole human control on a release | `act` ignores `environment:` entirely: `promote` started straight after `stage`, unapproved. The gate is therefore **unverifiable by any local means** — only a real tag push can exercise it | recorded (feeds `dl-068`/`dl-057`); no new element |
+| **F8** | — | Two low-severity noise observations, not worth their own elements: Verdaccio 6.10.4 warns `you are using Node.js v22.21.0, Verdaccio recommends Node.js v24 or higher`; and a passing run emits ~170 `Password for user "wingfoil-staging" took NNNms to verify` lines plus a `ConflictError: this package is already present` stack (a benign uplink-cache race) — which makes a real failure harder to find in the log | recorded only |
+
+**Not re-filed, as instructed, and re-checked rather than assumed:** `bug-022` (`triaged`) — the gate's
+`prepublishOnly` failures were **not** in `test/cli/npm-distribution.test.ts`, so none of F2/F3/F4 is
+bug-022; but bug-022 *was* observed in the developer path, where `npm run publish:staging` ran
+`prepack → build` during its pack (AC1 stage 1). `bug-046`, `bug-048` (its `EBADENGINE` warnings appear
+verbatim in the gate log) and `dl-069` are filed and untouched. `dl-068`'s **Action 3 is now done** —
+the history was pushed mid-run — which that DL should record; not filed as new.
+
+#### AC7 — is the v0.2 `release-publishing` phase cleared to proceed?
+
+**No. This run does not clear it, and that is the useful answer.** `dl-056` clause A option 1 exists so
+that a defect is found here rather than "while a tag is being published, under the one condition where
+rollback is public" (the approver's reason, `3655166`). Three blockers were found, two of them fatal to
+the pipeline's very first job, and none of them would have been visible without executing it.
+
+**What this run does clear** — each of these was unknown or unverified before and is now evidenced:
+
+- The **developer-machine staging flow works end to end**: `npm run publish:staging` → exit 0 in 113 s,
+  all seven stages, 18/18 dl-023 smoke assertions against a genuinely `npm install -g`-installed
+  binary. `REQ-SYS-09`'s fit criterion is met by a real artefact for the first time.
+- The **packaged manifest is exactly what `spec-015` §3 stage 1 specifies** (`dist/**` + `README.md` +
+  `LICENSE` + `package.json`, 311 files, 303.3 kB).
+- **`gate` → `stage` → `promote` orchestration is sound**: the artifact round-trips by identical
+  SHA-256 into both downstream jobs, and the `stage` job passes inside a real runner container.
+- **`promote` is inert under `act`**, by the `if: ${{ !env.ACT }}` guard, shown step-by-step.
+- **Nothing in the pipeline asks for a credential** before the promote publish step; no token was
+  needed, requested or handled anywhere in this task (`REQ-SEC-08`, `adr-006` — clean).
+- The gate's **tag-on-main and tag-matches-version checks both pass** now that `origin` has a `main`.
+
+**What `release-publishing` is still waiting on**, re-checked at this commit rather than copied from the
+task text:
+
+| Blocker | Status now | Why it blocks |
+|---|---|---|
+| **F2** — `npm ci` fails on npm 10.9 | proposed `bug`, unfiled | `gate` dies at step 5 of 9. **Nothing can be published until this is fixed.** Note `bug-043` is `closed` and `task-073` `done`: the fix was correct for npm 11.6 and does not cover the npm the pipeline pins |
+| **F3** — UTC timestamp assertions | proposed `bug`, unfiled | `prepublishOnly` fails on a UTC runner, i.e. on GitHub |
+| **F4** — `relevance.test.ts` container teardown | proposed `bug`, unfiled | same gate step; reproducible in the runner image |
+| `bug-022` | `triaged`; `task-075` `backlog` | `dl-056` says its fix "must precede the first tag"; unchanged by this run |
+| `dl-068` Action 3 — push `main` | **done** (remote at `7bb95d6`) | no longer a blocker, but see **F6**: `origin/main` is 4 commits *behind* local `main`, so `main` must be pushed again immediately before tagging |
+| `dl-068` Actions 1/2/4/5 | `dl-068` `in-discussion` | approver-owned: amend `adr-009`/`spec-015`, verify the three vendor-policy premises, confirm the environment's branch policy |
+| `dl-057` (b) | `ready`, unscheduled | **input now supplied** by this run — the timings table above |
+| `dl-057` (d) | `ready`, unscheduled | **input NOT supplied, and cannot be by `act`** — `act` substitutes a `docker cp` for `actions/checkout`, so there is no tag-push checkout to observe. Option 2 (relax `spec-015` §4) should stand |
+| `dl-057` (e) | `ready`, unscheduled | **half-resolved**: Node 22.12.0 ships npm **10.9.0**, measured. Trusted publishing's npm ≥ 11.5.1 requirement remains unverified here, but the pin cannot meet it |
+| **F7** — the approval gate is untestable locally | recorded | the first real tag push is also the first test of the only human control on publishing. The approver should expect that |
+
+`bug-023` (`closed`, `task-074` `done`) is no longer a blocker: `publish.yml`'s "must land before a real
+publish" note is satisfied, and the gate ran with `engines.node >= 22.12.0` in place.
