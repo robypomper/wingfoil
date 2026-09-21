@@ -8,7 +8,7 @@
  * `XXXXXXXXXXXXXXXXXXXX`, which the secret scan exempts by construction.
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,10 +21,15 @@ const WORKFLOW_PATH = join(REPO_ROOT, '.github', 'workflows', 'publish.yml');
 const NPMRC_LINE = '//registry.npmjs.org/:_authToken=${NPM_TOKEN}';
 const FAKE_TOKEN = 'XXXXXXXXXXXXXXXXXXXX';
 
+interface RunDefaults {
+  readonly run?: { readonly shell?: string };
+}
+
 interface WorkflowStep {
   readonly name?: string;
   readonly uses?: string;
   readonly run?: string;
+  readonly shell?: string;
   readonly if?: string;
   readonly env?: Readonly<Record<string, string>>;
   readonly with?: Readonly<Record<string, unknown>>;
@@ -33,11 +38,13 @@ interface WorkflowStep {
 interface WorkflowJob {
   readonly environment?: string | { readonly name: string };
   readonly env?: Readonly<Record<string, string>>;
+  readonly defaults?: RunDefaults;
   readonly steps: readonly WorkflowStep[];
 }
 
 interface Workflow {
   readonly env?: Readonly<Record<string, string>>;
+  readonly defaults?: RunDefaults;
   readonly jobs: Readonly<Record<string, WorkflowJob>>;
 }
 
@@ -59,6 +66,11 @@ describe('publish secret (task-061) — spec-015 §5 NPM_TOKEN from the Actions 
     expect(publishStep?.run).toContain(`'${NPMRC_LINE}'`);
   });
 
+  it('names that .npmrc explicitly on the publish command (task-078, dl-057 item g)', () => {
+    expect(publishStep?.run).toContain('--userconfig "$PWD/.npmrc"');
+    expect(publishStep?.run).toContain("trap 'rm -f .npmrc' EXIT");
+  });
+
   it('keeps the promote job checkout-free, so the transient .npmrc has no git tree to be committed from', () => {
     expect(promote?.steps.some((s) => s.uses?.startsWith('actions/checkout@'))).toBe(false);
   });
@@ -74,6 +86,40 @@ describe('publish secret (task-061) — spec-015 §5 NPM_TOKEN from the Actions 
     );
     expect(checkouts.length).toBeGreaterThan(0);
     for (const step of checkouts) expect(step.with?.['persist-credentials']).toBe(false);
+  });
+});
+
+/**
+ * task-078 (`dl-057` item f) — shell tracing in the promote publish step would print the
+ * `[ -z "${NPM_TOKEN:-}" ]` test with the token **expanded** into the job log, leaving GitHub's secret
+ * masking as the only defence. Nothing asserted its absence before this suite.
+ */
+describe('promote publish step (task-078) — no shell tracing can reach the token', () => {
+  /** Every way a bash step can end up tracing its commands. */
+  const TRACING_PATTERNS: readonly (readonly [string, RegExp])[] = [
+    // `x` anywhere in a short-option cluster, so `set -euxo pipefail` is caught as well as `set -x`.
+    ['set -x (anywhere in the body, including an option cluster)', /(^|\n|[;&|(]\s*)\s*set\s+-[a-zA-Z]*x[a-zA-Z]*(\s|$)/],
+    ['set -o xtrace', /set\s+-o\s+xtrace/],
+    ['bash -x', /\bbash\s+-[a-zA-Z]*x\b/],
+    ['the literal word xtrace', /\bxtrace\b/],
+    ['SHELLOPTS / BASH_XTRACEFD manipulation', /\b(SHELLOPTS|BASH_XTRACEFD)\b/],
+  ];
+
+  it.each(TRACING_PATTERNS)('carries no %s', (_label, pattern) => {
+    expect(publishStep?.run ?? '').not.toMatch(pattern);
+  });
+
+  it('turns tracing off explicitly as its very first command, before anything names the secret', () => {
+    const lines = (publishStep?.run ?? '').split('\n');
+    expect(lines[0]?.trim()).toBe('set +x');
+    const firstTokenLine = lines.findIndex((l) => l.includes('NPM_TOKEN'));
+    expect(firstTokenLine).toBeGreaterThan(0);
+  });
+
+  it('lets no shell override reintroduce tracing — step, job or workflow defaults', () => {
+    expect(publishStep?.shell).toBeUndefined();
+    expect(workflow.defaults?.run?.shell).toBeUndefined();
+    expect(promote?.defaults?.run?.shell).toBeUndefined();
   });
 });
 
@@ -124,6 +170,15 @@ describe('promote publish step (task-061) — the transient .npmrc, executed wit
     const args = readFileSync(join(work, 'record', 'args'), 'utf-8');
     expect(args).toContain('publish dist-pack/wingfoil-0.2.0.tgz');
     expect(args).toContain('--provenance');
+  });
+
+  // task-078 (dl-057 item g): npm resolves its project config from the nearest ancestor holding a
+  // package.json or node_modules, so a cwd `.npmrc` is silently ignored when such an ancestor exists —
+  // a property of the runner's workspace layout, not of this repository's code. Name the file instead.
+  it('hands npm the .npmrc it just wrote by absolute path, instead of relying on npm’s cwd lookup', () => {
+    expect(runStep({ NPM_TOKEN: FAKE_TOKEN })).toBe(0);
+    const args = readFileSync(join(work, 'record', 'args'), 'utf-8').trim();
+    expect(args).toContain(`--userconfig ${realpathSync(work)}/.npmrc`);
   });
 
   it('removes the .npmrc after a successful publish', () => {

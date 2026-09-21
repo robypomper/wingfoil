@@ -37,6 +37,14 @@ const STAGING_REGISTRY = 'http://localhost:4873/';
 const VERDACCIO_PACKAGE = 'verdaccio@6';
 /** How long Verdaccio gets to answer `/-/ping` before staging gives up. */
 const REGISTRY_START_TIMEOUT_MS = 60_000;
+/**
+ * How long a stopped child gets to honour `SIGTERM` before `SIGKILL` (dl-057 item c). An order of
+ * magnitude above a healthy Verdaccio's shutdown, and well below {@link REGISTRY_START_TIMEOUT_MS},
+ * so the escalation can never fire before the start timeout that may call it.
+ */
+const REGISTRY_STOP_TIMEOUT_MS = 10_000;
+/** How long `SIGKILL` gets before {@link stopProcess} resolves regardless (dl-057 item c). */
+const SIGKILL_GRACE_MS = 2_000;
 
 /** Every file and directory one staging run uses, all under its work dir. */
 function stagingPaths(root) {
@@ -169,6 +177,37 @@ function run(command, args, options) {
   }
 }
 
+/**
+ * Stop a child process without ever hanging (dl-057 item c): `SIGTERM`, then — if it has not exited
+ * within `timeoutMs` — `SIGKILL`, then resolve after `killGraceMs` whether or not an `exit` was seen.
+ * A child that ignores or stalls on `SIGTERM` can therefore no longer outlive the staging run, on a
+ * developer machine as well as in CI. Resolves immediately, signalling nothing, if `hasExited()` is
+ * already true, so a normal shutdown never waits out either interval.
+ */
+function stopProcess(child, options = {}) {
+  const {
+    hasExited = () => false,
+    timeoutMs = REGISTRY_STOP_TIMEOUT_MS,
+    killGraceMs = SIGKILL_GRACE_MS,
+  } = options;
+  return new Promise((done) => {
+    if (hasExited()) return done();
+    let timer;
+    const finish = () => {
+      if (timer) clearTimeout(timer);
+      done();
+    };
+    child.once('exit', finish);
+    child.kill('SIGTERM');
+    timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      timer = setTimeout(finish, killGraceMs);
+      if (timer.unref) timer.unref();
+    }, timeoutMs);
+    if (timer.unref) timer.unref();
+  });
+}
+
 async function registryAnswers() {
   try {
     return (await fetch(`${STAGING_REGISTRY}-/ping`)).ok;
@@ -207,12 +246,7 @@ function realEffects(repoRoot, log) {
       child.on('exit', () => {
         exited = true;
       });
-      const stop = () =>
-        new Promise((done) => {
-          if (exited) return done();
-          child.once('exit', () => done());
-          child.kill('SIGTERM');
-        });
+      const stop = () => stopProcess(child, { hasExited: () => exited });
       for (let waited = 0; !(await registryAnswers()); waited += 500) {
         if (exited || waited >= REGISTRY_START_TIMEOUT_MS) {
           await stop();
@@ -270,6 +304,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+  REGISTRY_STOP_TIMEOUT_MS,
+  SIGKILL_GRACE_MS,
   STAGING_REGISTRY,
   VERDACCIO_PACKAGE,
   stagingPaths,
@@ -279,4 +315,5 @@ module.exports = {
   installArgs,
   parseArgs,
   runStaging,
+  stopProcess,
 };

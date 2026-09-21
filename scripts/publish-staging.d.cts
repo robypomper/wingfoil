@@ -1,3 +1,5 @@
+import type { ChildProcess } from 'node:child_process';
+
 import type { SmokeReport } from './e2e-smoke.cjs';
 
 /** Every file and directory one staging run uses, all under its work dir. */
@@ -54,8 +56,22 @@ export interface StagingOptions {
   readonly baseEnv?: NodeJS.ProcessEnv;
 }
 
+/** Options for {@link stopProcess}. */
+export interface StopProcessOptions {
+  /** Whether the child is already known to have exited; when true nothing is signalled. */
+  readonly hasExited?: () => boolean;
+  /** How long `SIGTERM` gets before `SIGKILL` (default {@link REGISTRY_STOP_TIMEOUT_MS}). */
+  readonly timeoutMs?: number;
+  /** How long `SIGKILL` gets before resolving anyway (default {@link SIGKILL_GRACE_MS}). */
+  readonly killGraceMs?: number;
+}
+
 /** The transient staging registry address. */
 export const STAGING_REGISTRY: string;
+/** Default interval between `SIGTERM` and `SIGKILL` when stopping a staging child. */
+export const REGISTRY_STOP_TIMEOUT_MS: number;
+/** Default grace given to `SIGKILL` before {@link stopProcess} resolves regardless. */
+export const SIGKILL_GRACE_MS: number;
 /** The Verdaccio package spec installed for staging. */
 export const VERDACCIO_PACKAGE: string;
 
@@ -73,3 +89,5 @@ export function installArgs(name: string, version: string): string[];
 export function parseArgs(argv: readonly string[]): { tarball?: string };
 /** Run the staging flow; resolves to the exit code. Teardown runs on every path. */
 export function runStaging(options: StagingOptions): Promise<number>;
+/** Stop a child: `SIGTERM`, bounded wait, `SIGKILL` — always resolves (dl-057 item c). */
+export function stopProcess(child: ChildProcess, options?: StopProcessOptions): Promise<void>;
