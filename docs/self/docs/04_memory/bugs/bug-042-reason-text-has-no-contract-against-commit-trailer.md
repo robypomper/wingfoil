@@ -2,7 +2,7 @@
 id: "bug-042-reason-text-has-no-contract-against-commit-trailer"
 type: bug
 title: "`--reason` text has no contract against the single-line `Approver:`/`Reason:` commit trailer: multi-line reasons are truncated on read, a blank reason destroys the whole approval record, and a multi-line one can forge a second Approver line"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
