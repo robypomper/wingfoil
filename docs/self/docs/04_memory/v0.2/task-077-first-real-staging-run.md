@@ -506,3 +506,212 @@ EXIT=2
 
 **Filed, not fixed** (`scripts/publish-staging.cjs` is `task-078`'s file this release): finding **F1**
 in the review summary.
+
+#### `act` — installed during this task, as AC3 anticipated
+
+`act` was **not** installed (the task recorded `command -v act` → nothing at `8f2bce8`; still true at
+`a7d783a`). Installed into the session scratchpad rather than onto the system, so the developer machine
+is not mutated by a task whose job is to observe:
+
+```
+$ curl -sSL -o act.tgz https://github.com/nektos/act/releases/download/v0.2.84/act_Linux_x86_64.tar.gz
+$ ls -l act.tgz
+-rw-rw-r-- 1 robypomper robypomper 7896600 set 21 11:09 act.tgz
+$ tar xzf act.tgz && ./act --version
+act version 0.2.84
+$ docker info --format '{{.ServerVersion}} {{.OperatingSystem}}'
+29.1.3 Ubuntu 24.04.5 LTS
+$ docker pull catthehacker/ubuntu:act-24.04       # 1.63GB
+Status: Downloaded newer image for catthehacker/ubuntu:act-24.04
+```
+
+Runner mapping was given in an `actrc` under a scratchpad `XDG_CONFIG_HOME`, so neither `~/.actrc` nor
+the repository gained a file:
+`-P ubuntu-24.04=catthehacker/ubuntu:act-24.04`.
+
+The event file, per the recipe in `publish.yml:50-62` — **`v0.1.0`, not the header's literal `v0.2.0`**,
+because `scripts/check-release-tag.cjs` compares the tag to `package.json` `version` exactly and that is
+`0.1.0` today (`node -p 'require("./package.json").version'` → `0.1.0`). The header's parenthetical says
+to use the current version; the literal example is stale:
+
+```
+$ cat tag-event.json
+{"ref": "refs/tags/v0.1.0", "ref_name": "v0.1.0", "ref_type": "tag"}
+```
+
+**No tag was created, locally or remotely.** None was needed: the gate reads `$GITHUB_REF_NAME` from the
+event file and `check-release-tag.cjs` is a pure string comparison, so no git tag object is involved at
+any point. `git tag -l | wc -l` → `0` before and after. Nothing was pushed.
+
+#### AC3 — `act -j gate`: what the remote's state made possible, and when
+
+**The remote changed under this run, and that is itself evidence.** Both states were measured here, not
+taken on report.
+
+*State 1 — at 11:09, when this task started: the remote was empty*, exactly as `dl-068` E2 records:
+
+```
+$ git remote -v
+origin  git@github.com:robypomper/wingfoil.git (fetch)
+origin  git@github.com:robypomper/wingfoil.git (push)
+$ git ls-remote --heads origin; echo "EXIT=$?"
+EXIT=0                      # exit 0, no refs — the repository exists and holds nothing
+$ git ls-remote --tags origin; echo "EXIT=$?"
+EXIT=0
+```
+
+*State 2 — by 11:22, mid-run, the history had been pushed* (`dl-068` Action 3, executed by the approver
+while this task was running). Re-verified over both protocols, since the SSH probe is what returned
+empty the first time:
+
+```
+$ git ls-remote --heads https://github.com/robypomper/wingfoil.git
+7bb95d6eb92acfc7a358de07cb5137ca308b210c        refs/heads/main
+$ git ls-remote --heads git@github.com:robypomper/wingfoil.git
+7bb95d6eb92acfc7a358de07cb5137ca308b210c        refs/heads/main
+$ git ls-remote --tags https://github.com/robypomper/wingfoil.git      # still no tags
+```
+
+So the first `act -j gate` run of this task is a measurement of the *pre-push* world and the later ones
+of the *post-push* world. Both are reported.
+
+**Run 1 — the worktree, unmodified `publish.yml`.** Result: `Job failed`, `exitcode 128`, at the third
+step. But **not for the reason the task predicted**, and the difference matters:
+
+```
+[publish/gate] ⭐ Run Main Tag commit is on main (dl-024)
+[publish/gate]   | fatal: not a git repository: (null)
+[publish/gate]   ❌  Failure - Main Tag commit is on main (dl-024) [116.676061ms]
+[publish/gate] exitcode '128': failure
+```
+
+Cause, established rather than inferred: a git **worktree**'s `.git` is a file, not a directory, and it
+names an absolute host path that does not exist inside the container —
+
+```
+$ ls -l .git
+-rw-rw-r-- 1 robypomper robypomper 93 set 21 11:08 .git
+$ cat .git
+gitdir: /home/robypomper/Workspaces/WingFoil2/.git/worktrees/task-077-first-real-staging-run
+```
+
+— so **`act` cannot exercise any git-dependent step from a worktree at all**. This is a finding in its
+own right (**F5**) because the whole Wave-2 process runs tasks in worktrees: anyone following
+`publish.yml`'s own `act` recipe from a task worktree gets this confusing `fatal: not a git repository`
+instead of the check they meant to test.
+
+**What Run 1 did settle, at the `actions/checkout` step — the answer to `dl-057` item (d):**
+
+```
+[publish/gate] ⭐ Run Main actions/checkout@v4
+[publish/gate]   🐳  docker cp src=/home/robypomper/Workspaces/.wf2-wt/task-077-first-real-staging-run/. dst=...
+[publish/gate]   ✅  Success - Main actions/checkout@v4 [128.419891ms]
+```
+
+`act` **does not run `actions/checkout` at all** — it substitutes a `docker cp` of the host working
+directory (128 ms; a real checkout of this repository cannot be that fast). Therefore **`act` cannot
+answer dl-057 (d)**: there is no tag-push checkout under `act`, so `git cat-file -t
+"refs/tags/$GITHUB_REF_NAME"` inside the job would describe `act`'s copy, not `actions/checkout@v4`'s
+behaviour. Recorded as a *negative* result, which is the honest one: **(d) still needs a real GitHub
+tag-push run**, and this task cannot supply it. dl-057's ratified option 2 (relax `spec-015` §4) should
+stand for now on exactly the grounds it was chosen.
+
+**Run 2 — a real clone, unmodified `publish.yml`, HEAD on `origin/main`.** To get past F5 and to satisfy
+AC3's second precondition honestly, the gate was re-run from a throwaway **clone** (real `.git`
+directory) with `origin` set to the public HTTPS URL, checked out at **`a7d783a`** — the commit this
+task's worktree branched from, which *is* on `origin/main`. Per AC3's wording, the ancestor check was
+therefore **exercised against a commit on `main`, not against the task branch**:
+
+```
+$ git clone -q --branch task/task-077-first-real-staging-run /home/robypomper/Workspaces/WingFoil2 gateclone
+$ cd gateclone && git remote set-url origin https://github.com/robypomper/wingfoil.git
+$ git checkout -q a7d783a && git rev-parse HEAD
+a7d783aac8718c3aca8e05e6199da7958f284703
+$ act push --eventpath tag-event.json --artifact-server-path act-artifacts -j gate
+```
+
+The two preconditions AC3 names **both passed**:
+
+```
+[publish/gate] ⭐ Run Main Tag commit is on main (dl-024)
+[publish/gate]   | From https://github.com/robypomper/wingfoil
+[publish/gate]   |  * branch            main       -> FETCH_HEAD
+[publish/gate]   ✅  Success - Main Tag commit is on main (dl-024) [793.559894ms]
+[publish/gate] ⭐ Run Main Tag matches package.json version (spec-015 §4)
+[publish/gate]   | tag v0.1.0 matches package.json version 0.1.0
+[publish/gate]   ✅  Success - Main Tag matches package.json version (spec-015 §4) [292.090899ms]
+```
+
+The unauthenticated `git fetch --no-tags origin main` works against the now-public, now-populated
+repository, with no credential in the container — `task-061`'s "works for a public repository, fails
+closed" note, confirmed by execution.
+
+**But it would NOT pass for a tag created today**, because `origin/main` is *behind* local `main`. This
+is the distinction the check's value turns on, measured:
+
+```
+$ git rev-parse origin/main                                   # 7bb95d6
+$ git -C /home/robypomper/Workspaces/WingFoil2 rev-parse main # ba2cad0  (local)
+$ git merge-base --is-ancestor a7d783a origin/main; echo "EXIT=$?"
+EXIT=0            # the commit this run tested — passes
+$ git merge-base --is-ancestor ba2cad0 origin/main; echo "EXIT=$?"
+EXIT=1            # today's local main — FAILS the gate
+$ git rev-list --count origin/main..ba2cad0
+4                 # four commits on local main that have never been pushed
+```
+
+**So the gate asserts "the tag is on the *pushed* `main`", not "on `main`".** A `vX.Y.Z` tag cut from
+today's local `main` and pushed would be rejected by its own gate until those four commits are pushed
+too. That is arguably correct behaviour — but it is a release-procedure precondition that no document
+states, and `dl-024`/`spec-015` §4 both say "on `main`" without qualification (**F6**).
+
+**Then the gate failed at `Install` — `npm ci` does not work on the pinned CI Node.** This is the single
+most consequential result of the whole task:
+
+```
+[publish/gate] ⭐ Run Main Install
+[publish/gate]   | npm error code EUSAGE
+[publish/gate]   | npm error `npm ci` can only install packages when your package.json and package-lock.json
+[publish/gate]   |   or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+[publish/gate]   | npm error Missing: @emnapi/core@1.11.3 from lock file
+[publish/gate]   | npm error Missing: @emnapi/runtime@1.11.3 from lock file
+[publish/gate]   ❌  Failure - Main Install [5.00168344s]
+[publish/gate] exitcode '1': failure
+```
+
+The same lockfile, the same commit, **passes** `npm ci` on the developer machine:
+
+```
+$ npm -v && node -v                      # developer machine
+11.6.2
+v22.21.0
+$ npm ci --dry-run --no-audit --no-fund >/dev/null 2>&1; echo "EXIT=$?"
+EXIT=0
+```
+
+The difference is the npm version, and the gate's own `NODE_VERSION` pin chooses it. From the same run's
+`setup-node` output:
+
+```
+[publish/gate]   ❓  ::group::Environment details
+[publish/gate]   | node: v22.12.0
+[publish/gate]   | npm: 10.9.0
+```
+
+**Node 22.12.0 ships npm 10.9.0**, and npm 10.9 requires the unmet optional peers
+(`@emnapi/core`, `@emnapi/runtime`) to be present in the lock, where npm 11.6 tolerates their absence.
+task-073 closed `bug-043` by measuring `npm ci` exit 0 under npm 11.6.2 — correctly, for the npm it had
+— but the lock it produced **is not installable by the npm the pipeline actually uses**. The lock still
+contains no hoisted entry for either peer, which is exactly the structural gap task-073's own review
+summary flagged as unfixed:
+
+```
+$ grep -n '"node_modules/@emnapi' package-lock.json
+565:    "node_modules/@emnapi/wasi-threads": {          # still the only hoisted @emnapi entry
+```
+
+Filed as **F2**. Incidentally this also **verifies one of `dl-057` item (e)'s explicitly unverified
+premises** — "That Node 22.12.0 bundles npm 10.9 … [is] **not verified here** … [it] come[s] from the
+Wave 2 brief" (`dl-057:52-53`). It is now verified by measurement: `npm: 10.9.0`. Since npm trusted
+publishing needs npm ≥ 11.5.1 (that half remains unverified here), the current pin cannot use it — (e)'s
+recommended option 1 ("keep `NPM_TOKEN` for the first publish") is the only one available today.
