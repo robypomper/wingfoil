@@ -1,7 +1,12 @@
 /**
  * Pure, comment-preserving edits of `.wingfoil/roles.yaml` role → directive assignments
- * (task-051-directive-assign, P3.2; designed for reuse by `directive remove` P3.3 and multi-directive
- * assignment P3.7).
+ * (task-051-directive-assign, P3.2), plus the `--directive a,b,c` value parser multi-directive
+ * assignment needs (task-056-role-based-directive-assignment, P3.7).
+ *
+ * P3.7 reuses {@link withAssignedDirectives} and {@link setRoleAssignmentsInText} unchanged — both
+ * were written to take a *list* of ids from the start. `directive remove` (P3.3, task-052) reuses
+ * **neither**: P3.3 refuses a still-assigned directive rather than unbinding it, so a removal has no
+ * `roles.yaml` write to make (see `src/core/directive-assign.ts`'s module doc).
  *
  * `roles.yaml` is hand-annotated configuration, so a whole-file `js-yaml` `dump()` — which drops every
  * comment — is not an acceptable write path (bug-004 for `dna.yaml`, and bug-019 for the silent

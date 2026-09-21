@@ -6,6 +6,11 @@
  * (exit codes), REQ-SYS-08 (the role must be defined in `dna.yaml`), REQ-SEC-01 (identity pre-flight)
  * — task-051-directive-assign.
  *
+ * task-056-role-based-directive-assignment extends the SAME operation with P3.7 (US-4-06,
+ * `p3-directives/P3.7-role-based-assignment.feature`, all three scenarios): `--directive` takes a
+ * comma-separated list. P3.7 registers no operation of its own, so the registration block below is
+ * unchanged — which the P3.7 describe relies on rather than restating.
+ *
  * Exercises the REAL registered `CORE_MODULES` operation against THROWAWAY temp git repos carrying the
  * real `wingfoil init` scaffold, never this repository's own `.wingfoil/`.
  *

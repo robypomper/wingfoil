@@ -12,8 +12,18 @@
  * unbinding it, so a removal has no `roles.yaml` write to make at all and never reaches the
  * `setRoleAssignmentsInText` → fallback path below. (Correcting task-051's original prediction, which
  * `dl-062-roles-yaml-unwritable-fallback` quotes from this doc range as evidence that P3.3 would be a
- * second consumer of that fallback decision. It is not.) P3.7 remains an unbuilt prediction, not an
- * observed fact.
+ * second consumer of that fallback decision. It is not.)
+ *
+ * **What P3.7 actually uses — now an observed fact, no longer a prediction.**
+ * `task-056-role-based-directive-assignment` shipped multi-directive assignment (P3.7, US-4-06) as a
+ * comma-separated `--directive` on the *same* `directive assign` verb — it registers no operation of
+ * its own — and it reuses **both** task-051 pieces **without a single change to this file**:
+ * {@link checkAssignable} already took a list and validated every id before anything was written
+ * (which is exactly P3.7 Sc.3's "no partial assignment is persisted"), and
+ * {@link updateRoleAssignments} already took an arbitrary `update` function. So P3.7 *is* the second
+ * consumer of the fallback decision that `dl-062-roles-yaml-unwritable-fallback` is about — it reaches
+ * the `setRoleAssignmentsInText` → fallback path below on exactly the same inputs `directive assign`
+ * always did, no more and no fewer.
  *
  * - {@link checkAssignable} — the pre-write validation: the role must be defined in `dna.yaml`
  *   (REQ-SYS-08, via task-034's binding resolver `isRoleDefined`/`UnknownRoleError` — never the
@@ -28,7 +38,14 @@
  *   `.wingfoil/roles.yaml`. It edits through the comment-preserving `setRoleAssignmentsInText`
  *   (`src/directives/roles-edit.ts`); only when that cannot apply does it consider a whole-file
  *   `dump`, and then only for a file with no comment to lose — otherwise it fails closed (bug-019's
- *   lesson: never a silent comment loss).
+ *   lesson: never a silent comment loss). **This `#`-gated split is what `dl-062` ratified away**
+ *   (Q1 option 3, `ready`, approve commit `4cd1876`): `undefined` is to mean `CONFLICT` regardless of
+ *   any `#`, with the whole-file rewrite reachable only behind an explicit `--force` and a stderr
+ *   warning naming what it normalizes. That is **not implemented here** — it needs a
+ *   success-warning channel this codebase does not have (`CoreResult`'s success arm carries `value`
+ *   and `commit` and nothing else) — and is scheduled to v0.3 as its own task. The code below is
+ *   therefore knowingly one step behind a ratified decision; read `dl-062`, not this paragraph, for
+ *   the intended contract.
  *
  * Lives in `src/core` (not `src/directives`) for the same reason `directives-list.ts` does: it
  * operates on `DirectiveFile` (`./loaders`) and returns `CoreResult`s, so a `src/directives` home

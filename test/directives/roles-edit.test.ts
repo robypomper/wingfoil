@@ -1,15 +1,19 @@
 /**
  * task-051-directive-assign (P3.2) — the pure, comment-preserving `roles.yaml` writer
- * (`src/directives/roles-edit.ts`) that `directive assign` uses and that `directive remove` (P3.3,
- * task-052) and multi-directive assignment (P3.7, task-056) are designed to reuse.
+ * (`src/directives/roles-edit.ts`) that `directive assign` uses. Multi-directive assignment (P3.7,
+ * task-056-role-based-directive-assignment) reuses both primitives **unchanged** and adds the third
+ * one below; `directive remove` (P3.3, task-052) reuses neither, since P3.3 refuses a still-assigned
+ * directive rather than unbinding it.
  *
- * Two primitives:
+ * Three primitives:
  * - `withAssignedDirectives(current, ids)` — the set semantics of an assignment: keep the existing
  *   order, append new ids in argument order, never duplicate (P3.7 "Binding is idempotent").
  * - `setRoleAssignmentsInText(text, role, next)` — rewrite `assignments.<role>` to exactly `next`
  *   while every other byte of the file (comments, blank lines, other roles, `global`) is untouched
  *   (the bug-004 / task-063 precedent, applied to `roles.yaml`); `undefined` whenever that cannot be
  *   done provably, so the caller decides the fallback (bug-019: never a silent comment loss).
+ * - `parseDirectiveIds(raw)` — the comma-separated `--directive "a,b,c"` value (P3.7, task-056):
+ *   trimmed, empty segments dropped, de-duplicated keeping the first position.
  */
 import { load } from 'js-yaml';
 
