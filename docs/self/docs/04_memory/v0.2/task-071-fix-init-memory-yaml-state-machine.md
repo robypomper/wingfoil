@@ -420,7 +420,7 @@ proposed element (below) rather than changed here: whether `init` should seed th
 an approver is a product decision this task does not own.
 
 `npx jest test/memory test/storage test/core/memory-submit.test.ts test/cli/fresh-init-transitions.test.ts`
-→ **26 suites / 450 tests green** at the end of this phase; the four previously-red suites all pass, and
+→ **26 suites / 450 tests green** at that point in the branch's history (before the four `main` merges below, which raise the totals in the Gates table); the four previously-red suites all pass, and
 the two inverted expectations now assert the fixed behaviour.
 
 ### refactor — role: developer
@@ -438,11 +438,18 @@ gates.
   into are reported as proposed elements instead (the `doc-versioning` directive's version-bump rule is
   therefore not triggered by this task — no versioned document was edited).
 
-#### Gates (run in this worktree, after the `git merge main` below)
+#### Gates
+
+Every number below was produced **after** the final `git merge main` (`a7d783a`) and against a **real
+`npm ci`** — the `node_modules` symlink this worktree used while `bug-043` was open was deleted and
+`npm ci --prefer-offline --no-audit --no-fund` run in its place (`added 500 packages`), which `task-073`'s
+lockfile fix (merged from `main`) makes possible. So these gates exercise the lockfile a fresh clone of
+this branch would install from, and `node -v` is `v22.21.0`, inside `task-074`'s new
+`engines.node >= 22.12.0` floor (`adr-010`, also merged from `main`).
 
 | Command | Result |
 |---|---|
-| `npx jest` | **101 suites / 1591 tests, all green** |
+| `npx jest` | **101 suites / 1627 tests, all green** |
 | `npx jest --coverage` | **98.54% stmts · 92.29% branch · 98.76% funcs · 99.15% lines** (global) |
 | `npx tsc -p tsconfig.build.json --noEmit` | exit 0, **0 errors** |
 | `npx tsc --noEmit -p tsconfig.json` | 1 error, and it is **only** the pre-existing `bug-026` one: `test/core/directive-create.test.ts(159,19): error TS2339` |
@@ -450,16 +457,53 @@ gates.
 | `npm run docs:api` | exit 0 (`docs.api.*`) |
 | `node scripts/e2e-smoke.cjs -- node "$PWD/dist/cli.js"` | **17/17 checks ok**, both templates, working tree clean — script **unmodified** (bug-029's ground) |
 
-**Coverage non-regression, measured rather than asserted.** A detached worktree was created at `main`
-(`f304bf7`) and `npx jest --coverage` run there: `All files 98.54 / 92.30 / 98.76 / 99.15`, 100 suites /
-1555 tests. This branch: `98.54 / 92.29 / 98.76 / 99.15`, 101 suites / 1591 tests (**+36 tests**).
-Statements, functions and lines are identical; branch coverage moves by **−0.01pp**, which is the
-denominator growing (the new suites add branch-free assertions) — no branch that was covered on `main`
-is uncovered here. The worktree was removed and `git worktree prune` run afterwards. Per-file, for the
-three files touched: `state-machine.ts` 96.1/93.75/100/97.29 (uncovered: 298-299, the TS-exhaustiveness
-`default` case — pre-existing and unreachable), `templates.ts` 100/94.44/100/100 (uncovered branch: the
-`sort` comparator's equal-path arm — pre-existing), `memory-transition.ts` 96.96/94.11/100/100
-(uncovered: line 92's non-`ValidationError` rethrow — pre-existing).
+**Coverage non-regression — the measured mechanism.** Baseline: a detached worktree at `main`
+(`a7d783a`) with `npx jest --coverage --coverageReporters=json-summary`; this branch: the same command.
+Both `coverage/coverage-summary.json` files were then compared field by field rather than by eye:
+
+```
+$ node -e 'const t=require("./coverage/coverage-summary.json").total;
+  for (const k of ["statements","branches","functions","lines"])
+    console.log(k, "total="+t[k].total, "covered="+t[k].covered,
+                "uncovered="+(t[k].total-t[k].covered), "pct="+t[k].pct)'
+
+main  a7d783a : branches total=1195 covered=1103 uncovered=92 pct=92.3
+this branch   : branches total=1194 covered=1102 uncovered=92 pct=92.29
+                statements 2268→2270 (covered 2235→2237), functions and lines unchanged
+main  a7d783a : 100 suites / 1591 tests      this branch: 101 suites / 1627 tests (+36)
+```
+
+**The denominator did not grow — it shrank by one.** An earlier draft of this note said the −0.01pp was
+"the denominator growing (the new suites add branch-free assertions)"; that was wrong twice over, and
+`task-071` was rejected for it: test files are not instrumented at all (`collectCoverageFrom` is `src/`
+only), so no test can move either side of the ratio. The measured cause is a single **source** branch
+that this change deletes. Per-file comparison of the two summaries shows exactly one file moving —
+`src/memory/state-machine.ts`, branches `49 → 48` total and `46 → 45` covered, every other file
+byte-identical in branch counts (`src/core/memory-transition.ts` included: removing a `try`/`catch`
+changes no branch count, because Istanbul does not instrument `catch` as a branch). The branch maps say
+which branches, counted inside `resolveStateMachine`:
+
+```
+main a7d783a  line 141 if          [1,202]        # if (!typeEntry) → throw
+              line 144 binary-expr [202,34]       # typeEntry.states ?? defaults?.states   (2 arms)
+              line 145 if          [2,200]        # if (!resolved)  → REQ-STATE-08 throw
+                                                  #   6 branches in the function, all covered
+
+this branch   line 205 if          [2,299]        # if (!typeEntry) → throw
+              line 208 binary-expr [299,131,14]   # … ?? defaults?.states ?? DEFAULT_STATE_MACHINE (3 arms)
+                                                  #   5 branches in the function, all covered
+```
+
+−2 (the deleted `if (!resolved)` guard, **both** of whose arms were covered — its `true` arm by the
+task-010 test this task inverted) +1 (the third `??` arm, covered) = **−1 total and −1 covered**, which
+is precisely 1195→1194 and 1103→1102, i.e. 92.30% → 92.29%. **Uncovered branches are 92 on both sides:
+nothing that was covered on `main` is uncovered here**, and statements/functions/lines are unchanged —
+that conclusion was right in the earlier draft and is restated here on measured grounds. The baseline
+worktree was removed and `git worktree prune` run afterwards. Per-file, for the three files touched:
+`state-machine.ts` 96.1/93.75/100/97.29 (uncovered: 298-299, the TS-exhaustiveness `default` case —
+pre-existing and unreachable), `templates.ts` 100/94.44/100/100 (uncovered branch: the `sort`
+comparator's equal-path arm — pre-existing), `memory-transition.ts` 96.96/94.11/100/100 (uncovered:
+line 92's non-`ValidationError` rethrow — pre-existing).
 
 ### review — role: reviewer
 
@@ -569,19 +613,75 @@ test/core/memory-approve.test.ts test/core/memory-reject.test.ts test/core/memor
 - **No existing test pinned the old comment-only `memory.yaml`** beyond the two expectations inverted
   in the red section — established by `grep -rn "REQ-STATE-08" test src` (output in the red section)
   and by the full suite passing.
-- **Out of bounds, untouched:** `package-lock.json` (task-073 — `npm ci` is broken repo-wide as
-  `bug-043`, so this worktree's `node_modules` is a **symlink** to the primary repository's, and no
-  install was run), `package.json` `engines` (task-074), reason/audit handling (task-072 — `dl-067`
-  arrived on `main` during this task and was merged in without being acted on), and `bug-026`'s
-  `tsc` error (left failing, as the brief requires).
+- **Out of bounds, never edited by this task:** `package-lock.json` and `package.json` `engines` —
+  both arrived from `main` through the merges below (`task-073`'s lockfile fix, `task-074`'s Node-22
+  floor) and neither was touched here; reason/audit handling (`task-072` — `dl-067` arrived on `main`
+  during this task, was merged in and was not acted on); `scripts/e2e-smoke.cjs` (`bug-029`); and
+  `bug-026`'s `tsc` error, left failing as the brief requires.
 
 #### `git merge main` before submit (dl-035 — merge, never rebase)
 
-Merged twice, as `main` moved during the task: first to `7aeeb91`, then to `f304bf7` (`dl-067`). Both
-clean, no conflicts. The sources these notes cite were re-opened after the merges: **REQ-STATE-08 is
-textually unchanged** (`af91cf8` touched REQ-STATE-01 and `spec-004` only), `spec-001` unchanged, the
-P1.13 feature unchanged, `bug-029` still `open`/unscheduled. Every gate above was re-run after the
-final merge.
+`main` moved four times while this task ran, and was merged each time, never rebased: `7aeeb91` →
+`f304bf7` (`dl-067` ratified) → `bcc66a9` (`task-073`, the lockfile fix) → `a7d783a` (`task-074` /
+`adr-010`, the Node-22 engines floor, plus `dl-068`/`dl-069` and `bug-046..049`). Every merge was
+clean — no conflicts in any of them, and none touched a file this task changed.
+
+After the final merge the sources these notes cite were re-opened, not assumed:
+
+```
+$ sed -n '/### REQ-STATE-08/,/### REQ-STATE-09/p' docs/02_requirements/03_sard/03_state-context.md
+  → Description still reads `draft → pending → approved/rejected → deprecated` (unchanged)
+$ git log --oneline -3 -- docs/02_requirements/03_sard/03_state-context.md \
+    docs/self/docs/04_memory/design/specs/spec-001-memory-yaml-schema.md \
+    docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md \
+    docs/02_requirements/02_bdd/features/p1-memory/P1.13-memory-element-schema.feature
+  → af91cf8 (dl-053: REQ-STATE-01 + spec-004 only), 2cd936f, ba28c2e — none of them spec-001,
+    spec-011 or the P1.13 feature
+$ grep -m2 "^status:\|^release:" docs/self/docs/04_memory/bugs/bug-029-…md   → status: open · release: ""
+$ git log --oneline -2 -- scripts/e2e-smoke.cjs   → last touched by task-060, not by this task
+```
+
+So: REQ-STATE-08's text, `spec-001`, `spec-011` and the P1.13 feature are all textually unchanged since
+the design section was written, `bug-029` is still `open` and unscheduled, and the smoke script is as
+`task-060` left it. The `dl-063`/`dl-053` doc actions that landed on `main` touched `P1.8`, `REQ-SEC-03`
+and `REQ-STATE-01`/`spec-004` — REQ-SEC-03's extension to `reject` is consistent with what the
+end-to-end test already does (it grants the `approver` role before driving `reject`), and none of them
+changes a sentence in these notes. Every gate above was re-run after the final merge, on the real
+`npm ci` install.
+
+#### Rework after the first review (rejected at `26a289e`)
+
+The review upheld the substance — the engine-side reading of REQ-STATE-08, the built-in's value, the
+overridability of the default, and both arms being independently pinned (its own mutation testing:
+engine arm alone 6 red, scaffold arm alone 2 red, both 26 red). Two narrow defects were required to be
+fixed, and both are fixed above rather than argued with:
+
+1. **The coverage sentence stated an unmeasured mechanism.** "The denominator growing (the new suites
+   add branch-free assertions)" was wrong — test files are not in the denominator, and the denominator
+   shrank. The Gates section now derives the −0.01pp from the two `coverage-summary.json` files and the
+   two branch maps, and prints the commands. The conclusion it reached is unchanged and now rests on
+   the measurement instead of on a guess.
+2. **`main` had moved to `bcc66a9`+ with `task-073`'s lockfile fix.** Merged (and then again for
+   `a7d783a`), the `node_modules` symlink deleted, a real `npm ci` run, and **every** gate re-run
+   against that install — so the branch is now known-installable from its own lockfile, which the
+   earlier symlinked runs could not show.
+
+Also re-run first-hand after the merges, not carried over: `scripts/e2e-smoke.cjs` (17/17, unmodified)
+and the full manual `init` + five-verb transcript below, for **both** templates — same states, same
+`+1` commit per verb, same subjects, clean tree.
+
+`bug-030`'s own state was **left at `in-review`** across this rework rather than walked
+`in-review → in-progress → in-review` to mirror the task. The reject commit (`26a289e`) moved the task
+only; the bug's state before the rework and after this resubmit is the same `in-review`, and the two
+extra commits would have recorded a round trip that carried no information about the bug itself. Noted
+here so the choice is visible rather than looking like a missed `bug.sync_state`.
+
+One observation from the rework, reported because it is a gate fact and not a claim about this change:
+of **four** full `npx jest --coverage` runs on this branch, one failed a single pre-existing assertion
+in `test/cli/program.integration.test.ts:208` (`dna show nonexistent_section` stderr) — a suite that
+spawns the compiled CLI out of process. It passed on the immediate targeted re-run (63/63) and on the
+three other full coverage runs, and it touches no code this task changes. Recorded as a flake, with a
+proposed element below rather than a fix here.
 
 #### Known weak spots a reviewer should check
 
@@ -599,13 +699,17 @@ final merge.
    init can run every transition verb" is true of `submit`/`deprecate` unconditionally and of
    `approve`/`reject` only after that one config edit. Proposed as an element below.
 
-#### Findings for the orchestrator (proposed elements — not filed here, per the parallel-worktree rule)
+#### Findings — all four filed as their own elements at the first review (`26a289e`)
+
+Kept here as the record of where they came from, **not** re-proposed: the approver's reject commit
+states that these four are being filed as elements of their own, so this list is history, not a queue.
+The one finding that post-dates that review is number 5.
 
 1. **bug — `REQ-STATE-08`'s Description still names the pre-`spec-001` default machine.** It says
    `draft → pending → approved/rejected → deprecated`; the approved `spec-001` §Consequences removed
    `rejected` ("no document ever records `status: rejected` again") and makes `deprecated` implicit,
    and says the requirement "must be reconciled". Evidence: `sed -n '/### REQ-STATE-08/,/### REQ-STATE-09/p'
-   docs/02_requirements/03_sard/03_state-context.md` (unchanged as of `f304bf7`) vs `spec-001`
+   docs/02_requirements/03_sard/03_state-context.md` (re-run and unchanged as of `a7d783a`) vs `spec-001`
    §Consequences. task-071 implements the `spec-001` machine and documents the discrepancy in TSDoc
    rather than editing the SARD.
 2. **bug — `spec-011-storage-layout` still describes `memory.yaml`'s per-type `states` as
@@ -624,3 +728,11 @@ final merge.
    `defaults`?** Rejected here as a product decision beyond bug-030 (see the design section), but a
    starter `task` type whose lifecycle is `draft → pending → approved` may be weaker than a user
    expects from a Scrum/Kanban template. Would need `spec-011`/`spec-001` revision and the approver.
+5. **bug (new, from the rework) — `test/cli/program.integration.test.ts` can fail intermittently under
+   a full `--coverage` run.** One of four full coverage runs on this branch failed
+   `test/cli/program.integration.test.ts:208` (`dna show nonexistent_section` — an exact-`stderr`
+   assertion); the same suite passed alone (63/63) immediately afterwards and in the three other full
+   coverage runs. The suite spawns the compiled `dist/cli.js` out of process, which is the same
+   spawn-under-load shape `bug-011`/`bug-003` have hit before in this repository; the assertion is
+   unrelated to anything task-071 changes. A flaky assertion in a hard-reject gate is worth its own
+   element — nobody should have to guess whether a red gate is real.
