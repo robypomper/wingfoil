@@ -380,3 +380,246 @@ defect's exact signature, from `node dist/cli.js` in a freshly-`init`-ed project
 
 All 23 failures are genuine (no `it.todo`, no fabricated red, no dead code): every one is either the
 resolver refusing before the verb's own logic runs, or the scaffold emitting no machine at all.
+
+### green — role: developer
+
+Three source files, in the order the design section argues them.
+
+1. **`src/memory/state-machine.ts` — the engine half (the spec-mandated fix).** New exported
+   `DEFAULT_STATE_MACHINE`, and `resolveStateMachine` becomes a three-arm resolution:
+   `typeEntry.states ?? memoryYaml.defaults?.states ?? DEFAULT_STATE_MACHINE`. The
+   "neither declares a machine" throw is **gone with the condition it reported**. The constant is built
+   by parsing `{ sequence: [draft, pending, approved], gates: { pending: { reject: draft } } }` through
+   the real `StateMachine` Zod schema — so the one machine no config file validates is still held to
+   spec-001's structural rules (`gates` keys ⊆ `sequence`, `"deprecated"` never declared) — and then
+   frozen through (object, `sequence`, `gates`, and the gate entry), since every falling-back type
+   shares the same object.
+2. **`src/storage/templates.ts` — the scaffold half.** `memoryYaml()` now emits a `defaults.states`
+   block (spec-001's worked example verbatim) above `types:`, and the header comment no longer claims a
+   per-type machine that is not there: it says every type shares the `defaults` machine and that a
+   `states:` block on a type overrides it. A TSDoc on the generator records why the block is written
+   out even though the engine would now cover its absence.
+3. **`src/core/memory-transition.ts` — dead code removed.** The `try/catch` that turned the REQ-STATE-08
+   throw into a `VALIDATION` refusal is unreachable once the throw is gone (the line above it already
+   returns `NOT_FOUND` for the only other throw condition, an unregistered type), so the call is direct
+   and the removal is explained in place; the function's own refusal list drops that bullet.
+
+`src/memory/index.ts` re-exports `DEFAULT_STATE_MACHINE` alongside the rest of the state-machine API
+(the barrel convention `test/core/module-layout.test.ts` pins).
+
+**One thing the red phase surfaced that the design had not predicted**, recorded because it changes what
+AC1's evidence means: on a fresh project, `memory approve`/`reject` also refuse with
+`user not authorized to approve type 'task'`. That is REQ-SEC-03 approval authority
+(`requireApprovalAuthority`, adr-006): `wingfoil init` scaffolds `team.members: []`, so no git identity
+holds the `approver` role yet. It is the verb's **own** rule, applied after the machine resolved — the
+boundary AC1 itself draws — not a second instance of bug-030. The end-to-end test and the manual
+transcript therefore first register the git identity as a `team.members[]` entry with `roles:
+[approver]`, exactly as a real user configures their project, and say so in place. It is reported as a
+proposed element (below) rather than changed here: whether `init` should seed the initialising user as
+an approver is a product decision this task does not own.
+
+`npx jest test/memory test/storage test/core/memory-submit.test.ts test/cli/fresh-init-transitions.test.ts`
+→ **26 suites / 450 tests green** at the end of this phase; the four previously-red suites all pass, and
+the two inverted expectations now assert the fixed behaviour.
+
+### refactor — role: developer
+
+No structural refactor was needed (the change is ~15 lines of logic across three files); this phase was
+spent on the documentation the `docs.api.*` gate and the `documentation` directive require, and on the
+gates.
+
+- TSDoc written for the new public `DEFAULT_STATE_MACHINE` (why the engine owns the default, why this
+  value and not REQ-STATE-08's literal wording, why it is frozen), for the rewritten
+  `resolveStateMachine` (the three arms, and what the one remaining throw is and is not reachable
+  from), for the module header's "Type resolution (REQ-STATE-08)" paragraph (now naming all three arms
+  and which task covered which), and for `memoryYaml()` in `src/storage/templates.ts`.
+- No `docs/` prose outside this task file was edited: the two spec-staleness findings this task ran
+  into are reported as proposed elements instead (the `doc-versioning` directive's version-bump rule is
+  therefore not triggered by this task — no versioned document was edited).
+
+#### Gates (run in this worktree, after the `git merge main` below)
+
+| Command | Result |
+|---|---|
+| `npx jest` | **101 suites / 1591 tests, all green** |
+| `npx jest --coverage` | **98.54% stmts · 92.29% branch · 98.76% funcs · 99.15% lines** (global) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0, **0 errors** |
+| `npx tsc --noEmit -p tsconfig.json` | 1 error, and it is **only** the pre-existing `bug-026` one: `test/core/directive-create.test.ts(159,19): error TS2339` |
+| `npm run lint` | exit 0, **0 errors** (`lint.clean`, dl-034) |
+| `npm run docs:api` | exit 0 (`docs.api.*`) |
+| `node scripts/e2e-smoke.cjs -- node "$PWD/dist/cli.js"` | **17/17 checks ok**, both templates, working tree clean — script **unmodified** (bug-029's ground) |
+
+**Coverage non-regression, measured rather than asserted.** A detached worktree was created at `main`
+(`f304bf7`) and `npx jest --coverage` run there: `All files 98.54 / 92.30 / 98.76 / 99.15`, 100 suites /
+1555 tests. This branch: `98.54 / 92.29 / 98.76 / 99.15`, 101 suites / 1591 tests (**+36 tests**).
+Statements, functions and lines are identical; branch coverage moves by **−0.01pp**, which is the
+denominator growing (the new suites add branch-free assertions) — no branch that was covered on `main`
+is uncovered here. The worktree was removed and `git worktree prune` run afterwards. Per-file, for the
+three files touched: `state-machine.ts` 96.1/93.75/100/97.29 (uncovered: 298-299, the TS-exhaustiveness
+`default` case — pre-existing and unreachable), `templates.ts` 100/94.44/100/100 (uncovered branch: the
+`sort` comparator's equal-path arm — pre-existing), `memory-transition.ts` 96.96/94.11/100/100
+(uncovered: line 92's non-`ValidationError` rethrow — pre-existing).
+
+### review — role: reviewer
+
+#### review-ready summary
+
+**What changed, and why it is two changes and not one.** `resolveStateMachine` gained a third
+resolution arm — the engine's own `DEFAULT_STATE_MACHINE` — because REQ-STATE-08 states its rule over
+the *type* ("a Memory type that does not declare its own `states` uses the default machine", Rationale
+"reduce config friction") while `spec-001` makes the `defaults` block *optional*: the two only cohere
+if the default exists without being declared, and until now a file that declared nothing threw. And
+`wingfoil init` now scaffolds that machine explicitly as `defaults.states`, with its header comment
+corrected, because the engine fix alone would have left the scaffold promising "(per type) its state
+machine" over a file containing none, and would have left a new project's lifecycle invisible in the
+only file the user owns. The alternative of scaffolding seven per-type machines was rejected in the
+design section: those machines are WingFoil's own dogfooded lifecycles, shipping them as every new
+project's process is a product decision beyond bug-030, and it would have contradicted `spec-011`'s
+description of the file — which this task may not amend silently.
+
+**Evidence for the headline claim (AC1), first-hand.** Below is the real thing, not a test harness: a
+throwaway git repository, `node dist/cli.js init`, then every transition verb. Both templates were run;
+the Scrum transcript is shown in full and Kanban was byte-identical in every asserted respect (same
+states, same `+1` commit per verb, same subjects, clean tree). Commands and output verbatim:
+
+```
+$ node dist/cli.js init --template Scrum
+  … 27 scaffolded paths …                                             exit=0
+$ grep -n -A6 '^defaults:' .wingfoil/memory.yaml
+11:defaults:
+12-  states:
+13-    sequence: [ draft, pending, approved ]
+14-    gates:
+15-      pending: { reject: draft }
+16-
+17-types:
+   # (then: register the git identity as a team.members[] entry with roles: [approver]
+   #  and commit it — REQ-SEC-03 approval authority, see the green section)
+$ node dist/cli.js memory add --type task --title 'Fresh init task' --format json
+{"id":"task-001-fresh-init-task","path":"docs/memory/task/task-001-fresh-init-task.md"}
+   -> status: draft                                                    commits: 3
+
+$ node dist/cli.js memory submit task-001-fresh-init-task              exit=0
+   -> status: pending     commits: +1   subject: wf(task): submit task-001-fresh-init-task
+$ node dist/cli.js memory reject --reason needs-work task-001-…        exit=0
+   -> status: draft       commits: +1   subject: wf(task): reject task-001-fresh-init-task [pending → draft]
+$ node dist/cli.js memory submit task-001-fresh-init-task              exit=0
+   -> status: pending     commits: +1   subject: wf(task): submit task-001-fresh-init-task
+$ node dist/cli.js memory approve --reason looks-good task-001-…       exit=0
+   -> status: approved    commits: +1   subject: wf(task): approve task-001-fresh-init-task [pending → approved]
+$ node dist/cli.js memory deprecate --reason end-of-life task-001-…    exit=0
+   -> status: deprecated  commits: +1   subject: wf(task): deprecate task-001-fresh-init-task [approved → deprecated]
+
+$ git status --porcelain (expect empty): []
+$ git log --oneline | tail -8
+afcd4d1 wf(task): deprecate task-001-fresh-init-task [approved → deprecated]
+4ee1884 wf(task): approve task-001-fresh-init-task [pending → approved]
+0a98060 wf(task): submit task-001-fresh-init-task
+9b3788e wf(task): reject task-001-fresh-init-task [pending → draft]
+03b08a6 wf(task): submit task-001-fresh-init-task
+ba1f8a6 wf(task): add task-001-fresh-init-task
+9cc20eb configure approver
+de3d6c0 chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)
+```
+
+Every verb: exit 0, the expected state on disk, **exactly one commit**. The same sequence on `main`
+stops at the first verb with `error: type "task" declares no 'states' block and 'defaults.states' is
+not set (REQ-STATE-08)` — captured in the red section from the CLI test's own failure output.
+
+The order is `submit → reject → submit → approve → deprecate`, not the `submit → approve → reject …`
+the task text suggests, because the scaffolded machine admits no other: its single gate is `pending`,
+and `approved` is the terminal `sequence` entry with no edge back. `reject` from `approved` is
+exercised too, as a **refusal**, to show the engine (not resolution) is what answers:
+`illegal transition approved -> draft for type 'task'`, exit 1, state unchanged.
+
+#### AC-by-AC
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 fresh init runs every verb | met | `test/cli/fresh-init-transitions.test.ts` (18 tests, both templates, real `dist/cli.js`) + the transcript above |
+| 2 resolver resolves for every scaffolded type | met | `test/storage/templates.test.ts` → "resolveStateMachine returns a machine for EVERY type the scaffold declares"; the type list is **derived from the parsed scaffold**, not copied from bug-030 step 5 |
+| 3 red-first against the artefact `init` writes | met | AC3's grep re-run verbatim (no output) and recorded in the red section; the new suites fail on `main`'s scaffold (21 failures) and pass on the fix |
+| 4 placement justified; scaffold stops over-promising | met | the design section takes and defends the engine-side reading of REQ-STATE-08 / the BDD ambiguity; the scaffold now *contains* a machine and its header comment describes what it contains |
+| 5 failure mode reclassified | met | the REQ-STATE-08 throw no longer exists; the one remaining plain-`Error` (unregistered type) is unreachable from CLI/MCP — `prepareMemoryTransition` returns `NOT_FOUND` (exit 1) first — and the TSDoc says so. No uncaught throw is user-visible; nothing to reclassify against `spec-008` §5/§6 |
+| 6 verified on a fresh project, dl-023 path | met | route stated explicitly: own test + transcript; `scripts/e2e-smoke.cjs` **unmodified** (17/17 ok) and **not** used as AC1 evidence — bug-029 remains open and unowned by this task |
+| 7 gates green | met | the gate table above |
+
+#### BDD acceptance
+
+`p1-memory/P1.13-memory-element-schema.feature` scenario 2 ("A type with no explicit states uses the
+defaults block") is this task's acceptance scenario, and it is now covered on **both** readings of its
+ambiguity: with a declared `defaults` block by `test/memory/element-schema.test.ts` → "P1.13 scenario 2
+— a type with no `states` block uses the `defaults` machine (REQ-STATE-08)" (pre-existing) and by the
+task-010 block in `test/memory/state-machine.test.ts`; **without** one — the reading this task takes —
+by the new "REQ-STATE-08 — no `states` AND no `defaults` block resolves the built-in default machine
+(bug-030)" block, whose four verbs assert the scenario's `Then` (the default machine, by value) and the
+requirement's fit criterion ("accepts exactly the default transitions and rejects any transition
+outside them"). Run: `npx jest test/memory/element-schema.test.ts test/memory/state-machine.test.ts
+test/storage/templates.test.ts test/cli/fresh-init-transitions.test.ts test/core/memory-submit.test.ts
+test/core/memory-approve.test.ts test/core/memory-reject.test.ts test/core/memory-deprecate.test.ts` →
+8 suites / 211 tests green.
+
+#### Interactions with the parallel work (checked, not assumed)
+
+- **`task-057`'s built-in directive templates** and **`task-054`'s `built-in`/`custom` split** still
+  scaffold correctly: the change is confined to `memoryYaml()`, adds no file and removes none. The
+  init transcript above lists all six `directives/built-in/*.md` plus the four `custom/` ones, and
+  `npx jest test/storage` (including `builtin-directives.test.ts`) is green.
+- **No existing test pinned the old comment-only `memory.yaml`** beyond the two expectations inverted
+  in the red section — established by `grep -rn "REQ-STATE-08" test src` (output in the red section)
+  and by the full suite passing.
+- **Out of bounds, untouched:** `package-lock.json` (task-073 — `npm ci` is broken repo-wide as
+  `bug-043`, so this worktree's `node_modules` is a **symlink** to the primary repository's, and no
+  install was run), `package.json` `engines` (task-074), reason/audit handling (task-072 — `dl-067`
+  arrived on `main` during this task and was merged in without being acted on), and `bug-026`'s
+  `tsc` error (left failing, as the brief requires).
+
+#### `git merge main` before submit (dl-035 — merge, never rebase)
+
+Merged twice, as `main` moved during the task: first to `7aeeb91`, then to `f304bf7` (`dl-067`). Both
+clean, no conflicts. The sources these notes cite were re-opened after the merges: **REQ-STATE-08 is
+textually unchanged** (`af91cf8` touched REQ-STATE-01 and `spec-004` only), `spec-001` unchanged, the
+P1.13 feature unchanged, `bug-029` still `open`/unscheduled. Every gate above was re-run after the
+final merge.
+
+#### Known weak spots a reviewer should check
+
+1. **The reading of REQ-STATE-08 is a judgement call, and it is the whole fix.** If the approver reads
+   the BDD scenario's *title* as normative (the default machine exists only when a `defaults` block is
+   declared), then the engine arm should be dropped and only the scaffold change kept — in which case
+   `test/core/memory-submit.test.ts`'s inverted block must be inverted back. The design section states
+   the case; the decision is the approver's.
+2. **The built-in machine's value is `spec-001`'s, not REQ-STATE-08's literal text.** They differ
+   (`rejected`, `deprecated`), `spec-001` says so deliberately and says REQ-STATE-08 "must be
+   reconciled" — but the SARD entry still carries the old wording, so the code and the requirement text
+   read differently on their face. Proposed as an element below.
+3. **A fresh project still cannot `approve`/`reject` until someone is given the `approver` role** in
+   `dna.yaml` (REQ-SEC-03). Correct by design as far as this task is concerned, but it means "a fresh
+   init can run every transition verb" is true of `submit`/`deprecate` unconditionally and of
+   `approve`/`reject` only after that one config edit. Proposed as an element below.
+
+#### Findings for the orchestrator (proposed elements — not filed here, per the parallel-worktree rule)
+
+1. **bug — `REQ-STATE-08`'s Description still names the pre-`spec-001` default machine.** It says
+   `draft → pending → approved/rejected → deprecated`; the approved `spec-001` §Consequences removed
+   `rejected` ("no document ever records `status: rejected` again") and makes `deprecated` implicit,
+   and says the requirement "must be reconciled". Evidence: `sed -n '/### REQ-STATE-08/,/### REQ-STATE-09/p'
+   docs/02_requirements/03_sard/03_state-context.md` (unchanged as of `f304bf7`) vs `spec-001`
+   §Consequences. task-071 implements the `spec-001` machine and documents the discrepancy in TSDoc
+   rather than editing the SARD.
+2. **bug — `spec-011-storage-layout` still describes `memory.yaml`'s per-type `states` as
+   `(values/initial/transitions)`** (line 104), an encoding `spec-001` replaced with
+   `sequence`/`gates`/`waiting` (and `initial:` was explicitly "retired"). It also does not mention the
+   top-level `defaults` block that `wingfoil init` now scaffolds. Evidence:
+   `grep -n "memory.yaml" docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`.
+3. **decision-log — should `wingfoil init` seed the initialising user as an `approver` in
+   `dna.yaml`?** As shipped, `init` writes `team.members: []`, so `memory approve`/`reject` refuse
+   (`user not authorized to approve type 'task'`, REQ-SEC-03/adr-006) in every new project until the
+   user hand-edits `dna.yaml` — with no message saying that is what to do. Options: seed the git
+   identity as an `approver` member at `init`; leave it and make the refusal message name the fix; or
+   leave as-is deliberately (authority should be an explicit act). Evidence: the green section above,
+   and `src/core/approval-authority.ts`.
+4. **(follow-up, optional) — should the scaffold ship per-type machines rather than one shared
+   `defaults`?** Rejected here as a product decision beyond bug-030 (see the design section), but a
+   starter `task` type whose lifecycle is `draft → pending → approved` may be weaker than a user
+   expects from a Scrum/Kanban template. Would need `spec-011`/`spec-001` revision and the approver.
