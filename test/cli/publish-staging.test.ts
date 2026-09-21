@@ -9,7 +9,12 @@
  * flags, the scrubbed environment, and that teardown runs on every failure path. The pure builders
  * (Verdaccio config, npm argv, env) are asserted directly.
  */
+import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
+
 import {
+  REGISTRY_STOP_TIMEOUT_MS,
   STAGING_REGISTRY,
   installArgs,
   parseArgs,
@@ -17,6 +22,7 @@ import {
   runStaging,
   stagingEnv,
   stagingPaths,
+  stopProcess,
   verdaccioConfig,
 } from '../../scripts/publish-staging.cjs';
 import type { StagingEffects } from '../../scripts/publish-staging.cjs';
@@ -176,5 +182,71 @@ describe('publish:staging (task-060) — orchestration', () => {
     await expect(run(effects)).resolves.toBe(1);
     expect(calls[calls.length - 1]).toBe(`removeWorkDir ${WORK}`);
     expect(calls.includes('stopRegistry')).toBe(registryStarted);
+  });
+});
+
+/**
+ * task-078 (`dl-057` item c) — `stopProcess`, the bounded stop the staging registry's `stop()` is built
+ * from. The child processes below are plain `node -e` scripts: they touch no registry and no network.
+ */
+describe('stopProcess (task-078) — SIGTERM, then a bounded wait, then SIGKILL', () => {
+  const children: ChildProcess[] = [];
+
+  /** Spawn a `node -e` child and resolve once it has printed `ready` (so its handlers are installed). */
+  async function spawnChild(script: string): Promise<ChildProcess> {
+    const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'ignore'] });
+    children.push(child);
+    for await (const chunk of child.stdout ?? []) {
+      if (String(chunk).includes('ready')) break;
+    }
+    return child;
+  }
+
+  afterEach(() => {
+    for (const child of children.splice(0)) child.kill('SIGKILL');
+  });
+
+  it('escalates to SIGKILL when the child ignores SIGTERM, and still resolves', async () => {
+    const child = await spawnChild("process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000);");
+    const exited = once(child, 'exit');
+    await stopProcess(child, { timeoutMs: 250 });
+    const [, signal] = (await exited) as [number | null, NodeJS.Signals | null];
+    expect(signal).toBe('SIGKILL');
+  });
+
+  it('resolves as soon as a well-behaved child exits, without waiting out the interval', async () => {
+    const child = await spawnChild("console.log('ready'); setInterval(() => {}, 1000);");
+    const exited = once(child, 'exit');
+    // A 30 s interval the test itself could never wait out: if the escalation delay were awaited
+    // unconditionally, this case would fail on jest's 5 s timeout instead of passing.
+    await stopProcess(child, { timeoutMs: 30_000 });
+    const [, signal] = (await exited) as [number | null, NodeJS.Signals | null];
+    expect(signal).toBe('SIGTERM');
+  });
+
+  it('resolves — and signals nothing — when the child has already exited', async () => {
+    const child = await spawnChild("console.log('ready');");
+    await once(child, 'exit');
+    const signalled: string[] = [];
+    const recorder = { ...child, kill: (s: string) => signalled.push(s) } as unknown as ChildProcess;
+    await stopProcess(recorder, { hasExited: () => true, timeoutMs: 30_000 });
+    expect(signalled).toEqual([]);
+  });
+
+  it('resolves even for a child that never exits at all, after SIGTERM then SIGKILL', async () => {
+    const signalled: string[] = [];
+    const deaf = {
+      once: () => deaf,
+      kill: (s: string) => {
+        signalled.push(s);
+        return true;
+      },
+    } as unknown as ChildProcess;
+    await stopProcess(deaf, { timeoutMs: 20, killGraceMs: 20 });
+    expect(signalled).toEqual(['SIGTERM', 'SIGKILL']);
+  });
+
+  it('defaults the escalation interval well below the registry start timeout it can be called from', () => {
+    expect(REGISTRY_STOP_TIMEOUT_MS).toBe(10_000);
   });
 });
