@@ -33,7 +33,7 @@ Measured 2026-09-21 on `main` at `ba2cad0`, against the build in a clean worktre
 ```
   it('flags an AWS secret access key assignment', () => {
     const result = scanText(
-      'aws_secret_key: "fAkEsEcReT1234567890fAkEsEcReT1234567890"\n',
+      'aws_secret_key: "fAkEsEcReT…<elided, 40 chars>…"\n',
       'fixture.txt',
     );
     expect(result.blocking.map((f) => f.patternId)).toContain('aws-secret-access-key');
@@ -42,7 +42,7 @@ Measured 2026-09-21 on `main` at `ba2cad0`, against the build in a clean worktre
 
 ```
 $ grep -n "fAkEsEcReT" test/validation/secret-scan.test.ts
-68:      'aws_secret_key: "fAkEsEcReT1234567890fAkEsEcReT1234567890"\n',
+68:      'aws_secret_key: "fAkEsEcReT…<elided, 40 chars>…"\n',
 ```
 
 The value is 40 characters, which is what makes it match: `spec-007`'s `aws-secret-access-key` regex
@@ -108,7 +108,7 @@ receives the identical string. Confirmed by running the equivalence outside the 
 
 ```
 $ node -e 'const {scanText}=require("./dist/validation/secret-scan.js");
-  const literal="fAkEsEcReT1234567890fAkEsEcReT1234567890";
+  const literal="fAkEsEcReT…<elided>…";   // the literal this bug is about
   const built=("fAkE"+"sEcReT"+"1234567890").repeat(2);
   console.log("built === literal ?", built===literal, "| len", built.length);
   const r=scanText("aws_secret_key: \""+built+"\"\n","fixture.txt");
@@ -126,7 +126,7 @@ Only the **value** needs building: the `aws_secret_key: "` context can stay a li
 pattern requires both halves and neither half alone matches:
 
 ```
-$ node -e '…scanText("fAkEsEcReT1234567890fAkEsEcReT1234567890\n")…'   ->  []          # value alone: no match
+$ node -e '…scanText("fAkEsEcReT…<elided>…\n")…'   ->  []          # value alone: no match
 $ node -e '…scanText("aws_secret_key: \"" + value + "\"\n")…'          ->  [aws-secret-access-key]
 ```
 
