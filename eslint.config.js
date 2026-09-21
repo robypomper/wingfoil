@@ -34,6 +34,7 @@ module.exports = tseslint.config(
         process: 'readonly',
         fetch: 'readonly',
         setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
   },
