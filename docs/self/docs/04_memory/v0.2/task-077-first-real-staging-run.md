@@ -231,3 +231,278 @@ both rule out (task-073 reached the same conclusion for the same reason on the s
 `task-078`'s or another task's ground this release and are **not** edited here; every defect this run
 surfaced is a proposed element in the review summary instead. `bug-026` untouched. No npm token was
 requested, supplied or handled at any point, and nothing was pushed or tagged on `origin`.
+
+### red — nothing to fail, and why that is the honest answer
+
+No test is added and no red is manufactured (see the T1 table's preamble). The executable artefact this
+phase would normally produce is instead the **run itself**, recorded below. Two of the runs below are
+genuine failures produced on purpose — AC2's failure path — but they are *experiments on existing
+behaviour*, not a fabricated red: they were predicted, run, and one of them falsified the script's own
+header claim.
+
+### green / refactor — the run
+
+Everything below was executed in the worktree at commit `71ad967` (the design-notes commit), with the
+tree byte-identical to `main`'s `src/`, `scripts/` and `.github/`.
+
+#### AC9 — the tree was green at the commit the run was made from
+
+Run first, so the transcript that follows describes a green tree rather than an unknown one.
+
+| Gate | Result |
+|---|---|
+| `npx jest` | exit **0** — 100 suites / **1591 tests** passed, 78.285 s |
+| `npx jest --coverage` | exit **0** — All files **98.54 %** stmts / **92.3 %** branch / **98.76 %** funcs / **99.15 %** lines (≥ 80 %; `src/` is unchanged, so non-regressing by construction) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit **0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit **2** — **only** the pre-existing bug-026 error: `test/core/directive-create.test.ts(159,19): error TS2339: Property 'commit' does not exist on type '{ readonly ok: false; readonly error: CoreError; }'` |
+| `npm run lint` | exit **0** (`lint.clean`) |
+| `npm run docs:api` | exit **0** (`docs.api.*`) |
+
+`git status --porcelain` → empty after all six, and again after every run below: nothing in this task
+left an uncommitted artefact in the repository.
+
+#### AC1 — `npm run publish:staging`, for real, end to end
+
+```
+$ date -Is; /usr/bin/time -f "WALL=%e s" npm run publish:staging; echo "REAL_EXIT=$?"; date -Is
+2026-09-21T11:14:16+02:00
+...
+WALL=113.01 s
+REAL_EXIT=0
+2026-09-21T11:16:09+02:00
+```
+
+**Exit code 0, wall clock 113 s.** The seven stages the script's header declares, each with the output
+that evidences it (trimmed of the per-request `warn --- Password for user "wingfoil-staging" took NNNms
+to verify` lines Verdaccio emits — there are ~170 of them, and they are themselves a finding: see F4):
+
+**Stage 1 — pack.** No `--tarball` was passed, so the script packed the repository itself. `npm pack`
+runs **without** `--ignore-scripts`, so `prepack → build → tsc` ran first — this is `bug-022` visible in
+the developer-machine path, not only in the test suite:
+
+```
+> wingfoil@0.1.0 publish:staging
+> node scripts/publish-staging.cjs
+
+> wingfoil@0.1.0 prepack
+> npm run build
+
+> wingfoil@0.1.0 build
+> tsc -p tsconfig.build.json
+```
+
+The manifest it produced (`npm notice` block, lines 338-345 of the transcript):
+
+```
+npm notice name: wingfoil
+npm notice version: 0.1.0
+npm notice filename: wingfoil-0.1.0.tgz
+npm notice package size: 303.3 kB
+npm notice unpacked size: 1.1 MB
+npm notice shasum: 73271127091f9df076b94d15fa45cb5556b069f9
+npm notice total files: 311
+```
+
+**The manifest matches `spec-015` §3 stage 1** ("exactly `dist` + docs per `files`") — checked rather
+than eyeballed, by extracting every path from the `Tarball Contents` block and removing `dist/`:
+
+```
+$ sed -n '/npm notice Tarball Contents/,/npm notice Tarball Details/p' staging1.log \
+    | sed 's/^npm notice //' | awk '{print $2}' | grep -v "^dist/"
+LICENSE
+README.md
+package.json
+```
+
+i.e. `dist/**` + `README.md` (the `files` field is `["dist","README.md"]`) + the two npm always adds.
+Nothing stray.
+
+**Stage 2 — Verdaccio install + start.**
+
+```
+added 315 packages in 11s
+warn --- you are using Node.js v22.21.0, Verdaccio recommends Node.js v24 or higher, please consider upgrading your Node.js distribution
+warn --- http address - http://localhost:4873/ - verdaccio/6.10.4
+[publish:staging] Verdaccio up on http://localhost:4873/
+```
+
+`verdaccio@6` resolved to **6.10.4**. The Node warning is F3 below.
+
+**Stage 3 — throwaway user registration.** No stdout of its own (the script registers over HTTP and
+writes the token to the work dir). Evidenced negatively-then-positively: the publish in stage 4
+succeeded, which the Verdaccio config only allows for `$authenticated`; and the token file was later
+observed directly in the leaked work dir (AC2 below): `-rw------- … //localhost:4873/:_authToken=…`,
+mode `0600`, inside the work dir — never in the repository and never in `~`, exactly as the header
+promises.
+
+**Stage 4 — staging `npm publish`.**
+
+```
+npm notice Publishing to http://localhost:4873/ with tag latest and public access
++ wingfoil@0.1.0
+```
+
+Published to `http://localhost:4873/` and nowhere else. `publishConfig.registry`
+(`https://registry.npmjs.org/`) was overridden by the script's explicit `--registry`, and
+`--provenance=false` suppressed `publishConfig.provenance: true` — the two things that keep a staging
+run off npmjs, both observed working.
+
+**Stage 5 — clean global install from staging.**
+
+```
+added 111 packages in 1m
+```
+
+into the work-dir prefix (`npm_config_prefix`), with the work-dir cache — nothing touched the
+developer's real global prefix or `~/.npm`.
+
+**Stage 6 — the dl-023 smoke against the installed `wingfoil`.** All 18 assertions passed:
+
+```
+[publish:staging]   ok   wingfoil --help — exit 0
+[publish:staging]   ok   wingfoil --version = 0.1.0 — match
+[publish:staging]   ok   [Scrum] wingfoil init --template Scrum — exit 0
+[publish:staging]   ok   [Scrum] wingfoil dna show --format json — exit 0
+[publish:staging]   ok   [Scrum] wingfoil dna set project.name WingFoil smoke — exit 0
+[publish:staging]   ok   [Scrum] wingfoil memory add --type task --title Smoke task --format json — exit 0
+[publish:staging]   ok   [Scrum] wingfoil paths config --list --format json — exit 0
+[publish:staging]   ok   [Scrum] wingfoil directives list --format json — exit 0
+[publish:staging]   ok   [Scrum] wingfoil workflow list --format json — exit 0
+[publish:staging]   ok   [Scrum] working tree clean after every mutation — clean
+[publish:staging]   ok   [Kanban] wingfoil init --template Kanban — exit 0
+[publish:staging]   ok   [Kanban] wingfoil dna show --format json — exit 0
+[publish:staging]   ok   [Kanban] wingfoil dna set project.name WingFoil smoke — exit 0
+[publish:staging]   ok   [Kanban] wingfoil memory add --type task --title Smoke task --format json — exit 0
+[publish:staging]   ok   [Kanban] wingfoil paths config --list --format json — exit 0
+[publish:staging]   ok   [Kanban] wingfoil directives list --format json — exit 0
+[publish:staging]   ok   [Kanban] wingfoil workflow list --format json — exit 0
+[publish:staging]   ok   [Kanban] working tree clean after every mutation — clean
+[publish:staging] staged wingfoil@0.1.0 and smoke passed
+```
+
+**This is the first time REQ-SYS-09's fit criterion has actually been met by an installed artefact** —
+"`npm install -g wingfoil` makes the `wingfoil` command available on PATH and `wingfoil --help` exits 0"
+— rather than asserted against `dist/cli.js` in the repository.
+
+**Stage 7 — teardown.** See AC2.
+
+#### AC2 — teardown, verified rather than assumed (and one path where it does not run)
+
+**After the successful run** (commands and their real output):
+
+```
+$ ss -ltn 'sport = :4873'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port
+                                                            # no LISTEN row
+$ curl -sS -m 5 http://localhost:4873/-/ping; echo "EXIT=$?"
+curl: (7) Failed to connect to localhost port 4873 after 0 ms: Couldn't connect to server
+EXIT=7
+$ ls -d /tmp/wingfoil-staging-*; echo "EXIT=$?"
+ls: cannot access '/tmp/wingfoil-staging-*': No such file or directory
+EXIT=2
+```
+
+(`node -p 'require("node:os").tmpdir()'` → `/tmp`, so that glob is the right place to look.)
+Clean: registry stopped, work dir gone.
+
+**Failure path (a) — an in-process failure after Verdaccio is up.** Forced without touching the script,
+by handing it a tarball that does not exist, which fails at stage 4 — i.e. after `startRegistry` has
+already succeeded, which is what AC2 asks for:
+
+```
+$ date -Is; npm run publish:staging -- --tarball /nonexistent/no-such-tarball.tgz; echo "REAL_EXIT=$?"; date -Is
+2026-09-21T11:16:38+02:00
+added 315 packages in 22s
+warn --- http address - http://localhost:4873/ - verdaccio/6.10.4
+[publish:staging] Verdaccio up on http://localhost:4873/
+npm error code ENOENT
+npm error path /nonexistent/no-such-tarball.tgz
+npm error enoent ENOENT: no such file or directory, open '/nonexistent/no-such-tarball.tgz'
+[publish:staging] staging FAILED: npm publish /nonexistent/no-such-tarball.tgz --registry http://localhost:4873/ --provenance=false exited 254
+REAL_EXIT=1
+2026-09-21T11:17:05+02:00
+```
+
+Teardown **did** run:
+
+```
+$ curl -sS -m 5 http://localhost:4873/-/ping; echo "EXIT=$?"
+curl: (7) Failed to connect to localhost port 4873 after 0 ms: Couldn't connect to server
+EXIT=7
+$ ls -d /tmp/wingfoil-staging-*; echo "EXIT=$?"
+ls: cannot access '/tmp/wingfoil-staging-*': No such file or directory
+EXIT=2
+```
+
+So the `try/catch/finally` in `runStaging` works as the header claims — **for errors**.
+
+**Failure path (b) — an interrupt. This is where the promise breaks (finding F1).** The header says
+teardown runs "on success and on every failure"; `dl-057` item (c) already anticipated a *stalled*
+`SIGTERM`, but not this. A plain Ctrl-C — the single most likely way a developer ends a run that is
+taking a minute to install 111 packages — is not a failure the `finally` ever sees, because the script
+installs no `SIGINT`/`SIGTERM` handler and Node's default disposition terminates the process outright:
+
+```
+$ npm run publish:staging -- --tarball .../wingfoil-0.1.0.tgz &      # a valid tarball this time
+... [publish:staging] Verdaccio up on http://localhost:4873/          # after 13s
+$ curl -sS -m 5 http://localhost:4873/-/ping                          # registry answers
+{}
+$ pgrep -f "^node scripts/publish-staging.cjs"
+2033038
+$ kill -INT 2033038                                                   # the Ctrl-C
+```
+
+Five seconds later:
+
+```
+$ ps -o pid,args -p 2033038 --no-headers; echo "SCRIPT_ALIVE_EXIT=$?"
+SCRIPT_ALIVE_EXIT=1                                  # the script is gone
+$ curl -sS -m 5 http://localhost:4873/-/ping; echo "EXIT=$?"
+{}
+EXIT=0                                               # …but Verdaccio is NOT
+$ ss -ltn 'sport = :4873'
+LISTEN 0  511  127.0.0.1:4873  0.0.0.0:*
+$ ls -d /tmp/wingfoil-staging-*; echo "EXIT=$?"
+/tmp/wingfoil-staging-WU1PFY
+EXIT=0                                               # …and neither is the work dir
+$ ps -eo pid,args | grep "[v]erdaccio"
+2033741 verdaccio
+```
+
+What was left behind, measured:
+
+```
+$ du -sh /tmp/wingfoil-staging-WU1PFY
+268M    /tmp/wingfoil-staging-WU1PFY
+$ ls -l /tmp/wingfoil-staging-WU1PFY/npmrc
+-rw------- 1 robypomper robypomper 250 set 21 11:18 /tmp/wingfoil-staging-WU1PFY/npmrc
+$ sed 's/=.*/=<REDACTED>/' /tmp/wingfoil-staging-WU1PFY/npmrc
+//localhost:4873/:_authToken=<REDACTED>
+```
+
+268 MB, an orphaned daemon holding port 4873, and a live registry auth token on disk. (The token is
+worthless once the registry dies — but the registry did not die, which is the point.)
+
+**And the leak is self-perpetuating**, because `startRegistry`'s own in-use guard then refuses every
+later run — one Ctrl-C bricks staging until a human finds and kills the orphan:
+
+```
+$ npm run publish:staging -- --tarball .../wingfoil-0.1.0.tgz; echo "REAL_EXIT=$?"
+[publish:staging] staging FAILED: http://localhost:4873/ is already in use — stop that registry first
+REAL_EXIT=1
+```
+
+Cleaned up by hand afterwards (`kill -TERM 2033741`, `rm -rf /tmp/wingfoil-staging-WU1PFY`), and
+re-verified clean:
+
+```
+$ curl -sS -m 5 http://localhost:4873/-/ping; echo "EXIT=$?"
+curl: (7) Failed to connect to localhost port 4873 after 0 ms: Couldn't connect to server
+EXIT=7
+$ ls -d /tmp/wingfoil-staging-*; echo "EXIT=$?"
+ls: cannot access '/tmp/wingfoil-staging-*': No such file or directory
+EXIT=2
+```
+
+**Filed, not fixed** (`scripts/publish-staging.cjs` is `task-078`'s file this release): finding **F1**
+in the review summary.
