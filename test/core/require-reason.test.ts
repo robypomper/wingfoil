@@ -12,7 +12,7 @@
  * will read `options?.reason` directly instead (see this task's Execution Notes for the reconciliation
  * of the SARD REQ-SEC-04 fit-criterion wording against the already-approved `spec-008`).
  */
-import { requireReason } from '../../src/core/require-reason';
+import { optionalReason, requireReason } from '../../src/core/require-reason';
 import { UsageError } from '../../src/core/usage-error';
 
 const MISSING_REASON_ERROR = 'missing required argument: --reason';
@@ -46,5 +46,55 @@ describe('requireReason (REQ-SEC-04, task-041-mandatory-reason-on-verbs)', () =>
 
   it('returns a reason value alongside other unrelated options untouched', () => {
     expect(requireReason({ type: 'task', reason: 'tests missing' })).toBe('tests missing');
+  });
+});
+
+/**
+ * `dl-067-reason-trailer-contract` (`ready`) — `task-072-fix-reason-trailer-contract`, fixing
+ * `bug-042`. The helper's job widens from "was a reason given?" to "can this reason be recorded in the
+ * trailer?", because those turned out to be different questions: `--reason ""` *was* given, and was
+ * accepted at exit `0`, producing a bare `Reason:` that made `memory history` report an approval gate
+ * crossed by nobody, for no reason (bug-042 F2).
+ *
+ * `optionalReason` is the same rule for the verb whose flag is optional — `memory deprecate`
+ * (`dl-027` option (a)). task-041 scoped `requireReason` to the approval gates deliberately and said so
+ * in its Execution Notes, which is exactly why a fix placed only inside it would have missed the one
+ * verb bug-042's amendment shows is exploitable.
+ */
+describe('requireReason / optionalReason — dl-067: the reason must be RECORDABLE, not merely present', () => {
+  it('refuses a blank reason with a distinct message, not the omitted-argument one (dl-067 S1)', () => {
+    for (const reason of ['', '   ', '\n\t\n']) {
+      let thrown: unknown;
+      try {
+        requireReason({ reason });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(UsageError);
+      expect((thrown as UsageError).exitCode).toBe(2);
+      expect((thrown as UsageError).message).not.toBe(MISSING_REASON_ERROR);
+      expect((thrown as UsageError).message).toContain('--reason');
+    }
+  });
+
+  it('refuses a reason carrying a reserved trailer line (bug-042 F3)', () => {
+    expect(() => requireReason({ reason: 'ok\nApprover: Mallory <m@evil.test> (approver)' })).toThrow(UsageError);
+    expect(() => requireReason({ reason: 'ok\nReason: second' })).toThrow(UsageError);
+  });
+
+  it('returns a multi-line reason NORMALIZED — the one place the declared form is applied (dl-067 clause 3)', () => {
+    expect(requireReason({ reason: 'first   \n\n\nsecond' })).toBe('first\n\nsecond');
+  });
+
+  it('optionalReason returns undefined when no reason was given — `deprecate` exits 0 without one', () => {
+    expect(optionalReason(undefined)).toBeUndefined();
+    expect(optionalReason({ type: 'adr' })).toBeUndefined();
+  });
+
+  it('optionalReason applies the SAME rule to a reason that WAS given (dl-067 S2)', () => {
+    expect(optionalReason({ reason: 'superseded by adr-004' })).toBe('superseded by adr-004');
+    expect(() => optionalReason({ reason: '' })).toThrow(UsageError);
+    expect(() => optionalReason({ reason: '  ' })).toThrow(UsageError);
+    expect(() => optionalReason({ reason: 'x\nApprover: M <m@evil.test> (approver)' })).toThrow(UsageError);
   });
 });

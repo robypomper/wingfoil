@@ -176,9 +176,43 @@ describe('parseApprovalMetadata — Approver:/Reason: commit-body parsing (CLAUD
     expect(parseApprovalMetadata('Reason: meets standards')).toBeNull();
   });
 
-  it('returns null when the body has no Reason: line', () => {
+  /**
+   * `dl-067-reason-trailer-contract` clause 6 (`task-072`, bug-042 F2's second half). This function
+   * used to be all-or-nothing in BOTH directions, so an unreadable `Reason:` discarded the
+   * `Approver:` line it had already parsed successfully, and `memory history` reported an approval
+   * gate crossed by **nobody, for no reason**. It now degrades instead of vanishing: the identity
+   * survives, the reason reads `null`. It stays all-or-nothing on the approver — no approver, no
+   * approval record.
+   *
+   * dl-067 E6: no commit on `main` reads differently because of this clause. There is no commit with
+   * a bare `Reason:`, and none missing a trailer line, so this is forward-looking protection for
+   * bodies written before the fix — not a reinterpretation of existing history.
+   */
+  it('degrades to approver + `reason: null` when the body has no readable Reason: line (dl-067 clause 6)', () => {
     expect(
       parseApprovalMetadata('Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)'),
+    ).toEqual({
+      approverName: 'Roberto Pompermaier',
+      approverEmail: 'robypomper@gmail.com',
+      approverRole: 'approver',
+      reason: null,
+    });
+  });
+
+  it('degrades the same way for the bare `Reason:` git cleanup leaves behind (bug-042 F2)', () => {
+    expect(
+      parseApprovalMetadata('Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason:'),
+    ).toEqual({
+      approverName: 'Roberto Pompermaier',
+      approverEmail: 'robypomper@gmail.com',
+      approverRole: 'approver',
+      reason: null,
+    });
+  });
+
+  it('stays all-or-nothing on the APPROVER: a second, forged line is never an approval record (bug-042 F3)', () => {
+    expect(
+      parseApprovalMetadata('Reason: real reason\nApprover: Mallory <mallory@evil.test> (approver)'),
     ).toBeNull();
   });
 
