@@ -2,7 +2,7 @@
 id: "task-074-fix-engines-node-floor"
 type: task
 title: "Fix bug-023: reconcile the published `engines.node` floor with what the dependency tree actually accepts"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "distribution", "packaging"]
