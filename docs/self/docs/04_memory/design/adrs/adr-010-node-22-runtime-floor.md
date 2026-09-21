@@ -2,7 +2,7 @@
 id: "adr-010-node-22-runtime-floor"
 type: adr
 title: "The runtime floor is Node 22.12+, not Node 18+ — supersedes adr-005's runtime clause"
-status: pending
+status: accepted
 sard_ref: "REQ-SYS-09"
 supersedes: "adr-005-typescript-node-stack"
 release: "v0.2"
