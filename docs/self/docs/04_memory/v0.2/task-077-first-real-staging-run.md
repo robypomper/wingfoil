@@ -715,3 +715,202 @@ premises** — "That Node 22.12.0 bundles npm 10.9 … [is] **not verified here*
 Wave 2 brief" (`dl-057:52-53`). It is now verified by measurement: `npm: 10.9.0`. Since npm trusted
 publishing needs npm ≥ 11.5.1 (that half remains unverified here), the current pin cannot use it — (e)'s
 recommended option 1 ("keep `NPM_TOKEN` for the first publish") is the only one available today.
+
+**Two more gate failures, behind the `npm ci` one.** Because a failed step ends the job, each blocker
+had to be stepped past to see the next. Every step past a blocker was done in a **scratchpad copy of
+the workflow** — `.github/workflows/publish.yml` in the repository was never edited (`git status
+--porcelain` clean throughout; `git diff --stat main...HEAD` lists only this task file). Each probe is
+named with exactly what it changed.
+
+*Probe A — `npm ci` → `npm install --no-audit --no-fund`, nothing else* (the one-line diff is recorded
+above). `Install` then succeeded in **10.7 s**, which is itself the proof that the lock is *resolvable*
+by npm 10.9 and merely not *`ci`-installable* — npm repairs it on the fly and `npm ci` refuses to.
+The gate then failed at `prepublishOnly`:
+
+```
+[publish/gate]   | Test Suites: 3 failed, 97 passed, 100 total
+[publish/gate]   | Tests:       3 failed, 1588 passed, 1591 total
+[publish/gate]   ❌  Failure - Main prepublishOnly gate — build, test, lint [1m39.786262053s]
+```
+
+Two of the three are one bug, and it is a **UTC-runner** bug — not an `act` artefact:
+
+```
+● CORE_MODULES memory.memoryApprove — P1.7 fit criteria › P1.7 sc.1: approves a pending document …
+  Expected pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
+  Received string:  "2026-09-21T09:25:53Z"
+    at test/core/memory-approve.test.ts:168:57
+
+● P1.2 — Every state change records author and timestamp (BDD scenario 1) › …
+  Expected pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
+  Received string:  "2026-09-21T09:26:05Z"
+    at test/memory/versioning-audit-trail.test.ts:61:26
+```
+
+Root cause isolated by measurement, in both environments, rather than guessed:
+
+```
+# developer machine — git 2.43.0
+$ git log -1 --format=%aI                       # TZ=Europe/Rome
+2026-09-21T13:43:28+02:00
+$ TZ=UTC git commit …; git log -1 --format=%aI
+2026-09-21T11:43:28+00:00                       # +00:00 — the regex matches
+
+# the runner image — git 2.55.0
+$ docker run --rm catthehacker/ubuntu:act-24.04 bash -lc '…'
+git version 2.55.0
+TZ unset -> 2026-09-21T11:43:39Z
+TZ=UTC   -> 2026-09-21T11:43:39Z                # Z — the regex does NOT match
+TZ=Rome  -> 2026-09-21T13:43:39+02:00
+```
+
+So **git ≥ 2.55 renders a zero UTC offset as `Z`** for `%aI`, and both tests' regexes demand a
+`[+-]HH:MM` offset. `Z` is valid ISO-8601/RFC-3339, so the *tests* are wrong, not git — and the trigger
+is "runner in UTC", which is the normal state of a CI runner. Confirmed by elimination: re-running the
+same probe with `--env TZ=Europe/Rome` and changing nothing else took the failures from 3 to 1:
+
+```
+[publish/gate]   | Test Suites: 1 failed, 99 passed, 100 total
+[publish/gate]   | Tests:       1 failed, 1590 passed, 1591 total
+```
+
+Filed as **F3**. (What remains unverified here: the git version on GitHub's own `ubuntu-24.04` image.
+The *condition* is "UTC runner + git that emits `Z`", and only the first half is certain for GitHub.)
+
+*The third failure is independent and reproducible* — same suite, same error, in both container runs,
+while the identical suite passes on the developer machine (100/100, recorded under AC9):
+
+```
+● filterRelevantMemoryDocuments … › REQ-PERF-05 Fit Criterion — 1,000 Memory documents, K relevant
+  ENOTEMPTY: directory not empty, rmdir '/tmp/wf-storage-KaPism/.git'
+    at removeTempDir (test/storage/helpers/git-fixture.ts:72:9)
+    at Object.<anonymous> (test/core/relevance.test.ts:126:22)
+```
+
+A fixture-teardown race in `removeTempDir`'s `rmSync(..., {recursive: true, force: true})` against
+whatever still holds files under the fixture's `.git`. Filed as **F4**.
+
+#### AC4 — `act -j stage`, and whether the artifact actually round-trips
+
+*Probe B — probe A plus `npm run prepublishOnly` → `npm run build && npm run lint`* (i.e. the gate
+minus the test suite, whose three failures are already reported above as F2/F3/F4), with
+`--env TZ=Europe/Rome`, run as a full `act push` so all three jobs execute in order. **All three jobs
+succeeded**, which is what made AC4 and AC5 observable at all:
+
+```
+$ act push --eventpath tag-event.json --artifact-server-path act-artifacts \
+      -W publish-probe2.yml --env TZ=Europe/Rome
+2026-09-21T13:47:29+02:00
+[publish/gate]    🏁  Job succeeded
+[publish/stage]   🏁  Job succeeded
+[publish/promote] 🏁  Job succeeded
+REAL_EXIT=0
+2026-09-21T13:51:15+02:00
+```
+
+**The artifact handoff works under `act` — verified by digest, not by the absence of an error.** The
+gate uploads and both downstream jobs download *the same bytes*:
+
+```
+[publish/gate]    | Finished uploading artifact content to blob storage!
+[publish/gate]    | SHA256 digest of uploaded artifact zip is f796c6525d963b5446020ec002f9c07b12afbf49fc9fbf46e04356ebf3978547
+[publish/gate]    | Artifact download URL: https://github.com/robypomper/wingfoil/actions/runs/1/artifacts/2249856667
+[publish/stage]   | - wingfoil-tarball (ID: 2249856667, Size: 4096, Expected Digest: undefined)
+[publish/stage]   | SHA256 digest of downloaded artifact is f796c6525d963b5446020ec002f9c07b12afbf49fc9fbf46e04356ebf3978547
+[publish/promote] | SHA256 digest of downloaded artifact is f796c6525d963b5446020ec002f9c07b12afbf49fc9fbf46e04356ebf3978547
+$ find act-artifacts -type f
+act-artifacts/1/wingfoil-tarball/wingfoil-tarball.zip
+```
+
+Identical digest in all three jobs. `task-060`'s "same tarball end to end" design (its note 5) holds
+under execution — **the tarball `promote` would publish is byte-identical to the one `stage` smoked.**
+
+One caveat worth recording for whoever reads the artifact-id in a future log: `Expected Digest:
+undefined` — `act`'s artifact server does not populate the digest field the action would verify
+against, so under `act` the digest is *reported* but not *enforced*. On GitHub it is.
+
+**And the `stage` job passed for real, inside the container** — the same script, the same 18 smoke
+assertions as the developer-machine run, against the gate's tarball rather than its own pack:
+
+```
+[publish/stage]   | [publish:staging] Verdaccio up on http://localhost:4873/
+[publish/stage]   | [publish:staging]   ok   wingfoil --help — exit 0
+[publish/stage]   | …                                                   (18 `ok` lines in total)
+[publish/stage]   | [publish:staging] staged wingfoil@0.1.0 and smoke passed
+[publish/stage]   ✅  Success - Main Stage on ephemeral Verdaccio + dl-023 smoke [1m35.393469967s]
+```
+
+`grep -c "publish:staging\]   ok"` → **18**, the same count as the host run. And the container's
+Verdaccio bound `localhost:4873` **inside its own network namespace** — the host's port stayed free
+throughout, and nothing leaked onto the host afterwards:
+
+```
+$ ls -d /tmp/wingfoil-staging-*        # host
+ls: cannot access '/tmp/wingfoil-staging-*': No such file or directory
+$ ss -ltn 'sport = :4873'              # host — no LISTEN row
+```
+
+#### AC5 — `promote` is inert under `act`, shown rather than assumed
+
+`promote` ran to completion. Its **complete** step list, with every `docker`/`git clone` line filtered
+out and nothing else removed:
+
+```
+[publish/promote] ⭐ Run Set up job
+[publish/promote]   ✅  Success - Set up job
+[publish/promote] ⭐ Run Main actions/setup-node@v4
+[publish/promote]   | node: v22.12.0
+[publish/promote]   | npm: 10.9.0
+[publish/promote]   ✅  Success - Main actions/setup-node@v4 [2.277876771s]
+[publish/promote] ⭐ Run Main actions/download-artifact@v4
+[publish/promote]   | Total of 1 artifact(s) downloaded
+[publish/promote]   ✅  Success - Main actions/download-artifact@v4 [1.266075005s]
+[publish/promote] ⭐ Run Post actions/setup-node@v4
+[publish/promote]   ✅  Success - Post actions/setup-node@v4 [629.171111ms]
+[publish/promote] ⭐ Run Complete job
+[publish/promote]   ✅  Success - Complete job
+[publish/promote] 🏁  Job succeeded
+```
+
+**The publish step does not appear at all** — `act` evaluated `if: ${{ !env.ACT }}`
+(`publish.yml:147`) to false and never created the step. AC5 asks specifically whether anything beyond
+`setup-node` and `download-artifact` executed: **nothing did** (only `act`'s own `Set up job`,
+`Post actions/setup-node` and `Complete job` wrappers). Checked positively as well as by reading the
+list — a search of every `promote` line for anything publish-shaped returns nothing:
+
+```
+$ grep -E "publish/promote" act-all3.log | grep -iE "registry.npmjs|npm publish|NPM_TOKEN|provenance|npmrc"
+                                        # (no output)
+```
+
+No `npm publish` ran, no `.npmrc` was written, no token was read or requested, and no provenance
+attestation was attempted, in this or in any other run of this task. **Nothing reached npmjs.**
+
+**But `act` does not exercise the approval gate, and that must not be mistaken for a passing test.**
+`promote` carries `environment: npm-publish` (`publish.yml:134`), whose required-reviewer rule is the
+whole human control on a release (`adr-006`, `task-061`'s runbook). `act` ignores `environment:`
+entirely — the job simply started after `stage`, with no wait and no approval. So the **one mechanism
+this pipeline relies on to keep an agent from publishing is the one mechanism `act` cannot test**
+(**F7**). It can only be verified on GitHub, by a real tag push, which is outside this task.
+
+#### `dl-057` item (b) — the per-job timings, which is what this run owes that DL
+
+Measured on this developer machine (Docker 29.1.3, warm image and npm caches, other Wave-2 jobs running
+concurrently — so these are *not* clean-room numbers, and a GitHub-hosted runner is typically slower and
+has cold caches). Per-job wall clock is bracketed by `act`'s own `Set up job` → `🏁` lines; step times
+are `act`'s.
+
+| Job | Slowest steps (measured) | Job wall clock | Suggested `timeout-minutes` |
+|---|---|---|---|
+| `gate` | `prepublishOnly` **2m13s** (full suite, probe A+TZ) or 27s (build+lint only, probe B) · `npm ci`/`npm install` 10–25s · dry-run 3.7s · pack 3.0s · upload-artifact 1.8s · setup-node 2.8s | ≈ **1m20s** with the suite replaced; ≈ **3m** with the real suite | **15** |
+| `stage` | staging step **1m35s** (Verdaccio install 22s + publish + global install + 18 smoke assertions) · download-artifact 1.3s · checkout 0.9s · setup-node 2.4s | ≈ **1m45s** | **20** |
+| `promote` | setup-node 2.3s · download-artifact 1.3s · (publish step skipped under `act`) | ≈ **5s** of work | **30** — dominated by the human approval wait, not by compute |
+
+Whole `act push`, all three jobs: **13:47:29 → 13:51:15 = 3m46s**. The equivalent host-only staging run
+was **113 s** (AC1), so the container adds roughly 20 s of overhead to that stage.
+
+Two sizing cautions for whoever implements (b): `gate`'s figure above **excludes** the three failing
+suites' real cost once F2/F3/F4 are fixed (the full suite took 2m13s in the container vs 78 s on the
+host — assume CI is ~1.7× slower), and `promote`'s timeout must cover the `npm-publish` approval wait,
+which is human latency and unbounded by anything measured here. The table's suggestions are therefore
+"generous enough not to flake", not "tight".
