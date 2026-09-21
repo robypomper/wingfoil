@@ -305,3 +305,53 @@ forbidden here. So the guard carries a small, explicit range evaluator that **th
 does not understand**, and that evaluator has its own unit tests in the same file. Loud over clever:
 a future dependency using a range form the evaluator cannot read fails the suite instead of being
 silently skipped.
+
+### `red` — role: developer
+
+Added the AC3 guard to `test/cli/publish-metadata.test.ts` (task-059's file, per its "metadata only"
+boundary — see `design`). Nothing else changed; `package.json` still declares `>=18.0.0`.
+
+```
+$ npx jest test/cli/publish-metadata.test.ts
+● publish surface (task-074) — `engines.node` vs the production dependency closure
+  › declares a floor every production dependency accepts (bug-023, REQ-SYS-09)
+
+  - Array []
+  + Array [
+  +   "@hono/node-server@1.19.14 requires node >=18.14.1",
+  +   "commander@15.0.0 requires node >=22.12.0",
+  + ]
+
+Tests: 1 failed, 46 passed, 47 total
+```
+
+Red for the stated reason: the declared floor is below what an installed production dependency
+accepts. The other 46 (task-059's 9, plus this task's 2 non-failing guard cases and 35 evaluator unit
+cases) pass, so the red is isolated to the criterion.
+
+**Finding the bug did not record: `commander` is not the only offender.** `@hono/node-server@1.19.14`
+(transitive, via `@modelcontextprotocol/sdk`) requires `>=18.14.1`, which `>=18.0.0` also fails.
+`bug-023` and the task both frame this as a commander-vs-18 problem; in fact the declared floor was
+false by **two** independent packages, and would have stayed false by `@hono/node-server` even if
+commander had been pinned back. This strengthens the AC1 decision rather than changing it, and it is
+the concrete case for AC3's "computed, not hard-coded" shape: a guard written as "assert commander is
+satisfied" would have shipped still-broken.
+
+**Guard design, and what was deliberately *not* done.**
+
+- **Production closure only** (`dependencies`, transitively — 109 packages, 81 with an
+  `engines.node`). `files: ["dist", "README.md"]` means that is exactly what a consumer installs, so
+  it is what `engines` makes a promise about. Verified that including devDependencies would be wrong
+  *and* immediately red for a reason this task cannot fix: `eslint@10.6.0` / `@eslint/js@10.0.1`
+  declare `^20.19.0 || ^22.13.0 || >=24`, which `22.12.0` does **not** satisfy — reported as a
+  proposed element rather than absorbed here.
+- **No `semver` dependency added** (see `design`). The evaluator throws on unknown syntax and carries
+  35 unit cases of its own, including five "must throw" cases, so it cannot pass a range by failing to
+  understand it.
+- **A vacuity guard**: `really walks the tree — the guard cannot pass by finding nothing` asserts the
+  closure actually contains `commander` and more than ten `engines`-declaring packages. A "no
+  violations" assertion alone is green when the walk is broken, which is the one way this guard could
+  rot silently.
+- **No subprocess** (AC5): the guard reads `package.json` and each installed package's own
+  `package.json`. `packedPaths()` — the only thing in the file that packs, and it already passes
+  `--ignore-scripts` — is untouched. `bug-022` gains no new instance.
