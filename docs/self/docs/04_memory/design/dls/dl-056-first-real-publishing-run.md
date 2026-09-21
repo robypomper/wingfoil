@@ -2,7 +2,7 @@
 id: "dl-056-first-real-publishing-run"
 type: decision-log
 title: "The publish pipeline's real effects have never run — who owns a first real staging run before `release-publishing`, and bug-022 now sits inside the release gate"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
