@@ -85,17 +85,23 @@ export function reasonDefectMessage(defect: ReasonDefect): string {
 }
 
 /**
- * The declared normal form of a reason (`dl-067` clause 3): exactly what `git commit -m` stores.
+ * The declared normal form of a reason (`dl-067` clause 3) — two rules, from two different sources,
+ * and it is worth keeping them apart:
  *
- * `commitPaths` (`src/storage/commit.ts`) commits with `-m`, which applies git's own
- * `cleanup=whitespace` — per-line trailing whitespace stripped, runs of blank lines collapsed to one,
- * leading and trailing blank lines dropped. So `spec-008-cli-grammar` §2's original "Recorded verbatim"
- * was already false for any multi-line text, independently of bug-042. Applying the rule HERE, on the
- * way in, is what turns "approximately what you typed" into an assertable equality: what
- * {@link parseReasonBlock} reads back out of the commit is exactly this function's output.
+ *  1. **git's**, which applies whether or not this function exists. `commitPaths`
+ *     (`src/storage/commit.ts`) commits with `-m`, so git's `cleanup=whitespace` strips per-line
+ *     trailing whitespace, collapses runs of blank lines to one, and drops leading and trailing blank
+ *     lines. This is why `spec-008-cli-grammar` §2's original "Recorded verbatim" was already false
+ *     for any multi-line text, independently of bug-042.
+ *  2. **This module's**: the first line's leading whitespace is trimmed. git does NOT do this. It is
+ *     needed because that line sits after `Reason: ` on the same physical line and
+ *     {@link parseReasonBlock} consumes the key together with the whitespace that follows it — so
+ *     without the trim, a reason beginning with spaces would not round-trip equally.
  *
- * Interior indentation is preserved — it carries meaning in real approval prose. Only the first line's
- * leading whitespace is trimmed, because that line sits after `Reason: ` on the same physical line.
+ * Applying both HERE, on the way in, is what turns "approximately what you typed" into an assertable
+ * equality: what {@link parseReasonBlock} reads back out of the commit is exactly this function's
+ * output. Interior indentation is preserved by both rules — it carries meaning in real approval prose.
+ *
  * Idempotent, and a pure function of its input (REQ-SYS-07).
  */
 export function normalizeReason(reason: string): string {

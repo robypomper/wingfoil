@@ -66,14 +66,19 @@ Notes:
   every command honours it uniformly (REQ-SYS-05).
 - `--color`/`--interactive` are **negatable booleans**, not independent `--no-*` flags with their own
   default — see §3 for why this distinction matters and how Commander.js models it.
-- **`--reason`'s declared normal form** (`dl-067-reason-trailer-contract`, ratified): per-line trailing
-  whitespace stripped, runs of blank lines collapsed to one, leading and trailing blank lines dropped,
-  and the first line's leading whitespace trimmed (it sits after `Reason: ` on the same physical line).
-  Interior indentation is preserved. This is not a new transformation — it is git's own
-  `cleanup=whitespace`, which `git commit -m` applies to every message regardless; this row states it
-  so that what is read back out of the commit equals what the writer declared, instead of
-  approximately equalling what the caller typed. The rule is enforced once, where the trailer is
-  built, and the reader consumes the same grammar, so the two cannot drift.
+- **`--reason`'s declared normal form** (`dl-067-reason-trailer-contract`, ratified), in two parts:
+  - **What git already does, and would do whether or not this row existed** — per-line trailing
+    whitespace stripped, runs of blank lines collapsed to one, leading and trailing blank lines
+    dropped. That is git's own `cleanup=whitespace`, which `git commit -m` applies to every message.
+    Stating it here does not add a transformation; it makes the outcome declared instead of incidental.
+  - **What WingFoil adds** — the first line's leading whitespace is trimmed. git does **not** do this;
+    it is the writer's own step, and it exists because that line sits after `Reason: ` on the same
+    physical line and the reader consumes the key with its following whitespace. Without it, a reason
+    beginning with spaces would round-trip unequally.
+
+  Interior indentation is preserved by both parts. The rule is enforced once, where the trailer is
+  built, and the reader consumes the same grammar, so what is read back out of the commit equals what
+  the writer declared rather than approximately equalling what the caller typed.
 - **Why not "verbatim".** This row said "Recorded verbatim in the resulting git commit body" until
   `dl-067`. That was never achievable for multi-line text — git normalizes on the way in — and the gap
   between the promise and the behaviour was `bug-042`: a blank reason was accepted at exit `0` and

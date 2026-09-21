@@ -176,9 +176,12 @@ the rule is the same whether the commit is written by `wingfoil memory <verb>` o
   cannot tell it from the commit's own trailer block. Add a closing sentence, or fold the lines into
   prose.
 - **Whitespace is normalized, and that is the contract.** Per-line trailing whitespace is stripped,
-  runs of blank lines collapse to one, leading and trailing blank lines are dropped — this is git's own
-  `cleanup=whitespace`, which `git commit -m` applies regardless, so what a reader gets back is exactly
-  what was declared rather than approximately what was typed. Interior indentation is preserved.
+  runs of blank lines collapse to one, and leading and trailing blank lines are dropped — that much is
+  git's own `cleanup=whitespace`, which `git commit -m` applies regardless. On top of it the tool
+  trims the **first line's** leading whitespace, which git does not do: that line sits after
+  `Reason: ` on the same physical line, and the reader consumes the key with its following whitespace.
+  Interior indentation is preserved throughout. The result is that what a reader gets back is exactly
+  what was declared, rather than approximately what was typed.
 
 ### `memory.add` — register a new element (draft)
 

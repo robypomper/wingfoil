@@ -32,6 +32,7 @@
  * undercount).
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
@@ -49,7 +50,7 @@ const FIRST_LINE_ONLY_RE = /^Reason:\s*(.+)$/m;
 
 const APPROVER = { name: 'Roberto Pompermaier', email: 'robypomper@gmail.com', role: 'approver' } as const;
 
-describe('normalizeReason — dl-067 clause 3: git cleanup=whitespace, declared rather than suffered', () => {
+describe('normalizeReason — dl-067 clause 3: git\'s cleanup=whitespace, declared, plus one rule of our own', () => {
   it('strips per-line trailing whitespace, collapses blank-line runs, and drops leading/trailing blank lines', () => {
     expect(normalizeReason('\n\nline one   \n\n\nline two\ntrailing ws   \n\n')).toBe(
       'line one\n\nline two\ntrailing ws',
@@ -264,6 +265,27 @@ describe('round trip through a real `git commit` — what the writer declares is
     });
   });
 
+  it('the first-line trim is OURS, not git\'s: git keeps that whitespace, and the writer is what removes it', () => {
+    // The provenance matters because spec-008 §2 and CLAUDE.md §5.1 both describe the normal form, and
+    // three of its four rules are git's `cleanup=whitespace` while this one is not. Proven, not
+    // asserted: the same text committed WITHOUT going through the formatter keeps its leading spaces.
+    const raw = commitWithMessage('wf(task): approve task-1 [pending → backlog]\n\nApprover: A <a@b.c> (approver)\nReason:    leading spaces');
+    expect(raw).toContain('Reason:    leading spaces');
+
+    const written = commitWithMessage(
+      formatMemoryCommitMessage({
+        type: 'task',
+        op: 'approve',
+        ids: ['task-1'],
+        transition: { from: 'pending', to: 'backlog' },
+        approver: APPROVER,
+        reason: '   leading spaces',
+      }),
+    );
+    expect(written).toContain('Reason: leading spaces');
+    expect(parseCommitReason(written)).toBe('leading spaces');
+  });
+
   it('git\'s cleanup is exactly what clause 3 declares — a hand-written `Reason: ` still collapses to a bare `Reason:`', () => {
     // The pre-fix write path could produce this; the fix makes it unreachable through the verbs, and
     // clause 6 (see `./audit.test.ts`) keeps the approver readable when it is met in old history.
@@ -274,49 +296,95 @@ describe('round trip through a real `git commit` — what the writer declares is
 });
 
 /**
- * dl-067's accepted consequence, pinned against THIS repository's own history rather than a fixture:
- * the multi-line commits already on `main` start reading back in full. The commit is located by
- * subject rather than by sha so the case survives a history rewrite; `546b76e` is the sha it had when
- * dl-067 measured it, and it is dl-067 E2's worked worst case — the pre-fix reader kept 64 of 3298
- * characters (2%) of that approval's reasoning.
+ * dl-067's accepted consequence, pinned against a REAL commit of this repository rather than an
+ * invented body: the multi-line commits already on `main` start reading back in full. The worked case
+ * is dl-067 E2's worst — `wf(task): approve task-054-project-directives`, `546b76e` at the time
+ * dl-067 measured it — where the pre-fix reader kept 64 of 3298 characters, 2%, of that approval's
+ * reasoning.
+ *
+ * The commit BODY is checked in, at `./fixtures/approve-task-054-commit-body.txt`, and the assertion
+ * runs against the fixture unconditionally. An earlier revision of this case read the commit out of
+ * the repository at test time with `git log --grep` and threw when it found nothing — which fails in
+ * a **shallow clone**, and `actions/checkout` defaults to `fetch-depth: 1` with `npm test` inside the
+ * pipeline (adr-009/spec-015), so it would have broken the first CI run with a message that reads
+ * like a code regression.
+ *
+ * A fixture can drift from the thing it claims to quote, so the second case below closes that gap: it
+ * re-reads the commit from git and asserts the fixture is byte-identical. That cross-check needs the
+ * history, so it cannot run everywhere — and rather than skip quietly (a vacuous pass is what
+ * `bug-045`/`task-076` are about) it asserts the only legitimate reasons the commit can be missing:
+ * the repository is shallow, or there is no repository at all.
  */
 describe('the existing corpus — a real approve commit from this repository reads back in full', () => {
   const repoRoot = resolve(__dirname, '../..');
   const SUBJECT = 'wf(task): approve task-054-project-directives [in-review → approved]';
+  const FIXTURE_PATH = resolve(__dirname, 'fixtures/approve-task-054-commit-body.txt');
+  const FIXTURE_BODY = readFileSync(FIXTURE_PATH, 'utf-8');
 
-  function shaBySubject(): string {
-    const out = execFileSync('git', ['-C', repoRoot, 'log', '--format=%H', `--grep=^${SUBJECT.replace(/[[\]]/g, '\\$&')}$`], {
-      encoding: 'utf-8',
-    })
-      .trim()
-      .split('\n')
-      .filter(Boolean);
-    if (out.length !== 1) {
-      throw new Error(`expected exactly one commit with subject "${SUBJECT}", found ${out.length}`);
+  /** How much of this repository's history the test run can actually see. */
+  function historyAvailability(): 'full' | 'shallow' | 'not-a-repo' {
+    try {
+      const shallow = execFileSync('git', ['-C', repoRoot, 'rev-parse', '--is-shallow-repository'], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+      return shallow === 'true' ? 'shallow' : 'full';
+    } catch {
+      return 'not-a-repo';
     }
-    return out[0] as string;
+  }
+
+  /** The sha of the commit with exactly that subject, or `null` when this checkout does not have it. */
+  function shaBySubject(): string | null {
+    let out: string;
+    try {
+      out = execFileSync(
+        'git',
+        ['-C', repoRoot, 'log', '--format=%H', `--grep=^${SUBJECT.replace(/[[\]]/g, '\\$&')}$`],
+        { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] },
+      );
+    } catch {
+      return null;
+    }
+    const shas = out.trim().split('\n').filter(Boolean);
+    if (shas.length > 1) {
+      throw new Error(`expected at most one commit with subject "${SUBJECT}", found ${shas.length}`);
+    }
+    return shas[0] ?? null;
   }
 
   it('recovers the whole reason where the first-line rule kept 2% of it (dl-067 E2, worked case)', () => {
-    const body = execFileSync('git', ['-C', repoRoot, 'log', '-1', '--format=%b', shaBySubject()], {
-      encoding: 'utf-8',
-    });
+    const block = parseCommitReason(FIXTURE_BODY);
+    const firstLineOnly = FIRST_LINE_ONLY_RE.exec(FIXTURE_BODY)?.[1] ?? '';
 
-    const block = parseCommitReason(body);
-    const firstLineOnly = FIRST_LINE_ONLY_RE.exec(body)?.[1] ?? '';
-
-    expect(firstLineOnly.length).toBe(64);
+    expect(firstLineOnly).toHaveLength(64);
     expect(block).not.toBeNull();
     expect(block).toHaveLength(3298);
+    // The old reading is a strict PREFIX of the new one: the reader recovers, it does not reinterpret.
     expect(block?.startsWith(firstLineOnly)).toBe(true);
+    expect((block as string).length).toBeGreaterThan(firstLineOnly.length);
     // Nothing is invented: every byte the block adds already exists in the commit git stores.
-    expect(body).toContain(block as string);
+    expect(FIXTURE_BODY).toContain(block as string);
     // And the approval record itself survives the change — identity unchanged, reason now whole.
-    expect(parseApprovalMetadata(body)).toEqual({
+    expect(parseApprovalMetadata(FIXTURE_BODY)).toEqual({
       approverName: 'Roberto Pompermaier',
       approverEmail: 'robypomper@gmail.com',
       approverRole: 'approver',
       reason: block,
     });
+  });
+
+  it('the fixture is byte-identical to the commit it quotes — or this checkout demonstrably cannot see it', () => {
+    const sha = shaBySubject();
+
+    if (sha === null) {
+      // Not a quiet skip: assert the ONLY legitimate reasons the commit is unreachable. A full
+      // checkout that cannot find it means the history changed under the fixture, and fails here.
+      expect(['shallow', 'not-a-repo']).toContain(historyAvailability());
+      return;
+    }
+
+    const live = execFileSync('git', ['-C', repoRoot, 'log', '-1', '--format=%b', sha], { encoding: 'utf-8' });
+    expect(live).toBe(FIXTURE_BODY);
   });
 });
