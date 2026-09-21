@@ -2,7 +2,7 @@
 id: "dl-057-publish-pipeline-hardening"
 type: decision-log
 title: "Publish pipeline hardening left out of task-060/061: action SHA pins, job timeouts, Verdaccio SIGKILL fallback, annotated-tag enforcement, trusted publishing, shell tracing, explicit npm userconfig"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
