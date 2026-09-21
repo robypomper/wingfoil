@@ -2,7 +2,7 @@
 id: "bug-043-npm-ci-fails-on-stale-package-lock"
 type: bug
 title: "`npm ci` fails in any fresh clone of main: package-lock.json is internally inconsistent for @emnapi"
-status: planned
+status: closed
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
