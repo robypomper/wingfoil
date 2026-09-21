@@ -2,7 +2,7 @@
 id: "bug-059-sigint-leaks-staging-registry-and-token"
 type: bug
 title: "SIGINT during `publish:staging` runs no teardown: an orphaned Verdaccio and a live `_authToken` survive, and the in-use guard then blocks every later run"
-status: planned
+status: in-progress
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
