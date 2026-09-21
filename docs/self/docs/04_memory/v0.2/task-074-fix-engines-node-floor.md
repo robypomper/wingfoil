@@ -355,3 +355,69 @@ satisfied" would have shipped still-broken.
 - **No subprocess** (AC5): the guard reads `package.json` and each installed package's own
   `package.json`. `packedPaths()` — the only thing in the file that packs, and it already passes
   `--ignore-scripts` — is untouched. `bug-022` gains no new instance.
+
+### `green` — role: developer
+
+`package.json:16` `">=18.0.0"` → `">=22.12.0"` — one field, nothing else. `package-lock.json` is
+**not** touched (it carries its own copy of the root `engines` at `:35`; refreshing it belongs to
+`task-073-fix-stale-package-lock` / `bug-043`, and the two must not race — see "Sequencing" below).
+
+```
+$ npx jest test/cli/publish-metadata.test.ts
+Test Suites: 1 passed, 1 total
+Tests:       47 passed, 47 total
+```
+
+### `refactor` — role: developer
+
+Two documentation surfaces moved with the code, so the manifest is not corrected while its governing
+prose still ratifies the old value.
+
+1. **`spec-015` §1 (AC4).** `engines: node >=18` removed from the *Unchanged* sentence and replaced by
+   a dedicated `engines.node` bullet stating the value **and the rule that derives it** ("the highest
+   `engines.node` floor in the production dependency closure"), plus a dated **Revision (2026-09-21)**
+   note at the end of `## Process Notes` — the file's established amendment pattern (the `bin.wingfoil`
+   bullet above it was amended the same way after `task-059`). No `version:` bump: tech-specs carry no
+   `version:` field (`dl-047`), and the state stays `approved` — an in-place amendment, not a
+   supersede, per the `dl-041` precedent the spec itself cites. Both the bullet and the Revision note
+   say explicitly that the **product-level** floor is not settled here.
+2. **`.github/workflows/publish.yml:45-48` comment.** It asserted "`package.json` still declares
+   `engines.node >=18.0.0` … which is currently false: bug-023" — true when written, false the moment
+   this task lands, and leaving it would be the same class of defect this task exists to close. The
+   comment is now accurate, names `@hono/node-server` as the second constraint, and records the
+   devDependency gap below. **Comment only** — `NODE_VERSION` and every step are unchanged, so nothing
+   `task-060` owns moves.
+
+**One thing deliberately left wrong, and reported instead.** The same comment used to claim `22.12.0`
+is "the lowest version every dependency accepts". That is false for **devDependencies**: `eslint@10.6.0`
+and `@eslint/js@10.0.1` declare `^20.19.0 || ^22.13.0 || >=24`, which `22.12.0` does not satisfy, so
+`npm ci` on CI emits `EBADENGINE` for them today. Raising `NODE_VERSION` is a change to the publish
+pipeline (`task-060`'s ground) and needs a lockfile-aware decision, so the comment now records the gap
+and the defect is proposed as its own element rather than fixed here.
+
+**Gates** (run in this worktree, after `git merge main`):
+
+| Command | Result |
+|---|---|
+| `npx jest` | **exit 0** — 100 suites / 1591 tests passed |
+| `npx jest --coverage` | **exit 0** — statements **98.54**, branches **92.30**, functions **98.76**, lines **99.15**; threshold 80 met on all four |
+| `npx tsc -p tsconfig.build.json --noEmit` | **exit 0** |
+| `npx tsc --noEmit -p tsconfig.json` | exit 2, **only** the pre-existing `bug-026` error: `test/core/directive-create.test.ts(159,19): error TS2339` — untouched |
+| `npm run lint` | **exit 0** |
+| `npm run docs:api` | **exit 0** |
+
+Coverage is **non-regressing by construction, not just by measurement**: `jest.config.js`
+`collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`, and this task changes **no file under
+`src/`** — the diff is `package.json`, `test/`, `.github/`, and Memory documents. The numbers above
+are the measured confirmation.
+
+**Sequencing against `task-073-fix-stale-package-lock`** (the task file asks for this explicitly).
+`task-073` regenerates `package-lock.json`; this task edits `package.json`'s `engines` block, which
+the lockfile mirrors at `:35` (`"node": ">=18.0.0"`). They do not conflict textually — different
+files — but a lockfile regenerated from the *old* `package.json` would re-pin the stale floor. **This
+task landed its `package.json` change first within its own branch; whichever merges to `main` second
+must be the one that re-runs its own check.** Concretely: if `task-073` merges after this, its
+regenerated lock will pick up `>=22.12.0` automatically and nothing is needed; if it merges *before*,
+its lock still carries `>=18.0.0` at `:35` and someone must refresh it. Neither task pins a different
+`commander`, so no dependency resolution changes either way. Flagged for the orchestrator rather than
+resolved here, since this worktree must not touch `package-lock.json`.
