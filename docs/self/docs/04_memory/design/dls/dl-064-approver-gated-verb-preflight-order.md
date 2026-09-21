@@ -157,13 +157,69 @@ it is filed with A rather than as a bug.
   `src/core/approval-authority.ts` (take the identity instead of re-reading it), and every current caller
   of `requireGitIdentity` in `src/core/index.ts` (six on `main`). `memoryRejectFn`'s own
   `readGitIdentity` call at `:795`, and `memoryApproveFn`'s equivalent, then disappear.
-- Hand the outcome explicitly to `task-046-memory-approve` (`in-review` at `62c7459`, so before its
+- ~~Hand the outcome explicitly to `task-046-memory-approve` (`in-review` at `62c7459`, so before its
   review pass) and to `task-048-memory-deprecate` (`in-progress` at `b6175b7`, so **now** — it is past
-  its design step). `dl-015`'s `read_related` covers `depends_on` tasks and **not** decision-logs, so
-  neither will read this on its own. `task-047-memory-reject` is `done`, so its share of the outcome is
-  a follow-up on `main`, not a rework.
+  its design step).~~ *(Both are now `done` and merged — see the Scheduling addendum (2026-09-21)
+  below.)* `dl-015`'s `read_related` covers `depends_on` tasks and **not** decision-logs, so neither read
+  this on its own. `task-047-memory-reject` is `done` too, so the whole outcome is now a follow-up on
+  `main`, not a rework of anything.
 - Either way, `task-046`'s "Ordering decision (5 before 6)" section should end up pointing at this
   decision rather than standing as the only record of it.
+
+## Review addendum (2026-09-21) — scope correction before ratification
+
+Raised by `task-048-memory-deprecate`'s implementer and its independent review, and re-verified against
+`main` at `7bac856` before being written here. Four statements above are now wrong, and one of them
+would make an already-merged verb read as non-conformant if this element were ratified as drafted.
+
+**1. `memory deprecate` is NOT an approver-gated verb, so question A has two inheritors, not three.**
+`dl-027-req-sec-04-deprecate-reason-scope` (`ready`) settles that deprecate is not an approval gate:
+no `Approver:` line, no authority check. The shipped verb matches — `memoryDeprecateFn` on `main` calls
+`requireGitIdentity` and `prepareMemoryTransition` and **never** `requireApprovalAuthority`:
+
+```
+$ awk '/^const memoryDeprecateFn/,/^};/' src/core/index.ts \
+    | grep -n "requireGitIdentity\|requireApprovalAuthority\|readGitIdentity"
+4:  const identity = requireGitIdentity(root);
+```
+
+against `memoryApproveFn`'s four hits (`requireGitIdentity`, `requireReason`,
+`requireApprovalAuthority`, `readGitIdentity`). Question A — *which refusal wins when a caller is both
+unauthorized and attempting an illegal transition* — is therefore unanswerable for deprecate: it has no
+authority refusal to order. The Context's "`task-048` inherits both through the same helpers" is false
+for A.
+
+**Consequence for A.1, which is the point of this addendum:** if the pre-flight sequence is written into
+`spec-006` as "the approver-gated verb pre-flight sequence" with step 6 in it, the spec describes a
+contract `memory deprecate` deliberately does not satisfy. The ratified text must either scope itself to
+`approve` and `reject` by name, or state that step 6 is present only for verbs `dl-027` classifies as
+approval gates. Without that, the first reader to check `memoryDeprecateFn` against the spec finds a
+non-conformance that is really a drafting error here.
+
+**2. Deprecate reads the git identity once, not three times.** B's cost figure is right for approve and
+reject (three `readGitIdentity` calls = six `git config` subprocesses) and wrong for deprecate, which
+calls `requireGitIdentity` alone — one read, two subprocesses — because it has neither an authority
+check nor an `Approver:` line to build. So B's inheritors are also two, not three. The signature change
+B.1 proposes would still touch `memoryDeprecateFn` as a caller of `requireGitIdentity`, but it buys
+nothing there.
+
+**3. Every task this element hands its outcome to is now `done` and merged**, so B.1's assignment rule
+is void. `task-045`, `task-046`, `task-047`, `task-048` and `task-052` are all `status: done`
+(`grep -h '^status:' docs/self/docs/04_memory/v0.2/task-04[5-8]*.md task-052*.md` → five `done`), and
+the Wave-2 dev-loop is closed apart from `task-056`. "Whichever of `task-046`/`task-048` lands last
+carries it" no longer names a live task: if B.1 is chosen it needs its **own task**, scheduled at
+`v0.3` release-planning, touching `git-identity.ts`, `approval-authority.ts` and every
+`requireGitIdentity` caller. The Actions' "hand the outcome to task-046 / task-048 **now**" is likewise
+spent — for A the remaining work is the `spec-006` edit alone, and `task-046`'s "Ordering decision
+(5 before 6)" section is now the record on `main`, not on a branch.
+
+**4. The call-site count has moved.** `grep -c "requireGitIdentity(" src/core/index.ts` → **9** on
+`main`, not the six the Decision cites; `directive assign`, `directive remove` and `memory deprecate`
+landed after this element was drafted. B.1's blast radius is correspondingly larger.
+
+Nothing in A's or B's substance changes: the order is still what the two approver-gated verbs do, and
+the triple read is still real where it applies. What changes is who inherits, who could carry B.1, and
+the wording A.1 must use so the spec does not describe `memory deprecate` as something it is not.
 
 Related: `task-046-memory-approve`, `task-047-memory-reject`, `task-048-memory-deprecate`,
 `task-045-memory-submit` (owner of `prepareMemoryTransition`), `task-040-role-based-approval-authority`,
@@ -173,3 +229,32 @@ Related: `task-046-memory-approve`, `task-047-memory-reject`, `task-048-memory-d
 REQ-SEC-03, REQ-SEC-04, REQ-SYS-07, REQ-STATE-01, `src/core/git-identity.ts:29,61-63,71-77`,
 `src/core/approval-authority.ts:67`, `src/core/memory-transition.ts`, `src/memory/query.ts:173`,
 `src/core/exit-code.ts:24-30`, P1.7, P1.8, P1.9.
+
+## Scheduling addendum (2026-09-21) — unscheduled obligation for v0.3
+
+All three tasks this decision-log names are now `done` and merged: `task-046-memory-approve`
+(`1914195`), `task-047-memory-reject` (`57c412f`) and `task-048-memory-deprecate` (`d9867dc`), the last
+two on 2026-09-18. The Actions above describe `task-046` as "`in-review` at `62c7459`" and `task-048` as
+"`in-progress` at `b6175b7`, so **now** — it is past its design step"; both are stale, and `task-048`
+was in fact the third verb to re-derive the pre-flight order unaided, which is what this document
+predicted.
+
+That retires the assignment rule clause B.1 carried — *"in whichever of `task-046` and `task-048` lands
+last"*. Both landed. If B.1 is ratified, the signature change to `requireGitIdentity`
+(`src/core/git-identity.ts`) and its six callers in `src/core/index.ts` is a follow-up on `main` with its
+own task, not a change inside a task in flight. Clause A.1 was always a `spec-006` amendment and never
+needed a task at all.
+
+This document is therefore left `in-discussion` with `release: ""` on purpose. That pair is exactly what
+`release-planning`'s `reconcile-governance` selection filter picks up
+(`where: { type: [decision-log, adr], status: [in-discussion, pending], release: ["", "{release.version}"] }`,
+`release-planning.yaml:45`), so the next run sweeps it, approves it, and `build-backlog` places the work
+it implies. It is an **unscheduled obligation** in the shape `dl-030` established for REQ-SEC-07's P4.9
+half: recorded here, placed by the next `release-planning`, never added to a release already
+`in-development` (`dl-034` point 4 bounds that exception to bugs blocking work in flight, which this is
+not).
+
+**Consequence for whoever ratifies it:** the hand-it-to-the-inheritor instruction in Actions above can no
+longer be executed — there is no task left to hand it to. The outcome needs **its own task** out of
+`build-backlog`. This addendum exists because nothing else would have said so: `dl-015`'s `read_related`
+covers `depends_on` tasks and not decision-logs, and nothing re-opens a `done` task's notes.
