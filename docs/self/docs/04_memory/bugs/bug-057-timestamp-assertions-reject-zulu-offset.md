@@ -2,10 +2,10 @@
 id: "bug-057-timestamp-assertions-reject-zulu-offset"
 type: bug
 title: "Two timestamp assertions reject git's `Z` zero-offset, so `prepublishOnly` fails on any UTC runner"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.2"
 contributor: ""
 credit: ""

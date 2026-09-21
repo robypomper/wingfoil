@@ -2,10 +2,10 @@
 id: "bug-058-fixture-teardown-enotempty-flake-under-load"
 type: bug
 title: "`removeTempDir` teardown races the fixture's own git processes: flaky `ENOTEMPTY … rmdir '/tmp/wf-storage-*/.git'` under load"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
