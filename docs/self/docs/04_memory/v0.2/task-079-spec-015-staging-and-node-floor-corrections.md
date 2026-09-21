@@ -207,3 +207,208 @@ exists for either, so there is nothing for `bug.sync_state` to drive.
      Note for design: per `dl-014`/T1 both parts are documentation edits with no behavioural
      acceptance criterion — classify the ACs explicitly (none of them is red-first; AC10's gates are
      characterization of an unchanged tree) rather than fabricating a failing test. -->
+
+### design — role: architect
+
+Branch `task/task-079-spec-015-staging-and-node-floor-corrections`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-079-spec-015-staging-and-node-floor-corrections`, created
+from `main` at **`b505473`** (`Merge branch 'task/task-078-publish-pipeline-hardening'`), i.e. **after**
+both of the in-flight tasks the Implementation Notes flag as contention had merged. `npm ci
+--prefer-offline --no-audit --no-fund` → exit 0.
+
+**Every line offset in this task's Description and ACs is against `7bb95d6` and is therefore stale for
+`scripts/publish-staging.cjs`.** `task-078` landed `dl-057` item (c) — the bounded `SIGTERM → SIGKILL`
+`stopProcess` — and it added two module-level constants (`REGISTRY_STOP_TIMEOUT_MS`,
+`SIGKILL_GRACE_MS`, `:38-47`) **above** `stagingPaths`, not only the `stop()` body below it. The
+Implementation Notes predicted the citations would survive because (c) sits below them; that
+prediction is **wrong for everything after `:37`**. Re-read against `b505473`, which is what the
+amendment cites:
+
+| Fact | Cited in AC2 (`7bb95d6`) | Actual (`b505473`) |
+|---|---|---|
+| `VERDACCIO_PACKAGE = 'verdaccio@6'` | `:37` | **`:37`** (unchanged — the only one that survived) |
+| `stagingPaths` | `:42-55` (tools `:48`, cache `:52`, prefix `:53`) | **`:50-63`** (tools `:56`, cache `:60`, prefix `:61`) |
+| `verdaccioConfig` | `:62-84` | **`:70-92`** (`'wingfoil'` block `:81-83`, `'**'` + `proxy: npmjs` `:84-87`) |
+| `stagingEnv` | `:98-102` | **`:99-112`** |
+| work dir `mkdtempSync` | `:183` | **`:222`** |
+| work-dir removal / `finally` | `:184` / `:155-161` | **`:223`** (`removeWorkDir`) called from the `finally` at **`:163-169`** (`:167`) |
+| `npm install … verdaccio@6` | `:201` | **`:240`** |
+| spawn via `process.execPath` | `:202-205` | **`:241-244`** |
+| config written | `:200` | **`:239`** |
+| staging step in `publish.yml` | `:135` | **`:157`** |
+
+This is exactly the failure mode the task's own Implementation Notes describe for `dl-052`
+(`sed -n 77-78p` at `8a6a091`). The amended §3 text is therefore written to cite **names**
+(`realEffects.startRegistry`, `verdaccioConfig`, `VERDACCIO_PACKAGE`, `stagingPaths`) rather than line
+numbers, so it cannot go stale the next time either file is edited; the line numbers live here, in the
+Execution Notes, where staleness is a record rather than a false claim in an approved spec.
+
+**`agent.read_related` (dl-015, HARD gate).** `depends_on: []` — the gate is vacuous in the `dl-015`
+sense. The Implementation Notes name two tasks as *contention, not dependency*; both have since merged,
+so both were read in full anyway, because the ACs cite the files they touched:
+
+1. **`task-078-publish-pipeline-hardening`** (`done`, merged `b505473`). Edited
+   `.github/workflows/publish.yml` (eight `uses:` pinned to commit SHAs, `set +x` as the promote step's
+   first command, `--userconfig "$PWD/.npmrc"`) and `scripts/publish-staging.cjs` (`stopProcess`,
+   `:187-209`). Acknowledged consequence: the line-offset shift above. Acknowledged non-consequence:
+   **none of the four facts the amended §3 asserts is touched** — the pin is still `verdaccio@6`
+   (`:37`), the throwaway prefix is still `stagingPaths`/`mkdtempSync` (`:50-63`, `:222`), the
+   generated no-uplink config is still `verdaccioConfig` (`:70-92`), and the staging step is still one
+   `npm run publish:staging` line (`publish.yml:157`). Verified by reading both files at `b505473`,
+   not by trusting that prediction.
+2. **`task-077-first-real-staging-run`** (`done`, merged `f9763e4`). The first real execution of this
+   pipeline. Its review summary independently confirms the two facts this amendment turns on — that the
+   staged registry is `verdaccio@6` resolving to **6.10.4**, installed into a throwaway prefix, "not
+   'the official image as a CI service'", and that its own run of `npm run publish:staging` reached
+   7/7 stages and 18/18 smoke assertions. So the amendment is not being written against a reading of
+   the script alone: the described flow has been executed end to end once. Its findings that bear on
+   §3 are recorded under *Findings from `task-077` that §3 stage 1 does not survive* below — reported,
+   not fixed (AC9 forbids touching the pipeline).
+
+**`agent.verify_specs`.** The governing spec exists and is `approved`: `spec-015-packaging-publishing`
+(`grep -n '^status:' …/spec-015-packaging-publishing.md` → `status: approved`). No artefact is missing,
+so no `memory.add(type: tech-spec)` and no design-gate approval is required — this task *edits* an
+approved spec in place, under the `dl-041`/`task-059`/`task-074` precedent already used twice in this
+same file, and `dl-052`'s ratified Action authorises exactly that ("amend `spec-015` §3 as a dated
+Revision note (`dl-047`: tech-specs carry no version field)").
+
+**T1 — AC classification (`dl-014` / `testing` directive).** This task changes **one Markdown file** and
+no source file. Not one AC is red-first: there is no behaviour to introduce, so a failing test would
+have to be fabricated, which the directive forbids in as many words. Every AC is **characterization** —
+either of the document's text (verified by reading the amended file) or of an unchanged tree.
+
+| AC | Class | Evidence / check |
+|---|---|---|
+| AC1 §3 stage 2 amended, four facts stated | characterization (document) | the amended §3 text itself + AC2's source checks |
+| AC2 each claim checked against the code | characterization (code, read-only) | the four `sed`/`grep` blocks below |
+| AC3 dated Revision note, §3 body edited in place | characterization (document) | the two new notes under *Process Notes* |
+| AC4 §1 caveat corrected, `README.md:115` remainder stated | characterization (document) | `grep` over the cascade files + `README.md` |
+| AC5 Part 2 distinguishable from the `engines.node` revision | characterization (document) | three separately dated, separately titled notes |
+| AC6 second occurrence handled | characterization (document) | the closing sentence of the `engines.node` note is amended in the same pass |
+| AC7 verification commands with output | characterization | this section |
+| AC8 `status: approved` unchanged, no other frontmatter change | characterization | `git diff` of the frontmatter → empty |
+| AC9 nothing outside `spec-015` edited | characterization | `git diff --name-only main...HEAD` |
+| AC10 gates green on an untouched tree | characterization (unchanged tree) | the gate table in the review summary |
+
+No `red` commit follows, and none is faked. `green` is the single `docs(self)` edit.
+
+#### AC2 — the four claims, checked against `scripts/publish-staging.cjs` at `b505473`
+
+*(1) Verdaccio is started by `scripts/publish-staging` in both environments.* CI has no service
+container and no second code path:
+
+```
+$ grep -rn 'services:\|verdaccio' .github/workflows/ ; echo "exit=$?"
+exit=1                                   # no output at all — no services:, no image
+$ grep -n 'publish:staging' .github/workflows/publish.yml package.json
+.github/workflows/publish.yml:157:        run: npm run publish:staging -- --tarball dist-pack/*.tgz
+package.json:36:    "publish:staging": "node scripts/publish-staging.cjs",
+```
+
+The `stage` job's only staging step (`publish.yml:156-157`) is the same npm script a developer runs.
+The script's own header states the same intent (`:15-16`): "The same script runs on a developer machine
+and in `.github/workflows/publish.yml`'s stage job; that is the point".
+
+*(2) A major-pinned `verdaccio@6`, installed and spawned — not `npx`.*
+
+```
+$ sed -n '36,37p;240,244p' scripts/publish-staging.cjs
+/** Verdaccio release line used for staging (adr-009: MIT-licensed OSS). */
+const VERDACCIO_PACKAGE = 'verdaccio@6';
+      run('npm', ['install', '--prefix', paths.tools, '--no-save', '--no-audit', '--no-fund', VERDACCIO_PACKAGE], { env });
+      const pkgDir = join(paths.tools, 'node_modules', 'verdaccio');
+      const { bin } = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf-8'));
+      const entry = join(pkgDir, typeof bin === 'string' ? bin : bin.verdaccio);
+      const child = spawn(process.execPath, [entry, '--config', paths.config], { env, stdio: 'inherit' });
+$ grep -n 'npx' scripts/publish-staging.cjs ; echo "exit=$?"
+exit=1                                   # the string `npx` does not occur in the script
+```
+
+The bin is resolved out of the installed package's own `package.json` and spawned with
+`process.execPath` — the running Node binary — so nothing is fetched at spawn time and no `npx`
+resolution is involved. `task-077`'s real run recorded the resolved version as **6.10.4**.
+
+*(3) A throwaway prefix — and, in fact, a throwaway everything.*
+
+```
+$ sed -n '50,62p' scripts/publish-staging.cjs
+function stagingPaths(root) {
+  return {
+    root,
+    storage: join(root, 'storage'),
+    htpasswd: join(root, 'htpasswd'),
+    config: join(root, 'verdaccio.yaml'),
+    tools: join(root, 'tools'),
+    pack: join(root, 'pack'),
+    userconfig: join(root, 'npmrc'),
+    globalconfig: join(root, 'npmrc-global'),
+    cache: join(root, 'npm-cache'),
+    prefix: join(root, 'prefix'),
+  };
+$ sed -n '222,223p' scripts/publish-staging.cjs
+    makeWorkDir: () => mkdtempSync(join(tmpdir(), 'wingfoil-staging-')),
+    removeWorkDir: (dir) => rmSync(dir, { recursive: true, force: true }),
+$ sed -n '163,169p' scripts/publish-staging.cjs
+  } finally {
+    try {
+      if (registry) await registry.stop();
+    } finally {
+      effects.removeWorkDir(workDir);
+    }
+  }
+```
+
+`root` is an `mkdtempSync` dir under `tmpdir()`; `stagingPaths` (`:50-63`) puts storage, htpasswd,
+config, the verdaccio install prefix (`tools`), the pack dir, npm's user and global config, npm's cache
+and the global install prefix inside it; `stagingEnv` (`:99-112`) redirects npm there
+(`npm_config_userconfig/globalconfig/cache/prefix`) **and** strips inherited `npm_config_*`, `NPM_TOKEN`
+and `NODE_AUTH_TOKEN` from the child environment; `runStaging`'s `finally` (`:163-169`) removes the work
+dir on success and on every failure. `test/cli/publish-staging.test.ts:83-87` pins the containment
+property ("keeps every staging file inside the run work dir").
+
+*(4) A generated config that gives the package under test no uplink.*
+
+```
+$ sed -n '80,87p' scripts/publish-staging.cjs
+    'packages:',
+    `  '${packageName}':`,
+    '    access: $all',
+    '    publish: $authenticated',
+    "  '**':",
+    '    access: $all',
+    '    publish: $authenticated',
+    '    proxy: npmjs',
+```
+
+The `'wingfoil'` block (`:81-83`) carries **no `proxy:`** key; only the `'**'` catch-all (`:84-87`)
+proxies `npmjs`. The config is written by `realEffects.startRegistry` at `:239` before the registry is
+spawned, so it is repository-controlled — which is the substantive reason `dl-052` gives for the code
+being right and the document wrong. `test/cli/publish-staging.test.ts:101-109` already asserts exactly
+this property.
+
+**All four claims hold against the code.** AC2's stop condition ("if any claim does not hold, do not
+write it") is not triggered.
+
+#### Findings from `task-077` that §3 stage 1 does not survive — reported, not fixed
+
+`task-077` ran this pipeline for real and found three things that contradict §3's implicit claim that
+stages 1→4 are runnable today. None of them is in this task's scope (AC9 forbids editing the pipeline,
+and `dl-052`'s ratified option 1 says "No code changes"), and none of them touches the four facts the
+§3 stage 2 amendment asserts — but they are recorded here, and re-stated in the final report, rather
+than left in one task's notes:
+
+- **F2** — `publish.yml:126-127`'s `npm ci` fails under the npm that the workflow's own
+  `NODE_VERSION: '22.12.0'` pin installs, so §3 stage 1 ("`npm ci`, then `prepublishOnly`") cannot
+  complete on a runner. Release blocker.
+- **F3** — `prepublishOnly` (§3 stage 1's gate, `package.json:35`) fails on any **UTC** runner with
+  git ≥ 2.55: two tests assert a `[+-]HH:MM` git offset and git emits `Z`. GitHub runners are UTC.
+- **F1** — interrupting the staging script (`SIGINT`) skips teardown, leaving Verdaccio, the work dir
+  **and the live throwaway token in `<workdir>/npmrc`** behind; the orphan then makes every later run
+  fail "already in use". This is a real qualification of the isolation property §3 stage 2 asserts —
+  the guarantee holds on the success and the failure path (`runStaging`'s `finally`, `:163-169`), but
+  **not** on the interrupt path, because `SIGINT` terminates the process before `finally` runs.
+
+`task-077` already proposed all three as elements for the orchestrator to file, so they are **not**
+re-proposed here — re-filing them under new ids would create the duplicate `dl-052` warns about. F1 in
+particular is the reason the amended §3 text says the config and prefix are *generated per run into a
+throwaway work dir* without claiming teardown is unconditional.
