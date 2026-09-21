@@ -143,3 +143,91 @@ installable npm package), which is also `adr-009`'s `sard_ref`.
 
 <!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). Not written
      after the fact. Raw material for the release Execution Notes / retrospective. -->
+
+### design — role: architect
+
+Branch `task/task-077-first-real-staging-run`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-077-first-real-staging-run`, created from `main` at
+**`a7d783a`** (`wf(adr): deprecate adr-005-typescript-node-stack`). Dependencies installed with a real
+`npm ci`, not a symlinked `node_modules` — which the task's Implementation Notes make a precondition:
+
+```
+$ npm ci --prefer-offline --no-audit --no-fund
+added 500 packages in 9s
+$ echo "EXIT=$?"
+EXIT=0
+```
+
+Environment: `node v22.21.0`, `npm 11.6.2`, Linux 6.8.0-139-generic (Ubuntu 24.04), `docker 29.1.3`.
+
+**The exact bytes under test.** `task-078-publish-pipeline-hardening` edits the same two files in
+parallel, so this run pins what it ran against by blob sha, not by description:
+
+```
+$ git rev-parse main:.github/workflows/publish.yml   → 78b9665 (last touched by 659b42e, task-074)
+$ git rev-parse main:scripts/publish-staging.cjs     → 10d21ff
+$ git rev-parse main:scripts/check-release-tag.cjs   → bf2131f
+```
+
+**`agent.read_related` (dl-015, HARD gate) — `depends_on: ["task-073-fix-stale-package-lock"]`.** Read
+in full and acknowledged; three of its findings bear directly on this run:
+
+1. *`npm ci` is green again, and that is what unblocks this task.* task-073 refreshed one lock entry
+   (`@emnapi/wasi-threads` 1.2.2 → 1.2.3, commit `0f54871`) and measured `npm ci` exit `0` in a
+   throwaway clone. My own `npm ci` above reproduces that on `main` at `a7d783a` — so the
+   `depends_on` edge is discharged by observation, not by trusting the predecessor's note. This
+   matters twice over: the `gate` job's `Install` step is `npm ci` (`publish.yml:98-99`), and
+   `realEffects.packTarball` runs `npm pack` **without** `--ignore-scripts`, so `prepack → build →
+   tsc` needs a genuine `node_modules`.
+2. *The fix is point-in-time, not structural.* task-073's review summary is explicit that the next
+   `@emnapi/core` release bumping that dependency reproduces the failure with no commit in between.
+   For this run the consequence is narrow but real: **if `act -j gate` fails at `Install` with
+   `EUSAGE … does not satisfy`, that is bug-043 recurring, not a pipeline defect.** Recorded so the
+   distinction is made from evidence rather than guessed at. (It did not recur — see the gate run.)
+3. *task-073 verified that `npm ci` appears in exactly one job.* Its notes record
+   `grep -rn ... .github/` showing `npm ci` only in `gate` (`:99`); `stage` and `promote` never
+   install. That shapes what a failure in each job can mean and is re-verified below against the file
+   I actually ran.
+
+`dl-056` (`ready`, clause A option 1, approve `3655166`), `dl-057` items (b)/(d), `dl-068`, `dl-069`,
+`bug-022`, `spec-015` §2/§3/§4/§5, `adr-009` and both script headers were read directly; their bearing
+appears at the point each is tested below.
+
+**`agent.verify_specs`.** No new `tech-spec` is needed and none is scaffolded — the design gate passes
+through. This task builds nothing; it *executes* artefacts already specified by `spec-015` §3 (the four
+pipeline stages) and §4 (the tag scheme), architected by `adr-009`, and traced to **REQ-SYS-09**
+(distribution as an installable npm package). REQ-SYS-09 carries **no behavioural BDD feature** —
+`docs/02_requirements/03_sard/01_architecture.md:101-102`: "distribution requirement with no behavioral
+BDD feature; verified directly against the npm-publish acceptance test" — so the dev-loop `review` BDD
+gate has no scenario to name for this task, exactly as task-073 recorded for the same requirement.
+Verified rather than copied:
+
+```
+$ grep -rn "REQ-SYS-09" docs/02_requirements/03_sard/01_architecture.md
+```
+
+**T1 acceptance-criterion classification (dl-014 / testing directive).** Every AC here is
+**characterization**, and the reason is structural rather than a judgement call: AC8 forbids product
+code changes, so there is no new behaviour for a red to precede. What this task produces is a
+*transcript*, not a test. Fabricating a failing Jest test to satisfy the letter of `red` would be
+precisely the "no fabricated red, no dead code" the testing directive forbids — and a test that shelled
+out to `npm run publish:staging` would contact npmjs, which the `determinism` and `testing` directives
+both rule out (task-073 reached the same conclusion for the same reason on the same pipeline).
+
+| AC | Class | How it is settled (the command is the evidence) |
+|---|---|---|
+| AC1 — staging run end to end, 7 stages evidenced | characterization | `npm run publish:staging`, real, transcript recorded per stage + real exit code |
+| AC2 — teardown verified, incl. a forced-failure path | characterization (a deliberately induced failure is an experiment, not a fabricated red) | `ss -ltnp 'sport = :4873'` + `ls /tmp/wingfoil-staging-*` after both a clean and a failed run |
+| AC3 — `act -j gate` runs, result reported truthfully | characterization | `act` installed during this task; recipe from `publish.yml:50-62` |
+| AC4 — `act -j stage` runs and receives the gate's tarball | characterization | `act` with `--artifact-server-path`, artifact round-trip observed |
+| AC5 — `promote` confirmed inert under `act` | characterization | `act ... -j promote` output showing the `if: ${{ !env.ACT }}` skip |
+| AC6 — every deviation written down and filed | characterization | each mismatch stated as promised-vs-observed, filed as a proposed element |
+| AC7 — unblocking statement for `release-publishing` | characterization | re-checked element statuses, not copied from the task text |
+| AC8 — no product code, no Memory status changes | characterization | `git diff --stat main...HEAD` |
+| AC9 — the tree was green at the commit the run was made from | characterization | the six dev-loop gates, run in this worktree |
+
+**Scope boundaries held (the task says report, do not repair).** `.github/workflows/publish.yml`,
+`scripts/publish-staging.cjs`, `scripts/check-release-tag.cjs`, `package.json` and `src/` are all
+`task-078`'s or another task's ground this release and are **not** edited here; every defect this run
+surfaced is a proposed element in the review summary instead. `bug-026` untouched. No npm token was
+requested, supplied or handled at any point, and nothing was pushed or tagged on `origin`.
