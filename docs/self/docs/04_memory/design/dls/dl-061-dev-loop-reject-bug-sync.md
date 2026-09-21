@@ -84,6 +84,48 @@ task edge is legal is a separate question: `task`'s `gates` declare a reject edg
    no-engine regime, but it makes correctness depend on every implementer noticing, and it leaves a
    state pair in the record that no legal edge explains.
 
+3. **Emit nothing on the reject side, because the round trip reconverges** — the position `task-072`
+   actually took, three times, and which this option set did not contain until now. When the task is
+   rejected the bug stays at `in-review`; when the rework is resubmitted, `:90`'s forward sync finds it
+   already there and has nothing to write. The pair is briefly inconsistent (task `in-progress`, bug
+   `in-review`) and then consistent again, with no commit either way. The argument for it is not
+   economy: manufacturing `in-review → in-progress → in-review` **after the fact** would write two
+   history entries for transitions that were decided retroactively, which is the fabrication `dl-045`
+   exists to prevent and, in `task-072`'s case, the exact failure class the task itself was fixing.
+   The argument against it is `dl-045`'s own principle that the recorded chain should be the states the
+   element really passed through — and the fix did really go back to rework, so option 3 records less
+   than happened. Under option 3 the honest place for that fact is the task's Execution Notes, which is
+   where `task-072` put it; that is the spirit of "a declared jump is acceptable, a silent one is not",
+   though not its mechanism.
+
+## Evidence addendum (2026-09-21) — the counter-precedent this element was missing
+
+Recorded before `reconcile-governance` sweeps this element, because until now its evidence was
+one-sided and the option it supports was absent from question A.
+
+`task-061-publish-secrets` is the case the Context describes: its implementer hand-emitted
+`wf(bug): sync bug-015 [in-review → in-progress]` after the approver's reject, then the forward edge at
+resubmit, and the second-pass reviewer endorsed it — reasoning that without the back-edge the resubmit
+sync would have been an illegal `in-review → in-review` no-transition. That is option A.2 performed by
+hand, and it is what the Context generalises from.
+
+`task-072-fix-reason-trailer-contract` took the opposite position **three times**, across three rejects
+(`153b7ff`, `304d163`, and the approve at the end), and each time its reviewer endorsed *that*: the
+reject moved only the task file, so no sync was due; the pair reconverged at resubmit; and writing the
+round trip afterwards would fabricate two entries. `task-071-fix-init-memory-yaml-state-machine` did
+the same for `bug-030`, with its reviewer calling the reading "defensible" while noting it diverges
+from the `task-061` precedent.
+
+So the record now holds two tasks taking option 3 and one taking A.2-by-hand, all three endorsed by
+independent reviewers — which is itself the finding: with no declared step, the outcome depends on
+which implementer reads the situation which way, and *both* readings survive review. That is the
+determinism gap, stated more sharply than the Context states it.
+
+One consequence for question A: if option A.1 is ratified, `task-061`'s hand-made pair becomes the
+shape the engine emits, and `task-072`/`task-071`'s bugs carry a gap the engine would have filled. If
+option 3 is ratified, `task-061`'s two commits become the anomaly. Either way the ratification should
+say which of the three existing records is the precedent, because all three are already on `main`.
+
 ### B — What must a `sync` commit carry when it crosses a `gates` reject edge?
 
 **P1.7** requires approver identity, ISO-8601 timestamp and reason for an approval-gated transition,
