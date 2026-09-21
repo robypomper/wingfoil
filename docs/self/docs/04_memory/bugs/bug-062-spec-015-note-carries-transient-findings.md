@@ -1,45 +1,77 @@
 ---
 id: "bug-062-spec-015-note-carries-transient-findings"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "spec-015's §3 Revision note states two transient defects as current fact, with no element id and nothing scheduled to remove them once they are fixed"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+The closing paragraph of `spec-015-packaging-publishing`'s *Revision (2026-09-21) — §3 stage 2* note
+states three of `task-077`'s findings as present-tense fact about the repository. Two of them —
+`npm ci` failing under the pinned npm, and `prepublishOnly` failing on a UTC runner with git ≥ 2.55 —
+are transient defects of the current tree, not properties of the design the spec describes. They are
+now `bug-056` and `bug-057`, both `planned` for v0.2 with fix tasks `task-080` and `task-081`; when
+those land, the paragraph becomes false and nothing brings a reader back to delete it.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. `sed -n '232,239p' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md` — the
+   paragraph beginning "*Out of this revision's scope, recorded so §3 is not read as a statement that
+   the pipeline runs today:*".
+2. Read it as a future reader will: it says stage 1 is "currently unable to complete on a runner",
+   naming two specific failures, and cites no element id for either.
+3. `grep -n 'bug-05' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md` — no
+   output. The spec names `task-077` and says its findings "are tracked there", but `task-077` is
+   `done`, and nothing revisits a done task's notes.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A tech-spec describes the design and the properties that hold of it. Where a current defect bounds a
+property the spec itself asserts, the spec may say so — but it must cite the element that tracks the
+defect, so that closing the element leads back to the text that has to change.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Two of the three findings are recorded as un-cited present-tense fact, and both are already scheduled
+for repair inside the same release. The third — teardown not running on `SIGINT` — belongs where it
+is: §3 stage 2 asserts a throwaway per-run work dir and stage 3 asserts the registry is torn down
+afterwards, and the `SIGINT` path falsifies the unqualified reading of both. That sentence bounds a
+property the spec asserts; it should stay and should cite `bug-059`.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+Raised by the reviewer of `task-079-spec-015-staging-and-node-floor-corrections` as a non-blocking
+finding; recorded in that task's approve commit body (`9305607`) as an owed follow-up, and filed here
+because a commit body is not schedulable. The task itself was correct not to re-file F1/F2/F3 — at the
+time it wrote the paragraph the ids did not yet exist; they were created by the `task-077` ingest
+(`dcfc638`, merged in `fa65c77`).
+
+The proposed edit is two sentences: cut the `npm ci` and `prepublishOnly` clauses, keep the `SIGINT`
+qualification, and cite `bug-059` beside it. `dl-047` applies — a tech-spec is edited in place, with
+no state change and no `version:` bump — and the edit belongs in a dated Revision note like the two
+already in the document, not as a silent deletion.
+
+This is the same decay family as `bug-053` and `bug-054` (a durable document asserting something that
+a later change made false) and **not** the family `dl-075` is about: no line offset is involved, and
+no citation convention would have prevented it. What would have prevented it is citing the element id
+rather than the finding.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-21): **low**. The statement is true today and will stay true until `task-080` and
+  `task-081` land, so there is no window in which a reader is misled before the fix. The cost is
+  deferred, not immediate. No fix task filed: this is a two-sentence editorial edit to one document,
+  and the natural carrier is whichever task next amends `spec-015` — or the `user-docs` release gate,
+  which is the only unplanned phase that owns documentation. Named here so the carrier is not
+  invented later.
+- Blocked on nothing. It can be done at any time, but doing it **before** `task-080`/`task-081` land
+  would make the spec silent about a real current limitation, so the right moment is with or after
+  those fixes.
