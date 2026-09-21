@@ -279,6 +279,23 @@ The reviewer got two clean runner-image runs *before* any fix existed, so these 
 worth exactly as much — which is why AC1 rests on the stubbed-failure tests and the 10-run
 persistent-writer probe, where the failure is present by construction, and not on this.
 
+**Warning for anyone repeating the AC6 container runs.** The `docker run -v <worktree>:/w` above
+executes as **root**, and jest's `globalSetup` (`test/global-setup.cjs`) rebuilds `dist/` as its
+first act. That leaves `dist/` owned by `root:root`, after which the next run on the host fails
+before any test executes:
+
+```
+Jest: Got error running globalSetup … reason:
+EACCES: permission denied, rmdir '…/dist/cli'   (at test/global-setup.cjs:22)
+```
+
+This happened here and was diagnosed rather than worked around: `ls -ld dist` showed `root root`,
+and `git check-ignore -v dist` → `.gitignore:3:dist/` confirmed it is an ignored local artifact, so
+no commit was affected (`git status --porcelain` was empty throughout). Cleared by removing `dist/`
+from inside the same image, after which `npx jest` returned **105 suites / 1706 tests passed**. Pass
+`--user $(id -u):$(id -g)` to the container to avoid it. Worth knowing because the symptom appears
+on the *host* run that follows, with nothing pointing back at the container as the cause.
+
 **One honest limit on the measurements.** The "Node's `maxRetries` covers `ENOTEMPTY`" timing
 evidence was taken on the host's Node 22.21.0. It was not re-measured on the container's Node 24, and
 nothing here depends on it: the retry is an optimisation for the transient case, and the `catch` —
