@@ -481,7 +481,8 @@ What this phase *did* carry is **dl-067's own Actions 1 and 2**, part of this ta
   §5.1 correction. CLAUDE.md is owned by no workflow gate (`bug-008`, `dl-025`), which is exactly why
   dl-067 names this Action explicitly.
 
-Gates, run in the worktree after the `main` merge and a clean `npm ci`:
+Gates, run in the worktree after the `main` merge and a clean `npm ci` — **as of the first submit;
+superseded by the rejection-pass gate block at the end of these notes**:
 
 ```
 $ npx jest                                 →  102 suites / 1606 tests passed
@@ -579,3 +580,134 @@ which is what was asked for, since it pins the accepted consequence against real
 fixture — but a history rewrite that edited that commit's *message* would fail it, and the failure
 would look like a code regression. The `throw` on "expected exactly one commit with subject …" is
 there so a missing commit fails loudly rather than skipping into a vacuous pass (`task-076`'s concern).
+
+> **Superseded by the rejection pass below (item 3).** The weak spot was worse than this paragraph
+> admitted: it is not only a history *rewrite* that breaks the case, it is any **shallow** checkout —
+> which is what CI does by default. Fixed.
+
+---
+
+### rejection pass — `153b7ff` (`in-review → in-progress`)
+
+Rejected on two corrigible points, with two more items added by approver decision. The review
+verified the fix itself end to end and nothing below disturbs its findings: across all 177
+`approve|reject|deprecate` commits on `main` the new reader loses text on **zero**, recovers more on
+**84** with the old value a strict prefix every time, changes **no** approver, and refuses **none** of
+the 177 existing reasons; the forgeries are dead on both sides through the real compiled CLI; seven
+mutations each caught; twenty-one fuzzed shapes byte-exact or cleanly refused. **No behaviour changed
+in this pass** — the four items are one documentation correction, one retraction, one test-harness
+fix, and a merge.
+
+**Also ratified in `153b7ff`, so it is no longer an open question for the reviewer:** the
+`trailing-trailer-paragraph` refusal added beyond dl-067's clause 4 is **accepted as implemented**.
+Its necessity was proven independently (bypassing the check and writing a real commit, a reason ending
+`Action: amend spec-008` reads back as "ratified." with the final paragraph gone, on approve and
+deprecate alike) and its corpus cost is zero. A separate decision-log is being filed for the narrower
+reader-side alternative — terminate the block only at a trailing paragraph of KNOWN git trailers,
+since all 44 paragraphs dropped across those 177 commits are `Co-Authored-By` — and per the approver
+that is explicitly **not** implemented here.
+
+**1 — dl-067 Action 4, now carried** (`251a671`, a `docs(self)` commit on `bug-042` itself). The
+reject is right that this was the last moment: this task's own `bug.sync_state` closes `bug-042`, so
+a `high` element would have kept permanently the mis-measurement that is the stated reason dl-067
+exists. I did **not** argue that the filed observation should stand — it is wrong, and by a definite
+amount. Re-measured at the three refs that matter, each reproducible:
+
+| `main` at | approve/reject commits | bug-042's own measure | block-accurate |
+|---|---|---|---|
+| `9147d84` — where bug-042 was filed | 156 | 66 | **67** |
+| `7aeeb91` — where dl-067 measured | 171 | 74 | **79** |
+| `7bb95d6` — when the amendment was written | 176 | 76 | **83** |
+
+So bug-042's figure is **67 of 156, not 66**: exactly one further commit's reason resumes after a
+blank line. That is a sharper correction than pasting dl-067's 79/171 into the file would have been,
+because 79/171 is the same measurement *at a different commit*, not a competing count of the same one
+— and the amendment says so, so the two documents cannot be read as disagreeing. The original command
+and number stay in the body with a pointer to the amendment rather than being rewritten: they are the
+record of what was measured at filing, and editing evidence to match a later finding would be the
+opposite of what this correction is for.
+
+**2 — the false coverage sentence, retracted** (`568e1cf`). It claimed `audit.ts`'s branch coverage
+was "up from the 62.16 task-049 recorded"; measured it is **61.76**, down, and statements 97.10
+against 97.26. The refactor section now carries the measurement, the two commands that settle it, and
+the actual cause (this task *removes* covered code from `audit.ts` into `commit-message.ts`, which is
+at 100%, while the file's 13 uncovered branches — all destructuring defaults that cannot fire — are
+unchanged; the same misses over a smaller denominator is a lower percentage). The gate itself is the
+project-level figure and is genuinely non-regressing; that is now stated separately from the per-file
+number rather than blurred with it.
+
+**3 — N3, the corpus test on a shallow clone** (`b4791f6`). The case located its commit with
+`git log --grep` against the repository and threw unless it found exactly one. `actions/checkout`
+defaults to `fetch-depth: 1` and `adr-009`/`spec-015` put `npm test` inside the pipeline, so as
+written it would have broken the **first CI run** with a message that reads like a code regression.
+
+Fixed by checking the commit body in as a fixture —
+`test/memory/fixtures/approve-task-054-commit-body.txt`, byte-identical to
+`git log -1 --format=%b 546b76e` — and running every substantive assertion against it
+**unconditionally**. No skip, so CI actually exercises dl-067's accepted consequence rather than
+stepping over it. A fixture can drift from what it quotes, so a second case re-reads the commit from
+git and asserts byte-identity; when the commit is unreachable it asserts the only legitimate reasons
+(`shallow` or `not-a-repo`) instead of passing quietly — so a **full** checkout that cannot find the
+commit still fails, which is the case worth failing on.
+
+Proven, not reasoned:
+
+```
+$ git clone --depth 1 --branch task/task-072-… file:///…/WingFoil2 clone
+$ git -C clone rev-parse --is-shallow-repository                                 → true
+$ git -C clone rev-list --count HEAD                                             → 1
+$ git -C clone log --format=%H --grep='^wf(task): approve task-054-…' | wc -l    → 0
+$ (in the clone) npx jest test/memory/reason-trailer.test.ts                     → 30 passed
+$ (in the clone, PRE-FIX file restored from bfcc74b)
+  ● … › recovers the whole reason …
+    expected exactly one commit with subject "wf(task): approve task-054-project-directives
+    [in-review → approved]", found 0                                             → 1 failed / 27 passed
+$ (in the clone) npx jest                                                        → 102 suites / 1644 passed
+```
+
+The pre-fix file fails there with exactly the message the reject predicted, the fixed one passes, and
+the **whole** suite runs in a depth-1 clone — so nothing else in `test/**` depends on deep history
+either.
+
+**4 — merged `main` at `ba2cad0`** and re-ran every gate against it on a clean `npm ci` (which works
+since `task-073`; `bug-043` is closed). Node here is v22.21.0 against the new
+`engines.node >= 22.12.0` floor (`adr-010`). **The CLAUDE.md merge was checked rather than accepted
+blind**, since the adr-010 cascade edits the same file this task edits for dl-067's Action 2:
+`git diff HEAD...main -- CLAUDE.md` is empty, i.e. the cascade's CLAUDE.md commit (`504ba82`, the
+Node 22.12+ floor in §1 and §4) had already arrived in the earlier merge `bfcc74b`, and this merge
+brought only `task-079`. Verified after merging that both survive — §1/§4 read "Node.js 22.12+" and
+§5.1's "The `Reason:` block" section is present and intact.
+
+**N4, folded in** (`b4791f6`). `spec-008` §2, CLAUDE.md §5.1 and `normalizeReason`'s TSDoc all said
+the declared normal form "is not a new transformation — it is git's own `cleanup=whitespace`", while
+listing four rules of which only three are git's. The fourth — trimming the first line's leading
+whitespace — is WingFoil's own. Verified rather than taken on trust:
+
+```
+$ git commit -m "$(printf 'subj\n\nApprover: A <a@b.c> (approver)\nReason:    leading spaces kept?\n   indented continuation')"
+$ git log -1 --format=%b | cat -A
+Approver: A <a@b.c> (approver)$
+Reason:    leading spaces kept?$
+   indented continuation$
+```
+
+git keeps them. All three places now separate "what git does anyway" from "what this tool adds", and a
+new test commits the same text with and without the formatter to pin the distinction. The round-trip
+was always exact; only the provenance sentence overreached.
+
+**Not mine, noted:** the first push to GitHub was rejected by push protection over the secret-shaped
+fixtures in `test/validation/secret-scan.test.ts`. Being filed separately. Checked that this task adds
+nothing of the kind — the new fixture is an approval commit body, and the new tests build every string
+they use from prose.
+
+**Gates, re-run on the merge (clean `npm ci`, Node v22.21.0):**
+
+```
+$ npx jest                                 →  102 suites / 1644 tests passed
+$ npx jest --coverage                      →  All files 98.58 / 92.59 / 98.80 / 99.17
+$ npx tsc -p tsconfig.build.json --noEmit  →  exit 0
+$ npx tsc --noEmit -p tsconfig.json        →  exit 2, the single pre-existing bug-026 error only
+$ npm run lint                             →  exit 0
+$ npm run docs:api                         →  exit 0
+$ (inside a git clone --depth 1)  npx jest →  102 suites / 1644 tests passed
+```
