@@ -21,6 +21,14 @@ export function makeTempGitRepo(): string {
   git(dir, ['config', 'user.email', 'wf-test@example.invalid']);
   git(dir, ['config', 'user.name', 'WingFoil Test']);
   git(dir, ['config', 'commit.gpgsign', 'false']);
+  // Close the one race `removeTempDir` cannot close from the outside (bug-058). Every git command
+  // here runs through `execFileSync`, so the fixture never leaves an unawaited child — except for
+  // auto-maintenance: `git commit` may trigger auto-gc, and `gc.autoDetach` defaults to true, which
+  // detaches a process that keeps writing `.git` after `execFileSync` has already returned. It does
+  // not fire at today's fixture sizes (the 1,000-document REQ-PERF-05 fixture produces ~1,002 loose
+  // objects against gc.auto's 6,700 default), but nothing keeps fixtures below that threshold, so
+  // disable it outright rather than depend on staying under a limit.
+  git(dir, ['config', 'gc.auto', '0']);
   return dir;
 }
 
@@ -67,7 +75,52 @@ export function cloneTempRepo(source: string): string {
   return dest;
 }
 
-/** Recursively remove a temp fixture directory. */
+/**
+ * Bounded retry budget for {@link removeTempDir}: 5 retries with a linear backoff of 20ms per step
+ * (20+40+60+80+100), so a removal can spend at most ~300ms fighting a concurrent writer.
+ *
+ * Deliberately small. Node's `maxRetries` does cover `ENOTEMPTY`, but retrying is not what makes
+ * teardown safe — the `catch` in {@link removeTempDir} is. Measured against a directory being
+ * continuously repopulated, `maxRetries: 10, retryDelay: 50` still threw `ENOTEMPTY` on 4 of 4 runs
+ * and took ~2.8s to do it; a larger budget only converts a fast failure into a slow one. The retry
+ * absorbs the *transient* case (a git process finishing its write within a few hundred ms); it is
+ * not an attempt to win an unwinnable race.
+ *
+ * Fixed count + fixed delay, never a clock deadline, per the `determinism` directive (REQ-SYS-07).
+ */
+const REMOVE_MAX_RETRIES = 5;
+const REMOVE_RETRY_DELAY_MS = 20;
+
+/**
+ * Recursively remove a temp fixture directory.
+ *
+ * **Never throws** (`bug-058-fixture-teardown-enotempty-flake-under-load`). Teardown runs after a
+ * test's assertions have already passed, so a failure to clean up must not be able to fail that
+ * test. The observed flake was `ENOTEMPTY: directory not empty, rmdir` on a fixture's `.git`,
+ * raised from an unguarded `rmSync(dir, { recursive: true, force: true })` — `force` suppresses
+ * errors for a *missing* path only, it is not a retry.
+ *
+ * Why swallow rather than retry until success: a removal can lose the race indefinitely if
+ * something keeps writing into the directory, so no bounded retry can guarantee success and an
+ * unbounded one would hang the suite. This therefore makes a bounded best effort and then gives up
+ * — but never silently. The leftover path is reported on `console.warn`, so an accumulating `/tmp`
+ * leak stays visible instead of becoming an invisible disk-space bug.
+ *
+ * @param dir - Absolute path of the temp fixture directory to remove.
+ */
 export function removeTempDir(dir: string): void {
-  rmSync(dir, { recursive: true, force: true });
+  try {
+    rmSync(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: REMOVE_MAX_RETRIES,
+      retryDelay: REMOVE_RETRY_DELAY_MS,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    // Reported, not silently dropped: names the directory so a leak is traceable to its fixture.
+    console.warn(
+      `removeTempDir: could not remove fixture directory ${dir} — leaving it behind (${reason})`,
+    );
+  }
 }
