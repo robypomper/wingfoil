@@ -307,3 +307,42 @@ appears in the staging script — both are text assertions about scripts, not ab
 `stage` and `promote` never install dependencies — they consume the tarball artifact `gate` uploads
 (`stage` runs `npm run publish:staging`, a script that requires only node builtins and `scripts/e2e-smoke.cjs`).
 So the defect blocked the pipeline at its first job, and that first job is the one this fix unblocks.
+
+### review-ready summary — role: reviewer
+
+**What landed:** one three-line change to `package-lock.json` (`0f54871`), re-pinning the hoisted dev +
+optional + transitive `@emnapi/wasi-threads` orphan from `1.2.2` to `1.2.3`. Nothing else in the lock moved;
+no direct dependency moved; `src/` is untouched. `npm ci` now exits `0` in a fresh clone of this branch
+(exit `1` on `main` under the identical command and environment), and the full gate set passes **inside that
+`npm ci` tree** — 100 suites / 1555 tests, coverage 98.54 %, `build`/`lint`/`docs:api`/`tsc -p
+tsconfig.build.json` all exit 0, and `tsc -p tsconfig.json` reports only the pre-existing bug-026 error.
+
+**AC status:** AC1 ✅ (exit 0, throwaway clone outside every worktree, `npm 11.6.2` / `node v22.21.0`);
+AC2 ✅ (`git show --stat 0f54871` → 1 file); AC3 ✅ (full `packages{}` diff enumerated — 1 entry changed,
+0 added, 0 removed; all 16 direct deps re-derived from `package.json` and verified unmoved); AC4 ✅ —
+answered by **falsifying** bug-043's prediction with the grep + `npm ls` output rather than repeating it;
+AC5 ✅ (gates re-run in the `npm ci` clone); AC6 ✅ (`git diff --stat main...HEAD -- src` empty); AC7 ✅
+(guard not built; filed as a proposed element for the orchestrator instead).
+
+**Weak spot a reviewer should weigh — the fix is a point-in-time patch, and deliberately so.** The lock is
+consistent *today*; it is not structurally protected. `@napi-rs/wasm-runtime`'s optional peers
+(`@emnapi/core`/`@emnapi/runtime ^1.7.1`) are still absent from the lock, so npm resolves them from the
+registry on every install and the orphan entry's pinned version must equal whatever `@emnapi/core@latest`
+depends on. The next `@emnapi/core` release that bumps that dependency reproduces bug-043 verbatim, with no
+commit to this repository in between. Hardening it would mean editing `package.json` (an `overrides` pin) or
+adding a CI `npm ci` job — both outside this task's scope (AC6, AC7). Proposed as an element, not smuggled
+in here.
+
+**Proposed elements** (not created here — parallel worktrees would collide on ids; handed to the
+orchestrator in the final report): (1) a `decision-log` on guarding lockfile drift — the CI `npm ci`-on-push
+job bug-043 suggests and AC7 defers, plus whether to pin the unlocked `@emnapi` peers via `overrides`;
+evidence is the registry timeline above. No second element for bug-022: it already names
+`test/cli/npm-distribution.test.ts:117` exactly and is `triaged` — re-checked, still the only `npm pack`
+call in the suite without `--ignore-scripts`; untouched here.
+
+**Process deviation, recorded rather than hidden:** the evidence-gathering for `design` (read_related,
+verify_specs, T1) was performed before the `green` commit, but written to this file and committed *after*
+it (`ea3fbf3` follows `0f54871`). AC2 forces the lock refresh to be the whole diff of its commit, so the
+design section could not ride it, and committing a notes-only commit first would have split the log in two
+for no benefit. No claim in the `design` section was written after the fact — each is backed by a command
+recorded above.
