@@ -336,3 +336,256 @@ the evidence forced it:
   (point 2) plus the `spec-008`/`spec-011` amendments (point 3) come with it — at which point this is
   two features in one dev-loop and the `spec-008` §2-vs-command-specific question needs answering
   first.
+
+#### design gate — resolved by the approver (2026-09-21)
+
+Option **(a)**: `--force` is **out of task-056's scope** and becomes its own task, scheduled to
+**v0.3**, carrying the success-warning channel (`CoreResult` → CLI stderr → MCP Tool result), its
+rendering rule for `console`/`json`/`yaml`, and both spec amendments. The `spec-008` §2 mismatch found
+above (§2 is *"global flags, accepted by every command"*; `--force` is command-specific) is recorded on
+`dl-062` as part of that work, so it is **not** filed separately from here. The dev-loop resumed at
+`red` with the design above unchanged.
+
+### red — role: developer (commit `afdd553`)
+
+- `test/directives/roles-edit.test.ts` — a `parseDirectiveIds` describe (10 cases: single id, split,
+  trim, first-position de-duplication, empty segments, and four values contributing no ids).
+- `test/core/directive-assign.test.ts` — a P3.7 describe against a fixture that **removes** the
+  `developer` key from the scaffold's `assignments` (the precondition Sc.1's *"lists exactly those 3"*
+  requires — the scaffold already binds `developer` to three directives — and simultaneously dl-029's
+  insert path driven with a list): Sc.1, Sc.2 (identical list **and** partially overlapping list),
+  Sc.3 (one unknown id, and the first-unknown-in-argument-order case), duplicate ids, whitespace,
+  role-before-ids, D3's four blank values, argument-order-not-alphabetical, cross-repo byte identity,
+  and the absence of a dangling/no-assignments warning afterwards. The two P3.2 payload `toEqual`s
+  move to `directives: [...]` (D4).
+- `test/cli/program.integration.test.ts` — four cases on the same verb through the compiled CLI.
+
+**Observed red, verbatim:**
+
+```
+$ npx jest test/directives/roles-edit.test.ts test/core/directive-assign.test.ts
+  Test Suites: 2 failed, 2 total
+  Tests:       24 failed, 60 passed, 84 total
+$ npx jest test/cli/program.integration.test.ts -t "P3.7"
+  Tests:       4 failed, 59 skipped, 63 total
+```
+
+The CLI run also printed today's behaviour on stderr, which is the evidence for three design claims:
+
+```
+error: unknown directive: testing,security,documentation   # the comma value looked up verbatim
+error: unknown directive: testing,ghost                    # the WRONG id named (Sc.3)
+error: unknown directive:                                  # a blank --directive, empty id (D3)
+```
+
+Two of the 24 red cases are the **D4 payload change**, not new behaviour: `Sc.1: assigns testing to
+developer …` and `AC5: re-assigning …` fail on their `toEqual` alone (`- "directives": ["testing"]` /
+`+ "directive": "testing"`), with every other assertion in those tests — exit 0, `commit` undefined,
+byte-identical file, unchanged HEAD — passing before the failing line is reached. So AC2's *behaviour*
+is characterization, as classified; only the payload's spelling is red-first.
+
+### green — role: developer (commit `a3b7a1c`)
+
+- `src/directives/roles-edit.ts` — `parseDirectiveIds(raw)`, six lines, `js-yaml`-only leaf unchanged
+  otherwise.
+- `src/core/index.ts` — `directiveAssignFn` parses once and passes the whole list to `checkAssignable`
+  and `withAssignedDirectives`; payload key, commit subject and the blank-value guard per D3/D4/D5.
+- `src/directives/index.ts` — barrel re-export.
+
+**`src/core/directive-assign.ts` was not modified at all** — task-051's D1 held exactly as predicted:
+`checkAssignable` already validated a list before writing anything (P3.7 Sc.3 for free) and
+`updateRoleAssignments` already took an arbitrary `update` function.
+
+One **test-fixture** correction in the same pass, found by a red that stayed red for the wrong reason:
+the partial-overlap case anchored its expected text on `- determinism`, which also occurs under
+`architect:`, so `String.replace` hit the wrong block. Re-anchored on the `developer:` key. The
+production output was correct throughout — the diff jest printed showed the edit landing under
+`developer:` as intended.
+
+`npx jest --maxWorkers=4` after green → **100 suites / 1555 tests passing** (baseline 100 / 1527).
+
+### refactor — role: developer (commit `0053c31`)
+
+No behaviour change (`git show --stat` = doc comments, two test headers, one spec note).
+
+- `src/core/directive-assign.ts` — *"P3.7 remains an unbuilt prediction, not an observed fact"* was
+  true when task-052 wrote it and is not now. Replaced with what P3.7 does, and with the consequence
+  that matters to `dl-062`: **P3.7 *is* the second consumer** of that fallback decision (task-052 was
+  not, and that correction stands untouched). `updateRoleAssignments`' bullet now states that the
+  `#`-gated split it describes is what dl-062 Q1 option 3 ratified away, that `--force` is scheduled to
+  v0.3 as its own task, and that `dl-062` — not the paragraph — is the intended contract.
+- `src/directives/roles-edit.ts`, `src/directives/index.ts`, and the two test headers — all said P3.3
+  and P3.7 were *"designed to reuse"* these primitives; both outcomes are now known.
+- `spec-006` §3 — dated **Revision (2026-09-21)** recording that P3.7 registers no operation and needs
+  no row, naming the three documents that settle it, so the absent row is not later read as an
+  omission. `grep -n "^version" docs/self/docs/04_memory/design/specs/spec-006-core-domain-api.md` →
+  no hit, so no doc-version bump applies; edited in place per the `spec-001` precedent the spec's own
+  2026-09-17 revision cites.
+
+### mutation runs behind the claims in this section
+
+Every "X is what refuses/produces Y" sentence below was checked by breaking X and re-running, because
+task-051's second pass showed four of six such claims can be wrong. Command in each case:
+`npx jest test/core/directive-assign.test.ts test/directives/roles-edit.test.ts` (84 cases).
+
+| mutant applied to `src/` | result | which case caught it |
+|---|---|---|
+| `checkAssignable`: `ids.find(…)` → `ids.slice(0, 1).find(…)` (validate only the first id) | **1 failed / 83 passed** | `Sc.3: one unknown id in the list persists NO partial assignment …` |
+| `parseDirectiveIds`: drop the `!ids.includes(id)` guard | **2 failed / 82 passed** | `assigns a duplicated id once, and names it once in the commit subject`; `parseDirectiveIds › de-duplicates, keeping the FIRST occurrence position` |
+| `withAssignedDirectives`: `return next` → `return next.sort()` | **7 failed / 77 passed** | incl. `orders the appended ids by argument order, not alphabetically` |
+| `directiveAssignFn`: delete the `directives.length === 0` guard | **4 failed / 80 passed** | the four D3 blank-value cases |
+
+So all-or-nothing, the de-duplicated echo, the absence of sorting, and D3 are each pinned by a case
+that fails when the corresponding code is removed — not merely accompanied by one.
+
+### AC7 verified, not asserted
+
+AC7 predicted that P3.7 changes no enumeration. Checked both halves:
+
+```
+$ git status --short          # after green, before the doc pass
+ M src/core/index.ts
+ M src/directives/index.ts
+ M src/directives/roles-edit.ts
+ M test/core/directive-assign.test.ts
+$ npx jest test/core/parity.test.ts test/core/production-registry.test.ts \
+           test/mcp/read-only-agent-channel.test.ts
+  Test Suites: 3 passed, 3 total
+  Tests:       24 passed, 24 total
+```
+
+None of the three enumeration files is modified and all three are green, so `bug-045`'s "bring the
+stale titles current in the same pass" obligation does not arise here — this task touches none of
+those literals.
+
+### sync with main (merge `a955eeb`, dl-035 — merge, never rebase)
+
+Two merges this pass. The first (`9bae748`, during the design stop) took `main` to `7b462e3`; this one
+takes it to **`91258a7`**. Between the branch point and `91258a7`, `main` gained four commits: three
+`docs(self)` edits to `dl-061`, `dl-063` and `dl-064`, and the `wf(bug)` triage approval of
+`bug-023`/`030`/`042`/`043`. `git diff --stat 7bac856..91258a7` touches only
+`docs/self/docs/04_memory/{design/dls,bugs}/` — **no `src/`, `test/` or spec file**, and no conflict in
+either merge. Re-read after merging: `dl-064`'s addendum now says Wave 2 "is closed apart from
+`task-056`" and that its B.1 needs its own v0.3 task; it names `directive assign` only as one of nine
+`requireGitIdentity` call sites and hands this task nothing. No sentence in these notes went stale.
+
+### review-ready summary
+
+**BDD P3.7 scenario → proving tests** (all passing)
+
+| Scenario | Core test (`test/core/directive-assign.test.ts`) | CLI test (`test/cli/program.integration.test.ts`) |
+|---|---|---|
+| Bind multiple directives to one role | `Sc.1: assigns testing, code-quality and security to developer in ONE invocation — the role lists exactly those 3` | `P3.7 Sc.1: `--directive testing,security,documentation` binds all three in one commit` |
+| Binding is idempotent | `Sc.2: re-assigning the same list exits 0, leaves the file byte-identical and commits nothing` + `Sc.2: a PARTIALLY overlapping list appends only the ids not already bound …` (and, for the single-id form P3.7 Sc.2 literally spells, task-051's `AC5: re-assigning …`, still green) | `re-assigning is idempotent: exit 0 and no new commit` (task-051's, unchanged) |
+| Error - the assignment set contains an unknown directive | `Sc.3: one unknown id in the list persists NO partial assignment — exit 1, message names the unknown id` + `Sc.3: names the FIRST unknown id in argument order …` | `P3.7 Sc.3: an unknown id anywhere in the list exits 1, names it, and persists nothing` |
+
+P3.2's three scenarios stay green throughout (`Sc.1`/`Sc.2`/`Sc.3` in the P3.2 describe): a
+comma-free `--directive` parses to a one-element list, so the single-id path is unchanged apart from
+the payload key.
+
+Supporting cases: `assigns a duplicated id once …`, `trims whitespace around the ids of the list`,
+`checks the role before any id of the list (REQ-SYS-08 first)`, the four `D3: --directive %p …`,
+`orders the appended ids by argument order, not alphabetically`,
+`writes byte-identical roles.yaml for the same list in two independent repositories (REQ-SYS-07)`,
+`creates no dangling-binding warning: every assigned id resolves to a directive file`,
+`P3.7: the success payload carries `directives` as a list under --format json`,
+`P3.7 D3: a blank `--directive` is a usage error (exit 2) …`, plus the 10 `parseDirectiveIds` cases.
+
+**End-to-end on the compiled CLI**, against a scratch git repo seeded with a copy of this
+repository's own comment-rich `docs/self/.wingfoil/`:
+
+```
+$ grep -c '#' .wingfoil/roles.yaml                                       -> 7
+$ node dist/cli.js directive assign --directive security,documentation,code-review --role qa
+  {"directives":["security","documentation","code-review"],"role":"qa",
+   "assignments":["testing","security","documentation","code-review"]}     exit 0
+$ git log -1 --format=%s
+  wf(directive): assign security, documentation, code-review to qa
+$ git show --stat --format= HEAD     ->  .wingfoil/roles.yaml | 3 +++
+$ git diff --numstat HEAD~1 HEAD     ->  3   0   .wingfoil/roles.yaml
+$ grep -c '#' .wingfoil/roles.yaml                                       -> 7
+$ node dist/cli.js directive assign --directive documentation,security --role qa
+  ... exit 0, and `git log --oneline | wc -l` still 2  (seed + the one assign)
+$ node dist/cli.js directive assign --directive testing,ghost   --role qa   -> exit 1  error: unknown directive: ghost
+$ node dist/cli.js directive assign --directive ghost,phantom   --role qa   -> exit 1  error: unknown directive: ghost
+$ node dist/cli.js directive assign --directive testing,security --role wizard -> exit 1  error: unknown role 'wizard' (not defined in dna.yaml)
+$ node dist/cli.js directive assign --directive ,              --role qa    -> exit 2  error: missing required argument: --directive
+# HEAD unchanged across all four failures; `git status --porcelain` -> 0 paths
+```
+
+(The `Warning: … unknown field(s) ignored: scope` lines these runs print on stderr are pre-existing
+loader behaviour on this repository's own directive files — `directives list` prints them too —
+not introduced here. task-051 recorded the same.)
+
+**Gates — every one re-run after the `a955eeb` merge, in this worktree**
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest --coverage --maxWorkers=4` | **100 suites / 1555 tests passing, 0 failed** |
+| coverage | same | All files **98.54 stmts / 92.30 branch / 98.76 funcs / 99.15 lines**. Baseline: `main` at `91258a7` in a detached scratch worktree, same command → 98.54 / **92.27** / **98.75** / 99.15 (100 suites / 1527 tests) ⇒ non-regressing, branch coverage up. `src/directives/roles-edit.ts` and `src/core/directive-assign.ts` both **100/100/100/100**; `src/directives` as a directory is 100 across the board |
+| build types | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| test types | `npx tsc --noEmit -p tsconfig.json` | exit 2 with **only** the pre-existing `bug-026` error `test/core/directive-create.test.ts(159,19): error TS2339` |
+| lint.clean | `npm run lint` | exit 0 |
+| docs.api | `npm run docs:api` | exit 0 |
+
+**Traceability:** P3.7 (US-4-06) → BDD `p3-directives/P3.7-role-based-assignment.feature` → REQ-SYS-08
+(role catalogue, via task-034's `isRoleDefined`/`UnknownRoleError`, reached through `checkAssignable`)
++ REQ-SYS-07 (argument-order determinism) + `spec-006` §3 (`directiveAssign`, no P3.7 row — Revision
+2026-09-21) + `spec-008` §1/§4/§5 + `spec-011` (`roles.yaml`, named for P3.2/P3.7 at `:40`, `:105`) +
+`dl-041` B (registration) + `dl-029` (role absent from `assignments`) + `dl-037`/`dl-051` (assignment
+binds by id and creates no warning) → this task → consumes `task-051`'s `checkAssignable`,
+`updateRoleAssignments`, `withAssignedDirectives` and `setRoleAssignmentsInText` **unchanged**.
+
+**Deliberately untouched:** `src/core/directive-assign.ts`'s *code* (doc comments only),
+`src/core/context.ts` / `src/core/directives-list.ts` (task-055 — consumed, not modified),
+`src/core/builtin-asset.ts`, the three shared enumeration suites, `test/core/directive-create.test.ts`
+(`bug-026`), `package-lock.json` (`bug-043`), and the `#`-gated fallback branch (`dl-062`, v0.3).
+
+**The three `[AUTHORING]` choices, stated plainly for the reviewer.** None is pinned by a feature file
+or a spec; each is an authored decision, and each is now pinned by a test, which is what makes it
+reviewable rather than accidental:
+
+1. **Comma-separated `--directive`** (the whole CLI shape). The feature file names three ids in prose
+   and no flag. Chosen because it is the only spelling that needs no change to the shared CLI option
+   seam (`Readonly<Record<string, string>>` through `CliCommand.options` → `buildOptionValues` →
+   `ParamsContext.options`), and because `memory add --tags "a,b"` is the same shape on the same seam.
+   A repeated `--directive` would require widening that record to `string | string[]` across the
+   registrar, the Commander wiring and every operation that reads options.
+2. **A `--directive` value contributing no ids is a usage error (exit 2)**, not `unknown directive: `
+   (exit 1). This **changes a shipped P3.2 behaviour**; the old behaviour was pinned by no test
+   (`grep -n "directive: ''" test/` → no hit; task-051's AC9 `it.each` covers only *absent* options)
+   and is visible in the red run's stderr above.
+3. **`directives: readonly string[]` in the payload** (was `directive: string`) and **`wf(directive):
+   assign <id1>, <id2> to <role>`** as the commit subject. The payload change is a visible contract
+   change for `--format json` consumers; a shape that varied with the number of ids was rejected as
+   worse. The subject extends task-051's D4 and is byte-identical for one id; it follows CLAUDE.md
+   §5.1's `{id1}, {id2}` multi-element convention.
+
+**Known weak spots for the reviewer.**
+
+1. Choice 2 above is the only *regression risk* in this task: any script relying on `--directive ""`
+   exiting 1 now gets 2. Judged an improvement (a meaningless argument is a usage error), but it is a
+   change to a merged verb made inside a task whose feature does not mention it.
+2. **`parseDirectiveIds` splits on `,` unconditionally, so a directive id containing a comma becomes
+   unassignable — and that is not quite vacuous.** Checked rather than assumed, in both directions:
+   `directive create` cannot produce such an id (`DIRECTIVE_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/`,
+   `src/directives/create.ts:26`) and spec-009 §1's shared id class is `[a-z0-9-.]`
+   (`ID_CHAR_CLASS`, `src/validation/id.ts:22`) — **but** `DirectiveFrontmatter.id` is an
+   unconstrained `z.string()` (`src/directives/schema.ts:36`), so a **hand-authored** directive file
+   may carry any id at all, comma included. Such a file loads and lists normally; only
+   `directive assign` cannot name it, and the failure it gives is the confusing
+   `unknown directive: <first half>`. The underlying gap — `DirectiveFrontmatter.id` not being
+   validated against the shared id class — predates this task and affects every directive consumer,
+   so it is raised as a proposed element rather than narrowed inside this verb.
+3. The P3.7 core fixture removes `developer` from `assignments` by a literal `String.replace` of the
+   scaffold's three-line block, and throws `fixture bug: scaffold roles.yaml shape changed` if that
+   text ever moves. That is the same technique (and the same fragility) task-051's fixture already
+   uses; it fails loudly rather than silently, which is why it was kept.
+4. `dl-062`'s ratified `--force` rule is **not** implemented (approver decision above, v0.3). Until it
+   ships, a `roles.yaml` the textual editor cannot handle still splits on the presence of a `#`. The
+   module doc now says so explicitly and points at `dl-062` rather than at itself.
+
+No secrets committed; every commit stages explicit paths (never `git add -A`/`.`); `node_modules` is
+not tracked (it is a symlink to the main clone's, the `bug-043` workaround, and git ignores it).
+
+`status: in-progress → in-review`.
