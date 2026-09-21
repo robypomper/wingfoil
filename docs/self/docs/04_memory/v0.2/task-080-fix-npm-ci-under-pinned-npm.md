@@ -289,3 +289,104 @@ would fail again the moment either is dropped from the lock.
 The remaining five assertions in that file (`overrides` shape, exact-version pins, lock entry at the
 pinned version, no stale pin) pass vacuously with no `overrides` block present and become load-bearing
 under `green`; they are the durability half, aimed at D1 below.
+
+### green — the fix: pin the two peers, hoist exactly those two entries
+
+The change is 32 added lines across two files and removes nothing.
+
+**1. `package.json` — a scoped `overrides` block plus its attribution** (AC5). JSON carries no comments,
+so the "why" is recorded in a sibling `"//overrides"` key — npm ignores `//`-prefixed keys, and it puts
+the explanation where the future reader actually looks, which is the precise cost `dl-069` option (b)
+charges ("action at a distance that a future reader will struggle to attribute"). The Execution-Notes
+copy is this section:
+
+```json
+"overrides": {
+  "@napi-rs/wasm-runtime": {
+    "@emnapi/core": "1.11.3",
+    "@emnapi/runtime": "1.11.3"
+  }
+}
+```
+
+- **Why `@napi-rs/wasm-runtime` and not the tree.** The nested form pins only the edges *that package*
+  declares. `@unrs/resolver-binding-wasm32-wasi` depends on `@emnapi/core@1.10.0` and
+  `@emnapi/runtime@1.10.0` exactly, nested under its own `node_modules/` in the lock; a flat
+  `"@emnapi/core": "1.11.3"` override would have moved those too, for no reason connected to this bug.
+  Scoping keeps the blast radius to the two edges that fail.
+- **Why exact versions and not `^1.11.3`.** A range is re-resolved from the registry on every install,
+  which is the mechanism being removed. `1.11.3` was re-derived at execution time
+  (`npm view @emnapi/core version` → `1.11.3`, `npm view @emnapi/runtime version` → `1.11.3`), not
+  copied from this task's Description; it satisfies the declared peer range `^1.7.1` and equals what an
+  unpinned resolve computes today, so no install anyone runs today changes version because of this.
+- **Why a dev-only, optional, transitive package is pinned from the top-level manifest.** There is no
+  lower place to put it: the edge belongs to `@unrs/resolver`'s wasm fallback, reached through `eslint`,
+  and this repository cannot edit either package's manifest. `overrides` is npm's only mechanism for
+  constraining a transitive edge, and the gate cannot install until this one is constrained.
+
+**2. `package-lock.json` — the two hoisted entries, and nothing else.**
+`git diff --stat` → `package-lock.json | 25 +++`, `package.json | 7 +++`; 32 insertions, **0 deletions**:
+
+```
+$ grep -n '"node_modules/@emnapi' package-lock.json        # AC4, after
+565:    "node_modules/@emnapi/core": {
+578:    "node_modules/@emnapi/runtime": {
+590:    "node_modules/@emnapi/wasi-threads": {
+```
+
+**Why the lock was patched surgically rather than regenerated.** Regenerating with the host npm would
+swap one npm's opinion of the whole file for another's and be unreviewable; regenerating with npm 10.9.0
+was tried and produces a **larger** diff than the fix needs — besides the two entries it also flips the
+`"peer": true` flag on 11 unrelated entries (`@babel/core`, `@typescript-eslint/parser`, `acorn`,
+`browserslist`, `eslint`, `express`, `hono`, `jest`, `typescript`, `zod` lose it;
+`@emnapi/wasi-threads` gains it), which is npm 10.9 and npm 11.6 disagreeing about metadata, not
+anything this bug needs. So the two entries were taken **verbatim** from that npm-10.9.0 resolution and
+inserted; every other byte of the lock is untouched. Their `resolved`/`integrity` were then checked
+against the registry independently of npm's resolution:
+
+```
+$ npm view @emnapi/core@1.11.3 dist.integrity dist.tarball
+dist.integrity = 'sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg=='
+dist.tarball   = 'https://registry.npmjs.org/@emnapi/core/-/core-1.11.3.tgz'
+$ npm view @emnapi/runtime@1.11.3 dist.integrity dist.tarball
+dist.integrity = 'sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=='
+dist.tarball   = 'https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.11.3.tgz'
+```
+
+Both match the inserted entries byte for byte. Nothing else in the lock moved — no entry added beyond
+these two, none removed, no version, `resolved` or `integrity` changed, `lockfileVersion` still `3`,
+and the root `packages[""]` entry is **unchanged**: npm records no `overrides` key there (verified on
+all three of the regenerated locks), so the surgical lock and a regenerated one agree about the root.
+
+**Which half of the change actually makes `npm ci` pass — measured, because it is not obvious.** Two
+control runs under npm 10.9.0, each on a clean copy of `main`:
+
+```
+lock entries only, no overrides   →  npm ci --dry-run  EXIT=0
+overrides only, lock untouched    →  npm ci --dry-run  EXIT=1   (Missing: @emnapi/core@1.11.3 …)
+```
+
+So the **lock entries** are what the gate needs — `npm ci` never re-resolves a manifest — and the
+`overrides` block is what keeps them from being whatever `@emnapi/core@latest` happens to be at the next
+`npm install`. Both halves ship because the fix has to survive the next re-resolve, not only pass today.
+
+**D2 — the override demonstrably binds this edge.** With the block set to a deliberately *stale*
+`1.11.2` (registry latest is `1.11.3`) and the lock re-resolved under npm 10.9.0, the recorded versions
+are `1.11.2`, not latest. The version now comes from the manifest, which is the whole claim of option (b).
+
+**D1 — a real limitation, measured and not smoothed over.** Re-resolving the *fixed* tree under the host
+**npm 11.6.2** (`npm install --package-lock-only`) **deletes both hoisted entries again**, `overrides`
+block present and all — that npm simply does not record these optional peer nodes, which is the same
+npm-version asymmetry that let `bug-056` reach CI in the first place:
+
+```
+$ npm install --package-lock-only --no-audit --no-fund      # npm 11.6.2, on the fixed tree
+$ node -e '…read the two entries…'
+core: undefined runtime: undefined
+```
+
+`npm ci` never does this, so the release gate is safe; but a developer on npm 11.x who runs a plain
+`npm install` will silently revert this fix in a diff that shows nothing else. That is exactly what
+`test/cli/lockfile-peer-overrides.test.ts` now fails on, so the suite catches the revert before the gate
+does — and it is filed as a proposed element in the review summary, since the durable answer is to make
+developers run the pinned npm rather than to rely on a test noticing.
