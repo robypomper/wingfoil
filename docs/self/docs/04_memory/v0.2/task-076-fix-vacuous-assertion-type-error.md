@@ -2,7 +2,7 @@
 id: "task-076-fix-vacuous-assertion-type-error"
 type: task
 title: "Fix bug-026: clear the TS2339 on main so `tsc --noEmit -p tsconfig.json` exits 0 and stops being a standing exception"
-status: approved
+status: done
 release: "v0.2"
 priority: "Medium"
 tags: ["v0.2", "testing", "tooling"]
