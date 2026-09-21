@@ -19,6 +19,8 @@ import type { ScaffoldFile } from '../../src/storage/layout';
 import { extractFrontmatter } from '../../src/storage/frontmatter';
 import { DirectiveFrontmatter } from '../../src/directives/schema';
 import { DnaYaml } from '../../src/dna/schema';
+import { MemoryYaml } from '../../src/memory/schema';
+import { DEPRECATED_STATE, resolveStateMachine, resolveTypeTransition } from '../../src/memory/state-machine';
 
 function pathsOf(files: readonly ScaffoldFile[]): string[] {
   return files.map((f) => f.path);
@@ -179,6 +181,70 @@ describe('templateScaffold output satisfies its consumers’ real schemas (bug-0
       for (const [type, entry] of Object.entries(parsed.types)) {
         expect([type, entry.id_pattern]).toEqual([type, expect.any(String)]);
         expect([type, entry.template]).toEqual([type, expect.anything()]);
+      }
+    });
+  }
+});
+
+/**
+ * bug-030-init-memory-yaml-has-no-state-machine (task-071) — the gap bug-030's Notes name verbatim:
+ * *"no test feeds the resolver the file `init` actually writes"* (`grep -rln
+ * 'resolveStateMachine\|resolveTransitionTarget' test | xargs grep -ln 'templates\|scaffold\|runInit'`
+ * → no output). `test/memory/state-machine.test.ts` resolves hand-built fixtures and
+ * `test/memory/element-schema.test.ts` resolves this repository's own dogfooded `memory.yaml` (which
+ * declares a machine for every type) — so the scaffolded file, the only `memory.yaml` a real user
+ * starts from, was never handed to `resolveStateMachine` by anything.
+ *
+ * This suite closes that: it takes `templateScaffold`'s own `memory.yaml` bytes, parses them through
+ * the real `MemoryYaml` schema (Pass 1, spec-009 §1), and drives the real REQ-STATE-08 resolver +
+ * transition engine over EVERY type the file declares — the type list derived from the parsed file,
+ * never hard-coded (bug-030 step 5's list is evidence, not a specification).
+ */
+describe('scaffolded memory.yaml resolves a state machine for every declared type (bug-030)', () => {
+  const scaffoldedMemoryYaml = (def: TemplateDefinition): string =>
+    templateScaffold(def).find((f) => f.path === '.wingfoil/memory.yaml')!.content;
+
+  for (const def of TEMPLATES) {
+    it(`${def.name}: the scaffolded memory.yaml parses through the real MemoryYaml schema`, () => {
+      expect(MemoryYaml.safeParse(loadYaml(scaffoldedMemoryYaml(def))).success).toBe(true);
+    });
+
+    it(`${def.name}: the scaffold DECLARES its default machine, rather than leaning on the engine's built-in`, () => {
+      // task-071's chosen placement: the machine that governs a fresh project is visible and editable
+      // in the user's own file (spec-001's optional top-level `defaults:` key), so `wingfoil init`'s
+      // header comment is true of the bytes it writes. The engine's built-in (bug-030's other half)
+      // still covers hand-written files; this asserts the scaffold does not depend on it.
+      const parsed = MemoryYaml.parse(loadYaml(scaffoldedMemoryYaml(def)));
+      expect(parsed.defaults?.states).toBeDefined();
+      expect(parsed.defaults!.states.sequence).toEqual(['draft', 'pending', 'approved']);
+      expect(parsed.defaults!.states.gates).toEqual({ pending: { reject: 'draft' } });
+    });
+
+    it(`${def.name}: resolveStateMachine returns a machine for EVERY type the scaffold declares`, () => {
+      const parsed = MemoryYaml.parse(loadYaml(scaffoldedMemoryYaml(def)));
+      const declaredTypes = Object.keys(parsed.types).sort();
+      expect(declaredTypes.length).toBeGreaterThan(0);
+      for (const type of declaredTypes) {
+        const machine = resolveStateMachine(parsed, type);
+        expect([type, machine.sequence.length > 0]).toEqual([type, true]);
+      }
+    });
+
+    it(`${def.name}: every scaffolded type can run all four transition verbs from its chain head`, () => {
+      // AC1 at the library level (the CLI end-to-end run is test/cli/fresh-init-transitions.test.ts):
+      // submit/approve/reject/deprecate each resolve a target for every scaffolded type, so no verb
+      // can fail on state-machine resolution in a freshly-`init`-ed project.
+      const parsed = MemoryYaml.parse(loadYaml(scaffoldedMemoryYaml(def)));
+      for (const type of Object.keys(parsed.types).sort()) {
+        const machine = resolveStateMachine(parsed, type);
+        const head = machine.sequence[0]!;
+        // `memory add` writes `status: draft`; the chain head must be that state for the verbs to apply.
+        expect([type, head]).toEqual([type, 'draft']);
+        const afterSubmit = resolveTypeTransition(parsed, type, head, 'submit');
+        expect([type, afterSubmit]).toEqual([type, 'pending']);
+        expect([type, resolveTypeTransition(parsed, type, afterSubmit, 'approve')]).toEqual([type, 'approved']);
+        expect([type, resolveTypeTransition(parsed, type, afterSubmit, 'reject')]).toEqual([type, 'draft']);
+        expect([type, resolveTypeTransition(parsed, type, head, 'deprecate')]).toEqual([type, DEPRECATED_STATE]);
       }
     });
   }

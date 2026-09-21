@@ -40,6 +40,7 @@ export const MODULE_NAME = 'memory' as const;
 export { MemoryYaml, MemoryTypeEntry, StateMachine, TemplateConfig } from './schema';
 export {
   ARCHIVED_STATUSES,
+  DEFAULT_STATE_MACHINE,
   DEPRECATED_STATE,
   E_INVALID_STATE,
   E_INVALID_TRANSITION,
