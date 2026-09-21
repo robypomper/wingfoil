@@ -291,3 +291,107 @@ $ node -e 'const cur=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/, fix
 The last two rows are the point of the exercise: the replacement still **requires** an explicit zone,
 so this widens the accepted set by exactly one legal ISO-8601 spelling and does not degrade the
 assertion into "any string".
+
+### green — role: developer
+
+**The change (AC1).** `git diff a03696d^ a03696d -- test/` is two assertion lines plus the comment that
+explains them; no other byte of either suite moved, and `src/` is untouched:
+
+```
+-    expect(gitOut(repo, ['log', '-1', '--format=%aI'])).toMatch(/^\d{4}-…:\d{2}[+-]\d{2}:\d{2}$/);
++    expect(gitOut(repo, ['log', '-1', '--format=%aI'])).toMatch(/^\d{4}-…:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
+-      expect(entry.date).toMatch(/^\d{4}-…:\d{2}[+-]\d{2}:\d{2}$/);
++      expect(entry.date).toMatch(/^\d{4}-…:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
+```
+
+The alternation is `(?:Z|[+-]\d{2}:\d{2})` — character-for-character the one already in
+`test/cli/program.integration.test.ts`'s `entry.timestamp` assertion and in
+`test/core/memory-history.test.ts`'s `ISO_8601` constant, as AC1 requires. A three-line comment was
+added above each so the next reader does not re-narrow it; both name `bug-057` and neither carries a
+line offset (`dl-075`).
+
+**AC2/AC3 — the identical command, same tree, post-fix:**
+
+```
+$ docker run --rm -v … -e TZ=UTC catthehacker/ubuntu:act-24.04 bash -lc 'git --version; npx jest test/core/memory-approve.test.ts test/memory/versioning-audit-trail.test.ts; echo "EXIT=$?"'
+git version 2.55.0
+v24.19.0
+PASS test/core/memory-approve.test.ts (5.757 s)
+Test Suites: 2 passed, 2 total
+Tests:       19 passed, 19 total
+EXIT=0
+```
+
+Red `EXIT=1` / 2 failed at `c5a6643` → green `EXIT=0` / 19 passed at `a03696d`, same command, same git
+2.55.0, same `TZ=UTC`. AC3 is satisfied literally, not by argument.
+
+**AC2, in its strongest available form — the whole suite, and the actual release gate, in the image:**
+
+```
+$ docker run --rm … -e TZ=UTC catthehacker/ubuntu:act-24.04 bash -lc 'git --version; npx jest; echo "EXIT=$?"'
+git version 2.55.0
+Test Suites: 104 passed, 104 total
+Tests:       1697 passed, 1697 total
+EXIT=0
+
+$ docker run --rm … -e TZ=UTC catthehacker/ubuntu:act-24.04 bash -lc 'npm run prepublishOnly; echo "EXIT=$?"'
+EXIT=0
+```
+
+`prepublishOnly` — `npm run build && npm test && npm run lint`, the gate `spec-015` §2 requires to be
+passable — now **exits 0 on a UTC machine with git 2.55.0**, which is the property `bug-057` says is
+broken. That is the closest measurement to "it works on GitHub" obtainable without GitHub.
+
+**AC5 — still a widening, not a swap.** Same two suites, host (git 2.43.0), non-zero offset:
+
+```
+$ TZ=Europe/Rome npx jest test/core/memory-approve.test.ts test/memory/versioning-audit-trail.test.ts
+Test Suites: 2 passed, 2 total
+Tests:       19 passed, 19 total
+EXIT=0
+```
+
+Green before the change (recorded in `### red`) and green after — the `+02:00` rendering the developer
+machine produces is still accepted. Together with the literal probe in `### red` (a zone-less string and
+a ` UTC` suffix are both still rejected by the replacement), the assertion still pins "ISO-8601 with an
+explicit zone"; only the spelling of a zero zone was widened.
+
+#### BDD acceptance scenarios covered by the two repaired suites
+
+| Feature file | Scenario | Test that covers it (passing) |
+|---|---|---|
+| `P1.2-versioning-audit-trail.feature` | `Every state change records author and timestamp` | `test/memory/versioning-audit-trail.test.ts` → `P1.2 — Every state change records author and timestamp (BDD scenario 1) › a draft -> pending change committed via commitPaths is fully attributable and references the doc id + new state` (the repaired assertion) |
+| `P1.2-versioning-audit-trail.feature` | `Audit trail completeness across pillars` | same file → `P1.2 — Audit trail completeness across pillars (BDD scenario 2) › changes to a DNA, a directive, and a workflow file are all 100% attributable — no "unknown author"` |
+| `P1.7-memory-approve.feature` | `Approve a pending document with a reason` | `test/core/memory-approve.test.ts` → `CORE_MODULES memory.memoryApprove — P1.7 fit criteria › P1.7 sc.1: approves a pending document with a reason — one commit recording approver, timestamp and reason, exit 0` (the repaired assertion) |
+
+Both scenarios' other assertions are untouched; the repair only changes which *spelling* of a zero zone
+the ISO-8601 check accepts, so no scenario's coverage is weakened.
+
+### refactor — role: developer
+
+Nothing to refactor: the change is two assertion literals and two comments, already in their final
+shape, and there is no production code in the diff. The phase is therefore only its gates. All run in
+this worktree at `a03696d`, after `git merge main` reported `Already up to date.` (`main` is still
+`0cf643f`, so the gates were run against the merged state):
+
+| Gate | Command | Result |
+|---|---|---|
+| full suite | `npx jest` | **exit 0** — `Test Suites: 104 passed, 104 total`, `Tests: 1697 passed, 1697 total` |
+| coverage | `npx jest --coverage` | **exit 0** — `All files | 98.58 | 92.58 | 98.81 | 99.18` (stmt/branch/func/line), threshold 80; non-regressing (the diff adds no `src/` line, so the denominator is unchanged) |
+| build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | **exit 0** |
+| root typecheck | `npx tsc --noEmit -p tsconfig.json` | **exit 0** — `bug-026` stays closed; `test/**` is not typechecked by jest, so this is the gate that covers the two edited test sources |
+| lint | `npm run lint` | **exit 0** (`lint.clean`, hard-reject) |
+| API docs | `npm run docs:api` | **exit 0** (`docs.api.*`, hard-reject) |
+| worktree clean | `git status --porcelain` | empty — `dist/` and `coverage/` are gitignored and (thanks to `--user` on every docker run) owned by the developer, not root |
+
+AC4 re-run after the change, to close it on the final tree rather than on the pre-fix one:
+
+```
+$ grep -rn '\[+-\]\\d{2}:\\d{2}' test/ src/
+test/core/memory-approve.test.ts:168          (?:Z|[+-]\d{2}:\d{2})   ← fixed
+test/core/memory-history.test.ts:77           (?:Z|[+-]\d{2}:\d{2})   ← already correct
+test/cli/program.integration.test.ts:471      (?:Z|[+-]\d{2}:\d{2})   ← already correct
+test/memory/versioning-audit-trail.test.ts:61 (?:Z|[+-]\d{2}:\d{2})   ← fixed
+```
+
+Four hits, four alternations: no occurrence of the narrow literal remains anywhere in `test/` or `src/`.
