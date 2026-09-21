@@ -25,7 +25,8 @@ import {
   renderCustomDirective,
 } from '../directives/create';
 import { withAssignedDirectives } from '../directives/roles-edit';
-import { commitPaths, documentExists, readDocument, StorageError, writeDocument } from '../storage';
+import type { RolesYaml } from '../directives/schema';
+import { commitPaths, documentExists, readDocument, removeDocument, StorageError, writeDocument } from '../storage';
 import {
   findMemoryDocumentById,
   formatMemoryCommitMessage,
@@ -51,13 +52,16 @@ import {
   loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
+  loadRolesYaml,
   loadWorkflowsYaml,
   type WorkflowsLoadResult,
 } from './loaders';
 import { loadDirectiveListing, type DirectiveListing } from './directives-list';
-import { checkAssignable, updateRoleAssignments } from './directive-assign';
+import { selectDirectivesById } from './context';
+import { checkAssignable, checkUnreferenced, ROLES_YAML_PATH, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
+import { requireCustomAsset } from './builtin-asset';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
@@ -1121,6 +1125,99 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
 };
 
 /**
+ * `wingfoil directive remove <name>` params (P3.3, task-052-directive-remove). Unlike `directive
+ * create`/`directive assign`, the name rides the generic bare `positional` seam (task-026's
+ * `ParamsContext.positional`), not `--name`: `X_cli-cmds.md` and the P3.3 BDD both spell the
+ * invocation `wingfoil directive remove <NAME>`, and spec-008-cli-grammar §7's bare-`<id>` rule
+ * applies — the noun already scopes what the argument is.
+ */
+export interface DirectiveRemoveParams {
+  readonly root: string;
+  readonly positional?: string;
+}
+
+/** `directive remove` success shape: the name removed and the root-relative path that was deleted. */
+export interface DirectiveRemoveResult {
+  readonly name: string;
+  readonly path: string;
+}
+
+/**
+ * `directive remove` `CoreOperation.fn` (P3.3, `mutates: true`; spec-006 §3 row `directiveRemove`,
+ * module `directive` per dl-041 B). The first operation in the system that DELETES a file, and the
+ * one that completes **REQ-SEC-07**: `task-042-immutable-builtin-assets` shipped clause (a) as the
+ * `requireCustomAsset` primitive, and `dl-030-req-sec-07-referenced-asset-ownership` (`ready`,
+ * option (b)) assigns clause (b)'s directive half here. Both are enforced, in this order, and both
+ * strictly **before** anything on disk changes:
+ *
+ * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
+ * 2. `<name>` presence — a missing or blank positional is a `UsageError` → exit **2**
+ *    (`missing required argument: directive remove <name>`, the `memory submit <id>` precedent).
+ * 3. **Resolve the name to a real file**, never to a constructed path. `loadDirectives` reads every
+ *    installed directive and {@link selectDirectivesById} picks the winner for that id under
+ *    `dl-037`'s custom-wins precedence (`src/core/context.ts` — the same primitive `directives list`
+ *    and context assembly use, so the rule is implemented once). No match is a domain `NOT_FOUND`
+ *    with P3.2's wording, reused: `unknown directive: <name>`. Because the path comes from a file
+ *    that was just read, a traversal-shaped argument can never reach the filesystem — it simply
+ *    resolves to nothing.
+ * 4. **REQ-SEC-07 clause (a)** — `requireCustomAsset('directive', <that file's path>)`. Passing the
+ *    RESOLVED path rather than the bare name is what makes P3.3's pinned
+ *    `built-in directives cannot be removed` fire instead of the primitive's generic refusal; task-042's
+ *    reviewer recorded that name→path gap as this task's hand-off. Since `task-057` a fresh project
+ *    really does carry six built-ins, so the scenario is exercised against the real scaffold.
+ * 5. **REQ-SEC-07 clause (b)** — {@link checkUnreferenced} over `roles.yaml`: a role (or `global`)
+ *    that still binds the id refuses the removal, naming the referrer. An absent `roles.yaml` means
+ *    "no bindings yet" (task-051/053), not a failure. Note the interaction with step 4: a custom file
+ *    SHADOWING a built-in is removable, so removing it changes which file wins resolution — that is
+ *    dl-037's precedence working as specified, and the built-in is left byte-identical.
+ * 6. **Delete + commit** — `removeDocument` then `commitPaths` on the ONE scoped path, producing
+ *    exactly one commit `wf(directive): remove <name>`; the sha rides `CoreResult.commit`, the same
+ *    shape every other mutating op returns. `commitPaths` stages with `git add -- <path>`, which
+ *    records the deletion, and commits with `git commit --only -- <path>` (bug-027), so nothing else
+ *    a caller had staged is swept in.
+ *
+ * `roles.yaml` is never written: P3.3 refuses a still-assigned directive rather than unbinding it, so
+ * this operation has no interaction with the comment-preserving `roles.yaml` writer at all.
+ */
+const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params) => {
+  const { root, positional: name } = params as DirectiveRemoveParams;
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  if (name === undefined || name.trim().length === 0) {
+    throw new UsageError('missing required argument: directive remove <name>');
+  }
+
+  const directiveFiles = loadOrError(() => loadDirectives(root));
+  if (!directiveFiles.ok) return directiveFiles;
+  const target = selectDirectivesById(directiveFiles.value, new Set([name])).byId.get(name);
+  if (target === undefined) {
+    return coreErr({ code: 'NOT_FOUND', message: `unknown directive: ${name}` });
+  }
+
+  const custom = requireCustomAsset('directive', target.path);
+  if (!custom.ok) return custom;
+
+  let roles: RolesYaml | undefined;
+  if (documentExists(join(root, ROLES_YAML_PATH))) {
+    const loaded = loadOrError(() => loadRolesYaml(root));
+    if (!loaded.ok) return loaded;
+    roles = loaded.value;
+  }
+  const referrer = checkUnreferenced(roles, name);
+  if (referrer) return coreErr(referrer);
+
+  // `DirectiveFile.path` is built with the PLATFORM separator (`join('directives', …)` in
+  // `./loaders.ts`), so re-spell it with `/` for the value we return and the path we stage — git
+  // speaks POSIX separators, and the payload must not differ by platform (REQ-SYS-07).
+  const relativePath = ['.wingfoil', ...target.path.split(/[\\/]/)].join('/');
+  removeDocument(join(root, relativePath));
+  const message = `wf(directive): remove ${name}`;
+  const sha = commitPaths(root, [relativePath], message);
+  return coreOk({ name, path: relativePath }, { sha, message });
+};
+
+/**
  * `directives list` `CoreOperation.fn` (P3.4, `mutates: false` — spec-006 §3 directives table). Wraps
  * `loadDirectiveListing` (`./directives-list.ts`, which carries the annotation rules and the
  * rationale for not deduplicating shadowed ids) in the same `loadOrError` mapping every read-only
@@ -1315,6 +1412,12 @@ export const CORE_MODULES: readonly CoreModule[] = [
         ],
         fn: directiveAssignFn,
       },
+      // P3.3 (task-052-directive-remove) — on this SINGULAR module per dl-041 B, so `deriveVerb`
+      // yields `remove`: CLI `wingfoil directive remove <name>`, Tool `directive.remove`. It declares
+      // no flags and no value options: the name rides the bare `positional` seam (spec-008 §7), like
+      // `memory submit <id>`. Completes REQ-SEC-07 for the directive surface (clause (a) via
+      // task-042's `requireCustomAsset`, clause (b) via `checkUnreferenced` — dl-030).
+      directiveRemove: { name: 'directiveRemove', mutates: true, fn: directiveRemoveFn },
     },
   },
 ];

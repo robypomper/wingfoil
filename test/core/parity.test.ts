@@ -129,7 +129,7 @@ describe('REQ-SYS-05 parity — fixture registry (representative mutating + read
 });
 
 describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODULES)', () => {
-  it('reports 0 unmatched operations — the mutating ops `directive assign`, `directive create`, `dna set`, `memory add`, `memory submit`, `memory reject` + `memory deprecate` are on BOTH surfaces (task-051/050/025/020/045/047/048)', async () => {
+  it('reports 0 unmatched operations — the nine mutating ops `directive assign`, `directive create`, `directive remove`, `dna set`, `memory add`, `memory approve`, `memory deprecate`, `memory reject` + `memory submit` are on BOTH surfaces (task-051/050/052/025/020/046/048/047/045)', async () => {
     const cli = actualMutatingCliCommands(CORE_MODULES).sort();
     const tools = (await actualMcpToolsAsCliForm(CORE_MODULES)).sort();
 
@@ -139,13 +139,24 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // task-051-directive-assign adds `directive assign` (P3.2); task-045-memory-submit adds
     // `memory submit` (P1.6); task-046-memory-approve adds `memory approve` (P1.7);
     // task-047-memory-reject adds `memory reject` (P1.8); task-048-memory-deprecate adds
-    // `memory deprecate` (P1.9).
-    expect(cli).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory approve', 'memory deprecate', 'memory reject', 'memory submit']);
-    expect(tools).toEqual(['directive assign', 'directive create', 'dna set', 'memory add', 'memory approve', 'memory deprecate', 'memory reject', 'memory submit']);
+    // `memory deprecate` (P1.9); task-052-directive-remove adds `directive remove` (P3.3).
+    const expected = [
+      'directive assign',
+      'directive create',
+      'directive remove',
+      'dna set',
+      'memory add',
+      'memory approve',
+      'memory deprecate',
+      'memory reject',
+      'memory submit',
+    ];
+    expect(cli).toEqual(expected);
+    expect(tools).toEqual(expected);
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
-  it('the read-only production operations are Resources, the mutating ops (`directive assign`, `directive create`, `dna set`, `memory add`, `memory submit`, `memory reject`) are Tools, never both', async () => {
+  it('the read-only production operations are Resources, the nine mutating ops (`directive assign`, `directive create`, `directive remove`, `dna set`, `memory add`, `memory approve`, `memory deprecate`, `memory reject`, `memory submit`) are Tools, never both', async () => {
     const server = new McpServer({ name: 'parity-test-prod', version: '0.0.0' });
     registerCoreModules(server, CORE_MODULES as CoreModule[], {
       resolveRoot: () => '/fixture-root',
@@ -166,15 +177,16 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'wingfoil://paths',
       'wingfoil://workflow/list',
     ]);
-    // `directive.directiveAssign`, `directive.directiveCreate`, `dna.dnaSet`, `memory.memoryAdd`,
-    // `memory.memorySubmit`, `memory.memoryReject` + `memory.memoryDeprecate` are `mutates: true` →
-    // registered ONLY as Tools (never Resources), so they do NOT appear above; they are the Tools the
-    // surface now advertises.
+    // `directive.directiveAssign`, `directive.directiveCreate`, `directive.directiveRemove`,
+    // `dna.dnaSet`, `memory.memoryAdd`, `memory.memoryApprove`, `memory.memoryDeprecate`,
+    // `memory.memoryReject` + `memory.memorySubmit` are `mutates: true` → registered ONLY as Tools
+    // (never Resources), so they do NOT appear above; they are the Tools the surface now advertises.
     expect(hasAnyMutatingOperation(CORE_MODULES)).toBe(true);
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'directive.assign',
       'directive.create',
+      'directive.remove',
       'dna.set',
       'memory.add',
       'memory.approve',
@@ -183,6 +195,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'memory.submit',
     ]);
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/assign');
+    expect(resources.map((r) => r.uri)).not.toContain('wingfoil://directive/remove');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/approve');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/deprecate');
     expect(resources.map((r) => r.uri)).not.toContain('wingfoil://memory/reject');
