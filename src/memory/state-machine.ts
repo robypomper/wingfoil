@@ -350,7 +350,8 @@ function contractTarget(machine: StateMachine, currentState: string, op: Transit
  * exit code is `1`. `<to>` is computed by {@link contractTarget}.
  *
  * @throws {@link ../validation.ValidationError} `E_INVALID_TRANSITION` (exit `1`) as above.
- * @throws `Error` when `typeName` is not registered or no machine applies (see {@link resolveStateMachine}).
+ * @throws `Error` when `typeName` is not registered (see {@link resolveStateMachine}). A registered type
+ *   can no longer fail to resolve a machine: REQ-STATE-08's built-in default is the last fallback.
  */
 export function resolveTypeTransition(
   memoryYaml: MemoryYaml,
