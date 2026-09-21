@@ -210,3 +210,84 @@ None of them reads a date. `%aI` appears in `src/memory/audit.ts` and `src/memor
 untouched: `auditAttribution`'s `valid` flag comes from `isValidAttribution(authorName, authorEmail)`,
 which never looks at the date. So nothing in `src/` narrows the zone, and there is no second finding to
 file from this bullet.
+
+### red — role: developer
+
+**No `test(...)` commit exists for this phase, by construction.** The red-first ACs (AC2/AC3) are about
+two assertions that are already written and already fail; the failing test is the artefact under
+repair, so writing a *new* failing test would either duplicate it or be the fabricated red the
+`testing` directive forbids. `red` is therefore a recorded run of the existing suites on the pre-fix
+tree, at `c5a6643` (`wf(bug): sync bug-057 …`, i.e. before any test source was touched).
+
+#### AC2/AC3 — the red run, in a git ≥ 2.55 UTC environment
+
+Command (the *identical* string is re-run after the fix in `### green`; only the tree differs):
+
+```
+$ docker run --rm \
+    -v /home/robypomper/Workspaces/.wf2-wt/task-081:/home/robypomper/Workspaces/.wf2-wt/task-081 \
+    -v /home/robypomper/Workspaces/WingFoil2/.git:/home/robypomper/Workspaces/WingFoil2/.git \
+    -w /home/robypomper/Workspaces/.wf2-wt/task-081 \
+    --user "$(id -u):$(id -g)" -e HOME=/tmp -e TZ=UTC \
+    catthehacker/ubuntu:act-24.04 \
+    bash -lc 'git --version; node --version; npx jest test/core/memory-approve.test.ts test/memory/versioning-audit-trail.test.ts; echo "EXIT=$?"'
+```
+
+(The second mount is the real `.git` directory this worktree's `.git` file points at; without it git
+commands inside the container cannot resolve the worktree. `--user` keeps every file jest writes —
+`dist/` from `test/global-setup.cjs` — owned by the developer, not root.)
+
+Result on the pre-fix tree:
+
+```
+git version 2.55.0
+v24.19.0
+  ● P1.2 — Every state change records author and timestamp (BDD scenario 1) › a draft -> pending change committed via commitPaths is fully attributable and references the doc id + new state
+    expect(received).toMatch(expected)
+    Expected pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
+    Received string:  "2026-09-21T20:00:09Z"
+      at Object.<anonymous> (test/memory/versioning-audit-trail.test.ts:61:26)
+
+FAIL test/core/memory-approve.test.ts
+  ● CORE_MODULES memory.memoryApprove — P1.7 fit criteria › P1.7 sc.1: approves a pending document with a reason — one commit recording approver, timestamp and reason, exit 0
+    expect(received).toMatch(expected)
+    Expected pattern: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
+    Received string:  "2026-09-21T20:00:09Z"
+      at Object.<anonymous> (test/core/memory-approve.test.ts:168:57)
+
+Test Suites: 2 failed, 2 total
+Tests:       2 failed, 17 passed, 19 total
+EXIT=1
+```
+
+Exactly the two assertions `bug-057` names, failing on exactly the string it predicts, with the git
+version printed in the same run. The other 17 tests in those two suites pass, including the two
+zone-agnostic assertions the AC4 sweep cleared.
+
+#### AC5 — the host baseline, so the fix can be shown to be a widening
+
+Same two suites on the same pre-fix tree, on the host (git 2.43.0) under a non-zero offset:
+
+```
+$ TZ=Europe/Rome npx jest test/core/memory-approve.test.ts test/memory/versioning-audit-trail.test.ts
+Test Suites: 2 passed, 2 total
+Tests:       19 passed, 19 total
+EXIT=0
+```
+
+Green before the change; it must still be green after, or the change would be a swap rather than a
+widening. Re-run in `### green`.
+
+#### The literals themselves, for the record
+
+```
+$ node -e 'const cur=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/, fix=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/; …'
+2026-09-21T19:58:45Z         current: false  fixed: true
+2026-09-21T21:57:15+02:00    current: true   fixed: true
+2026-09-21T19:58:45          current: false  fixed: false
+2026-09-21T19:58:45 UTC      current: false  fixed: false
+```
+
+The last two rows are the point of the exercise: the replacement still **requires** an explicit zone,
+so this widens the accepted set by exactly one legal ISO-8601 spelling and does not degrade the
+assertion into "any string".
