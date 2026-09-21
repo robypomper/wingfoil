@@ -294,3 +294,18 @@ registry — `deriveVerb('directive', 'directiveRemove') === 'remove'` and
 `deriveMcpToolName('directive', 'remove') === 'directive.remove'`, asserted in
 `test/core/directive-remove.test.ts`. No other cell changed; edited in place without a supersede or a
 state change, per the same precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-21) — P3.7 registers no operation; `directiveAssign` serves it, per
+`task-056-role-based-directive-assignment`.** Feature **P3.7** (US-4-06, "bind multiple directives to
+one role", BDD `p3-directives/P3.7-role-based-assignment.feature`) has **no row of its own in §3, and
+needs none**: it is `directiveAssign` with a comma-separated `--directive` value
+(`wingfoil directive assign --directive testing,code-quality,security --role developer`), not a fourth
+directive verb. The evidence is unanimous across the documents that fix the surface —
+`spec-008-cli-grammar` §1 enumerates the singular noun's verbs as `create`, `assign`, `remove`;
+`docs/01_vision/X_cli-cmds.md:95-98` lists the same three plus `directives list`; and
+`docs/01_vision/06_features.md:67,201` describes P3.7 as a *relationship* ("one role → multiple
+directives"), not a command. Recorded here because the absence of a row is otherwise indistinguishable
+from an omission: a future reader looking for P3.7's operation should find this note instead of adding
+one. The `directiveAssign` row is unchanged (its `module`, `mutates`, CLI and MCP cells all still hold);
+only the payload behind it widened, and §3 pins no result types. Edited in place without a supersede or
+a state change, per the same `spec-001` precedent the 2026-09-17 revision cites.

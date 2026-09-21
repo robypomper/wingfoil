@@ -887,6 +887,53 @@ types:
       expect(runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer').status).toBe(0);
       expect(head()).toBe(before);
     });
+
+    // task-056-role-based-directive-assignment (P3.7, US-4-06) — the SAME verb, `--directive` widened
+    // to a comma-separated list. No new command is registered, which is half of what these cases pin.
+    it('P3.7 Sc.1: `--directive testing,security,documentation` binds all three in one commit', () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing,security,documentation', '--role', 'developer');
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(directive): assign testing, security, documentation to developer');
+      const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
+        encoding: 'utf-8',
+      }).trim();
+      expect(changed).toBe('.wingfoil/roles.yaml');
+
+      const listed = runCliInRoot(repo, 'directives', 'list', '--role', 'developer', '--format', 'json');
+      expect(listed.status).toBe(0);
+      const { entries } = JSON.parse(listed.stdout) as { entries: Array<{ frontmatter: { id: string } }> };
+      const ids = entries.map((e) => e.frontmatter.id);
+      expect(ids).toEqual(expect.arrayContaining(['testing', 'security', 'documentation']));
+    });
+
+    it('P3.7 Sc.3: an unknown id anywhere in the list exits 1, names it, and persists nothing', () => {
+      const head = (): string => execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+      const before = head();
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing,ghost', '--role', 'developer');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe('error: unknown directive: ghost\n');
+      expect(result.stdout).toBe('');
+      expect(head()).toBe(before);
+    });
+
+    it('P3.7: the success payload carries `directives` as a list under --format json', () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', 'testing,security', '--role', 'developer', '--format', 'json');
+      expect(result.status).toBe(0);
+      const payload = JSON.parse(result.stdout) as { directives: string[]; role: string; assignments: string[] };
+      expect(payload.directives).toEqual(['testing', 'security']);
+      expect(payload.role).toBe('developer');
+      expect(payload.assignments).toEqual(expect.arrayContaining(['testing', 'security']));
+    });
+
+    it('P3.7 D3: a blank `--directive` is a usage error (exit 2), not an `unknown directive: ` failure', () => {
+      const result = runCliInRoot(repo, 'directive', 'assign', '--directive', '', '--role', 'developer');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: --directive\n');
+      expect(result.stdout).toBe('');
+    });
   });
 
   // task-052-directive-remove (P3.3, BDD `p3-directives/P3.3-directive-remove.feature`) — the bare

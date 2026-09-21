@@ -6,6 +6,11 @@
  * (exit codes), REQ-SYS-08 (the role must be defined in `dna.yaml`), REQ-SEC-01 (identity pre-flight)
  * — task-051-directive-assign.
  *
+ * task-056-role-based-directive-assignment extends the SAME operation with P3.7 (US-4-06,
+ * `p3-directives/P3.7-role-based-assignment.feature`, all three scenarios): `--directive` takes a
+ * comma-separated list. P3.7 registers no operation of its own, so the registration block below is
+ * unchanged — which the P3.7 describe relies on rather than restating.
+ *
  * Exercises the REAL registered `CORE_MODULES` operation against THROWAWAY temp git repos carrying the
  * real `wingfoil init` scaffold, never this repository's own `.wingfoil/`.
  *
@@ -18,7 +23,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CORE_MODULES, initWingfoilProject, loadRolesYaml } from '../../src/core';
+import { CORE_MODULES, initWingfoilProject, loadDirectiveListing, loadRolesYaml } from '../../src/core';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
 import { deriveVerb, enumerateOperations } from '../../src/core/registry';
@@ -118,8 +123,10 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(exitCodeForResult(result)).toBe(0);
+    // task-056 (P3.7) widened the payload's `directive: string` to `directives: readonly string[]`
+    // (D4) — a single-id request is simply a one-element list.
     expect(result.value).toEqual({
-      directive: 'testing',
+      directives: ['testing'],
       role: 'developer',
       assignments: ['code-quality', 'determinism', 'testing'],
     });
@@ -202,7 +209,7 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(exitCodeForResult(again)).toBe(0);
     expect(again.commit).toBeUndefined();
     expect(again.value).toEqual({
-      directive: 'testing',
+      directives: ['testing'],
       role: 'developer',
       assignments: ['code-quality', 'determinism', 'testing'],
     });
@@ -256,6 +263,244 @@ describe('CORE_MODULES directive.directiveAssign — P3.2 scenarios (initialized
     expect(result.error.code).toBe('VALIDATION');
     expect(readRoles(repo)).toBe('assignments:\n  developer: not-a-list\n');
     expect(head(repo)).toBe(sha);
+  });
+});
+
+// task-056-role-based-directive-assignment (P3.7, US-4-06) — multi-directive assignment, per
+// `docs/02_requirements/02_bdd/features/p3-directives/P3.7-role-based-assignment.feature` (all three
+// scenarios). P3.7 registers NO new operation (`spec-006-core-domain-api` §3 has three `directive`
+// rows and none for P3.7): it widens `directive assign`'s `--directive` to a comma-separated list.
+describe('CORE_MODULES directive.directiveAssign — P3.7 scenarios (multi-directive assignment)', () => {
+  let repo: string;
+
+  /**
+   * The scaffold with `developer` REMOVED from `assignments` altogether — the precondition P3.7 Sc.1's
+   * "lists exactly those 3" requires (the scaffold binds developer to three directives already), and
+   * simultaneously the dl-029 "role defined in DNA, absent from roles.yaml" insert path with a LIST.
+   */
+  function makeRepoWithoutDeveloper(): string {
+    const created = makeInitializedRepo();
+    const scaffold = readRoles(created);
+    const edited = scaffold.replace('  developer:\n    - code-quality\n    - testing\n    - determinism\n', '');
+    if (edited === scaffold) throw new Error('fixture bug: scaffold roles.yaml shape changed');
+    writeFixtureFile(created, ROLES, edited);
+    commitAll(created, 'fixture: developer has no assignments entry');
+    return created;
+  }
+
+  beforeEach(() => {
+    repo = makeRepoWithoutDeveloper();
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  // BDD Scenario 1: "Bind multiple directives to one role".
+  it('Sc.1: assigns testing, code-quality and security to developer in ONE invocation — the role lists exactly those 3', async () => {
+    const before = head(repo);
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,code-quality,security', role: 'developer' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(exitCodeForResult(result)).toBe(0);
+    expect(result.value).toEqual({
+      directives: ['testing', 'code-quality', 'security'],
+      role: 'developer',
+      assignments: ['testing', 'code-quality', 'security'],
+    });
+
+    // "role 'developer' lists exactly those 3 directives" — read back through the real loader.
+    expect(loadRolesYaml(repo).assignments.developer).toEqual(['testing', 'code-quality', 'security']);
+
+    // D5 — one commit, subject naming every id in argument order, staging only roles.yaml.
+    const message = 'wf(directive): assign testing, code-quality, security to developer';
+    expect(result.commit).toEqual({ sha: head(repo), message });
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe(message);
+    expect(gitOut(repo, ['rev-list', '--count', `${before}..HEAD`])).toBe('1');
+    expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
+    expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  // BDD Scenario 2: "Binding is idempotent" — the LIST form (the single-id form is task-051's AC5).
+  it('Sc.2: re-assigning the same list exits 0, leaves the file byte-identical and commits nothing', async () => {
+    const first = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,code-quality', role: 'developer' },
+    });
+    expect(first.ok).toBe(true);
+    const bytes = readRoles(repo);
+    const sha = head(repo);
+
+    const again = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,code-quality', role: 'developer' },
+    });
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect(exitCodeForResult(again)).toBe(0);
+    expect(again.commit).toBeUndefined();
+    expect(readRoles(repo)).toBe(bytes);
+    expect(head(repo)).toBe(sha);
+    const listed = loadRolesYaml(repo).assignments.developer ?? [];
+    expect(listed.filter((id) => id === 'testing')).toHaveLength(1);
+    expect(listed.filter((id) => id === 'code-quality')).toHaveLength(1);
+  });
+
+  it('Sc.2: a PARTIALLY overlapping list appends only the ids not already bound, leaving the existing ones in place', async () => {
+    const seed = await directiveAssignFn()({ root: repo, options: { directive: 'determinism', role: 'developer' } });
+    expect(seed.ok).toBe(true);
+    const before = readRoles(repo);
+
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'code-quality,determinism,security', role: 'developer' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // `determinism` keeps its position and is NOT re-appended; the two new ids arrive in argument order.
+    expect(loadRolesYaml(repo).assignments.developer).toEqual(['determinism', 'code-quality', 'security']);
+    expect(result.value).toEqual({
+      directives: ['code-quality', 'determinism', 'security'],
+      role: 'developer',
+      assignments: ['determinism', 'code-quality', 'security'],
+    });
+    // Exactly two added lines, nothing removed or moved.
+    expect(gitOut(repo, ['diff', '--numstat', 'HEAD~1', 'HEAD'])).toBe(`2\t0\t${ROLES}`);
+    // Anchored on the `developer:` key — `- determinism` also occurs under `architect:`.
+    expect(readRoles(repo)).toBe(
+      before.replace(
+        '  developer:\n    - determinism\n',
+        '  developer:\n    - determinism\n    - code-quality\n    - security\n',
+      ),
+    );
+  });
+
+  it('assigns a duplicated id once, and names it once in the commit subject', async () => {
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,testing,security,testing', role: 'developer' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({
+      directives: ['testing', 'security'],
+      role: 'developer',
+      assignments: ['testing', 'security'],
+    });
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('wf(directive): assign testing, security to developer');
+  });
+
+  it('trims whitespace around the ids of the list', async () => {
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: ' testing , security ', role: 'developer' },
+    });
+    expect(result.ok).toBe(true);
+    expect(loadRolesYaml(repo).assignments.developer).toEqual(['testing', 'security']);
+  });
+
+  // BDD Scenario 3: "Error - the assignment set contains an unknown directive".
+  it('Sc.3: one unknown id in the list persists NO partial assignment — exit 1, message names the unknown id', async () => {
+    const before = readRoles(repo);
+    const sha = head(repo);
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,ghost', role: 'developer' },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({ code: 'NOT_FOUND', message: 'unknown directive: ghost' });
+    expect(exitCodeForResult(result)).toBe(1);
+    // "no partial assignment is persisted": byte-identical file, no commit, and `testing` is still unbound.
+    expect(readRoles(repo)).toBe(before);
+    expect(head(repo)).toBe(sha);
+    expect(loadRolesYaml(repo).assignments.developer).toBeUndefined();
+  });
+
+  it('Sc.3: names the FIRST unknown id in argument order when several are unknown (deterministic — REQ-SYS-07)', async () => {
+    const first = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'ghost,phantom', role: 'developer' },
+    });
+    expect(first.ok).toBe(false);
+    if (first.ok) return;
+    expect(first.error.message).toBe('unknown directive: ghost');
+
+    const reversed = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'phantom,ghost', role: 'developer' },
+    });
+    expect(reversed.ok).toBe(false);
+    if (reversed.ok) return;
+    expect(reversed.error.message).toBe('unknown directive: phantom');
+  });
+
+  it('checks the role before any id of the list (REQ-SYS-08 first)', async () => {
+    const result = await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,ghost', role: 'wizard' },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe("unknown role 'wizard' (not defined in dna.yaml)");
+  });
+
+  // D3 [AUTHORING] — a `--directive` value that contributes no ids is treated as an absent argument.
+  // This CHANGES a task-051 behaviour: `--directive ""` used to reach `checkAssignable` and yield
+  // exit 1 `unknown directive: ` (an empty id in the message). No test pinned that.
+  it.each(['', '   ', ',', ' , , '])(
+    'D3: `--directive %p` contributes no ids and is a usage error (exit 2), writing nothing',
+    async (directive) => {
+      const before = readRoles(repo);
+      const sha = head(repo);
+      const thrown = await thrownBy(directiveAssignFn()({ root: repo, options: { directive, role: 'developer' } }));
+      expect(thrown).toBeInstanceOf(UsageError);
+      expect(exitCodeForThrow(thrown)).toEqual({ reason: 'missing required argument: --directive', exitCode: 2 });
+      expect(readRoles(repo)).toBe(before);
+      expect(head(repo)).toBe(sha);
+    },
+  );
+
+  // REQ-SYS-07 — the resulting order is a pure function of ARGUMENT order, never of the alphabet or
+  // of `roles.yaml`'s mapping order. A stray `.sort()` anywhere on this path fails this case.
+  it('orders the appended ids by argument order, not alphabetically', async () => {
+    const other = makeRepoWithoutDeveloper();
+    try {
+      await directiveAssignFn()({ root: repo, options: { directive: 'security,code-quality', role: 'developer' } });
+      await directiveAssignFn()({ root: other, options: { directive: 'code-quality,security', role: 'developer' } });
+      expect(loadRolesYaml(repo).assignments.developer).toEqual(['security', 'code-quality']);
+      expect(loadRolesYaml(other).assignments.developer).toEqual(['code-quality', 'security']);
+      expect(readRoles(repo)).not.toBe(readRoles(other));
+    } finally {
+      removeTempDir(other);
+    }
+  });
+
+  it('writes byte-identical roles.yaml for the same list in two independent repositories (REQ-SYS-07)', async () => {
+    const other = makeRepoWithoutDeveloper();
+    try {
+      const options = { directive: 'testing,security', role: 'developer' };
+      await directiveAssignFn()({ root: repo, options });
+      await directiveAssignFn()({ root: other, options });
+      expect(readRoles(repo)).toBe(readRoles(other));
+    } finally {
+      removeTempDir(other);
+    }
+  });
+
+  // dl-051 / spec-012 §5.1 (task-055): `checkAssignable` requires every id to exist on disk BEFORE the
+  // write, so `directive assign` can never create a dangling binding — no matter how long the list.
+  it('creates no dangling-binding warning: every assigned id resolves to a directive file', async () => {
+    await directiveAssignFn()({
+      root: repo,
+      options: { directive: 'testing,code-quality,security', role: 'developer' },
+    });
+    const listing = loadDirectiveListing(repo, 'developer');
+    expect(listing.warnings.filter((warning) => warning.includes('has no directive file'))).toEqual([]);
+    expect(listing.warnings.filter((warning) => warning.includes('no directives assigned to role'))).toEqual([]);
   });
 });
 

@@ -24,7 +24,7 @@ import {
   isValidDirectiveName,
   renderCustomDirective,
 } from '../directives/create';
-import { withAssignedDirectives } from '../directives/roles-edit';
+import { parseDirectiveIds, withAssignedDirectives } from '../directives/roles-edit';
 import type { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, removeDocument, StorageError, writeDocument } from '../storage';
 import {
@@ -1070,35 +1070,56 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
 };
 
 /**
- * `wingfoil directive assign --directive <id> --role <role>` params (P3.2, task-051-directive-assign).
- * Both values ride the value-bearing `ParamsContext.options` seam, as `directive create`'s `--name`
- * does; {@link directiveAssignFn} rejects an absent one as a usage error (exit 2).
+ * `wingfoil directive assign --directive <id>[,<id>...] --role <role>` params (P3.2,
+ * task-051-directive-assign; the comma-separated list is P3.7,
+ * task-056-role-based-directive-assignment). Both values ride the value-bearing
+ * `ParamsContext.options` seam, as `directive create`'s `--name` does — the list travels *inside* the
+ * `--directive` value rather than as a repeated flag, because that seam carries one `string` per
+ * option name; {@link directiveAssignFn} rejects an absent or id-less one as a usage error (exit 2).
  */
 export interface DirectiveAssignParams {
   readonly root: string;
   readonly options?: Readonly<Record<string, string>>;
 }
 
-/** `directive assign` success shape: the binding requested and the role's resulting assignment list. */
+/**
+ * `directive assign` success shape: the binding requested and the role's resulting assignment list.
+ *
+ * `directives` is always a **list** — the ids `--directive` named, trimmed, de-duplicated, in
+ * argument order — even for a single-id request. It was `directive: string` while only P3.2 existed
+ * (task-051); P3.7 (task-056) widened it rather than varying the payload's shape with the number of
+ * ids, which would be hostile to `--format json` consumers and to REQ-SYS-07's "output is a pure
+ * function of the input". `[AUTHORING]`: no spec pins this payload — spec-006 §3's row names the
+ * operation, not its result type.
+ */
 export interface DirectiveAssignResult {
-  readonly directive: string;
+  readonly directives: readonly string[];
   readonly role: string;
   readonly assignments: readonly string[];
 }
 
 /**
- * `directive assign` `CoreOperation.fn` (P3.2, `mutates: true`; spec-006 §3 row `directiveAssign`,
- * module `directive` per dl-041). Same mutating-op order as {@link directiveCreateFn}:
+ * `directive assign` `CoreOperation.fn` (P3.2 **and P3.7**, `mutates: true`; spec-006 §3 row
+ * `directiveAssign`, module `directive` per dl-041). P3.7 (US-4-06, "bind multiple directives to one
+ * role") registers **no operation of its own** — spec-006 §3 has three `directive` rows and none for
+ * it, and `spec-008` §1 / `X_cli-cmds.md` list no fourth directive verb — so it is this operation
+ * with a list-valued `--directive`. Same mutating-op order as {@link directiveCreateFn}:
  *
  * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
- * 2. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2.
+ * 2. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2. A `--directive`
+ *    value that parses to **no ids** (`""`, `"  "`, `","`) counts as absent, the same reading
+ *    `parseTags` takes of an empty `--tags` (`[AUTHORING]`, task-056 D3: before P3.7 such a value
+ *    reached step 3 and failed with an empty id in the message, `unknown directive: `).
  * 3. Load `dna.yaml` and every directive file; `checkAssignable` returns P3.2's exact
  *    `unknown role '<role>' (not defined in dna.yaml)` / `unknown directive: <id>` as `NOT_FOUND`
- *    (exit 1), role first. Nothing has been written at this point.
- * 4. `updateRoleAssignments` appends the id (`withAssignedDirectives`: idempotent, order-preserving)
- *    through the comment-preserving `roles.yaml` writer and makes one commit,
- *    `wf(directive): assign <id> to <role>`, staging only `.wingfoil/roles.yaml`. An already-assigned
- *    directive is a success with no write and no commit (P3.7 "Binding is idempotent").
+ *    (exit 1), role first and then each id in argument order. It validates **every** id before
+ *    anything is written, which is P3.7 Sc.3's "no partial assignment is persisted": one unknown id
+ *    leaves `roles.yaml` byte-identical and commits nothing.
+ * 4. `updateRoleAssignments` appends the ids (`withAssignedDirectives`: idempotent, order-preserving,
+ *    never sorting) through the comment-preserving `roles.yaml` writer and makes ONE commit,
+ *    `wf(directive): assign <id1>, <id2> to <role>`, staging only `.wingfoil/roles.yaml`. A request
+ *    whose ids are all already bound is a success with no write and no commit (P3.7 Sc.2 "Binding is
+ *    idempotent"); a partially overlapping one appends only what is missing.
  */
 const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params) => {
   const { root, options } = params as DirectiveAssignParams;
@@ -1108,6 +1129,8 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
 
   const directive = options?.directive;
   if (directive === undefined) throw new UsageError('missing required argument: --directive');
+  const directives = parseDirectiveIds(directive);
+  if (directives.length === 0) throw new UsageError('missing required argument: --directive');
   const role = options?.role;
   if (role === undefined) throw new UsageError('missing required argument: --role');
 
@@ -1115,13 +1138,13 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
   if (!dna.ok) return dna;
   const directiveFiles = loadOrError(() => loadDirectives(root));
   if (!directiveFiles.ok) return directiveFiles;
-  const invalid = checkAssignable(dna.value, directiveFiles.value, role, [directive]);
+  const invalid = checkAssignable(dna.value, directiveFiles.value, role, directives);
   if (invalid) return coreErr(invalid);
 
-  const message = `wf(directive): assign ${directive} to ${role}`;
-  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, [directive]), message);
+  const message = `wf(directive): assign ${directives.join(', ')} to ${role}`;
+  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, directives), message);
   if (!updated.ok) return updated;
-  return coreOk({ directive, role, assignments: updated.value.assignments }, updated.commit);
+  return coreOk({ directives, role, assignments: updated.value.assignments }, updated.commit);
 };
 
 /**

@@ -1,19 +1,23 @@
 /**
  * task-051-directive-assign (P3.2) — the pure, comment-preserving `roles.yaml` writer
- * (`src/directives/roles-edit.ts`) that `directive assign` uses and that `directive remove` (P3.3,
- * task-052) and multi-directive assignment (P3.7, task-056) are designed to reuse.
+ * (`src/directives/roles-edit.ts`) that `directive assign` uses. Multi-directive assignment (P3.7,
+ * task-056-role-based-directive-assignment) reuses both primitives **unchanged** and adds the third
+ * one below; `directive remove` (P3.3, task-052) reuses neither, since P3.3 refuses a still-assigned
+ * directive rather than unbinding it.
  *
- * Two primitives:
+ * Three primitives:
  * - `withAssignedDirectives(current, ids)` — the set semantics of an assignment: keep the existing
  *   order, append new ids in argument order, never duplicate (P3.7 "Binding is idempotent").
  * - `setRoleAssignmentsInText(text, role, next)` — rewrite `assignments.<role>` to exactly `next`
  *   while every other byte of the file (comments, blank lines, other roles, `global`) is untouched
  *   (the bug-004 / task-063 precedent, applied to `roles.yaml`); `undefined` whenever that cannot be
  *   done provably, so the caller decides the fallback (bug-019: never a silent comment loss).
+ * - `parseDirectiveIds(raw)` — the comma-separated `--directive "a,b,c"` value (P3.7, task-056):
+ *   trimmed, empty segments dropped, de-duplicated keeping the first position.
  */
 import { load } from 'js-yaml';
 
-import { setRoleAssignmentsInText, withAssignedDirectives } from '../../src/directives/roles-edit';
+import { parseDirectiveIds, setRoleAssignmentsInText, withAssignedDirectives } from '../../src/directives/roles-edit';
 
 /** The exact shape `wingfoil init` scaffolds (`rolesYaml()`, src/storage/templates.ts), comments included. */
 const SCAFFOLD = `# Directive role assignments (P3.2/P3.7) — scaffolded by \`wingfoil init\`.
@@ -78,6 +82,44 @@ describe('withAssignedDirectives — assignment set semantics', () => {
     const current = ['a'];
     withAssignedDirectives(current, ['b']);
     expect(current).toEqual(['a']);
+  });
+});
+
+// task-056-role-based-directive-assignment (P3.7, US-4-06) — the `--directive a,b,c` value parser.
+// De-duplication happens HERE, not only in `withAssignedDirectives`, because the parsed list is also
+// what the result payload and the commit subject echo back: `--directive testing,testing` must not
+// produce a subject naming `testing` twice.
+describe('parseDirectiveIds — the comma-separated `--directive` value (P3.7)', () => {
+  it('parses a single id to a one-element list (P3.2 keeps working unchanged)', () => {
+    expect(parseDirectiveIds('testing')).toEqual(['testing']);
+  });
+
+  it('splits on commas, in argument order', () => {
+    expect(parseDirectiveIds('testing,code-quality,security')).toEqual(['testing', 'code-quality', 'security']);
+  });
+
+  it('trims whitespace around every id and around the separators', () => {
+    expect(parseDirectiveIds('  testing , code-quality ,security  ')).toEqual([
+      'testing',
+      'code-quality',
+      'security',
+    ]);
+  });
+
+  it('de-duplicates, keeping the FIRST occurrence position (deterministic echo — REQ-SYS-07)', () => {
+    expect(parseDirectiveIds('testing,code-quality,testing,security,code-quality')).toEqual([
+      'testing',
+      'code-quality',
+      'security',
+    ]);
+  });
+
+  it('drops empty segments rather than producing empty ids', () => {
+    expect(parseDirectiveIds('testing,,security,')).toEqual(['testing', 'security']);
+  });
+
+  it.each(['', '   ', ',', ' , , '])('yields an empty list for a value contributing no ids (%p)', (raw) => {
+    expect(parseDirectiveIds(raw)).toEqual([]);
   });
 });
 
