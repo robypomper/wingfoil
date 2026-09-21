@@ -496,9 +496,24 @@ $ grep -rln 'publish\|npm install -g\|package' docs/02_requirements/02_bdd/featu
 $ grep -rn 'REQ-SYS-09' docs/02_requirements/02_bdd/features/                          # no output
 ```
 
-`REQ-SYS-09` — the requirement the whole publishing chain serves — has no BDD coverage anywhere in the
-feature set, so neither `spec-015` nor any task under it has a scenario to satisfy. That is a gap in
-the requirements chain rather than a finding about this task; it is raised in the final report.
+No `.feature` file mentions publishing, packaging or installation, so neither `spec-015` nor any task
+under it has a scenario to satisfy.
+
+**Correction to the second grep above, before a reviewer has to make it.** `grep -rn 'REQ-SYS-09'`
+returning nothing proves **nothing specific to this requirement** — *no* `REQ-*` code appears in *any*
+feature file:
+
+```
+$ grep -rho 'REQ-[A-Z]*-[0-9]*' docs/02_requirements/02_bdd/features/ | sort -u | wc -l
+0
+```
+
+That is the documented chain working as designed (feature → US → **BDD** → REQ → task: BDD scenarios
+trace from user stories, and `REQ-*` codes are the downstream SARD layer), not a gap. The load-bearing
+check is the **first** grep — no scenario covers the installation surface at all. Whether that is a
+real coverage gap for `REQ-SYS-09` or simply the pillar-shaped feature set excluding distribution is
+not this task's call; it is raised in the final report as an observation, deliberately not as a
+confident finding.
 
 **AC status.** AC1 ✅ · AC2 ✅ (all four facts hold against the code at `b505473`; the stop condition was
 not triggered) · AC3 ✅ · AC4 ✅ (with the `README.md` remainder stated, not implied) · AC5 ✅ · AC6 ✅
