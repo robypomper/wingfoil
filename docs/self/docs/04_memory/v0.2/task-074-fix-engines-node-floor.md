@@ -421,3 +421,86 @@ regenerated lock will pick up `>=22.12.0` automatically and nothing is needed; i
 its lock still carries `>=18.0.0` at `:35` and someone must refresh it. Neither task pins a different
 `commander`, so no dependency resolution changes either way. Flagged for the orchestrator rather than
 resolved here, since this worktree must not touch `package-lock.json`.
+
+### `review-ready summary` — role: reviewer
+
+Merged `main` (`7aeeb91`) into `task/task-074-fix-engines-node-floor` (`dl-035` — merge, never
+rebase). The merge brought `spec-004`, two SARD files, `bug-026` (`open → triaged`) and four new task
+files (`task-075`..`task-078`); **none of the documents this task cites changed**, verified with
+`git diff --name-only 659b42e HEAD | grep -E 'spec-015|dl-047|dl-054|dl-045|dl-015|dl-013|dl-025|bug-022|bug-023|publish.yml|package.json|publish-metadata|adr-005|dl-001|README|dna.yaml|01_product-brief'`
+→ `rc=1`, no output. All gates re-run after the merge, same numbers as the table above.
+
+**What landed.** `git diff --stat main HEAD` — six files, no source file among them:
+
+```
+.github/workflows/publish.yml                                     |  14 +-   (header comment only)
+docs/self/docs/04_memory/bugs/bug-023-…md                         |   2 +-   (status sync)
+docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md | 37 +-
+docs/self/docs/04_memory/v0.2/task-074-fix-engines-node-floor.md  | 328 +
+package.json                                                      |   2 +-   (engines.node)
+test/cli/publish-metadata.test.ts                                 | 337 +
+```
+
+`git diff --name-only main HEAD | grep -E 'package-lock.json|README.md|CLAUDE.md|01_product-brief|adr-005|dl-001|dna.yaml'`
+→ `rc=1`: every out-of-bounds file is genuinely untouched, not just intended to be.
+
+**AC-by-AC.**
+
+| AC | Status | Evidence |
+|---|---|---|
+| AC1 floor decided and stated | **met** | `>=22.12.0`, argued in `design` against the rejected alternative, with the npm `EBADENGINE` probe transcript for what it costs users |
+| AC2 every claim checked, table corrected | **met** | 13-row table in `design`; three rows the task's own survey lacked (`adr-005`, `dl-001`, the `publish.yml` comment), and `adr-009`/CI confirmed as "no change" by running the greps |
+| AC3 regression guard exists | **met** | `test/cli/publish-metadata.test.ts`; red-first, verified genuinely absent first (`grep -n "engines" …` → `rc=1`) and shown failing |
+| AC4 `spec-015` §1 moves with `package.json` | **met** | same `refactor` commit as the `publish.yml` comment; dated Revision note, no `version:` (dl-047), state stays `approved` |
+| AC5 no new `bug-022` race | **met** | the guard spawns no subprocess; `packedPaths()` untouched and still `--ignore-scripts`. Now owned by `task-075`, merged in above |
+| AC6 gates green | **met** | table in `refactor`, re-run post-merge |
+
+**BDD (`tests.bdd.run`).** There is no BDD scenario for this criterion, and that is the requirement's
+own design, not a gap: `grep -rln "engines\|Node.js 18\|npm install -g" docs/02_requirements/02_bdd/features/`
+→ `rc=1`, and `REQ-SYS-09` (`docs/02_requirements/03_sard/01_architecture.md:95-102`) states
+"distribution requirement with **no behavioral BDD feature** — verified directly against the
+npm-publish acceptance test". `test/cli/publish-metadata.test.ts` **is** that acceptance test, so the
+BDD gate is discharged by the suite this task extends. The behavioural suites were re-run whole
+(`npx jest`, 100 suites / 1591 tests) rather than spot-checked.
+
+**Weak spots a reviewer should look at.**
+
+1. **The hand-rolled range evaluator** is the largest new surface (no `semver` available; see
+   `design`). It has 35 unit cases including five must-throw cases, and it fails closed on unknown
+   syntax — but it is still a semver re-implementation, and a reviewer should read it as one. If a
+   `semver@^7` devDependency becomes acceptable once `task-073` settles the lockfile, replacing the
+   evaluator with `semver.subset` would be a strict simplification.
+2. **The guard checks the floor, not the whole range.** It asserts that the single lowest version we
+   advertise satisfies every production dependency — which is exactly the `EBADENGINE` semantics — and
+   refuses any `engines.node` that is not a plain `>=x.y.z`. A future compound range would have to
+   teach the guard first. Deliberate, documented at `parseNodeFloor`, but it is a narrowing.
+3. **The repository is now knowingly split** between `package.json` (`>=22.12.0`) and the
+   product-level "Node.js 18+" in `adr-005` / the vision / `dna.yaml` / `README.md` / `CLAUDE.md`.
+   That split is the approver's to close (see below); until then, anyone reading only the vision gets
+   the wrong floor.
+4. **Not proven: whether the CLI actually runs on Node 18.** No Node 18 is installed here
+   (`node -v` → `v22.21.0`). The static evidence says it probably would; the contract is set to what
+   is provable, not to what is likely.
+
+**For the approver — the decision this task could not make.** Raising `engines.node` fixes the
+*manifest*. It does not settle what the **product** claims, which is stated in a **vision** document
+and an **accepted ADR**:
+
+- `docs/01_vision/01_product-brief.md:267` — "TypeScript, Node.js 18+ (npm)"
+- `adr-005-typescript-node-stack` — `accepted`; its **title** is "TypeScript on Node.js 18+";
+  `:45` "Requires contributors and CI to standardize on Node.js 18+ as a baseline"
+- `dl-001-typescript-over-python:19,:35` — `ready`; the same claim, "recorded in `dna.yaml`"
+- `docs/self/.wingfoil/dna.yaml:73-75` — `stacks.technologies` → `Node.js`, `version: "18+"`
+- `README.md:115`, `CLAUDE.md:18/:92` — restatements
+
+Per CLAUDE.md §10.1 vision wins over config, and a fix task cannot supersede an accepted ADR, so all
+six are left untouched. Closing the split needs an ADR superseding `adr-005`'s runtime clause (or an
+explicit decision that 18+ was always an aspiration and the manifest is the contract), then the vision
+edit, then `dna.yaml`, then `README.md` through the `user-docs` gate (`dl-013`), then `CLAUDE.md`
+(`dl-025`/`bug-008`). Proposed as elements in the handover rather than filed here — parallel worktrees
+must not mint ids.
+
+**Handover to `task-077-first-real-staging-run`.** Its AC7 lists `bug-023` among the things the v0.2
+`release-publishing` phase is waiting on, citing `publish.yml:45-48`. Those lines now say the opposite
+(the floor is reconciled and guarded), so `task-077` should re-read them rather than copy its own
+planning-time list — which is what its AC7 already instructs.
