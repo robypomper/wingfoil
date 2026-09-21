@@ -82,8 +82,15 @@ export {
   slugifyTitle,
 } from './add';
 export type { AddDocumentFields } from './add';
-export { formatMemoryCommitMessage } from './commit-message';
-export type { CommitApprover, MemoryCommitMessageInput } from './commit-message';
+export {
+  formatMemoryCommitMessage,
+  normalizeReason,
+  parseApproverTrailerLine,
+  parseReasonBlock,
+  reasonDefect,
+  reasonDefectMessage,
+} from './commit-message';
+export type { CommitApprover, MemoryCommitMessageInput, ReasonDefect } from './commit-message';
 export { removeFrontmatterField, setFrontmatterField, verifyFrontmatterEdit } from './frontmatter-edit';
 export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
 export { renderRejectDocument } from './reject';

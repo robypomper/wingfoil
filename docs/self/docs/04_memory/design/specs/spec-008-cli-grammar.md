@@ -53,7 +53,8 @@ Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08
 | `--help`, `-h`    | flag                   | —         | Print context-sensitive help (synopsis, args, flags, example) and exit `0`. Takes precedence over all other flags. |
 | `--version`       | flag                   | —         | Print CLI version and exit `0`. Takes precedence over all other flags except `--help`.                |
 | `--format <fmt>`  | `console\|json\|yaml`  | `console` | Output encoding. `console` for humans (colour, `✓`/`⚠`/`✗` prefixes); `json`/`yaml` for scripting/CI (REQ-INT-05). An unsupported value exits `2` with `error: invalid --format value "<value>"`. |
-| `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`); optional elsewhere (e.g. `memory deprecate`). Recorded verbatim in the resulting git commit body (P1.7). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
+| `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`); optional elsewhere (e.g. `memory deprecate`). Recorded in the resulting git commit body (P1.7) as a `Reason:` **block** — the remainder of the `Reason:` line plus every following body line, up to (exclusive) git's trailing trailer paragraph or the end of the body — in the **declared normal form**, not as the raw argument (`dl-067-reason-trailer-contract`; see the Notes). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
+| `--reason` (unrecordable value) | —        | —         | A reason that cannot be recorded faithfully in the trailer is refused at the CLI boundary with exit `2`, before anything is read or written, on **every** verb that takes the flag — `memory deprecate` included, where the flag is optional but a declared-and-empty value is still a usage error (`dl-067` S2). Three cases, each with its own message, none of them `missing required argument: --reason` (which answers the *omitted* case above): blank or whitespace-only → `error: invalid flag value: --reason must not be blank`; a line starting `Approver:` or `Reason:` → `error: invalid flag value: --reason must not contain a line starting with "Approver:" or "Reason:"`; a final paragraph made entirely of `Key: value` lines → `error: invalid flag value: --reason must not end in a paragraph of "Key: value" lines`. |
 | `--verbose`       | flag                   | `false`   | Emit diagnostic logs to stderr in plain text, even under `--format json`/`yaml`. Never alters stdout.  |
 | `--color` (negatable) | boolean flag        | `true`    | ANSI colour on stdout. Pass `--no-color` to disable; also disabled automatically when `NO_COLOR` is set to any non-empty string (https://no-color.org/) — an explicitly empty `NO_COLOR=` does **not** disable colour. |
 | `--interactive` (negatable) | boolean flag  | `true`    | Whether missing required args may trigger a readline prompt in a TTY (§4). Pass `--no-interactive` to force immediate failure instead. |
@@ -65,6 +66,24 @@ Notes:
   every command honours it uniformly (REQ-SYS-05).
 - `--color`/`--interactive` are **negatable booleans**, not independent `--no-*` flags with their own
   default — see §3 for why this distinction matters and how Commander.js models it.
+- **`--reason`'s declared normal form** (`dl-067-reason-trailer-contract`, ratified), in two parts:
+  - **What git already does, and would do whether or not this row existed** — per-line trailing
+    whitespace stripped, runs of blank lines collapsed to one, leading and trailing blank lines
+    dropped. That is git's own `cleanup=whitespace`, which `git commit -m` applies to every message.
+    Stating it here does not add a transformation; it makes the outcome declared instead of incidental.
+  - **What WingFoil adds** — the first line's leading whitespace is trimmed. git does **not** do this;
+    it is the writer's own step, and it exists because that line sits after `Reason: ` on the same
+    physical line and the reader consumes the key with its following whitespace. Without it, a reason
+    beginning with spaces would round-trip unequally.
+
+  Interior indentation is preserved by both parts. The rule is enforced once, where the trailer is
+  built, and the reader consumes the same grammar, so what is read back out of the commit equals what
+  the writer declared rather than approximately equalling what the caller typed.
+- **Why not "verbatim".** This row said "Recorded verbatim in the resulting git commit body" until
+  `dl-067`. That was never achievable for multi-line text — git normalizes on the way in — and the gap
+  between the promise and the behaviour was `bug-042`: a blank reason was accepted at exit `0` and
+  destroyed the whole approval record, a multi-line one was truncated to its first line on read, and
+  one shaped like a trailer could forge a second `Approver:` line into the audit record.
 
 ### 3. Commander.js negatable-boolean pattern (`--no-color`, `--no-interactive`)
 
@@ -213,3 +232,13 @@ chalk) and `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-04, REQ-IN
 although `wingfoil directives list` (BDD `P3.4-directives-list.feature`) has shipped on the `directives`
 module since `task-006`. Edited in place without a supersede or a state change (the `spec-001`
 precedent `dl-041` cites).
+
+**Revision (2026-09-21) — §2's `--reason` contract, per `dl-067-reason-trailer-contract` (`ready`),
+carried out by `task-072-fix-reason-trailer-contract` (fixing `bug-042`).** The row promised the value
+was "Recorded verbatim in the resulting git commit body (P1.7)" and said nothing about emptiness or
+newlines, while the trailer it lands in is read and written as single lines. The row now states the
+block extent, the declared normal form, and the narrow refusals, and a second row pins the
+unrecordable-value messages and their exit `2`. Ratified by `dl-067`'s approve commit, whose `Reason:`
+records the option chosen and the sub-decisions taken with it; edited in place without a supersede or
+a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001` precedent the
+2026-09-17 revision cites.

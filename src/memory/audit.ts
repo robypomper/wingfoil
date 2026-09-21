@@ -34,6 +34,7 @@ import { execFileSync } from 'child_process';
 import { isConfiguredIdentity } from '../core';
 import { parseYaml } from '../validation';
 
+import { parseApproverTrailerLine, parseReasonBlock } from './commit-message';
 import { getMemoryHistory } from './history';
 import { walkGitLogFields } from './git-log';
 import { splitFrontmatter } from '../storage';
@@ -119,53 +120,71 @@ export interface ApprovalMetadata {
   readonly approverName: string;
   readonly approverEmail: string;
   readonly approverRole: string;
-  readonly reason: string;
+  /**
+   * The `Reason:` block this commit records, or `null` when it records none that can be read
+   * (`dl-067-reason-trailer-contract` clause 6). Widened from `string` by
+   * `task-072-fix-reason-trailer-contract`: an unreadable reason must not take a successfully parsed
+   * approver identity down with it, and `MemoryTransition.reason` was already `string | null`.
+   */
+  readonly reason: string | null;
 }
 
-const APPROVER_LINE_RE = /^Approver:\s*(.+?)\s*<([^>]+)>\s*\(([^)]+)\)\s*$/m;
-const REASON_LINE_RE = /^Reason:\s*(.+)$/m;
+/**
+ * The identity on an `Approver:` trailer line. Applied to that ONE line — located by
+ * {@link parseApproverTrailerLine}, which anchors it to the body's first — rather than searched for
+ * anywhere in the body with `/m`, so a second `Approver:` line sitting inside some reason's text can
+ * never be read as an approval record (`dl-067` clause 5; bug-042 F3).
+ */
+const APPROVER_LINE_RE = /^Approver:\s*(.+?)\s*<([^>]+)>\s*\(([^)]+)\)\s*$/;
 
 /**
- * The `Reason:` line a commit body records, on its own — `null` when the body has none (a plain
- * `add`/`submit` body, which carries no trailer by convention). Split out of
- * {@link parseApprovalMetadata} by `task-049-memory-history` (P1.10) because the two trailers do not
- * always travel together: an APPROVAL-gate commit (`approve`/`reject`) must carry both `Approver:`
- * and `Reason:` (CLAUDE.md §5.1, P1.7), but a `deprecate` commit records a `Reason:` with **no**
- * `Approver:` line at all — deprecate is explicitly not an approval gate. `parseApprovalMetadata` is
- * all-or-nothing by design, so `wingfoil memory history` reading its reason through that function
- * would silently drop every deprecate reason from the audit trail it exists to surface.
+ * The `Reason:` a commit body records, on its own — `null` when the body has none (a plain
+ * `add`/`submit` body, which carries no trailer by convention), or carries a bare `Reason:` with no
+ * value. Split out of {@link parseApprovalMetadata} by `task-049-memory-history` (P1.10) because the
+ * two trailers do not always travel together: an APPROVAL-gate commit (`approve`/`reject`) must carry
+ * both `Approver:` and `Reason:` (CLAUDE.md §5.1, P1.7), but a `deprecate` commit records a `Reason:`
+ * with **no** `Approver:` line at all — deprecate is explicitly not an approval gate. Reading the
+ * reason through `parseApprovalMetadata` would therefore drop every deprecate reason from the audit
+ * trail it exists to surface.
  *
- * `parseApprovalMetadata` consumes this same function, so the two never diverge on what counts as a
- * `Reason:` line or on trimming.
+ * The reason's extent is NOT decided here: this is a thin alias over `parseReasonBlock`
+ * (`./commit-message.ts`), the module that also writes the trailer — one grammar, consumed by both
+ * sides, which is `dl-067-reason-trailer-contract` clause 5 and the property that module's doc has
+ * claimed for itself since `task-045-memory-submit`.
  *
- * Known limitation (unchanged by the split): `REASON_LINE_RE` captures only the FIRST line of the
- * `Reason:` value (the `.` in `/^Reason:\s*(.+)$/m` does not cross newlines). This matches the
- * single-line `Reason:` convention every WingFoil workflow commit uses (CLAUDE.md §5.1); a
- * hypothetical multi-paragraph reason would be silently truncated to its first line here. Revisit if
- * the commit convention ever allows a multiline reason body.
+ * The limitation this function used to document — "a hypothetical multi-paragraph reason would be
+ * silently truncated to its first line here" — is gone with the defect
+ * (`bug-042-reason-text-has-no-contract-against-commit-trailer`, F1). It was never hypothetical: 79 of
+ * `main`'s 171 approve/reject commits carry a reason continuing past line one, and the reader kept as
+ * little as 2% of one (dl-067 E1/E2).
  */
 export function parseCommitReason(body: string): string | null {
-  const reasonMatch = REASON_LINE_RE.exec(body);
-  if (!reasonMatch) return null;
-  const [, reason = ''] = reasonMatch;
-  return reason.trim();
+  return parseReasonBlock(body);
 }
 
 /**
- * Parse a commit body for the mandatory `Approver: Name <email> (role)` and `Reason: ...` lines
- * (CLAUDE.md §5.1; REQ-SEC-02/REQ-SEC-04). Returns `null` when either line is absent — e.g. for a
- * plain `add`/`submit` commit body, which carries neither by convention — rather than a
- * partially-filled object, so a caller never has to guess whether a `null` field means "absent" or
- * "empty string". A caller that wants the reason of a commit which is not an approval gate (a
- * `deprecate`, whose body has a `Reason:` but no `Approver:`) wants {@link parseCommitReason} instead.
+ * Parse a commit body for the `Approver: Name <email> (role)` and `Reason: ...` trailers
+ * (CLAUDE.md §5.1; REQ-SEC-02/REQ-SEC-04). Returns `null` when there is no `Approver:` trailer line —
+ * e.g. for a plain `add`/`submit` body, or a `deprecate` one (not an approval gate), neither of which
+ * records an approval at all. A caller that wants such a commit's reason wants
+ * {@link parseCommitReason} instead.
+ *
+ * All-or-nothing on the APPROVER, and only on the approver (`dl-067` clause 6,
+ * `task-072-fix-reason-trailer-contract`). It used to be all-or-nothing in both directions, so an
+ * unreadable `Reason:` discarded the identity this function had already parsed successfully — and
+ * since an empty `--reason` was accepted at exit `0` and git's cleanup turned it into a bare
+ * `Reason:`, `wingfoil memory history` could report an approval gate crossed by nobody, for no reason
+ * (bug-042 F2). Now the record degrades instead of vanishing: the approver stands, `reason` reads
+ * `null`. Nothing on `main` reads differently for it — no commit there has a bare `Reason:` or is
+ * missing a trailer line (dl-067 E6) — so this is protection for bodies written before the fix.
  */
 export function parseApprovalMetadata(body: string): ApprovalMetadata | null {
-  const approverMatch = APPROVER_LINE_RE.exec(body);
-  const reason = parseCommitReason(body);
-  if (!approverMatch || reason === null) return null;
+  const approverLine = parseApproverTrailerLine(body);
+  const approverMatch = approverLine === null ? null : APPROVER_LINE_RE.exec(approverLine);
+  if (!approverMatch) return null;
 
   const [, approverName = '', approverEmail = '', approverRole = ''] = approverMatch;
-  return { approverName, approverEmail, approverRole, reason };
+  return { approverName, approverEmail, approverRole, reason: parseCommitReason(body) };
 }
 
 // --- Full transition reconstruction (`memory history`, P1.10) --------------------------------

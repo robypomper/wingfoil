@@ -1,0 +1,52 @@
+Approver: Roberto Pompermaier <robypomper@gmail.com> (approver)
+Reason: Approved on the third pass. P3.5's storage layout is delivered —
+scaffoldFiles() now emits directives/built-in/.gitkeep and
+directives/custom/.gitkeep, two placeholders because git tracks files rather than
+directories, which is the only way the BDD's "both are tracked by git" is
+dischargeable — and bug-018 is closed in code.
+
+bug-018's closure was not taken on trust. The first reviewer attacked the symmetry
+from both sides: deleting the guard from initWingfoilStorage turned two tests red,
+deleting it from initWingfoilProject turned the other two red, and moving the
+guard inside the try (after the write) turned two red, killed by the
+existsSync('.wingfoil') === false assertions. So "a future edit that wires a guard
+into one path only fails here" is demonstrated, not asserted. The bind-once change
+genuinely closes the double-call gap: scaffoldFiles() was previously called twice,
+implicitly as initStorage's default parameter and again to report value.files, and
+the checked array is now the written array.
+
+Rejected TWICE before this, both times for the same defect class, and that history
+is the reason this approval is worth something. Pass 1 claimed P3.5 scenarios 2
+and 3 were "already covered elsewhere"; neither was — the cited test CREATES a
+file (it asserts porcelain is exactly "?? …/testing.md", which is precisely the
+assertion that the file did not exist), no test in the suite had ever read a prior
+revision, and scenario 3's required message existed only in the feature file. Pass
+2 delivered every fix verifiably but introduced two NEW claims of the same genus:
+that dl-031's Actions item was undone, when 9d74d80 had discharged it on
+2026-09-14 before the branch point with the amended text sitting in the branch and
+builtin-integrity.ts:8 saying so; and a false reason for comparing git porcelain
+untrimmed.
+
+The third pass was checked against exactly that standard and held. The reviewer
+re-ran the settling command for every state assertion in the new prose and found
+all true, including the NEW Traceability claim — that 9d74d80 also added a dl-031
+scoping sentence, so item (a) is discharged more completely than title+Description
+— which was the riskiest sentence in the pass. On the porcelain reasoning the
+author checked that its REPLACEMENT would not be a second unverified protective
+claim: "trimming would let a staged modification pass" would also have been false,
+since M␣␣path survives a trim with its internal double space. "Legibility, not
+extra strictness" is accurate. The assertion itself is byte-identical; only
+comments changed.
+
+Protected material confirmed byte-identical across all three passes
+(git diff --exit-code on init.ts, project-directives.test.ts and
+builtin-template-sources.test.ts → exit 0), so the mutation-tested code is the code
+being merged. The author also disclosed that its own first run of that check used
+the wrong path list and returned CHANGED, and re-ran it rather than report a pass
+from a failed check — the reviewer verified that disclosure is accurate.
+
+Two items close by hand, since this task carries bug: "" and bug.sync_state is a
+genuine no-op: bug-018 is still triaged despite being fixed here, and bug-025
+(P3.5 scenario 3's message, filed by this task in pass 2) stays open and
+unscheduled for release-planning.
+
