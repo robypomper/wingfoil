@@ -492,12 +492,33 @@ $ npm run lint                             →  exit 0
 $ npm run docs:api                         →  exit 0
 ```
 
-Coverage is **non-regressing**: `main`'s last recorded figures (task-056's approve commit) were
+Coverage is **non-regressing at the gate**, which is the project-level figure `dev-loop.yaml`'s
+`tests.coverage(min: 80)` measures: `main`'s last recorded numbers (task-056's approve commit) were
 98.54 / 92.30 / 98.76 / 99.15, and all four are higher here. The two files this task creates or
-rewrites are `commit-message.ts` **100/100/100/100** and `require-reason.ts` **100/100/100/100**;
-`audit.ts` is 97.10 stmts / 61.76 branch / 100 funcs / 100 lines — its branch figure is up from the
-62.16 task-049 recorded against a smaller file, and the uncovered rows (`106`, `186-245`, `320`) are
-the pre-existing `auditAttribution` and rename-edge paths, not anything added here.
+rewrites are `commit-message.ts` **100/100/100/100** and `require-reason.ts` **100/100/100/100**.
+
+**`audit.ts`'s own figures go slightly DOWN, and the first version of this note claimed the opposite.**
+Retracted. Measured, with the commands that settle it:
+
+```
+$ npx jest --coverage | grep -E "All files|audit\.ts"
+All files    | 98.58 | 92.59 | 98.8 | 99.17 |
+  audit.ts   | 97.10 | 61.76 |  100 |   100 | 106,186-245,320
+$ node -e '<sum coverage/coverage-final.json for src/memory/audit.ts>'
+audit.ts branches: 21/34 61.76% | statements: 67/69 97.10%
+```
+
+task-049 recorded 97.26 stmts / 62.16 branch for this file. **97.10 and 61.76 are lower, not higher**,
+and the earlier sentence ("up from the 62.16 task-049 recorded") was false — about a number in the
+audit record, which is the worst place to be wrong in this particular task. What actually happened is
+arithmetic: this task **removes covered code from `audit.ts`** — `REASON_LINE_RE`'s match and
+`parseApprovalMetadata`'s all-or-nothing early return moved into `commit-message.ts`, which sits at
+100% — while the file's uncovered positions are unchanged. All 13 uncovered branches are destructuring
+defaults that cannot fire because their regex always captures (`sha = ''` in `auditAttribution`,
+`approverName = ''` in `parseApprovalMetadata`, and the pairs in `readStatusAt` and
+`verifyTransitionConsistency`); the same misses over a smaller denominator is a lower percentage.
+Nothing this task adds is untested, but the honest statement is "down on the file, up on the project",
+not "up".
 
 ### review-ready summary
 
