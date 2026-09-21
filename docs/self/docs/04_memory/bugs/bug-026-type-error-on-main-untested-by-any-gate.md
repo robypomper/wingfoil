@@ -2,7 +2,7 @@
 id: "bug-026-type-error-on-main-untested-by-any-gate"
 type: bug
 title: "A TypeScript error sits on main in test/core/directive-create.test.ts, and no gate reports it"
-status: in-review
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2"
@@ -63,6 +63,16 @@ decision-log states, and this bug is the live instance proving it.
 That strengthens `dl-044`'s recommendation rather than weakening it: a declared `typecheck.clean`
 check running `npx tsc --noEmit -p tsconfig.json` would have caught this at `task-050`'s `refactor`
 step.
+
+- **CORRECTION (task-076, 2026-09-21): the second remedy suggested above does not compile.** Moving the
+  assertion above the narrowing guard fails as `test/core/directive-create.test.ts(152,19) TS2339 …
+  Property 'commit' does not exist on type 'CoreResult<unknown>'` — `commit` is declared only on the
+  `ok: true` arm of `CoreResult` (`src/core/types.ts:30-36`), so it is absent from the union too, and
+  widening the type makes *fewer* properties accessible, not more. Reproduced by task-076's author and
+  again by its reviewer, each applying all three variants to a real tree. The remedy applied was the
+  first one, deletion, and the reviewer proved it removes no coverage: mutating the conflict path to
+  produce a real second commit turns the adjacent `expect(head(repo)).toBe(shaBefore)` red, while an
+  `'commit' in second` assertion would have stayed green.
 
 ## Triage & Execution Notes
 
