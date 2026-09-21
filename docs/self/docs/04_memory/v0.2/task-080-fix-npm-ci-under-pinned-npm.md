@@ -99,3 +99,132 @@ task moves to `in-progress`** — see Implementation Notes.
      AC classification (dl-014/T1, `testing` directive) is required per AC: AC1/AC2 are red-first —
      the failure is reproducible today under npm 10.9.0 and must be shown red before the fix;
      AC3/AC4/AC7 are characterization. -->
+
+### design — role: architect
+
+Branch `task/task-080-fix-npm-ci-under-pinned-npm`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-080`, created from `main` at `0cf643f`
+(`wf(decision-log): approve dl-075-no-bare-line-offsets-in-memory`). Host environment for every command
+below: Linux, `node v22.21.0`, host `npm 11.6.2`. **The npm under test is not the host npm**: npm 10.9.0
+was installed into the scratchpad and invoked by absolute path, written `<npm109>` below:
+
+```
+$ npm install --prefix <scratch>/npm109 npm@10.9.0 --no-audit --no-fund   # exit 0
+$ <scratch>/npm109/node_modules/.bin/npm --version
+10.9.0
+```
+
+**`agent.read_related` (dl-015, HARD gate).** `depends_on: ["task-073-fix-stale-package-lock"]`
+(`grep -n '^depends_on:' docs/self/docs/04_memory/v0.2/task-080-fix-npm-ci-under-pinned-npm.md` →
+`depends_on: ["task-073-fix-stale-package-lock"]`); `task-073` is `status: done`
+(`grep -n '^status:' docs/self/docs/04_memory/v0.2/task-073-fix-stale-package-lock.md` → `status: done`).
+Its Execution Notes were read in full. What this task takes from them, acknowledged item by item:
+
+1. **Its `green` section already diagnosed this task's cause and named this task's fix.** It recorded
+   that npm left the two peers unlocked and only re-pinned the hoisted `@emnapi/wasi-threads` orphan,
+   that "the structural cause is therefore not fixed by this commit, only its current instance", and
+   that "a *durable* fix would have to change `package.json` (e.g. an `overrides` pin), which AC6/the
+   task scope forbid here". This task is that change. Its prediction is confirmed below, not copied:
+   the same `grep` is re-run at this branch's base.
+2. **Its evidence is npm-11-only, and says so implicitly.** Every measurement in it is stamped
+   `npm 11.6.2`; nothing there contradicts this task, but nothing there covers npm 10.9 either. That
+   gap is the whole of `bug-056`.
+3. **Its worktree warning is operative here.** "Until it lands, a new worktree cannot `npm ci` … the
+   established workaround is symlinking `node_modules` from the primary checkout — which is exactly why
+   AC1 forbids using such a worktree as evidence." Every `npm ci` recorded below therefore runs in a
+   **throwaway clone in the scratchpad**, never in this worktree.
+4. **Its method is reused deliberately**: characterize the lock diff entry by entry with a scripted
+   `packages{}` comparison rather than asserting it, and re-run the gate set inside a real `npm ci`
+   tree rather than in a warm worktree.
+
+**`agent.verify_specs`.** No new `tech-spec` is needed, and none is revised. The contract this task
+serves already exists and is approved: `spec-015-packaging-publishing` §3 stage 1 makes `npm ci` the
+gate's first step, and `REQ-SYS-09` ("Distribution as an npm package") is the requirement behind it.
+`REQ-SYS-09` states its own verification route — "distribution requirement with no behavioral BDD
+feature; verified directly against the npm-publish acceptance test" — so the `review` BDD gate has **no
+scenario to run for this task**; checked, not assumed:
+
+```
+$ grep -rln "npm\|packag" docs/02_requirements/02_bdd/features/
+(no output — no .feature file mentions npm or packaging at all)
+```
+
+The acceptance evidence is therefore the recorded `npm ci` exit codes under both npms plus the existing
+packaging suites (`test/cli/npm-distribution.test.ts`, `test/cli/publish-pipeline.test.ts`), which run
+green in the gate set below, plus the new deterministic lock assertion this task adds (see `red`).
+
+**Premises re-verified at execution time (Implementation Notes items 1–4), not read from the task.**
+
+1. Node 22.12.0 still bundles npm 10.9.0 — from Node's own release index, not from a report:
+
+   ```
+   $ curl -sS https://nodejs.org/dist/index.json | node -e '…select v22.12.0 / v22.21.0…'
+   v22.12.0 npm 10.9.0 Jod
+   v22.21.0 npm 10.9.4 Jod
+   ```
+
+   The host's `npm 11.6.2` is bundled by neither — it is a manual upgrade, which is `bug-056`'s "why no
+   one saw it locally".
+2. `.github/workflows/publish.yml` still pins the same Node, and all three `setup-node` steps still
+   consume it: `grep -n "NODE_VERSION" .github/workflows/publish.yml` → the `env:` key
+   `NODE_VERSION: '22.12.0'` plus three `node-version: ${{ env.NODE_VERSION }}` uses (and one comment
+   line naming 22.12.0 as the floor).
+3. The hoisted `@emnapi` entries at this branch's base are exactly what `bug-056` recorded:
+
+   ```
+   $ grep -n '"node_modules/@emnapi' package-lock.json      # at 0cf643f
+   565:    "node_modules/@emnapi/wasi-threads": {
+   ```
+
+   One hoisted entry, and it is neither of the two the failure names. The two peers exist in the lock
+   only **nested** under `node_modules/@unrs/resolver-binding-wasm32-wasi/node_modules/@emnapi/core`
+   and `…/@emnapi/runtime`, both pinned `1.10.0` — a position that cannot satisfy a peer edge of the
+   **hoisted** `node_modules/@napi-rs/wasm-runtime`, whose own lock entry declares
+   `"peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" }`.
+4. The failure still reproduces **before** the fix — the red-first evidence, recorded under `red`.
+
+**The version to pin was re-derived, not copied from this document** (Implementation Notes item 3):
+`npm view @emnapi/core version` → `1.11.3`, `npm view @emnapi/runtime version` → `1.11.3`, and
+`npm view @emnapi/core versions` lists `1.7.0 … 1.11.3` as the ^1.7.1-satisfying set. `1.11.3` is what
+the failure demands today *and* what the registry resolves today, so pinning it changes no version
+anyone's install currently computes — it only makes that version come from the manifest instead of from
+the registry.
+
+**`dl-069` is still `in-discussion` — flagged, not resolved here.**
+`grep -n '^status:' docs/self/docs/04_memory/design/dls/dl-069-lockfile-drift-unguarded.md` →
+`status: in-discussion`. This task's Description makes the option choice a precondition. What is
+implemented here is **option (b) only** — the `overrides` pin — which is (i) what this task's own AC4
+and AC5 require in so many words, (ii) what `dl-069`'s amendment records as "the only option that
+actually unblocks the gate", and (iii) what the approver scheduled when this task was moved to
+`backlog` with those ACs. **No CI workflow is added**: `.github/` is untouched by this branch, so
+option (a) remains entirely open and uncommitted-to. If the approver reads the precondition strictly,
+the standing item is to approve `dl-069` with the choice recorded in its `Reason:` — it is carried to
+the final report rather than acted on here.
+
+**The pin stays where it is** (Implementation Notes item 2). `NODE_VERSION` is untouched; a lockfile-level
+fix exists and is implemented below, so the `adr-010` Node floor is never in question. `package.json`'s
+`engines.node` is likewise untouched.
+
+**T1 acceptance-criterion classification (dl-014 / testing directive).**
+
+| AC | Class | Evidence / test |
+|---|---|---|
+| AC1 — `npm ci --dry-run` exits 0 under npm 10.9.0 | **red-first** — the red is an executable reproduction, not a Jest test (see "Why the Jest test is narrower than the AC") | clean clone of `main` under `<npm109>` → exit **1**; clean clone of this branch → exit **0**; both recorded verbatim |
+| AC2 — full non-dry `npm ci` under npm 10.9.0, no `node_modules` present | **red-first** | same throwaway clone, `node_modules` absent before the run (`ls -d node_modules` → no such file) |
+| AC3 — no regression under the developer npm (11.6.2) | characterization | same clone, host `npm ci --dry-run` → exit 0 (green before and after; the point is that it stays green) |
+| AC4 — both peers hoisted in the lock | **red-first** | `test/cli/lockfile-peer-overrides.test.ts` — fails at this branch's base (no hoisted entries), passes after `green`; plus the `grep` in both states |
+| AC5 — pinned versions recorded and justified in `package.json` | characterization | the `overrides` block + the `green` section's attribution paragraph, which is the artefact AC5 asks for |
+| AC6 — nothing keys on npm's error text | characterization | `grep -rn "npm error\|EUSAGE\|Missing:" test/ src/ scripts/ .github/` → no match introduced by this task (run under `refactor`) |
+| AC7 — existing gates stay green | characterization | the gate table under `refactor`, run inside a real `npm ci` tree |
+| AC8 — `bug-056` carried by `bug.sync_state` | characterization | the two `wf(bug): sync` commits on this branch, driven off the task's `bug:` field |
+
+**Why the Jest test is narrower than the AC, and why that is honest.** `dl-069` E3 is decisive and
+unchanged: offline, with a cold cache, `npm ci --dry-run` exits 0 on a lock that does not install, so
+**no deterministic test can detect lockfile drift in general** — detection needs registry data, which
+the `determinism` directive (REQ-SYS-07) and the `testing` directive both forbid a unit test to reach
+for. The test added here therefore does **not** attempt that. It asserts a strictly local, file-only
+property — every peer this repository pins via `overrides` has a hoisted lock entry at exactly the
+pinned version — which is entirely offline and deterministic (it reads two files and parses them), and
+which is exactly the property whose absence produces `bug-056`. It also catches the specific silent
+revert measured under `green` (D1). AC1/AC2 remain proven by recorded `npm ci` runs, not by Jest, and
+AC6 is satisfied because the test never looks at npm's output: it never runs npm.
