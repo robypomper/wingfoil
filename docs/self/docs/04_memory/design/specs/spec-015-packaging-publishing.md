@@ -230,12 +230,14 @@ Edited in place — no supersede, no state change, and no `version:` bump becaus
 `dl-052`'s ratified option 1 says "No code changes", and none were made.
 
 *Out of this revision's scope, recorded so §3 is not read as a statement that the pipeline runs
-today:* `task-077`'s first real execution found §3 **stage 1** currently unable to complete on a
-runner — `npm ci` fails under the npm that `publish.yml`'s own Node pin installs, and `prepublishOnly`
-fails on a UTC runner with git ≥ 2.55 — and found that the staging run's teardown, which is what makes
-"throwaway" true, executes on the success and failure paths (`runStaging`'s `finally`) but **not** on
-`SIGINT`, which leaves the registry, the work dir and its live throwaway token behind. Those are
-`task-077`'s findings and are tracked there; this revision changes nothing about them.
+today:* `task-077`'s first real execution found that the staging run's teardown — which is what makes
+"throwaway" true — executes on the success and failure paths (`runStaging`'s `finally`, in
+`scripts/publish-staging.cjs`) but **not** on `SIGINT`, which leaves the registry, the work dir and
+its live throwaway token behind. That is tracked as
+`bug-059-sigint-leaks-staging-registry-and-token`, read as **not closed** at `main` `307a62a`; this
+revision changes nothing about it. The same run also found two §3 **stage 1** failures, which this
+paragraph once stated as present-tense fact; both have since been repaired — see the
+*Revision (2026-09-22) — §3 stage 1* note below, which also carries the superseded wording.
 
 **Revision (2026-09-21) — §1 Node floor: the product-level "Node.js 18+" question that §1 recorded as
 "deliberately NOT settled here" has since been settled by `adr-010-node-22-runtime-floor`.** This is a
@@ -266,3 +268,61 @@ Both occurrences of the stale framing are corrected in this pass: §1's bullet, 
 of the `engines.node` revision note above, which said the same thing in different words. Same mechanics
 as the revisions above — text edited in place, `status: approved` unchanged, no `version:` bump
 (`dl-047`).
+
+**Revision (2026-09-22) — §3 stage 1: the two stage-1 failures that the *§3 stage 2* note's closing
+paragraph stated as present-tense fact have been repaired, so that paragraph is corrected to keep only
+what is still true and to cite the elements that track it, per
+`bug-062-spec-015-note-carries-transient-findings` and `task-084-fix-spec-015-stale-stage-1-note`.**
+That paragraph previously read, in full:
+
+> *Out of this revision's scope, recorded so §3 is not read as a statement that the pipeline runs
+> today:* `task-077`'s first real execution found §3 **stage 1** currently unable to complete on a
+> runner — `npm ci` fails under the npm that `publish.yml`'s own Node pin installs, and
+> `prepublishOnly` fails on a UTC runner with git ≥ 2.55 — and found that the staging run's teardown,
+> which is what makes "throwaway" true, executes on the success and failure paths (`runStaging`'s
+> `finally`) but **not** on `SIGINT`, which leaves the registry, the work dir and its live throwaway
+> token behind. Those are `task-077`'s findings and are tracked there; this revision changes nothing
+> about them.
+
+Two of its three clauses are no longer true of the tree. Each is now an element carrying a closed
+state, which is what a later reader can check — where the prose above gave them only a symptom and the
+id of a `done` task nothing revisits:
+
+- **`npm ci` failing under the pinned npm** (npm 10.9.0, the npm bundled with the Node 22.12.0 that
+  `publish.yml` pins) — `bug-056-npm-ci-fails-under-pinned-npm-10-9`, now `closed`
+  (`wf(bug): sync bug-056-npm-ci-fails-under-pinned-npm-10-9 [in-review → resolved → closed]`,
+  `fdee8cb`), fixed by `task-080-fix-npm-ci-under-pinned-npm` (`done`, merged as `ce48681`).
+- **`prepublishOnly` failing on a UTC runner with git ≥ 2.55** —
+  `bug-057-timestamp-assertions-reject-zulu-offset`, now `closed`
+  (`wf(bug): sync bug-057-timestamp-assertions-reject-zulu-offset [in-review → resolved → closed]`,
+  `65021c2`), fixed by `task-081-fix-timestamp-offset-assertions` (`done`, merged as `d1aa785`). The
+  defect was in the repository's own assertions rather than in git: two `%aI` regexes rejected git's
+  valid `Z` rendering of a zero offset.
+
+The third clause **stays**, re-worded only to carry its element id, because it is not transient in the
+way the other two were: §3 stage 2 asserts a **throwaway per-run work dir** and §3 stage 3 asserts the
+registry is **torn down afterwards**, and the `SIGINT` path falsifies the unqualified reading of both.
+It bounds a property this document itself claims, so a reader of "throwaway" needs it. It is tracked as
+`bug-059-sigint-leaks-staging-registry-and-token`, read as **not closed** at `main` `307a62a`.
+Deliberately not described here: its fix, which at the time of writing exists only on the unmerged
+branch of `task-083-fix-staging-interrupt-teardown` — a spec that describes an unmerged branch as
+shipped is this same defect pointed the other way. Whatever commit closes `bug-059` is free to re-tense
+the sentence into history; it should not simply delete it, for the reason just given.
+
+Why a revision and not a silent deletion: the original paragraph was **true when written** — the ids
+now cited above did not yet exist when `task-079` wrote it — and it became false without anyone
+touching the file. `bug-062` records that reasoning, including that its own first triage ("the
+statement is true today, so no reader is misled before the fix") expired the same way and had to be
+re-graded. Citing the element id rather than the symptom is precisely what converts a sentence that
+decays silently into one a reader can check in a command.
+
+`dl-075` is applied under its fix-on-touch disposition and **only to the paragraph edited here**: the
+new text names elements, document headings and `runStaging`'s `finally` rather than line offsets. The
+offsets standing elsewhere in this document — `README.md:115` in §1 and in the *§1 Node floor* note,
+and that note's `dl-001` offsets — are deliberately left as they are, because a two-sentence
+correction is not a licence to rewrite an approved spec.
+
+Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
+`version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` precedent used by the
+revisions above. No code changes were made; the diff is this spec, `bug-062` and `task-084`'s own
+Memory file.
