@@ -9,7 +9,14 @@
 import { execFileSync } from 'child_process';
 import { readdirSync } from 'fs';
 
-import { commitPaths } from '../../src/storage';
+import {
+  changedPathsBetween,
+  commitParent,
+  commitPaths,
+  EMPTY_TREE_SHA,
+  pathPorcelainStatus,
+  readPathAtRev,
+} from '../../src/storage';
 import { git, makeTempGitRepo, removeTempDir, writeFixtureFile } from './helpers/git-fixture';
 
 function headCount(root: string): number {
@@ -125,3 +132,86 @@ function commitPathsSeed(root: string, paths: readonly string[] = ['seed.txt']):
     env: process.env,
   });
 }
+
+/**
+ * task-088-fix-gated-verbs-commit-only-the-status-change (`bug-076`) — the read primitives that let a
+ * caller assert what a commit CONTAINS. `commitPaths` above bounds a commit by pathspec; nothing
+ * bounded it by content, so a path already modified on disk rode into a commit whose subject declared
+ * only a state change.
+ */
+describe('commit read primitives — reading a path at a revision, and what a commit changed (task-088)', () => {
+  let repo: string;
+  afterEach(() => removeTempDir(repo));
+
+  /** A repo with two commits: `a.txt` alone, then `a.txt` edited alongside a new `b.txt`. */
+  function seedTwoCommits(): { first: string; second: string } {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'a.txt', 'first\n');
+    const first = commitPaths(repo, ['a.txt'], 'add a');
+    writeFixtureFile(repo, 'a.txt', 'second\n');
+    writeFixtureFile(repo, 'b.txt', 'new\n');
+    const second = commitPaths(repo, ['a.txt', 'b.txt'], 'edit a, add b');
+    return { first, second };
+  }
+
+  it('reads a path at a revision, and returns null where the path does not exist there', () => {
+    const { first, second } = seedTwoCommits();
+
+    expect(readPathAtRev(repo, first, 'a.txt')).toBe('first\n');
+    expect(readPathAtRev(repo, second, 'a.txt')).toBe('second\n');
+    expect(readPathAtRev(repo, first, 'b.txt')).toBeNull();
+    expect(readPathAtRev(repo, 'HEAD', 'never-existed.txt')).toBeNull();
+  });
+
+  it('reads the INDEX through the `:0` stage — what the user staged, which `git add` would otherwise replace', () => {
+    seedTwoCommits();
+    writeFixtureFile(repo, 'a.txt', 'staged\n');
+    git(repo, ['-C', repo, 'add', '--', 'a.txt']);
+    writeFixtureFile(repo, 'a.txt', 'worktree only\n');
+
+    expect(readPathAtRev(repo, ':0', 'a.txt')).toBe('staged\n');
+    expect(readPathAtRev(repo, 'HEAD', 'a.txt')).toBe('second\n');
+  });
+
+  it('reports the two-character porcelain status, and the empty string for a clean tracked path', () => {
+    seedTwoCommits();
+    expect(pathPorcelainStatus(repo, 'a.txt')).toBe('');
+
+    writeFixtureFile(repo, 'a.txt', 'modified\n');
+    expect(pathPorcelainStatus(repo, 'a.txt')).toBe(' M');
+
+    git(repo, ['-C', repo, 'add', '--', 'a.txt']);
+    expect(pathPorcelainStatus(repo, 'a.txt')).toBe('M ');
+
+    writeFixtureFile(repo, 'untracked.txt', 'new\n');
+    expect(pathPorcelainStatus(repo, 'untracked.txt')).toBe('??');
+  });
+
+  it("resolves a commit's parent, and falls back to git's empty tree for a root commit", () => {
+    const { first, second } = seedTwoCommits();
+
+    expect(commitParent(repo, second)).toBe(first);
+    expect(commitParent(repo, first)).toBe(EMPTY_TREE_SHA);
+    // The empty tree is a real object, so the fallback is usable as a revision rather than a sentinel.
+    expect(changedPathsBetween(repo, EMPTY_TREE_SHA, first)).toEqual(['a.txt']);
+  });
+
+  it('lists the paths a commit changed, against its parent', () => {
+    const { first, second } = seedTwoCommits();
+
+    expect(changedPathsBetween(repo, first, second)).toEqual(['a.txt', 'b.txt']);
+    expect(changedPathsBetween(repo, second, second)).toEqual([]);
+  });
+
+  it('honours a caller-supplied env override, as `commitPaths` does — jest worker env is not the shell\'s (task-014)', () => {
+    const { first } = seedTwoCommits();
+    // `GIT_CONFIG_*` is a value git only honours from the environment, so it proves the override
+    // reaches the child rather than being dropped on the way (the task-014 env-isolation gotcha).
+    const env = { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.abbrev', GIT_CONFIG_VALUE_0: '12' };
+
+    expect(readPathAtRev(repo, first, 'a.txt', { env })).toBe('first\n');
+    expect(pathPorcelainStatus(repo, 'a.txt', { env })).toBe('');
+    expect(commitParent(repo, first, { env })).toBe(EMPTY_TREE_SHA);
+    expect(changedPathsBetween(repo, EMPTY_TREE_SHA, first, { env })).toEqual(['a.txt']);
+  });
+});

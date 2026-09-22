@@ -91,7 +91,14 @@ export {
   reasonDefectMessage,
 } from './commit-message';
 export type { CommitApprover, MemoryCommitMessageInput, ReasonDefect } from './commit-message';
-export { removeFrontmatterField, setFrontmatterField, verifyFrontmatterEdit } from './frontmatter-edit';
+export {
+  describeDocumentChanges,
+  removeFrontmatterField,
+  setFrontmatterField,
+  verifyDocumentEdit,
+  verifyFrontmatterEdit,
+} from './frontmatter-edit';
+export type { DocumentScope } from './frontmatter-edit';
 export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
 export { renderRejectDocument } from './reject';
 export {
