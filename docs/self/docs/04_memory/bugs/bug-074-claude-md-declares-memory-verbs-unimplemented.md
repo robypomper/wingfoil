@@ -2,7 +2,7 @@
 id: "bug-074-claude-md-declares-memory-verbs-unimplemented"
 type: bug
 title: "CLAUDE.md states in three places that the Memory transition verbs have no CLI verb and that task-045..048 are still `backlog`; all seven verbs ship and all four tasks are `done`"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
 release: ""
