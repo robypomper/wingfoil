@@ -2,10 +2,10 @@
 id: "bug-076-approve-commits-whatever-is-on-disk"
 type: bug
 title: "`memory approve` commits the element file as it stands on disk, so uncommitted body and frontmatter edits ride into the audit trail under a subject that declares only a state change"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.7"
 contributor: ""
 credit: ""
