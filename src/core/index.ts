@@ -117,7 +117,7 @@ export type {
   RelevantMemoryDocument,
   RelevantMemoryResult,
 } from './relevance';
-export { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+export { commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
 export { verifyBuiltinTemplates } from './builtin-integrity';
 export type { BuiltinIntegrityFailure, BuiltinTemplateKind, BuiltinTemplateSource } from './builtin-integrity';

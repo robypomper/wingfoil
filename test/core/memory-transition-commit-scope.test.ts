@@ -32,12 +32,13 @@
  * asserted depends on a clock, on randomness, or on the temp directory name.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CORE_MODULES } from '../../src/core';
+import { CORE_MODULES, verifyCommittedScope } from '../../src/core';
 import { exitCodeForResult } from '../../src/core/exit-code';
-import type { CoreFn, CoreResult } from '../../src/core/registry';
+import type { CoreFn } from '../../src/core/registry';
+import type { CoreResult } from '../../src/core/types';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const MEMORY_YAML = `version: 1
@@ -340,5 +341,168 @@ describe('Memory transition verbs — the commit carries the declared change and
     expect(submitted.ok).toBe(true);
     expect(approved.ok).toBe(false);
     expect(errorMessage(approved)).toContain('the body');
+  });
+});
+
+describe('verifyCommittedScope — the post-condition, applied directly to a commit (AC3)', () => {
+  let repo: string;
+  const DOC = 'docs/memory/v0.2/task-101.md';
+
+  /** Commit the current working tree wholesale, the way a hand-made `wf(...)` commit would. */
+  function commitWorktree(message: string): string {
+    commitAll(repo, message);
+    return head(repo);
+  }
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+    writeFixtureFile(repo, DOC, taskDoc({ id: 'task-101', status: 'pending' }));
+    commitAll(repo, 'seed');
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('passes a commit that changes the declared field and nothing else', () => {
+    writeFileSync(join(repo, DOC), taskDoc({ id: 'task-101', status: 'backlog' }), 'utf-8');
+    const sha = commitWorktree('wf(task): approve task-101 [pending → backlog]');
+
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'declared-fields-only')).toEqual([]);
+  });
+
+  it('fails a commit whose document body changed as well — the exact shape bug-076 produced', () => {
+    writeFileSync(
+      join(repo, DOC),
+      taskDoc({ id: 'task-101', status: 'backlog', body: 'INJECTED BODY PARAGRAPH — never mentioned by any commit subject.' }),
+      'utf-8',
+    );
+    const sha = commitWorktree('wf(task): approve task-101 [pending → backlog]');
+
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'declared-fields-only')).toEqual([
+      'the body changed although this operation does not own it',
+    ]);
+  });
+
+  it('fails a commit that moved a frontmatter field the operation does not own', () => {
+    dirtyFrontmatter(repo, DOC, 'tags: ["INJECTED-BY-A-DIRTY-TREE"]');
+    writeFileSync(join(repo, DOC), readFileSync(join(repo, DOC), 'utf-8').replace('status: pending', 'status: backlog'), 'utf-8');
+    const sha = commitWorktree('wf(task): approve task-101 [pending → backlog]');
+
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'declared-fields-only')).toEqual([
+      "field 'tags' changed although this operation does not own it",
+    ]);
+  });
+
+  it('fails a commit that also carries an unrelated path', () => {
+    writeFileSync(join(repo, DOC), taskDoc({ id: 'task-101', status: 'backlog' }), 'utf-8');
+    writeFixtureFile(repo, 'unrelated.txt', 'swept in\n');
+    const sha = commitWorktree('wf(task): approve task-101 [pending → backlog]');
+
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'declared-fields-only')).toEqual([
+      "it also contains 'unrelated.txt'",
+    ]);
+  });
+
+  it('fails when the document is absent from the commit\'s tree, and stops before comparing content', () => {
+    writeFixtureFile(repo, 'unrelated.txt', 'something else entirely\n');
+    const sha = commitWorktree('chore: unrelated');
+    const missing = 'docs/memory/v0.2/task-999.md';
+
+    // A commit that merely leaves the document UNCHANGED is a different (and detected) failure: the
+    // content comparison reports the declared field never moved. Absence is the one case where there
+    // is nothing to compare, so the walk stops there rather than diffing against an empty string.
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'declared-fields-only')).toEqual([
+      "it also contains 'unrelated.txt'",
+      'field \'status\' is "pending", expected "backlog"',
+    ]);
+    expect(verifyCommittedScope(repo, sha, missing, { status: 'backlog' }, 'declared-fields-only')).toEqual([
+      "it also contains 'unrelated.txt'",
+      `it does not contain '${missing}'`,
+    ]);
+  });
+
+  it('under `carries-content` the same body and field changes are in scope — only the declared fields are checked (AC4)', () => {
+    dirtyFrontmatter(repo, DOC, 'tags: ["written by the author"]');
+    writeFileSync(
+      join(repo, DOC),
+      readFileSync(join(repo, DOC), 'utf-8').replace('status: pending', 'status: backlog').replace('Real content.', 'The content the author just wrote.'),
+      'utf-8',
+    );
+    const sha = commitWorktree('wf(task): submit task-101');
+
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'backlog' }, 'carries-content')).toEqual([]);
+    // …and the declared field is still enforced there: a commit that did NOT move `status` fails.
+    expect(verifyCommittedScope(repo, sha, DOC, { status: 'in-review' }, 'carries-content')).toEqual([
+      'field \'status\' is "backlog", expected "in-review"',
+    ]);
+  });
+
+  it('compares a ROOT commit against the empty tree rather than failing to resolve a parent', () => {
+    const fresh = makeTempGitRepo();
+    try {
+      writeFixtureFile(fresh, DOC, taskDoc({ id: 'task-101', status: 'pending' }));
+      commitAll(fresh, 'root commit');
+      const sha = gitOut(fresh, ['rev-parse', 'HEAD']);
+
+      // The document is ADDED by this commit, so under the strict scope everything in it is new.
+      const problems = verifyCommittedScope(fresh, sha, DOC, { status: 'pending' }, 'declared-fields-only');
+      expect(problems).toContain('the body changed although this operation does not own it');
+      expect(problems).toContain("field 'id' changed although this operation does not own it");
+    } finally {
+      removeTempDir(fresh);
+    }
+  });
+});
+
+describe('the post-condition as an alarm — a commit that grew after every pre-write check passed (AC3)', () => {
+  let repo: string;
+  const DOC = 'docs/memory/v0.2/task-101.md';
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', APPROVER_DNA);
+    writeFixtureFile(repo, DOC, taskDoc({ id: 'task-101', status: 'pending' }));
+    commitAll(repo, 'seed');
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  /**
+   * The one realistic way a commit can carry more than the verb wrote: a repository-local
+   * `pre-commit` hook — a formatter, or a linter run with `--fix` — that rewrites the element file
+   * and re-stages it. It runs AFTER `requireUnmodifiedDocument` (the tree was clean), AFTER the
+   * rendering post-condition, and inside `git commit` itself, so nothing before the commit can see
+   * it. Only a check that reads the committed tree can.
+   *
+   * POSIX-only by construction (a shebang plus the executable bit). CI is `ubuntu-24.04` on all
+   * three jobs (`.github/workflows/publish.yml`), and the case is skipped elsewhere rather than
+   * failing for a reason that has nothing to do with the behaviour under test.
+   */
+  const itOnPosix = process.platform === 'win32' ? it.skip : it;
+
+  itOnPosix('a pre-commit hook that rewrites the element file is caught by the committed-tree check, and the commit is REPORTED rather than rewritten', async () => {
+    const hook = join(repo, '.git', 'hooks', 'pre-commit');
+    writeFileSync(
+      hook,
+      `#!/bin/sh\nprintf 'INJECTED BY A PRE-COMMIT HOOK\\n' >> "${DOC}"\ngit add -- "${DOC}"\n`,
+      'utf-8',
+    );
+    chmodSync(hook, 0o755);
+    const before = head(repo);
+
+    const result = await memoryOp('memoryApprove')({ root: repo, positional: 'task-101', options: { reason: 'meets standards' } });
+
+    expect(result.ok).toBe(false);
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(errorMessage(result)).toContain('carries more than the change it declares');
+    expect(errorMessage(result)).toContain('the body changed although this operation does not own it');
+
+    // The alarm cannot un-commit: by the time it can run, the commit exists. It names the sha and
+    // leaves history alone — rewriting it behind the user's back is the worse failure (dl-035).
+    const after = head(repo);
+    expect(after).not.toBe(before);
+    expect(errorMessage(result)).toContain(after);
+    expect(gitOut(repo, ['show', `${after}:${DOC}`])).toContain('INJECTED BY A PRE-COMMIT HOOK');
   });
 });

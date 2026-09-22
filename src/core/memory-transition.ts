@@ -169,7 +169,7 @@ function requireUnmodifiedDocument(root: string, prepared: PreparedMemoryTransit
  * behind the user's back is a worse failure than reporting one (`dl-035` points the same way). With
  * {@link requireUnmodifiedDocument} in place it should be unreachable, which is the point.
  */
-function verifyCommittedScope(
+export function verifyCommittedScope(
   root: string,
   sha: string,
   path: string,
