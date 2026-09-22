@@ -2,7 +2,7 @@
 id: "task-090-fix-approval-authority-baseline"
 type: task
 title: "Resolve the approval authority against a committed state, so an `Approver:` line cannot rest on an uncommitted `dna.yaml`"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "security", "audit-trail"]
