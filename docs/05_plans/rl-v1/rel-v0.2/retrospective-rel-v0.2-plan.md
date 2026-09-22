@@ -552,8 +552,13 @@ theme, it is an impression — put it to the approver at §3.2 as a question ins
 
 ## 6.1 A second, unrelated decision-log is created in this phase — by scheduling, not by derivation
 
-Relayed from the approver on 2026-09-22 (via the session holding the v0.3 notes; **confirm with the
-approver before acting**, since this plan's author did not receive it directly):
+Decided by the approver on 2026-09-22. The provenance is recorded precisely, because this plan's
+author did not receive it directly: it was relayed by the session holding the v0.3 notes, which
+reports that the approver answered *"2. Durante la retrospective"* to its question of **when** the
+bindings proposal should be promoted to a decision-log. That is a specific exchange rather than a
+summary, which is why it is written here as a decision rather than as a rumour — but if anything
+about the shape below surprises you when you run this phase, ask rather than assume: a second-hand
+decision is exactly the kind of claim this release learned to verify.
 
 A proposal about **which command each `actions:` and `checks:` token in the workflow definitions
 corresponds to** — six open questions — is to be promoted to a real decision-log **during this
