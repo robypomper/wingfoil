@@ -62,3 +62,28 @@ either one alone leaves the other's value unrealised.
   the one channel a real failure uses to announce itself.
 - No fix task filed: a one-line change, naturally carried by whatever next touches `audit.ts` or by
   `bug-070`'s fix, with which it pairs.
+
+
+## Correction (2026-09-22) — this bug described a symptom, and its proposed remedy would have hidden the defect
+
+Filed earlier the same day, framing the `fatal:` line as noise from "an expected, handled condition"
+and proposing `stdio: ['ignore','pipe','pipe']` to suppress the child's stderr.
+
+**The condition is not expected.** `bug-077-history-follow-attributes-template-commits` reproduces the
+cause: `memory history` walks with `git log --follow`, which chases the element back to the template
+it was copied from, so the walk yields a commit that never contained the document. `readStatusAt` then
+asks `git show <that sha>:<path>` for a path absent from that tree, and git says so. The `fatal:` is
+the **only visible symptom** of a fabricated history entry that otherwise carries a real sha, author
+and timestamp.
+
+So the remedy proposed here was worse than the defect: suppressing the stderr would have left the
+phantom entry in place and removed the one sign that anything was wrong.
+
+**What survives of this bug.** Once `bug-077` is fixed, a `git show` against a commit that genuinely
+predates a legitimately renamed path can still print a `fatal:`, and suppressing it then is a real
+cosmetic improvement. This bug stays open for that, explicitly **downstream of `bug-077`** and not to
+be worked independently — fixing it first would destroy the evidence for the other.
+
+Recorded rather than silently rewritten. The original text stands above, because the reasoning that
+produced it is part of what this release should learn from: the line was read as an accepted
+limitation because a TSDoc already described it as one, and nobody asked why the condition arose.
