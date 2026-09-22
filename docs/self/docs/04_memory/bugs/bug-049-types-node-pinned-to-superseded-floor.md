@@ -2,10 +2,10 @@
 id: "bug-049-types-node-pinned-to-superseded-floor"
 type: bug
 title: "`@types/node` is pinned `^18.19.130` explicitly to match the old floor, so the codebase types against Node 18 while promising >=22.12"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
