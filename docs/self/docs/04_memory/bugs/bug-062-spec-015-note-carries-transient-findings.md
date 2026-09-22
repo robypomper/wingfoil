@@ -3,7 +3,7 @@ id: "bug-062-spec-015-note-carries-transient-findings"
 type: bug
 title: "spec-015's §3 Revision note states two transient defects as current fact, with no element id and nothing scheduled to remove them once they are fixed"
 status: open
-severity: "low"
+severity: "high"
 release-origin: "v0.2"
 release: ""
 feature: ""
@@ -72,6 +72,19 @@ rather than the finding.
   and the natural carrier is whichever task next amends `spec-015` — or the `user-docs` release gate,
   which is the only unplanned phase that owns documentation. Named here so the carrier is not
   invented later.
+- **re-grade (2026-09-22): low → high, and the reason is that the premise of the first triage
+  expired.** That triage rested on "the statement is true today". It is not true any more:
+  `task-080` and `task-081` landed on 2026-09-21 (merges `ce48681` and `d1aa785`), and `bug-056` and
+  `bug-057` are `closed` on reproduced evidence. So an `approved` tech-spec — the one the
+  `release-publishing` phase reads — now asserts in the present tense that `npm ci` and
+  `prepublishOnly` fail, days before that pipeline is meant to run for real. The window the first
+  triage said did not exist is open now.
+- This is worth noting beyond this bug: the first triage was correct when written and became wrong
+  without anyone touching it, which is the same decay `dl-075` is about, arriving through a triage
+  decision rather than through a citation. Nothing re-reads a severity call when the world it was
+  based on changes.
+- Fix task filed on the approver's instruction (2026-09-22):
+  `task-084-fix-spec-015-stale-stage-1-note`, `release: "v0.2"`.
 - Blocked on nothing. It can be done at any time, but doing it **before** `task-080`/`task-081` land
   would make the spec silent about a real current limitation, so the right moment is with or after
   those fixes.
