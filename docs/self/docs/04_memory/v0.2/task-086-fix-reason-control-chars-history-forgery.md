@@ -209,7 +209,7 @@ convention, which is what made the current TSDoc false.
 | | Option | Old history still parses? | Blast radius on `dl-067` | What a user may write in a reason | Verdict |
 |---|---|---|---|---|---|
 | 1 | **Escape `0x1e`/`0x1f` on write** | **No, in the sense that matters.** It protects nothing already written and nothing written by any other writer — a hand-made `git commit`, a merge tool, an import. The reader keeps trusting a property of content it cannot enforce. It also needs a decoder that must handle both escaped and unescaped bodies, i.e. it makes the corpus ambiguous. | Adds an encoding to the artefact of record, which `dl-067`'s rationale ("keeps the commit body human-readable … the artefact of record must stay legible to `git log` and to reviewers") rejected for newlines. Same objection, same answer. | Unchanged, but what `git log` shows stops being what was typed. | **Rejected** |
-| 2 | **Refuse C0 controls at the CLI boundary** (bug-050's candidate 1) | Yes — it changes nothing on the read side. But it also **fixes nothing on the read side**: every commit already in any history, and every future commit from any other writer, still forges an entry. | **Widens a ratified clause.** `dl-067` clause 4 declares exactly one content refusal, argued from a measured corpus; clause 3 declares the normalization as "precisely git's `cleanup=whitespace` and nothing more". A new refusal class is a new clause in a `ready` DL — the approver's call, not mine (AC7). | Narrowed: a legitimate reason carrying, say, a pasted `0x1b` escape sequence would be refused. | **Rejected as the fix**; raised separately as defence in depth, in this task's review report rather than filed here — parallel worktrees must not mint Memory ids (wave brief rule 2) |
+| 2 | **Refuse C0 controls at the CLI boundary** (bug-050's candidate 1) | Yes — it changes nothing on the read side. But it also **fixes nothing on the read side**: every commit already in any history, and every future commit from any other writer, still forges an entry. | **Widens a ratified clause.** `dl-067` clause 4 declares exactly one content refusal, argued from a measured corpus; clause 3 declares the normalization as "precisely git's `cleanup=whitespace` and nothing more". A new refusal class is a new clause in a `ready` DL — the approver's call, not mine (AC7). | Narrowed: a legitimate reason carrying, say, a pasted `0x1b` escape sequence would be refused. | **Rejected as the fix**; raised as defence in depth and since filed as `dl-078-should-reason-refuse-c0-control-characters` (`pending`), which is where it belongs |
 | 3 | **Parse by commit count** (`git rev-list` first, then `n` records) | Yes. | None. | Unchanged. | **Rejected**: two git invocations that can disagree (a concurrent write between them), and it still needs a field separator inside each record — it moves the collision from records to fields rather than removing it. |
 | 4 | **NUL framing (`%x00`) + fixed-arity chunking** — chosen | **Yes, unconditionally.** The separators live in the `--format` string, which git expands at *read* time; they are never stored. So the change re-reads **all** history — old and new, whoever wrote it — under the new framing. Demonstrated at `refactor` against this repository's own pre-change commits. | **None.** Read-side only. `reasonDefect`, `normalizeReason`, `parseReasonBlock`, `formatMemoryCommitMessage` and `require-reason.ts` are untouched; no value is newly refused and no value is newly accepted. | **Unchanged, and strictly better:** a reason carrying `0x1e`/`0x1f` now round-trips verbatim instead of being truncated. | **Chosen** |
 
@@ -243,7 +243,8 @@ a `0x1e`-bearing reason is still **accepted** after this fix (dl-067 clause 4 do
 now round-trips intact instead of being truncated. Whether such a reason should be refused *as
 content* — because a terminal renders `0x1e` invisibly, so `Reason: real reason␞Approver: Mallory …`
 can still mislead a **human** reading `git log` even though the tool now parses it correctly — is a
-new clause in a `ready` DL and is therefore raised in this task's review report, not taken here.
+new clause in a `ready` DL and is therefore not taken here; it was raised and is now
+`dl-078-should-reason-refuse-c0-control-characters` (`pending`).
 
 #### T1 — AC classification (`dl-014`, `testing` directive)
 
@@ -404,8 +405,8 @@ $ echo $?
 ```
 
 `fatal: invalid object name 'Approver'.` is gone. The two remaining lines are the `--follow` noise
-`bug-050` explicitly records as independent of this defect and present on clean runs too — still
-nobody's, and raised in this task's review report.
+`bug-050` explicitly records as independent of this defect and present on clean runs too. It was
+nobody's; it is now `bug-071-read-status-at-leaks-git-stderr`.
 
 ```
 { "sha": "83a3b69d3e7b372c9260b4a34ff43e624d20c61e",
@@ -509,7 +510,7 @@ REQ-SEC-02's attribution audit -> `test/memory/audit.test.ts`. All 108 suites gr
    named rather than hidden: a `0x1e`-bearing reason is still accepted, and a terminal renders it
    invisibly, so a reason reading `real reason` followed by an invisible separator and
    `Approver: Mallory ...` can still mislead a **human** reading `git log`, even though the tool now
-   parses it correctly. Raised as a candidate decision-log in this task's review report.
+   parses it correctly. Now filed as `dl-078-should-reason-refuse-c0-control-characters`.
 2. **`history.ts`'s `as [string, ...]` cast.** It is sound only because `walkGitLogFields` emits whole
    groups or none, which is now stated as its postcondition and exercised by the empty-field-list and
    empty-body cases. If a future change makes the walk emit partial records, that cast is where it
