@@ -338,23 +338,14 @@ committed result then depends on it:
 | Read | Gates what | Same defect? | Command that settles it |
 |---|---|---|---|
 | `dna.yaml` → `requireApprovalAuthority` (`index.ts:797`, `:888`) | `memory approve` / `memory reject` | **Yes — this task** | AC1 transcript above |
-| `memory.yaml` → `prepareMemoryTransition` (`index.ts:790`, `:881`, `:985`, `:703`) | which transition is legal, and the `[from → to]` bracket every transition commit records | **Yes, unfixed** — an uncommitted edit to a state machine makes an illegal edge legal and the commit subject attests it | measured, see below |
+| `memory.yaml` → `prepareMemoryTransition` (`index.ts:703`, `:793`, `:885`, `:987`) | which transition is legal, and the `[from → to]` bracket every transition commit records | **Yes, unfixed** — an uncommitted edit to a state machine changes the target a transition resolves to, and the commit subject attests it | measured — see `refactor` § "AC5 — the two findings, settled by running them" |
 | `dna.yaml` → `checkAssignable` (`index.ts:1143`, `directive assign`) | whether `--role` exists in `team.roles` before `roles.yaml` is written | **Yes, unfixed** — a binding to a role that exists in no committed `dna.yaml` can be committed | `grep -n "checkAssignable" src/core/index.ts src/core/directive-assign.ts` |
 | `roles.yaml` → `directives list` (`directives-list.ts:191`), `assembleExecutionContext`, `mcp/prompt.ts:135` | nothing — read-only output | No gate. Still a *determinism* question about context building (the live tree is the source), already noted in `src/memory/relevance.ts`'s own comment | `grep -rn "loadRolesYaml(root)" src/` → three sites, none `mutates: true` |
 | `requireCustomAsset` (REQ-SEC-07) | `directive remove` / workflow remove | No — pure path predicate, reads no config | `grep -n "readDocument\|loadDnaYaml\|loadRolesYaml" src/core/builtin-asset.ts` → no match |
 | `requireGitIdentity` (REQ-SEC-01) | every mutating op | No — git config is local by nature and cannot be committed; it is the "who is asking", which (a) deliberately keeps reading live (see `green`) | `grep -n "readGitIdentity" src/core/git-identity.ts` |
 
-The `memory.yaml` finding, measured on the scratch project rather than argued (same build, `adr`
-falling back to `defaults.states`):
-
-```
-$ git show HEAD:.wingfoil/memory.yaml | grep -A3 'states:'      # committed: sequence [draft, pending, approved]
-# uncommitted edit to .wingfoil/memory.yaml adding `in-review` to defaults.states.sequence
-$ node dist/cli.js memory approve adr-004-… --reason '…'
-wf(adr): approve adr-004-… [pending → in-review]              exit 0
-```
-
-(transcript in `red` § M3, run after the fix, which does not touch this read.) Both of these fall
+Both unfixed findings were **measured, not argued** — the transcripts are in `refactor` § "AC5",
+run against the fixed build (which changes neither read). Both of these fall
 **outside** this task's argument: mine is about *who authorised*, and these are about *what was
 allowed* and *what a binding may reference*. They are filed as proposed elements, together with the
 general-rule decision-log the Implementation Notes ask for — which read takes which baseline, with
@@ -372,3 +363,266 @@ read-vs-write as its likely hinge (`bug-078` is its write-side half).
 | **AC6** — a test pins the defect, red before / green after | **red-first** | Same evidence as AC3; command recorded under `red`. |
 | **AC7** — this repository's history is not re-verified or rewritten | **process gate** | Negative obligation. `git log --oneline main..HEAD` touches no historical commit; no test reads this repository's Memory, and `bug-075` means the verbs cannot be pointed at it. |
 | **AC8** — six gates green | **process** | Run at `refactor`/`review`. |
+
+### red — role: developer
+
+Commit `1aa2208`. Two new suites, no change to any existing one at this step:
+
+- **`test/core/approval-authority-baseline.test.ts`** — the baseline at the `CoreFn` seam, driving the
+  REAL registered `memory.memoryApprove` / `memoryReject` / `memorySubmit` / `memoryDeprecate`
+  operations in throwaway repos: the uncommitted grant (AC3/AC6), the same refusal for `reject`, M1's
+  never-committed `dna.yaml`, an invalid committed `dna.yaml`, M2's uncommitted withdrawal, the
+  corroboration property, AC4's bootstrap pair, and the two cases that pin the fix as a *baseline*
+  rather than a `task-088`-style guard (`submit` and `deprecate` are untouched by a dirty `dna.yaml`).
+- **`test/cli/approval-authority-baseline.integration.test.ts`** — the two things only the process
+  boundary shows: the exit code a script keys on and the stderr a human reads, through the compiled
+  `dist/cli.js` in a real `wingfoil init` project. `spawnSync`, per `task-086`'s measurement gotcha
+  (recorded in the file's TSDoc so the next reader does not "simplify" it back).
+
+Observed red — AC6's command, before any `src/` change:
+
+```
+$ npx jest test/core/approval-authority-baseline.test.ts test/cli/approval-authority-baseline.integration.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       7 failed, 4 passed, 11 total
+```
+
+The 7 failures are the defect: every one reads `expect(result.ok).toBe(false)` / `expect(run.status)
+.toBe(1)` receiving the success the current code returns (plus M2's mirror image, which fails the
+other way — `ok` where today's code refuses). The 4 passes are exactly the cases the T1 table
+classifies as characterization: the corroboration property on a clean tree, `submit` and `deprecate`
+being unaffected, and AC4's *positive* half (seed + commit → approve succeeds), which already worked.
+
+One fixture bug was fixed inside this step rather than papered over: the first run asserted
+`git status --porcelain` as `" M .wingfoil/dna.yaml"` against a helper that `.trim()`s its output.
+The assertion was wrong, not the code.
+
+### green — role: developer
+
+Commit `a647c22`. Three source files, one existing test suite migrated.
+
+| Change | Where |
+|---|---|
+| `DNA_YAML_PATH` (the root-relative POSIX path git wants) and `parseDnaYaml(raw, filePath)` — the DNA two-pass parse lifted out of `loadDnaYaml` so the same schema and the same error shapes serve bytes from any source; `filePath` becomes a **label** (`HEAD:.wingfoil/dna.yaml`), so an error names the baseline it came from | `src/core/loaders.ts` |
+| `loadDnaYamlAtHead(root): DnaYaml \| null` — `readPathAtRev(root, 'HEAD', DNA_YAML_PATH)` (task-088's primitive) + that parse; `null` means "no commit of this repository contains that path" | same |
+| `requireApprovalAuthority(root, typeName)` — **the signature changed**: it no longer accepts a `DnaYaml` and resolves the committed one itself. Three fail-closed refusals (no authority at `HEAD`; nothing committed; committed file unreadable), plus `workingTreeWouldGrant`, a diagnostic that never decides anything | `src/core/approval-authority.ts` |
+| the two call sites lose their `loadDnaYaml` pre-load and pass `type` alone; both TSDoc step lists say which baseline is read and why | `src/core/index.ts` |
+| the existing unit suite migrated to the new signature: every case now **commits** its fixture `dna.yaml`, and three new cases pin the baseline at that seam | `test/core/approval-authority.test.ts` |
+
+Design points worth naming:
+
+- **The fix is in the signature, not next to the call.** A caller cannot hand this function a
+  working-tree `DnaYaml` even by accident. That is the whole of AC2's argument expressed in code: the
+  committed baseline is a property of the read, not of a precondition someone must remember to run.
+  It is also why the change is small — two call sites got *shorter*.
+- **REQ-SEC-03's fit criterion is preserved verbatim** as the message's first sentence. The
+  `— the working tree's '…' grants it, but that change is not committed …` clause is appended **only**
+  when the working tree would have granted the role, i.e. exactly when the user's screen and the
+  repository disagree. Every existing assertion on the exact message (`test/core/memory-approve.test.ts`
+  P1.7 sc.3, `test/core/memory-reject.test.ts`) commits its reviewer-only `dna.yaml` and so still
+  matches byte for byte — they were left untouched and are green.
+- **The diagnostic can never decide.** `workingTreeWouldGrant` returns `false` on any failure to read
+  or parse the working-tree file; pinned by a test that deletes it and then corrupts it.
+- **Exit `1` for all three refusals** (`CoreResult.error`, code `VALIDATION`), per `spec-005` §1 and
+  AC3 — a repository-state precondition is not a malformed invocation. Not re-argued; `bug-076` ruled it.
+- **`loadDnaYamlAtHead` is NOT exported from `src/core`'s public surface.** It is an internal read of
+  one pillar's file under one argued exception; making it public would advertise "read the committed
+  version" as a general facility before the general rule (the proposed decision-log) has been decided.
+- **What deliberately keeps reading the live working tree**: `dna show`, `dna set`, `paths`,
+  `directives list`, the MCP resources — they exist to report or edit what the user has now — and
+  `readGitIdentity`, which answers "who is asking" from git config, a local setting git never commits.
+
+Full suite after green: `npx jest` → **116 suites, 1828 tests passed**, exit 0.
+
+### refactor — role: developer
+
+Commit `a5fff86`. No behaviour added; the coverage the green step owed, plus the one property the
+green step asserted in prose and nowhere else.
+
+- **`loadDnaYamlAtHead` is tested directly** (`test/core/loaders.test.ts`): `null` while the file is
+  untracked; `HEAD`'s copy returned while the working tree says something else (the same call
+  compared against `loadDnaYaml` in one assertion); `ValidationError` for a committed file that does
+  not validate while the working-tree copy is fine.
+- **The gate's propagation rule is pinned** (`test/core/approval-authority.test.ts`): a failure that
+  is *not* a `ValidationError` propagates instead of being converted into an authorization answer.
+  Reachable only by making the read fail in a way nothing in the code can produce, so it uses a
+  `jest.spyOn` on the loaders module — the one mock in either new suite, and it buys a real property:
+  a defect in the read path must never be reported as "not authorized" (or as "authorized").
+- **An unreadable working-tree `dna.yaml` leaves the refusal exactly as REQ-SEC-03 words it** — the
+  deleted-file and corrupt-file cases, which is the `workingTreeWouldGrant` catch.
+
+#### AC3/AC4 — the AC1 reproduction re-run against the fixed build
+
+```
+$ node dist/cli.js memory approve adr-001-repro-target --reason 'authority from an uncommitted file'
+error: user not authorized to approve type 'adr' — the working tree's '.wingfoil/dna.yaml' grants it,
+but that change is not committed, and approval authority is read from the committed configuration
+(adr-006); commit '.wingfoil/dna.yaml' first, then retry
+$ echo $?
+1
+$ git log --oneline -1
+9a633d7 wf(adr): submit adr-001-repro-target          # unchanged — nothing was written
+
+$ git add .wingfoil/dna.yaml && git commit -q -m 'chore: seed the first approver'
+$ node dist/cli.js memory approve adr-001-repro-target --reason 'seeded and committed'    # exit 0
+wf(adr): approve adr-001-repro-target [pending → approved]
+
+Approver: Test User <test@example.test> (approver)
+Reason: seeded and committed
+$ git show HEAD:.wingfoil/dna.yaml | sed -n '23,26p'
+  members:
+    - name: Test User
+      email: test@example.test
+      roles: [developer, approver]
+```
+
+The `Approver:` line and the `dna.yaml` that supports it are now in the **same commit** — the
+corroboration a fresh clone can re-derive (`adr-006`), and the exact thing `bug-079`'s AC1 transcript
+showed to be absent.
+
+#### AC5 — the two findings, settled by running them
+
+Both on the same fixed build, in the same scratch project, and **neither is fixed here**: this task's
+argument is about *who authorised*, and these are about *what was allowed* and *what a binding may
+reference*. Filed as proposed elements in the final report.
+
+**1. `memory.yaml`: an uncommitted state machine drives the transition the commit attests.**
+
+```
+$ git show HEAD:.wingfoil/memory.yaml | sed -n '13p'
+    sequence: [ draft, pending, approved ]
+# uncommitted edit: sequence: [ draft, pending, INVENTED-BY-A-DIRTY-TREE, approved ]
+$ git status --porcelain -- .wingfoil/memory.yaml
+ M .wingfoil/memory.yaml
+$ node dist/cli.js memory approve adr-002-ac5-probe --reason '…'          # exit 0
+wf(adr): approve adr-002-ac5-probe [pending → INVENTED-BY-A-DIRTY-TREE]
+$ git show HEAD:.wingfoil/memory.yaml | sed -n '13p'
+    sequence: [ draft, pending, approved ]
+```
+
+The subject attests a transition to a state that exists in no committed machine, and `memory history`
+(P1.10) reads that bracket back. Closest sibling of this task's defect; graded the more serious of
+the two findings.
+
+**2. `directive assign`: a binding to a role no committed `dna.yaml` defines.**
+
+```
+# uncommitted edit adding `- name: FABRICATED-ROLE` to team.roles
+$ node dist/cli.js directive assign --directive sample --role FABRICATED-ROLE      # exit 0
+wf(directive): assign sample to FABRICATED-ROLE
+$ git show HEAD:.wingfoil/roles.yaml | grep -A1 FABRICATED
+  FABRICATED-ROLE:
+    - sample
+$ git show HEAD:.wingfoil/dna.yaml | grep -c FABRICATED-ROLE
+0
+```
+
+`checkAssignable` (`src/core/index.ts:1145`) validates `--role` against the working tree's role
+catalogue, so the committed `roles.yaml` ends up referencing a role the committed `dna.yaml` does not
+define — REQ-SYS-08's referential integrity, broken through the same baseline.
+
+The rest of the sweep is unchanged from the design table; re-run post-fix for accuracy:
+
+```
+$ grep -rn "requireApprovalAuthority(" src/
+src/core/index.ts:800   (memoryApproveFn)
+src/core/index.ts:892   (memoryRejectFn)
+src/core/approval-authority.ts:112  (the definition)
+```
+
+#### Coverage — measured on both sides, not quoted
+
+Baseline taken by running `npx jest --coverage` in a detached worktree at this branch's base
+(`59d4d5a`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `59d4d5a` | 98.64 | 93.21 | 98.86 | 99.21 | 1812 |
+| this branch | **98.65** | **93.25** | **98.86** | **99.22** | 1833 |
+
+No metric regressed; `src/core/approval-authority.ts` is at **100 / 100 / 100 / 100**. The one
+uncovered line in a file this task touched is `src/core/loaders.ts:102` — the pre-existing
+`throw err` rethrow of a non-`E_YAML_PARSE_ERROR` failure from `parseYaml`, which `parseYaml` cannot
+produce (`src/validation/yaml.ts` wraps every throw). It was uncovered at the base too (reported
+there as line 88) and is moved, not written, by this task.
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git merge main            # main at 59d4d5a
+Already up to date.
+```
+
+`main` did not move while this task ran, so no document cited above can have gone stale and every
+gate below is current.
+
+#### Gates (run in this worktree)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **116 suites, 1833 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.65 / 93.25 / 98.86 / 99.22** — no metric below base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, no output (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+BDD acceptance suites for the two gated verbs, run unchanged:
+`npx jest test/core/memory-approve.test.ts test/core/memory-reject.test.ts` → green as part of the
+full run above.
+
+| BDD scenario | Test that covers it |
+|---|---|
+| P1.7 sc.3 *Error — approver lacks authority for the type* | `test/core/memory-approve.test.ts` "P1.7 sc.3: a caller holding no `approver` role exits 1 with the REQ-SEC-03 message, state unchanged" (unchanged — its reviewer-only `dna.yaml` is committed) — and, for the **baseline**, `approval-authority-baseline.test.ts` "AC3/AC6: an UNCOMMITTED grant of `approver` does not authorize `approve`" |
+| P1.7 sc.1 *Approve a pending document with a reason* | `test/core/memory-approve.test.ts` (unchanged) + `approval-authority-baseline.test.ts` "AC2: a successful approval is corroborated by the `dna.yaml` committed AT that very commit" |
+| P1.8 sc.1 / sc.3 *Reject; approver lacks authority* | `test/core/memory-reject.test.ts` (unchanged) + `approval-authority-baseline.test.ts` "AC3: `reject` refuses on the same uncommitted grant" |
+| P1.6 sc.1 *Submit a draft document for approval* | `test/core/memory-submit.test.ts` (unchanged) + "AC2: a dirty `dna.yaml` does not by itself block a transition" |
+| P1.9 sc.1 *Deprecate an approved document* | `test/core/memory-deprecate.test.ts` (unchanged) + "AC2: `deprecate` needs no approval authority" |
+| P5.1.1 *fresh init runs every transition verb* | `test/cli/fresh-init-transitions.test.ts` — untouched and green: its `grantApproverRole` already committed the seed, which is AC4's flow |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** Approval authority was read from the `dna.yaml` on disk, so an
+uncommitted edit could put an `Approver:` line into a permanent commit that the repository's own
+record at that commit contradicted; `requireApprovalAuthority` now resolves the roles from the
+`.wingfoil/dna.yaml` committed at `HEAD` — and no longer accepts a `DnaYaml` from its caller, so
+there is no call path that can reach the decision with a working-tree file.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 reproduce first, on a scratch project, against a build containing task-088 | done | `design` § AC1 — commands, commit body, and `git show HEAD:.wingfoil/dna.yaml` at that commit; plus M1 (never-committed file) and M2 (the read is wrong in the other direction too) |
+| AC2 choose the baseline and argue it | done — **option (a)** | `design` § AC2: three reasons it wins, three things (b) would have been better at, and the deciding principle (`adr-006`'s fresh-clone consequence) |
+| AC3 the reproduction fails closed at exit `1` | done | `refactor` § AC3/AC4 transcript; `approval-authority-baseline` suites at both seams |
+| AC4 bootstrap still works, pinned by a test | done, with the awkwardness stated | `design` § AC4 (`dna set` provably cannot seed a member) + the paired tests at both seams |
+| AC5 sweep for other baseline reads | done | `design` § AC5 table (every row with its command) + `refactor` § AC5, where the two live findings are *measured* |
+| AC6 a test pins the defect, red before / green after | done | `red` § — 7 failed / 4 passed before, 11 passed after; command recorded |
+| AC7 nothing in this repository is re-verified or rewritten | done | `git log --oneline main..HEAD` touches no historical commit; no test reads this repository's Memory; `bug-075` means the verbs cannot be pointed at it |
+| AC8 six gates green | done | `refactor` § Gates |
+
+**What the approver must decide** — nothing is forced by this task, but two things wait on a ruling:
+
+1. **The general rule** — which baseline each command reads, with read-vs-write as its likely hinge
+   (this task fixed a *read*; `task-088` chose refusal for a *write*; `bug-078` is the write-side half).
+   Proposed as a decision-log, not enacted (Implementation Notes ask exactly this).
+2. **The two measured findings above** (`memory.yaml`'s machine, `directive assign`'s role catalogue).
+   Both are the same class on different artefacts, both are demonstrated, neither is touched here.
+
+**Weak spots a reviewer should check**
+
+1. **M2 is a behaviour change, in the permissive direction.** An uncommitted *withdrawal* of the
+   `approver` role no longer stops an approval. It is correct under the rule adopted — authority is
+   what the repository records — and it is pinned by a test, but it is the one case where the new
+   behaviour grants where the old refused.
+2. **The refusal message grew a second sentence.** Only when the working tree would have granted the
+   role; REQ-SEC-03's fit criterion stays the exact first sentence. Any consumer matching the message
+   with `===` rather than a prefix would see the difference — in this repository nothing does
+   (the existing suites commit their fixtures and still match exactly).
+3. **An invalid committed `dna.yaml` now blocks approvals even when the working-tree copy is fine.**
+   Fail-closed by choice, exit `1`, message names the file and the baseline; the fix is to commit the
+   fix.
+4. **One `jest.spyOn` on an internal module** (`refactor` §), used to reach a defensive rethrow that
+   nothing in the code can produce. It pins a real property, but module spying is new in this suite.
+5. **`loadDnaYamlAtHead` is deliberately not on `src/core`'s public surface** — a reviewer may take
+   the opposite view, as task-088's reviewer did about `verifyCommittedScope`.
