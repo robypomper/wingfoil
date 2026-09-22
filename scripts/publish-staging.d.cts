@@ -36,8 +36,19 @@ export interface StagingEffects {
   removeToken(dir: string): void;
   /** Pack the package into `paths.pack`; returns the tarball path. */
   packTarball(paths: StagingPaths, env: NodeJS.ProcessEnv): string;
-  /** Install and start Verdaccio; resolves once it answers. */
-  startRegistry(paths: StagingPaths, env: NodeJS.ProcessEnv): Promise<StagingRegistry>;
+  /**
+   * Install and start Verdaccio; resolves once it answers.
+   *
+   * `onSpawn` is called with a usable handle **as soon as the child exists**, before the readiness
+   * poll — so teardown can stop a registry that is still coming up. Taking the resolved value alone
+   * left a window (the poll sleeps 500 ms between probes) in which an interrupt tore down without
+   * stopping the child, orphaning it on the staging port (reject `8937a51`).
+   */
+  startRegistry(
+    paths: StagingPaths,
+    env: NodeJS.ProcessEnv,
+    onSpawn?: (registry: StagingRegistry) => void,
+  ): Promise<StagingRegistry>;
   /** Register a throwaway user and write its token to `paths.userconfig`. */
   createToken(paths: StagingPaths): Promise<void>;
   /** Run `npm <args>`; throws on a non-zero exit. */

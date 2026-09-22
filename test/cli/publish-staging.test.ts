@@ -441,9 +441,140 @@ describe('publish:staging (task-083) — teardown on SIGINT/SIGTERM/SIGHUP', () 
   });
 
   it('touches no real process handler when no `interrupts` option is given (AC7)', async () => {
-    const before = (TEARDOWN_SIGNALS as NodeJS.Signals[]).map((s) => process.listenerCount(s));
+    const counts = (): number[] => (TEARDOWN_SIGNALS as NodeJS.Signals[]).map((s) => process.listenerCount(s));
+    const before = counts();
+    // The load-bearing sample is taken MID-RUN. Comparing only before and after cannot fail: the
+    // `finally` always uninstalls, so "never installed" and "installed then removed" look identical
+    // from outside the call — arming the handlers unconditionally left all 29 cases green (reject
+    // 8937a51, found by mutation). Sampling from inside a fake effect is what pins the property.
+    const during: number[][] = [];
     const { effects } = fakeEffects();
-    await expect(runStaging({ name: 'wingfoil', version: '0.2.0', tarball: 't.tgz', effects })).resolves.toBe(0);
-    expect((TEARDOWN_SIGNALS as NodeJS.Signals[]).map((s) => process.listenerCount(s))).toEqual(before);
+    await expect(
+      runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: {
+          ...effects,
+          createToken: async (paths) => {
+            during.push(counts());
+            await effects.createToken(paths);
+          },
+          smoke: (env, version) => {
+            during.push(counts());
+            return effects.smoke(env, version);
+          },
+        },
+      }),
+    ).resolves.toBe(0);
+    expect(during).toEqual([before, before]);
+    expect(counts()).toEqual(before);
+  });
+
+  /**
+   * reject `8937a51` — the start-up window. `runStaging` used to learn about the registry only from
+   * `startRegistry`'s resolved value, but the child is spawned well before that and the readiness poll
+   * sleeps 500 ms between probes. A signal landing in between tore down with `registry === undefined`:
+   * `stop()` was never called, the orphan kept :4873, and the completion line still said the registry
+   * had been stopped. Reproduced in the field on a real Verdaccio before this case was written.
+   */
+  describe('the start-up window (reject 8937a51)', () => {
+    /** Effects whose `startRegistry` hands out its `stop` at spawn time, then blocks as a poll would. */
+    function slowStartingRegistry(
+      calls: string[],
+      base: StagingEffects,
+      duringPoll: () => Promise<void>,
+    ): StagingEffects {
+      return {
+        ...base,
+        startRegistry: async (paths, env, onSpawn) => {
+          calls.push('spawnRegistry');
+          onSpawn?.({
+            stop: async () => {
+              calls.push('stopRegistry');
+            },
+          });
+          await duringPoll();
+          calls.push('startRegistryResolved');
+          return {
+            stop: async () => {
+              calls.push('stopRegistry');
+            },
+          };
+        },
+      };
+    }
+
+    it('stops a registry that is still coming up when the signal lands mid-poll', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: slowStartingRegistry(calls, { ...effects, log: signals.log }, async () => {
+          raised = signals.raise('SIGINT');
+          await raised;
+        }),
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+
+      // The child was spawned and the poll had not returned — yet teardown stopped it exactly once.
+      expect(calls).toContain('spawnRegistry');
+      expect(calls.indexOf('stopRegistry')).toBeGreaterThanOrEqual(0);
+      expect(calls.indexOf('stopRegistry')).toBeLessThan(calls.indexOf('startRegistryResolved'));
+      expect(calls.filter((c) => c === 'stopRegistry')).toHaveLength(1);
+      expect(signals.died).toEqual(['SIGINT']);
+    });
+
+    it('reports what teardown actually did, and says the registry was stopped only when it was', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: slowStartingRegistry(calls, { ...effects, log: signals.log }, async () => {
+          raised = signals.raise('SIGINT');
+          await raised;
+        }),
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+      // The full ordered list, not just the phrase "registry stopped": the rejected version printed a
+      // FIXED sentence that happened to contain that phrase, so asserting it alone stayed green
+      // against the defect. What must be pinned is that the line is derived from what teardown did —
+      // and the token step, which the fixed sentence never mentioned, is what proves derivation.
+      expect(signals.lines.join('\n')).toContain('token removed, registry stopped, work dir removed');
+    });
+
+    it('does not claim a registry was stopped when none had been started', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        effects: {
+          ...effects,
+          log: signals.log,
+          // The signal lands while the tarball is being packed: nothing has been spawned yet.
+          packTarball: (paths, env) => {
+            raised = signals.raise('SIGINT');
+            return effects.packTarball(paths, env);
+          },
+        },
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+      expect(calls).not.toContain('stopRegistry');
+      const said = signals.lines.join('\n');
+      expect(said).toContain('no registry to stop');
+      expect(said).not.toContain('registry stopped');
+      expect(said).toContain('work dir removed');
+    });
   });
 });

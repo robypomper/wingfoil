@@ -204,8 +204,12 @@ function installTeardownHandlers({ teardown, log, die = raiseSignal, target = pr
       interrupting = (async () => {
         log(`interrupted by ${signal} — running teardown`);
         try {
-          await teardown();
-          log(`teardown complete after ${signal}: registry stopped, work dir removed — exiting on ${signal}`);
+          // `teardown` reports what it actually did; the message repeats that rather than a fixed
+          // sentence. The fixed sentence used to claim "registry stopped" in the one case where no
+          // registry had been stopped (reject 8937a51), which is the single line an operator reads to
+          // decide whether the machine is clean.
+          const done = await teardown();
+          log(`teardown complete after ${signal}: ${done.join(', ')} — exiting on ${signal}`);
         } catch (error) {
           log(`teardown after ${signal} FAILED: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
@@ -233,23 +237,36 @@ async function runStaging({ name, version, tarball, effects, baseEnv = process.e
   /**
    * The one teardown, memoised: the `finally` below and a signal handler both call it, and whoever
    * arrives second awaits the work already in flight instead of starting a second one (task-083 AC6).
+   * Resolves to the list of what it actually did, so the handler can say so instead of asserting it.
    *
    * The token goes first, before the registry it authenticates against and before the bulk removal
    * (AC4). No signal this script handles can leave the work dir behind — the handler above absorbs a
    * second one rather than exiting early — but `SIGKILL` and a power cut can, and this ordering costs
    * three lines to make the credential the shortest-lived artefact of a run instead of the longest.
+   *
+   * The nesting is load-bearing: a throwing `removeToken` must not cost the registry its `stop()`, and
+   * neither failure may cost the work dir its removal.
    */
   const teardown = () =>
     (teardownRun ??= (async () => {
+      const done = [];
       try {
         effects.removeToken(workDir);
+        done.push('token removed');
       } finally {
         try {
-          if (registry) await registry.stop();
+          if (registry) {
+            await registry.stop();
+            done.push('registry stopped');
+          } else {
+            done.push('no registry to stop');
+          }
         } finally {
           effects.removeWorkDir(workDir);
+          done.push('work dir removed');
         }
       }
+      return done;
     })());
   const uninstall = interrupts
     ? installTeardownHandlers({ ...interrupts, teardown, log: effects.log })
@@ -258,7 +275,14 @@ async function runStaging({ name, version, tarball, effects, baseEnv = process.e
     const paths = stagingPaths(workDir);
     const env = stagingEnv(baseEnv, paths);
     const file = tarball ?? effects.packTarball(paths, env);
-    registry = await effects.startRegistry(paths, env);
+    // `onSpawn` — not the resolved value alone — is what makes teardown able to stop a registry that
+    // is still coming up (reject 8937a51). The child exists from the moment it is spawned, but
+    // `startRegistry` resolves only after a readiness poll that sleeps 500 ms between probes; a signal
+    // landing in between used to tear down with `registry === undefined`, leaving an orphan on :4873
+    // that then tripped the in-use guard for every later run. Assigning here closes that window.
+    registry = await effects.startRegistry(paths, env, (spawned) => {
+      registry = spawned;
+    });
     await effects.createToken(paths);
     effects.npm(publishArgs(file), env, paths);
     effects.npm(installArgs(name, version), env, paths);
@@ -347,7 +371,7 @@ function realEffects(repoRoot, log) {
       const [packed] = JSON.parse(out.stdout.slice(Math.max(0, out.stdout.search(/^\[/m))));
       return join(paths.pack, packed.filename);
     },
-    startRegistry: async (paths, env) => {
+    startRegistry: async (paths, env, onSpawn) => {
       if (await registryAnswers()) throw new Error(`${STAGING_REGISTRY} is already in use — stop that registry first`);
       writeFileSync(paths.globalconfig, '');
       writeFileSync(paths.config, verdaccioConfig(paths));
@@ -361,6 +385,9 @@ function realEffects(repoRoot, log) {
         exited = true;
       });
       const stop = () => stopProcess(child, { hasExited: () => exited });
+      // Hand the stop out before the readiness poll, not after it: from here on an interrupt can stop
+      // this child, whether or not it has finished coming up (reject 8937a51).
+      if (onSpawn) onSpawn({ stop });
       for (let waited = 0; !(await registryAnswers()); waited += 500) {
         if (exited || waited >= REGISTRY_START_TIMEOUT_MS) {
           await stop();
