@@ -2,7 +2,7 @@
 id: "task-085-retense-spec-015-sigint-sentence"
 type: task
 title: "Re-tense spec-015's SIGINT teardown sentence once task-083 lands, so the spec stops describing a gap that has been closed"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "documentation", "release", "distribution"]
