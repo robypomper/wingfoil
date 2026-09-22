@@ -420,3 +420,53 @@ on the tree installed by `<npm109> ci`:
 Coverage is non-regressing by construction as well as by measurement: `jest.config.js`
 `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`, and this branch changes no file under
 `src/` — the diff is `package.json`, `package-lock.json`, one test file and two Memory documents.
+
+### `review-ready summary` — role: reviewer
+
+**What the change is.** `@types/node` moves `^18.19.130` → `^22.20.4`, the lockfile's three mirroring
+entries move with it, and a new test pins the *relationship* — the `@types/node` major equals the major
+of `engines.node`'s floor — so the next floor move fails a gate instead of silently leaving the type
+surface three majors behind. It is the build-side leaf of `adr-010`'s cascade, and it closes `bug-049`.
+
+**Merged `main` once, never rebased** (`dl-035`), at `6c2b8f1`. The merge brought `spec-015`'s
+`task-085` retense and `bug-068`. **No document this task cites changed in it** —
+`git diff --name-only 897658b HEAD | grep -E 'adr-010|task-001|task-074|task-080|dl-0(14|15|35|45|54|75)|bug-04[6789]|bug-05[6]|bug-063|lockfile-peer-overrides|publish-metadata|publish.yml|package'`
+→ `rc=1`, no output — and the one claim that *could* have gone stale was re-checked against the merged
+file rather than assumed: `grep -n -i "types/node\|devDependenc\|@types" …spec-015….md` → `rc=1`, still
+no output, so "spec-015 says nothing about `@types/node`" holds after the merge as before it. Every gate
+was re-run afterwards; the numbers above are from that run.
+
+**Files changed** (`git diff --stat $(git merge-base main HEAD)..HEAD`), five, none under `src/`:
+
+```
+docs/self/docs/04_memory/bugs/bug-049-types-node-pinned-to-superseded-floor.md   (status sync only)
+docs/self/docs/04_memory/v0.2/task-087-fix-types-node-floor-pin.md               (this log)
+package-lock.json                                                                (8 lines, 3 entries)
+package.json                                                                     (1 line)
+test/cli/types-node-floor.test.ts                                                (new)
+```
+
+**AC status.** AC1 ✅ (`test/cli/types-node-floor.test.ts`, red at `c27d23f` and green at `897658b`;
+resolved version `22.20.4`, agreement shown by the test rather than asserted). AC2 ✅ (the major is
+derived from `>=22.12.0` in the `design` table, with the registry and Node release-index commands that
+produce it; `^24`/`^26` explicitly declined). AC3 ✅ (both typechecks exit 0; fallout measured at zero,
+nothing suppressed, pin not widened, and the surface shown to have really moved). AC4 ✅ (`npm ci` exit
+0 under npm 10.9.0 in a throwaway clone with `node_modules` absent; `@emnapi` entries at `1.11.3` before
+and after; `test/cli/lockfile-peer-overrides.test.ts` green). AC5 ✅ (all three bugs untouched, each with
+its settling command; two observations handed on rather than folded in). AC6 ✅ (six gates, table above).
+
+**Known weak spots a reviewer should check.**
+
+1. **The within-major residual.** `^22.20.4` describes the Node 22 line as a whole, not Node 22.12.0
+   specifically, because DefinitelyTyped publishes no per-Node-minor type surface (evidence in the
+   `design` table). APIs added in Node 22.13–22.23 therefore typecheck while the declared floor lacks
+   them. This is a genuine, smaller version of the same defect class as `bug-049` and is carried as a
+   proposed element rather than absorbed.
+2. **The `adr-010` *Neutral* bullet is now stale** ("`@types/node` is still pinned `^18.19.130`"). Left
+   as-is deliberately — see `design`/"One thing deliberately not edited". A reviewer may disagree that
+   an `accepted` ADR's decision-time record should stay put; that is the approver's call, not this
+   task's.
+3. **The lockfile is hand-patched, not regenerated.** The method is `task-080`'s and the diff is three
+   entries, but a reviewer who prefers a regenerated lock should know that regenerating under npm 10.9.0
+   adds the 11-package `"peer": true` churn documented under `green`, and regenerating under npm 11.x
+   deletes the `@emnapi` entries (`bug-063`).
