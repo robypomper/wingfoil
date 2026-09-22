@@ -193,3 +193,230 @@ no output. The traceability anchor is `REQ-SYS-09` (distribution as an npm packa
 verification route is the packaging suites rather than a BDD scenario — the same position `task-074`
 and `task-080` recorded for the same ground. The `review` gate therefore runs the full suite, and the
 acceptance evidence is the new guard plus the recorded `npm ci` exit codes under npm 10.9.0.
+
+### `red` — role: developer
+
+`test/cli/types-node-floor.test.ts` (new, `c27d23f`), with `package.json` untouched. It asserts the
+**relationship** rather than either number: the major of `devDependencies["@types/node"]` equals the
+major of `engines.node`'s floor, and the `@types/node` actually installed carries that same major.
+
+```
+$ npx jest test/cli/types-node-floor.test.ts
+● @types/node vs the declared Node floor (task-087, bug-049)
+  › pins @types/node to the major of the engines.node floor — neither below it nor above it
+    - "typesMajor": 22
+    + "typesMajor": 18
+  › has that same major actually installed, not merely declared
+    Expected: 22   Received: 18
+Tests: 2 failed, 1 passed, 3 total
+```
+
+Red for the stated reason, and only for it: the third case (the vacuity guard — that a floor and a pin
+are read at all) passes in both states, so the failure is the criterion and not the fixture.
+
+**Why an equality and not "at least".** `bug-049`'s Notes describe a two-directional failure and call
+the second direction the costlier one: types *below* the floor reject APIs the supported runtime has,
+types *above* it accept APIs it does not. An `>=` assertion would pin only the first. The equality is
+also the shape `bug-047` argues for on the neighbouring `engines` guard (its option 1, "add the
+equality half") — applied here, to the surface this task owns, without touching the guard `bug-047` is
+actually about.
+
+**Both range readers throw on syntax they do not recognise** rather than skipping the check — the same
+"loud over clever" choice `task-074`'s engines evaluator made, so a future range form this file cannot
+read fails the suite instead of passing vacuously.
+
+### `green` — role: developer
+
+`897658b`. Two files: `package.json` `devDependencies["@types/node"]` `^18.19.130` → **`^22.20.4`**,
+and the three lockfile entries that mirror it.
+
+```
+$ npx jest test/cli/types-node-floor.test.ts test/cli/lockfile-peer-overrides.test.ts
+Test Suites: 2 passed, 2 total   Tests: 10 passed, 10 total
+```
+
+**The lockfile was patched surgically, not regenerated — following `task-080`'s precedent and for the
+same measured reason.** Regenerating under npm 10.9.0 was tried first and produces a diff larger than
+the change needs:
+
+```
+$ <npm109> install --package-lock-only --no-audit --no-fund        # exit 0
+$ git diff --stat package-lock.json
+ package-lock.json | 27 +++++++++------------------      9 insertions(+), 18 deletions(-)
+```
+
+Of those, **11 lines are unrelated `"peer": true` churn** — `@babel/core`, `@typescript-eslint/parser`,
+`acorn`, `browserslist`, `eslint`, `express`, `hono`, `jest`, `typescript` and `zod` lose the flag while
+`@emnapi/wasi-threads` gains it. That is npm 10.9 and npm 11.6 disagreeing about metadata, which
+`task-080`'s `green` section already characterized on this same lockfile (it lists the same eleven
+packages), and it is nothing this task needs. So the three entries this change *does* need were taken
+verbatim from that npm-10.9.0 resolution and inserted into the committed lock; every other byte is
+untouched.
+
+The surgical edit is a JSON round-trip, and that it is byte-preserving was **verified rather than
+assumed** before it was used:
+
+```
+$ node -e 'const raw=fs.readFileSync("package-lock.json","utf-8");
+           console.log(JSON.stringify(JSON.parse(raw),null,2)+"\n" === raw)'
+true
+```
+
+The resulting diff is exactly three entries, 8 lines:
+
+| Lock entry | Before | After |
+|---|---|---|
+| `packages[""].devDependencies["@types/node"]` | `^18.19.130` | `^22.20.4` |
+| `packages["node_modules/@types/node"]` | `18.19.130` | `22.20.4` (+ its `undici-types` range `~5.26.4` → `~6.21.0`) |
+| `packages["node_modules/undici-types"]` | `5.26.5` | `6.21.0` |
+
+`undici-types` moves because `@types/node` is the only thing that depends on it and each `@types/node`
+line pins its own — it is a consequence of the bump, not a second decision. Both new
+`resolved`/`integrity` pairs were checked against the registry independently of npm's resolution, the
+way `task-080` checked the `@emnapi` pair:
+
+```
+$ npm view @types/node@22.20.4 dist.integrity   -> sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==
+$ npm view undici-types@6.21.0 dist.integrity   -> sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==
+```
+
+Both match the inserted entries byte for byte. `lockfileVersion` is still `3`, no entry is added or
+removed, and the hoisted `@emnapi/core` / `@emnapi/runtime` entries are at `1.11.3` before and after —
+the check AC4 requires, run on the file rather than inferred from the method:
+
+```
+$ node -e '…read both entries…'
+BEFORE node_modules/@emnapi/core 1.11.3      AFTER node_modules/@emnapi/core 1.11.3
+BEFORE node_modules/@emnapi/runtime 1.11.3   AFTER node_modules/@emnapi/runtime 1.11.3
+```
+
+**Which npm touched the lockfile, and why it matters.** `bug-063` records that a plain `npm install`
+under npm 11.x deletes both `@emnapi` entries, `overrides` block or not. Every lockfile-writing command
+in this task was therefore run with **npm 10.9.0 by absolute path**; the host npm 11.6.2 was used only
+for read-only `npm view` queries and for the no-regression `npm ci` in `refactor` (`npm ci` never
+writes the lock — confirmed below by `git status` being empty after it).
+
+### `refactor` — role: developer
+
+No refactoring of production code: `src/` is untouched
+(`git diff --name-only $(git merge-base main HEAD)..HEAD -- src` → empty output). What this phase
+did is measure the two things the task could not know in advance — the type fallout and the AC5
+dispositions — and run the gates.
+
+#### AC3 — the type fallout is **zero**, and the bump is not cosmetic
+
+`bug-049`'s Triage Notes say the size of the fallout "is unknown and should be measured by the task that
+takes this on, not estimated". Measured, on the installed `@types/node@22.20.4` tree:
+
+```
+$ npx tsc -p tsconfig.build.json --noEmit ; echo $?      -> 0
+$ npx tsc --noEmit -p tsconfig.json ; echo $?            -> 0
+```
+
+Both silent. **Nothing was suppressed and the pin was not widened** — there was nothing to suppress: no
+`@ts-expect-error`, no `any`, no `skipLibCheck` change (it was already `true` in `tsconfig.json` before
+this task and is unchanged). The full `tsconfig.json` check covers `test/` as well as `src/`, so
+`bug-049`'s worry that a `@types/node` major bump would break test sources outside the gate's reach is
+answered for this repository: it breaks neither.
+
+That could mean the change does nothing, so it was checked that the type *surface* really moved. Two
+APIs that exist on the declared floor's runtime but not on Node 18 — `util.styleText` (Node 20.12+) and
+`process.getBuiltinModule` (Node 22.3+) — compiled against each tree with the project's own compiler
+options:
+
+```
+against @types/node 22.20.4 -> exit 0
+against @types/node 18.19.130 -> exit 2
+  error TS2305: Module '"node:util"' has no exported member 'styleText'.
+  error TS2339: Property 'getBuiltinModule' does not exist on type 'Process'.
+```
+
+That is `bug-049`'s first failure direction, reproduced and then closed: before this change the compiler
+rejected APIs the supported runtime has. No such API is *used* in `src/` today (which is why the fallout
+is zero); the point is that using one is now possible without fighting the compiler or reaching for
+`any`.
+
+#### AC4 — `npm ci` under the npm the pinned `NODE_VERSION` bundles
+
+Run in a **throwaway clone of this branch** in the scratchpad, outside every worktree, with
+`node_modules` verified absent first — so the result is what someone else would get, not what this
+worktree happens to hold:
+
+```
+$ git clone -q --branch task/task-087-… <worktree> <scratch>/clonecheck && cd <scratch>/clonecheck
+$ git log --oneline -1   -> f5086b7 (after the main merge)
+$ ls -d node_modules     -> No such file or directory
+$ <npm109> --version     -> 10.9.0
+$ <npm109> ci --dry-run --no-audit --no-fund ; echo $?        -> 0
+$ <npm109> ci --no-audit --no-fund                            -> added 498 packages in 7s ; exit 0
+$ node -p "require('./node_modules/@types/node/package.json').version"   -> 22.20.4
+$ node -e '…the two @emnapi lock entries…'  -> core 1.11.3 · runtime 1.11.3
+$ git status --porcelain package-lock.json package.json       -> (empty)
+```
+
+No-regression under the developer npm, in a second clone:
+
+```
+$ npm --version -> 11.6.2 ; npm ci --no-audit --no-fund -> added 498 packages in 7s ; exit 0
+$ node -p "…@types/node version…" -> 22.20.4 ; git status --porcelain package-lock.json -> (empty)
+```
+
+498 packages before and after (the merge-base tree installs 498 too — see AC5/`bug-048` below), so the
+closure size is unchanged; `@types/node` and `undici-types` simply move version.
+
+#### AC5 — `bug-046`, `bug-047`, `bug-048`: **all three untouched**, none closed, none mooted
+
+None of them is fixed here, and no change of mine is a one-line consequence of any of them. Each row
+names the command that settles it, run on this branch after the `main` merge.
+
+| Bug | Disposition | Command that settles it |
+|---|---|---|
+| `bug-046` — nothing asserts `package-lock.json`'s root `engines` matches `package.json`'s | **untouched** | `git diff $(git merge-base main HEAD)..HEAD -- package.json \| grep engines` → `rc=1`, no output; both copies still agree and still read `>=22.12.0` (`node -p "require('./package.json').engines.node"` and `node -p "require('./package-lock.json').packages[''].engines.node"`); `grep -rn 'packages\[""\]' test/` → `rc=1`, so still no test reads the lock's root block |
+| `bug-047` — the engines guard asserts *satisfies*, never *equals* | **untouched** | `git diff --name-only $(git merge-base main HEAD)..HEAD -- test/cli/publish-metadata.test.ts` → empty output: the guard it is about is not edited by this branch |
+| `bug-048` — CI's pinned `NODE_VERSION` 22.12.0 does not satisfy `eslint@10.6.0` | **untouched, and not worsened** | `git diff --name-only $(git merge-base main HEAD)..HEAD -- .github/` → empty output; `grep -n "NODE_VERSION:" .github/workflows/publish.yml` → still `'22.12.0'`; and the set of installed packages whose `engines.node` excludes 22.12.0 is **identical before and after** — 10 packages, all `eslint`-family, listed below |
+
+Two observations worth handing on, neither acted on here:
+
+- **`bug-046` generalizes beyond `engines`, and this change is a second instance of its class.**
+  `package-lock.json` mirrors `devDependencies` in `packages[""]` exactly as it mirrors `engines`.
+  Measured under npm 10.9.0 on copies of this branch's two files:
+
+  ```
+  lock root range edited to ^18.19.130, resolved entry left at 22.20.4   -> npm ci --dry-run EXIT=0
+  manifest bumped to ^22.20.4, whole lock left at the merge-base          -> npm ci EXIT=1
+       npm error Invalid: lock file's @types/node@18.19.130 does not satisfy @types/node@22.20.4
+  ```
+
+  So `npm ci` validates the *resolved* entry against the manifest but ignores the root **range** mirror
+  — the same blind spot `bug-046` measured for `engines`, one field over. The realistic mistake (bump
+  the manifest, forget the lock) is caught; editing the root mirror alone is not. This task's own guard
+  covers the `@types/node` case from the other side, because its third assertion reads the **installed**
+  version rather than either declaration.
+- **`bug-048` undercounts.** It names two packages (`eslint@10.6.0`, `@eslint/js@10.0.1`) because it
+  probed a hand-picked list. A full walk of the installed tree finds **ten** that exclude 22.12.0 —
+  `eslint@10.6.0`, `@eslint/js@10.0.1`, `@eslint/config-array@0.23.5`, `@eslint/config-helpers@0.6.0`,
+  `@eslint/core@1.2.1`, `@eslint/object-schema@3.0.5`, `@eslint/plugin-kit@0.7.2`,
+  `eslint-scope@9.1.2`, `eslint-visitor-keys@5.0.1`, `espree@11.2.0`, all declaring
+  `^20.19.0 || ^22.13.0 || >=24`. The same walk over a fresh `npm ci` of the **merge-base** tree returns
+  the same ten, so this change neither adds nor removes any: the two packages it moves declare no
+  `engines` at all (`npm view @types/node@18.19.130 engines` and `npm view undici-types@5.26.5 engines`
+  → empty; `@types/node@22.20.4` and `undici-types@6.21.0` → `null`). Reported for whoever picks up
+  `bug-048`; not folded in.
+
+#### Gates
+
+Re-run in full **after** merging `main` at `6c2b8f1` (`task-085`'s spec-015 retense plus `bug-068`),
+on the tree installed by `<npm109> ci`:
+
+| Command | Result |
+|---|---|
+| `npx jest` | **exit 0** — 107 suites / 1730 tests passed |
+| `npx jest --coverage` | **exit 0** — statements **98.58**, branches **92.58**, functions **98.81**, lines **99.18**; threshold 80 met on all four |
+| `npx tsc -p tsconfig.build.json --noEmit` | **exit 0** |
+| `npx tsc --noEmit -p tsconfig.json` | **exit 0** — no output at all, `bug-026` included |
+| `npm run lint` | **exit 0** |
+| `npm run docs:api` | **exit 0** |
+
+Coverage is non-regressing by construction as well as by measurement: `jest.config.js`
+`collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`, and this branch changes no file under
+`src/` — the diff is `package.json`, `package-lock.json`, one test file and two Memory documents.
