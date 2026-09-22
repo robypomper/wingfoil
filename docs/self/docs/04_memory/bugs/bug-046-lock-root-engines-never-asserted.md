@@ -139,3 +139,22 @@ Related: `adr-010-node-22-runtime-floor` (`pending`, the decision that makes thi
 convention), `dl-069-lockfile-drift-unguarded` (the other unguarded lockfile property),
 `spec-015-packaging-publishing` §3 stage 1, `.github/workflows/publish.yml:99`,
 `package-lock.json` `packages[""].engines`, `package.json:16`.
+
+## Addendum (2026-09-22) — the blind spot is the whole `packages[""]` block, not only `engines`
+
+Measured while reviewing `task-087-fix-types-node-floor-pin`, and reproduced independently by that
+task's reviewer, both under npm 10.9.0 — the npm the pinned `NODE_VERSION` bundles:
+
+- Corrupt **only the lock's root range mirror** (set `packages[""].devDependencies["@types/node"]` to a
+  range that contradicts the resolved entry) and leave the resolved entry correct:
+  `npm ci --dry-run` and a real `npm ci` both exit **0**. npm never looks at it.
+- Corrupt the **resolved** entry instead: `npm ci` exits **1** with
+  `Invalid: lock file's @types/node@18.19.130 does not satisfy @types/node@22.20.4`.
+
+So npm validates the resolved entry and ignores the root mirror. This bug is currently framed as an
+`engines`-only defect; the same silence covers every field of `packages[""]`, dependency ranges
+included. Nothing in `test/` asserts anything about that block (`grep -rn 'packages\[""\]' test/`
+returns nothing), which is why a mirror can drift from its manifest without any gate noticing.
+
+This widens the bug's scope rather than changing its class, so it is recorded here instead of being
+filed as a separate element.
