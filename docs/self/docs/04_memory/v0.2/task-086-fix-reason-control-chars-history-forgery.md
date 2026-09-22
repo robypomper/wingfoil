@@ -519,3 +519,203 @@ REQ-SEC-02's attribution audit -> `test/memory/audit.test.ts`. All 108 suites gr
    having built it. That is the established pattern (`fresh-init-transitions`, `e2e-smoke`), and the
    suite asserts `existsSync(CLI)` in `beforeAll` so a missing build fails loudly rather than
    vacuously.
+
+---
+
+### rejection pass — `60a0dd3` (`in-review → in-progress`)
+
+Rejected on three points, all corrigible, none touching the fix's design. The reject reason records
+that the review reproduced the forgery against `main`'s build, re-read the same commits with this
+branch's build, re-ran an independently re-implemented pre-change reader over 281 documents / 2117
+history entries / 1061 audit commits / 1504 commits on all refs with byte-identical output, and found
+the NUL guarantee **stronger** than this task claimed: even an object forced in with
+`git hash-object --literally` cannot realign the reader, because `git log` truncates the body at the
+NUL and emits none of its own. Nothing below disturbs any of that.
+
+**Settled by the reject and not revisited in this pass:** the NUL framing choice and its reasoning,
+the read-side-only scope, arity recovery as the mechanism, `dl-067` untouched with the reason still
+round-tripping verbatim, the self-reported raw-NUL-byte incident and its `String.fromCharCode`
+remedy, and the deliberate `spawnSync` in the integration helper.
+
+#### Item 1 — `walkGitLogFields` was not total at `fields.length === 1`
+
+**Reproduced first, against this branch's own compiled `dist/memory/git-log.js`**, side by side with
+`main`'s walk re-implemented verbatim from `git-log.ts` at `710a824`, over one throwaway repository
+of two commits — the first with a body, the second with none
+(`scratchpad/arity1-probe.js`; every row below is that script's output):
+
+```
+no matching history, 1 field   DIFFER   branch [[""]]                       main []
+two commits, 1 field (%b)      DIFFER   branch [[""],["a body paragraph\n"],[""]]   main [["a body paragraph\n"]]
+two commits, 1 field (%H)      DIFFER   branch [[""],[<sha>],[<sha>]]        main [[<sha>],[<sha>]]
+two commits, 2 fields          SAME
+two commits, 6 fields (live)   SAME
+no matching history, 6 fields  SAME
+```
+
+**Cause.** The format ends with a delimiter, and git terminates each commit's formatted output with a
+newline, so the text after the FINAL NUL is always git's newline — or the empty string when git
+printed nothing. At two or more fields that tail is a short remainder and falls out of the grouping
+loop; at exactly one field it is a **complete group**, so it became a record that no commit backs,
+and `record[0].replace(/^\n+/, '')` then rendered it as `['']`.
+
+**Why this mattered even though no call site is affected.** `LOG_FIELDS` is six and
+`AUDIT_LOG_FIELDS` is five, so nothing shipped misbehaved — which is exactly the problem. The TSDoc
+sentence the fix *retained* promises `[]` "when none of `pathspecs` has any matching history", and at
+arity 1 that promise was false. This task exists because a TSDoc asserted a guarantee the code did not
+hold; leaving a second one of the same shape behind would have been the same defect in a smaller font.
+
+**Fix** (`912eb2a`): drop the split's final piece explicitly, before grouping, instead of relying on
+it to fall off as a short remainder. That makes the arithmetic exact at every arity — with `k`
+commits and `n` fields the split yields `k*n + 1` pieces and dropping one leaves exactly `k` whole
+groups; with no commits it yields one piece and dropping it leaves nothing to group. The arity-zero
+guard stays, and is still load-bearing for its own reason: at `fields.length === 0` the loop advances
+by zero and never terminates, which no amount of piece-dropping changes.
+
+**Tests** (`090da51`, red before the fix — 3 failed / 16 passed, each failing on the count):
+
+| Case | Asserts |
+|---|---|
+| "returns no records at all when no pathspec has matching history" | `walkGitLogFields(repo, ['%H'], ['no-such-file.md'])` is `[]` — the retained TSDoc sentence, at the arity where it was false |
+| "returns exactly one record per commit, oldest first" | two commits, `['%H']`: two single-field records, each 40-hex, matched against `git rev-parse HEAD~1`/`HEAD` so the ORDER is pinned too, not just the count |
+| "keeps a commit whose single field is empty, in its own slot" | two commits, `['%b']`: `[[''], ['a body paragraph\n']]` — no spurious record, no dropped record, not swapped |
+
+**After the fix, the same probe:**
+
+```
+no matching history, 1 field   SAME     both []
+two commits, 1 field (%H)      SAME     both [[<sha>],[<sha>]]
+two commits, 2 fields          SAME
+two commits, 6 fields (live)   SAME
+no matching history, 6 fields  SAME
+two commits, 1 field (%b)      DIFFER   branch [["a body paragraph\n"],[""]]   main [["a body paragraph\n"]]
+```
+
+One row still differs, and it is the row where **`main` is the one that is wrong**: its
+`.filter((record) => record.length > 0)` drops the empty-body commit entirely, returning one record
+for two commits. The branch returns one record per commit. This is the whole of the "latent bug"
+item 2 retracts down to: it is real, it is confined to `fields.length === 1`, and no call site uses
+that arity.
+
+#### Item 2 — a claim in the notes and a mislabelled test, both corrected
+
+The `green` notes claimed arity chunking "also fixes a latent bug in the old splitter —
+`.filter((record) => record.length > 0)` silently dropped a record whose every field was empty", and
+the empty-body test's comment repeated it. **That is false at both arities the module actually
+uses.** The bullet is struck through in place rather than deleted, so the correction is visible in
+the document that carried the error.
+
+The command that settles it is the probe's six-field row, run over a repository whose second commit
+has no body at all:
+
+```
+two commits, 6 fields (live)   SAME
+  branch: [[<sha>,"WingFoil Test","wf-test@example.invalid",<date>,"first","a body paragraph\n"],
+           [<sha>,"WingFoil Test","wf-test@example.invalid",<date>,"second",""]]
+  main  : [[<sha>,"WingFoil Test","wf-test@example.invalid",<date>,"first","a body paragraph\n"],
+           [<sha>,"WingFoil Test","wf-test@example.invalid",<date>,"second",""]]
+```
+
+`main` keeps the empty-body record **byte-identically**, because at six fields that record's string is
+`"sha<US>…<US>"` — non-zero length, so the filter never saw an empty string. Consistent with that, the
+test labelled as pinning the fix passes unmodified against the pre-fix code: it was among the 6 passes
+in this task's own `red` run, which the `red` section already recorded without drawing the conclusion.
+
+Corrected accordingly:
+
+- the `green` bullet is retracted in place, and says what the measurement shows — the difference
+  exists only at `fields.length === 1`, and at the time the claim was written the new code was
+  **worse** at that arity, not better;
+- the test is renamed "…(characterization — unchanged)" and its comment now states that `main` kept
+  the record too, cites the probe row that shows it, and points at the arity-1 block that does pin
+  something.
+
+#### Item 3 — the three dangling references
+
+All resolved, and by naming real elements rather than by deleting the pointers: the two
+"see Proposed elements" references now cite
+`dl-078-should-reason-refuse-c0-control-characters` (filed while this task was in review), the
+`--follow` stderr aside cites `bug-071-read-status-at-leaks-git-stderr`, and
+"Fixed in `the commit below`" now reads "Fixed in `48e0733`".
+
+For the record, the five incidental findings this task and its review raised were all filed by the
+orchestrator and are now on `main` — `dl-078`, `bug-070-cli-integration-helpers-fabricate-empty-stderr`,
+`bug-071-read-status-at-leaks-git-stderr`, `bug-072-oversized-git-log-becomes-empty-history`,
+`bug-073-no-gate-detects-raw-control-characters-in-sources`. None of them is fixed here and no scope
+was widened to reach them.
+
+#### Sync with `main` and gates, re-run on top of it
+
+```
+$ git merge main            # main at 3df305e
+14 files changed  (task-087's @types/node bump + test/cli/types-node-floor.test.ts, and the elements above)
+$ npm ci --prefer-offline --no-audit --no-fund      # task-087's new guard fails on a stale node_modules
+added 498 packages
+```
+
+```
+$ npx jest                                 ->  109 suites / 1754 tests passed
+$ npx jest --coverage                      ->  All files 98.59 stmts / 92.97 branch / 98.80 funcs / 99.18 lines
+$ npx tsc -p tsconfig.build.json --noEmit  ->  exit 0
+$ npx tsc --noEmit -p tsconfig.json        ->  exit 0, silent
+$ npm run lint                             ->  exit 0
+$ npm run docs:api                         ->  exit 0
+```
+
+Coverage re-measured on both sides against the moved `main` (own clean clone at `3df305e`, fresh
+`npm ci`); the figures are unchanged from the first pass because the totality fix adds no branch:
+
+```
+main @ 3df305e   All files  98.58 / 92.58 / 98.81 / 99.18   (107 suites, 1730 tests)
+this branch      All files  98.59 / 92.97 / 98.80 / 99.18   (109 suites, 1754 tests)
+
+GLOBAL branches   main 1137/1228  (91 missed)  ->  this branch 1139/1225  (86 missed)
+GLOBAL functions  main  416/421   ( 5 missed)  ->  this branch  414/419   ( 5 missed)
+```
+
+`git-log.ts` and `history.ts` remain 100/100/100/100. The functions line reads `98.81 -> 98.80` for
+the reason already given: the same **5** absolute misses over a denominator two smaller.
+
+Constraint 1 re-verified on top of the merge, both scripts, now over a larger corpus:
+
+```
+documents scanned 269 | history entries 2107 | documents differing 0
+auditAttribution walk IDENTICAL (1082 commits)
+git log --all, full field set incl. %b: 1522 commits, records identical
+```
+
+### review-ready summary — second pass
+
+**What changed since the first submit:** one behavioural fix (`walkGitLogFields` is now total at
+`fields.length === 1`), three tests pinning it, and three documentation corrections. Nothing settled
+by the reject was touched; `git diff` against the first submit's head is confined to
+`src/memory/git-log.ts`, `test/memory/git-log-framing.test.ts` and this task's own file.
+
+| Reject item | Where it is answered |
+|---|---|
+| 1 — arity walk wrong at one field | `912eb2a` (`pieces.pop()` before grouping) + `090da51`'s three cases, red first at 3 failed / 16 passed. Reproduced against the branch's own built `dist` before fixing; the post-fix probe shows parity with `main` at every case except the one where `main` is wrong. The retained TSDoc sentence is now true at every arity, and says so explicitly rather than by implication. |
+| 2 — false latent-bug claim, mislabelled test | The `green` bullet is struck through in place with the correction beside it; the test is renamed "(characterization — unchanged)" and its comment carries the measurement and the probe row that settles it. |
+| 3 — three dangling references | Resolved by citing `dl-078`, `bug-071` and `48e0733` respectively. |
+
+**The AC table from the first pass stands unchanged** — no AC's evidence moved. The additions are
+`walkGitLogFields`'s totality (which AC4 covers: the guarantee its TSDoc states must be derivable
+from the code, and now is at every arity) and its three tests.
+
+**BDD acceptance scenarios** — unchanged and still passing: `P1.10-memory-history.feature` ->
+`test/core/memory-history.test.ts`; `P1.7`/`P1.8`/`P1.9` -> `test/core/memory-{approve,reject,
+deprecate}.test.ts`; REQ-SEC-02's attribution audit -> `test/memory/audit.test.ts`. 109 suites green,
+including `test/cli/types-node-floor.test.ts` arriving with `task-087`.
+
+**What a reviewer should look at deliberately, this pass.**
+
+1. **`pieces.pop()` rests on the format always ending in a delimiter.** It does — the format is built
+   here, `fields.map((field) => field + NUL_PLACEHOLDER).join('')` — so the text after the final NUL
+   is never a field. If a future change appends anything after the last `%x00`, that assumption and
+   the three arity-1 cases are where it breaks, and the TSDoc says so.
+2. **The one surviving difference from `main`** is `['%b']` at arity 1 over a commit with an empty
+   body: `main` returns one record for two commits, the branch returns two. The branch is right and
+   no call site uses that arity — but it is a behaviour difference, not a no-op, so it is named here
+   rather than left for a reader to find.
+3. **The retraction in the `green` section is struck through, not removed.** That is deliberate — the
+   false sentence is what the reject cites, so deleting it would make the reject unreadable against
+   the document. If the house style prefers deletion plus a note, say so and I will convert it.
