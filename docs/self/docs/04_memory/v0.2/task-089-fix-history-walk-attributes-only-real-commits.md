@@ -2,7 +2,7 @@
 id: "task-089-fix-history-walk-attributes-only-real-commits"
 type: task
 title: "Stop `memory history` reporting a commit that never contained the element: `--follow` chases the copy from the type's template"
-status: approved
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "audit-trail"]
