@@ -210,3 +210,84 @@ $ grep -nE 'currently unable to complete' $S
 $ grep -c 'Revision (2026-' $S
 6                                        # AC4 baseline: the existing note headers to match in shape
 ```
+
+### green (role: developer) — the amendment
+
+Two edits to `spec-015-packaging-publishing.md`, both inside the *Process Notes* section, plus the
+two Memory state commits recorded elsewhere in this log.
+
+**1. The closing paragraph of the *Revision (2026-09-21) — §3 stage 2* note, rewritten in place.**
+It keeps the `SIGINT` clause and drops the two repaired ones. It now names
+`bug-059-sigint-leaks-staging-registry-and-token` explicitly, states the commit the bug's state was
+read at (`main` `307a62a`), and forward-references the new note — the same forward-reference shape §1
+already uses for the *§1 Node floor* note. `runStaging`'s `finally` gains its file
+(`scripts/publish-staging.cjs`) so the symbol is findable without a path guess; it is still a symbol
+citation, not an offset.
+
+**2. A new `**Revision (2026-09-22) — §3 stage 1:**` note appended after the *§1 Node floor* note**,
+in the shape the document's existing notes use: a bold dated header naming the section and the reason,
+the superseded wording quoted **in full** as a blockquote, then what replaced it and why, then the
+`dl-047` mechanics sentence. It cites `bug-056`/`bug-057` with their close commits (`fdee8cb`,
+`65021c2`) and `task-080`/`task-081` with their merges (`ce48681`, `d1aa785`).
+
+**AC1 vs AC4 — the one apparent conflict, and why there is none.** AC1 asks that no present-tense
+claim of `npm ci`/`prepublishOnly` failure survive; AC4 *requires* the superseded wording to survive
+as a quotation. The quotation is the one place both are satisfiable at once: it is a blockquote,
+introduced by "That paragraph previously read, in full:", inside a note whose header says the
+failures "have been repaired". The document no longer asserts those failures in its own voice. The
+remaining `npm ci` / `prepublishOnly` hits outside the quotation are checked one by one:
+
+```
+$ grep -n -E 'npm ci|prepublishOnly' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+ 26  … no `prepublishOnly`, no `--dry-run` gate           → §Context, what main LACKED before task-059
+ 86  - `prepublishOnly`: `npm run build && npm test …`    → §2, the script's definition
+ 96  1. **build + gate** — `npm ci`, then `prepublishOnly` → §3 stage 1, the pipeline's own design
+150  (`prepublishOnly`, `publish:staging`, …)             → §Consequences, a list of contracted names
+280  > runner — `npm ci` fails under the npm …            → the AC4 blockquote (superseded wording)
+281  > `prepublishOnly` fails on a UTC runner …           → the AC4 blockquote (superseded wording)
+291  - **`npm ci` failing under the pinned npm** … now `closed`   → the bug's name, marked closed
+295  - **`prepublishOnly` failing on a UTC runner …** … now `closed` → the bug's name, marked closed
+```
+
+Nothing outside the blockquote asserts a failure. The two bullet labels were deliberately reworded
+from "`npm ci` under the pinned npm" to the gerund "`npm ci` **failing** under the pinned npm" so each
+reads as the name of a past defect rather than as a claim, and each is closed by "now `closed`" in the
+same clause.
+
+**AC3 after the change:**
+
+```
+$ grep -n 'bug-05' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md | wc -l
+7        # was 0 before (red baseline above); bug-056, bug-057 and bug-059 all reachable by id
+```
+
+### refactor (role: developer) — gates run, not waived
+
+No refactor step applies to prose, so `refactor` here is purely the quality gates. They were **run**,
+not assumed away on the grounds that the diff is documentation: a doc-only claim is exactly the kind
+this release keeps rejecting. `npm ci --no-audit --no-fund` first (the worktree starts without
+`node_modules`), then, in this worktree at `148cb4c`:
+
+| Gate | Command | Result |
+|---|---|---|
+| `tests.passing` | `npm test` | exit 0 — **106 suites / 1714 tests passed** |
+| `tests.coverage(min: 80)` | `npm run test:coverage` | exit 0 — `All files 98.58 % stmts / 92.58 % branch / 98.81 % funcs / 99.18 % lines` |
+| `docs.api.build` | `npm run docs:api` | exit 0 (TypeDoc, no warnings emitted) |
+| `docs.api.public-complete` | covered by `test/docs/` inside `npm test` | passed with the suite |
+| `lint.clean` (`dl-034`) | `npm run lint` | exit 0 |
+| (extra) full typecheck | `npx tsc --noEmit` | exit 0 — the `bug-026` surface is still clean |
+
+Coverage is non-regressing by construction: no file under `src/` is in the diff.
+
+**AC6 — diff scope, measured:**
+
+```
+$ git diff --name-only main...HEAD | grep -v '^docs/self/docs/04_memory/'   # exit 1: no hits
+$ git diff --stat main...HEAD
+ …/bugs/bug-062-spec-015-note-carries-transient-findings.md |   2 +-
+ …/design/specs/spec-015-packaging-publishing.md            |  72 ++++++-
+ …/v0.2/task-084-fix-spec-015-stale-stage-1-note.md         | … ++++++-
+```
+
+Three Memory files. No source, test, workflow or configuration file — the `bug-062` line is its
+`status:` sync, which `dev-loop`'s `bug.sync_state` owns.
