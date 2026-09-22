@@ -101,3 +101,27 @@ transition in this repository is hand-made and this write path has never run aga
   by the verb.
 - No fix task filed pending that call. If it is fixed, the fix is two parts — stage only the status
   hunk (or refuse a dirty file), and change the postcondition to compare against `HEAD`.
+
+
+## Correction (2026-09-22) — this bug asked for the wrong exit code
+
+Its Expected Behavior says the verb should refuse "an explicit error at exit `2`". That is wrong, and
+`task-088` caught it rather than implementing it.
+
+`spec-005-cli-command-contract` §1 is `approved` and assigns the codes by the kind of failure, not by
+its severity: `1` is "the invocation was well-formed but failed on business logic: element not found,
+illegal state transition, **validation failure**, git operation failure"; `2` is reserved for an
+invocation that is itself malformed — unknown command, unknown flag, missing argument, invalid flag
+value. **A dirty working tree is not a malformed invocation.** Emitting `2` for it would redefine
+REQ-INT-04 for every script keying on the code.
+
+**The approver ruled on 2026-09-22: exit `1`, follow spec-005.** The implementation already does; no
+change is owed. The sentence above stands uncorrected in the Expected Behavior section on purpose, so
+the record shows the criterion was wrong and was caught — the acceptance criterion in
+`task-088` repeated the same mistake and is likewise left as written.
+
+Worth naming, because it is a different failure from the ones this release has been rejecting all
+day: this was not a claim written from memory. It was a requirement written without re-reading a
+ratified spec that already answered it. The remedy is the same — read the file — but the habit that
+prevents it is different: before *specifying* a behaviour, check whether something already specifies
+it.
