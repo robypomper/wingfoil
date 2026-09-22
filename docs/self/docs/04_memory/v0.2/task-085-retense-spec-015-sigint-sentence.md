@@ -276,3 +276,165 @@ exit=1                     # the document knows only about SIGINT; it under-stat
 $ grep -c 'Revision (2026-' $S
 8                          # existing dated note headers, the shape the new note must match
 ```
+
+### green (role: developer) — the amendment
+
+Three edits to `spec-015-packaging-publishing.md`, all inside *Process Notes*. Nothing else in the
+document is touched; §3's normative body (stages 1–4) is left byte-identical, because the hole was
+never in what §3 *contracts* — stage 2 always meant a throwaway work dir and stage 3 always meant the
+registry comes down — it was in whether the implementation delivered that on every path. The notes
+carry the history; the contract stayed the contract.
+
+**1. L1 — the closing paragraph of the *Revision (2026-09-21) — §3 stage 2* note, re-tensed in
+place.** The `SIGINT` sentence **survives** (AC2), moved to the past ("executed … but **not** on
+`SIGINT`, which left …"), and the clause that followed it now says the bug is `closed`, names
+`task-083-fix-staging-interrupt-teardown` as what closed it, and forward-references the new note —
+the same forward-reference shape the note's stage-1 clause already uses. The italic lead-in changed
+from "recorded so §3 is not read as a statement that the pipeline runs today" to "recorded so §3's
+'throwaway' claim keeps the history of how it came to hold", because the original lead-in was itself
+a present-tense caveat about a pipeline that no longer has the defect.
+
+**2. L2 — one sentence appended** to the "The third clause **stays**" paragraph of the
+*Revision (2026-09-22) — §3 stage 1* note, answering the succession that paragraph delegates
+("Whatever commit closes `bug-059` is free to re-tense the sentence into history"): it names the merge
+`de92e2b` and the close `c69a836` and points at the new note. Nothing else in that paragraph is
+rewritten — its two dated readings ("read as **not closed** at `main` `307a62a`", "at the time of
+writing exists only on the unmerged branch") are honest statements about a named commit and stay as
+`task-084` wrote them, now immediately followed by what happened next.
+
+**3. A new `**Revision (2026-09-22) — §3 interrupt teardown:**` note appended** after the *§3 stage 1*
+note, in the shape the document's existing notes use: bold dated header naming the section and the
+reason with its element ids; the superseded wording quoted **in full** as a blockquote; what closed
+the gap with the commits and how that was checked; what the pipeline now guarantees; what was
+deliberately left out; why re-tensed rather than deleted; the `dl-075` boundary; the `dl-047`
+mechanics sentence.
+
+The blockquote is verbatim, verified mechanically rather than by eye — the quoted block, with line
+wrapping normalised, is a substring of the paragraph as it stood at `HEAD` before the edit:
+
+```
+$ python3 - <<'EOF'   # (full script in the green commit's diff review; result only here)
+… flat(blockquote) in flat(old paragraph) …
+EOF
+quote flat in old-para flat: True
+```
+
+**AC4 — what the new note says the fix does, and where each claim was read.** Every bullet is a
+reading of `scripts/publish-staging.cjs` at `main` `c69a836`, cited in the note by symbol rather than
+offset: `TEARDOWN_SIGNALS` (the set: `SIGINT`, `SIGTERM`, `SIGHUP`, plus the stated exclusions
+`SIGKILL`/`SIGQUIT`/`SIGUSR1`), `installTeardownHandlers` (one handler per signal, awaiting the same
+memoised teardown as `runStaging`'s `finally`), `raiseSignal` (the run dies *by* the signal, `128 + N`,
+130 for `SIGINT`), and teardown's own ordering (token first, then registry, then work dir). The
+no-window property — an interrupt during registry startup still tears that registry down instead of
+orphaning `:4873` — is stated as a **guarantee**, which is §3's altitude; the `onSpawn` callback that
+achieves it structurally is not named, and neither is the change that makes the completion line report
+the steps actually performed. The note says in its own text that both were left out and why, so a
+later reader does not mistake the omission for ignorance of them.
+
+**AC7 — the two pieces of evidence that the edit is in-place (`dl-047`), measured:**
+
+```
+$ git diff -U0 -- docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md \
+    | grep -E '^[+-](id|type|title|status|scope|supersedes|release|contributor|credit|tmpl_version):'
+exit=1                         # no frontmatter line added or removed: status: approved untouched,
+                               # supersedes: "" untouched; tech-specs carry no version: field
+$ git diff -U0 -- …spec-015… | grep '^+' | grep -nE '[A-Za-z0-9_./-]+\.(md|cjs|ts|json|yaml|yml):[0-9]+'
+exit=1                         # dl-075: no bare path:line offset in any added line
+```
+
+**After-state, against the `red` baseline:**
+
+```
+$ grep -n 'not closed' $S
+309:…read as **not closed** at `main` `307a62a`.      # L2's dated reading, kept, now answered 3 lines on
+346:> …read as **not closed** at `main` `307a62a`; this  # the blockquote — history, must not be re-tensed
+
+$ grep -c 'task-083' $S
+8                              # was 1 ("the unmerged branch of task-083")
+
+$ grep -n 'SIGTERM\|SIGHUP\|SIGKILL' $S
+361,364,376,383                # was 0 hits: the document now states the whole covered set and the
+                               # one case that is not covered, instead of only SIGINT
+
+$ grep -c 'Revision (2026-' $S
+12                             # was 8
+```
+
+### refactor (role: developer) — gates run, not waived
+
+Nothing to refactor in prose, so `refactor` here is the quality gates. They were **run** in this
+worktree at `7cf21be`, not waived on the grounds that the diff is documentation:
+
+| Gate | Command | Result |
+|---|---|---|
+| `tests.passing` | `npx jest` | exit 0 — **106 suites / 1726 tests passed** |
+| `tests.coverage(min: 80)` | `npx jest --coverage` | exit 0 — `All files 98.58 % stmts / 92.58 % branch / 98.81 % funcs / 99.18 % lines` |
+| typecheck (build) | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| typecheck (full, `bug-026` surface) | `npx tsc --noEmit -p tsconfig.json` | exit 0 — no output |
+| `lint.clean` (`dl-034`) | `npm run lint` | exit 0 |
+| `docs.api.build` | `npm run docs:api` | exit 0 (TypeDoc, no warnings) |
+| `docs.api.public-complete` | `test/docs/` inside the suite above | passed with the suite |
+
+Coverage is non-regressing by construction: no file under `src/` is in the diff.
+
+**Sync with `main` before submit (`dl-035` — merge, never rebase):**
+
+```
+$ git log --oneline -1 main
+c69a836 wf(bug): sync bug-059-sigint-leaks-staging-registry-and-token [in-review → resolved → closed]
+$ git merge main
+Already up to date.
+```
+
+`main` has not moved since this branch was cut, so no cited sentence could have gone stale between
+the reading and the submit; the gates above were already run against that tree.
+
+### review (role: reviewer) — AC-by-AC close-out
+
+`tests.bdd.run`: this task has no BDD `.feature` of its own — it amends the prose of a tech-spec, and
+no scenario under `docs/02_requirements/02_bdd/features/` describes the text of `spec-015`. The
+repository's acceptance suites run as part of `npx jest` above (106 suites / 1726 tests, exit 0), so
+the gate is satisfied and nothing was skipped; inventing a scenario to have something to point at
+would be the fabricated red `dl-014`/T1 forbids.
+
+| AC | Status | Evidence |
+|---|---|---|
+| AC1 | met | `git merge-base --is-ancestor` on `de92e2b`, `e58b758` and `c69a836` — all ancestors of `main`; commands and output in the `design` section. `task-083` `done` and `bug-059` `closed` were read too, but as corroboration, not as the check. Nothing had changed, so the run proceeded. |
+| AC2 | met | The `SIGINT` sentence survives in L1, in the past tense, with what closed the gap named beside it; the superseded present-tense wording survives in full as the new note's blockquote, verified a substring of the pre-edit paragraph. Nothing was deleted. |
+| AC3 | met | The new note cites `bug-059-sigint-leaks-staging-registry-and-token` with its close commit `c69a836` and `task-083-fix-staging-interrupt-teardown` with its merge `de92e2b`, and states in its own text that both were confirmed ancestors of `main` before it was written. L1 and L2 carry the same two ids. |
+| AC4 | met | Signals read from `TEARDOWN_SIGNALS` in `scripts/publish-staging.cjs` at `main` `c69a836` — `SIGINT`, `SIGTERM`, `SIGHUP`. **This contradicts `task-083`'s own ACs**, which name only the first two; `SIGHUP` was added by the implementer. Had the set been taken from the task, the briefing or this task's Description, the spec would now under-state the guarantee. The mechanism bullets likewise come from `installTeardownHandlers`, `raiseSignal` and `runStaging`'s teardown, not from `task-083`'s notes. |
+| AC5 | met | `git diff -U0` carries no frontmatter line at all for the spec (`grep` above, exit 1): `status: approved` and `supersedes: ""` untouched, no supersede, and tech-specs carry no `version:` field. The superseded wording exists only inside the dated note's blockquote. |
+| AC6 | met | No added line contains a `path:line` offset (`grep` above, exit 1); citations are element ids, note headings and four symbols with their file and the commit read at. The pre-existing `README.md` and `dl-001` offsets are byte-identical — the `README.md` meta-mention sits in the *§3 stage 1* note's **closing** paragraph, not in the one this task appends to, so it is outside AC6's boundary and is reported as a proposed element instead of fixed silently. |
+| AC7 | met | Two files in the diff: `spec-015-packaging-publishing.md` and this task's Memory file. No source, test, workflow or configuration file, and no other Memory document; `bug:` is empty, so no `bug.sync_state` commit exists. |
+
+**Judgement calls a reviewer should look at first.** (a) The decision to state the *no-window*
+property (an interrupt during registry startup) in the spec while leaving out both the `onSpawn`
+mechanism that delivers it and the steps-derived completion message: the line drawn is
+guarantee-versus-implementation, and §3 makes no claim about the script's call shape or its output.
+(b) The one-sentence append to L2 rather than leaving that paragraph wholly untouched: its statements
+were dated readings that do not become false, but the paragraph explicitly delegates this succession,
+and an unanswered delegation makes a reader search. (c) L2 still reads "`bug-059` … **not closed** at
+`main` `307a62a`" three lines above the appended sentence saying it has since closed — deliberate,
+because that is what the *§3 stage 1* revision recorded at the commit it recorded it at, and rewriting
+it would edit history rather than extend it.
+
+**Nothing is left in these notes for a later reader to action.** The single out-of-scope finding
+(the `README.md` offset carried in prose by the *§3 stage 1* note) is in the final report as a
+proposed element, not parked here — a `done` task's Execution Notes are not a schedule, which is the
+whole reason this task exists.
+
+### review-ready summary
+
+`spec-015-packaging-publishing` no longer describes the staging teardown's `SIGINT` hole as open. The
+sentence was **re-tensed, not deleted**: it survives in the past tense in the *§3 stage 2* note beside
+the ids that closed it (`bug-059`, `closed` at `c69a836`; `task-083`, merged at `de92e2b`, both
+verified ancestors of `main`), its superseded present-tense wording survives verbatim inside a new
+dated *Revision (2026-09-22) — §3 interrupt teardown* note, and that note states what the shipped
+script actually guarantees — teardown on `SIGINT`, `SIGTERM` and `SIGHUP` as read from
+`TEARDOWN_SIGNALS`, the same memoised teardown the `finally` runs, death *by* the signal at `128 + N`,
+no window during registry startup, and `SIGKILL` as the one uncoverable case with the token removed
+first because of it. `SIGHUP` is in that list because the code says so and `task-083`'s acceptance
+criteria do not. `dl-047` in-place mechanics hold by diff (no frontmatter hunk), `dl-075` holds in
+both directions (no offset added, none elsewhere disturbed), and the diff is two Memory files. All
+gates green at `7cf21be`: 106 suites / 1726 tests, coverage 98.58 % statements, both typechecks, lint
+and TypeDoc all exit 0.
