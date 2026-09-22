@@ -446,9 +446,15 @@ diffs, the artefacts themselves.
 **The order matters and is the point of this subsection.** Form your findings from the primary
 material first, and only then read the notes, for two purposes and no others:
 
-- **Completeness.** Something the notes record that your mining did not surface is a gap in your
-  method — go back to the primary source and establish it there, or discard it. A finding that exists
-  only because the notes assert it does not belong in `retro-v0.2`.
+- **Completeness, but only over what the notes cover.** Something the notes record that your mining
+  did not surface is a gap in your method — go back to the primary source and establish it there, or
+  discard it. A finding that exists only because the notes assert it does not belong in `retro-v0.2`.
+  **Read the limit carefully, because it inverts the usual risk:** that source is not a scan of this
+  repository's backlog. It is derived from five documents its author was given, so it is complete
+  with respect to *those* and says nothing about anything else. Agreement between it and your own
+  findings is therefore **not** evidence that you have covered the release — it is evidence that you
+  covered the same five documents. Elements filed late in v0.2 in particular are outside it, and the
+  notes' own README says so.
 - **Divergence.** Where the notes and your findings disagree, that disagreement is itself material
   worth recording: it is a measurement of how much of this release's account depended on being
   present for it.
