@@ -60,6 +60,7 @@ re-run every one.
 | P4 | `node_modules` matches the lockfile (see §6.5) | `npm ci` | exit 0 |
 | P5 | The preceding `user-docs` phase is complete (`dl-013`: hard release blocker) | `ls -1 README.md CHANGELOG.md docs/user-guide.md docs/cli-reference.md docs/examples/ 2>&1` | **3 of 5 missing** — `CHANGELOG.md`, `docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples/` absent |
 | P6 | The preceding `e2e-smoke` phase is complete (`dl-023`) | `ls -1 docs/05_plans/rl-v1/rel-v0.2/e2e-smoke-rel-v0.2-plan.md` and read its `status:` | **absent** at `a2e3586` |
+| P7 | The two **declared release blockers** are closed — see §2.3 | `for b in 076 077; do awk '/^status:/{print FILENAME": "$2; exit}' docs/self/docs/04_memory/bugs/bug-$b-*.md; done` | both `planned` on 2026-09-22 — **blocking** |
 | P7 | The plan for this phase is `active` | `awk '/^status:/{print $2; exit}' docs/05_plans/rl-v1/rel-v0.2/release-submit-rel-v0.2-plan.md` | (set by this plan's own `submit` commit) |
 
 **P5 and P6 are the two that were open when this plan was written.** `release-cycle.yaml` orders
@@ -134,6 +135,44 @@ be read out of the table.
 
 Run **C3 and C4 as one `npx jest --coverage`** — it is the same suite run once, and running the
 suite twice is several minutes for no extra information.
+
+### 2.3 Two bugs are declared release blockers — C1 and C2 already catch them, but know what you are looking at
+
+On 2026-09-22 the approver declared **`bug-076`** and **`bug-077`** blockers for this release. They
+are stamped `release: "v0.2"` and their fix tasks — **`task-088`** and **`task-089`** — live in the
+v0.2 task directory, so the checks above catch them mechanically: C2 prints `NOT RESOLVED` for each
+bug until it closes, C1 prints `NOT DONE` for each task until it is done. **You do not need a special
+check.** What you need is to recognise the output rather than mistake it for stale scope, which is
+why this subsection exists.
+
+What they are, in one line each:
+
+- **`bug-076`** — `approve`, `reject` and `deprecate` commit the element file as it stands on disk, so
+  uncommitted body or frontmatter edits ride into a commit that declares only a state change, with the
+  approver's identity attached. The postcondition compares against disk rather than `HEAD`, so it
+  cannot see it.
+- **`bug-077`** — `memory history` walks with `git log --follow`, which chases the element back to the
+  template it was copied from, so the scaffold commit is reported as a history entry with a real sha,
+  author and timestamp and `operation: null`. It fires for every element in every project created by
+  `wingfoil init`.
+
+**Why they were made blockers, recorded so it is not re-argued at the gate.** `minor-v0.2` exists to
+deliver the Memory transition verbs and the audit trail they produce. This release found four distinct
+ways to make that trail assert something that did not happen — `bug-042` and `bug-050` are closed,
+these two were not. Shipping the feature alongside two live ways to misreport it would make the
+release's headline claim the least trustworthy thing in it.
+
+**Do not attempt to resolve this yourself, in either direction.** Closing the bugs, narrowing the
+check, or reading them as out of scope are all the approver's calls and none is yours. If C1 or C2
+still reports them when you run it, **stop and report** — that is the gate working, not a problem with
+your run.
+
+**One thing worth knowing if you are tempted to verify them by hand:** you cannot, not in this
+repository. `bug-075` means the Memory verbs cannot be pointed at WingFoil's own Memory — the config
+lives under `docs/self/` while the CLI resolves it from the git root — so both defects were reproduced
+on a throwaway scaffolded project, and that is the only way to exercise either. Nothing in this
+repository's own history is affected by `bug-076`, because every transition here was made by hand and
+never through the verb.
 
 ### 2.2 The check `release-submit.yaml` does not make, and the approver must see anyway
 

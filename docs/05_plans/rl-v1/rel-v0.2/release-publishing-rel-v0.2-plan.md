@@ -761,9 +761,26 @@ Given in chat and binding on this phase:
 
 - **The release version is `0.2.0`.** `package.json` still reads `0.1.0`, and
   `scripts/check-release-tag.cjs` refuses any tag that is not exactly `v` + that value — so the bump
-  is a precondition of the tag, not a tidy-up after it. Edit the manifest **by hand**; never
-  `npm version`, which rewrites the lockfile and would drop `task-080`'s hoisted `@emnapi` entries
-  (`bug-063`).
+  is a precondition of the tag, not a tidy-up after it.
+
+  **Correction (2026-09-22) — the reason first given for doing it by hand was wrong, and the real
+  reason is different.** This plan originally said `npm version` "rewrites the lockfile and would drop
+  `task-080`'s hoisted `@emnapi` entries (`bug-063`)". Measured in a throwaway clone under npm 11.6.2:
+  `npm version 0.2.0 --no-git-tag-version` changes **exactly three lines** — `package.json`'s
+  `version`, and the lockfile's root `version` and `packages[""].version` — and **both `@emnapi`
+  entries survive at `1.11.3`**. `bug-063` is about a bare `npm install`, which re-resolves the tree;
+  `npm version` does not.
+
+  The real hazard is what a **bare** `npm version 0.2.0` does besides the bump, also measured: it
+  creates a commit whose entire subject is `0.2.0`, and it creates the tag `v0.2.0` **locally, there
+  and then**. Both are wrong here. The commit subject violates this repository's commit conventions,
+  and a tag created at that moment precedes the push of `main` — which `dl-074` ratified as a
+  precondition, because the gate asserts the tag is an ancestor of `origin/main`. A tag is not
+  reusable once pushed, so creating one early is the expensive mistake this step exists to avoid.
+
+  **So: either edit the manifest by hand, or use `npm version <v> --no-git-tag-version`** — the flag
+  is what makes the difference, not the tool. Whichever you choose, commit it yourself with a proper
+  subject, and create the tag only at the step that creates the tag.
 - **Open bugs carrying no `release` are authorised to the next release.** The `pre-release-checks`
   reading of "no open bug" is satisfied by *v0.2-scheduled* bugs being closed, which they are; the
   44 unscheduled ones do not block this release. Do not re-litigate that here.
