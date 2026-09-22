@@ -35,6 +35,11 @@ const SHA_RE = /^[0-9a-f]{40}$/;
 const APPROVER_LINE = 'Approver: WingFoil Test <wf-test@example.invalid> (approver)';
 const FORGED = 'Approver: Mallory <mallory@evil.test> (approver)';
 
+/** The 40-hex sha a revision resolves to, read straight from git rather than from the walk. */
+function gitShaOf(repo: string, revision: string): string {
+  return git(repo, ['rev-parse', revision]).trim();
+}
+
 function writeDoc(repo: string, status: string): void {
   writeFixtureFile(repo, DOC, ['---', 'id: task-900-framing', `status: ${status}`, '---', '', 'Body.', ''].join('\n'));
 }
@@ -150,9 +155,13 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
     expect(walkGitLogFields(repo, [], [DOC])).toEqual([]);
   });
 
-  it('a commit with an empty body still produces exactly one record', () => {
-    // The old splitter dropped zero-length records (`.filter((record) => record.length > 0)`);
-    // recovering records by field arity cannot, because an empty field is still a field.
+  it('a commit with an empty body still produces exactly one record (characterization — unchanged)', () => {
+    // CHARACTERIZATION, not a pin on anything this task fixed: at the six fields `getMemoryHistory`
+    // uses, the old splitter kept this record too — `"sha<US>…<US>"` has non-zero length, so its
+    // `.filter((record) => record.length > 0)` never saw an empty string. Measured, both readers over
+    // the same repo (`scratchpad/arity1-probe.js`, case "two commits, 6 fields (live)"): SAME,
+    // byte-identical. The filter could only ever drop a record at `fields.length === 1` with that one
+    // field empty, which no call site uses — see the arity-1 block below, which does pin that.
     repo = makeTempGitRepo();
     writeDoc(repo, 'draft');
     commitAll(repo, 'wf(task): add task-900-framing');
@@ -162,6 +171,56 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
     expect(history).toHaveLength(1);
     expect(history[0]?.body).toBe('');
     expect(history[0]?.sha).toMatch(SHA_RE);
+  });
+});
+
+describe('walkGitLogFields is total at every arity, including one field', () => {
+  // git terminates each commit's formatted output with a newline, which lands after the record's
+  // final NUL and therefore in the piece AFTER the last field. At two or more fields that tail piece
+  // is a short remainder and is discarded; at exactly one field it is a whole group, so it became a
+  // spurious record. The live call sites use five and six fields, which is precisely why this would
+  // have shipped unnoticed — but `walkGitLogFields`'s own TSDoc promises `[]` when no pathspec has
+  // matching history, and that promise was false at arity 1. This task exists because a TSDoc
+  // asserted a guarantee the code did not hold; these cases are what keep a second one from being
+  // left behind.
+  let repo = '';
+
+  beforeAll(() => {
+    repo = makeTempGitRepo();
+    writeDoc(repo, 'draft');
+    commitAll(repo, 'wf(task): add task-900-framing'); // subject only — an EMPTY body
+    writeDoc(repo, 'pending');
+    commitAll(repo, 'wf(task): submit task-900-framing\n\na body paragraph'); // a non-empty body
+  });
+
+  afterAll(() => {
+    if (repo) removeTempDir(repo);
+  });
+
+  it('returns no records at all when no pathspec has matching history', () => {
+    expect(walkGitLogFields(repo, ['%H'], ['no-such-file.md'])).toEqual([]);
+  });
+
+  it('returns exactly one record per commit, oldest first', () => {
+    const records = walkGitLogFields(repo, ['%H'], [DOC]);
+
+    expect(records).toHaveLength(2);
+    for (const record of records) {
+      expect(record).toHaveLength(1);
+      expect(record[0]).toMatch(SHA_RE);
+    }
+    // Oldest first, like every other walk through this primitive.
+    expect(records[0]?.[0]).toBe(gitShaOf(repo, 'HEAD~1'));
+    expect(records[1]?.[0]).toBe(gitShaOf(repo, 'HEAD'));
+  });
+
+  it('keeps a commit whose single field is empty, in its own slot', () => {
+    // `%b` alone: the first commit has no body. Three things could go wrong and none may —
+    // a spurious record from git's trailing newline, a dropped record for the empty body, or the
+    // two swapped.
+    const records = walkGitLogFields(repo, ['%b'], [DOC]);
+
+    expect(records).toEqual([[''], ['a body paragraph\n']]);
   });
 });
 
