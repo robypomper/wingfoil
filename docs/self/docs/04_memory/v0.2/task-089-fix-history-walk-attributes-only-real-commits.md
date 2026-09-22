@@ -2,7 +2,7 @@
 id: "task-089-fix-history-walk-attributes-only-real-commits"
 type: task
 title: "Stop `memory history` reporting a commit that never contained the element: `--follow` chases the copy from the type's template"
-status: backlog
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "audit-trail"]
@@ -66,4 +66,482 @@ the second way this release has found to make it report something that did not h
 
 ## Execution Notes
 
-<!-- filled in per phase -->
+<!-- Running log filled in per dev-loop phase (design / red / green / refactor / review). -->
+
+### start — role: developer
+
+`status: backlog → in-progress` (`ffb69b4`). `bug:` is non-empty, so `bug.sync_state` ran as its own
+commit: `bug-077` `planned → in-progress` (`a6e2c74`).
+
+Worktree `/home/robypomper/Workspaces/.wf2-wt/task-089`, branch
+`task/task-089-fix-history-walk-attributes-only-real-commits`, from `main` at `3967190`.
+`npm ci --prefer-offline --no-audit --no-fund` → exit 0.
+
+### design — role: architect
+
+Directives loaded: architecture, determinism, traceability (architect); code-quality, testing,
+determinism (developer); doc-versioning, documentation, security-secrets (global).
+
+#### `read_related` (`dl-015`, HARD gate)
+
+**`task-086-fix-reason-control-chars-history-forgery` (`done`)** — the single entry in `depends_on`;
+Execution Notes read in full. Five consequences carried into this task's design:
+
+1. **The walk is one shared primitive with two consumers.** task-086 rewrote
+   `walkGitLogFields` (`src/memory/git-log.ts`) to frame `git log` output with the NUL that `%x00`
+   expands to and to recover records by **field arity** — fixed groups of `fields.length`, with the
+   piece after the final NUL dropped. `getMemoryHistory` (`--follow`, six fields, `%b` last) and
+   `auditAttribution` (five fields, **no** `--follow`) are its two callers. Only the first is
+   affected by this defect, because only the first passes `--follow`; I confirmed `auditAttribution`
+   passes no `extraArgs` by reading `src/memory/audit.ts`'s `auditAttribution` at `a6e2c74`.
+2. **Do not put anything through that format string.** The arity recovery is exact only because the
+   stream is `<field>NUL…<field>NUL` per commit and nothing else. `--name-status` output would land
+   in the piece after a record's last NUL and be read as the *next* record's `%H`. That ruled out
+   "add `--name-status` to the existing walk and parse the path per commit" as an implementation
+   shape before I weighed the mechanisms at all (see AC4 below, option B2).
+3. **task-086's own notes name this defect's stderr and disclaim it.** Its `refactor` step recorded
+   `fatal: path '…' exists on disk, but not in '<sha>'` as "the `--follow` noise `bug-050` explicitly
+   records as independent of this defect", filed as `bug-071`. That line is the visible symptom of
+   *this* bug, which is why AC7 forbids suppressing it here.
+4. **`history.ts`'s `as [string, string, string, string, string, string]` cast** is sound only
+   because `walkGitLogFields` emits whole groups or none (task-086's "what a reviewer should look at
+   deliberately", item 2). My change adds no field and does not touch that destructuring.
+5. **The `catch` in `walkGitLogFields` that returns `[]`** is `bug-072`'s, explicitly out of scope.
+   task-086 left it; so do I — see "`bug-072` untouched" below.
+
+#### `verify_specs`
+
+`memory history` is specified by `spec-006-core-domain-api` §3 (the `memory` operation table) and
+`spec-008-cli-grammar`; the behaviour under repair is the BDD contract of
+`docs/02_requirements/02_bdd/features/p1-memory/P1.10-memory-history.feature`, whose main scenario
+reads "the output lists 3 entries in chronological order" and whose edge scenario reads "the output
+lists exactly 1 entry describing the creation". Both are *literally* violated today in any project
+created by `wingfoil init` — a three-transition document reports four entries, a just-created one
+reports two. This task restores an existing contract; it defines no new surface, so **no new
+`tech-spec` is scaffolded** and `design` passes through.
+
+#### AC1 — reproduction, before any repair
+
+`bug-075` means the verbs cannot be pointed at this repository's own Memory, so a throwaway project
+is required. Built from this branch at `a6e2c74` (`npm run build` → `dist/cli.js`); every line below
+is that session's real output.
+
+```
+$ git init -q . && git config user.name "Test User" && git config user.email test@example.test
+$ node …/dist/cli.js init --template scrum          # commits the scaffold, templates included
+$ node …/dist/cli.js memory add --type adr --title "T one"
+$ node …/dist/cli.js memory submit adr-001-t-one
+$ node …/dist/cli.js memory approve adr-001-t-one --reason "because it is fine"
+$ git log --oneline
+c4cbaca wf(adr): approve adr-001-t-one [pending → approved]
+3b508dc chore: grant approver role
+6aef7f4 wf(adr): submit adr-001-t-one
+cc9f040 wf(adr): add adr-001-t-one
+a79a301 chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)
+```
+
+(`3b508dc` adds a `team.members[]` entry holding `approver` to the scaffolded `dna.yaml`; the
+scaffold ships `members: []`, so `memory approve` refuses at REQ-SEC-03 without it. It touches
+`.wingfoil/dna.yaml` only and is not part of the element's history either way.)
+
+The walk returns **one more commit than the commits that touched the file**:
+
+```
+$ git log --follow --format='%h %s' -- docs/memory/adr/adr-001-t-one.md
+c4cbaca wf(adr): approve adr-001-t-one [pending → approved]
+6aef7f4 wf(adr): submit adr-001-t-one
+cc9f040 wf(adr): add adr-001-t-one
+a79a301 chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)
+
+$ git log --format='%h %s' -- docs/memory/adr/adr-001-t-one.md      # no --follow
+c4cbaca …approve…    6aef7f4 …submit…    cc9f040 …add…
+```
+
+and the extra commit demonstrably does not contain the element:
+
+```
+$ git show --stat a79a301 | grep -c 'adr-001'
+0
+```
+
+`wingfoil memory history` reports it as a fourth entry with a real sha, author and timestamp and
+every derived field null, and leaks the `fatal:` as a side effect:
+
+```
+$ node …/dist/cli.js memory history adr-001-t-one --format json
+{"id":"adr-001-t-one","path":"docs/memory/adr/adr-001-t-one.md","entries":[
+ {"sha":"a79a301…","author":"Test User <test@example.test>","timestamp":"2026-09-22T17:47:55+02:00",
+  "operation":null,"from":null,"to":null,"approver":null,"reason":null,
+  "subject":"chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)"}, …]}
+$ node …/dist/cli.js memory history adr-001-t-one --format json 2>&1 >/dev/null
+fatal: path 'docs/memory/adr/adr-001-t-one.md' exists on disk, but not in 'a79a301…'
+```
+
+**Why `--follow` crosses into the template at all**, which is the fact the whole design turns on.
+`--follow` does not merely follow renames: git's `try_to_follow_renames` runs the path search with
+**copy** detection enabled, so when the element's path is absent from the parent commit git looks for
+a *source that still exists* and takes it. `--name-status` shows the edge it took and labels it:
+
+```
+$ git log --follow --name-status --format='COMMIT %h %s' -- docs/memory/adr/adr-001-t-one.md
+COMMIT cc9f040 wf(adr): add adr-001-t-one
+C087	.wingfoil/memory/templates/adr.md	docs/memory/adr/adr-001-t-one.md
+COMMIT a79a301 chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)
+A	.wingfoil/memory/templates/adr.md
+```
+
+`C087` — a **copy**, 87% similar, source still present. Everything older than that edge is the
+template's history, not the element's.
+
+#### AC3 — are Memory elements ever renamed? Yes. Measured, in this repository.
+
+The question is not rhetorical, because the answer decides whether `--follow` can simply be dropped.
+Run against this worktree at `a6e2c74`:
+
+```
+$ git log --all --diff-filter=R -M --name-status --format='%h %s' -- docs/self/docs/04_memory/
+a353c12 config: B12 close-out — stamp release:v0.2 on the 10 bootstrap DLs + T11 rename
+R100	docs/self/docs/04_memory/planning/v1/minor-v0.1.md	docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md
+R100	…/planning/v1/minor-v0.2.md	…/planning/rl-v1/minor-v0.2.md
+R100	…/planning/v1/minor-v0.3.md	…/planning/rl-v1/minor-v0.3.md
+R100	…/planning/v1/minor-v0.4.md	…/planning/rl-v1/minor-v0.4.md
+R100	…/planning/v1/minor-v1.0.md	…/planning/rl-v1/minor-v1.0.md
+```
+
+Five Memory elements, renamed in one commit. The cause is structural, not clerical: the `release`
+type's `path` is `docs/04_memory/planning/{release-line}/{id}.md` (`memory.yaml`, the `release`
+type's `path:` key), so renaming the release-line `v1 → rl-v1` moves every release underneath it.
+Any change to a type's `path` pattern, or to an id that a path interpolates, renames documents.
+
+What rename-following is worth, measured on one of those five:
+
+```
+$ git log --format='%h' -- docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md | wc -l
+1
+$ git log --follow --format='%h' -- docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md | wc -l
+7
+```
+
+**So: rename-following is preserved, not dropped.** Dropping `--follow` would reduce this element's
+audit trail from six real commits to one — it would delete its `add`, both `submit`s and both
+`approve`s from `memory history`, which for an audit trail is a worse failure than the phantom entry
+this task removes. That element is also the case that shows both edges in a single walk, and it is
+what makes the mechanism below verifiable rather than merely plausible:
+
+```
+$ git log --follow --name-status --format='COMMIT %h %s' -- …/planning/rl-v1/minor-v0.1.md
+COMMIT a353c12 config: B12 close-out …
+R100	…/planning/v1/minor-v0.1.md	…/planning/rl-v1/minor-v0.1.md     <- legitimate, keep following
+COMMIT 5b16ab6 wf(release): approve minor-v0.1 [releasing → released]
+COMMIT 715b327 wf(release): submit minor-v0.1
+COMMIT 05f9ff3 wf(release): approve minor-v0.1 [planning → in-development]
+COMMIT e88de04 wf(release): submit minor-v0.1, …
+COMMIT 48ce076 wf(release): add minor-v0.1, …
+C079	docs/self/.wingfoil/memory/templates/release.md	…/planning/v1/minor-v0.1.md   <- creation
+COMMIT 3431dbe feat(self): Memory schema, state machines & templates (P1.13)     <- PHANTOM
+A	docs/self/.wingfoil/memory/templates/release.md
+```
+
+Seven entries; six are the element's; `3431dbe` is the template's own add commit. The correct answer
+for this element is **six**.
+
+#### AC4 — the mechanism, weighed against that evidence
+
+The discriminator is the status letter on the edge where `--follow` changes path: **`R` (rename) is
+the element continuing under a new name; `C` (copy) is the element being born from a file that still
+exists.** Everything strictly older than a `C` edge belongs to the source file.
+
+| # | Shape | Verdict against the two measured cases |
+|---|---|---|
+| A1 | **Drop `--follow`** (plain `git log -- <path>`) | Removes the phantom, and removes five of `minor-v0.1`'s six entries with it. Rejected — AC3. |
+| B1 | **Discard entries whose tree lacks the CURRENT path** (AC4's "cheap" option, the failure `readStatusAt` already discovers) | Correct on the scaffold case and **destructive** on the rename case: no commit before `a353c12` contains `…/rl-v1/minor-v0.1.md`, so all five pre-rename entries are discarded. This is A1 wearing a filter — it drops rename-following *silently*, which is exactly what AC3 forbids. Rejected. |
+| B2 | **Discard entries whose tree lacks the HISTORICAL path** (thread each commit's path out of `--follow --name-status`) | Does not fix the bug at all: at `a79a301` the historical path is `.wingfoil/memory/templates/adr.md`, which **does** exist there, so the phantom survives. It also requires `--name-status` inside the NUL-framed walk, which read_related item 2 rules out. Rejected on correctness first. |
+| A2 | **Stop the walk at the commit that introduced the element** — the newest commit on the followed chain whose edge for this path is a **copy** — keeping that commit and discarding its ancestry | Correct on both: scaffold case 4 → 3, rename case 7 → 6, and a document with no copy edge is untouched. **Chosen.** |
+
+A2 is AC4's first option ("stopping the walk at the commit that introduced the path") with the one
+refinement the evidence forces: *introduced the element*, not *introduced the path*. Read literally,
+"the commit that introduced the current path" is `a353c12`, the rename — and stopping there is B1.
+The element is introduced where its content first appears from a source that outlives it, which is
+the `C` edge.
+
+Locating it needs no parsing: `git log --follow --diff-filter=C --format=%H -- <path>` is the same
+walk, filtered by git to its copy edges, newest first. Probed on all four cases (every line is real
+output):
+
+| Case | `--follow` | `--diff-filter=C` boundary | after truncation |
+|---|---|---|---|
+| scaffold-derived ADR (scratch) | 4 | `cc9f040` (the `add`) | **3** = plain `git log` |
+| `minor-v0.1` (this repo, renamed) | 7 | `48ce076` (the `add`) | **6** (plain walk gives 1) |
+| file authored from scratch, never copied (scratch matrix) | 2 | *(none)* | **2**, untouched |
+| copy **then** rename (scratch matrix) | 5 | the `add` | **4** (plain walk gives 2) |
+
+Two shapes I tried and rejected as accidents rather than mechanisms: `--follow -M100%` and
+`--follow --find-copies=100%` both happen to drop the phantom in the scratch case — but only because
+that particular copy scored 87%. They key on content similarity, so a template copied with a smaller
+edit stays followed and a rename made in the same commit as an edit stops being followed. Both were
+measured: `--follow --no-find-copies-harder` and `--follow --no-renames` change nothing at all, and
+`--follow -M100%` returns 3. Content-thresholded luck is not a fix.
+
+#### AC5 — what is filtered, and what must stay an error
+
+A2 filters on **structure** (position on the followed chain relative to the element's creation), not
+on a failed read, so no per-commit read result is consulted and there is nothing to confuse with a
+genuine failure. That is the point of preferring it over B1: B1's filter *is* `readStatusAt`'s
+failure, and that failure has at least three causes — "the tree genuinely lacks the path", "the path
+existed under another name", and "git failed" — which B1 collapses into one.
+
+Two failure modes the implementation must therefore surface rather than swallow:
+
+1. **The boundary probe itself fails.** It must not reuse `walkGitLogFields`, whose `catch` returns
+   `[]` (`bug-072`) — that would render a git failure as "no copy edge, no truncation" and restore
+   the phantom silently. It runs `execFileSync` directly and wraps a failure in an `Error`
+   (`exitCodeForThrow` → exit 1 with the message), and it only runs at all when the main walk already
+   returned entries, so at that point git and the path are both known good.
+2. **The two walks disagree** — the boundary sha is absent from the walk it was filtered from. That
+   is impossible by construction and therefore an invariant, not a case: it throws rather than
+   defaulting to "no truncation".
+
+**`bug-072` untouched.** My change adds no argument to `walkGitLogFields`, does not enlarge the
+output it must buffer, and **does not touch its `catch`** — verified in the `green` diff below.
+
+#### AC7 — `bug-071` is not fixed here
+
+No stderr redirection, no `stdio` option, no suppression of any kind is added. The `fatal:` in the
+AC1 transcript disappears in the scaffold case purely *as fallout*, because the commit that provoked
+it is no longer in the history that `readStatusAt` is asked about. It does **not** disappear for a
+renamed element: `readStatusAt` still asks for the current path at pre-rename commits, which is the
+documented limitation in `reconstructMemoryTransitions`'s TSDoc, and `bug-071` still has something to
+fix. Both halves are re-measured at `refactor`.
+
+#### T1 acceptance-criterion classification (`dl-014`, `testing` directive)
+
+| AC | Class | Evidence / test |
+|---|---|---|
+| AC1 — reproduce on a scratch project | **red-first** (evidence) | The transcript above, taken before any source edit, against this branch's build at `a6e2c74`. Pinned in code by AC6's test. |
+| AC2 — history reports exactly the commits that touched the element | **red-first** | Behaviour does not exist: the walk has never filtered anything. `test/memory/history-scaffold-copy.test.ts` "reports only the commits that touched the element, not the commit that added the template it was copied from". |
+| AC3 — renames keep working | **characterization** | `--follow` preserves renames today and must keep doing so; the test passes on first run against the pre-fix code and is there to catch the regression A1/B1 would cause. Same file, "keeps a renamed element's pre-rename history". |
+| AC4 — mechanism chosen and argued | **characterization** (design) | No behaviour of its own; its evidence is the four-case probe table above, taken from real command output, not the implementation. |
+| AC5 — a real failure is not folded into the filter | **red-first** | Neither the boundary probe nor its error path exists on `main`. `test/memory/history-scaffold-copy.test.ts` "surfaces a disagreement between the two walks as an error rather than silently skipping the truncation" (over the exported pure helper, so the invariant is exercised without mocking git). |
+| AC6 — a test pins the defect, failing against current code, via the real scaffold-then-add sequence | **red-first** | AC2's test builds its fixture by committing a template, then copying it into place — the sequence `wingfoil init` + `memory add` performs — rather than by staging a synthetic rename. Failing run recorded at `red`. |
+| AC7 — `bug-071` not fixed beyond fallout | **characterization** | Verified by the `green`/`refactor` diff (no stderr handling added) plus the re-run transcript showing the scaffold-case `fatal:` gone and the rename-case `fatal:` still present. |
+| AC8 — six gates green, full `tsc --noEmit` silent | **characterization** | Gate transcripts at `refactor`. |
+
+### red — role: developer
+
+`33835e4` — two new files, no existing test touched.
+
+**`test/memory/history-scaffold-copy.test.ts`** builds its fixture from the **real** scaffold:
+`templateScaffold(resolveTemplate('scrum'))` is written and committed, then the committed
+`.wingfoil/memory/templates/adr.md` is copied into `docs/memory/adr/…` with `id`/`title`/`status`
+filled in — the sequence `wingfoil init` + `wingfoil memory add` performs, not a synthetic `git mv`
+(AC6). The suite asserts up front that the fixture really is the defect's shape
+(`git log --follow` over the element contains the scaffold subject) so it can never pass vacuously.
+
+**`test/cli/history-scaffold-phantom.integration.test.ts`** runs `init`, `memory add`, `submit`,
+`approve` and `history` through the compiled `dist/cli.js`, because the defect is a property of the
+shipped sequence rather than of a fixture. It pins `P1.10-memory-history.feature` literally: 3
+entries for a three-transition document, exactly 1 for a just-created one.
+
+```
+$ npx jest test/memory/history-scaffold-copy.test.ts
+Tests:  6 failed, 1 passed, 7 total
+  ● reports only the commits that touched the element, not the commit that added the template …
+    - Expected  - 0
+    + Received  + 1
+      Array [
+    +   "chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)",
+        "wf(adr): add adr-001-copied-from-template", …
+  ● keeps a renamed element's pre-rename history …            (same one extra entry)
+  ● leaves a document that was never copied from anything …   findElementCreationSha is not a function
+  ● surfaces a failing creation probe as an error …           findElementCreationSha is not a function
+  ● surfaces a disagreement between the two walks as an error … dropPreCreationAncestry is not a function
+  ● drops exactly the ancestry that precedes the element …    dropPreCreationAncestry is not a function
+
+$ npx jest test/cli/history-scaffold-phantom.integration.test.ts
+Tests:  4 failed, 4 total
+  ● lists exactly 1 entry for a just-created document …  Expected length: 1   Received length: 2
+    Received array: [{…"operation": null, "subject": "chore(wingfoil): initialize .wingfoil/ …"},
+                     {…"operation": "add",  "subject": "wf(adr): add adr-002-just-created"}]
+  ● never reports the scaffold commit … + 2 more
+```
+
+The passing test in the first run is the determinism one — it compares two calls of the same
+function, so it is true of the broken walk too, by design.
+
+The rename test failing **only** on that one extra entry is the characterization evidence for AC3:
+everything else about rename-following already worked, and the test is there so that a future
+"simplification" to a plain `git log` fails loudly.
+
+### green — role: developer
+
+`3ff53ac` — **one file, `src/memory/history.ts`, +117/-3. No other source file changed.**
+
+- `findElementCreationSha(root, path)` — `git log --follow --diff-filter=C --format=%H -- <path>`,
+  first line. The same walk, narrowed by git to its copy edges; no parsing, no `--name-status`, and
+  therefore nothing that could disturb the NUL/arity framing (`read_related` item 2). **Throws** on a
+  git failure instead of returning `null`, because "git could not answer" and "never copied from
+  anything" are different answers (AC5).
+- `dropPreCreationAncestry(entries, sha)` — pure, and **throws** when the sha is absent from the walk
+  it was filtered from, rather than quietly skipping the truncation (AC5, second failure mode).
+- `getMemoryHistory` calls the probe only when the walk returned entries, so its documented "returns
+  `[]`, never throws, when `root` is not a repository / the path has no history" contract is
+  unchanged; both existing tests for it still pass untouched.
+
+**`bug-072` untouched, stated as a diff rather than a claim:**
+
+```
+$ git diff main..HEAD --stat -- src/
+ src/memory/history.ts | 120 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 117 insertions(+), 3 deletions(-)
+```
+
+`src/memory/git-log.ts` is not in the diff at all, so `walkGitLogFields`'s `catch` that returns `[]`,
+and its missing `maxBuffer`, are exactly as `main` left them. The probe does not route through that
+function — that is the point of it being a separate `execFileSync`, not an oversight.
+
+### refactor — role: developer
+
+`d3571ad` — one **documentation** change plus the gate run. No behaviour moved.
+
+**A false claim in the module I was repairing, corrected rather than left standing.**
+`reconstructMemoryTransitions`'s TSDoc (`src/memory/audit.ts`) read: *"Memory files are not renamed
+in practice (their path pattern is fixed by `memory.yaml`, spec-011) … this is a documented edge
+case, not a live defect"*. AC3's measurement shows that sentence is false — five `release` elements
+were renamed in one commit in this repository, *because* the `path` pattern interpolates an id that
+changed. The doc now states what was measured, keeps the remedy it proposed (thread each commit's
+historical path into `readStatusAt`), and says plainly that this is out of scope here: task-089
+repairs which **commits** are walked, not which **path** each one is read at. The code is unchanged;
+only the claim is. Filed as a proposed `bug` in the final report — this task does not fix it.
+
+#### AC2 / AC7 — re-measured on the AC1 scratch project, same commits, nothing rebuilt around it
+
+```
+$ node …/dist/cli.js memory history adr-001-t-one --format json      # 4 entries before
+3 entries
+  cc9f040 add    None    -> draft      wf(adr): add adr-001-t-one
+  6aef7f4 submit draft   -> pending    wf(adr): submit adr-001-t-one
+  c4cbaca approve pending -> approved  wf(adr): approve adr-001-t-one [pending → approved]
+$ node …/dist/cli.js memory history adr-001-t-one --format json 2>&1 >/dev/null; echo exit=$?
+exit=0                                       # nothing on stderr; the `fatal:` is gone
+```
+
+Exactly the three commits a plain `git log -- <path>` returns (AC1's transcript), and the scaffold
+commit is gone.
+
+**AC7 — `bug-071` is not fixed.** The `fatal:` above disappeared as fallout: the commit that
+provoked it is no longer in the walk. No stderr handling was added — the `green` diff contains no
+`stdio` option, no redirect and no suppression of any kind. That it is fallout and not a fix is
+demonstrable: rename that same element and the leak returns, three lines of it, one per pre-rename
+commit.
+
+```
+$ git mv docs/memory/adr/adr-001-t-one.md docs/memory/adr/moved/adr-001-t-one.md && git commit -q -m "chore: move the adr"
+$ node …/dist/cli.js memory history adr-001-t-one --format json 2>&1 >/dev/null
+fatal: path 'docs/memory/adr/moved/adr-001-t-one.md' exists on disk, but not in 'cc9f040…'
+fatal: path 'docs/memory/adr/moved/adr-001-t-one.md' exists on disk, but not in '6aef7f4…'
+fatal: path 'docs/memory/adr/moved/adr-001-t-one.md' exists on disk, but not in 'c4cbaca…'
+4 entries      # add / submit / approve / the move — all four real, all four the element's
+```
+
+The same run is the live demonstration of the `readStatusAt` limitation whose doc I corrected: the
+four entries are right, their `from`/`to` are `null` because `readStatusAt` asks for the current path
+at pre-rename commits. Right commits, wrong path — a different defect from this one, and the reason
+the two are not fixed together.
+
+#### Gates (AC8)
+
+```
+$ npx jest                                   111 suites / 1767 tests passed
+$ npx jest --coverage                        All files 98.60 stmts / 93.02 branch / 98.81 funcs / 99.18 lines
+                                             src/memory/history.ts  100 / 100 / 100 / 100
+$ npx tsc -p tsconfig.build.json --noEmit     exit 0
+$ npx tsc --noEmit -p tsconfig.json           exit 0   (no exception — bug-026 stays closed)
+$ npm run lint                                exit 0, no output
+$ npm run docs:api                            exit 0, no output
+$ npx jest test/core/query-latency.test.ts    4 passed  (REQ-PERF-02, incl. P1.10's "under 1 second"
+                                                        clause — the extra probe is one `git log`
+                                                        per command, measured, not assumed)
+```
+
+Coverage non-regression was **measured, not asserted**: I restored `main`'s `src/memory/*` in this
+worktree, ran the suite with this task's two new files excluded, and compared.
+
+| | statements | branches | functions | lines |
+|---|---|---|---|---|
+| `main` baseline (109 suites / 1756 tests) | 98.59 | 92.97 | 98.80 | 99.18 |
+| this branch (111 / 1767) | **98.60** | **93.02** | **98.81** | 99.18 |
+
+Which BDD scenario each test carries:
+
+| Scenario (`P1.10-memory-history.feature`) | Test |
+|---|---|
+| "View the full audit trail of a document" — *lists 3 entries in chronological order* | `history-scaffold-phantom.integration.test.ts` "lists 3 entries for a document with 3 recorded transitions" |
+| "Edge - document with a single creation event" — *exactly 1 entry describing the creation* | same file, "lists exactly 1 entry for a just-created document" |
+| "…and the query returns in under 1 second" | `test/core/query-latency.test.ts` (unchanged; re-run above) |
+| "Error - history for a non-existent document" | `test/core/memory-history.test.ts` (unchanged) |
+
+### sync with `main` before submit (dl-035 — merge, never rebase)
+
+`git merge main` (main at `47718a9`) — two new plan documents only
+(`docs/05_plans/rl-v1/rel-v0.2/release-submit-rel-v0.2-plan.md`, `…/retrospective-rel-v0.2-plan.md`,
++75 lines, no deletions). Nothing this task's notes cite moved: `bug-071`, `bug-072`, `bug-077`,
+`task-086`, `dl-014`, `dl-015`, `dl-075`, `spec-006`, `spec-008`, `spec-011` and `memory.yaml` are
+all as read. Every gate re-run on the merge commit; the numbers above are the post-merge run.
+
+**One flaky failure, reported rather than buried.** The first post-merge `npx jest` reported
+`1 failed, 1766 passed` in **225 s**, against 32–76 s for every other run of the same suite in this
+session — sibling task agents were building and running suites on the same machine. I had piped that
+run through `tail -5` and so did **not** capture which test failed; three subsequent full runs
+(51 s, 76 s, and the coverage run) are 1767/1767 green. The likeliest candidate is
+`test/core/query-latency.test.ts`, whose REQ-PERF-02 budget is a wall-clock threshold and whose
+failure mode under CPU contention is exactly what `bug-011-cli-latency-assertion-measures-spawn-contention`
+records. I cannot prove that from a lost transcript, so it is named here as an unresolved
+observation, not as a diagnosis, and it is in the final report for the orchestrator.
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** `getMemoryHistory` still walks with `git log --follow`, so a
+renamed element keeps its history, but it now stops at the element's own creation instead of
+continuing into the template it was copied from — so `memory history` reports the commits that
+touched the element and nothing else.
+
+**Why the walk went there at all**, since the bug report and the ACs both call `--follow`
+"rename-following": it is not. Git's path search under `--follow` runs with copy detection enabled,
+so an absent path is matched against sources that still exist. `--name-status` labels the two edges
+differently and that label is the whole fix: `R` (rename) is the element under a new name — follow
+it; `C` (copy) is the element being born from a file that outlives it — stop there.
+
+**The claim I had to settle before choosing anything (AC3).** Whether Memory elements are ever
+renamed is not a matter of judgement here — it is measurable, and the answer is yes: five `release`
+elements moved from `planning/v1/` to `planning/rl-v1/` in commit `a353c12` of this repository,
+because the `release` type's `path` pattern interpolates the release-line id. For one of them a
+plain `git log` returns 1 commit where the followed walk returns 7. That single fact eliminates two
+of the four candidate mechanisms, including the one the AC called "cheap" — filtering on whether a
+commit's tree contains the current path would have deleted those five commits while looking like a
+fix. The reasoning table is in the design notes.
+
+**Where a reviewer should push.**
+
+1. **The mechanism keys on git's copy/rename classification.** If git ever classified an element's
+   creation as a rename rather than a copy, the truncation would not fire. That needs the template to
+   have *disappeared* in the same commit, which `memory add` never does. It is nonetheless the
+   assumption the fix rests on, and it is the thing to attack first.
+2. **Two `git log` invocations per `memory history` instead of one.** Deliberate — threading
+   `--name-status` through the existing walk would corrupt task-086's NUL/arity framing (design
+   notes, read_related item 2) — and measured against REQ-PERF-02, not assumed. But it is a second
+   process spawn on a read path, and a reviewer may prefer the cost stated out loud in `spec-006`.
+3. **Two throws on a read path** (`findElementCreationSha` on git failure,
+   `dropPreCreationAncestry` on an impossible sha). `exitCodeForThrow` maps both to exit 1 with the
+   message. This is AC5's requirement taken literally: the alternative is a silent return to the
+   phantom entry. A reviewer who wants a `CoreResult` error instead of a throw is arguing about the
+   seam, not about the rule.
+4. **`readStatusAt` is untouched, and it is still wrong for renamed elements** — right commits, wrong
+   path, `null` states and three `fatal:` lines on stderr, demonstrated live in the `refactor`
+   transcript. I corrected the TSDoc that claimed this could not happen; I did not fix it, and it is
+   filed as a proposed bug.
+
+**Scope, stated as facts rather than intentions.** `git diff main..HEAD --stat -- src/` is two files:
+`src/memory/history.ts` (+117/-3, the fix) and `src/memory/audit.ts` (a TSDoc paragraph, no code).
+`src/memory/git-log.ts` is not in it, so `bug-072`'s `catch` and missing `maxBuffer` are as `main`
+left them; `src/core/index.ts` is not in it either, so there is no contention with the parallel
+tasks that share it. No existing test file was modified — the two new suites are new files.

@@ -2,7 +2,7 @@
 id: "bug-077-history-follow-attributes-template-commits"
 type: bug
 title: "`memory history` walks with `git log --follow`, which follows the element back to the template it was copied from and reports a commit that never contained it as a history entry"
-status: planned
+status: in-review
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
