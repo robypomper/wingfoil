@@ -2,8 +2,7 @@
 id: "task-086-fix-reason-control-chars-history-forgery"
 type: task
 title: "Stop a `--reason` containing the git-log framing control characters from fabricating a `memory history` entry whose sha is caller-supplied text"
-status: in-progress
-rejection_reason: "The arity walk is wrong at fields.length === 1: git's record-terminating newline forms a whole group rather than a discarded remainder, so two commits yield three records and a pathspec with no history yields one empty record where main yielded none. The live call sites use 5 and 6 fields and are unaffected, but the TSDoc sentence the fix RETAINED \u2014 that the walk returns [] when no pathspec has matching history \u2014 is now false at that arity, which is the same defect class this task exists to remove. Second: the claim in the Execution Notes and in the empty-body test's comment that arity chunking fixes a latent bug in the old splitter is false at both arities the module uses \u2014 measured at 6 fields, main kept that record byte-identically \u2014 and the test passes unmodified against main, so it is a characterization labelled as a pin. Third: two references to a Proposed elements section the document does not contain, and one 'the commit below' placeholder where 48e0733 belongs. Remediation: make the walk total at arity 1 with tests for the no-history and N-commit cases, correct the two sentences and the test comment, resolve the three references, re-run the gates on top of current main."
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "security", "audit-trail"]
