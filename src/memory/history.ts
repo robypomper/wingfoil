@@ -43,17 +43,25 @@ const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
 export function getMemoryHistory(root: string, relativePath: string): MemoryHistoryEntry[] {
   const records = walkGitLogFields(root, LOG_FIELDS, [relativePath], ['--follow']);
 
-  // One field per slot, `%b` included: {@link walkGitLogFields} recovers records by field arity, so
-  // the body arrives whole even when it carries a delimiter-looking character. It used to arrive
-  // split — `%b` being LAST was the only thing that made a `0x1f` in a reason survive, via an
-  // explicit `bodyParts.join(FIELD_SEP)` that undid the split it had just caused. That accident, and
-  // the reassembly that compensated for it, are both gone (task-086, bug-050).
-  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '', body = '']) => ({
-    sha,
-    authorName,
-    authorEmail,
-    date,
-    subject,
-    body: body.trim(),
-  }));
+  // One field per slot, `%b` included. Two consequences of task-086's arity-based framing, both
+  // deliberate:
+  //
+  //  - The body arrives WHOLE even when it carries a character that used to look like a delimiter.
+  //    `%b` being LAST was the only thing that made a `0x1f` in a reason survive before, via an
+  //    explicit `bodyParts.join(FIELD_SEP)` that undid the split it had just caused; that accident
+  //    and the reassembly compensating for it are both gone (bug-050).
+  //  - Every record has exactly `LOG_FIELDS.length` entries — `walkGitLogFields` emits whole groups
+  //    or none — so the per-slot `= ''` defaults this used to carry could never fire. They are read
+  //    as the cast below instead of kept as six permanently-unreachable branches.
+  return records.map((record) => {
+    const [sha, authorName, authorEmail, date, subject, body] = record as [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    return { sha, authorName, authorEmail, date, subject, body: body.trim() };
+  });
 }
