@@ -378,3 +378,25 @@ log and the audit into this plan's `## Execution Notes`.
 On completion, `release-cycle` advances to **`submit`** (`release-submit`), whose own `checks.pre`
 re-verifies that every v0.2 task is `done`, every v0.2 bug is `resolved`/`closed`, and the suite is
 green at ≥80% coverage.
+
+---
+
+## Approver decisions of 2026-09-22 — recorded here because this plan is executed by a later session
+
+Given in chat and binding on this phase:
+
+- **G1 is in scope for v0.2: add `memory submit` to the smoke.** It is not deferred to v0.3. Note
+  that this bug's own stated blocker has gone: `bug-029` says it is blocked by `bug-030`, and
+  `bug-030` is `closed` — the scaffolded `memory.yaml` now ships a state machine, and a probe in a
+  throwaway project confirmed `memory submit <id> --format json` exits 0 with
+  `{"from":"draft","to":"pending"}` on both templates. Re-run that probe rather than trusting this
+  paragraph.
+- **The release version is `0.2.0`**, should any smoke assertion need it.
+- **Open bugs carrying no `release` are authorised to the next release.** Of the four gaps this plan
+  identifies, only G1 is v0.2 work; G2, G3 and G4 are not to be closed here unless closing G1 closes
+  them as a consequence — G4 in particular is expected to fall out of G1, since loading the
+  scaffolded state machine is what `memory submit` does. Say which happened rather than assuming.
+
+Still the approver's, and not settled by the above: the flip from warn to hard-reject, where the
+`retro-v0.1` warn-then-reject staging record is finally written, whether `e2e-smoke.yaml` gains a
+`produces:` so the phase's completion can be deduced at all, and the `gate` approval itself.

@@ -752,3 +752,28 @@ the first release where the two are distinct. The word is the approver's to conf
   granular tokens can only select packages that already exist, so the **first** publish needs an
   all-packages-write token with the shortest practical expiry, replaced immediately afterwards by a
   `wingfoil`-scoped one. That is `NPM_TOKEN`'s owner's business, not an agent's.
+
+---
+
+## Approver decisions of 2026-09-22 — recorded here because this plan is executed by a later session
+
+Given in chat and binding on this phase:
+
+- **The release version is `0.2.0`.** `package.json` still reads `0.1.0`, and
+  `scripts/check-release-tag.cjs` refuses any tag that is not exactly `v` + that value — so the bump
+  is a precondition of the tag, not a tidy-up after it. Edit the manifest **by hand**; never
+  `npm version`, which rewrites the lockfile and would drop `task-080`'s hoisted `@emnapi` entries
+  (`bug-063`).
+- **Open bugs carrying no `release` are authorised to the next release.** The `pre-release-checks`
+  reading of "no open bug" is satisfied by *v0.2-scheduled* bugs being closed, which they are; the
+  44 unscheduled ones do not block this release. Do not re-litigate that here.
+- **The subject line for the two verb-less edges is accepted as proposed**: `wf(release):
+  enter-releasing minor-v0.2 [in-development → releasing]` and `wf(release): mark-released
+  minor-v0.2 [releasing → released]`, following the `wf(task): start` / `finalize` and `wf(bug):
+  sync` practice. Note this is the very practice `dl-079` (`in-discussion`) asks whether to ratify or
+  correct; check that document's state before committing, and if it has since been ratified the
+  other way, follow the ratification rather than this note.
+
+Unchanged and still the approver's, to be performed personally and never by an agent: pushing `main`,
+creating and pushing the tag, approving the `npm-publish` deployment, supplying or rotating
+`NPM_TOKEN`, and instructing both `enter-releasing` and `mark-released`.
