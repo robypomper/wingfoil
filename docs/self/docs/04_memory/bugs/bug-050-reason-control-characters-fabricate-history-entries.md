@@ -2,7 +2,7 @@
 id: "bug-050-reason-control-characters-fabricate-history-entries"
 type: bug
 title: "A `--reason` containing ASCII 0x1e fabricates a whole `memory history` entry and blanks the genuine one's `from`, because `RECORD_SEP` assumes commit text never contains it"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
 release: ""
