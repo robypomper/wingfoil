@@ -156,12 +156,15 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
   });
 
   it('a commit with an empty body still produces exactly one record (characterization — unchanged)', () => {
-    // CHARACTERIZATION, not a pin on anything this task fixed: at the six fields `getMemoryHistory`
-    // uses, the old splitter kept this record too — `"sha<US>…<US>"` has non-zero length, so its
-    // `.filter((record) => record.length > 0)` never saw an empty string. Measured, both readers over
-    // the same repo (`scratchpad/arity1-probe.js`, case "two commits, 6 fields (live)"): SAME,
-    // byte-identical. The filter could only ever drop a record at `fields.length === 1` with that one
-    // field empty, which no call site uses — see the arity-1 block below, which does pin that.
+    // CHARACTERIZATION, not a pin on anything this task fixed. At the six fields `getMemoryHistory`
+    // uses, the old `0x1f`/`0x1e` splitter kept this record too: its `.filter((record) =>
+    // record.length > 0)` tested the WHOLE record string, and for a commit with an empty body that
+    // string is `"<sha>\x1f<name>\x1f<email>\x1f<date>\x1f<subject>\x1f"` — five separators, so
+    // non-zero length, so never dropped. The filter could only ever discard a record at
+    // `fields.length === 1` with that single field empty, and no call site uses that arity
+    // (`LOG_FIELDS` is six, `AUDIT_LOG_FIELDS` five). That arity-1 case is pinned, on the fixed
+    // behaviour, by "keeps a commit whose single field is empty, in its own slot" in the
+    // `walkGitLogFields is total at every arity` block below.
     repo = makeTempGitRepo();
     writeDoc(repo, 'draft');
     commitAll(repo, 'wf(task): add task-900-framing');

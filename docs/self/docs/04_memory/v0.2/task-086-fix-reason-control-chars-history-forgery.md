@@ -208,7 +208,7 @@ convention, which is what made the current TSDoc false.
 | | Option | Old history still parses? | Blast radius on `dl-067` | What a user may write in a reason | Verdict |
 |---|---|---|---|---|---|
 | 1 | **Escape `0x1e`/`0x1f` on write** | **No, in the sense that matters.** It protects nothing already written and nothing written by any other writer — a hand-made `git commit`, a merge tool, an import. The reader keeps trusting a property of content it cannot enforce. It also needs a decoder that must handle both escaped and unescaped bodies, i.e. it makes the corpus ambiguous. | Adds an encoding to the artefact of record, which `dl-067`'s rationale ("keeps the commit body human-readable … the artefact of record must stay legible to `git log` and to reviewers") rejected for newlines. Same objection, same answer. | Unchanged, but what `git log` shows stops being what was typed. | **Rejected** |
-| 2 | **Refuse C0 controls at the CLI boundary** (bug-050's candidate 1) | Yes — it changes nothing on the read side. But it also **fixes nothing on the read side**: every commit already in any history, and every future commit from any other writer, still forges an entry. | **Widens a ratified clause.** `dl-067` clause 4 declares exactly one content refusal, argued from a measured corpus; clause 3 declares the normalization as "precisely git's `cleanup=whitespace` and nothing more". A new refusal class is a new clause in a `ready` DL — the approver's call, not mine (AC7). | Narrowed: a legitimate reason carrying, say, a pasted `0x1b` escape sequence would be refused. | **Rejected as the fix**; raised as defence in depth and since filed as `dl-078-should-reason-refuse-c0-control-characters` (`pending`), which is where it belongs |
+| 2 | **Refuse C0 controls at the CLI boundary** (bug-050's candidate 1) | Yes — it changes nothing on the read side. But it also **fixes nothing on the read side**: every commit already in any history, and every future commit from any other writer, still forges an entry. | **Widens a ratified clause.** `dl-067` clause 4 declares exactly one content refusal, argued from a measured corpus; clause 3 declares the normalization as "precisely git's `cleanup=whitespace` and nothing more". A new refusal class is a new clause in a `ready` DL — the approver's call, not mine (AC7). | Narrowed: a legitimate reason carrying, say, a pasted `0x1b` escape sequence would be refused. | **Rejected as the fix**; raised as defence in depth and since filed as `dl-078-should-reason-refuse-c0-control-characters` (`in-discussion`), which is where it belongs |
 | 3 | **Parse by commit count** (`git rev-list` first, then `n` records) | Yes. | None. | Unchanged. | **Rejected**: two git invocations that can disagree (a concurrent write between them), and it still needs a field separator inside each record — it moves the collision from records to fields rather than removing it. |
 | 4 | **NUL framing (`%x00`) + fixed-arity chunking** — chosen | **Yes, unconditionally.** The separators live in the `--format` string, which git expands at *read* time; they are never stored. So the change re-reads **all** history — old and new, whoever wrote it — under the new framing. Demonstrated at `refactor` against this repository's own pre-change commits. | **None.** Read-side only. `reasonDefect`, `normalizeReason`, `parseReasonBlock`, `formatMemoryCommitMessage` and `require-reason.ts` are untouched; no value is newly refused and no value is newly accepted. | **Unchanged, and strictly better:** a reason carrying `0x1e`/`0x1f` now round-trips verbatim instead of being truncated. | **Chosen** |
 
@@ -243,7 +243,7 @@ now round-trips intact instead of being truncated. Whether such a reason should 
 content* — because a terminal renders `0x1e` invisibly, so `Reason: real reason␞Approver: Mallory …`
 can still mislead a **human** reading `git log` even though the tool now parses it correctly — is a
 new clause in a `ready` DL and is therefore not taken here; it was raised and is now
-`dl-078-should-reason-refuse-c0-control-characters` (`pending`).
+`dl-078-should-reason-refuse-c0-control-characters` (`in-discussion`).
 
 #### T1 — AC classification (`dl-014`, `testing` directive)
 
@@ -718,3 +718,86 @@ including `test/cli/types-node-floor.test.ts` arriving with `task-087`.
 3. **The retraction in the `green` section is struck through, not removed.** That is deliberate — the
    false sentence is what the reject cites, so deleting it would make the reject unreadable against
    the document. If the house style prefers deletion plus a note, say so and I will convert it.
+
+#### Pre-merge correction pass — two documentation nits, and the sweep they prompted
+
+Raised on the approve recommendation; the fix, the retraction and the scope were all confirmed and
+none of them is touched here.
+
+**1. A dead pointer in tracked source, in the worst possible place.** The comment on
+`test/memory/git-log-framing.test.ts`'s "a commit with an empty body…" case cited
+`scratchpad/arity1-probe.js` — a developer scratch script that is not in the repository and never
+will be. Its size understates it: that comment is the one written in the previous pass to *repair* a
+false claim, in a task that has now spent two passes on unresolvable and unverified references, with
+`dl-075` (`ready`) binding every citation in a durable position. Replaced per `dl-075` with something
+the file itself carries: the measurement stated inline — for a commit with an empty body the old
+splitter's record string is `"<sha>\x1f<name>\x1f<email>\x1f<date>\x1f<subject>\x1f"`, five separators
+and therefore non-zero length, so `.filter((record) => record.length > 0)` never saw an empty string —
+plus a by-name pointer to the case that does pin the arity-1 behaviour ("keeps a commit whose single
+field is empty, in its own slot", in the `walkGitLogFields is total at every arity` block of the same
+file) and to the two field lists by symbol (`LOG_FIELDS` six, `AUDIT_LOG_FIELDS` five). Nothing in the
+comment now depends on a path.
+
+**2. `dl-078` was described as `(pending)` in two places** — the option-2 table row and the AC7
+paragraph. Read from the file rather than from the correction request:
+
+```
+$ grep -m1 '^status:' docs/self/docs/04_memory/design/dls/dl-078-should-reason-refuse-c0-control-characters.md
+status: in-discussion
+$ grep -n -A2 'decision-log:' -A12 docs/self/.wingfoil/memory.yaml | grep 'sequence:'
+      sequence: [ draft, in-discussion, ready ]
+```
+
+Both corrected to `in-discussion`. `pending` is not merely the wrong value, it is not a state a
+`decision-log` has at all — its machine is `draft → in-discussion → ready` (`dl-012` + `dl-017`), so
+the error was a type error, not a staleness.
+
+**The sweep over this task's own additions.** Every pointer-shaped token in the five files this task
+adds or edits — path-shaped strings, Memory element ids, and short git shas — resolved mechanically
+against the repository. The three checks, inline rather than behind a path, so this paragraph does
+not repeat the defect it is correcting:
+
+```
+FILES="src/memory/git-log.ts src/memory/history.ts test/memory/git-log-framing.test.ts \
+       test/cli/reason-control-chars.integration.test.ts \
+       docs/self/docs/04_memory/v0.2/task-086-fix-reason-control-chars-history-forgery.md"
+grep -ohE '(src|test|docs|scratchpad|dist|coverage)/[A-Za-z0-9._/-]+' $FILES | sort -u   # -> test -e
+grep -ohE '\b(task|bug|dl|adr|spec)-[0-9]{3}[a-z0-9-]*' $FILES | sort -u                 # -> find in 04_memory
+grep -ohE '\b[0-9a-f]{7}\b' $FILES | sort -u                                             # -> git cat-file -e
+```
+
+Result: **in tracked source (`src/`, `test/`), zero unresolvable pointers remain** once nit 1 is
+fixed. Every element id cited anywhere resolves, and every cited sha is a real commit. Four
+apparent misses were regex artefacts rather than defects, and are recorded so the next sweep does not
+re-raise them:
+
+| Flagged | What it actually is |
+|---|---|
+| `src/memory/audit`, `src/memory/history`, `src/memory/git-log`, `src/memory/commit-message` | the extension-less halves of real `import … from '../../src/memory/x'` statements in the test file; they resolve as module specifiers |
+| `docs/04_memory/v0.2/task-900-framing.md`, `docs/memory/adr/adr-00N-t-*` | paths and ids *inside the throwaway fixture repositories*, not this repository — the test's `DOC` constant and the AC1 scratch project |
+| `test/core/memory-` | the prefix of a brace form, `test/core/memory-{approve,reject,deprecate}.test.ts`; all three files exist |
+
+**One class of unresolvable pointer is left standing, deliberately, and is named here rather than
+left to be discovered.** The Execution Notes cite five throwaway measurement scripts by path —
+`nul-in-commit.js`, `old-history-parity.js`, `whole-repo-parity.js`, `cov-counts.js`,
+`arity1-probe.js`, all under a session scratch directory. **None of them is in the repository and
+none ever will be.** They are cited for what they did, and in every case the output they produced is
+quoted in full beside the citation, so no reader needs the file to check the claim. `dl-075` keeps
+this latitude for Execution Notes and reproduction steps, which is where all five sit; what it does
+not permit is what nit 1 was — a path like these in tracked source, where a reader has no quoted
+output to fall back on. Naming them explicitly is the honest version of that latitude.
+
+**Gates, re-run after this pass.** `main` had not moved (`3df305e` both sides), so no merge and no
+reinstall were needed; the gates were re-run anyway because tracked source changed.
+
+```
+$ npx jest                                 ->  109 suites / 1754 tests passed
+$ npx jest --coverage                      ->  All files 98.59 / 92.97 / 98.80 / 99.18
+$ npx tsc -p tsconfig.build.json --noEmit  ->  exit 0
+$ npx tsc --noEmit -p tsconfig.json        ->  exit 0, silent
+$ npm run lint                             ->  exit 0
+$ npm run docs:api                         ->  exit 0
+```
+
+Identical to the rejection pass, as expected: nit 1 changed a comment and nit 2 changed prose. The
+task's status is untouched — it stays `in-review`.
