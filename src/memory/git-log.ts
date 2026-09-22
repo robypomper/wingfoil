@@ -8,23 +8,68 @@
 import { execFileSync } from 'child_process';
 
 /**
- * Field separator (ASCII unit separator, `0x1f`) between the `--format` fields of one commit — a
- * control character a real commit subject/body never contains, so splitting on it needs no escaping.
+ * The `--format` placeholder git expands to a single NUL byte, used to delimit BOTH the fields of a
+ * commit and one commit's record from the next. A literal NUL cannot be written into the format
+ * string, because it travels to git through `argv` and a C string ends at the first NUL — so `%x00`
+ * is the only way to get one there at all.
  */
-export const FIELD_SEP = '\x1f';
-/**
- * Record separator (ASCII record separator, `0x1e`) between commits in the `git log` output — same
- * "never appears in real commit text" guarantee as {@link FIELD_SEP}.
- */
-export const RECORD_SEP = '\x1e';
+const NUL_PLACEHOLDER = '%x00';
 
 /**
- * Run `git log <extraArgs> --format=<fields joined by FIELD_SEP><RECORD_SEP> -- <pathspecs>` and
- * return each matching commit's raw field list (in `fields` order, not yet destructured into a named
- * shape — that's each caller's concern), oldest first. Returns `[]` — never throws — both when `root`
- * is not a git repository at all and when none of `pathspecs` has any matching history; "not a repo"/
- * "not found" is a caller concern, not this primitive's (mirrors `getMemoryHistory`'s original
- * contract).
+ * The delimiter {@link NUL_PLACEHOLDER} expands to, and the one character this module splits on.
+ *
+ * The guarantee, stated as narrowly as it actually holds
+ * (`task-086-fix-reason-control-chars-history-forgery`, `bug-050`): **git refuses to write a commit
+ * whose message contains a NUL byte** — `error: a NUL byte in commit log message not allowed`,
+ * raised by every writer down to `commit-tree`, the lowest-level plumbing there is. This is not a
+ * claim about what commit text conventionally contains; it is a property git enforces at write time,
+ * and it is the same property git's own `-z` output options rest on.
+ * `test/memory/git-log-framing.test.ts` pins it against all three writers rather than trusting it.
+ *
+ * It replaced a pair of separators (`0x1f`/`0x1e`) documented as characters "a real commit
+ * subject/body never contains". That claim was false by construction: `--reason <text>` is arbitrary
+ * free text that lands in the commit body (P1.7/P1.8, REQ-SEC-04), so a reason carrying `0x1e` split
+ * one commit's record in two and made `wingfoil memory history` (P1.10) print a fabricated entry
+ * whose `sha` was the caller-supplied text, while the genuine approval lost its `from`. Because the
+ * delimiters live in the `--format` string — expanded by git at READ time and never stored — moving
+ * to NUL re-reads all history under the new framing, whenever and by whichever writer it was made.
+ *
+ * Built with `String.fromCharCode` rather than spelled as a unicode escape for code point zero,
+ * because any tool that resolves such an escape while editing this file leaves a RAW NUL byte in
+ * the source — at which point git classifies the file as binary and stops diffing it. Observed
+ * once here, hence the note: the constructor form cannot be resolved into the file by accident.
+ */
+const NUL = String.fromCharCode(0);
+
+/**
+ * Run `git log <extraArgs> --format=<each field followed by %x00> -- <pathspecs>` and return each
+ * matching commit's raw field list (in `fields` order, not yet destructured into a named shape —
+ * that's each caller's concern), oldest first.
+ *
+ * Because the field and record delimiters are the same character ({@link NUL}), records are
+ * recovered by **arity** rather than by a second delimiter: the stream is split on NUL and consumed
+ * in fixed groups of `fields.length`. That is what makes the walk independent of its own output's
+ * content — there is no character a commit could carry that would realign the groups — and it also
+ * means a field that is legitimately empty (a commit with no body, `%b`) still occupies its slot
+ * instead of being dropped. **Every returned record therefore has exactly `fields.length` entries**
+ * — a partial group at the end of the stream is not a record and is discarded, never padded — which
+ * is the postcondition `./history`'s destructuring relies on.
+ *
+ * git terminates each commit's formatted output with a newline. The format ends with a delimiter, so
+ * that newline falls in the piece AFTER the record's last field — which is why the split's final
+ * piece is dropped rather than grouped. Dropping it explicitly, instead of letting it fall off as a
+ * short remainder, is what makes the walk total at **one** field too: at that arity the tail is a
+ * whole group of its own and became a spurious record (it did, on this task's first pass; the
+ * arity-1 cases in `test/memory/git-log-framing.test.ts` now pin it). What survives of the newline is
+ * a single leading `\n` on each record's first field after the first, and that is stripped; both call
+ * sites put `%H` first, which never legitimately begins with one.
+ *
+ * Returns `[]` — never throws — both when `root` is not a git repository at all and when none of
+ * `pathspecs` has any matching history; "not a repo"/"not found" is a caller concern, not this
+ * primitive's (mirrors `getMemoryHistory`'s original contract). That now holds at EVERY arity: with
+ * no matching commits git prints nothing, the split yields one piece, and dropping it leaves nothing
+ * to group. An empty `fields` requests nothing and likewise yields `[]`, rather than looping forever
+ * over zero-width groups.
  */
 export function walkGitLogFields(
   root: string,
@@ -32,7 +77,8 @@ export function walkGitLogFields(
   pathspecs: readonly string[],
   extraArgs: readonly string[] = [],
 ): string[][] {
-  const format = fields.join(FIELD_SEP) + RECORD_SEP;
+  if (fields.length === 0) return [];
+  const format = fields.map((field) => `${field}${NUL_PLACEHOLDER}`).join('');
   let stdout: string;
   try {
     stdout = execFileSync(
@@ -44,10 +90,19 @@ export function walkGitLogFields(
     return [];
   }
 
-  const records = stdout
-    .split(RECORD_SEP)
-    .map((record) => record.replace(/^\n+/, ''))
-    .filter((record) => record.length > 0);
+  // The stream is `<f1>NUL<f2>NUL…<fn>NUL` per commit, each run terminated by git's own newline, so
+  // the text after the FINAL NUL is never a field — it is that newline, or the empty string when git
+  // printed nothing at all. Drop it before grouping; at `fields.length === 1` it would otherwise be
+  // a complete group and become a record that no commit backs. Only whole groups of `fields.length`
+  // are records thereafter.
+  const pieces = stdout.split(NUL);
+  pieces.pop();
+  const records: string[][] = [];
+  for (let index = 0; index + fields.length <= pieces.length; index += fields.length) {
+    const record = pieces.slice(index, index + fields.length);
+    record[0] = (record[0] as string).replace(/^\n+/, '');
+    records.push(record);
+  }
 
-  return records.map((record) => record.split(FIELD_SEP)).reverse();
+  return records.reverse();
 }

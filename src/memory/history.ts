@@ -16,7 +16,7 @@
  * task-015-complete-audit-trail, which needs the same plumbing for its own attribution audit) — this
  * module owns only the `MemoryHistoryEntry` shape and the `--follow` single-document semantics.
  */
-import { FIELD_SEP, walkGitLogFields } from './git-log';
+import { walkGitLogFields } from './git-log';
 
 /** One commit touching a Memory document, in the shape `wingfoil memory history` will render from. */
 export interface MemoryHistoryEntry {
@@ -43,12 +43,25 @@ const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
 export function getMemoryHistory(root: string, relativePath: string): MemoryHistoryEntry[] {
   const records = walkGitLogFields(root, LOG_FIELDS, [relativePath], ['--follow']);
 
-  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '', ...bodyParts]) => ({
-    sha,
-    authorName,
-    authorEmail,
-    date,
-    subject,
-    body: bodyParts.join(FIELD_SEP).trim(),
-  }));
+  // One field per slot, `%b` included. Two consequences of task-086's arity-based framing, both
+  // deliberate:
+  //
+  //  - The body arrives WHOLE even when it carries a character that used to look like a delimiter.
+  //    `%b` being LAST was the only thing that made a `0x1f` in a reason survive before, via an
+  //    explicit `bodyParts.join(FIELD_SEP)` that undid the split it had just caused; that accident
+  //    and the reassembly compensating for it are both gone (bug-050).
+  //  - Every record has exactly `LOG_FIELDS.length` entries — `walkGitLogFields` emits whole groups
+  //    or none — so the per-slot `= ''` defaults this used to carry could never fire. They are read
+  //    as the cast below instead of kept as six permanently-unreachable branches.
+  return records.map((record) => {
+    const [sha, authorName, authorEmail, date, subject, body] = record as [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    return { sha, authorName, authorEmail, date, subject, body: body.trim() };
+  });
 }
