@@ -2,7 +2,7 @@
 id: "task-087-fix-types-node-floor-pin"
 type: task
 title: "Raise `@types/node` to the Node floor adr-010 declared, so `src/` is typechecked against the runtime the package promises"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "build", "distribution"]
