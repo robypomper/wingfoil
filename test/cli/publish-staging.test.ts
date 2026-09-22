@@ -16,7 +16,9 @@ import { once } from 'node:events';
 import {
   REGISTRY_STOP_TIMEOUT_MS,
   STAGING_REGISTRY,
+  TEARDOWN_SIGNALS,
   installArgs,
+  installTeardownHandlers,
   parseArgs,
   publishArgs,
   runStaging,
@@ -25,7 +27,7 @@ import {
   stopProcess,
   verdaccioConfig,
 } from '../../scripts/publish-staging.cjs';
-import type { StagingEffects } from '../../scripts/publish-staging.cjs';
+import type { SignalTarget, StagingEffects } from '../../scripts/publish-staging.cjs';
 
 const WORK = '/tmp/wf-staging-test';
 
@@ -42,6 +44,9 @@ function fakeEffects(failAt?: string): { readonly effects: StagingEffects; reado
     },
     removeWorkDir: (dir) => {
       calls.push(`removeWorkDir ${dir}`);
+    },
+    removeToken: (dir) => {
+      calls.push(`removeToken ${dir}`);
     },
     packTarball: () => {
       calls.push('packTarball');
@@ -159,6 +164,9 @@ describe('publish:staging (task-060) — orchestration', () => {
       'npm publish',
       'npm install',
       'smoke 0.2.0',
+      // task-083 AC4: the credential goes first, before the registry it authenticates against and
+      // before the bulk removal — so it is the shortest-lived artefact of a run, not the longest.
+      `removeToken ${WORK}`,
       'stopRegistry',
       `removeWorkDir ${WORK}`,
     ]);
@@ -248,5 +256,325 @@ describe('stopProcess (task-078) — SIGTERM, then a bounded wait, then SIGKILL'
 
   it('defaults the escalation interval well below the registry start timeout it can be called from', () => {
     expect(REGISTRY_STOP_TIMEOUT_MS).toBe(10_000);
+  });
+});
+
+/**
+ * task-083 (`bug-059`) — teardown on a signal delivered to the SCRIPT. Every case here drives the
+ * installed handler directly through a fake signal target and a fake `die`: no real signal is sent, no
+ * real process is killed, no Verdaccio is started and nothing touches the network, so the suite stays
+ * as offline and as deterministic as the orchestration cases above (AC7). The end-to-end proof — that a
+ * real `SIGINT`/`SIGTERM` to a real run leaves no registry, no work dir and no token — is a recorded
+ * manual probe in the task's Execution Notes, because the in-use guard it also proves is a live
+ * `fetch` against :4873 that no test may make.
+ */
+describe('publish:staging (task-083) — teardown on SIGINT/SIGTERM/SIGHUP', () => {
+  /** A signal target that records what was installed and lets a case invoke it directly. */
+  function fakeSignals(): {
+    readonly target: SignalTarget;
+    readonly died: string[];
+    readonly lines: string[];
+    readonly die: (signal: string) => void;
+    readonly log: (line: string) => void;
+    readonly installedFor: () => string[];
+    readonly raise: (signal: string) => Promise<void>;
+  } {
+    const handlers = new Map<string, (() => unknown)[]>();
+    const died: string[] = [];
+    const lines: string[] = [];
+    return {
+      target: {
+        on: (signal, handler) => {
+          handlers.set(signal, [...(handlers.get(signal) ?? []), handler]);
+        },
+        removeListener: (signal, handler) => {
+          handlers.set(signal, (handlers.get(signal) ?? []).filter((h) => h !== handler));
+        },
+      },
+      died,
+      lines,
+      die: (signal) => {
+        died.push(signal);
+      },
+      log: (line) => {
+        lines.push(line);
+      },
+      installedFor: () => [...handlers.entries()].filter(([, hs]) => hs.length > 0).map(([signal]) => signal),
+      raise: async (signal) => {
+        await Promise.all([...(handlers.get(signal) ?? [])].map((handler) => handler()));
+      },
+    };
+  }
+
+  it('installs a handler for exactly SIGINT, SIGTERM and SIGHUP, and removes them all on uninstall', () => {
+    const signals = fakeSignals();
+    const uninstall = installTeardownHandlers({
+      teardown: async () => undefined,
+      log: signals.log,
+      die: signals.die,
+      target: signals.target,
+    });
+    // SIGINT: Ctrl-C (bug-059's own case). SIGTERM: bare `kill`, `timeout`, `docker stop`, a CI
+    // cancellation's escalation. SIGHUP: a closed terminal or dropped SSH, which leaks the same way
+    // with nobody present to notice. SIGKILL is absent because POSIX forbids catching it.
+    expect(TEARDOWN_SIGNALS).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP']);
+    expect(signals.installedFor()).toEqual(['SIGINT', 'SIGTERM', 'SIGHUP']);
+    expect(TEARDOWN_SIGNALS).not.toContain('SIGKILL');
+    uninstall();
+    expect(signals.installedFor()).toEqual([]);
+  });
+
+  it.each(TEARDOWN_SIGNALS as string[])(
+    'tears down exactly once and re-raises %s when it arrives mid-run (AC1, AC2, AC3, AC6)',
+    async (signal) => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      const interrupted: StagingEffects = {
+        ...effects,
+        // The handler logs through the staging log sink, not through a sink of its own.
+        log: signals.log,
+        npm: (args, env, paths) => {
+          effects.npm(args, env, paths);
+          // bug-059's moment: the registry is up and the token is already on disk. The main flow
+          // keeps running afterwards and reaches its own `finally`, so both teardown paths race here.
+          if (args[0] === 'publish') raised = signals.raise(signal);
+        },
+      };
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: interrupted,
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+
+      expect(calls.filter((c) => c === `removeToken ${WORK}`)).toHaveLength(1);
+      expect(calls.filter((c) => c === 'stopRegistry')).toHaveLength(1);
+      expect(calls.filter((c) => c === `removeWorkDir ${WORK}`)).toHaveLength(1);
+      // AC3: the interrupt is re-raised, not translated into a normal exit.
+      expect(signals.died).toEqual([signal]);
+      expect(signals.lines.join('\n')).toContain(`interrupted by ${signal}`);
+      expect(signals.lines.join('\n')).toContain('teardown complete');
+    },
+  );
+
+  it('removes the npmrc before the registry and before the work dir, on the signal path too (AC4)', async () => {
+    const signals = fakeSignals();
+    const { effects, calls } = fakeEffects();
+    let raised: Promise<void> | undefined;
+    await runStaging({
+      name: 'wingfoil',
+      version: '0.2.0',
+      tarball: 't.tgz',
+      effects: {
+        ...effects,
+        createToken: async () => {
+          await effects.createToken(stagingPaths(WORK));
+          raised = signals.raise('SIGINT');
+        },
+      },
+      interrupts: { target: signals.target, die: signals.die },
+    });
+    await raised;
+    expect(calls.indexOf(`removeToken ${WORK}`)).toBeGreaterThanOrEqual(0);
+    expect(calls.indexOf(`removeToken ${WORK}`)).toBeLessThan(calls.indexOf('stopRegistry'));
+    expect(calls.indexOf(`removeToken ${WORK}`)).toBeLessThan(calls.indexOf(`removeWorkDir ${WORK}`));
+  });
+
+  it('absorbs a second signal during teardown: teardown still runs once and the process still exits (AC6)', async () => {
+    const signals = fakeSignals();
+    let release = (): void => undefined;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let teardowns = 0;
+    installTeardownHandlers({
+      teardown: async () => {
+        teardowns += 1;
+        await blocked;
+      },
+      log: signals.log,
+      die: signals.die,
+      target: signals.target,
+    });
+    const first = signals.raise('SIGINT');
+    const second = signals.raise('SIGINT');
+    release();
+    await Promise.all([first, second]);
+
+    expect(teardowns).toBe(1);
+    expect(signals.died).toEqual(['SIGINT']);
+    expect(signals.lines.join('\n')).toContain('already running');
+  });
+
+  it('still exits on the signal when teardown itself throws — a handler may never wedge (AC6)', async () => {
+    const signals = fakeSignals();
+    installTeardownHandlers({
+      teardown: async () => {
+        throw new Error('rm -rf refused');
+      },
+      log: signals.log,
+      die: signals.die,
+      target: signals.target,
+    });
+    await signals.raise('SIGTERM');
+    expect(signals.died).toEqual(['SIGTERM']);
+    expect(signals.lines.join('\n')).toContain('rm -rf refused');
+  });
+
+  it('uninstalls its handlers when a run finishes normally, and exits nothing', async () => {
+    const signals = fakeSignals();
+    const { effects } = fakeEffects();
+    await expect(
+      runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects,
+        interrupts: { target: signals.target, die: signals.die },
+      }),
+    ).resolves.toBe(0);
+    expect(signals.installedFor()).toEqual([]);
+    expect(signals.died).toEqual([]);
+  });
+
+  it('touches no real process handler when no `interrupts` option is given (AC7)', async () => {
+    const counts = (): number[] => (TEARDOWN_SIGNALS as NodeJS.Signals[]).map((s) => process.listenerCount(s));
+    const before = counts();
+    // The load-bearing sample is taken MID-RUN. Comparing only before and after cannot fail: the
+    // `finally` always uninstalls, so "never installed" and "installed then removed" look identical
+    // from outside the call — arming the handlers unconditionally left all 29 cases green (reject
+    // 8937a51, found by mutation). Sampling from inside a fake effect is what pins the property.
+    const during: number[][] = [];
+    const { effects } = fakeEffects();
+    await expect(
+      runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: {
+          ...effects,
+          createToken: async (paths) => {
+            during.push(counts());
+            await effects.createToken(paths);
+          },
+          smoke: (env, version) => {
+            during.push(counts());
+            return effects.smoke(env, version);
+          },
+        },
+      }),
+    ).resolves.toBe(0);
+    expect(during).toEqual([before, before]);
+    expect(counts()).toEqual(before);
+  });
+
+  /**
+   * reject `8937a51` — the start-up window. `runStaging` used to learn about the registry only from
+   * `startRegistry`'s resolved value, but the child is spawned well before that and the readiness poll
+   * sleeps 500 ms between probes. A signal landing in between tore down with `registry === undefined`:
+   * `stop()` was never called, the orphan kept :4873, and the completion line still said the registry
+   * had been stopped. Reproduced in the field on a real Verdaccio before this case was written.
+   */
+  describe('the start-up window (reject 8937a51)', () => {
+    /** Effects whose `startRegistry` hands out its `stop` at spawn time, then blocks as a poll would. */
+    function slowStartingRegistry(
+      calls: string[],
+      base: StagingEffects,
+      duringPoll: () => Promise<void>,
+    ): StagingEffects {
+      return {
+        ...base,
+        startRegistry: async (paths, env, onSpawn) => {
+          calls.push('spawnRegistry');
+          onSpawn?.({
+            stop: async () => {
+              calls.push('stopRegistry');
+            },
+          });
+          await duringPoll();
+          calls.push('startRegistryResolved');
+          return {
+            stop: async () => {
+              calls.push('stopRegistry');
+            },
+          };
+        },
+      };
+    }
+
+    it('stops a registry that is still coming up when the signal lands mid-poll', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: slowStartingRegistry(calls, { ...effects, log: signals.log }, async () => {
+          raised = signals.raise('SIGINT');
+          await raised;
+        }),
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+
+      // The child was spawned and the poll had not returned — yet teardown stopped it exactly once.
+      expect(calls).toContain('spawnRegistry');
+      expect(calls.indexOf('stopRegistry')).toBeGreaterThanOrEqual(0);
+      expect(calls.indexOf('stopRegistry')).toBeLessThan(calls.indexOf('startRegistryResolved'));
+      expect(calls.filter((c) => c === 'stopRegistry')).toHaveLength(1);
+      expect(signals.died).toEqual(['SIGINT']);
+    });
+
+    it('reports what teardown actually did, and says the registry was stopped only when it was', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        tarball: 't.tgz',
+        effects: slowStartingRegistry(calls, { ...effects, log: signals.log }, async () => {
+          raised = signals.raise('SIGINT');
+          await raised;
+        }),
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+      // The full ordered list, not just the phrase "registry stopped": the rejected version printed a
+      // FIXED sentence that happened to contain that phrase, so asserting it alone stayed green
+      // against the defect. What must be pinned is that the line is derived from what teardown did —
+      // and the token step, which the fixed sentence never mentioned, is what proves derivation.
+      expect(signals.lines.join('\n')).toContain('token removed, registry stopped, work dir removed');
+    });
+
+    it('does not claim a registry was stopped when none had been started', async () => {
+      const signals = fakeSignals();
+      const { effects, calls } = fakeEffects();
+      let raised: Promise<void> | undefined;
+      await runStaging({
+        name: 'wingfoil',
+        version: '0.2.0',
+        effects: {
+          ...effects,
+          log: signals.log,
+          // The signal lands while the tarball is being packed: nothing has been spawned yet.
+          packTarball: (paths, env) => {
+            raised = signals.raise('SIGINT');
+            return effects.packTarball(paths, env);
+          },
+        },
+        interrupts: { target: signals.target, die: signals.die },
+      });
+      await raised;
+      expect(calls).not.toContain('stopRegistry');
+      const said = signals.lines.join('\n');
+      expect(said).toContain('no registry to stop');
+      expect(said).not.toContain('registry stopped');
+      expect(said).toContain('work dir removed');
+    });
   });
 });
