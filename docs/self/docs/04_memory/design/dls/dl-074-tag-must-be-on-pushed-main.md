@@ -2,7 +2,7 @@
 id: "dl-074-tag-must-be-on-pushed-main"
 type: decision-log
 title: "The release gate asserts the tag is on the *pushed* `main`, while spec-015 §4 and dl-024 say only \"on `main`\" — a release precondition no document states"
-status: in-discussion
+status: ready
 context: "release-governance"
 release: "v0.2"
 contributor: ""
