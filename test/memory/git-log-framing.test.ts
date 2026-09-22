@@ -18,6 +18,7 @@ import { execFileSync, spawnSync } from 'child_process';
 
 import { auditAttribution, reconstructMemoryTransitions } from '../../src/memory/audit';
 import { reasonDefect } from '../../src/memory/commit-message';
+import { walkGitLogFields } from '../../src/memory/git-log';
 import { getMemoryHistory } from '../../src/memory/history';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -136,6 +137,17 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
       expect(entry.authorEmail).toBe('wf-test@example.invalid');
       expect(entry.valid).toBe(true);
     }
+  });
+
+  it('an empty field list yields no records — the arity guard, which is load-bearing', () => {
+    // Not defensive decoration: records are consumed in groups of `fields.length`, so a zero-length
+    // group would advance the cursor by nothing and loop forever. The guard is what makes the
+    // arity-based walk total.
+    repo = makeTempGitRepo();
+    writeDoc(repo, 'draft');
+    commitAll(repo, 'wf(task): add task-900-framing');
+
+    expect(walkGitLogFields(repo, [], [DOC])).toEqual([]);
   });
 
   it('a commit with an empty body still produces exactly one record', () => {
