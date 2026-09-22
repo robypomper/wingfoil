@@ -16,7 +16,7 @@
  * task-015-complete-audit-trail, which needs the same plumbing for its own attribution audit) — this
  * module owns only the `MemoryHistoryEntry` shape and the `--follow` single-document semantics.
  */
-import { FIELD_SEP, walkGitLogFields } from './git-log';
+import { walkGitLogFields } from './git-log';
 
 /** One commit touching a Memory document, in the shape `wingfoil memory history` will render from. */
 export interface MemoryHistoryEntry {
@@ -43,12 +43,17 @@ const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
 export function getMemoryHistory(root: string, relativePath: string): MemoryHistoryEntry[] {
   const records = walkGitLogFields(root, LOG_FIELDS, [relativePath], ['--follow']);
 
-  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '', ...bodyParts]) => ({
+  // One field per slot, `%b` included: {@link walkGitLogFields} recovers records by field arity, so
+  // the body arrives whole even when it carries a delimiter-looking character. It used to arrive
+  // split — `%b` being LAST was the only thing that made a `0x1f` in a reason survive, via an
+  // explicit `bodyParts.join(FIELD_SEP)` that undid the split it had just caused. That accident, and
+  // the reassembly that compensated for it, are both gone (task-086, bug-050).
+  return records.map(([sha = '', authorName = '', authorEmail = '', date = '', subject = '', body = '']) => ({
     sha,
     authorName,
     authorEmail,
     date,
     subject,
-    body: bodyParts.join(FIELD_SEP).trim(),
+    body: body.trim(),
   }));
 }
