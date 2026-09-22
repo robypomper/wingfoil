@@ -2,7 +2,7 @@
 id: "task-088-fix-gated-verbs-commit-only-the-status-change"
 type: task
 title: "Make `approve`, `reject` and `deprecate` commit the status change and nothing else, and assert it against HEAD rather than against the file on disk"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "security", "audit-trail"]
