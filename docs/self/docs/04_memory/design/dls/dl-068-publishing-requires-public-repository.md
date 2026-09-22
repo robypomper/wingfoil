@@ -2,7 +2,7 @@
 id: "dl-068-publishing-requires-public-repository"
 type: decision-log
 title: "The publish pipeline requires a public GitHub repository — a constraint written in no WingFoil artefact"
-status: in-discussion
+status: ready
 context: "release-governance"
 release: "v0.2"
 contributor: ""
