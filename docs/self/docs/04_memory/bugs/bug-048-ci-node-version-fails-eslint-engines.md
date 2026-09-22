@@ -166,3 +166,18 @@ Related: `adr-010-node-22-runtime-floor` (`pending`, sets the declared floor at 
 `task-060-publish-pipeline` (`done`), `task-078-publish-pipeline-hardening` (`backlog`),
 `bug-020-bin-path-autocorrected-at-publish` (the gate-noise principle),
 `spec-015-packaging-publishing` §3 stage 1, `.github/workflows/publish.yml` `:45`, `:78`, `:99`.
+
+## Addendum (2026-09-22) — the count is 10, not 2
+
+This bug names `eslint@10.6.0` and `@eslint/js@10.0.1`. A full walk of the installed tree, performed
+while reviewing `task-087-fix-types-node-floor-pin` and reproduced independently by that task's
+reviewer, finds **10** packages whose `engines.node` excludes the pinned `22.12.0` — 348 packages
+declare `engines.node` out of 498 installed, and the ten are the whole eslint family, every one
+declaring `^20.19.0 || ^22.13.0 || >=24`.
+
+The same walk over a fresh `npm ci` of the tree before `task-087` returns the same ten, so that task
+neither added nor removed any: both packages it moved declare no `engines` at all.
+
+The disposition does not change — these are `EBADENGINE` warnings, not failures, since `engine-strict`
+is false — but the scope stated above was five times too small, and a reader deciding whether to act
+on this bug should be deciding about ten packages rather than two.
