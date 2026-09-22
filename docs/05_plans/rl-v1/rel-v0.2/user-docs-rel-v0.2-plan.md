@@ -57,22 +57,28 @@ Run each command. Do not start S1 until every row is satisfied or explicitly wai
 | P2 | Every v0.2 task is `done` (the phase's own `checks.pre`) | `for f in docs/self/docs/04_memory/v0.2/task-*.md; do awk '/^---$/{n++;next} n==1&&/^status:/{print $2; exit}' "$f"; done \| sort \| uniq -c` | one line: `54 done` |
 | P3 | No v0.2 bug is still open — *informational*: it is `release-submit`'s pre-check, not this phase's, but a failure means the next-but-one phase will block | `for f in docs/self/docs/04_memory/bugs/*.md; do awk -v F="$f" '/^---$/{n++;next} n==1&&/^status:/{s=$2} n==1&&/^release:/{r=$2} n==2{if(r=="\"v0.2\"" && s!="closed" && s!="resolved") print F": "s; exit}' "$f"; done` | no output |
 | P4 | Clean tree, on this phase's branch, deps installed | `git status --porcelain` (empty) · `git rev-parse --abbrev-ref HEAD` · `npm ci --prefer-offline --no-audit --no-fund` | see §2 |
-| P5 | **BLOCKING, approver's** — the `adr-010` cascade above this gate has moved | `grep -n "Node.js 18" docs/self/docs/04_memory/design/dls/dl-001-typescript-over-python.md` | **must be empty** — see below |
+| P5 | The `adr-010` cascade above this gate has moved — **satisfied, re-verify rather than assume** | `grep -n "Correction (2026-09-21)" docs/self/docs/04_memory/design/dls/dl-001-typescript-over-python.md` | one hit — see below |
 
-**P5 is the one precondition an agent cannot clear on its own.**
-`adr-010-node-22-runtime-floor` (`accepted`) orders its cascade explicitly — *"nothing downstream
-should move before the item above it"* — and hands **`README.md`'s Node-floor line to this gate by
-name** (its `## Actions` item 5: "Owner: the **`user-docs` release gate** (`dl-013`), which owns
-`README.md`"). Item **3** of the same cascade, `dl-001-typescript-over-python`, sits above it and is
-owned by the approver. Measured on `main` at `a2e3586`: items 2 (the product brief's *Language &
-Runtime* line), 4 (`dna.yaml` `stacks.technologies` → `Node.js` → `version`) and 6 (`CLAUDE.md` §1
-*Tech* and §4 *Stacks*) all read `22.12+`; item 3's Decision sentence still reads *"Adopt
-**TypeScript** with **Node.js 18+** runtime"*. So this gate's own README edit is ordered behind an
-approver action that has not happened.
+**P5 was recorded as a blocker in this plan's first draft; it is not one.** That draft measured only
+whether the string "Node.js 18" still appears in `dl-001-typescript-over-python` and concluded that
+`adr-010`'s cascade item 3 had not moved. It has. `dl-001` carries a dated
+**Correction (2026-09-21)** stating in full: *"Wherever this document says 'Node.js 18+' — the
+Decision sentence above, and the closing `dna.yaml` quotation — read Node.js 22.12+."* That is
+precisely the remedy `adr-010`'s item 3 prescribes, in its own words: *"Amend or deprecate; ...
+amendment-with-a-dated-note is the established alternative (`dl-047`)."*
 
-**If P5 fails: stop and report.** Do not edit `dl-001` (a `ready` decision-log; agents hold no
-approval authority) and do not quietly edit the README ahead of it. Ask the approver either to move
-item 3 or to waive the ordering for item 5 in writing.
+The original Decision sentence is deliberately left intact beneath the note, because rewriting a
+`ready` decision-log's ruling would edit the record rather than extend it — which is why a grep for
+the string is the wrong check and the presence of the Correction is the right one.
+
+So **the whole `adr-010` cascade above this gate is discharged**: item 2 (the product brief's
+*Language & Runtime* line) reads `22.12+`, item 3 is corrected as above, item 4 (`dna.yaml`
+`stacks.technologies`) reads `22.12+`, item 6 (`CLAUDE.md` §1 and §4) reads `22.12+`. Item 5 —
+`README.md`'s install line — is this gate's own work and nothing is ordered ahead of it.
+
+**If P5 fails** — the Correction note is absent, or a later edit has removed it — **stop and report.**
+Do not edit `dl-001` yourself: it is a `ready` decision-log and agents hold no approval authority.
+Do not edit the README ahead of it either. Ask the approver to settle item 3 before proceeding.
 
 ---
 
@@ -396,10 +402,15 @@ exiting 0 **is** the ≥80% gate — there is no separate number to read off. `n
 
 **The approver (Roberto) decides:**
 
-1. P5 — whether `dl-001`'s runtime clause moves first, or the ordering is waived for the README.
-2. S3 — the scope of `produces:`: author all four missing artifacts, a subset, or narrow the gate.
-3. S8 — the `align-user-docs` approval itself.
+1. ~~P5 — whether `dl-001`'s runtime clause moves first~~ — **settled: already done.** The cascade
+   item was discharged by a dated Correction on 2026-09-21; see §1. Nothing is ordered ahead of the
+   README edit.
+2. ~~S3 — the scope of `produces:`~~ — **decided 2026-09-22: author all four missing artifacts.**
+   `docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples/` and `CHANGELOG.md` are written in
+   this phase; the gate is not narrowed. See §9.
+3. S8 — the `align-user-docs` approval itself. **Still the approver's.**
 4. Whether the `spec-015` citation fallout of S4 (§4.3, `bug-068`) is handled now or left filed.
+   **Still open.**
 
 **The agent does:** S1, S2, S4, S5, S7 — and S6 once S3 is decided — writing the running log into
 this plan's `## Execution Notes`.
@@ -420,3 +431,27 @@ workflow phase:
 
 On completion, `release-cycle` advances to **`e2e-smoke`** (`e2e-smoke-rel-v0.2-plan.md`), which
 names this phase's completion as one of its own preconditions.
+
+---
+
+## 9. Approver decisions of 2026-09-22 — recorded here because this plan is executed by a later session
+
+Given in chat and binding on this phase:
+
+- **Scope of `produces:` — author all four missing artifacts.** `docs/user-guide.md`,
+  `docs/cli-reference.md`, `docs/examples/` and `CHANGELOG.md` are created in this phase, alongside
+  the `README.md` corrections. The gate is **not** narrowed and `user-docs.yaml`'s `produces:` list
+  stands as written. This is the single largest piece of work in the phase and it should be planned
+  as such rather than treated as a tail of the README edit.
+- **`CLAUDE.md` comes into scope.** `dl-025-agent-facing-docs-ownership` (`ready`) decided that the
+  `dl-013` gate owns agent-facing documentation; its amendment to `user-docs.yaml` is being made now
+  rather than deferred, so this phase also owns `CLAUDE.md`. That brings
+  `bug-074-claude-md-declares-memory-verbs-unimplemented` — three passages declaring the Memory
+  transition verbs unbuilt when all seven ship — inside this phase's work.
+- **The release version is `0.2.0`**, which the `CHANGELOG.md` written here must use. Note the
+  version bump in `package.json` itself belongs to `release-publishing`, not to this phase.
+- **Open bugs carrying no `release` are authorised to the next release.** They are not this phase's
+  concern; do not schedule or fix them here.
+
+What is still the approver's, and must not be assumed: the `align-user-docs` approval, and whether
+`bug-068`'s `spec-015` citation fallout is handled now.
