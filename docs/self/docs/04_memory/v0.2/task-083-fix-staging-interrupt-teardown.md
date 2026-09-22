@@ -2,7 +2,8 @@
 id: "task-083-fix-staging-interrupt-teardown"
 type: task
 title: "Run `publish:staging` teardown on SIGINT/SIGTERM so an interrupt leaves no orphaned Verdaccio, work dir or live `_authToken`"
-status: in-review
+status: in-progress
+rejection_reason: "A signal arriving after Verdaccio is listening but before startRegistry returns tears down without stopping the child: registry is assigned only from the resolved value, so teardown runs with it undefined, an orphan survives on port 4873 and trips the in-use guard for every later run, while the completion line still states that the registry was stopped. Reproduced twice by the reviewer. Also: the AC7 guard test compares listener counts only before and after the run, so it stays green when handlers are armed unconditionally (demonstrated by mutation); and the notes claim ~/.npmrc does not exist on this machine when it does, though the security conclusion it supports is independently true. Fix the startup window, make the completion message report what teardown actually did, tighten the AC7 guard to assert mid-run, and correct the npmrc sentence."
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "release", "distribution", "security"]
