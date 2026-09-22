@@ -229,15 +229,18 @@ Edited in place — no supersede, no state change, and no `version:` bump becaus
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` precedent used twice above.
 `dl-052`'s ratified option 1 says "No code changes", and none were made.
 
-*Out of this revision's scope, recorded so §3 is not read as a statement that the pipeline runs
-today:* `task-077`'s first real execution found that the staging run's teardown — which is what makes
-"throwaway" true — executes on the success and failure paths (`runStaging`'s `finally`, in
-`scripts/publish-staging.cjs`) but **not** on `SIGINT`, which leaves the registry, the work dir and
-its live throwaway token behind. That is tracked as
-`bug-059-sigint-leaks-staging-registry-and-token`, read as **not closed** at `main` `307a62a`; this
-revision changes nothing about it. The same run also found two §3 **stage 1** failures, which this
-paragraph once stated as present-tense fact; both have since been repaired — see the
-*Revision (2026-09-22) — §3 stage 1* note below, which also carries the superseded wording.
+*Out of this revision's scope, recorded so §3's "throwaway" claim keeps the history of how it came to
+hold:* `task-077`'s first real execution found that the staging run's teardown — which is what makes
+"throwaway" true — executed on the success and failure paths (`runStaging`'s `finally`, in
+`scripts/publish-staging.cjs`) but **not** on `SIGINT`, which left the registry, the work dir and its
+live throwaway token behind. That was tracked as
+`bug-059-sigint-leaks-staging-registry-and-token` — nothing this revision did changed it — and the bug
+is now **`closed`**: `task-083-fix-staging-interrupt-teardown` closed the gap, so teardown runs on an
+interrupt too. See the *Revision (2026-09-22) — §3 interrupt teardown* note below, which carries the
+superseded wording, the signals covered and the one case that is not. The same run also found two §3
+**stage 1** failures, which this paragraph once stated as present-tense fact; both have since been
+repaired — see the *Revision (2026-09-22) — §3 stage 1* note below, which also carries the superseded
+wording.
 
 **Revision (2026-09-21) — §1 Node floor: the product-level "Node.js 18+" question that §1 recorded as
 "deliberately NOT settled here" has since been settled by `adr-010-node-22-runtime-floor`.** This is a
@@ -307,7 +310,9 @@ It bounds a property this document itself claims, so a reader of "throwaway" nee
 Deliberately not described here: its fix, which at the time of writing exists only on the unmerged
 branch of `task-083-fix-staging-interrupt-teardown` — a spec that describes an unmerged branch as
 shipped is this same defect pointed the other way. Whatever commit closes `bug-059` is free to re-tense
-the sentence into history; it should not simply delete it, for the reason just given.
+the sentence into history; it should not simply delete it, for the reason just given. That has since
+happened: `task-083` merged (`de92e2b`) and `bug-059` closed (`c69a836`), and the sentence was
+re-tensed rather than deleted — see the *Revision (2026-09-22) — §3 interrupt teardown* note below.
 
 Why a revision and not a silent deletion: the original paragraph was **true when written** — the ids
 now cited above did not yet exist when `task-079` wrote it — and it became false without anyone
@@ -326,3 +331,81 @@ Edited in place — no supersede, no state change, and no `version:` bump becaus
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` precedent used by the
 revisions above. No code changes were made; the diff is this spec, `bug-062` and `task-084`'s own
 Memory file.
+
+**Revision (2026-09-22) — §3 interrupt teardown: the `SIGINT` gap that the *§3 stage 2* note's closing
+paragraph stated as present-tense fact has been closed, so that paragraph is re-tensed into history
+rather than deleted, per `bug-059-sigint-leaks-staging-registry-and-token` and
+`task-085-retense-spec-015-sigint-sentence`.** This is the third of `task-077`'s findings — the one
+the *Revision (2026-09-22) — §3 stage 1* note deliberately kept because it bounds a property this
+document itself claims. The two sentences that carried it previously read, in full:
+
+> `task-077`'s first real execution found that the staging run's teardown — which is what makes
+> "throwaway" true — executes on the success and failure paths (`runStaging`'s `finally`, in
+> `scripts/publish-staging.cjs`) but **not** on `SIGINT`, which leaves the registry, the work dir and
+> its live throwaway token behind. That is tracked as
+> `bug-059-sigint-leaks-staging-registry-and-token`, read as **not closed** at `main` `307a62a`; this
+> revision changes nothing about it.
+
+**What closed it, and how that was checked.** `bug-059-sigint-leaks-staging-registry-and-token` is
+`closed` — `wf(bug): sync bug-059-sigint-leaks-staging-registry-and-token [in-review → resolved →
+closed]`, `c69a836` — and `task-083-fix-staging-interrupt-teardown` is `done`, merged as `de92e2b`
+(`Merge branch 'task/task-083-fix-staging-interrupt-teardown'`). Both commits were confirmed ancestors
+of `main` with `git merge-base --is-ancestor` before this note was written; that ancestry, not either
+document's `status:` field, is what the paragraph above is now tensed against, because a status line
+is a claim inside a file while ancestry is a property of the history a reader can re-run.
+
+**What the pipeline now guarantees**, read from `scripts/publish-staging.cjs` as merged at `main`
+`c69a836` rather than from `task-083`'s account of itself:
+
+- **Teardown runs on an interrupt, for the signals the script names in `TEARDOWN_SIGNALS`: `SIGINT`,
+  `SIGTERM` and `SIGHUP`.** `installTeardownHandlers` installs one handler per signal, and that
+  handler awaits the *same* teardown that `runStaging`'s `finally` awaits — one memoised run, whichever
+  path reaches it first — so an interrupted run removes the throwaway token, stops Verdaccio and
+  deletes the work dir exactly as a completed one does. `SIGTERM` carries as much weight here as
+  `SIGINT`: it is what a cancelled or timed-out CI step delivers, and §3's `stage` job is one such
+  step.
+- **The run then dies *by* the signal.** `raiseSignal` removes the script's own handler and re-sends
+  the signal, so a caller sees the conventional `128 + N` (130 for `SIGINT`) instead of a normal exit
+  that happens to carry that number — an interrupted run stays distinguishable from the staging
+  failure that §3 stage 4 keys promotion on.
+- **The coverage has no window in time.** An interrupt that lands while Verdaccio is still coming up,
+  before the readiness poll returns, tears that registry down too, rather than leaving an orphan
+  holding `:4873` that would block every later run. §3 stage 2's *throwaway per-run work dir* and
+  stage 3's *torn down after* therefore hold across the whole of a run, not only once the registry is
+  up.
+- **The one case not covered is `SIGKILL`**, which POSIX forbids catching — nothing can tear down
+  after it. Teardown's internal ordering is chosen for that residue: the throwaway token is removed
+  **first**, before the registry it authenticates against and before the work dir, so the credential is
+  never the artefact that outlives a run. `SIGQUIT` and `SIGUSR1` are excluded deliberately rather than
+  by oversight; the constant's own comment gives the reason for each.
+
+The signal set is quoted from that constant and not from `task-083`'s acceptance criteria, which name
+only `SIGINT` and `SIGTERM`: `SIGHUP` is coverage the implementation added beyond the task it came
+from, and a spec written from the task would have under-stated what the code guarantees.
+
+**Deliberately not recorded here:** how the no-window property is obtained, and the fact that an
+interrupted run's completion line now reports the teardown steps actually performed instead of
+asserting a fixed sentence. Both are real, and both are why `task-083` needed a second pass — but §3
+states a pipeline contract, and makes no claim about the script's internal call shape or about what a
+run prints. Freezing either into an approved spec would invent a contract this document does not have.
+
+**Why re-tensed and not deleted.** §3 stage 2 asserts a **throwaway per-run work dir** and §3 stage 3
+asserts the registry is **torn down afterwards**. A reader of those claims is entitled to know that
+their unqualified reading once had a hole, when it was closed and by what — that is what makes
+"throwaway" a checked property rather than an assurance. Deleting the sentence would leave the
+document reading as though the guarantee had always held, which is the same silent decay `bug-062` was
+opened about, pointed the other way. The *§3 stage 1* note anticipated this succession in as many
+words ("Whatever commit closes `bug-059` is free to re-tense the sentence into history; it should not
+simply delete it"), and this revision is that successor — filed as a task rather than left as a
+proposal in a `done` task's notes, because nothing revisits those.
+
+`dl-075` is applied under its fix-on-touch disposition and **only to the paragraphs edited here**: the
+new text cites element ids, note headings, and the symbols `TEARDOWN_SIGNALS`,
+`installTeardownHandlers`, `raiseSignal` and `runStaging`'s `finally` in `scripts/publish-staging.cjs`,
+each with the commit the reading was taken at, and no line offsets. Neither edited paragraph contained
+an offset to convert. The offsets standing elsewhere in this document are left exactly as the *§3
+stage 1* note left them, for the reason that note gives.
+
+Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
+`version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` / `task-084` precedent used by
+the revisions above. No code changes were made; the diff is this spec and `task-085`'s own Memory file.
