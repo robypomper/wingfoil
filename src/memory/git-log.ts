@@ -55,14 +55,21 @@ const NUL = String.fromCharCode(0);
  * — a partial group at the end of the stream is not a record and is discarded, never padded — which
  * is the postcondition `./history`'s destructuring relies on.
  *
- * git terminates each commit's formatted output with a newline, which lands at the start of the next
- * record's first field; that leading newline is stripped. Both call sites put `%H` first, which
- * never legitimately begins with one.
+ * git terminates each commit's formatted output with a newline. The format ends with a delimiter, so
+ * that newline falls in the piece AFTER the record's last field — which is why the split's final
+ * piece is dropped rather than grouped. Dropping it explicitly, instead of letting it fall off as a
+ * short remainder, is what makes the walk total at **one** field too: at that arity the tail is a
+ * whole group of its own and became a spurious record (it did, on this task's first pass; the
+ * arity-1 cases in `test/memory/git-log-framing.test.ts` now pin it). What survives of the newline is
+ * a single leading `\n` on each record's first field after the first, and that is stripped; both call
+ * sites put `%H` first, which never legitimately begins with one.
  *
  * Returns `[]` — never throws — both when `root` is not a git repository at all and when none of
  * `pathspecs` has any matching history; "not a repo"/"not found" is a caller concern, not this
- * primitive's (mirrors `getMemoryHistory`'s original contract). An empty `fields` requests nothing
- * and likewise yields `[]`, rather than an unbounded number of zero-width records.
+ * primitive's (mirrors `getMemoryHistory`'s original contract). That now holds at EVERY arity: with
+ * no matching commits git prints nothing, the split yields one piece, and dropping it leaves nothing
+ * to group. An empty `fields` requests nothing and likewise yields `[]`, rather than looping forever
+ * over zero-width groups.
  */
 export function walkGitLogFields(
   root: string,
@@ -83,10 +90,13 @@ export function walkGitLogFields(
     return [];
   }
 
-  // The stream is `<f1>NUL<f2>NUL…<fn>NUL` per commit, plus git's own newline between commits, so
-  // the split always ends in a remainder piece that is not a field. Only whole groups of
-  // `fields.length` are records.
+  // The stream is `<f1>NUL<f2>NUL…<fn>NUL` per commit, each run terminated by git's own newline, so
+  // the text after the FINAL NUL is never a field — it is that newline, or the empty string when git
+  // printed nothing at all. Drop it before grouping; at `fields.length === 1` it would otherwise be
+  // a complete group and become a record that no commit backs. Only whole groups of `fields.length`
+  // are records thereafter.
   const pieces = stdout.split(NUL);
+  pieces.pop();
   const records: string[][] = [];
   for (let index = 0; index + fields.length <= pieces.length; index += fields.length) {
     const record = pieces.slice(index, index + fields.length);
