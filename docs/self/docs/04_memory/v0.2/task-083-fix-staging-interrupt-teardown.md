@@ -203,7 +203,7 @@ element in the final report instead of being buried.
 | Signal | Handled | Why |
 |---|---|---|
 | `SIGINT` | **yes** | Ctrl-C from the terminal, i.e. `bug-059`'s own case and the one a developer hits after waiting a minute for Verdaccio to install. Reproduced above. |
-| `SIGTERM` | **yes** | The default of bare `kill`, of `timeout(1)`, of `docker stop`, and of systemd's unit stop — i.e. every non-interactive way this run gets ended. It is also the escalation a CI runner uses when a cancelled or timed-out step does not die: `.github/workflows/publish.yml`'s `stage` job carries **no** `timeout-minutes` (`dl-057` item (b), deliberately deferred by `task-078` until `dl-056` sizes it), so the only bounds on that step are GitHub's default job timeout and a human pressing Cancel — both of which end the step by signalling it. Handling `SIGINT` **and** `SIGTERM` means the exact escalation order the runner uses does not have to be settled from memory: whichever arrives first, teardown runs. |
+| `SIGTERM` | **yes** | The default signal of bare `kill` and of `timeout(1)` — i.e. the non-interactive way a run gets ended. Verified on this machine rather than recalled: `timeout 1 node -e "process.on('SIGTERM', …)"` printed `GOT SIGTERM` and exited `124`. It is also what a container or service manager sends on stop. **What is deliberately *not* asserted:** the exact signal sequence a GitHub runner uses to cancel a step. That could not be verified from here, and `.github/workflows/publish.yml`'s `stage` job carries no `timeout-minutes` anyway (`dl-057` item (b), deferred by `task-078` until `dl-056` sizes it), so the only things that end that step early are GitHub's default job timeout and a human pressing Cancel. Handling `SIGINT` **and** `SIGTERM` is exactly what makes that unverified detail not matter: whichever the runner sends, teardown runs. |
 | `SIGHUP` | **yes** | A dropped SSH session or a closed terminal delivers `SIGHUP` to the foreground group. It produces *precisely* the leak `bug-059` describes, and unlike Ctrl-C nobody is present to notice the orphan. It is one more entry in `TEARDOWN_SIGNALS` and the same handler; there is no case in which a hung-up staging run should keep a registry alive. **Evidence caveat, stated rather than implied:** the real-run probes below cover `SIGINT` (AC1) and `SIGTERM` (AC2) only. `SIGHUP` is covered by unit test — it is the identical handler over the identical teardown — and is *not* claimed to have been interrupted for real. |
 | `SIGKILL` | **no — impossible** | POSIX: it cannot be caught, blocked or ignored. Nothing here can cover it, which is why AC9's header amendment says so explicitly instead of letting "on every failure" imply total coverage. A `SIGKILL` (or a power cut) is also the one case in which the work dir can survive teardown, which is the argument for AC4's ordering below. |
 | `SIGQUIT` | **no — on purpose** | Ctrl-`\`'s documented contract is *terminate immediately and dump core*. A user who sends it is asking for the non-graceful exit; honouring that is correct, not a gap. It is not sent by any CI or container path. |
@@ -281,3 +281,345 @@ describe; it is reported as a proposed element instead of being smuggled in here
 | 9 — header stops over-promising | **n/a — documentation** | The header bullet 7 amendment; `SIGKILL` named as not covered. |
 | 10 — gates green | **characterization** | The six gate commands, run and pasted under `refactor`. |
 | 11 — `bug-059` carried to `resolved` | **n/a — process** | `bug.sync_state`: `planned → in-progress` at `start` (`8e6b9f0`), `→ in-review` at `review`. `resolved`/`closed` belong to `done`, which this run does not reach. |
+
+### red — role: developer
+
+> **All the real staging runs in this section and the next were re-executed from scratch on
+> 2026-09-22**, after the agent process was killed mid-task by a network error and the scratch
+> directory holding the original drivers, logs and tarball was wiped with it. Nothing below is carried
+> over on trust from the first pass: every transcript here comes from a run made **after** the second
+> merge of `main` (`7e4146e`), against the tree actually being submitted. Where a figure differs from
+> the first pass, the second measurement is the one recorded.
+
+**Part 1 — the leak reproduced against the base script, before the fix.** The base file was taken out
+of git rather than by reverting the branch, so leak and fix could be measured minutes apart against the
+same tarball and the same machine:
+
+```
+$ git show 65021c2:scripts/publish-staging.cjs > scripts/publish-staging-BASE.cjs
+$ grep -c "process.on" scripts/publish-staging-BASE.cjs
+0                                                    # the defect, in one number
+```
+
+That copy was deleted immediately after the run and never committed (`git status --porcelain` then
+listed only the task file). Driver `scratchpad/run-and-signal.sh`; it `setsid`s the script so the signal
+reaches *only* it, exactly as `bug-059`'s `kill -INT <pid>` did. Tarball built once with
+`npm pack --pack-destination <scratchpad>/pack` → `wingfoil-0.1.0.tgz`.
+
+```
+$ bash run-and-signal.sh INT rerun-before-fix single scripts/publish-staging-BASE.cjs
+SCRIPT=scripts/publish-staging-BASE.cjs
+SCRIPT_PID=24937
+--- registry up after 29s; sending SIGINT to 24937 ---
+SCRIPT_WAIT_STATUS=130
+SCRIPT_GONE_AFTER=2s
+--- log tail ---
+[publish:staging] Verdaccio up on http://localhost:4873/          # …and nothing after it: no teardown
+```
+
+The three AC1 probes plus two more, run immediately after:
+
+```
+$ curl -sS -m 5 http://localhost:4873/-/ping ; echo "CURL_EXIT=$?"
+{}
+CURL_EXIT=0                                          # the registry answers
+$ ss -ltn 'sport = :4873'
+LISTEN 0      511        127.0.0.1:4873      0.0.0.0:*
+$ ls -d /tmp/wingfoil-staging-*
+/tmp/wingfoil-staging-ufyrNI
+$ ls -l /tmp/wingfoil-staging-*/npmrc
+-rw------- 1 robypomper robypomper 250 set 22 11:13 /tmp/wingfoil-staging-ufyrNI/npmrc
+$ ss -ltnp 'sport = :4873'
+LISTEN 0 511 127.0.0.1:4873 0.0.0.0:* users:(("verdaccio",pid=25090,fd=26))
+```
+
+A trap worth recording, because a cleanup check could be fooled by it: the orphan's argv is the bare
+word `verdaccio`, so `pgrep -af 'node .*verdaccio'` printed `(none)` **while that registry was live**.
+`pgrep -af verdaccio` and `ss -ltnp` both found it. The port probe is the authority here, not the
+process-name pattern.
+
+The token in the work dir is **live against that orphan**, not merely present — the half of `bug-059`
+the reviewer added:
+
+```
+$ TOK=$(sed -n 's/.*_authToken=//p' /tmp/wingfoil-staging-*/npmrc)
+$ curl -sS -m 5 -H "Authorization: Bearer $TOK" http://localhost:4873/-/whoami
+{ "username": "wingfoil-staging" }
+$ curl -sS -m 5 http://localhost:4873/-/whoami       # anonymous, for comparison
+{}
+```
+
+and the leak is self-perpetuating — the counter-measurement AC5 inverts. Run here with the **fixed**
+script, which makes the point sharper: the guard fires on the surviving registry, so the fix cannot
+rescue a run started after someone else's orphan.
+
+```
+$ node scripts/publish-staging.cjs --tarball <the same tarball> ; echo "REAL_EXIT=$?"
+[publish:staging] staging FAILED: http://localhost:4873/ is already in use — stop that registry first
+REAL_EXIT=1
+```
+
+The orphan was then removed by pid (`kill 25090` — never `pkill -f verdaccio`, see the cleanup section)
+and `rm -rf /tmp/wingfoil-staging-*`, and the machine re-probed clean before any further run.
+
+**Part 2 — the unit red.** Commit `de5d612`. One suite widened (`test/cli/publish-staging.test.ts`), no
+new file. `npx jest test/cli/publish-staging.test.ts` → **`Tests: 7 failed, 20 passed, 27 total`**:
+
+| Failing case | Reason |
+|---|---|
+| "packs, stages, publishes, installs, smokes, then tears down — in that order" | the expected call list now carries `removeToken /tmp/wf-staging-test` between `smoke` and `stopRegistry` (AC4); teardown does not call it on the base |
+| "installs a handler for exactly SIGINT, SIGTERM and SIGHUP…" | `TypeError: (0 , publish_staging_cjs_1.installTeardownHandlers) is not a function` |
+| "tears down exactly once and re-raises %s when it arrives mid-run" | `it.each(TEARDOWN_SIGNALS)` — the export is `undefined` on the base, so the row cannot even expand |
+| "removes the npmrc before the registry and before the work dir" | same missing export, and `removeToken` is not an effect |
+| "absorbs a second signal during teardown…" | `installTeardownHandlers is not a function` |
+| "still exits on the signal when teardown itself throws…" | `installTeardownHandlers is not a function` |
+| "touches no real process handler when no `interrupts` option is given" | `Cannot read properties of undefined (reading 'map')` — `TEARDOWN_SIGNALS` |
+
+**Passing at red, by design — the AC8 characterization.** The six-row `it.each` "fails (exit 1) when %s
+fails, and still tears down" was left **untouched**: its assertions (the last call is `removeWorkDir`,
+`stopRegistry` ran iff the registry started) are exactly `task-077`'s in-process-failure finding and
+they hold before and after. Fabricating a red there would have meant changing an assertion that was
+already true.
+
+### green — role: developer
+
+Commit `dfadd3d`. `npx jest test/cli/publish-staging.test.ts` → **`Tests: 29 passed, 29 total`**.
+
+- `TEARDOWN_SIGNALS = Object.freeze(['SIGINT','SIGTERM','SIGHUP'])` with the per-signal justification
+  from `design` in its doc comment, including why `SIGKILL`/`SIGQUIT`/`SIGUSR1` are absent.
+- `installTeardownHandlers({ teardown, log, die = raiseSignal, target = process, signals =
+  TEARDOWN_SIGNALS })` → returns `uninstall`. One in-flight `interrupting` promise absorbs re-entry;
+  `die` runs from a `finally`, so a throwing teardown still ends the process.
+- `raiseSignal(signal)`: flush stdout → `process.removeAllListeners(signal)` →
+  `process.kill(process.pid, signal)`.
+- `runStaging` gains the memoised `teardown()` (`teardownRun ??= …`) and the opt-in `interrupts`
+  option; its `finally` is now `await teardown()` then `uninstall()`. The `if (registry)` guard moved
+  inside `teardown` unchanged.
+- `realEffects.removeToken = (dir) => rmSync(stagingPaths(dir).userconfig, { force: true })` — `force`
+  so teardown before `createToken` is a no-op.
+- `main()` passes `interrupts: { target: process, die: raiseSignal }`; nothing else does.
+- `.d.cts`: `removeToken` on `StagingEffects`, `interrupts` on `StagingOptions`, new `SignalTarget` and
+  `TeardownHandlerOptions`, `TEARDOWN_SIGNALS` and `installTeardownHandlers`.
+- Header bullet 7 rewritten (**AC9**) — teardown runs "on success, on every failure, and on an
+  interrupt: `SIGINT`, `SIGTERM` or `SIGHUP` … The one case NOT covered is `SIGKILL`, which POSIX
+  forbids catching".
+
+**One red that was the test's fault, not the code's**, recorded because it is a real finding about the
+design: the three `it.each` rows first failed on `expect(lines).toContain('interrupted by …')` with
+`Received string: ""`. Cause — `installTeardownHandlers` is called by `runStaging` as
+`{ ...interrupts, teardown, log: effects.log }`, i.e. `teardown` and `log` **override** anything the
+caller puts in `interrupts`. That is deliberate (the handler must log through the staging log sink and
+must run the run's own teardown, not a substitute), so the test was corrected to set `log` on the
+*effects*, not on the interrupts. Worth a reviewer's eye: the option object is not fully caller-controlled
+by design.
+
+**Part 3 — the real-run proof, after the fix.** Two runs, both from this worktree **after the second
+`main` merge** (`678c326`, carrying `7e4146e`), i.e. against the submitted tree.
+
+**Run A — `SIGINT` to the script alone, sent twice (AC1, AC3, AC4, AC6).**
+
+```
+$ bash run-and-signal.sh INT rerun-after-fix-sigint double
+SCRIPT=scripts/publish-staging.cjs
+SCRIPT_PID=25782
+--- registry up after 27s; sending SIGINT to 25782 ---
+--- second SIGINT (AC6: re-entry during teardown) ---
+SCRIPT_WAIT_STATUS=130
+SCRIPT_GONE_AFTER=44s
+--- log tail ---
+[publish:staging] staged wingfoil@0.1.0 and smoke passed
+[publish:staging] interrupted by SIGINT — running teardown
+[publish:staging] SIGINT received again — teardown is already running and is bounded; ignoring
+[publish:staging] teardown complete after SIGINT: registry stopped, work dir removed — exiting on SIGINT
+```
+
+Read this transcript carefully, because it demonstrates three things at once:
+
+1. **The `spawnSync` limitation the design predicted, observed.** The signal went to the script only,
+   so the in-flight `npm publish` / `npm install --global` children kept running and the event loop
+   stayed blocked until the flow finished — the handler ran ~44 s later (`SCRIPT_GONE_AFTER=44s`),
+   after `staged … and smoke passed`. The design note called this out before the run; this is the
+   measurement. It is also why the run-B shape below matters: in the realistic Ctrl-C case the whole
+   group is signalled, the child dies first, and teardown starts within ~2 s.
+2. **The `finally` and the signal path both fired, and teardown still ran once** — exactly one
+   `teardown complete` line (`grep -c 'teardown complete' rerun-after-fix-sigint.log` → `1`), which is
+   AC6's "does not double-run" in the real process rather than in a fake.
+3. **AC3 in its sharpest form.** `runStaging` *returned 0* here — the flow really did complete — and the
+   process still died **130**. An interrupted run cannot report success even when the work happened to
+   finish, which is precisely the CI hazard the constraint names.
+
+The three AC1 probes plus the AC4 one, immediately after:
+
+```
+$ curl -sS -m 5 http://localhost:4873/-/ping ; echo "CURL_EXIT=$?"
+curl: (7) Failed to connect to localhost port 4873 after 0 ms: Couldn't connect to server
+CURL_EXIT=7
+$ ss -ltn 'sport = :4873'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port      # no LISTEN row
+$ ls -d /tmp/wingfoil-staging-*
+(no work dir)
+$ ls -l /tmp/wingfoil-staging-*/npmrc
+(no npmrc)                                                    # AC4
+$ pgrep -af verdaccio
+(none)                                                        # the broad pattern, per Part 1's trap
+```
+
+**Run B — `npm run publish:staging`, `SIGTERM` to the whole process group (AC2, AC5), started
+immediately after run A.** The group signal is what a terminal's Ctrl-C and a CI cancellation actually
+do, and it exercises the `npm run` wrapper rather than a bare `node`:
+
+```
+$ bash run-npm-and-signal-group.sh TERM rerun-after-fix-sigterm
+NPM_PID=26447 (process group 26447)
+--- registry up after 24s (so the in-use guard did NOT fire: AC5) ---
+--- sending SIGTERM to the whole process group -26447 ---
+NPM_WAIT_STATUS=143
+GONE_AFTER=2s
+--- log tail ---
+[publish:staging] Verdaccio up on http://localhost:4873/
+[publish:staging] staging FAILED: npm publish … exited undefined
+[publish:staging] interrupted by SIGTERM — running teardown
+[publish:staging] teardown complete after SIGTERM: registry stopped, work dir removed — exiting on SIGTERM
+```
+
+- **AC5 is the first line of this run**, not an extra check: the previous run had just been interrupted,
+  and this one reached `Verdaccio up` in 24 s. The guard that fired with `is already in use` under `red`
+  did not fire. The driver fails loudly (`IN_USE_GUARD_FIRED — AC5 FAILS`) if it ever does.
+- **AC2**: teardown ran on `SIGTERM`, and the probes after it were identical to run A's (no ping, no
+  LISTEN row, no work dir, no `npmrc`, no registry process by either `pgrep` pattern).
+- **AC3 again**: `143` = `128 + 15`, the conventional `SIGTERM` status, and `npm` propagated it. Note
+  what this status measures: the whole group was signalled, so `npm` itself was signalled too — the
+  script's own honest exit is shown by its final log line plus run A's `130`, where nothing but the
+  script was signalled.
+- Because the whole group was signalled, the in-flight `npm publish` child died first — `run()` threw
+  (`exited undefined`, i.e. killed by a signal), the `catch` logged `staging FAILED`, and the handler
+  then ran at once rather than after a blocking `spawnSync`. Teardown ran once here too
+  (`grep -c 'teardown complete' rerun-after-fix-sigterm.log` → `1`).
+
+**`SIGHUP` is covered by unit test only.** The same handler over the same teardown, asserted by the
+`it.each` row above; no real `SIGHUP` run was performed and none is claimed.
+
+### Cleaning up after the experiments
+
+**Including after the interruption.** This task was killed mid-flight by a network error on 2026-09-21
+while real staging runs had been made; the first thing done on resuming, before any other work, was to
+probe for survivors. There were none — the interruption killed the agent, not a staging run, and no run
+was in flight at the time. Every run of the second pass was then accounted for individually.
+
+Six real staging runs were made in total across both passes (pre-fix leak ×2, blocked-guard probe ×2,
+post-fix ×2 per pass where applicable, plus two `npm pack`s). Only the **pre-fix** runs leaked — that is
+what they were proving — and each was cleaned immediately: the orphan killed **by pid** taken from
+`ss -ltnp` (`kill 25090`), then `rm -rf /tmp/wingfoil-staging-*`. Never `pkill -f verdaccio`: that
+pattern matches the command line of the very shell running it, and in the first pass it killed that
+shell (exit 144). For the same reason the probes live in `scratchpad/probe.sh` rather than being typed
+inline — a `ps -eo args | grep verdaccio` on the command line matches itself and reports a phantom.
+
+Final state, `bash scratchpad/probe.sh`, run after the last staging run of this task:
+
+```
+curl -sS -m 5 http://localhost:4873/-/ping  → curl: (7) Failed to connect …   # nothing listening
+ss -ltn 'sport = :4873'                     → no LISTEN row
+ls -d /tmp/wingfoil-staging-*               → (no work dir)
+ls -l /tmp/wingfoil-staging-*/npmrc         → (no npmrc)
+pgrep -af 'node .*verdaccio'                → (none)
+pgrep -af verdaccio                         → (none)            # the broad pattern too
+grep -n '4873' ~/.npmrc                     → (none / no ~/.npmrc)
+```
+
+The staging environment points npm's `userconfig`, `globalconfig`, `cache` and `prefix` into the work
+dir, so the global install the smoke performs went with it; `~/.npmrc` does not exist on this machine
+and none of these runs created it. The temporary `scripts/publish-staging-BASE.cjs` used for the
+pre-fix measurement was deleted and never committed (`git status --porcelain` → only the task file).
+The in-use guard is **not** left tripped, which matters: other task agents share this machine and
+port 4873.
+
+### refactor — role: developer
+
+No structural refactor was needed and none was invented: the change is one new module-level function,
+one memoised closure inside `runStaging`, one new effect and a header rewrite, all authored in their
+final shape at `green` (the `code-quality` directive asks for the smallest coherent change, not for a
+second pass to justify the phase). What this phase did do:
+
+- **No new constant, no new bound.** The registry half of teardown is `stopProcess`'s existing
+  `REGISTRY_STOP_TIMEOUT_MS` → `SIGKILL_GRACE_MS` escalation, reused unchanged (constraint 4 of the
+  task brief). The task explicitly allows inventing new bounds only with an explanation; none was
+  needed, so none exists.
+- **No eslint globals change.** `task-078` had to add `clearTimeout` to `eslint.config.js`'s allowlist
+  for `scripts/**/*.cjs`; this change uses only `process`, already allowed — `npm run lint` exits 0
+  with `eslint.config.js` untouched (`git diff main...HEAD --stat` lists no `eslint.config.js`).
+- **Gates re-run after the second `main` merge**, not before (table below).
+
+### review-ready summary — role: developer → reviewer
+
+**What landed.** `scripts/publish-staging.cjs` now tears down on an interrupt, not only on the success
+and failure paths:
+
+| AC | Delivered by | Proof |
+|---|---|---|
+| 1 `SIGINT` runs teardown | `installTeardownHandlers` + memoised `teardown()` | real run A probes (no ping / no LISTEN / no work dir) + `it.each` row |
+| 2 `SIGTERM` too | same handler, `TEARDOWN_SIGNALS` | real run B (`npm run`, group signal) + `it.each` row |
+| 3 honest exit | `raiseSignal`: flush → `removeAllListeners` → `process.kill(self)` | run A `SCRIPT_WAIT_STATUS=130` *while `runStaging` returned 0*; run B `143` |
+| 4 no credential survives | new `removeToken` effect, **first** in teardown | `ls /tmp/wingfoil-staging-*/npmrc` → none, both runs; ordering case |
+| 5 later run not blocked | follows from 1 | run B reached `Verdaccio up` in 24 s right after run A's interrupt |
+| 6 idempotent, bounded | one memoised promise; re-entry absorbed; `die` in a `finally`; `stopProcess`'s bounds | one `teardown complete` line per run; three unit cases |
+| 7 injected-effects shape kept | `interrupts` is opt-in; fake signal target in tests | suite is offline; `process.listenerCount` case |
+| 8 in-process failure still tears down | untouched | the six pre-existing `it.each` rows still pass |
+| 9 header truthful | bullet 7 rewritten, `SIGKILL` named as uncoverable | the file |
+| 10 gates | — | table below |
+| 11 `bug-059` synced | `wf(bug): sync … [in-progress → in-review]` | this branch |
+
+**Sync with `main` — twice.** First `git merge main` (`aa688fc`) at `8f5f1df`, second (`7e4146e`) at
+`678c326`, both clean, no conflicts — merge, never rebase (`dl-035`). The second brought `task-082`
+(`test/storage/helpers/git-fixture.ts`, new `test/storage/git-fixture-teardown.test.ts`), `bug-058`
+closed and `bug-063` filed; the first brought `task-080`'s `package.json`/`package-lock.json` peer
+overrides, so `npm ci` was re-run after each merge before the gates. Documents re-opened after the
+merges: `spec-015-packaging-publishing` (unchanged by either merge — `git log --oneline main..HEAD --
+docs/self/docs/04_memory/design/specs/` is empty, and the `verify_specs` grep above still returns the
+same two lines), and the newly landed **`dl-076-toolchain-divergence-unexercised-until-tag`**
+(`in-discussion`), which names `bug-059` three times. Its claim — "**No** — CI sends no SIGINT", i.e.
+an ordinary CI run would never have *found* this bug — is about discovery, not about disposition, and
+nothing in this change contradicts it; the design note was tightened after reading it so that it no
+longer asserts anything about a GitHub runner's signal sequence that could not be verified from this
+machine.
+
+**BDD acceptance.** `grep -rln 'publish\|staging\|signal' docs/02_requirements/02_bdd/features/`
+returns nothing for the publishing pipeline — the same finding `task-078` recorded: `spec-015`,
+`adr-009` and `REQ-SYS-09` are its contract, and the asserting suites are `test/cli/publish-staging.test.ts`
+(29 cases, 7 of them this task's), `test/cli/publish-secrets.test.ts` and `test/cli/publish-pipeline.test.ts`.
+
+**Gates — after the second merge, in this worktree.**
+
+| Command | Result |
+|---|---|
+| `npx jest` | `Test Suites: 106 passed · Tests: 1723 passed` |
+| `npx jest --coverage` | `All files 98.58 % stmts · 92.58 % branch · 98.81 % funcs · 99.18 % lines` — non-regressing (`task-078` recorded 98.54 / 92.30 / 98.76 / 99.15) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 — **no output at all**; `bug-026`'s exception is gone since `task-076` |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+
+`scripts/**` is outside `collectCoverageFrom` (`src/**/*.ts` only), so this change neither raises nor
+lowers the coverage figure; the movement above is `main`'s, carried in by the merges.
+
+**Known weak spots a reviewer should check.**
+
+1. **The `spawnSync` gap is real and is not closed here.** A signal delivered *only* to the script
+   while an npm child is running is honoured when that child exits — measured at 44 s in run A. The
+   interactive and CI cases both signal the whole process group, where the child dies first and
+   teardown starts in ~2 s (run B), so the leak `bug-059` describes is closed in the paths that
+   actually occur. Forwarding signals to the in-flight child would close the remaining one; that is a
+   change to `run()`/`stopProcess`'s contract, larger than these ACs, and is raised as a proposed
+   element rather than smuggled in.
+2. **`SIGHUP` was never really sent.** Unit-tested as the identical handler; no real-run probe. Stated
+   here and in the design table rather than implied by "three signals handled".
+3. **`installTeardownHandlers`'s options are not fully caller-controlled.** `runStaging` overrides
+   `teardown` and `log` from anything passed in `interrupts` — deliberate, but a reader could be
+   surprised; it cost one wrong assertion during `green` (recorded above).
+4. **The re-entry guard absorbs a second Ctrl-C.** A user hammering Ctrl-C waits out teardown (bounded
+   at ≤ 12 s + one `rm`). The alternative was rejected on purpose; if a reviewer prefers "second signal
+   exits at once", AC4's npmrc-first ordering is already in place to make that survivable, but the
+   change would be theirs to ask for.
+5. **`spec-015`'s revision paragraph now reads as history.** It records `task-077`'s finding that
+   teardown does not run on `SIGINT`. True of what was found; no longer true of the file. Amending an
+   `approved` spec needs its own dated Revision note (`dl-047`) and is not a dev-loop act — proposed
+   element, not done here.
