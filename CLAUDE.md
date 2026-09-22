@@ -26,9 +26,11 @@ Layer (CLI + MCP)**.
 >
 > **What is *not* built yet is a subset of what the specs describe, and the self-configuration is still
 > hand-authored (§3).** The command surface is derived mechanically from `CORE_MODULES`
-> (`src/core/index.ts`) — today `dna set`, `dna show`, `memory add`, `memory search`, `directives list`,
-> `paths`, `workflow list`, plus the two bootstrap commands `init` and `mcp`. In particular there is
-> **no workflow engine** (§6) and **no Memory state-transition verb** (§5.1). Check `CORE_MODULES`, or
+> (`src/core/index.ts`) — today `dna set`, `dna show`, `memory add`, `memory submit`, `memory approve`,
+> `memory reject`, `memory deprecate`, `memory history`, `memory search`, `directive create`,
+> `directive assign`, `directive remove`, `directives list`, `paths`, `workflow list`, plus the two
+> bootstrap commands `init` and `mcp`. The **Memory state-transition verbs ship** as of `minor-v0.2`
+> (P1.6–P1.9, P1.10); what is still missing is the **workflow engine** (§6). Check `CORE_MODULES`, or
 > the release Memory, before assuming a command exists — and where the code and the specs in
 > `docs/01_vision/` / `docs/02_requirements/` disagree about *what should be built*, the specs win (§10.1).
 
@@ -107,8 +109,10 @@ this config up to date (Memory transitions, workflow execution) do not exist yet
 State is **derived from each document's frontmatter** — there is **no `.wingfoil/state/` index**
 (REQ-SYS-03). Every transition is validated against the type's state machine (REQ-STATE-01): the engine
 is real and tested (`resolveTransitionTarget` / `validateFrontmatterState`, `src/memory/state-machine.ts`),
-but no CLI verb drives it yet (§5.1), so *today* that validation is your responsibility when you edit
-frontmatter by hand.
+and the CLI verbs that drive it ship (§5.1). They cannot yet be pointed at *this* repository's own
+Memory, because the configuration lives under `docs/self/` while the CLI resolves it from the git root
+(`bug-075`) — so for WingFoil's own documents the validation is still your responsibility when you
+edit frontmatter by hand.
 
 Each type's machine is encoded in `memory.yaml` as `sequence` (the ordered forward chain) + `gates`
 (per-state `{state: {reject: target}}`, meaning that state's forward edge needs `approve` rather than
@@ -145,15 +149,22 @@ wf({type}): {add|submit|approve|reject|deprecate} {id1}, {id2}, ...
 
 Worked example (two separate commits): `wf(release-line): add rl-v1` then `wf(release-line): submit rl-v1`.
 
-> **Performed by hand today — by necessity, not by design.** Of the five operations below only
-> `memory.add` is implemented (`memoryAdd` in `CORE_MODULES`; `memory search` is the other Memory
-> command, and it is read-only). `submit`, `approve`, `reject` and `deprecate` have **no CLI verb**:
-> they are specified as **P1.6–P1.9** and scheduled in `minor-v0.2` as `task-045`, `task-046`,
-> `task-047` and `task-048`, all still `backlog`. So editing the frontmatter and writing the commit by
-> hand is the **current** procedure standing in for `wingfoil memory <verb>`, **not** the intended
-> end state. The commit *format* specified below is the contract either way — it is what the verbs will
-> emit, and what `wingfoil memory history` (P1.10) will read back — so follow it exactly, and keep each
-> operation to its own commit.
+> **All five operations ship, but not for this repository.** `memoryAdd`, `memorySubmit`,
+> `memoryApprove`, `memoryReject` and `memoryDeprecate` are all registered in `CORE_MODULES`
+> (**P1.6–P1.9**), delivered by `task-045` through `task-048` in `minor-v0.2`, alongside the read-only
+> `memory search` and `memory history` (**P1.10**). Run `wingfoil memory --help` rather than trusting
+> this paragraph.
+>
+> What you still do **by hand** is every operation on *WingFoil's own* Memory, and only for a
+> structural reason: this project's configuration is hand-authored under `docs/self/.wingfoil/` while
+> the CLI resolves its configuration from the git root, so no verb can be aimed at the documents under
+> `docs/self/docs/04_memory/` (`bug-075`, `open`). For any other project the verbs are the procedure.
+>
+> The commit *format* below is the contract either way — it is what the verbs emit and what
+> `wingfoil memory history` reads back — so follow it exactly, and keep each operation to its own
+> commit. Note the practised grammar has grown verbs this section does not declare (`start`,
+> `finalize`, `sync`, roughly a third of all `wf()` commits); whether they are ratified or corrected is
+> `dl-079`, `in-discussion`.
 
 ### The `Reason:` block — the shape every reason must have
 
