@@ -463,8 +463,16 @@ content lives in its own transcript, not in this repository — a later session 
 sessions do not persist indefinitely. So one of the following must be true before `explore` starts,
 and verifying which is part of P-checks:
 
-- the notes have been **landed in the repository** as a Memory element or an input document under
-  `docs/05_plans/`, in which case cite it by id and treat it as above; **or**
+- the notes have been **landed somewhere durable**, in which case cite that location and treat them
+  as above. **As of 2026-09-22 this is the case:** they are at
+  `/home/robypomper/Workspaces/WingFoil2-v0.3-notes/` — a `README.md` with an index and a
+  classification table, `notes-full.md`, and one further note — outside this repository and outside
+  `/tmp`. Verify the path still exists before relying on it; it is outside version control and
+  nothing here guarantees it. **Nothing from it may be copied into this repository**: it contains
+  material about a separate benchmark project, and by the approver's standing rule that material does
+  not enter WingFoil2. A defect learned from it is described as a WingFoil defect and **reproduced on
+  this repository** before it becomes an element — which is how `bug-076` and `bug-077` were filed;
+  **or**
 - that session is still alive and reachable, in which case request the notes explicitly and record
   what came back; **or**
 - neither holds, in which case **say so in `retro-v0.2` and proceed on the primary material alone.**
