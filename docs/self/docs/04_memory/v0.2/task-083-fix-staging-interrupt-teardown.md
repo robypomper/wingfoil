@@ -524,15 +524,29 @@ ls -d /tmp/wingfoil-staging-*               → (no work dir)
 ls -l /tmp/wingfoil-staging-*/npmrc         → (no npmrc)
 pgrep -af 'node .*verdaccio'                → (none)
 pgrep -af verdaccio                         → (none)            # the broad pattern too
-grep -n '4873' ~/.npmrc                     → (none / no ~/.npmrc)
+ls -l ~/.npmrc                              → -rw------- 1 robypomper robypomper 36 apr 22 21:00
+grep -c '4873' ~/.npmrc                     → 0
 ```
 
+> **Corrected after reject `8937a51`.** The two `~/.npmrc` lines above replace a single
+> `grep -n '4873' ~/.npmrc → (none / no ~/.npmrc)` line, and the sentence below replaces one that
+> said the file "does not exist on this machine". **It does exist** — 36 bytes, dated 22 April, months
+> before this work, containing exactly `prefix=/home/robypomper/.npm-global` and no reference to
+> :4873. The cause was the probe script itself: it ran `grep -n 4873 ~/.npmrc 2>/dev/null || echo
+> "(none / no ~/.npmrc)"`, whose one fallback message covers *both* "no match" and "no file", and the
+> note then reported the wrong half of that ambiguity. The probe now reports existence and content as
+> two separate facts (`ls -l`, then `grep -c`), so the conclusion cannot be read off a message that
+> does not distinguish them. The load-bearing claim was true and remains true, but it was true by
+> luck of phrasing rather than by measurement — which is exactly the pattern this release keeps
+> rejecting.
+
 The staging environment points npm's `userconfig`, `globalconfig`, `cache` and `prefix` into the work
-dir, so the global install the smoke performs went with it; `~/.npmrc` does not exist on this machine
-and none of these runs created it. The temporary `scripts/publish-staging-BASE.cjs` used for the
-pre-fix measurement was deleted and never committed (`git status --porcelain` → only the task file).
-The in-use guard is **not** left tripped, which matters: other task agents share this machine and
-port 4873.
+dir, so the global install the smoke performs went with it; the user's `~/.npmrc` is a pre-existing
+`prefix=` line that these runs never read (npm's userconfig was redirected) and never wrote —
+`grep -c '4873'` on it returns `0` before and after. The temporary
+`scripts/publish-staging-BASE.cjs` used for the pre-fix measurement was deleted and never committed
+(`git status --porcelain` → only the task file). The in-use guard is **not** left tripped, which
+matters: other task agents share this machine and port 4873.
 
 ### refactor — role: developer
 
@@ -624,3 +638,202 @@ lowers the coverage figure; the movement above is `main`'s, carried in by the me
    teardown does not run on `SIGINT`. True of what was found; no longer true of the file. Amending an
    `approved` spec needs its own dated Revision note (`dl-047`) and is not a dev-loop act — proposed
    element, not done here.
+
+---
+
+## Second pass — after reject `8937a51`
+
+### red — role: developer (second pass)
+
+**The rejection's blocking defect, reproduced here before touching it.** The reviewer found it; this
+section does not take that on trust. Three drivers, all in
+`/home/robypomper/Workspaces/.wf2-wt-scratch-083/` (the previous scratch path under `/tmp` was
+destroyed by the overnight sweep, which is why it moved):
+
+**Attempts 1 and 2 — the honest misses.** Watching the log for Verdaccio's `http address` line with a
+`grep`/`sleep 0.02` loop and signalling on sight: `WINDOW_HIT=no` both times — the poll had already
+returned, the message was correct, and teardown worked. Recorded because they bound how narrow the
+window is: a 10–20 ms detection loop loses the race often enough that two attempts hit nothing. An
+implementer who tried twice and stopped would have concluded the defect was not real.
+
+**Attempt 3 — deterministic, via the blocking install.** `startRegistry` does, in order: the in-use
+guard `await`; `run('npm', [install verdaccio])`, a **`spawnSync` that blocks the event loop for ~25
+s**; `spawn(child)`; then the readiness poll. Node cannot run a signal handler while the loop is
+blocked, so a signal delivered *during the install* is queued and handled at the first `await` of the
+poll — **after the spawn, before `startRegistry` resolves**, every time, with no race:
+
+```
+$ bash run-and-signal-startup.sh INT before-startup 10
+SCRIPT_PID=131790 · SCRIPT_WAIT_STATUS=130
+WINDOW_HIT=yes (startRegistry never resolved: the handler ran inside the start-up window)
+--- log tail ---
+    at ModuleJob._link (node:internal/modules/esm/module_job:182:49) { code: 'ERR_MODULE_NOT_FOUND' }
+[publish:staging] teardown complete after SIGINT: registry stopped, work dir removed — exiting on SIGINT
+```
+
+The `ERR_MODULE_NOT_FOUND` stack is the **child's own output**: it was spawned, and it died only
+because teardown deleted the work dir out from under the modules it was still loading. `stop()` was
+never called — and the last line claims it was.
+
+**Attempt 4 — the reviewer's exact case, with the orphan.** Same window, later in it: signal the
+instant the port starts listening, detected by `tail -f` (~1 ms) instead of a grep loop (~10–20 ms).
+The child is fully booted, so it survives the work-dir removal:
+
+```
+$ bash run-and-signal-listening.sh INT before-listening
+SCRIPT_PID=132019 · SCRIPT_WAIT_STATUS=130
+--- listener line seen; SIGINT sent immediately ---
+WINDOW_HIT=yes (the handler ran before startRegistry resolved)
+[publish:staging] interrupted by SIGINT — running teardown
+[publish:staging] teardown complete after SIGINT: registry stopped, work dir removed — exiting on SIGINT
+```
+
+```
+$ bash probe.sh
+curl … /-/ping                → {}   CURL_EXIT=0                     # the registry answers
+ss -ltnp 'sport = :4873'      → LISTEN … users:(("verdaccio",pid=132081,fd=26))
+ls -d /tmp/wingfoil-staging-* → (no work dir)                        # AC4 held: the token is gone
+ls /tmp/wingfoil-staging-*/npmrc → (no npmrc)
+pgrep -x verdaccio            → 132081
+$ node scripts/publish-staging.cjs --tarball … ; echo "REAL_EXIT=$?"
+[publish:staging] staging FAILED: http://localhost:4873/ is already in use — stop that registry first
+REAL_EXIT=1
+```
+
+Exactly the rejection: orphan on :4873, guard tripped for every later run, work dir and token
+correctly gone (the security half was never in question), and the completion line stating that the
+registry was stopped when nothing had been. Cleaned immediately — `kill 132081`, `rm -rf
+/tmp/wingfoil-staging-*`, re-probed clean — before any further run.
+
+**The unit red.** Three cases added, and the production file stashed back to the rejected state to
+show them fail (`git stash push scripts/publish-staging.cjs`; `git stash pop` after):
+
+```
+$ npx jest test/cli/publish-staging.test.ts          # production file at the rejected state
+● … the start-up window (reject 8937a51) › stops a registry that is still coming up when the signal lands mid-poll
+● … the start-up window (reject 8937a51) › reports what teardown actually did, and says the registry was stopped only when it was
+● … the start-up window (reject 8937a51) › does not claim a registry was stopped when none had been started
+Tests: 3 failed, 29 passed, 32 total
+```
+
+The middle case needed strengthening before it was worth anything. Its first draft asserted the
+message contained `registry stopped` — which the **rejected** fixed sentence also contained, so it
+passed against the defect. Caught by running the stash-back rather than by reading it: the first run
+showed `2 failed`, not 3. It now asserts the whole ordered list, `token removed, registry stopped,
+work dir removed`, and the token step is what proves the line is derived rather than fixed — the old
+sentence never mentioned it.
+
+**AC7's guard — the mutation, run twice, in both directions.** The rejection states the old guard was
+not load-bearing; verified rather than accepted. Mutation: `const uninstall = interrupts ? install… :
+undefined` → `const uninstall = installTeardownHandlers({ ...interrupts, … })`, i.e. handlers armed
+on the real `process` unconditionally.
+
+| Guard shape | Under the mutation |
+|---|---|
+| old — `listenerCount` before and after `runStaging` only | `Tests: 32 passed` — **green, as the rejection said** |
+| new — sampled mid-run inside `createToken` and `smoke` | `Tests: 1 failed, 31 passed` — the AC7 case, and only it |
+
+Both rows were produced by applying the mutation for real and restoring afterwards
+(`git status --porcelain` clean between runs). The old shape cannot distinguish "never installed" from
+"installed and removed" because `uninstall()` always runs in the `finally`; the new one samples while
+the handlers would still be armed.
+
+### green — role: developer (second pass)
+
+Commit `2733a1f`. Three changes, all in `scripts/publish-staging.cjs` (+ `.d.cts`):
+
+1. **`startRegistry(paths, env, onSpawn)`.** `realEffects` calls `onSpawn({ stop })` immediately after
+   `spawn(...)` and `child.on('exit')`, **before** the readiness poll; `runStaging` passes
+   `(spawned) => { registry = spawned; }` and still assigns the resolved value as before. From the
+   instant the child exists, teardown can stop it. The handle is the same `stop` closure the resolved
+   value carries, so there is no second stop path and `stopProcess`'s bounds are unchanged.
+2. **`teardown` returns what it did.** It accumulates `token removed` / `registry stopped` *or*
+   `no registry to stop` / `work dir removed`, and the handler prints that list. The nested `finally`s
+   are unchanged and still load-bearing: a throwing `removeToken` must not cost the registry its
+   `stop()`, and neither failure may cost the work dir its removal.
+3. **AC7's guard samples mid-run** from inside two fake effects.
+
+`npx jest test/cli/publish-staging.test.ts` → `Tests: 32 passed, 32 total`.
+
+**Field verification, after merging `main` (`7a65580`) — the same commands as the red, same drivers.**
+
+| Run | Command | Result |
+|---|---|---|
+| A | `run-and-signal-listening.sh INT after-listening` | `WINDOW_HIT=yes`, status **130**, line: `teardown complete after SIGINT: token removed, registry stopped, work dir removed` |
+| B | `run-and-signal-startup.sh INT after-startup 10` | `WINDOW_HIT=yes`, line: `token removed, registry stopped, work dir removed` — the child was stopped deliberately this time, instead of dying of its own accord with `ERR_MODULE_NOT_FOUND` |
+| C | `run-npm-and-signal-group.sh TERM after-npm-sigterm`, started right after B | registry up in **29 s** — the in-use guard did **not** fire (AC5) — status **143**, same derived line |
+
+Run A is the rejected case, same driver and same marker, and `WINDOW_HIT=yes` says the window was
+genuinely entered rather than missed. Probe after each, `bash probe.sh`:
+
+```
+curl … /-/ping                   → curl: (7) Failed to connect …
+ss -ltn / ss -ltnp 'sport = :4873' → no LISTEN row, no owner
+ls -d /tmp/wingfoil-staging-*    → (no work dir)
+ls -l /tmp/wingfoil-staging-*/npmrc → (no npmrc)
+pgrep -af verdaccio              → (none)
+ls -l ~/.npmrc                   → -rw------- … 36 apr 22 21:00
+grep -c '4873' ~/.npmrc          → 0
+```
+
+`grep -c 'teardown complete'` → `1` in each of the three logs: teardown still runs exactly once.
+
+**Run B's outcome is worth one sentence, because it changes what the message means.** Pre-fix, a
+signal during the install left a freshly-spawned child that died on its own when its files vanished —
+the leak did not show, but only by accident. Post-fix the same run reports `registry stopped`, and
+that report is now *evidence* the `onSpawn` handle was in place: had it not been, the line would read
+`no registry to stop`. The message and the fix check each other.
+
+### review-ready summary — second pass
+
+**The four rejection items.**
+
+| Item | Fixed by | Proof |
+|---|---|---|
+| Start-up window: `stop()` never called | `onSpawn` hands out `{stop}` at spawn time | reproduced with an orphan (pid 132081) and re-run clean on the same driver; unit case red→green |
+| The completion line lied | teardown returns its step list; handler prints it | `token removed, registry stopped, work dir removed` in all three field runs; `no registry to stop` case unit-tested |
+| AC7 guard not load-bearing | sample `listenerCount` mid-run | mutation table above: old shape 32 passed, new shape 1 failed |
+| `~/.npmrc` claim false | sentence rewritten in place + probe split into two facts | `ls -l ~/.npmrc` → 36 bytes, 22 April; `grep -c '4873'` → 0 |
+
+**Untouched, as instructed.** The signal death and its 130/143 statuses, teardown memoisation and
+bounds, second-signal absorption, exit-despite-throwing, the npmrc-first ordering and `SIGHUP` are all
+exactly as approved — no line of any of them was edited this pass. `git diff` between the two
+submissions touches `startRegistry`'s signature, `teardown`'s return value, one log line and one test.
+
+**`spec-015` was NOT edited**, and the first pass's finding 5 is now `task-085-retense-spec-015-sigint-
+sentence` (`backlog`, `depends_on: [task-083, task-084]`), which arrived in this merge. The first pass
+left that finding as a proposal inside these Execution Notes, where nothing reschedules it — the exact
+failure `bug-062` was opened about. It is a filed task now, and amending an `approved` spec is not a
+dev-loop act (`dl-047`).
+
+**Sync with `main` — third merge.** `7a65580`, clean. It carried `task-084` (which rewrote `spec-015`
+§3's stage-1 claims and kept the SIGINT sentence citing `bug-059`), `task-085`, `bug-062` closed and
+`bug-064/065/066`. No `package.json` or lockfile change, so `npm ci` was not re-run; re-read after
+merging: `spec-015` §3 now states the SIGINT gap with an explicit bound and a `bug-059` citation, which
+`task-085` will re-tense — nothing in these notes depends on its tense.
+
+**Gates — after that merge.**
+
+| Command | Result |
+|---|---|
+| `npx jest` | `Test Suites: 106 passed · Tests: 1726 passed` |
+| `npx jest --coverage` | `All files 98.58 % stmts · 92.58 % branch · 98.81 % funcs · 99.18 % lines` (unchanged; `scripts/**` is outside `collectCoverageFrom`) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+
+**Weak spots, second pass.**
+
+1. **The `spawnSync` gap is still open and still out of scope.** A signal delivered *only* to the
+   script during a blocking npm step is honoured when that step returns. It no longer leaks — the
+   handler now stops the child — but it can be slow (44 s measured in the first pass). Proposed
+   element, unchanged.
+2. **The window is narrow and my first two attempts missed it.** Anyone re-verifying should use the
+   `tail -f` driver or the during-install variant, not a grep/sleep loop; a miss looks exactly like a
+   pass. Both drivers print `WINDOW_HIT=yes|no` so the distinction cannot be lost.
+3. **`onSpawn` is optional in the type.** A future effects implementation that ignores it silently
+   reopens the window; the unit case covers `runStaging`'s side, not a third-party effect's. Making it
+   required would be a wider change to the interface than this fix needs.
+4. **`SIGHUP` still has no real-run probe** — unchanged from the first pass, and explicitly kept by the
+   approver.
