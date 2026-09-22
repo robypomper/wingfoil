@@ -377,3 +377,203 @@ unreachable, which is the point: it is the thing that makes AC2 checkable rather
 **Gate state:** `frontmatter.required` (`title`, `release`) present; `depends_on.acknowledged`
 satisfied (task-086 above); `tech-spec.approved` — no new or amended spec, so nothing pending.
 `design` passes through with no approver gate (no spec was scaffolded).
+
+### red — role: developer
+
+Commit `4f27867`. Two new suites, no change to any existing one:
+
+- **`test/core/memory-transition-commit-scope.test.ts`** — the guard on every gated verb (AC2/AC5),
+  the `submit` asymmetry (AC4), and **every happy path asserted against the parent commit** rather
+  than against the file on disk (AC3's observable).
+- **`test/cli/dirty-document-refusal.integration.test.ts`** — the two things only the process
+  boundary shows: the exit code a script keys on and the stderr a human reads, driven through the
+  real compiled `dist/cli.js` in a real `wingfoil init` project. `spawnSync`, not `execFileSync` +
+  `catch`, per task-086's measurement gotcha; the reason is recorded in the file's TSDoc so the next
+  reader does not "simplify" it back.
+
+Observed red — AC6's command, before any `src/` change:
+
+```
+$ npx jest test/core/memory-transition-commit-scope.test.ts test/cli/dirty-document-refusal.integration.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       9 failed, 6 passed, 15 total
+```
+
+The 9 failures are the defect, not missing imports — every one reads `expect(result.ok).toBe(false)`
+/ `expect(run.status).toBe(1)` receiving the success the current code returns. The 6 passes are
+exactly the cases the T1 table classifies as characterization: the three clean happy paths, the
+`bug-027` staged-path regression, `submit` carrying content, and the CLI's clean-approve diff.
+
+**A correction to the T1 table's AC3 row, made here rather than left standing.** AC3 has two halves
+and they classify differently. Its *observable* on a clean tree — "the commit differs from its parent
+by the status line alone" — already holds today, so those three cases passed on first run and are
+**characterization**. What is **red-first** is the same assertion on a tree that is *not* clean: the
+M2 case commits `draft → approved` under a subject declaring `pending → approved`, and the body/field
+cases commit four insertions where one was declared. The row said "red-first" without that split; the
+split is what the run measured.
+
+### green — role: developer
+
+Commit `d3eaca5`. Three source files, one existing test line.
+
+| Change | Where |
+|---|---|
+| `readPathAtRev` (a sha, `HEAD`, or the index stage `:0`), `pathPorcelainStatus`, `commitParent` (parent sha, or git's empty tree for a root commit), `changedPathsBetween` | `src/storage/commit.ts` |
+| `probeGit` — `stdio[2]: 'ignore'` for invocations whose failure is an expected answer, so `git show HEAD:<untracked>`'s `fatal:` does not land in the user's terminal next to the message the CLI meant to emit | same |
+| `DocumentScope`, `verifyDocumentEdit` (the frontmatter rules **plus the body**), `describeDocumentChanges` (what is in the way, in words a user can act on); `verifyFrontmatterEdit` recomposed from the two shared halves, behaviour unchanged | `src/memory/frontmatter-edit.ts` |
+| `requireUnmodifiedDocument` (AC2's refusal, before any write) and `verifyCommittedScope` (AC3's committed-tree check), wired into `commitMemoryTransition` with a `scope` parameter defaulting to the strict value | `src/core/memory-transition.ts` |
+| `memory submit` opts out with `'carries-content'` — the one call site that changes | `src/core/index.ts` |
+
+Design points worth naming:
+
+- **The `scope` parameter defaults to `declared-fields-only`.** A verb added later is guarded unless
+  it deliberately opts out, rather than the other way round.
+- **The pre-write post-condition is strict for all four verbs, `submit` included.** `submit`'s
+  baseline is `prepared.content` — the author's file, content already in it — and
+  `renderSubmitDocument` owns `status` and `rejection_reason` alone. So the content `submit` carries
+  is *already on the before side of that comparison*, and tightening the check to cover the body
+  costs `submit` nothing while closing the `bug-041` class one step further. Only the **guard** and
+  the **committed-tree check** vary by scope.
+- **Why `git status` decides "is it modified" and this code only decides "what to call it".** git
+  owns index refresh, `core.autocrlf` and `.gitattributes` filters; an answer re-derived from bytes
+  would disagree with `git status` on exactly the machines where that matters.
+- **Both of the user's declarations are inspected** — the index (`:0`) and the working tree — because
+  M1 measured that they can disagree and that `git add` silently replaces the former with the latter.
+- **One existing expected message changed**: `refusing to write …: the rendered frontmatter failed
+  its post-condition` → `the rendered document`. The check now covers the body, so naming only the
+  frontmatter would mislabel a body problem. `test/core/memory-submit.test.ts` pins that string; it
+  is updated with a comment saying why.
+
+Full suite after green: `npx jest` → `111 passed, 1771 tests`, exit 0.
+
+### refactor — role: developer
+
+Commit `cf7b955`. No behaviour added; the coverage the green step owed.
+
+- **`verifyCommittedScope` is exported** from `src/core`. It is the assertion AC3 names, so it is
+  tested directly — a hand-made commit carrying a body leak, an unowned field, an extra path, an
+  absent path, a root commit, and the `carries-content` relaxation — rather than only through the
+  verbs it guards.
+- **The alarm is reachable, and the test that reaches it is realistic rather than contrived.** With
+  the guard in place, no *argument* to a verb can make the committed tree exceed the declared change.
+  One thing still can: a repository-local **`pre-commit` hook** — a formatter, or a linter run with
+  `--fix` — that rewrites the element file and re-stages it. It runs after `requireUnmodifiedDocument`
+  (the tree *was* clean), after the rendering post-condition, and inside `git commit` itself, so
+  nothing before the commit can see it. Measured first in a scratch repo (`git commit --only -- a.md`
+  with a hook appending to `a.md` → the appended line is in the commit), then pinned as a test. It
+  also documents the "alarm, not rollback" semantics: the commit exists, the error names its sha, and
+  history is left alone.
+- `test/memory/document-scope.test.ts` — `verifyDocumentEdit` and `describeDocumentChanges` on text,
+  no git, including the CRLF-delimiter case that reaches the `'the file content'` fallback.
+- `test/storage/commit.test.ts` — the four read primitives, including the `:0` index stage, the
+  empty-tree parent fallback, and the `options.env` override (`GIT_CONFIG_*`, which git honours only
+  from the environment, so it proves the override reaches the child — the task-014 gotcha).
+
+**Coverage, measured on both sides rather than quoted.** Baseline taken by running
+`npx jest --coverage` in a detached worktree at this branch's base (`3967190`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `3967190` | 98.59 | 92.97 | 98.80 | 99.18 | 1754 |
+| this branch | **98.63** | **93.17** | **98.85** | **99.21** | 1799 |
+
+Every metric up; no file regressed. The two lines still uncovered in the changed files are
+`src/storage/commit.ts:118` (a `?? ''` on `split('\n')[0]`, which `noUncheckedIndexedAccess` requires
+and which cannot be empty) and `src/core/memory-transition.ts:101` (a pre-existing branch of
+`prepareMemoryTransition`'s catch, untouched here).
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git merge main            # main at 0c88631
+Merge made by the 'ort' strategy.  3 files changed, 95 insertions(+), 3 deletions(-)
+$ git diff --stat HEAD~1 HEAD -- src/ test/
+(empty)
+```
+
+The merge brought three `docs/05_plans/rl-v1/rel-v0.2/` plan files (release-publishing,
+release-submit, retrospective) — no `src/`, no `test/`. None of the documents these notes cite
+(`spec-005`, `spec-010`, `bug-076`, `task-086`'s Execution Notes) is among them, so no sentence above
+is stale. The merged `release-submit` plan's new §2.3 independently records the approver's
+blocker declaration and the same `bug-075` constraint these notes rest on — consistent, nothing to
+correct. All gates below are post-merge.
+
+#### Gates (post-merge, run in this worktree)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **112 suites, 1799 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.63 / 93.17 / 98.85 / 99.21** — up on all four vs base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** (bug-026 stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+BDD acceptance suites for the four verbs, run unchanged:
+`npx jest test/core/memory-approve.test.ts test/core/memory-reject.test.ts
+test/core/memory-deprecate.test.ts test/core/memory-submit.test.ts` → **4 suites, 68 tests passed**.
+
+| BDD scenario | Test that covers it |
+|---|---|
+| P1.7 sc.1 *Approve a pending document with a reason* | `test/core/memory-approve.test.ts` "P1.7 sc.1: approves a pending document with a reason…" — and, for the commit's **scope**, `memory-transition-commit-scope.test.ts` "AC3: a clean `approve` commits exactly one line changed…" |
+| P1.7 sc.2 *Error — approving without a reason* | `test/core/memory-approve.test.ts` (unchanged, still green) |
+| P1.7 sc.3 *Error — approver lacks authority for the type* | `test/core/memory-approve.test.ts` (unchanged, still green) |
+| P1.8 sc.1 *Reject a pending document with feedback* | `test/core/memory-reject.test.ts`; scope pinned by "AC5/AC3: a clean `reject` commits exactly its two owned fields…" |
+| P1.9 sc.1 *Deprecate an approved document* | `test/core/memory-deprecate.test.ts`; scope pinned by "AC5/AC3: a clean `deprecate` commits the status line alone…" |
+| P1.6 sc.1 *Submit a draft document for approval* | `test/core/memory-submit.test.ts`; the asymmetry pinned by "AC4: `submit` DOES carry uncommitted body and frontmatter content…" |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** All four Memory transition verbs share one write path, and every
+comparison in it used the working tree as its zero point; `approve`, `reject` and `deprecate` now
+refuse before writing anything when the element file already carries modifications they do not own,
+and every transition commit is checked against its own parent rather than against the file on disk.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 reproduce first | done | `design` § "AC1", run against the base build before any `src/` edit; commands and the resulting commit diff recorded |
+| AC2 refuse, naming what is modified | done, option **(b)** | `requireUnmodifiedDocument`; argued in `design` § "AC2 — the decision" from M1/M2, with what (a) would have been better at stated plainly. **One deviation: exit `1`, not `2` — see below.** |
+| AC3 postcondition vs the parent commit | done | `verifyCommittedScope`; every happy-path test asserts `git diff HEAD~1 HEAD`, and the check itself is tested directly on hand-made commits |
+| AC4 `submit` keeps carrying content | done | `'carries-content'` scope; two tests, one of them stating the asymmetry as a single assertion (the same edit `submit` carries makes `approve` refuse) |
+| AC5 `reject` + `deprecate`, not caught by their own guards | done | the guard runs *before* each verb's own write, on text it has just certified equal to `HEAD`; `reject`'s `rejection_reason` is pinned as an owned field in the committed diff |
+| AC6 a test pins the defect, red before / green after | done | `red` § above: 9 failed / 6 passed before, 15 passed after, command recorded |
+| AC7 nothing in this repository is rewritten or re-verified | done | `git log --oneline main..HEAD` touches no historical commit; no test reads this repository's Memory; the verbs cannot be pointed at it (`bug-075`) |
+| AC8 six gates | done | table above, all green post-merge |
+
+**The one thing the approver must rule on: AC2's exit code.** AC2 and `bug-076` both say "exit `2`";
+this returns exit **1**. `spec-005-cli-command-contract` § "1. Exit-code contract (REQ-INT-04)" — an
+`approved` spec — reserves `2` for a malformed *invocation* and puts "validation failure, git
+operation failure" under `1`. A dirty working tree is not a malformed invocation; re-typing the
+command cannot help. Emitting `2` would redefine what exit `2` means for every script keying on
+REQ-INT-04, which is a change to a ratified contract, and `task-086` set the precedent that such a
+change belongs to the approver (it refused to widen `dl-067` and filed `dl-078` instead). Everything
+else AC2 asks for is delivered literally. If the ruling is `2`, it is a one-line change (`coreErr` →
+`UsageError`) plus a `spec-005` amendment; a decision-log is proposed for it.
+
+**Weak spots a reviewer should check**
+
+1. **The guard is per-path, deliberately.** A dirty `dna.yaml` or an unrelated dirty document does not
+   block a transition — only the element being transitioned does. That is the narrowest rule that
+   closes `bug-076`, but it is a choice.
+2. **The committed-tree check cannot roll back.** It runs after the commit exists, reports a
+   `VALIDATION` error naming the sha, and leaves history alone (`dl-035`). With the guard in place it
+   is unreachable through any argument to a verb; the one realistic trigger is a `pre-commit` hook
+   that rewrites the file, which is exactly what its test uses.
+3. **`verifyCommittedScope` is exported.** Justified as a genuine capability an audit command would
+   want, not only for testability — but it is a new public surface on `src/core`, and that is a
+   reviewer's call as much as mine.
+4. **`verifyFrontmatterEdit` was recomposed**, not rewritten: its two halves are now shared with
+   `verifyDocumentEdit`. Behaviour is unchanged and its existing tests pass untouched; worth a glance
+   because it is the one edit to code this task did not otherwise need to touch.
+5. **`probeGit` silences stderr** for `git show`/`rev-parse` probes whose failure is an expected
+   answer. It is scoped to those two call sites; a caller that needs git's diagnostic must use
+   `runGit`.
+
+**Out of scope, raised rather than fixed (`dl-014`/rule 2 — no elements created here; parallel
+worktrees would collide on ids):** `commitPaths`'s other callers — `dna set`, `directive
+create`/`delete`/`assign`, `wingfoil init`'s scaffold and `memory add` — each commit their own target
+path as it stands on disk, which is the same class of defect on a different artefact. `dna set`
+sweeping in an unrelated hand-edit to `dna.yaml` has a different blast radius and a different
+argument, so it is not touched here. Listed in this run's final report as a proposed bug.
