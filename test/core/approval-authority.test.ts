@@ -22,6 +22,7 @@ import { dump, load } from 'js-yaml';
 
 import { DnaYaml } from '../../src/dna/schema';
 import { hasApproverRole, requireApprovalAuthority, resolveMemberRoles } from '../../src/core/approval-authority';
+import * as loaders from '../../src/core/loaders';
 
 const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml'), 'utf-8');
 const realDna = DnaYaml.parse(load(raw));
@@ -182,6 +183,42 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     setLocalConfig('user.name', 'Approver Amy');
     setLocalConfig('user.email', 'amy@example.com');
     expect(requireApprovalAuthority(dir, 'task').ok).toBe(true);
+  });
+
+  // The diagnostic is a diagnostic: an unreadable working-tree file must not change an answer that
+  // comes from HEAD, and must not turn a refusal into a crash.
+  it('task-090: an unreadable working-tree dna.yaml leaves the refusal exactly as REQ-SEC-03 words it', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
+    rmSync(join(dir, '.wingfoil', 'dna.yaml'));
+    setLocalConfig('user.name', 'Reviewer Ray');
+    setLocalConfig('user.email', 'ray@example.com');
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
+    });
+
+    writeDna('this: [is not, a dna file\n');
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      error: { message: "user not authorized to approve type 'task'" },
+    });
+  });
+
+  // The one failure this gate does NOT convert into an authorization answer. A committed file that
+  // does not parse or validate is a refusal (`cannot resolve approval authority: …`); anything else
+  // would be a defect in the read path, and reporting a defect as "not authorized" — or as
+  // "authorized" — would put a wrong authorization decision on the record. It propagates instead.
+  // Reachable only by making the read fail in a way nothing in the code can produce, hence the spy.
+  it('task-090: an unexpected failure to read the committed baseline propagates, never becomes an authorization answer', () => {
+    setLocalConfig('user.name', 'Approver Amy');
+    setLocalConfig('user.email', 'amy@example.com');
+    const spy = jest.spyOn(loaders, 'loadDnaYamlAtHead').mockImplementation(() => {
+      throw new Error('git is not available');
+    });
+    try {
+      expect(() => requireApprovalAuthority(dir, 'task')).toThrow('git is not available');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('task-090: with no committed dna.yaml at all, no authority can be resolved', () => {
