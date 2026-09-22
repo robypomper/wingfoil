@@ -167,8 +167,11 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('VALIDATION');
+    // "the rendered DOCUMENT", not "the rendered frontmatter", since task-088: the pre-write
+    // post-condition covers the body as well as the frontmatter fields, so naming only the
+    // frontmatter would mislabel a body problem (`verifyDocumentEdit`, `bug-076`).
     expect(result.error.message).toBe(
-      'refusing to write docs/memory/v0.2/task-101.md: the rendered frontmatter failed its post-condition: field \'status\' is "pending Second paragraph.", expected "pending"',
+      'refusing to write docs/memory/v0.2/task-101.md: the rendered document failed its post-condition: field \'status\' is "pending Second paragraph.", expected "pending"',
     );
     expect(exitCodeForResult(result)).toBe(1);
     expect(readFileSync(path, 'utf-8')).toBe(original);
