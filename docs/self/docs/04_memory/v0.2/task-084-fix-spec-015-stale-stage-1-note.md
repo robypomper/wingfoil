@@ -2,7 +2,7 @@
 id: "task-084-fix-spec-015-stale-stage-1-note"
 type: task
 title: "Correct spec-015's §3 Revision note, which now states two repaired defects as current fact, and cite the element ids for what genuinely remains"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "documentation", "release", "distribution"]
