@@ -767,7 +767,10 @@ export interface MemoryApproveResult {
  *    and `findMemoryDocumentById` is a full scan of the registered content roots — resolving the type
  *    twice would double the cost of every approve. Nothing is weakened by the order: the authority
  *    *decision* depends on nothing step 5 computes (adr-006 fixes one uniform `approver` role, keyed
- *    on the git identity), and step 5 writes nothing.
+ *    on the git identity), and step 5 writes nothing. It reads the roles from the **committed**
+ *    `.wingfoil/dna.yaml` and resolves that file itself (task-090, `bug-079`) — which is why no
+ *    `loadDnaYaml` call precedes it here: an uncommitted grant must not be able to reach this
+ *    decision, and the way to guarantee that is to leave the caller nothing to pass.
  * 7. **Edit + commit** — `status` set to the target and **nothing else** (spec-010 field-write
  *    ownership: approve changes only `status`; approver and reason live in the commit message). One
  *    commit scoped to that file, subject `wf(<type>): approve <id> [<from> → <to>]` with the mandatory
@@ -794,9 +797,7 @@ const memoryApproveFn: CoreFn<unknown, MemoryApproveResult> = async (params) => 
   if (!prepared.ok) return prepared;
   const { type, path, content, from, to } = prepared.value;
 
-  const dna: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
-  if (!dna.ok) return dna;
-  const authorized = requireApprovalAuthority(root, dna.value, type);
+  const authorized = requireApprovalAuthority(root, type);
   if (!authorized.ok) return authorized;
 
   const { name, email } = readGitIdentity(root);
@@ -857,7 +858,10 @@ export interface MemoryRejectResult {
  * 5. **{@link requireApprovalAuthority}** (REQ-SEC-03) — exit `1` with
  *    `user not authorized to approve type '<type>'`. It runs AFTER step 4 because that message names
  *    the element **type**, which is a fact of the document and is known only once the document has
- *    been located; nothing is written in steps 1-5, so "the state is unchanged" holds either way.
+ *    been located; nothing is written in steps 1-5, so "the state is unchanged" holds either way. The
+ *    roles come from the **committed** `.wingfoil/dna.yaml`, which that function resolves itself
+ *    (task-090, `bug-079`): `reject` is an approval gate and records the same `Approver:` line, so it
+ *    takes the same baseline as `approve`, by construction rather than by remembering to.
  * 6. **Edit + commit** — `status` set to the reject target and `rejection_reason` to the reason
  *    verbatim (spec-010 field-write ownership: reject is the one verb that writes two fields), then
  *    one commit scoped to that file. `commitMemoryTransition`'s post-condition re-parses the rendered
@@ -885,9 +889,7 @@ const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
   if (!prepared.ok) return prepared;
   const { type, path, from, to, content } = prepared.value;
 
-  const dna: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
-  if (!dna.ok) return dna;
-  const authorized = requireApprovalAuthority(root, dna.value, type);
+  const authorized = requireApprovalAuthority(root, type);
   if (!authorized.ok) return authorized;
 
   const { name, email } = readGitIdentity(root);

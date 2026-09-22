@@ -15,7 +15,7 @@ import { join } from 'path';
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
-import { documentExists, extractFrontmatter, readDocument } from '../storage';
+import { documentExists, extractFrontmatter, readDocument, readPathAtRev } from '../storage';
 import { E_YAML_PARSE_ERROR, parseYaml, runValidation, ValidationError } from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
 
@@ -74,8 +74,22 @@ function extractYamlErrorLine(message: string): number | null {
  * `parseYaml`/`ValidationError`'s shared behavior for `memory.yaml`/`workflows.yaml`/directives.
  */
 export function loadDnaYaml(root: string): DnaYaml {
-  const filePath = join(root, '.wingfoil', 'dna.yaml');
-  const raw = readDocument(filePath);
+  return parseDnaYaml(readDocument(join(root, '.wingfoil', 'dna.yaml')), join(root, '.wingfoil', 'dna.yaml'));
+}
+
+/**
+ * Root-relative POSIX path of `dna.yaml` — the form git wants for a revision read
+ * (`<rev>:<path>`), as opposed to the platform `join` every on-disk read uses (task-090).
+ */
+export const DNA_YAML_PATH = '.wingfoil/dna.yaml' as const;
+
+/**
+ * The DNA pillar's two-pass parse, over bytes that may come from anywhere — the working-tree file
+ * ({@link loadDnaYaml}) or a git revision ({@link loadDnaYamlAtHead}). `filePath` is a label only: it
+ * rides every issue this raises, so an error names the baseline it came from
+ * (`HEAD:.wingfoil/dna.yaml`, not just a path on disk).
+ */
+function parseDnaYaml(raw: string, filePath: string): DnaYaml {
   let data: unknown;
   try {
     data = parseYaml(raw, filePath);
@@ -88,6 +102,35 @@ export function loadDnaYaml(root: string): DnaYaml {
     throw err;
   }
   return runValidation(DnaYaml, data, filePath);
+}
+
+/**
+ * Load and validate `.wingfoil/dna.yaml` **as the repository has committed it** — the version at
+ * `HEAD` — returning `null` when no commit of the repository contains that path (an untracked
+ * `dna.yaml`, or a repository with no commits at all). Same schema and same error shapes as
+ * {@link loadDnaYaml}; only the source of the bytes differs.
+ *
+ * This exists for exactly one caller today, `requireApprovalAuthority`
+ * (`./approval-authority.ts`, task-090 / `bug-079`): approval authority is a property of the
+ * repository, not of a working tree, so the roles it reads must be roles someone committed.
+ * `adr-006-git-identity-role-based-authz`'s own Positive consequence — a fresh clone "reproduces the
+ * full audit trail with zero extra infrastructure" — is what fixes the baseline: a clone carries
+ * committed state and nothing else, so an `Approver:` line resting on an uncommitted grant is
+ * evidence no clone can re-derive.
+ *
+ * `HEAD` rather than the produced commit: an approval commit changes only the element path
+ * (`verifyCommittedScope`, task-088), so `dna.yaml` at `HEAD` and at the commit being produced are
+ * byte-identical — the two shapes `bug-079`'s Expected Behavior offers cannot diverge, and `HEAD` is
+ * the one available before the commit exists.
+ *
+ * Deliberately NOT how the working-tree loaders behave: this is the exception, argued for the
+ * authority read alone, not a new default (`bug-078` covers the same question on the write side; the
+ * general rule is a decision-log, not this function).
+ */
+export function loadDnaYamlAtHead(root: string): DnaYaml | null {
+  const raw = readPathAtRev(root, 'HEAD', DNA_YAML_PATH);
+  if (raw === null) return null;
+  return parseDnaYaml(raw, `HEAD:${DNA_YAML_PATH}`);
 }
 
 /** The result of loading the Workflow pillar: the Layer-1 manifest plus every Layer-2 file it includes. */
