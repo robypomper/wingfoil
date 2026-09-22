@@ -2,7 +2,7 @@
 id: "task-086-fix-reason-control-chars-history-forgery"
 type: task
 title: "Stop a `--reason` containing the git-log framing control characters from fabricating a `memory history` entry whose sha is caller-supplied text"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "security", "audit-trail"]
