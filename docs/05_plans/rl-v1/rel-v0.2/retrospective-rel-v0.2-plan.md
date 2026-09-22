@@ -436,6 +436,46 @@ unverified assertions — which would be a notably poor way to write *this* retr
 
 ---
 
+## 4.8 A second source exists — use it as a check, never as a starting point
+
+A separate session, **"Note e riferimenti v0.3"**, was running throughout v0.2 collecting notes and
+references intended for v0.3 planning. It is a **secondary** source: someone's account of what
+happened, formed while it happened. Everything in §4.1–§4.7 is **primary** — commit bodies, frontmatter,
+diffs, the artefacts themselves.
+
+**The order matters and is the point of this subsection.** Form your findings from the primary
+material first, and only then read the notes, for two purposes and no others:
+
+- **Completeness.** Something the notes record that your mining did not surface is a gap in your
+  method — go back to the primary source and establish it there, or discard it. A finding that exists
+  only because the notes assert it does not belong in `retro-v0.2`.
+- **Divergence.** Where the notes and your findings disagree, that disagreement is itself material
+  worth recording: it is a measurement of how much of this release's account depended on being
+  present for it.
+
+Reading them first would import pre-formed conclusions into a document whose value is that it was
+derived. This release rejected work repeatedly for asserting what someone remembered rather than what
+a command showed; a retrospective that inherits its findings from a running commentary would be the
+same failure at the scale of the whole release.
+
+**The dependency is fragile and must be made concrete before this phase runs.** That session's
+content lives in its own transcript, not in this repository — a later session cannot read it, and
+sessions do not persist indefinitely. So one of the following must be true before `explore` starts,
+and verifying which is part of P-checks:
+
+- the notes have been **landed in the repository** as a Memory element or an input document under
+  `docs/05_plans/`, in which case cite it by id and treat it as above; **or**
+- that session is still alive and reachable, in which case request the notes explicitly and record
+  what came back; **or**
+- neither holds, in which case **say so in `retro-v0.2` and proceed on the primary material alone.**
+  That is an acceptable outcome, not a blocker — the evidence map is sufficient without it. What is
+  not acceptable is a retrospective that silently assumes a source it never read.
+
+Note the overlap with v0.3 planning is deliberate on that session's side: the unscheduled 44 open
+bugs and the `in-discussion` decision-logs are simultaneously this retrospective's "what v0.2 chose
+not to do" and that session's input. Two independently derived lists are useful; two lists where one
+was copied from the other are one list with extra steps.
+
 ## 5. Questions to put to the material
 
 The inventory answers questions; it does not deliver verdicts. These are the questions — the answers
