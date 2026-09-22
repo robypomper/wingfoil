@@ -2,10 +2,10 @@
 id: "bug-062-spec-015-note-carries-transient-findings"
 type: bug
 title: "spec-015's §3 Revision note states two transient defects as current fact, with no element id and nothing scheduled to remove them once they are fixed"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""
