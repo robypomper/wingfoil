@@ -550,6 +550,40 @@ theme, it is an impression — put it to the approver at §3.2 as a question ins
 
 ---
 
+## 6.1 A second, unrelated decision-log is created in this phase — by scheduling, not by derivation
+
+Relayed from the approver on 2026-09-22 (via the session holding the v0.3 notes; **confirm with the
+approver before acting**, since this plan's author did not receive it directly):
+
+A proposal about **which command each `actions:` and `checks:` token in the workflow definitions
+corresponds to** — six open questions — is to be promoted to a real decision-log **during this
+phase**: `memory.add` then `memory.submit`, landing at `in-discussion`. It is not ratified here; it is
+merely brought into Memory so it stops living outside it.
+
+**Understand what it is and is not.** It is *not* a finding of this retrospective and must not be
+presented as one. Nothing about it is derived from the material in §4 — it predates the mining and
+would exist whatever this retrospective concluded. It is here because this phase is the next moment
+someone is authoring decision-logs, which is scheduling convenience. Keep it out of `retro-v0.2.md`'s
+findings entirely; if `retro-v0.2` mentions it at all, it is as an action taken, not a lesson learned.
+
+**The constraint that decides whether it is written correctly.** Its source document lives under
+`tools/roadmap/`, which the approver has ruled stays an **experiment**: not committed, not declared in
+`dna.yaml`'s `paths:`. Verified — `git ls-files tools/` is empty and `dna.yaml` mentions no such path.
+So the new decision-log **may not cite any file under `tools/` as a source**: those paths are not
+versioned, a reader cannot resolve them, and citing one would create exactly the dangling reference
+`dl-075` was ratified to stop.
+
+What that means in practice is that the substance must be **restated from versioned ground**. The six
+questions are about `actions:` and `checks:` tokens, and those live in
+`docs/self/.wingfoil/workflows/custom/*.yaml`, which *is* versioned — so each question can be posed
+against the real token it concerns, cited by workflow name and key path per `dl-075`. The proposal
+document is where the thinking came from; the workflow files are what the decision-log argues about.
+This is the same discipline the v0.3 notes are under (§4.8) and the same one `bug-076` and `bug-077`
+went through: learn it anywhere, ground it here.
+
+If you cannot restate a question from versioned ground, that is a finding in itself — say so rather
+than importing an unresolvable citation to fill the gap.
+
 ## Handoff
 
 | Step | Who | Gate | Completion criterion |
