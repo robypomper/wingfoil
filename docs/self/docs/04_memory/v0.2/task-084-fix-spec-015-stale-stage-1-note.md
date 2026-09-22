@@ -185,3 +185,28 @@ approve commit both forbid.
 shape the document's two existing notes use (quoting the wording it replaces), `dl-047` mechanics —
 `status: approved` and every other frontmatter field untouched, no supersede, no `version:` bump.
 Diff limited to this file, `spec-015` and `bug-062` (AC6).
+
+### red (role: developer) — no test written, and that is the classification, not a shortcut
+
+Every AC is characterization (T1 table above), so `red`'s `tests.failing(for: red-first ACs)` check
+is vacuous: the set of red-first ACs is empty. **No test file is created and no failure is
+manufactured** — there is no behaviour here, only the text of one document, and a test asserting the
+absence of a sentence in a prose document would be dead weight the moment the sentence is reworded.
+
+What `red` does instead is take the **baseline measurement** the ACs are stated against, on the
+untouched document, so that the after-state in `green` is a comparison rather than an assertion
+(this is the guard against the release's top rejection cause — claiming a file's state without
+running the command that settles it):
+
+```
+$ S=docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+$ grep -n 'bug-05' $S ; echo "exit=$?"
+exit=1                                   # AC3 baseline: no element id in the document
+
+$ grep -nE 'currently unable to complete' $S
+233:today:* `task-077`'s first real execution found §3 **stage 1** currently unable to complete on a
+                                         # AC1 baseline: the stale claim, one hit
+
+$ grep -c 'Revision (2026-' $S
+6                                        # AC4 baseline: the existing note headers to match in shape
+```
