@@ -254,12 +254,21 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
  * itself, not that command's output formatting.
  *
  * Known limitation: `getMemoryHistory` walks with `git log --follow` (rename-following), but
- * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that predates
- * a rename, the current path won't resolve at that `sha`, yielding a spurious `toState: null` for those
- * pre-rename commits. Memory files are not renamed in practice (their path pattern is fixed by
- * `memory.yaml`, spec-011), and the `null` toState is handled gracefully downstream, so this is a
- * documented edge case, not a live defect; resolve by threading each commit's historical path (from
- * `--name-status`/`--follow`) into `readStatusAt` if renames ever occur.
+ * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that
+ * predates a rename, the current path won't resolve at that `sha`, yielding a spurious
+ * `toState: null` for those pre-rename commits — plus git's own `fatal: path ... exists on disk, but
+ * not in <sha>` on stderr (`bug-071-read-status-at-leaks-git-stderr`).
+ *
+ * This paragraph used to continue "Memory files are not renamed in practice (their path pattern is
+ * fixed by `memory.yaml`, spec-011) ... a documented edge case, not a live defect".
+ * `task-089-fix-history-walk-attributes-only-real-commits` measured that claim and it is **false**:
+ * `docs/self/docs/04_memory/planning/v1/*` became `planning/rl-v1/*` in a single commit, moving five
+ * `release` elements at once, precisely BECAUSE the type's `path` pattern interpolates a component —
+ * the release-line id — that itself changed. Any edit to a `path` pattern, or to an id one
+ * interpolates, renames documents; for those five, every transition before the rename is reported
+ * with a `null` state today. Resolve by threading each commit's historical path (from
+ * `--follow --name-status`) into `readStatusAt`. Out of scope for task-089, which repairs which
+ * COMMITS are walked, not which PATH each one is read at.
  */
 export function reconstructMemoryTransitions(root: string, relativePath: string): MemoryTransition[] {
   const history = getMemoryHistory(root, relativePath); // oldest first already
