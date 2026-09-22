@@ -1,40 +1,63 @@
 ---
 id: "task-087-fix-types-node-floor-pin"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft          # auto-set by wingfoil
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: []               # optional — additional labels, e.g. [architecture, backend]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
-bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
-                       # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
-                       # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
-                       # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
-                       # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+title: "Raise `@types/node` to the Node floor adr-010 declared, so `src/` is typechecked against the runtime the package promises"
+status: pending
+release: "v0.2"
+priority: "medium"
+tags: ["v0.2", "build", "distribution"]
+ref: "bug-049-types-node-pinned-to-superseded-floor"
+bug: ["bug-049-types-node-pinned-to-superseded-floor"]
+depends_on: ["task-074-fix-engines-node-floor"]
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+`@types/node` is pinned `^18.19.130` — not incidentally, but as a decision recorded in `task-001`'s
+Execution Notes to match the then-current `engines.node >=18.0.0`. `adr-010-node-22-runtime-floor`
+raised the declared floor to `>=22.12.0` **in this release**, so the pin no longer tracks the contract
+it was set to track: `src/` is typechecked against a Node 18 API surface while the package promises
+Node 22.12+. The compiler can therefore reject APIs that are available on the supported runtime, and
+cannot warn about ones that are not.
+
+v0.2 is the release that declares the new floor. Shipping it with the types pinned to the superseded
+one leaves the build contract internally inconsistent in the very release that changed it.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+- **AC1** — `@types/node` tracks the floor `engines.node` declares. State the resolved version and the
+  command that shows `engines.node` and the installed `@types/node` agreeing, rather than asserting it.
+- **AC2** — The change is justified from the floor, not from "latest": say which major matches
+  `>=22.12.0` and why, and do not silently adopt a newer major than the floor implies.
+- **AC3** — Both typechecks stay silent: `npx tsc -p tsconfig.build.json --noEmit` and the full
+  `npx tsc --noEmit -p tsconfig.json`. If raising the types surfaces **new** errors, they are real
+  findings about code written against the old surface — fix them in this pass if they are small, or
+  report them as proposed elements if they are not. Do not suppress them and do not widen the pin to
+  make them disappear.
+- **AC4** — `npm ci` succeeds under **npm 10.9.x**, the npm the pinned `NODE_VERSION` bundles, not only
+  under the developer's npm. `bug-056` exists because that distinction was never made; install npm
+  10.9.0 into a scratch prefix and use it explicitly. `task-080`'s hoisted `@emnapi` lock entries must
+  survive your change — `test/cli/lockfile-peer-overrides.test.ts` goes red if they do not, and
+  `bug-063` records that a plain `npm install` under npm 11.x erases them.
+- **AC5** — Check whether `bug-046`, `bug-047` and `bug-048` — the rest of the `adr-010` engines
+  cascade — are closed, made moot, or untouched by this change. Record the answer for each with the
+  command that settles it. Do **not** fix them here unless a change is a one-line consequence of yours;
+  if it is, say so explicitly rather than folding it in silently.
+- **AC6** — All six gates green.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+- Read `task-074-fix-engines-node-floor`'s Execution Notes first (`dl-015` read_related): it raised
+  `engines.node` and is the change that made this pin stale.
+- `task-001`'s Execution Notes carry the original decision to pin at 18; the new decision should read
+  as a deliberate successor to it, not as a drive-by bump.
+- `adr-010` is `accepted`; its cascade already touched CLAUDE.md, the product brief, `dna.yaml` and
+  `dl-001`. This is the build-side leaf of that same cascade.
+- Classify every AC per `dl-014`/T1. Expect characterization: the existing gates are the assertion,
+  and a manufactured failing test for a dependency version would be dead weight — say so plainly
+  rather than fabricating a red.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- filled in per phase -->
