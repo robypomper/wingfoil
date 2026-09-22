@@ -545,3 +545,20 @@ fix. The reasoning table is in the design notes.
 `src/memory/git-log.ts` is not in it, so `bug-072`'s `catch` and missing `maxBuffer` are as `main`
 left them; `src/core/index.ts` is not in it either, so there is no contention with the parallel
 tasks that share it. No existing test file was modified — the two new suites are new files.
+
+
+## Correction (2026-09-22) — the T1 table's AC3 row contradicts this document's own red transcript
+
+The T1 table classifies AC3 as characterization on the ground that its test "passes on first run
+against the pre-fix code". It did not: the `red` section of these same notes lists it among the six
+failures, and the reviewer's M3 mutation reddens it independently.
+
+The classification is nonetheless the right one, and the narrative further down states why correctly:
+the **rename behaviour** pre-existed and was not new, so AC3 pins something already true — but the
+assertion could not pass before the fix, because the phantom entry inflated the very list it counts.
+Characterization about the behaviour; red in practice because of an unrelated defect in the same
+output.
+
+Corrected here rather than by editing the table, so the contradiction and its resolution both stay
+visible. Recorded because a T1 classification is a claim like any other, and this release has rejected
+work for claims that a command would have settled — here the command was in the same document.
