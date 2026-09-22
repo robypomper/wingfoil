@@ -451,6 +451,25 @@ GLOBAL functions  main  416/421   ( 5 missed)  ->  this branch  414/419   ( 5 mi
   **100/100/100/100** (`history.ts` was 100 stmts / **0** branch on `main` — the five unreachable
   destructuring defaults — and is now 100/100 because no such branch is left).
 
+#### One correction made after the gates, worth recording rather than quietly amending
+
+`git diff --stat` reported `src/memory/git-log.ts | Bin 2190 -> 5109 bytes`. The delimiter constant
+had been written as a unicode escape for code point zero, and the editing tool resolved the escape,
+leaving a **raw NUL byte in the TypeScript source**. Everything still compiled and every test passed
+— which is precisely why it is worth a note: the only symptom was git reclassifying the file as
+binary and refusing to diff it, so a reviewer would have seen `Bin` instead of the change.
+
+```
+$ python3 -c "...count b'\\x00' in every tracked file..."
+tracked files with raw NUL bytes: ['src/memory/git-log.ts']     # before
+tracked files with raw NUL bytes: (none)                        # after
+```
+
+Fixed in `the commit below` by constructing the constant with `String.fromCharCode(0)`, which cannot be resolved
+into the file by any editor, with the reason written into its TSDoc so the next person does not
+"simplify" it back to an escape. All six gates re-run afterwards, same results as above. The check
+itself is now part of this task's evidence: every tracked file, not just the one edited.
+
 ### review-ready summary
 
 **In one sentence:** `git log` records are now framed with the one character git *refuses to write
