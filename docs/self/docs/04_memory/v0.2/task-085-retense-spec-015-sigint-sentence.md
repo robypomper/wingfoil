@@ -249,3 +249,30 @@ mechanics — `status: approved` and every other frontmatter field untouched, no
 `version:` bump. Diff limited to `spec-015` and this task's own Memory file (AC7); `bug:` is empty, so
 no `bug.sync_state` commit is emitted.
 
+### red (role: developer) — no test written; that is the T1 classification, not a shortcut
+
+Every AC is characterization (table above), so `red`'s `tests.failing(for: red-first ACs)` check is
+vacuous: the set of red-first ACs is empty. **No test file is created and no failure is
+manufactured.** The subject of this task is the wording of one approved document; there is no
+behaviour to drive, and `task-083` already carries the tests for the behaviour being described
+(`test/cli/publish-staging.test.ts`, run below as part of the suite).
+
+What `red` does instead is take the **baseline measurement** on the untouched spec, so the after-state
+in `green` is a comparison rather than an assertion — the guard against this release's top rejection
+cause, a claim about a file's state made without running the command that settles it. At `main`
+`c69a836`, `S=docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`:
+
+```
+$ grep -n 'not closed' $S
+237:…`bug-059-…`, read as **not closed** at `main` `307a62a`; this   # L1 — the stale claim
+306:…`bug-059-…`, read as **not closed** at `main` `307a62a`.        # L2 — the stale claim
+
+$ grep -c 'task-083' $S
+1                          # one mention, and it says "the unmerged branch of task-083"
+
+$ grep -n 'SIGTERM\|SIGHUP\|SIGKILL' $S ; echo "exit=$?"
+exit=1                     # the document knows only about SIGINT; it under-states the guarantee
+
+$ grep -c 'Revision (2026-' $S
+8                          # existing dated note headers, the shape the new note must match
+```
