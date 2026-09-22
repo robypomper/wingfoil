@@ -32,6 +32,20 @@ function runGit(root: string, args: readonly string[], options: CommitOptions): 
 }
 
 /**
+ * {@link runGit} for a **probe** — an invocation whose failure is an expected answer rather than an
+ * error, so git's own diagnostic must not reach the caller's stderr. Without `stdio[2]: 'ignore'`,
+ * `execFileSync` inherits fd 2 and `git show HEAD:<untracked>` prints `fatal: path … exists on disk,
+ * but not in 'HEAD'` into the user's terminal alongside the message the CLI actually meant to emit.
+ */
+function probeGit(root: string, args: readonly string[], options: CommitOptions): string {
+  return execFileSync('git', ['-C', root, ...args], {
+    encoding: 'utf-8',
+    env: options.env ? { ...process.env, ...options.env } : process.env,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+}
+
+/**
  * Stage exactly `paths` (root-relative or absolute; each passed verbatim after `--` so a path that
  * looks like a flag is never misread) and create a single commit with `message` that contains **only**
  * those paths, returning the new commit's 40-hex sha. Other changes already staged in the index are
@@ -59,4 +73,64 @@ export function commitPaths(
   // commit the whole index under a subject that names only this operation.
   runGit(root, ['commit', '--only', '--quiet', '-m', message, '--', ...paths], options);
   return runGit(root, ['rev-parse', 'HEAD'], options).trim();
+}
+
+// --- Read primitives for asserting what a commit CONTAINS (task-088, bug-076) ------------------
+//
+// `commitPaths` above bounds a commit by *pathspec*; nothing bounded it by *content*, so a path that
+// was already modified on disk rode into a commit whose subject declared only a state change. The
+// three readers below are what lets a caller assert the diff a commit actually carries, instead of
+// re-reading the file on disk and finding — truthfully, and uselessly — that it says what it should.
+
+/**
+ * git's canonical empty tree object, the same on every repository (`git hash-object -t tree
+ * /dev/null`). Used as the parent of a **root** commit so "what changed between this commit and its
+ * parent" is total rather than conditional.
+ */
+export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+/**
+ * The content of `path` at revision `rev`, or `null` when the path does not exist there (git exits
+ * non-zero, which `execFileSync` raises).
+ *
+ * `rev` is any revision git accepts before a `:` — a sha, `HEAD`, or the index stage `:0`, which is
+ * how a caller reads what the user has **staged** as opposed to what is in the working tree. The two
+ * can disagree, and the difference is load-bearing: `git add` would silently replace a staged version
+ * with the working-tree one.
+ */
+export function readPathAtRev(root: string, rev: string, path: string, options: CommitOptions = {}): string | null {
+  try {
+    return probeGit(root, ['show', `${rev}:${path}`], options);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The two-character `git status --porcelain` code for `path` (index status, then working-tree
+ * status), or the empty string when the path is clean — unmodified in both, and tracked.
+ *
+ * Deliberately git's own answer rather than a content comparison: git owns what "modified" means
+ * here (index refresh, `core.autocrlf`, `.gitattributes` filters), and a caller that re-derived it
+ * from bytes would disagree with `git status` on exactly the machines where it matters.
+ */
+export function pathPorcelainStatus(root: string, path: string, options: CommitOptions = {}): string {
+  const line = runGit(root, ['status', '--porcelain', '--', path], options).split('\n')[0] ?? '';
+  return line.length === 0 ? '' : line.slice(0, 2);
+}
+
+/** The commit's parent sha, or {@link EMPTY_TREE_SHA} when it is a root commit. */
+export function commitParent(root: string, sha: string, options: CommitOptions = {}): string {
+  try {
+    return probeGit(root, ['rev-parse', '--verify', '--quiet', `${sha}^`], options).trim();
+  } catch {
+    return EMPTY_TREE_SHA;
+  }
+}
+
+/** Root-relative paths whose content differs between revisions `from` and `to`, in git's own order. */
+export function changedPathsBetween(root: string, from: string, to: string, options: CommitOptions = {}): string[] {
+  return runGit(root, ['diff', '--name-only', from, to], options)
+    .split('\n')
+    .filter((path) => path.length > 0);
 }

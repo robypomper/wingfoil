@@ -242,6 +242,14 @@ export function verifyFrontmatterEdit(before: string, after: string, expected: R
   const parsedBefore = parseFrontmatter(before);
   const original = typeof parsedBefore === 'string' ? {} : parsedBefore;
 
+  return [...ownedFieldProblems(rendered, expected), ...unownedFieldProblems(original, rendered, expected)];
+}
+
+/** Each field the operation owns that does not hold its expected value (`undefined` = must be absent). */
+function ownedFieldProblems(
+  rendered: Readonly<Record<string, unknown>>,
+  expected: Readonly<Record<string, string | undefined>>,
+): string[] {
   const problems: string[] = [];
   for (const [field, value] of Object.entries(expected)) {
     if (value === undefined) {
@@ -250,6 +258,16 @@ export function verifyFrontmatterEdit(before: string, after: string, expected: R
       problems.push(`field '${field}' is ${JSON.stringify(rendered[field])}, expected ${JSON.stringify(value)}`);
     }
   }
+  return problems;
+}
+
+/** Each field the operation does NOT own whose parsed value moved. Sorted by name (REQ-SYS-07). */
+function unownedFieldProblems(
+  original: Readonly<Record<string, unknown>>,
+  rendered: Readonly<Record<string, unknown>>,
+  expected: Readonly<Record<string, string | undefined>>,
+): string[] {
+  const problems: string[] = [];
   const others = [...new Set([...Object.keys(original), ...Object.keys(rendered)])].filter((field) => !(field in expected)).sort();
   for (const field of others) {
     if (!isDeepStrictEqual(original[field], rendered[field])) {
@@ -257,4 +275,83 @@ export function verifyFrontmatterEdit(before: string, after: string, expected: R
     }
   }
   return problems;
+}
+
+/**
+ * How much of a document an operation is entitled to change (task-088, `bug-076`), per
+ * `spec-010-memory-frontmatter-schema` § "Field-write ownership":
+ *
+ * - `declared-fields-only` — the operation owns `status` (plus `rejection_reason` on `memory.reject`)
+ *   and **nothing else**: no other frontmatter field, and not one byte of the body. This is
+ *   `memory.approve`, `memory.reject` and `memory.deprecate`.
+ * - `carries-content` — the operation is defined as filling content *and* moving state, so the body
+ *   and the type's other frontmatter fields may legitimately change. This is `memory.submit` alone,
+ *   and the asymmetry is deliberate rather than an oversight: an approval that carried a body would
+ *   attest, under an approver's name, to content no commit subject mentions.
+ */
+export type DocumentScope = 'declared-fields-only' | 'carries-content';
+
+/**
+ * The post-condition of a whole-document edit: {@link verifyFrontmatterEdit}'s frontmatter rules plus
+ * the body, gated by `scope`. Returns the problems found, empty when the edit is within scope.
+ *
+ * Under `carries-content` only the `expected` fields are checked — every other field and the body are
+ * the operation's to write. Under `declared-fields-only` an unowned field or a changed body is a
+ * problem, which is the rule `bug-076` showed nothing was enforcing.
+ *
+ * Deterministic (REQ-SYS-07): owned fields in `expected`'s order, then other fields sorted by name,
+ * then the body.
+ */
+export function verifyDocumentEdit(
+  before: string,
+  after: string,
+  expected: Readonly<Record<string, string | undefined>>,
+  scope: DocumentScope,
+): string[] {
+  const rendered = parseFrontmatter(after);
+  if (typeof rendered === 'string') return [rendered];
+  const problems = ownedFieldProblems(rendered, expected);
+  if (scope === 'carries-content') return problems;
+
+  const parsedBefore = parseFrontmatter(before);
+  problems.push(...unownedFieldProblems(typeof parsedBefore === 'string' ? {} : parsedBefore, rendered, expected));
+  if (splitFrontmatter(before).body !== splitFrontmatter(after).body) {
+    problems.push('the body changed although this operation does not own it');
+  }
+  return problems;
+}
+
+/**
+ * Name, in a form a person can act on, every way `after` differs from `before` — the frontmatter
+ * fields whose parsed value moved, and whether the body moved. `before` is `null` when the document
+ * does not exist at the revision being compared against.
+ *
+ * This is the *reporting* half of {@link verifyDocumentEdit}: the verifier answers "is this edit in
+ * scope", this answers "so what exactly is in the way". A difference that changes no parsed value and
+ * no body byte — a reordered comment, a requoted scalar — is still a difference git will commit, so
+ * it is reported as such rather than dropped.
+ *
+ * Deterministic (REQ-SYS-07): fields sorted by name, then the frontmatter-text fallback, then the body.
+ */
+export function describeDocumentChanges(before: string | null, after: string): string[] {
+  if (before === null) return ['the document is not tracked at HEAD'];
+  if (before === after) return [];
+
+  const parsedBefore = parseFrontmatter(before);
+  const parsedAfter = parseFrontmatter(after);
+  const original = typeof parsedBefore === 'string' ? {} : parsedBefore;
+  const rendered = typeof parsedAfter === 'string' ? {} : parsedAfter;
+
+  const changes = [...new Set([...Object.keys(original), ...Object.keys(rendered)])]
+    .sort()
+    .filter((field) => !isDeepStrictEqual(original[field], rendered[field]))
+    .map((field) => `frontmatter field '${field}'`);
+
+  const beforeSplit = splitFrontmatter(before);
+  const afterSplit = splitFrontmatter(after);
+  if (changes.length === 0 && beforeSplit.frontmatter !== afterSplit.frontmatter) {
+    changes.push('the frontmatter text (comments or formatting)');
+  }
+  if (beforeSplit.body !== afterSplit.body) changes.push('the body');
+  return changes.length > 0 ? changes : ['the file content'];
 }

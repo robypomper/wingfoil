@@ -715,7 +715,10 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
 
   const message = formatMemoryCommitMessage({ type, op: 'submit', ids: [id] });
   const rendered = renderSubmitDocument(content, to);
-  const committed = commitMemoryTransition(root, prepared.value, rendered, message, { [REJECTION_REASON_FIELD]: undefined });
+  // `carries-content`: submit is the ONE verb entitled to bring the author's body and required fields
+  // into its commit (spec-010's field-write ownership row), so it is not guarded against a modified
+  // working tree and its commit need not differ from HEAD~1 by `status` alone (task-088, bug-076 AC4).
+  const committed = commitMemoryTransition(root, prepared.value, rendered, message, { [REJECTION_REASON_FIELD]: undefined }, 'carries-content');
   if (!committed.ok) return committed;
   return coreOk({ id, path, from, to }, { sha: committed.value, message });
 };
