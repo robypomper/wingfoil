@@ -291,3 +291,27 @@ $ git diff --stat main...HEAD
 
 Three Memory files. No source, test, workflow or configuration file — the `bug-062` line is its
 `status:` sync, which `dev-loop`'s `bug.sync_state` owns.
+
+### review (role: reviewer) — AC-by-AC close-out
+
+`tests.bdd.run`: this task has no BDD `.feature` of its own — it amends a tech-spec, and no scenario
+under `docs/02_requirements/02_bdd/features/` describes the text of `spec-015`. The repository's
+acceptance suites are run as part of `npm test` (the `refactor` table above: 106 suites / 1714 tests,
+exit 0), so the gate is satisfied and nothing was skipped; there is simply no task-specific scenario
+to add, and inventing one to have something to point at would be the fabricated red `dl-014`/T1
+forbids.
+
+| AC | Status | Evidence |
+|---|---|---|
+| AC1 | met | The §3 note's closing paragraph no longer names either failure. The full `grep` audit of every surviving `npm ci` / `prepublishOnly` hit is in the `green` section: four are the pipeline's own design text, two are the AC4 blockquote, two are bug names marked `closed`. |
+| AC2 | met — **case one** | `bug-059` is `planned` on `main` and `in-review` on the unmerged `task/task-083-fix-staging-interrupt-teardown`; not `closed` under either reading, so the sentence stays and cites the bug by id. Commands in the `design` section. `task-083`'s fix is deliberately not described. |
+| AC3 | met | `grep -n 'bug-05' …` → 0 hits before, **7** after, covering `bug-056`, `bug-057`, `bug-059`, each with its fix task and the commit that carries it. |
+| AC4 | met | `git diff` shows no frontmatter line changed: `status: approved`, `supersedes: ""` and the rest are untouched; tech-specs carry no `version:` field; the superseded wording survives only as the blockquote in the dated note. |
+| AC5 | met | New text cites ids, headings and `runStaging`'s `finally`; the edited paragraph carried no offsets to convert. `README.md:115` and the `dl-001` offsets elsewhere in the document are left standing on purpose — the boundary the AC and the approve commit both draw. |
+| AC6 | met | Three Memory files, nothing else (`git diff --name-only main...HEAD` audit above). |
+| AC7 | met | Every state claim re-derived from frontmatter and `git merge-base` in this worktree at `main` `307a62a`, commands and outputs inline. The task's own Description was re-checked, not trusted, and it held. |
+
+**Nothing is left in these notes for a later reader to action.** The one judgement this run made that
+a future change must revisit — the `SIGINT` sentence's tense — is not parked here: it is written into
+`spec-015` itself, beside the `bug-059` id that will carry it, because a `done` task's Execution Notes
+are not a schedule.
