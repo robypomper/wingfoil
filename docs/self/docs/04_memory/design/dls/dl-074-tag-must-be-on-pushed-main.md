@@ -170,3 +170,32 @@ leans on this assertion. Weakening it trades a documented precondition for a sil
   assertion enforces; `dl-056-first-real-publishing-run` (`ready`), whose checklist is where a
   precondition like this would naturally be read.
 - **Traceability:** REQ-SYS-09 (distribution as an npm package, the pipeline this gates).
+
+
+## Correction (2026-09-22) — the figure in this document's approve commit was an extrapolation, and the condition it described has since been discharged
+
+The ratification commit's `Reason:` cites the divergence as "over one hundred and twenty today". That
+number was **not measured at the time it was written**: the last actual measurement was 106, taken
+earlier the same day, and the larger figure was inferred from commits accruing since. Recording it
+because this release has rejected work repeatedly for exactly that — a number stated from memory
+rather than from a command — and a ratification body is a poor place for it.
+
+More importantly, the condition itself has changed. Measured on 2026-09-22 while the
+`release-publishing` phase plan was being authored:
+
+```
+$ git rev-parse --short origin/main   # a2e3586
+$ git rev-parse --short main          # a2e3586 at that moment
+$ git rev-list --count origin/main..main
+0
+```
+
+The history **has been pushed**. `dl-068`'s Action 3, which this document depends on, is discharged,
+and `bug-055`'s record of a `GH013` push-protection rejection cleared through GitHub's allow-secret
+URL describes a push that already happened rather than one still owed.
+
+**None of this weakens the decision.** The count was back to 4 within the same session as other
+branches merged, and 5 by the time this note was written — which is the argument the ratification
+actually rested on: not that the number is large, but that it is never reliably zero at the moment it
+matters. That is why option (b) was adopted alongside (a), and why the phase plan carries the
+`git rev-list` command rather than any number.
