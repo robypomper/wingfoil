@@ -71,4 +71,117 @@ pipeline it governs, days before that pipeline is meant to run for real.
 
 ## Execution Notes
 
-<!-- filled in per phase -->
+### design (role: architect)
+
+**Branch / worktree.** `task/task-084-fix-spec-015-stale-stage-1-note`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-084`, based on `main` at **`307a62a`**
+(`wf(task): approve task-084-fix-spec-015-stale-stage-1-note [pending → backlog]`). All evidence
+below was taken in this worktree at that base.
+
+**`agent.read_related` (dl-015).** `depends_on: []` — no upstream task's Execution Notes to load.
+Nothing to acknowledge; the hard gate is satisfied vacuously.
+
+**`agent.verify_specs`.** The artefact this task amends is itself an existing, `approved` tech-spec
+(`spec-015-packaging-publishing`); no new `tech-spec` is scaffolded, so `design` passes through
+without an approver gate (dev-loop plan §3.2). `tech-spec.approved` holds:
+
+```
+$ grep -n '^status:' docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+5:status: approved
+```
+
+**`agent.classify_acs` (T1, dl-014 + `testing` directive).** All seven ACs are
+**characterization**; **none is red-first**, and **no test is added by this task**.
+
+| AC | Class | Why |
+|---|---|---|
+| AC1 | characterization | A property of document text. Settled by `grep`, which runs against the file as it stands before and after — nothing new to make fail. |
+| AC2 | characterization | Same: the surviving sentence plus a `bug-059` citation, checked by `grep`. The branch of AC2 taken is decided from `bug-059`'s frontmatter, not from code. |
+| AC3 | characterization | The AC states its own check (`grep -n 'bug-05' …` returns none before, hits after). That "none before" is a *measurement of the starting state*, not a fabricated red: no artefact was created to produce it. |
+| AC4 | characterization | `dl-047` in-place amendment — asserted by diffing frontmatter, which is unchanged by construction. |
+| AC5 | characterization | `dl-075` citation shape in the edited paragraphs — a reading of the new text. |
+| AC6 | characterization | Scope of the diff — `git diff --stat`. |
+| AC7 | characterization | Requires commands to be *run and recorded*; it is satisfied by this section, not by a test. |
+
+This is a documentation task, so the honest statement is the plain one: there is no behaviour to
+drive red. `red` adds no test and manufactures no failure — per `dl-014`/T1 and the `testing`
+directive, fabricating a red or adding dead code to force one is prohibited, and the AC3 "returns
+none before" grep is a baseline reading of the untouched document, not a red. `refactor`'s
+`tests.passing` / `tests.coverage` / `docs.api.*` / `lint.clean` gates are satisfied by the diff
+touching no file those gates read (AC6); they are re-run, not skipped.
+
+**AC7 — every claim re-verified at execution time. The task's own Description was not taken on
+trust.** Commands and their output, all at `main` `307a62a`:
+
+```
+$ grep -H '^status:' docs/self/docs/04_memory/bugs/bug-056-npm-ci-fails-under-pinned-npm-10-9.md \
+                     docs/self/docs/04_memory/bugs/bug-057-timestamp-assertions-reject-zulu-offset.md \
+                     docs/self/docs/04_memory/bugs/bug-059-sigint-leaks-staging-registry-and-token.md
+…bug-056-npm-ci-fails-under-pinned-npm-10-9.md:status: closed
+…bug-057-timestamp-assertions-reject-zulu-offset.md:status: closed
+…bug-059-sigint-leaks-staging-registry-and-token.md:status: planned
+
+$ grep -H '^status:' docs/self/docs/04_memory/v0.2/task-080-fix-npm-ci-under-pinned-npm.md \
+                     docs/self/docs/04_memory/v0.2/task-081-fix-timestamp-offset-assertions.md \
+                     docs/self/docs/04_memory/v0.2/task-083-fix-staging-interrupt-teardown.md
+…task-080-fix-npm-ci-under-pinned-npm.md:status: done
+…task-081-fix-timestamp-offset-assertions.md:status: done
+…task-083-fix-staging-interrupt-teardown.md:status: backlog
+
+$ for c in fdee8cb 65021c2 ce48681 d1aa785; do git merge-base --is-ancestor $c main && echo "$c on main"; done
+fdee8cb on main   # wf(bug): sync bug-056… [in-review → resolved → closed]
+65021c2 on main   # wf(bug): sync bug-057… [in-review → resolved → closed]
+ce48681 on main   # Merge branch 'task/task-080-fix-npm-ci-under-pinned-npm'
+d1aa785 on main   # Merge branch 'task/task-081-fix-timestamp-offset-assertions'
+```
+
+So both clauses AC1 names are stale on reproduced evidence, and the ids AC3 requires exist and are
+reachable.
+
+**AC2 — which case applied, and why. Case one: `bug-059` is NOT closed, so the sentence stays and
+cites `bug-059` by id.** Measured, not assumed:
+
+```
+$ grep -n '^status:' docs/self/docs/04_memory/bugs/bug-059-sigint-leaks-staging-registry-and-token.md
+5:status: planned
+$ git merge-base --is-ancestor task/task-083-fix-staging-interrupt-teardown main \
+    && echo "on main" || echo "NOT an ancestor of main"
+NOT an ancestor of main
+$ git show task/task-083-fix-staging-interrupt-teardown:docs/self/docs/04_memory/bugs/bug-059-sigint-leaks-staging-registry-and-token.md | grep -n '^status:'
+5:status: in-review
+```
+
+`task-083-fix-staging-interrupt-teardown` is in review on its own unmerged branch, and `bug-059`
+reads `in-review` there — but `planned` on `main`, and `in-review` is not `closed` on either. Under
+**both** readings the AC2 re-tense branch is not reached. The spec is therefore amended to say the
+`SIGINT` hole is **still open**, citing `bug-059`, with the commit the reading was taken at, so the
+claim carries its own expiry rather than decaying silently (the failure mode `dl-075` describes and
+`bug-062`'s own re-grade note demonstrates).
+
+Deliberately **not** written into the spec: anything about what `task-083` changed. Its fix exists
+only on an unmerged branch; describing it in an `approved` spec as if it were on `main` would
+reintroduce exactly the defect this task removes, in the opposite direction. When `task-083` merges,
+`bug-059` closes and whatever carries that close is free to re-tense this sentence — which is the
+point of citing the id instead of the symptom.
+
+**AC5 — `dl-075` fix-on-touch boundary.** The paragraph this task rewrites is located by its own
+words, per its own Implementation Notes:
+
+```
+$ grep -n "Out of this revision's scope" docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md
+232:*Out of this revision's scope, recorded so §3 is not read as a statement that the pipeline runs
+```
+
+That paragraph contains **no** `path:line` citation of any kind, so fix-on-touch has nothing to
+convert in it; the new text it is replaced by, and the new Revision note, cite element ids, headings
+(`spec-015` §3 stage 1 / stage 2), a symbol (`runStaging`'s `finally`) and commit hashes — never a
+bare offset. Left alone on purpose, because they sit outside the paragraphs this task edits: the
+offsets elsewhere in the document — `README.md:115` (§1 bullet and the *§1 Node floor* note) and
+`dl-001:37-42` / `dl-001`'s `:19`, `:35` (also the *§1 Node floor* note). Converting those would turn
+a two-sentence correction into a document-wide rewrite of an approved spec, which AC5 and this task's
+approve commit both forbid.
+
+**Design conclusion.** One paragraph rewritten in place, one dated Revision note appended in the
+shape the document's two existing notes use (quoting the wording it replaces), `dl-047` mechanics —
+`status: approved` and every other frontmatter field untouched, no supersede, no `version:` bump.
+Diff limited to this file, `spec-015` and `bug-062` (AC6).
