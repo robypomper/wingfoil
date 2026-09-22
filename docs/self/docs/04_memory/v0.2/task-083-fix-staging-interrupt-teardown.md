@@ -2,7 +2,7 @@
 id: "task-083-fix-staging-interrupt-teardown"
 type: task
 title: "Run `publish:staging` teardown on SIGINT/SIGTERM so an interrupt leaves no orphaned Verdaccio, work dir or live `_authToken`"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "release", "distribution", "security"]
