@@ -1,45 +1,78 @@
 ---
 id: "bug-080-read-status-at-reads-the-current-path-at-pre-rename-commits"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`readStatusAt` reads the element's current path at pre-rename commits, so a renamed element's transitions report null states — five `release` elements in this repository are in that state now"
+status: open
+severity: "high"
+release-origin: "v0.2"
+release: ""
+feature: "P1.10"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`reconstructMemoryTransitions` walks an element's commits with rename-following, but `readStatusAt`
+reads each commit's content with `git show <sha>:<currentPath>`. At any commit older than a rename the
+element did not live at that path, so the read fails, and the transition is reported with `from` and
+`to` as `null`.
+
+This is not a future risk. **This repository is in that state right now**: `a353c12` renamed five
+`release` elements from `planning/v1/` to `planning/rl-v1/`, and all five report null states for every
+pre-rename transition.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Against this repository, using a build of `main` (the walk itself is exercised directly, since
+`bug-075` means the CLI cannot be pointed at our Memory):
+
+1. Run `reconstructMemoryTransitions` on `minor-v0.1`.
+2. Observe five entries whose `from` and `to` are both `null`, and five
+   `fatal: path 'docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md' exists on disk, but not in
+   '<sha>'` lines on stderr.
+3. `git log --follow --name-status -- <path>` shows the `R100` edge at `a353c12`.
+
+Reproduced independently by two agents on 2026-09-22 while `task-089` was in review.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Each commit is read at the path the element occupied **at that commit**. `git log --follow
+--name-status` already yields the historical path for every edge in the walk, so the information is
+available in the walk that is already being performed.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Five pre-rename transitions in this repository's own audit trail report no states at all, and the
+reader emits a `fatal:` per commit while exiting 0.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**This is what remains after `task-089`.** That task fixed the walk — it no longer attributes the
+template's commit to the element — but the walk and the *read* use different notions of the path, and
+only the first was corrected. The two defects were adjacent enough to be confused: `bug-077`'s phantom
+entry and this bug's null states both surfaced as `fatal:` lines on stderr.
+
+**It absorbs `bug-071` entirely.** That bug asked to suppress `readStatusAt`'s stderr, treating the
+`fatal:` as noise from an expected condition. It is not noise in either case: under `bug-077` it
+marked a fabricated entry, and here it marks a transition whose states could not be read. Threading
+the historical path removes both the null states and the lines. When this is fixed, `bug-071` should
+be closed as absorbed rather than worked.
+
+Note the ordering that produced this: `bug-071` was filed first and described the symptom; `bug-077`
+found one cause and was fixed; this is the other. A single stderr line stood for two distinct defects,
+and suppressing it — as the first bug proposed — would have hidden both.
+
+**Severity is about the trail, not the tool.** Nothing crashes and no wrong state is written; the
+audit trail simply cannot answer what happened to a renamed element, which is the question **P1.10**
+exists to answer.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-22): **high**. It is live in this repository, it defeats P1.10 for any renamed
+  element, and renames are not exotic here — a Memory type whose `path` interpolates an id renames
+  every element under it when that id changes, which is exactly what `a353c12` was.
+- No fix task filed. The remedy is known and narrow — thread each commit's historical path from the
+  `--follow --name-status` output into `readStatusAt` — but the approver has not scheduled it, and
+  `bug-071` should close with it rather than before it.
