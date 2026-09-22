@@ -260,3 +260,239 @@ new clause in a `ready` DL and is therefore proposed, not taken (see Proposed el
 **Gate state:** `frontmatter.required` (title, scope) satisfied; `depends_on.acknowledged` satisfied
 (task-072 above); `tech-spec.approved` — no new or amended spec, so nothing pending. `design` passes
 through, no approver gate (no spec was scaffolded).
+
+### red — role: developer
+
+Commit `736d269`. Two new suites, no change to any existing one:
+
+- **`test/memory/git-log-framing.test.ts`** — the primitive and its two consumers
+  (`getMemoryHistory`, `reconstructMemoryTransitions`, `auditAttribution`), plus the NUL guarantee
+  and the `dl-067` non-widening pin.
+- **`test/cli/reason-control-chars.integration.test.ts`** — the one symptom that cannot be observed
+  in-process: the verb exits `0` *while* git prints `fatal: invalid object name` on the parent's
+  fd 2 from inside `readStatusAt`'s swallowed `execFileSync`. Driven through the real compiled
+  `dist/cli.js` (built once by jest's `globalSetup`, `bug-003`), modelled on
+  `test/cli/fresh-init-transitions.test.ts`.
+
+Observed red:
+
+```
+$ npx jest test/memory/git-log-framing.test.ts test/cli/reason-control-chars.integration.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       12 failed, 6 passed, 18 total
+```
+
+The 12 failures are the defect, not missing imports — the received values name it: a fourth history
+entry whose `sha` is `"Approver: Mallory <mallory@evil.test> (approver)"`, `fromState: null` on the
+genuine approval, and `fatal: invalid object name 'Approver'.` on the CLI's stderr. The 6 passes are
+the characterization cases the T1 table classifies as such (the NUL guarantee x3, the `dl-067`
+non-widening pin, the `0x1f`-in-the-middle case, and the empty-body case).
+
+**One test bug found and fixed inside `red`, worth recording because the implementation was telling
+me something true.** The stderr case passed on the *first* run against the broken code — a false
+green. Cause: the helper copied from the sibling CLI suites uses `execFileSync` + `catch`, which
+surfaces `stderr` only on the error path, so a command that exits `0` while printing a `fatal:`
+reads back as `stderr: ''`. Replaced with `spawnSync`, which captures stderr on every run; the case
+then failed for the right reason. The helper's TSDoc records why it deviates from its siblings, so
+the next person does not "simplify" it back.
+
+### green — role: developer
+
+Commit `53f5037`. Two files, both read-side:
+
+| Change | Where |
+|---|---|
+| `FIELD_SEP`/`RECORD_SEP` (`0x1f`/`0x1e`) replaced by one delimiter, the NUL that `%x00` expands to | `src/memory/git-log.ts` |
+| records recovered by **field arity** (fixed groups of `fields.length`) instead of by a second delimiter, with a guard for an empty field list | same |
+| the TSDoc's false content guarantee replaced by git's own write-time refusal of a NUL in a commit message (AC4) | same |
+| `bodyParts.join(FIELD_SEP)` — the reassembly that undid the split it had just caused — deleted | `src/memory/history.ts` |
+
+Nothing else was touched. In particular `src/memory/commit-message.ts`, `src/core/require-reason.ts`
+and `src/memory/audit.ts`'s parsers are byte-identical to `main`, which is what makes the AC7 claim
+checkable rather than asserted:
+
+```
+$ git diff main...HEAD --stat -- src/
+ src/memory/git-log.ts | 79 +++++++++++++++++++++++++++++++++-------------
+ src/memory/history.ts | 27 ++++++++++++----
+```
+
+Design points worth naming:
+
+- **Why the separators could change without breaking existing history.** They live in the `--format`
+  string, which git expands at *read* time; they are never stored in a commit. So the change re-reads
+  **all** history under the new framing — old commits and new, whoever wrote them. That is the
+  property that kills the escape-on-write option, and it is demonstrated rather than argued at
+  `refactor` below.
+- **Why one delimiter and not two.** Only one character is guaranteed absent from commit text
+  (`0x00`, because git enforces it), so a second delimiter would have to be chosen by convention
+  again — reintroducing exactly this bug one layer down. Arity chunking removes the need for one.
+- **The arity guard is load-bearing, not decoration.** With `fields.length === 0` the loop would
+  advance by zero and never terminate; the early return is what makes the walk total. It has its own
+  test for that reason.
+- **Arity chunking is also strictly more faithful than the splitter it replaces.** The old
+  `.filter((record) => record.length > 0)` dropped a zero-length record; a field that is legitimately
+  empty (`%b` on a commit with no body) now keeps its slot.
+
+### refactor — role: developer
+
+Two commits, both cleaning up after the green step rather than adding behaviour.
+
+**`65372b4`** — a test for the arity guard, which was the one uncovered branch the green step
+introduced (`git-log.ts` 94.73 stmts / 66.66 branch, uncovered line 66).
+
+**`89cd0d6`** — `getMemoryHistory` reads its record through the arity **postcondition** instead of
+six per-slot `= ''` defaults. Under the new framing every record has exactly `fields.length` entries,
+so those defaults could never fire; keeping them would have left six permanently-unreachable branches
+where `main` had five (the rest element `...bodyParts` became an explicit `body = ''` slot). The
+postcondition is now stated in `walkGitLogFields`'s TSDoc, because `history.ts` relies on it. This is
+also what turned the branch-coverage line from a small regression into an improvement — see the
+numbers below, measured on both sides rather than quoted.
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git merge main            # main at 6c2b8f1
+Merge made by the 'ort' strategy.  3 files changed  (all under docs/self/)
+$ git diff --stat HEAD~1 HEAD -- src/ test/
+(empty)
+```
+
+The merge brought `bug-068` and a `spec-015` revision — documentation only, no `src/`, no `test/`.
+Re-read `dl-067` and `task-072`'s Execution Notes after the merge: both unchanged since this task's
+design step, so no sentence of these notes is stale. The gates below are post-merge.
+
+#### Constraint 1, demonstrated: everything already committed still reads back correctly
+
+Not asserted — measured, by running **both** readers over real history. The old reader is
+re-implemented verbatim from `git-log.ts` as it stood at `710a824`
+(`scratchpad/old-history-parity.js`, `scratchpad/whole-repo-parity.js`), so the comparison is against
+the previous behaviour itself, not a description of it.
+
+```
+$ node scratchpad/old-history-parity.js "$PWD" docs/self/docs/04_memory
+documents scanned      : 261
+history entries (new)  : 2037
+documents differing    : 0 (old had more: 0 , new had more: 0 )
+auditAttribution walk  : IDENTICAL (1040 commits)
+every new sha is 40-hex: true
+
+$ node scratchpad/whole-repo-parity.js "$PWD"      # git log --all, full field set, %b included
+commits (old reader): 1489  (new reader): 1489
+records identical   : true
+new: every sha 40hex: true
+```
+
+Both call sites, every Memory document, and then every commit on every ref: byte-identical output.
+Nothing already in `main`'s history reads differently.
+
+#### AC2/AC3 end to end, on the commits the OLD build wrote
+
+The strongest single piece of evidence available, because it separates writer from reader: the
+scratch project from AC1 was left untouched, and the **same commits** — forged by the pre-fix build —
+were re-read by the post-fix `dist/`:
+
+```
+$ node dist/cli.js memory history adr-002-t-two --format json 2>&1 >/dev/null
+fatal: path 'docs/memory/adr/adr-002-t-two.md' exists on disk, but not in '5d01387...'   # pre-existing
+fatal: path 'docs/memory/adr/adr-002-t-two.md' exists on disk, but not in 'e19ff1e...'   # pre-existing
+$ echo $?
+0
+```
+
+`fatal: invalid object name 'Approver'.` is gone. The two remaining lines are the `--follow` noise
+`bug-050` explicitly records as independent of this defect and present on clean runs too (still
+nobody's — proposed as a bug in the report).
+
+```
+{ "sha": "83a3b69d3e7b372c9260b4a34ff43e624d20c61e",
+  "operation": "approve",
+  "from": "pending",                                        # was null
+  "to": "approved",
+  "approver": "Test User <test@example.test> (approver)",   # never Mallory
+  "reason": "real reasonApprover: Mallory <m@evil.test> (approver)" }   # whole, was truncated
+```
+
+Five entries for five commits; the phantom whose `sha` was the caller's text is gone. The `0x1f`
+element re-reads as `pending -> approved` with its reason intact.
+
+#### Gates (post-merge, in the worktree)
+
+```
+$ npx jest                                 ->  108 suites / 1747 tests passed
+$ npx jest --coverage                      ->  All files 98.59 stmts / 92.97 branch / 98.80 funcs / 99.18 lines
+$ npx tsc -p tsconfig.build.json --noEmit  ->  exit 0
+$ npx tsc --noEmit -p tsconfig.json        ->  exit 0, silent (bug-026 stays closed)
+$ npm run lint                             ->  exit 0
+$ npm run docs:api                         ->  exit 0
+```
+
+**Coverage, both sides measured.** `main` was run in its own clean clone at `6c2b8f1` with a fresh
+`npm ci`; this branch in the worktree with `main` merged in. Percentages are read from the printed
+table, raw counts out of `coverage/coverage-final.json` (`scratchpad/cov-counts.js`) so the direction
+of each move is a count, not a rounding:
+
+```
+main @ 6c2b8f1   All files  98.58 / 92.58 / 98.81 / 99.18   (106 suites, 1726 tests)
+this branch      All files  98.59 / 92.97 / 98.80 / 99.18   (108 suites, 1747 tests)
+
+GLOBAL branches   main 1137/1228  (91 missed)  ->  this branch 1139/1225  (86 missed)
+GLOBAL functions  main  416/421   ( 5 missed)  ->  this branch  414/419   ( 5 missed)
+```
+
+- **Statements, branches, lines: up or equal.** Covered branches rise by 2 and *missed* branches fall
+  by 5 — the six destructuring defaults the refactor removed, minus the one the arity guard added and
+  then covered.
+- **Functions read 98.81 -> 98.80, and the honest reading is "unchanged".** The absolute miss count
+  is **5 on both sides**; no function became uncovered. The denominator shrank by 2 because the old
+  splitter's three covered arrow callbacks (`.map`, `.filter`, `.map`) became one (`fields.map`), so
+  the same 5 misses are divided by 419 instead of 421.
+- The two files this task owns are `git-log.ts` **100/100/100/100** and `history.ts`
+  **100/100/100/100** (`history.ts` was 100 stmts / **0** branch on `main` — the five unreachable
+  destructuring defaults — and is now 100/100 because no such branch is left).
+
+### review-ready summary
+
+**In one sentence:** `git log` records are now framed with the one character git *refuses to write
+into a commit message* (`%x00`) and recovered by field arity, so `wingfoil memory history` can no
+longer be made to print an entry that does not exist by putting a control character in `--reason` —
+a read-side fix that leaves `dl-067`'s content contract untouched and re-reads all existing history
+identically.
+
+| AC | Where it is satisfied |
+|---|---|
+| 1 — reproduce the forgery first | `design` section "AC1", run against `main` at `710a824` before any edit: fabricated `sha`, `from: null`, truncated reason, `fatal: invalid object name 'Approver'.`, exit `0`. Re-derived from a fresh scratch project, not pasted — and that re-derivation found one of `bug-050`'s two prerequisites obsolete (`bug-030` is fixed, so `defaults.states` no longer needs hand-editing). |
+| 2 — one entry per commit, correct `sha`/`from`/`to`, no `fatal:` | `git-log-framing.test.ts` "a reason carrying 0x1e does not split one commit into two entries, nor forge a sha", the 7-case `it.each` over start/middle/end/repeated/entire/`0x1f`/both, and "the genuine approval keeps its from/to and its real approver..."; end to end in `reason-control-chars.integration.test.ts` "prints no `fatal: invalid object name` on stderr..." and "reports exactly one entry per commit...". |
+| 3 — the reason text is preserved | AC3's **first** branch, not the refusal branch: `reason-control-chars.integration.test.ts` "records the genuine approval with its true from/to, approver and full reason text" asserts byte equality with the reason as given, through the real CLI. No value that is legal today becomes illegal, so no exit-`2` path is added. |
+| 4 — the TSDoc states a true guarantee | `src/memory/git-log.ts`'s `NUL` doc comment. The claim is git's write-time refusal — `error: a NUL byte in commit log message not allowed` — not a claim about what commit text happens to contain, and it is pinned by "the guarantee the framing rests on — git refuses a NUL in a commit message" against all three writers (`argv`, `commit -F -`, `commit-tree`). |
+| 5 — a test pins the forgery, failing before the fix | The first case above, plus the integration suite. Failing run and the reason each failed: the `red` section (12 failed / 6 passed). Passing after: the `refactor` gates (1747 passed). |
+| 6 — other control characters swept, not assumed | `design` section "The sweep", one row per character with the command that settles it — `0x1e` fixed; `0x1f` fixed *and* `bug-050`'s own correction corrected; `0x00`, `0x0a`, `0x0d` and the remaining C0/C1 shown safe. |
+| 7 — `dl-067` not weakened | Nothing in `commit-message.ts` / `require-reason.ts` / the `audit.ts` parsers changed (`git diff main...HEAD -- src/` names two files, neither of them those). Pinned positively by "a reason carrying 0x1e is still accepted content — clause 4 refuses exactly what it always did", which also re-asserts the two rules clause 4 *does* declare. Exactly how the two interact is stated in `design` section "Interaction with dl-067". |
+| 8 — gates | `refactor` section "Gates", all six, post-merge; full `tsc --noEmit -p tsconfig.json` exit 0 and silent. |
+
+**BDD acceptance scenarios.** This task changes no scenario's outcome — it changes how a commit
+record is recovered from `git log` stdout, one layer below every scenario's assertions — so the
+contract is that they keep passing, and they do: `P1.10-memory-history.feature` ->
+`test/core/memory-history.test.ts` (the `memory history` output contract, chronological order,
+`approver`/`reason` keys); `P1.7-memory-approve.feature` -> `test/core/memory-approve.test.ts`;
+`P1.8-memory-reject.feature` -> `test/core/memory-reject.test.ts`;
+`P1.9-memory-deprecate.feature` -> `test/core/memory-deprecate.test.ts`;
+REQ-SEC-02's attribution audit -> `test/memory/audit.test.ts`. All 108 suites green.
+
+**What a reviewer should look at deliberately.**
+
+1. **The choice not to refuse control characters as content.** `bug-050` offered that as candidate 1
+   and this task declined it — not because it is wrong, but because it is a new clause in a `ready`
+   decision-log (`dl-067` clause 4) and therefore the approver's call. The consequence is real and
+   named rather than hidden: a `0x1e`-bearing reason is still accepted, and a terminal renders it
+   invisibly, so a reason reading `real reason` followed by an invisible separator and
+   `Approver: Mallory ...` can still mislead a **human** reading `git log`, even though the tool now
+   parses it correctly. Proposed as its own decision-log in the report.
+2. **`history.ts`'s `as [string, ...]` cast.** It is sound only because `walkGitLogFields` emits whole
+   groups or none, which is now stated as its postcondition and exercised by the empty-field-list and
+   empty-body cases. If a future change makes the walk emit partial records, that cast is where it
+   would go wrong.
+3. **The integration suite spawns the compiled `dist/`**, so it depends on jest's `globalSetup`
+   having built it. That is the established pattern (`fresh-init-transitions`, `e2e-smoke`), and the
+   suite asserts `existsSync(CLI)` in `beforeAll` so a missing build fails loudly rather than
+   vacuously.
