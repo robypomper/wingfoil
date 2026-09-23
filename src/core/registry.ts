@@ -29,6 +29,15 @@ export type CoreFn<P, R> = (params: P) => Promise<CoreResult<R>>;
 export interface CoreOption {
   readonly name: string;
   readonly required?: boolean;
+  /**
+   * What `--help` says about this option. Optional and additive: an option that declares none keeps
+   * the generic `"{name} value"` text `src/cli/program.ts` has always rendered. It exists because a
+   * convention a grammar cannot show must be *stated* somewhere a user reads — `dna add|remove|update
+   * --value` means the new entry's identity at a collection and the new value at a leaf
+   * (`dl-081-dna-mutation-surface-shape`, task-093), which is exactly the kind of thing that otherwise
+   * gets discovered rather than documented.
+   */
+  readonly description?: string;
 }
 
 /**

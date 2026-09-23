@@ -135,7 +135,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     // --type/--title/--tags`): Commander rejects an unknown option, so each declared option must be
     // registered explicitly with a `<value>` operand (distinguishing it from a boolean `--flag`).
     for (const option of command.options ?? []) {
-      target.option(`--${option.name} <value>`, `${option.name} value`);
+      target.option(`--${option.name} <value>`, option.description ?? `${option.name} value`);
     }
 
     // Commander's action callback for a `[positionals...]` variadic + options command is

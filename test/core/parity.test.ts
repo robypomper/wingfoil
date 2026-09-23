@@ -129,7 +129,7 @@ describe('REQ-SYS-05 parity — fixture registry (representative mutating + read
 });
 
 describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODULES)', () => {
-  it('reports 0 unmatched operations — the nine mutating ops `directive assign`, `directive create`, `directive remove`, `dna set`, `memory add`, `memory approve`, `memory deprecate`, `memory reject` + `memory submit` are on BOTH surfaces (task-051/050/052/025/020/046/048/047/045)', async () => {
+  it('reports 0 unmatched operations — the twelve mutating ops (incl. `dna add|remove|update`, task-093) are on BOTH surfaces (task-051/050/052/025/093/020/046/048/047/045)', async () => {
     const cli = actualMutatingCliCommands(CORE_MODULES).sort();
     const tools = (await actualMcpToolsAsCliForm(CORE_MODULES)).sort();
 
@@ -140,11 +140,17 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     // `memory submit` (P1.6); task-046-memory-approve adds `memory approve` (P1.7);
     // task-047-memory-reject adds `memory reject` (P1.8); task-048-memory-deprecate adds
     // `memory deprecate` (P1.9); task-052-directive-remove adds `directive remove` (P3.3).
+    // task-093-dna-mutation-surface-add-remove-update adds `dna add|remove|update`: `dl-081`'s
+    // ratification chose option (E) precisely because spec-006 §3's one-Tool-per-function rule makes
+    // this three Tools rather than the dozen a per-collection verb set would have cost.
     const expected = [
       'directive assign',
       'directive create',
       'directive remove',
+      'dna add',
+      'dna remove',
       'dna set',
+      'dna update',
       'memory add',
       'memory approve',
       'memory deprecate',
@@ -156,7 +162,7 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
     expect(computeParityDiff(cli, tools)).toEqual({ onlyInA: [], onlyInB: [] });
   });
 
-  it('the read-only production operations are Resources, the nine mutating ops (`directive assign`, `directive create`, `directive remove`, `dna set`, `memory add`, `memory approve`, `memory deprecate`, `memory reject`, `memory submit`) are Tools, never both', async () => {
+  it('the read-only production operations are Resources, the twelve mutating ops (incl. `dna.add`, `dna.remove`, `dna.update`) are Tools, never both', async () => {
     const server = new McpServer({ name: 'parity-test-prod', version: '0.0.0' });
     registerCoreModules(server, CORE_MODULES as CoreModule[], {
       resolveRoot: () => '/fixture-root',
@@ -187,7 +193,10 @@ describe('REQ-SYS-05 parity — production registry (src/core/index.ts CORE_MODU
       'directive.assign',
       'directive.create',
       'directive.remove',
+      'dna.add',
+      'dna.remove',
       'dna.set',
+      'dna.update',
       'memory.add',
       'memory.approve',
       'memory.deprecate',

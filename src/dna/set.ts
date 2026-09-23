@@ -13,11 +13,18 @@
 import { dump, load } from 'js-yaml';
 
 /**
- * First-segment aliases applied to a dotted key path before resolution. `tech_stack` -> `stacks` keeps
- * `dna set` symmetric with `dna show`'s existing BDD-compatibility alias (spec-002-dna-yaml-schema
- * Consequences: the schema renamed the BDD's `tech_stack` wording to `stacks`), so
- * `dna set tech_stack.language python` writes under the real `stacks` node and `dna show tech_stack`
- * reads it back. The single source of truth for the alias.
+ * The first-segment alias `dna show` resolves: `tech_stack` -> `stacks`, the BDD-compatibility alias
+ * spec-002-dna-yaml-schema's Consequences describe (the schema renamed the BDD's `tech_stack` wording
+ * to `stacks`), so `dna show tech_stack` still reads the `stacks` subtree.
+ *
+ * **READ side only, since task-093** (`bug-084-dna-key-alias-writes-unschemad-keys`). It used to be
+ * applied on the write path too, and there it was a trap: `stacks` replaced a fixed-key `tech_stack`
+ * OBJECT, which is a change of shape rather than of name, so rewriting only the first segment
+ * produced a path that resolves nowhere — `dna set tech_stack.cli.framework Commander` wrote
+ * `stacks.cli.framework`, a key no schema declares, through `Stacks`'s `.passthrough()`, at exit 0.
+ * spec-002 says plainly that "any consumer that read `tech_stack.<key>` must now scan" the lists, and
+ * a first-segment alias cannot honour that sentence. The write path therefore does not alias at all;
+ * an old-shape path is refused as the unknown key it is (`src/dna/path.ts`, exit 1).
  */
 export const DNA_KEY_ALIASES: Readonly<Record<string, string>> = { tech_stack: 'stacks' };
 
@@ -30,33 +37,6 @@ export const DNA_KEY_ALIASES: Readonly<Record<string, string>> = { tech_stack: '
 export function isValidKeyPath(keyPath: string): boolean {
   if (keyPath.length === 0) return false;
   return keyPath.split('.').every((segment) => segment.length > 0);
-}
-
-/** Whether `value` is a plain, traversable object (not null, not an array) we can descend into. */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * Set `value` at the (alias-resolved) dotted `keyPath` inside `dna`, mutating it in place. Intermediate
- * objects are created as needed; a non-object encountered mid-path is replaced with a fresh object so
- * the path can be completed. Setting an existing leaf overwrites it in place — an object key is unique,
- * so there is structurally no way to produce a duplicate key (P2.1 AC(b), idempotent update).
- *
- * Precondition: `isValidKeyPath(keyPath)` is `true` (the caller checks and raises the usage error
- * otherwise); with a valid path there is always at least one non-empty segment.
- */
-export function setDnaValue(dna: Record<string, unknown>, keyPath: string, value: string): void {
-  const segments = keyPath.split('.');
-  segments[0] = DNA_KEY_ALIASES[segments[0]!] ?? segments[0]!;
-
-  let node = dna;
-  for (let i = 0; i < segments.length - 1; i += 1) {
-    const segment = segments[i]!;
-    if (!isPlainObject(node[segment])) node[segment] = {};
-    node = node[segment] as Record<string, unknown>;
-  }
-  node[segments[segments.length - 1]!] = value;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -323,8 +303,8 @@ export function setDnaValueInText(text: string, keyPath: string, value: string):
   const scalar = renderScalar(value);
   if (scalar === undefined) return undefined;
 
+  // task-093/bug-084: the write path does NOT apply `DNA_KEY_ALIASES` — see that constant's own note.
   const segments = keyPath.split('.');
-  segments[0] = DNA_KEY_ALIASES[segments[0]!] ?? segments[0]!;
 
   const lines = text.split('\n');
   const resolved = resolveKeyPath(lines, segments);

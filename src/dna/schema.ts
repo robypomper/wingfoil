@@ -9,6 +9,48 @@
  */
 import { z } from 'zod';
 
+/**
+ * An array of named entries in which **no two entries share a `name`**.
+ *
+ * `dl-081-dna-mutation-surface-shape` ratified that entries are addressed by `name`
+ * (`--field team.members.roberto.roles`) rather than by index, because an index shifts the moment an
+ * entry is removed and a path written today would address a different entry tomorrow. Uniqueness is
+ * therefore not a nicety but the **prerequisite** that addressing rests on, and the ratification left
+ * the mechanism open: "a uniqueness refinement per collection, or the verbs must refuse on more than
+ * one match".
+ *
+ * This is the refinement, and it is the stronger of the two: it makes the ambiguity *unreachable*
+ * rather than *handled*, so no verb needs a two-match branch that nothing could exercise, and it
+ * protects the readers that are not verbs either — `resolveRoleHolders` (`./roles.ts`), the directive
+ * role bindings, and every future lookup by name. It follows the precedent `spec-002` already sets
+ * with `Team`'s referential `superRefine`: a same-document integrity rule that makes a violating file
+ * fail to load, rather than a rule each consumer re-checks.
+ *
+ * Non-breaking where it matters, measured rather than assumed (task-093 AC4): WingFoil's own
+ * `dna.yaml` carries 38 object entries across these six collections with zero duplicates, and every
+ * `wingfoil init` template scaffolds distinct names (`test/dna/schema-uniqueness.test.ts` pins both).
+ * The same name in DIFFERENT collections stays legal — a module and a role may share one.
+ */
+function uniquelyNamed<T extends z.ZodType>(entry: T): z.ZodArray<T> {
+  return z.array(entry).superRefine((value, ctx) => {
+    const firstSeen = new Map<string, number>();
+    value.forEach((item, index) => {
+      const name = (item as { name?: unknown } | null)?.name;
+      if (typeof name !== 'string') return;
+      const earlier = firstSeen.get(name);
+      if (earlier === undefined) {
+        firstSeen.set(name, index);
+        return;
+      }
+      ctx.addIssue({
+        code: 'custom',
+        message: `duplicate entry name "${name}" (already used at index ${earlier}); entries of a collection are addressed by name, so names must be unique`,
+        path: [index, 'name'],
+      });
+    });
+  });
+}
+
 /** `project:` — free-form project-identity block (name, description, license, north-star, ...); every field optional. */
 export const Project = z
   .object({
@@ -59,8 +101,8 @@ export type MethodologyEntry = z.infer<typeof MethodologyEntry>;
 /** Replaces the old fixed-key `tech_stack` object with two flat, generically-shaped lists. */
 export const Stacks = z
   .object({
-    technologies: z.array(TechEntry).optional(),
-    methodologies: z.array(MethodologyEntry).optional(),
+    technologies: uniquelyNamed(TechEntry).optional(),
+    methodologies: uniquelyNamed(MethodologyEntry).optional(),
   })
   .passthrough();
 export type Stacks = z.infer<typeof Stacks>;
@@ -106,9 +148,9 @@ export type RoleEntry = z.infer<typeof RoleEntry>;
  */
 export const Team = z
   .object({
-    members: z.array(TeamMember),
-    agents: z.array(AgentEntry).optional(),
-    roles: z.array(RoleEntry),
+    members: uniquelyNamed(TeamMember),
+    agents: uniquelyNamed(AgentEntry).optional(),
+    roles: uniquelyNamed(RoleEntry),
   })
   .passthrough()
   .superRefine((value, ctx) => {
@@ -157,7 +199,7 @@ export const DnaYaml = z
   .object({
     version: z.number().positive(),
     project: Project.optional(),
-    modules: z.array(Module),
+    modules: uniquelyNamed(Module),
     stacks: Stacks,
     team: Team,
     paths: Paths,

@@ -163,11 +163,20 @@ describe('Journey 0a (v0.1-scoped slice) — real CLI, fresh throwaway project (
     expect(agentExecute.stderr).toContain("unknown command 'agent'");
   });
 
-  it('`dna set` cannot write an array-typed field (e.g. `paths.sources`) — documented scalar-only scope (task-025 design notes), not a v0.1 defect', () => {
+  it('`dna set` still writes scalars only — but it now names the verb that reaches an array-typed field, and that verb works (bug-083, task-093)', () => {
     expect(runCliInRoot(repo, 'init', '--template', 'Scrum').status).toBe(0);
-    const result = runCliInRoot(repo, 'dna', 'set', 'paths.sources', 'src');
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('E_VALIDATION');
+
+    // Until task-093 this was a documented dead end: the write failed with the schema re-validation's
+    // `E_VALIDATION … expected array, received string`, which says nothing about how to write the
+    // field, and no other command in the surface could write it either (bug-083).
+    const viaSet = runCliInRoot(repo, 'dna', 'set', 'paths.sources', 'src');
+    expect(viaSet.status).toBe(1);
+    expect(viaSet.stderr).toContain('dna add|remove|update');
+
+    const viaAdd = runCliInRoot(repo, 'dna', 'add', '--field', 'paths.sources', '--value', 'src');
+    expect(viaAdd.status).toBe(0);
+    const dna = yamlLoad(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')) as { paths: { sources: string[] } };
+    expect(dna.paths.sources).toEqual(['src']);
   });
 
   it('a schema-invalid raw dna.yaml round-trips through js-yaml the same way the CLI itself validates it (sanity check on the fixture-free path)', () => {

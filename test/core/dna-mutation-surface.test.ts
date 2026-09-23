@@ -312,7 +312,7 @@ describe('usage errors — a malformed invocation is exit 2 (spec-005 §1, spec-
     } catch (error) {
       expect(error).toBeInstanceOf(UsageError);
       expect((error as UsageError).message).toBe('missing required argument: --field');
-      expect(exitCodeForThrow(error)).toBe(2);
+      expect(exitCodeForThrow(error).exitCode).toBe(2);
     }
   });
 
@@ -327,7 +327,7 @@ describe('usage errors — a malformed invocation is exit 2 (spec-005 §1, spec-
     } catch (error) {
       expect(error).toBeInstanceOf(UsageError);
       expect((error as UsageError).message).toBe("invalid key path: '..language'");
-      expect(exitCodeForThrow(error)).toBe(2);
+      expect(exitCodeForThrow(error).exitCode).toBe(2);
     }
   });
 });
