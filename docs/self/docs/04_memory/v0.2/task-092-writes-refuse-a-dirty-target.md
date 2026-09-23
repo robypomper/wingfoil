@@ -1,40 +1,65 @@
 ---
 id: "task-092-writes-refuse-a-dirty-target"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft          # auto-set by wingfoil
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: []               # optional — additional labels, e.g. [architecture, backend]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
-bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
-                       # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
-                       # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
-                       # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
-                       # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+title: "Make the non-transition verbs refuse a target carrying modifications they do not own, per dl-080's ratified write rule"
+status: pending
+release: "v0.2"
+priority: "medium"
+tags: ["v0.2", "core", "audit-trail"]
+ref: "dl-080-which-baseline-each-command-reads"
+bug: ["bug-078-commitpaths-callers-commit-whatever-is-on-disk"]
+depends_on: ["task-088-fix-gated-verbs-commit-only-the-status-change"]
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+`dl-080` is ratified as option **(B)**: reads resolve at `HEAD`, and **a write refuses while its
+target carries modifications the command does not own**. `task-088` landed that half for the four
+gated Memory verbs. `commitPaths` has six other callers that were deliberately left alone —
+`dna set`, `directive create`, `directive assign`, `directive remove`, `init` and `memory add` — and
+each still commits its target as it stands in the working tree, so an unrelated uncommitted edit rides
+into a `wf(...)` commit whose subject describes only the operation performed.
+
+Reproduced: an uncommitted comment appended to `.wingfoil/dna.yaml` was committed by
+`wf(dna): set name`.
+
+Declared a release blocker for `minor-v0.2` alongside the rest of the class, though it is the mildest
+of the five: no audit record is corrupted and no authority fabricated — the commit says what it did,
+it just also says something it did not.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+- **AC1** — Reproduce first, on a scratch project against current `main`, with the commands in the
+  notes. `bug-078` gives the shape; re-derive it (`bug-075` — a scratch project is required).
+- **AC2** — Each of the six callers refuses when its target carries modifications it does not own,
+  exiting **`1`** per `spec-005` §1 and naming what is modified. `task-088` added
+  `requireUnmodifiedDocument` and the committed-tree postcondition `verifyCommittedScope`, both
+  exported from `src/core`; reuse them rather than writing a second mechanism.
+- **AC3** — **Two callers are not like the others and must be argued, not assumed.**
+  - `memory add` writes a **new** file, so "modifications the command does not own" is a narrower
+    notion — establish what it can actually absorb before applying the guard.
+  - `init` runs when there may be **nothing committed at all**, and may legitimately write into a
+    tree that is dirty by construction. If the uniform rule breaks it, say so and scope it out with
+    the reason recorded.
+- **AC4** — The ordinary flows still work, pinned by tests: `dna set` on a clean tree, `directive
+  create`/`assign`/`remove` on a clean tree, `init` in a fresh repository, `memory add` after another
+  element was edited but not committed.
+- **AC5** — A test pins the defect for at least `dna set` and one `directive` verb, failing against
+  the current code.
+- **AC6** — All six gates green; the full `tsc --noEmit -p tsconfig.json` silent.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+- Read `task-088`'s Execution Notes first (`dl-015` read_related): it established the guard, the
+  refuse-versus-partial-stage argument, and the reason it stayed **per-path** — an unrelated dirty
+  file cannot ride in anyway, because `commitPaths` uses `git commit --only -- <path>` (`bug-027`).
+  That is why this task is about the *target* being dirty, not the tree.
+- `task-091` runs in parallel on the **read** half. It touches the Memory state-machine load and the
+  directive role-catalogue check; this task touches the commit path. Do not enter its worktree and do
+  not fix its bugs.
+- Classify every AC per `dl-014`/T1. AC1, AC2 and AC5 are red-first by construction.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+<!-- filled in per phase -->
