@@ -39,9 +39,18 @@ describe('setDnaValueInText — replacing an existing key (bug-004 AC(a)/(b))', 
     expect(setDnaValueInText(text, 'motto', 'plain')).toBe('motto: plain               # but this one is\n');
   });
 
-  it('applies the tech_stack -> stacks first-segment alias, like `setDnaValue`', () => {
+  it('does NOT rewrite a first segment through DNA_KEY_ALIASES any more (bug-084, task-093)', () => {
+    // The alias translated `tech_stack` -> `stacks` and left the rest of an old-shape path untouched,
+    // so `tech_stack.cli.framework` landed as `stacks.cli.framework` — a key in no schema — and was
+    // committed at exit 0. A first-segment rewrite cannot perform a SHAPE migration (spec-002
+    // §Consequences: "any consumer that read `tech_stack.<key>` must now scan" the lists), so the
+    // write path no longer aliases at all: `tech_stack.language` is an unknown key here, and
+    // `src/dna/path.ts` refuses it (exit 1) long before this function is reached. `dna show
+    // tech_stack` keeps resolving — that is a READ, and `P2.2-dna-show.feature` names it.
     const text = 'stacks:\n  language: python\n';
-    expect(setDnaValueInText(text, 'tech_stack.language', 'go')).toBe('stacks:\n  language: go\n');
+    const edited = setDnaValueInText(text, 'tech_stack.language', 'go');
+    expect(edited).toContain('stacks:\n  language: python\n');
+    expect(edited).toContain('tech_stack:');
   });
 
   it('fills a null-valued key in place (`key:` with nothing under it)', () => {

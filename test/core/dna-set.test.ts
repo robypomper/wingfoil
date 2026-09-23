@@ -70,7 +70,7 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
 
   it('AC(a): sets a field, writes it, commits exactly one scoped commit, returns ok + commit sha (exit 0)', async () => {
     const before = head(repo);
-    const result = await dnaSetFn()({ root: repo, positionals: ['tech_stack.language', 'python'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.commit?.sha).toMatch(/^[0-9a-f]{40}$/);
@@ -78,10 +78,12 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
     expect(head(repo)).not.toBe(before);
     expect(exitCodeForResult(result)).toBe(0);
 
-    // The written file re-parses and validates, with the value under `stacks` (tech_stack alias).
-    const dna = loadDnaYaml(repo) as { stacks: Record<string, unknown> };
-    expect(dna.stacks.language).toBe('python');
-    expect(dnaText(repo)).toContain('language: python');
+    // The written file re-parses and validates. `project:` is a DECLARED but absent optional section
+    // in this fixture, so the write creates it on the way to a leaf the schema declares — which is
+    // NOT what bug-084 refuses (that is a segment the schema does not declare at all).
+    const dna = loadDnaYaml(repo) as { project: Record<string, unknown> };
+    expect(dna.project.license).toBe('MIT');
+    expect(dnaText(repo)).toContain('license: MIT');
 
     // Scoped commit: only .wingfoil/dna.yaml changed in it.
     const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
@@ -91,24 +93,24 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
   });
 
   it('AC(b): updating an existing key overwrites in place — one key, no duplicate', async () => {
-    await dnaSetFn()({ root: repo, positionals: ['tech_stack.language', 'python'] });
-    await dnaSetFn()({ root: repo, positionals: ['tech_stack.language', 'go'] });
+    await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
+    await dnaSetFn()({ root: repo, positionals: ['project.license', 'Apache-2.0'] });
 
-    const dna = loadDnaYaml(repo) as { stacks: Record<string, unknown> };
-    expect(dna.stacks.language).toBe('go');
+    const dna = loadDnaYaml(repo) as { project: Record<string, unknown> };
+    expect(dna.project.license).toBe('Apache-2.0');
 
     const text = dnaText(repo);
-    expect(text.match(/language: go/g)).toHaveLength(1);
-    expect(text).not.toContain('language: python');
+    expect(text.match(/license: Apache-2\.0/g)).toHaveLength(1);
+    expect(text).not.toContain('license: MIT');
   });
 
   it('re-setting a key to its current value is a deterministic, idempotent no-op: exit 0, no new commit, byte-identical file', async () => {
-    const firstResult = await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
+    const firstResult = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
     expect(firstResult.ok).toBe(true);
     const afterFirst = dnaText(repo);
     const headAfterFirst = head(repo);
 
-    const secondResult = await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
+    const secondResult = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
     expect(secondResult.ok).toBe(true);
     if (secondResult.ok) expect(secondResult.commit).toBeUndefined(); // no-op: no new commit
     expect(dnaText(repo)).toBe(afterFirst); // re-serialization is stable (REQ-SYS-07)
@@ -152,10 +154,66 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
 
   it('a missing value is a usage error (exit 2), file unchanged', async () => {
     const beforeText = dnaText(repo);
-    await expect(dnaSetFn()({ root: repo, positionals: ['tech_stack.language'] })).rejects.toBeInstanceOf(
+    await expect(dnaSetFn()({ root: repo, positionals: ['project.license'] })).rejects.toBeInstanceOf(
       UsageError,
     );
     expect(dnaText(repo)).toBe(beforeText);
+  });
+});
+
+describe('CORE_MODULES dna.dnaSet — bug-084: an unschema\'d path is refused, never created (task-093 AC1)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_FIXTURE);
+    commitAll(repo, 'seed dna.yaml');
+  });
+
+  afterEach(() => {
+    removeTempDir(repo);
+  });
+
+  it("the measured reproduction — `dna set tech_stack.cli.framework Commander` — now fails instead of committing", async () => {
+    const before = head(repo);
+    const beforeText = dnaText(repo);
+
+    const result = await dnaSetFn()({ root: repo, positionals: ['tech_stack.cli.framework', 'Commander'] });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toContain('tech_stack.cli.framework');
+
+    // Nothing created, nothing committed: the alias used to write `stacks.cli.framework` — a key in
+    // no schema — through `Stacks`'s pass-through, at exit 0 (bug-084 Steps to Reproduce).
+    expect(head(repo)).toBe(before);
+    expect(dnaText(repo)).toBe(beforeText);
+    expect(dnaText(repo)).not.toContain('cli:');
+  });
+
+  it('the general case — `dna set nonsense.at.any.depth value` — is refused at exit 1 too', async () => {
+    const before = head(repo);
+    const result = await dnaSetFn()({ root: repo, positionals: ['nonsense.at.any.depth', 'value'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(exitCodeForResult(result)).toBe(1);
+    expect(head(repo)).toBe(before);
+  });
+
+  it('`dna set` on an array-valued field is refused by NAME rather than by a type mismatch (bug-083)', async () => {
+    const result = await dnaSetFn()({ root: repo, positionals: ['team.members', '[{"name":"X"}]'] });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    // The old failure was `expected array, received string` from the schema re-validation; the verb
+    // now says which command does reach that field (dl-081 option (E)).
+    expect(result.error.message).toMatch(/dna (add|remove|update)/);
+  });
+
+  it('reading a document that carries unknown keys still works — pass-through on READ is unchanged', async () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', `${DNA_FIXTURE}future_section:\n  anything: true\n`);
+    commitAll(repo, 'add an unknown section');
+    const dna = loadDnaYaml(repo) as Record<string, unknown>;
+    expect(dna.future_section).toEqual({ anything: true });
   });
 });
 

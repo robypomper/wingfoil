@@ -309,15 +309,23 @@ paths:
 
     afterEach(() => removeTempDir(repo));
 
-    it('sets a field, writes it under stacks (tech_stack alias), commits, and exits 0 (AC(a))', () => {
-      const result = runCliInRoot(repo, 'dna', 'set', 'tech_stack.language', 'python');
+    it('sets a schema-declared field, commits, and exits 0 (AC(a))', () => {
+      const result = runCliInRoot(repo, 'dna', 'set', 'project.license', 'MIT');
       expect(result.status).toBe(0);
       const dna = yamlLoad(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')) as {
-        stacks: { language?: string };
+        project: { license?: string };
       };
-      expect(dna.stacks.language).toBe('python');
+      expect(dna.project.license).toBe('MIT');
       const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
-      expect(subject).toBe('wf(dna): set tech_stack.language');
+      expect(subject).toBe('wf(dna): set project.license');
+    });
+
+    it('refuses a path no schema declares at exit 1, writing and committing nothing (bug-084, task-093)', () => {
+      const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
+      const result = runCliInRoot(repo, 'dna', 'set', 'tech_stack.cli.framework', 'Commander');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('tech_stack.cli.framework');
+      expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
     });
 
     it('an invalid dotted key path exits 2 with the exact BDD message, leaving the file unchanged (AC(c))', () => {
@@ -327,6 +335,99 @@ paths:
       expect(result.stderr).toBe("error: invalid key path: '..language'\n");
       expect(result.stdout).toBe('');
       expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
+    });
+  });
+
+  // task-093-dna-mutation-surface-add-remove-update (`dl-081-dna-mutation-surface-shape` option (E),
+  // closes `bug-083`/`bug-084`) — the three mutation verbs driven end-to-end through the real,
+  // compiled commander wiring, in a THROWAWAY temp repo. `dna set` above stays the scalar shorthand.
+  describe('`dna add|remove|update --field <path> --value <v>` — the DNA mutation surface (task-093)', () => {
+    const DNA_FIXTURE = `version: 1.1
+modules:
+  - name: core
+    path: src/core
+stacks:
+  technologies:
+    - name: TypeScript
+      category: language
+team:
+  members:
+    - name: Test User
+      roles: [ developer ]
+  roles:
+    - name: developer
+paths:
+  sources: [ src/ ]
+`;
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_FIXTURE);
+      commitAll(repo, 'seed dna.yaml');
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    function dnaOf(root: string): Record<string, never> {
+      return yamlLoad(readFileSync(join(root, '.wingfoil', 'dna.yaml'), 'utf-8')) as Record<string, never>;
+    }
+
+    it('adds a role and then a member holding it — the flow no command could perform (bug-083)', () => {
+      const role = runCliInRoot(repo, 'dna', 'add', '--field', 'team.roles', '--value', 'approver');
+      expect(role.status).toBe(0);
+
+      const member = runCliInRoot(
+        repo, 'dna', 'add', '--field', 'team.members', '--value', 'Ada', '--email', 'ada@example.it', '--roles', 'approver,developer',
+      );
+      expect(member.status).toBe(0);
+
+      const team = dnaOf(repo).team as unknown as { members: Array<Record<string, unknown>>; roles: Array<{ name: string }> };
+      expect(team.roles.map((entry) => entry.name)).toEqual(['developer', 'approver']);
+      expect(team.members[1]).toEqual({ name: 'Ada', email: 'ada@example.it', roles: ['approver', 'developer'] });
+
+      const subject = execFileSync('git', ['-C', repo, 'log', '-1', '--format=%s'], { encoding: 'utf-8' }).trim();
+      expect(subject).toBe('wf(dna): add team.members Ada');
+    });
+
+    it('amends one member\'s roles — the shape only entry-by-name addressing can express (dl-081)', () => {
+      const added = runCliInRoot(repo, 'dna', 'add', '--field', 'team.members.Test User.roles', '--value', 'reviewer');
+      expect(added.status).toBe(1); // `reviewer` is not in the role catalogue (REQ-SYS-08)
+      expect(runCliInRoot(repo, 'dna', 'add', '--field', 'team.roles', '--value', 'reviewer').status).toBe(0);
+      expect(runCliInRoot(repo, 'dna', 'add', '--field', 'team.members.Test User.roles', '--value', 'reviewer').status).toBe(0);
+
+      const team = dnaOf(repo).team as unknown as { members: Array<{ roles: string[] }> };
+      expect(team.members[0]!.roles).toEqual(['developer', 'reviewer']);
+    });
+
+    it('updates a module path and removes the module again', () => {
+      expect(runCliInRoot(repo, 'dna', 'update', '--field', 'modules.core.path', '--value', 'source/core').status).toBe(0);
+      expect((dnaOf(repo).modules as unknown as Array<{ path: string }>)[0]!.path).toBe('source/core');
+
+      expect(runCliInRoot(repo, 'dna', 'remove', '--field', 'modules', '--value', 'core').status).toBe(0);
+      expect(dnaOf(repo).modules as unknown as unknown[]).toEqual([]);
+    });
+
+    it('refuses a field no schema declares at exit 1, naming it, and commits nothing', () => {
+      const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
+      const result = runCliInRoot(repo, 'dna', 'add', '--field', 'tech_stack.cli', '--value', 'Commander');
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('tech_stack.cli');
+      expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
+    });
+
+    it('a missing --field is a usage error at exit 2 (spec-008 §5)', () => {
+      const result = runCliInRoot(repo, 'dna', 'add', '--value', 'x');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe('error: missing required argument: --field\n');
+    });
+
+    it("`--help` states --value's two meanings rather than leaving them to be inferred (AC6)", () => {
+      const result = runCliInRoot(repo, 'dna', 'add', '--help');
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('--field');
+      expect(result.stdout).toContain('--value');
+      expect(result.stdout.toLowerCase()).toContain('collection');
     });
   });
 
