@@ -21,6 +21,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CORE_MODULES } from '../../src/core';
+import * as loaders from '../../src/core/loaders';
 import { exitCodeForResult } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
@@ -193,6 +194,37 @@ describe('directive assign validates `--role` at HEAD (bug-082, dl-080 (B))', ()
     if (result.ok) return;
     expect(exitCodeForResult(result)).toBe(1);
     expect(result.error.message).toContain('HEAD');
+  });
+
+  // The diagnostic can never decide: an unreadable WORKING-TREE dna.yaml leaves the refusal exactly
+  // as P3.2 words it, rather than turning a read failure into an answer (task-090's rule, reused).
+  it.each([
+    ['unreadable', 'version: 1.1\nmodules: "not a list"\n'],
+    ['unparseable', 'version: 1.1\n\tmodules:\n'],
+  ])('D5: a %s working-tree `dna.yaml` adds no note and changes no outcome', async (_label, broken) => {
+    repo = seedRepo();
+    writeFileSync(join(repo, DNA_PATH), broken, 'utf-8');
+
+    const result = await assign(repo, 'FABRICATED-ROLE');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe("unknown role 'FABRICATED-ROLE' (not defined in dna.yaml)");
+    expect(exitCodeForResult(result)).toBe(1);
+  });
+
+  // Same propagation rule as on the Memory side: a defect in the committed read is not an answer
+  // about the catalogue, so it must not be reported as an unknown role.
+  it('a non-ValidationError from the committed read propagates instead of becoming a refusal', async () => {
+    repo = seedRepo();
+    const spy = jest.spyOn(loaders, 'loadDnaYamlAtHead').mockImplementation(() => {
+      throw new TypeError('a defect in the read path');
+    });
+    try {
+      await expect(assign(repo, 'developer')).rejects.toThrow(TypeError);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   // The role is checked before the ids, and an unknown directive still reports its own message —

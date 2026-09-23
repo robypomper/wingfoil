@@ -31,6 +31,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CORE_MODULES } from '../../src/core';
+import * as loaders from '../../src/core/loaders';
+import * as storage from '../../src/storage';
 import { exitCodeForResult } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
@@ -294,6 +296,43 @@ describe('memory transitions resolve their state machine at HEAD (bug-081, dl-08
     expect(result.error.message).toMatch(/^invalid state 'FABRICATED-BY-SUBMIT' for type 'adr'/);
     expect(result.error.message).toContain(MEMORY_YAML_PATH);
     expect(result.error.message).toContain('uncommitted');
+  });
+
+  // A defect in the committed read must PROPAGATE, never be converted into a transition answer:
+  // "there is no machine" and "the machine could not be read" are different facts, and only the
+  // second is a bug in this code. Reachable only by making the read fail in a way nothing in the
+  // code can produce, hence the spy (task-090 pinned the same property on the authority read).
+  it('a non-ValidationError from the committed read propagates instead of becoming a refusal', async () => {
+    repo = seedRepo();
+    const spy = jest.spyOn(loaders, 'loadMemoryYamlAtHead').mockImplementation(() => {
+      throw new TypeError('a defect in the read path');
+    });
+    try {
+      await expect(memoryFn('memorySubmit')({ root: repo, positional: 'adr-001' })).rejects.toThrow(TypeError);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  // The diagnostic can never decide: a failure to ASK git about the working tree leaves the refusal
+  // exactly as its fit criterion words it. Unreachable from the code (`readPathAtRev` has already
+  // succeeded by then, so the repository is readable), which is why it takes a spy — it pins the real
+  // property that a defect in the diagnostic path cannot become part of the answer.
+  it('D5: a failure to read the working-tree status adds no note and changes no outcome', async () => {
+    repo = seedRepo('FABRICATED-BY-SUBMIT');
+    dirtyMachine(repo, FABRICATED_MEMORY_YAML);
+    const spy = jest.spyOn(storage, 'pathPorcelainStatus').mockImplementation(() => {
+      throw new Error('git is unavailable');
+    });
+    try {
+      const result = await memoryFn('memorySubmit')({ root: repo, positional: 'adr-001' });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.message).toBe("invalid state 'FABRICATED-BY-SUBMIT' for type 'adr'");
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('D5: a clean working tree adds no note to the refusal', async () => {
