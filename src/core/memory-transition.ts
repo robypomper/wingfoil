@@ -18,7 +18,6 @@
 import { join } from 'path';
 
 import {
-  describeDocumentChanges,
   E_INVALID_TRANSITION,
   findMemoryDocumentById,
   resolveStateMachine,
@@ -27,19 +26,12 @@ import {
   verifyDocumentEdit,
 } from '../memory';
 import type { DocumentScope, MemoryYaml, StateMachine, TransitionOp } from '../memory';
-import {
-  changedPathsBetween,
-  commitParent,
-  commitPaths,
-  pathPorcelainStatus,
-  readDocument,
-  readPathAtRev,
-  writeDocument,
-} from '../storage';
+import { commitPaths, readDocument, readPathAtRev, writeDocument } from '../storage';
 import { ValidationError } from '../validation';
 
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
+import { requireUnmodifiedTarget, undeclaredCommittedPaths, type WriteTargetContract } from './write-guard';
 
 /** A document located and cleared for one transition — everything the verb needs to finish it. */
 export interface PreparedMemoryTransition {
@@ -198,32 +190,19 @@ export function prepareMemoryTransition(root: string, id: string, op: Transition
  * therefore not guarded (see {@link DocumentScope}). The verb's own writes — `reject`'s
  * `rejection_reason`, every verb's `status` — happen *after* this check, on text it has just certified
  * equal to `HEAD`, so no verb is caught by its own guard.
+ *
+ * Since `task-092` the gate itself lives in {@link requireUnmodifiedTarget} (`./write-guard.ts`),
+ * shared with the six non-transition write verbs `dl-080` reaches through `bug-078`; only the wording
+ * below is this call site's own, so the two families cannot drift apart on what "modified" means.
  */
-function requireUnmodifiedDocument(root: string, prepared: PreparedMemoryTransition): CoreResult<undefined> {
-  // git's own answer to "is this modified", not a content comparison: it owns index refresh,
-  // `core.autocrlf` and `.gitattributes` filters, and a re-derived answer would disagree with
-  // `git status` on exactly the machines where that matters.
-  const porcelain = pathPorcelainStatus(root, prepared.path);
-  if (porcelain === '') return coreOk(undefined);
+const TRANSITION_CONTRACT: WriteTargetContract = {
+  noun: 'document',
+  owner: 'transition',
+  records: 'A state-transition commit records the status change and nothing else',
+};
 
-  const atHead = readPathAtRev(root, 'HEAD', prepared.path);
-  const named = new Set<string>();
-  // Both of the user's declarations are inspected — what is staged (`:0`) and what is in the working
-  // tree — because they can differ, and `git add` would silently replace the former with the latter.
-  for (const candidate of [readPathAtRev(root, ':0', prepared.path), prepared.content]) {
-    if (candidate === null) {
-      named.add('the document is not in the index');
-      continue;
-    }
-    for (const change of describeDocumentChanges(atHead, candidate)) named.add(change);
-  }
-  return coreErr({
-    code: 'VALIDATION',
-    message:
-      `refusing to commit ${prepared.path}: it carries uncommitted modifications this transition does not own ` +
-      `[git status '${porcelain}'] — ${[...named].sort().join(', ')}. A state-transition commit records the ` +
-      'status change and nothing else; commit or stash these changes first, then retry.',
-  });
+function requireUnmodifiedDocument(root: string, prepared: PreparedMemoryTransition): CoreResult<undefined> {
+  return requireUnmodifiedTarget(root, prepared.path, TRANSITION_CONTRACT, prepared.content);
 }
 
 /**
@@ -245,10 +224,9 @@ export function verifyCommittedScope(
   expected: Readonly<Record<string, string | undefined>>,
   scope: DocumentScope,
 ): string[] {
-  const parent = commitParent(root, sha);
-  const problems = changedPathsBetween(root, parent, sha)
-    .filter((changed) => changed !== path)
-    .map((changed) => `it also contains '${changed}'`);
+  // The "did anything else ride in" half is shared with `verifyCommittedPaths` (task-092), so the
+  // Memory and configuration post-conditions cannot disagree about what a commit's scope is.
+  const { parent, problems } = undeclaredCommittedPaths(root, sha, [path]);
 
   const after = readPathAtRev(root, sha, path);
   if (after === null) return [...problems, `it does not contain '${path}'`];
