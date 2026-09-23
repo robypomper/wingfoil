@@ -2,7 +2,7 @@
 id: "task-092-writes-refuse-a-dirty-target"
 type: task
 title: "Make the non-transition verbs refuse a target carrying modifications they do not own, per dl-080's ratified write rule"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "core", "audit-trail"]
