@@ -50,6 +50,44 @@ and neither task was wrong to choose as it did, because nothing told either of t
 - **`bug-081` is the case that argues the rule cannot wait.** It is reachable through `memory submit`,
   which requires no authority at all, and the element it strands cannot be moved afterwards.
 
+### E6 — the cost (B) appears to carry is not (B)'s: `dna set` cannot write an array
+
+Measured on a scratch project on 2026-09-23, against the CLI built from `main`:
+
+```
+$ wingfoil dna set 'team.roles'   '[{"name":"reviewer2"}]'
+error: E_VALIDATION team.roles   … Invalid input: expected array, received string
+$ wingfoil dna set 'team.members' '[{"name":"X","email":"x@y.z","roles":["approver"]}]'
+error: E_VALIDATION team.members … Invalid input: expected array, received string
+$ wingfoil dna set 'project.name' 'Renamed'
+→ exit 0, commits `wf(dna): set project.name`
+```
+
+`dna set` writes **scalars only**, and the whole command surface — `dna set|show`,
+`directive create|assign|remove`, `directives list`, `memory …`, `paths`, `workflow list`, `init`,
+`mcp` — contains **no command that adds a role or a team member**.
+
+Three consequences, and they change how two of the options should be read:
+
+1. **Extending the role catalogue is already a hand edit today.** So (B)'s cost on `bug-082` is *one
+   extra step of the same kind* — commit the edit before assigning — not a new kind of step. And that
+   step aligns the tool with this project's own convention that every state change is a commit;
+   today the tool treats as authoritative a configuration the repository does not record.
+2. **(D) does not block seeding an approver**, which was the obvious objection to it. Seeding is not a
+   command at all: it is a hand edit plus `git commit`, so no WingFoil command ever runs against the
+   dirty tree and (D) has nothing to refuse. (D)'s real cost is narrower and recurring — an
+   **unrelated** uncommitted config edit blocks a verb, so designing a new type in `memory.yaml`
+   prevents approving an element that has nothing to do with it.
+3. **The awkwardness attributed to (B) is a missing verb, not a baseline rule.** With `dna set` able
+   to append to an array — or a `dna add-role` — the flow under (B) is `dna add-role X`, which commits
+   itself, then `directive assign --role X` against the committed catalogue. The same gap is what
+   makes seeding the first approver a hand edit, so one repair settles both flows.
+
+**A fifth option was sketched and is withdrawn on this evidence:** extending the catalogue *inside*
+`directive assign`, via a flag such as `--create-role`. It would make an assignment command write two
+configuration files under a subject that says only "assign" — a commit doing more than it declares,
+which is `bug-076` and `bug-078` committed on purpose. The gap belongs in `dna`, not in `directive`.
+
 ## Decision
 
 Open. Four positions, with what each costs.
