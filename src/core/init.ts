@@ -40,6 +40,7 @@ import {
 import { verifyBuiltinTemplates } from './builtin-integrity';
 import { requireGitIdentity } from './git-identity';
 import { coreErr, coreOk, type CoreResult } from './types';
+import { requireUnmodifiedTargets } from './write-guard';
 
 /** Exact refusal message required by P1.1-git-backed-storage.feature scenario 3 — do not reword. */
 const NOT_A_GIT_REPO = "not a git repository: run 'git init' first";
@@ -106,6 +107,17 @@ export function initWingfoilStorage(
   if (integrityFailure) {
     return coreErr({ code: 'VALIDATION', message: integrityFailure.message });
   }
+
+  // Guard 4 — dl-080 (B) / bug-078 / task-092. This is the ONE `initStorage` caller with no
+  // already-initialized check: {@link initWingfoilProject} refuses before any write when `.wingfoil/`
+  // holds any entry at all (`detectInitState`), and every path it writes is under `.wingfoil/`, so no
+  // target of that flow can pre-exist and a guard there would be unreachable code. Here a target CAN
+  // pre-exist, and its uncommitted content would be overwritten and the diff committed under a
+  // subject saying "initialize". What this does NOT repair is the asymmetry itself — a CLEAN,
+  // committed `.wingfoil/dna.yaml` is still overwritten, because the target is clean; that is the
+  // missing already-initialized check, a distinct defect, raised rather than fixed here.
+  const unmodified = requireUnmodifiedTargets(root, files.map((file) => file.path));
+  if (!unmodified.ok) return unmodified as CoreResult<InitStorageValue>;
 
   try {
     const sha = initStorage(root, files);
