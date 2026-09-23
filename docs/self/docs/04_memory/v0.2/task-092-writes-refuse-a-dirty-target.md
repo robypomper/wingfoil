@@ -328,3 +328,221 @@ config verbs use with a byte-equality check instead of a frontmatter check.
 **Gate state:** `frontmatter.required` (`title`, `release`) present; `depends_on.acknowledged`
 satisfied (`task-088` above); `tech-spec.approved` — no new or amended spec, so nothing pending.
 `design` passes through with no approver gate.
+
+### red — role: developer
+
+Commit `5ea305c`. Two new suites, no change to any existing one:
+
+- **`test/core/write-guard-dirty-target.test.ts`** — every one of the six callers, driven through the
+  REAL registered `CORE_MODULES` operations against throwaway repositories carrying the real
+  `wingfoil init` Scrum scaffold. It carries both halves deliberately: the nine refusals, and ten
+  characterization cases pinning the ordinary flows **and** the guard's per-path narrowness (an
+  unrelated dirty file must never block a write — `dl-080`'s rejected option (D)).
+- **`test/cli/dirty-target-refusal.integration.test.ts`** — the two things only the process boundary
+  shows: the exit code a script keys on and the stderr a human reads, through the compiled
+  `dist/cli.js`. `spawnSync`, per `task-088`'s measurement gotcha, with the reason recorded in the
+  file's TSDoc so the next reader does not "simplify" it back.
+
+Observed red, before any `src/` change:
+
+```
+$ npx jest test/core/write-guard-dirty-target.test.ts test/cli/dirty-target-refusal.integration.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       9 failed, 10 passed, 19 total
+```
+
+The nine, one per red-first case — and note that all ten characterization cases passed on that same
+first run, which is what makes them characterization rather than fabricated reds:
+
+| Red case | Caller |
+|---|---|
+| `dna set` on a dirty `dna.yaml` exits 1 … (CLI) | `dna set`, process boundary |
+| refuses, exits 1, names the file and what is modified | `dna set` |
+| refuses, exits 1, names `roles.yaml` | `directive assign` |
+| does not turn a "create" into a commit that deletes content | `directive create` |
+| refuses, exits 1, leaves the uncommitted paragraph on disk | `directive remove` |
+| refuses a target that is clean and tracked | `memory add` |
+| refuses a target still at HEAD but deleted in the working tree | `memory add` |
+| refuses to clobber an UNTRACKED draft at the target path | `memory add` |
+| the one init path with no already-initialized guard refuses | `initWingfoilStorage` |
+
+Two first-draft cases were **fixture** bugs rather than reds and were corrected before the commit, so
+the red count above is the honest one: `git status --porcelain` names the untracked *directory*
+(`?? docs/`) when nothing under it is tracked, and a `commitAll` with nothing staged makes git exit
+non-zero.
+
+### green — role: developer
+
+Commit `4b8428c`. One new module and five call sites.
+
+| What | Where |
+|---|---|
+| `requireUnmodifiedTarget` (edit-in-place targets), `requireUnmodifiedTargets`, `requireAbsentTarget` (create targets), `undeclaredCommittedPaths`, `verifyCommittedPaths`, `committedScopeError`, `WriteTargetContract` / `CONFIG_WRITE_CONTRACT` | **new** `src/core/write-guard.ts`, exported from `src/core` |
+| `requireUnmodifiedDocument` re-expressed as one call into `requireUnmodifiedTarget` with a `TRANSITION_CONTRACT`; `verifyCommittedScope`'s path half taken from `undeclaredCommittedPaths` | `src/core/memory-transition.ts` |
+| `dna set` — guard before the load, post-condition after the commit | `src/core/index.ts` |
+| `directive create` / `directive remove` — guard + post-condition | `src/core/index.ts` |
+| `memory add` — `requireAbsentTarget` on the resolved confined path, + post-condition | `src/core/index.ts` |
+| `directive assign` — guard before the read, post-condition after the commit | `src/core/directive-assign.ts` |
+| `initWingfoilStorage` — guard 4, over the very scaffold list it is about to write | `src/core/init.ts` |
+| `pathPorcelainStatus` switched from `runGit` to `probeGit` | `src/storage/commit.ts` |
+
+Design points worth naming:
+
+- **The gate is shared, the wording is not.** `requireUnmodifiedDocument`'s message is reproduced
+  byte-for-byte through a `WriteTargetContract` (`noun`/`owner`/`records`), so `task-088`'s shipped
+  refusal is unchanged while there is now one answer in the codebase to "is this target modified".
+- **Why a `describeTargetChanges` wrapper exists.** `describeDocumentChanges` reports frontmatter
+  fields and the body. `dna.yaml`/`roles.yaml` have no frontmatter block, so `splitFrontmatter` puts
+  the whole file in `body` and the reporter says `['the body']` for a YAML config file — measured, not
+  assumed (`node -e` against `dist/`). Those get `'the file content'`; directive documents, which do
+  carry frontmatter, keep the field-level detail.
+- **The guard runs before the *read*, not merely before the write,** in `dna set` and `directive
+  assign`. Placing it after the load would leave the refusal's own inputs coming from the dirty copy.
+- **`memory add` resolves its target path twice, deliberately.** The guard must run before the write,
+  and `writeMemoryEntry` resolves the path internally; `resolveConfinedMemoryPath` is pure, so calling
+  it once more in `memoryAddFn` costs nothing and leaves that throwing storage primitive's contract
+  untouched. A confinement escape still throws `StorageError` from the same call, so the existing
+  `IO` mapping and its ordering are unchanged.
+- **One measured side-fix: `pathPorcelainStatus` now uses `probeGit`.** `git status --porcelain --
+  <path>` exits **0** and answers correctly, but writes `warning: could not open directory '<dir>/':
+  No such file or directory` to stderr when an intermediate directory of the pathspec is absent —
+  routine for a guard asking about a file that does not exist yet, and it surfaced immediately in the
+  `initWingfoilStorage` run. Reproduced in a scratch repo before changing anything (the warning fires
+  when the pathspec's *parent* exists but an intermediate directory does not, and not when the whole
+  prefix is absent). `probeGit` is exactly `task-088`'s answer to git diagnostics reaching a user's
+  terminal next to the CLI's own message; a non-zero exit still raises through `execFileSync`.
+
+Full suite after green: `npx jest` → **118 suites, 1854 tests passed**, exit 0. No existing test
+changed, and none broke.
+
+### refactor — role: developer
+
+Commit `a638775`. No behaviour added; the coverage the green step owed.
+
+- **`test/core/write-guard-committed-paths.test.ts`** exercises `verifyCommittedPaths`,
+  `committedScopeError`, `requireUnmodifiedTarget` and `requireAbsentTarget` **directly**, on
+  hand-made commits — an extra path, a missing declared path, committed bytes that differ from what
+  was written, a removal that did not remove, a root commit against git's empty tree — rather than
+  only through the verbs they guard. `task-088`'s precedent, for its reason: with the guard in place
+  no argument to a verb can reach the alarm, so an indirect test could only assert that it stays
+  silent.
+- **The alarm is reachable, and the test that reaches it is realistic.** A repository-local
+  `pre-commit` hook that appends to the target and re-stages it runs *inside* `git commit`, after
+  `requireUnmodifiedTarget` has certified the tree clean and after the write, so nothing before the
+  commit can see it. Driven through the real `dna set` and the real `directive assign`, and it also
+  documents the "alarm, not rollback" semantics: the commit exists, the error names its sha, history
+  is left alone (`dl-035`).
+
+**Coverage, measured on both sides rather than quoted.** Baseline taken by running `npx jest
+--coverage` in a detached worktree at this branch's base (`eca728e`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `eca728e` | 98.65 | 93.25 | 98.86 | 99.22 | 1833 |
+| this branch | **98.69** | **93.45** | **98.89** | **99.24** | 1872 |
+
+Every metric up; no file regressed. `src/core/write-guard.ts` is at **100 / 100 / 100 / 100**.
+`directive-assign.ts` dropped to 98.55 on the first coverage run (its post-condition branch
+uncovered) and is back at 100 after the second hook test. `memory-transition.ts`'s statement
+percentage moved 98.41 → 98.03 with the *same* single uncovered line (a pre-existing branch of
+`prepareMemoryTransition`'s catch): the file lost thirty statements to the extraction, so the one
+uncovered line is now a larger share of a smaller file.
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git -C /home/robypomper/Workspaces/WingFoil2 log --oneline -1
+eca728e wf(task): approve task-091…, task-092…, task-093… [pending -> backlog]
+$ git merge main
+Already up to date.
+```
+
+`main` has not moved since this branch's base, so nothing merged and no document these notes cite can
+have changed under them. All gates below are from that same state.
+
+#### Gates (run in this worktree)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **119 suites, 1872 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.69 / 93.45 / 98.89 / 99.24** — up on all four vs base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+The four gated Memory verbs' own suites, run unchanged after the `requireUnmodifiedDocument`
+extraction: `npx jest test/core/memory-approve.test.ts test/core/memory-reject.test.ts
+test/core/memory-deprecate.test.ts test/core/memory-submit.test.ts
+test/core/memory-transition-commit-scope.test.ts` — all green inside the full run above.
+
+| BDD / acceptance scenario | Test that covers it |
+|---|---|
+| P2.2 `dna set` writes and commits one field | `test/core/dna-set.test.ts` (unchanged, green) + `write-guard-dirty-target.test.ts` "AC4: on a clean tree it still commits, and the commit carries exactly the field it declares" |
+| P3.1 `directive create` | `test/core/directive-create.test.ts` (unchanged) + "AC4: on a clean tree it still creates…" |
+| P3.2 / P3.7 `directive assign` | `test/core/directive-assign.test.ts` (unchanged) + "AC4: …the commit carries exactly the binding it declares" |
+| P3.3 `directive remove` | `test/core/directive-remove.test.ts` (unchanged) + "AC4: on a clean tree it still removes…" |
+| P1.3 `memory add` | `test/core/memory-add.test.ts` (unchanged) + "AC4: adding a NEW element still works while ANOTHER element carries uncommitted modifications" |
+| P5.1.1 `wingfoil init` | `test/core/init-project.test.ts` (unchanged) + "AC4: `wingfoil init` still works in a repository with NOTHING committed and a dirty tree" |
+| P1.7/P1.8/P1.9 the gated verbs, after the shared-gate extraction | `test/core/memory-approve|reject|deprecate.test.ts` and `memory-transition-commit-scope.test.ts`, all unchanged and green |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** `dl-080`'s ratified write rule now holds for the non-transition
+`commitPaths` callers too: `dna set`, `directive create`, `directive assign` and `directive remove`
+refuse before writing when their target carries modifications they do not own, `memory add` refuses
+when its target is already occupied at all, and the gate itself is now one shared mechanism rather
+than a second copy of `task-088`'s.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 reproduce first, on a scratch project, commands in the notes | done | `design` § "AC1", six reproductions (R1–R6) run against the base build before any `src/` edit |
+| AC2 each caller refuses, exit `1`, naming what is modified | done, with `init` argued under AC3 | `requireUnmodifiedTarget` / `requireAbsentTarget`; every refusal is `VALIDATION` → exit `1` per `spec-005` §1, pinned at the process boundary by the CLI suite |
+| AC3 `memory add` and `init` argued, not assumed | done | `design` § "AC3". `memory add` → **absence**, because `nextSequenceNumber` counts the working tree. `init` → the `wingfoil init` path is **provably immune** (`detectInitState` + every scaffold path under `.wingfoil/`) and is scoped out; `initWingfoilStorage`, which has no such check, is guarded |
+| AC4 the ordinary flows still work | done | ten characterization cases, all green on the pre-fix run; plus every pre-existing suite for the six verbs, unchanged |
+| AC5 a test pins the defect for `dna set` and one `directive` verb | done | `dna set` and `directive assign`, both red before / green after; `directive create` and `directive remove` covered as well |
+| AC6 six gates green, full `tsc` silent | done | the table above |
+
+**Reuse, as AC2 asks.** `requireUnmodifiedDocument` is not duplicated — it is now a call into
+`requireUnmodifiedTarget` with its own wording. `verifyCommittedScope` keeps its signature and
+behaviour and shares `undeclaredCommittedPaths` with `verifyCommittedPaths`, the content-agnostic
+sibling the config targets need because they carry no declared frontmatter fields to compare.
+
+**Weak spots a reviewer should check**
+
+1. **`memory add`'s guard also refuses a CLEAN, tracked target** — the id-collision case, where the
+   sequence counter produces an id that lands on a committed element. Refusing is right (an "add"
+   must never overwrite), but it is a *consequence* of the absence rule rather than a separate fix,
+   and the root cause — a sequence counter derived from the working tree — is untouched. Stated in
+   `design`, raised as a proposed element.
+2. **`initWingfoilStorage` is guarded, `initWingfoilProject` is not.** The asymmetry is argued and
+   measured, not assumed, but it is a judgement: a reviewer may prefer the guard on both for
+   symmetry, at the cost of code no test can reach through the CLI. The related defect —
+   `initWingfoilStorage` still overwrites a *clean* committed `.wingfoil/dna.yaml` because it has no
+   already-initialized check — is deliberately left alone and raised.
+3. **`pathPorcelainStatus` now silences git's stderr** (`probeGit`). A non-zero exit still raises, but
+   a caller that wanted git's diagnostic text on a `git status` failure no longer gets it. Scoped to
+   that one function; the reason and the measured warning are in `green` above.
+4. **The post-condition adds three git invocations per mutating command** (`rev-parse <sha>^`,
+   `diff --name-only`, `show <sha>:<path>`). Deliberate — it is what makes the guard checkable rather
+   than hopeful — but it is a real cost on commands that already spawn three git processes, and
+   `initWingfoilStorage` deliberately gets only the guard, not the post-condition, because its
+   scaffold is ~30 paths.
+5. **The guard is per-path, deliberately.** An unrelated dirty file never blocks a write; that is
+   `dl-080`'s ratified narrowness (option (D) was rejected precisely for blocking on unrelated
+   edits), and it is pinned by two explicit tests so nobody widens it by accident.
+
+**Out of scope, raised rather than fixed (brief rule 2 — no Memory elements created here; parallel
+worktrees would collide on ids).** Listed in this run's final report: `memory add`'s working-tree
+sequence counter; `initWingfoilStorage`'s missing already-initialized check; and `dl-080` Action 4,
+which asks that the ratified rule be written into a directive or `spec-002`/`spec-008` where an
+implementer meets it.
+
+**Files touched outside the task file:** `src/core/write-guard.ts` (new), `src/core/index.ts`,
+`src/core/init.ts`, `src/core/directive-assign.ts`, `src/core/memory-transition.ts`,
+`src/storage/commit.ts`, and three test files. `task-091` (read half) touches the Memory
+state-machine load and the directive role-catalogue check; `task-093` touches `src/dna/`. The one
+file all three may meet is `src/core/index.ts`, where this task's additions are five one-line guard
+calls, one import and one export block.
