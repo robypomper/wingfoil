@@ -157,6 +157,11 @@ describe('resolveDnaPath — bug-084: a path the schema does not declare is refu
     expect(refusal('team.members.0.roles')).toContain('team.members');
   });
 
+  it('refuses an entry path against a document where the collection itself is absent', () => {
+    const bare = { version: 1, modules: [], stacks: {}, team: { members: [], roles: [] }, paths: {} };
+    expect(refusal('team.agents.claude', bare as unknown as Record<string, unknown>)).toContain('claude');
+  });
+
   it('refuses an entry name that is not present in the collection', () => {
     const message = refusal('team.members.nobody.roles');
     expect(message).toContain('nobody');

@@ -107,6 +107,12 @@ describe('remove from a sequence', () => {
     expect(result).toContain('roles: [ approver ]');
   });
 
+  it('removes several values from a block sequence in one edit, highest index first', () => {
+    const text = 'paths:\n  sources:\n    - src/\n    - lib/\n    - vendor/\n';
+    const result = edited(text, { verb: 'remove', field: 'paths.sources', value: 'src/,vendor/' }, z.object({ paths: z.object({ sources: z.array(z.string()) }) }));
+    expect(result).toBe('paths:\n  sources:\n    - lib/\n');
+  });
+
   it('removes a value from a block sequence', () => {
     const result = edited(BLOCK, { verb: 'remove', field: 'paths.sources', value: 'src/' });
     expect((load(result) as { paths: { sources: unknown[] } }).paths.sources).toEqual([]);
@@ -264,12 +270,11 @@ describe('the safety contract: verified, or `undefined` for the caller to fall b
   // through `applyDnaEditInText` directly, with a hand-made edit, because most of them describe YAML
   // the mutation verbs cannot produce a request for — the point is that the EDITOR declines rather
   // than writing something subtly wrong, whatever it is handed.
+  //
+  // `intended` is the document the text ALREADY holds, which is the strict sentinel here: an editor
+  // that quietly returned the text unchanged would pass its own read-back check and hand that text
+  // back, so these assertions would fail. Only a genuine decline satisfies them.
   describe.each<[string, string, DnaTextEdit]>([
-    [
-      'the value to write has no single-line YAML form',
-      'name: a\n',
-      { kind: 'set-scalar', path: [{ key: 'name' }], value: 'two\nlines' },
-    ],
     [
       'the target key holds a block scalar, which cannot be rewritten on its own line',
       'note: >-\n  folded text\n',
@@ -321,11 +326,6 @@ describe('the safety contract: verified, or `undefined` for the caller to fall b
       { kind: 'replace-list', path: [{ key: 'items' }], items: ['a'] },
     ],
     [
-      'a flow list is rewritten from an intended value that is not a list at all',
-      'items: [ a ]\n',
-      { kind: 'append-items', path: [{ key: 'items' }], items: ['b'] },
-    ],
-    [
       'one edit of a batch cannot be applied, so the batch as a whole is declined',
       'items:\n  - a\nname: x\n',
       {
@@ -338,10 +338,56 @@ describe('the safety contract: verified, or `undefined` for the caller to fall b
     ],
   ])('declines: %s', (_case, text, pending) => {
     it('returns undefined instead of an edit', () => {
-      // `intended` is deliberately something no minimal edit could produce, so a candidate that
-      // slipped through would fail the read-back comparison rather than this assertion.
-      expect(applyDnaEditInText(text, pending, { unreachable: true })).toBeUndefined();
+      expect(applyDnaEditInText(text, pending, load(text))).toBeUndefined();
     });
+  });
+
+  it('declines when the edited text would not read back as the intended document', () => {
+    // The last line of defence, and the one that makes a mis-located edit cost the comments rather
+    // than the content: the candidate is correct YAML and the edit applied cleanly, but the caller's
+    // intended document says something else.
+    const text = 'items:\n  - a\n';
+    const edit = { kind: 'append-items' as const, path: [{ key: 'items' }], items: ['b'] };
+    expect(applyDnaEditInText(text, edit, { items: ['a', 'b'] })).toBe('items:\n  - a\n  - b\n');
+    expect(applyDnaEditInText(text, edit, { items: ['a', 'b'], extra: 1 })).toBeUndefined();
+    expect(applyDnaEditInText(text, edit, { items: 'not a list' })).toBeUndefined();
+    expect(applyDnaEditInText(text, edit, ['a', 'b'])).toBeUndefined();
+    expect(applyDnaEditInText(text, edit, null)).toBeUndefined();
+  });
+
+  it('declines an index step that the sequence does not have, at any depth of the path', () => {
+    const text = 'items:\n  - name: a\n';
+    expect(
+      applyDnaEditInText(text, { kind: 'set-scalar', path: [{ key: 'items' }, { index: 4 }, { key: 'name' }], value: 'x' }, load(text)),
+    ).toBeUndefined();
+  });
+
+  it('declines a path step that descends into something that is not a mapping', () => {
+    const text = 'items:\n  - a\n';
+    expect(
+      applyDnaEditInText(text, { kind: 'append-items', path: [{ key: 'items' }, { index: 0 }, { key: 'deeper' }], items: ['x'] }, load(text)),
+    ).toBeUndefined();
+  });
+
+  it('reads past blank lines and comments inside a block when locating a key or an item', () => {
+    const text = 'items:\n\n  # the first one\n  - name: a\n\n  # the second one\n  - name: b\n\nother: x\n';
+    const result = applyDnaEditInText(
+      text,
+      { kind: 'set-scalar', path: [{ key: 'items' }, { index: 1 }, { key: 'name' }], value: 'renamed' },
+      { items: [{ name: 'a' }, { name: 'renamed' }], other: 'x' },
+    );
+    expect(result).toContain('# the second one\n  - name: renamed\n');
+    expect(result).toContain('# the first one\n  - name: a\n');
+  });
+
+  it('appends to a key that opens no block at all, at a derived indentation', () => {
+    const text = 'items:\nother: x\n';
+    const result = applyDnaEditInText(
+      text,
+      { kind: 'append-items', path: [{ key: 'items' }], items: ['a'] },
+      { items: ['a'], other: 'x' },
+    );
+    expect(result).toBe('items:\n  - a\nother: x\n');
   });
 
   it('declines rather than guessing when the document does not parse as a single YAML document', () => {

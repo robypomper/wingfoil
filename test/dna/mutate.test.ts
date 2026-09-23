@@ -167,6 +167,20 @@ describe('remove', () => {
     expect(refusal({ verb: 'remove', field: 'paths.sources', value: 'nope/' })).toContain('nope/');
   });
 
+  it('removes several values from a list in one call, keeping the rest in order', () => {
+    const document = dna();
+    (document.paths as Record<string, string[]>).sources = ['src/', 'lib/', 'vendor/'];
+    const result = mutated({ verb: 'remove', field: 'paths.sources', value: 'vendor/, src/' }, document);
+    expect((result.paths as Record<string, unknown>).sources).toEqual(['lib/']);
+  });
+
+  it('refuses the whole multi-value removal when one of the values is not there — no partial write', () => {
+    const document = dna();
+    (document.paths as Record<string, string[]>).sources = ['src/', 'lib/'];
+    expect(refusal({ verb: 'remove', field: 'paths.sources', value: 'src/,nope/' }, document)).toContain('nope/');
+    expect((document.paths as Record<string, string[]>).sources).toEqual(['src/', 'lib/']);
+  });
+
   it('removes an entry addressed by an entry-terminated path, without repeating it in --value', () => {
     const result = mutated({ verb: 'remove', field: 'modules.core' });
     expect(result.modules).toEqual([]);

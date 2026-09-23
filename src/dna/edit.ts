@@ -176,10 +176,19 @@ function locate(lines: readonly string[], path: readonly DnaTextStep[]): Cursor 
   return cursor;
 }
 
-/** Render a value as the single-line YAML token `js-yaml` itself would emit, or `undefined` if it spans lines. */
-function renderInline(value: unknown): string | undefined {
-  const rendered = dump(value, { lineWidth: -1, flowLevel: 0 }).replace(/\n$/, '');
-  return rendered.includes('\n') ? undefined : rendered;
+/**
+ * Render a value as the single-line YAML token `js-yaml` itself would emit — which is what keeps this
+ * editor's bytes identical to the whole-file `dump()` fallback's at the same position, including
+ * defensive quoting (`'2'` stays a string, `'y'` is quoted because YAML 1.1 reads a bare `y` as a
+ * boolean).
+ *
+ * `flowLevel: 0` is what makes the result always a single line: every container is emitted in flow
+ * style and every scalar escaped rather than folded, so a value carrying a newline comes back as
+ * `"a\nb"` rather than a block scalar. That is why this returns a `string` and not `string |
+ * undefined` — there is no value the callers can pass that has no single-line form.
+ */
+function renderInline(value: unknown): string {
+  return dump(value, { lineWidth: -1, flowLevel: 0 }).replace(/\n$/, '');
 }
 
 /** Rebuild a key line with a new value, keeping its indentation, its `- ` prefix and its inline comment. */
@@ -196,30 +205,17 @@ function rewriteKeyLine(line: string, key: KeyLine, scalar: string): string {
 function renderItem(item: unknown, indent: number): string[] | undefined {
   const pad = ' '.repeat(indent);
   if (item === null || typeof item !== 'object' || Array.isArray(item)) {
-    const scalar = renderInline(item);
-    return scalar === undefined ? undefined : [`${pad}- ${scalar}`];
+    return [`${pad}- ${renderInline(item)}`];
   }
   const entries = Object.entries(item as Record<string, unknown>);
-  if (entries.length === 0) return undefined;
-  const lines: string[] = [];
-  for (const [key, value] of entries) {
-    const scalar = renderInline(value);
-    if (scalar === undefined) return undefined;
-    lines.push(`${pad}${lines.length === 0 ? '- ' : '  '}${key}: ${scalar}`);
-  }
-  return lines;
+  if (entries.length === 0) return undefined; // an empty mapping has no `- key: value` form
+  return entries.map(([key, value], index) => `${pad}${index === 0 ? '- ' : '  '}${key}: ${renderInline(value)}`);
 }
 
 /** Render a flow sequence, copying the bracket spacing of the line it replaces. */
-function renderFlow(items: readonly unknown[], spaced: boolean): string | undefined {
-  const parts: string[] = [];
-  for (const item of items) {
-    const scalar = renderInline(item);
-    if (scalar === undefined) return undefined;
-    parts.push(scalar);
-  }
-  if (parts.length === 0) return '[]';
-  const body = parts.join(', ');
+function renderFlow(items: readonly unknown[], spaced: boolean): string {
+  if (items.length === 0) return '[]';
+  const body = items.map((item) => renderInline(item)).join(', ');
   return spaced ? `[ ${body} ]` : `[${body}]`;
 }
 
@@ -268,8 +264,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
 /** Write a value at the mapping key the path ends on, inserting the key when the block does not carry it. */
 function editSetScalar(lines: string[], path: readonly DnaTextStep[], value: unknown): string[] | undefined {
   const scalar = renderInline(value);
-  if (scalar === undefined) return undefined;
-
   const parentPath = path.slice(0, -1);
   const last = path[path.length - 1];
   if (last === undefined || !('key' in last)) return undefined;
@@ -287,9 +281,8 @@ function editSetScalar(lines: string[], path: readonly DnaTextStep[], value: unk
     return lines;
   }
 
-  const insertAfter = lastContentLine(lines, parent.region);
-  if (insertAfter < parent.region.start - 1) return undefined;
-  lines.splice(insertAfter + 1, 0, `${' '.repeat(parent.indent)}${last.key}: ${scalar}`);
+  // `lastContentLine` returns `region.start - 1` for an empty block, so the insert lands at its start.
+  lines.splice(lastContentLine(lines, parent.region) + 1, 0, `${' '.repeat(parent.indent)}${last.key}: ${scalar}`);
   return lines;
 }
 
@@ -391,9 +384,7 @@ function editReplaceList(
 function rewriteFlow(lines: string[], key: KeyLine, path: readonly DnaTextStep[], intended: unknown): string[] | undefined {
   const items = valueAtPath(intended, path);
   if (!Array.isArray(items)) return undefined;
-  const flow = renderFlow(items, /\[\s/.test(valueOf(key.rest)));
-  if (flow === undefined) return undefined;
-  lines[key.line] = rewriteKeyLine(lines[key.line]!, key, flow);
+  lines[key.line] = rewriteKeyLine(lines[key.line]!, key, renderFlow(items, /\[\s/.test(valueOf(key.rest))));
   return lines;
 }
 
