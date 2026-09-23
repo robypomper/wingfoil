@@ -393,3 +393,252 @@ Not fixed here — `directive remove` is named by neither bug, and its fix has a
 | **AC6** — tests pin both defects, red before / green after | **red-first** | Same evidence as AC3; commands recorded under `red`. |
 | **AC7** — this repository's history is not re-verified or rewritten | **process gate** | Negative obligation. `git log --oneline main..HEAD` touches no historical commit; every reproduction runs in a throwaway project (`bug-075`), and no test reads this repository's own Memory. |
 | **AC8** — six gates green | **process** | Run at `refactor`/`review`. |
+
+### red — role: developer
+
+Commit `bd3d06d`. Three new suites, no change to any existing one at this step:
+
+- **`test/core/memory-machine-baseline.test.ts`** — the baseline at the `CoreFn` seam, driving the
+  REAL registered `memory.memorySubmit` / `memoryApprove` / `memoryReject` / `memoryDeprecate`
+  operations in throwaway repos: the `bug-081` edit (the committed machine decides, not the dirty
+  one), a status only the dirty machine defines, all four verbs, the mirror case where the working
+  tree *narrows* a machine `HEAD` sanctions, the single-baseline property on
+  `template.frontmatter.required` (both directions), a type defined only in the working tree, the two
+  AC4 fail-closed refusals, the clean-project flow, and the D5 diagnostic.
+- **`test/core/directive-assign-role-baseline.test.ts`** — the same shape for `directive assign`:
+  the uncommitted role, the *edit → commit → assign* flow, an already-committed role, the mirror
+  case, the two fail-closed refusals, and that an unknown directive id still reports its own message.
+- **`test/cli/reads-resolve-at-head.integration.test.ts`** — the two things only the process boundary
+  shows: the exit code a script keys on and the stderr a human reads, through the compiled
+  `dist/cli.js` in a real `wingfoil init` project, plus AC4's `init` measurement. `spawnSync`, per
+  `task-086`'s gotcha (recorded in the file's TSDoc so the next reader does not "simplify" it back).
+
+Observed red — AC6's command, before any `src/` change:
+
+```
+$ npx jest test/core/memory-machine-baseline.test.ts \
+           test/core/directive-assign-role-baseline.test.ts \
+           test/cli/reads-resolve-at-head.integration.test.ts
+Test Suites: 3 failed, 3 total
+Tests:       18 failed, 8 passed, 26 total
+```
+
+The 18 failures are the two defects. The 8 passes are exactly the cases T1 classifies as
+characterization: `init` committing the machine; the clean-project transition chain; `deprecate` from
+`draft` (its wildcard edge is legal under either machine, so this row of the `it.each` pins the read
+rather than measuring a defect); the already-committed role; the *edit → commit → assign* flow (the
+commit was not yet required, so the positive half already passed); `unknown directive: nope`; and
+D5's clean-tree case, where there is no note to add.
+
+### green — role: developer
+
+Commit `a063cfe`. Four source files, one existing test call site updated.
+
+| Change | Where |
+|---|---|
+| `MEMORY_YAML_PATH` (the root-relative POSIX path git wants) and `parseMemoryYaml(raw, filePath)` — the Memory two-pass parse lifted out of `loadMemoryYaml` so the same schema and the same error shapes serve bytes from any source; `filePath` becomes a **label** (`HEAD:.wingfoil/memory.yaml`), so an error names the baseline it came from | `src/core/loaders.ts` |
+| `loadMemoryYamlAtHead(root): MemoryYaml \| null` — `readPathAtRev(root, 'HEAD', MEMORY_YAML_PATH)` (task-088's primitive) + that parse; `null` means "no commit of this repository contains that path". `loadDnaYamlAtHead`'s own TSDoc corrected where task-090 left it stale (it named one caller, and called itself an exception pending a rule that is now ratified) | same |
+| `prepareMemoryTransition(root, id, op)` — **the signature changed**: it no longer accepts a `MemoryYaml` and resolves the committed one itself. Two fail-closed refusals (nothing committed; committed file unreadable), plus `uncommittedMachineNote`, a diagnostic that never decides. The machine it used rides `PreparedMemoryTransition.memoryYaml` | `src/core/memory-transition.ts` |
+| the four transition verbs lose their `loadMemoryYaml` pre-load and pass `id` alone; `memorySubmitFn` reads `template.frontmatter.required` off `prepared.value.memoryYaml`, so one command has one baseline. Each verb's TSDoc step list says which baseline is read | `src/core/index.ts` |
+| `checkAssignable(root, directiveFiles, role, ids)` — **the signature changed** the same way, resolving `loadDnaYamlAtHead` itself; two fail-closed refusals plus `workingTreeWouldDefine`, the D5 diagnostic | `src/core/directive-assign.ts` |
+| `directiveAssignFn` loses its `loadDnaYaml` pre-load (its only consumer was `checkAssignable`); `loadDnaYamlAtHead`/`loadMemoryYamlAtHead`/`MEMORY_YAML_PATH` are exported from `src/core` (D3) | `src/core/index.ts` |
+| the one existing caller that passed a working-tree `MemoryYaml` updated to the new signature | `test/core/memory-submit.test.ts` |
+
+Design points worth naming:
+
+- **Both fixes are in the signature, not next to the call.** Neither function can be handed a
+  working-tree document any more, so AC2's "unreachable rather than guarded" is enforced by the type
+  checker: a call that tried would not compile. That is also why the change is small — six call sites
+  got *shorter*.
+- **One baseline per command.** `memory submit` used to read `memory.yaml` twice (the machine, then
+  the required fields). Carrying the committed document on the prepared result means a single command
+  cannot decide two things from two copies — a split that would have been invisible and unarguable.
+- **Both diagnostics fail to `false`/`''`.** `workingTreeWouldDefine` returns `false` on any failure
+  to read or parse the working-tree `dna.yaml`; `uncommittedMachineNote` returns `''` if git cannot
+  be asked. Both are pinned by tests, one of them with the only two spies in either suite.
+- **The pinned fit criteria are untouched.** `invalid state '<s>' for type '<t>'`,
+  `document not found: <id>`, `dl-032`'s illegal-transition contract message and P3.2's
+  `unknown role '<role>' (not defined in dna.yaml)` all remain the verbatim **first sentence**; a note
+  is appended only when the working tree and `HEAD` actually disagree. Every existing assertion that
+  matches those messages with `===` runs on a clean fixture and still matches byte for byte.
+- **Exit `1` for every refusal** (`CoreResult.error`, code `VALIDATION`/`NOT_FOUND`/
+  `INVALID_TRANSITION`, all mapped to `1` by `exitCodeForError`), per `spec-005` §1 and AC3. Not
+  re-argued; `bug-076` ruled it.
+- **What deliberately keeps reading the live working tree**: `memory add`, `memory search`,
+  `memory history`, `dna show`, `dna set`, `paths`, `directives list`, `directive remove` and the MCP
+  Resources — see the AC5 table for which of those are findings (S1/S3) and which gate nothing.
+
+Full suite after green: `npx jest` → **119 suites, 1862 tests passed**, exit 0.
+
+### refactor — role: developer
+
+Commit `39db535`. No behaviour added; the coverage the green step owed, plus the two properties it
+asserted in prose and nowhere else.
+
+- **`loadMemoryYamlAtHead` is tested directly** (`test/core/loaders.test.ts`, mirroring task-090's
+  block for `loadDnaYamlAtHead`): `null` while the file is untracked; `HEAD`'s machine returned while
+  the working tree says something else (the same call compared against `loadMemoryYaml` in one
+  assertion); `ValidationError` for a committed file that does not validate while the working-tree
+  copy is fine.
+- **Neither diagnostic can decide.** An unreadable or unparseable working-tree `dna.yaml` leaves the
+  refusal exactly as P3.2 words it; a failure to ask git for the working-tree status leaves the
+  Memory refusal exactly as its fit criterion words it. The second is unreachable from the code (by
+  then `readPathAtRev` has already succeeded), so it uses one `jest.spyOn` on `src/storage`.
+- **A defect in the committed read propagates.** A non-`ValidationError` from `loadMemoryYamlAtHead`
+  / `loadDnaYamlAtHead` must not be converted into "invalid state" or "unknown role" — pinned on both
+  surfaces with a `jest.spyOn` on the loaders module, the same property and the same technique
+  task-090 used on the authority read.
+
+#### AC3/AC4 — the AC1 reproductions re-run against the fixed build
+
+```
+# bug-081, same scratch recipe, same dirty machine
+$ node dist/cli.js memory submit adr-001-probe
+{ "id": "adr-001-probe", …, "from": "draft", "to": "pending" }              exit 0
+$ grep -m1 '^status:' docs/memory/adr/adr-001-probe.md      ->  status: pending
+$ git checkout .wingfoil/memory.yaml
+$ node dist/cli.js memory deprecate adr-001-probe --reason 'still movable'  exit 0
+# …the element is NOT stranded: the status it carries is one the committed machine knows.
+
+# and a document that already carries a fabricated status is refused, with D5's note:
+$ node dist/cli.js memory submit adr-002-second
+error: invalid state 'FABRICATED-BY-SUBMIT' for type 'adr' — note that '.wingfoil/memory.yaml'
+carries uncommitted modifications and the state machine is read from the committed copy (dl-080);
+commit '.wingfoil/memory.yaml' first if this transition depends on that change
+$ echo $?    ->  1
+
+# bug-082
+$ node dist/cli.js directive assign --directive determinism --role FABRICATED-ROLE
+error: unknown role 'FABRICATED-ROLE' (not defined in dna.yaml) — the working tree's
+'.wingfoil/dna.yaml' defines it, but that change is not committed, and a binding is validated against
+the committed catalogue (REQ-SYS-08, dl-080); commit '.wingfoil/dna.yaml' first, then retry
+$ echo $?    ->  1
+$ git log -1 --format='%s'   ->  chore(wingfoil): initialize …      # unchanged: nothing was written
+$ git add .wingfoil/dna.yaml && git commit -q -m 'chore: extend the role catalogue'
+$ node dist/cli.js directive assign --directive determinism --role FABRICATED-ROLE     exit 0
+$ git show HEAD:.wingfoil/roles.yaml | grep -A1 FABRICATED   ->  FABRICATED-ROLE:\n    - determinism
+$ git show HEAD:.wingfoil/dna.yaml   | grep -c FABRICATED    ->  1
+# the binding and the role that supports it are now in the same committed record (REQ-SYS-08).
+$ git rm --cached -q .wingfoil/dna.yaml && git commit -q -m 'untrack dna.yaml'
+$ node dist/cli.js directive assign --directive traceability --role developer
+error: cannot resolve the role catalogue: '.wingfoil/dna.yaml' is not committed at HEAD. …     exit 1
+```
+
+The AC5 findings S1, S2 and S3 were **re-measured against this same fixed build** and all three still
+reproduce unchanged — they are outside both fixes, as the design section says, not accidentally
+closed by them (`memory add` still commits `wf(fabricated-type): add fab-001-probe` against a type
+`git show HEAD:.wingfoil/memory.yaml` does not contain; `directive assign` still binds `ghost`, whose
+file `git cat-file -e HEAD:…/ghost.md` cannot find; `directive remove determinism` still exits `0`
+while `git show HEAD:.wingfoil/roles.yaml | grep -c determinism` says `2`).
+
+#### Coverage — measured on both sides, not quoted
+
+Baseline taken by running `npx jest --coverage` in a detached worktree at this branch's base
+(`eca728e`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `eca728e` | 98.65 | 93.25 | 98.86 | 99.22 | 1833 |
+| this branch | **98.67** | **93.32** | **98.87** | **99.23** | 1870 |
+
+No metric regressed. `src/core/directive-assign.ts` is at **100 / 100 / 100 / 100**;
+`src/core/memory-transition.ts` at 98.68 / 97.36 / 100 / 100. The two lines still uncovered in files
+this task touched are both **pre-existing and moved, not written**: `loaders.ts:142` (the `throw err`
+rethrow inside `parseDnaYaml`, reported at `loaders.ts:102` on the base) and
+`memory-transition.ts:170` (the `if (!(error instanceof ValidationError)) throw error` of the
+transition-resolution catch, reported at `memory-transition.ts:101` on the base). Both were measured
+on the base run, not assumed.
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git log --oneline -1 main
+eca728e wf(task): approve task-091-reads-resolve-at-head, …
+$ git merge main
+Already up to date.
+```
+
+`main` did not move while this task ran, so no document cited above can have gone stale and every
+gate below is current.
+
+#### Gates (run in this worktree)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **119 suites, 1870 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.67 / 93.32 / 98.87 / 99.23** — no metric below base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, no output (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+BDD acceptance scenarios touched by this change, and the tests that cover them:
+
+| BDD scenario | Test that covers it |
+|---|---|
+| P1.6 sc.1 *Submit a draft document for approval* | `test/core/memory-submit.test.ts` (unchanged, green) + `memory-machine-baseline.test.ts` "AC2/AC6: an uncommitted `sequence` edit does not decide the target — the COMMITTED machine does" |
+| P1.6 sc.2 *Error — illegal transition* | `test/core/memory-submit.test.ts` (unchanged) + `memory-machine-baseline.test.ts` "AC3/AC6: a status only the working-tree machine defines is refused at exit 1, nothing written" |
+| P1.6 sc.3 *Error — document not found* | `test/core/memory-submit.test.ts` (unchanged) + `memory-machine-baseline.test.ts` "AC3: a type defined only in the working tree cannot carry a transition" |
+| P1.7 sc.1 / P1.8 sc.1 / P1.9 sc.1 *approve / reject / deprecate* | `test/core/memory-approve.test.ts`, `memory-reject.test.ts`, `memory-deprecate.test.ts` (all unchanged) + `memory-machine-baseline.test.ts` "AC2: `<verb>` too resolves its edge from HEAD, not from the dirty machine" (×3) |
+| P3.2 sc.1 *Assign a directive to a role* | `test/core/directive-assign.test.ts` (unchanged) + `directive-assign-role-baseline.test.ts` "AC4: an already-committed role assigns normally, one scoped commit" |
+| P3.2 sc.2 *Error — assigning to a role not defined in DNA* | `test/core/directive-assign.test.ts` (unchanged — its fixture commits `dna.yaml`, so the message matches byte for byte) + `directive-assign-role-baseline.test.ts` "AC3/AC6: an UNCOMMITTED role is refused at exit 1" |
+| P3.2 sc.3 *Error — assigning a non-existent directive* | `test/core/directive-assign.test.ts` (unchanged) + `directive-assign-role-baseline.test.ts` "an unknown directive id is still reported as such, with the role valid at HEAD" |
+| P3.7 (multi-directive assignment) | `test/core/directive-assign.test.ts` (unchanged) — `checkAssignable` still validates every id before anything is written |
+| P5.1.1 *fresh init runs every transition verb* | `test/cli/fresh-init-transitions.test.ts` — untouched and green: `init` commits the machine, so every verb it drives reads a committed one |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** The state machine that decides a Memory transition and the role
+catalogue that gates a `directive assign` were both read from the files on disk, so an uncommitted
+edit decided what a permanent commit recorded — in the Memory case through a verb needing no
+authority, leaving the element in a status no verb could move; both now resolve against the
+`.wingfoil/*.yaml` committed at `HEAD`, and neither `prepareMemoryTransition` nor `checkAssignable`
+accepts a parsed document from its caller any more, so there is no call path that can reach either
+decision with a working-tree file.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 reproduce both first, on scratch projects, against a build of `main` | done | `design` § AC1 — both transcripts, `bug-081`'s showing the fabricated status committed and all three verbs refusing afterwards, `bug-082`'s showing `git show HEAD:.wingfoil/dna.yaml` lacking the bound role |
+| AC2 both reads resolve at `HEAD`, by removing the parameter | done | `design` § AC2 D1/D2; `green` § — both signatures changed, enforced by the type checker. Neither needed AC2's "say why not" escape |
+| AC3 refusals exit `1` | done | `refactor` § AC3/AC4 transcripts; both baseline suites plus the CLI suite assert `1`, never `2` |
+| AC4 bootstrap + ordinary flows pinned; absent/unreadable committed `memory.yaml` decided deliberately | done — **fail-closed**, argued in D4 on three grounds, only one shared with task-090 | `design` § AC4 (the `init` measurement) + D4; tests at both seams |
+| AC5 sweep the other gating reads | done | `design` § AC5 — a table with the command that settles every row, three live findings (S1/S2/S3) with transcripts, re-measured post-fix; the workflow layer settled as having no gating read at all |
+| AC6 tests pin both defects, red before / green after | done | `red` § — 18 failed / 8 passed before, 26 passed after; commands recorded |
+| AC7 this repository's history is not re-verified or rewritten | done | `git log --oneline main..HEAD` touches no historical commit; every reproduction ran in a throwaway project (`bug-075`); no test reads this repository's own Memory |
+| AC8 six gates green | done | `refactor` § Gates |
+
+**What the approver must decide**
+
+1. **The three sweep findings (S1, S2, S3)**, all measured twice and none fixed here. **S3 is the one
+   to look at first**: `directive remove` deletes a custom asset while the committed `roles.yaml`
+   still binds it, which walks past the one check REQ-SEC-07 clause (b) exists to enforce, on the
+   only verb that destroys an artefact. I grade it above `bug-082`.
+2. **`dl-080`'s Action 4 — "write the ruling where an implementer meets it"** — has no owner. No task
+   in `docs/self/docs/04_memory/v0.2/` references `dl-080` other than task-091/092/093, and none of
+   the three carries that action. Two TSDoc comments and this file now state the rule; a directive or
+   a `spec-005`/`spec-008` amendment is what the ratification asked for.
+
+**Weak spots a reviewer should check**
+
+1. **A behaviour change in the permissive direction, on both surfaces.** A working tree that
+   *withdraws* something `HEAD` records no longer blocks: a narrowed machine still allows a
+   transition `HEAD` sanctions, and a role removed only in the working tree is still assignable. Both
+   are correct under the rule adopted and both are pinned by tests, but they are the cases where the
+   new behaviour permits where the old refused (task-090's M2, on two new surfaces).
+2. **Refusal messages grew a second sentence**, only when the working tree and `HEAD` disagree. Any
+   consumer matching a message with `===` rather than a prefix would see the difference; in this
+   repository nothing does (the existing suites commit their fixtures and still match exactly).
+3. **A split baseline inside `directive assign`**: `--role` now resolves at `HEAD`, `--directive`
+   still against the files on disk. Deliberate and argued (D2 — it needs a `git ls-tree`-shaped
+   primitive that does not exist, and `dl-042`'s warnings channel already surfaces the dangling
+   result), but it is a reviewer's call whether the asymmetry should have blocked this task.
+4. **`memory add` is now on a different baseline from the four transition verbs** (S1). The visible
+   consequence: a type defined only in the working tree still accepts `memory add`, and the element
+   it commits cannot then be submitted. That is a real edge and it is filed rather than fixed.
+5. **Three `jest.spyOn`s across the two new suites** (`refactor` §), each reaching a defensive branch
+   nothing in the code can produce. They pin real properties — a diagnostic must never decide, and a
+   defect in a read must never become an answer — but module spying is worth a second opinion.
+6. **`loadDnaYamlAtHead` is now public** (D3), reversing task-090's deliberate choice on the ground
+   that the rule it was waiting for has been ratified. A reviewer may take the opposite view.
