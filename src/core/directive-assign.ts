@@ -65,6 +65,7 @@ import { parseYaml, toValidationError, type ValidationError } from '../validatio
 import type { DirectiveFile } from './loaders';
 import type { CoreError, CoreResult } from './types';
 import { coreErr, coreOk } from './types';
+import { committedScopeError, requireUnmodifiedTarget } from './write-guard';
 
 /** Root-relative location of the role → directive bindings file (spec-011). */
 export const ROLES_YAML_PATH = '.wingfoil/roles.yaml';
@@ -202,6 +203,14 @@ export function updateRoleAssignments(
   update: (current: readonly string[]) => readonly string[],
   message: string,
 ): CoreResult<RoleAssignmentUpdate> {
+  // dl-080 (B) / bug-078: refuse while `roles.yaml` carries modifications this operation does not
+  // own — otherwise an unrelated uncommitted edit rides into `wf(directive): assign <id> to <role>`,
+  // whose subject names only the binding. Before the read, so the refusal cannot depend on a value
+  // the dirty copy contributed. An ABSENT `roles.yaml` is clean (porcelain reports nothing), which is
+  // what keeps the first `directive assign` on a fresh project working.
+  const unmodified = requireUnmodifiedTarget(root, ROLES_YAML_PATH);
+  if (!unmodified.ok) return unmodified;
+
   const filePath = join(root, ROLES_YAML_PATH);
   const exists = documentExists(filePath);
   const text = exists ? readDocument(filePath) : '';
@@ -235,5 +244,7 @@ export function updateRoleAssignments(
 
   writeDocument(filePath, serialized);
   const sha = commitPaths(root, [ROLES_YAML_PATH], message);
+  const leaked = committedScopeError(root, sha, ROLES_YAML_PATH, serialized);
+  if (leaked) return leaked;
   return coreOk({ assignments: next }, { sha, message });
 }

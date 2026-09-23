@@ -33,9 +33,15 @@ function runGit(root: string, args: readonly string[], options: CommitOptions): 
 
 /**
  * {@link runGit} for a **probe** — an invocation whose failure is an expected answer rather than an
- * error, so git's own diagnostic must not reach the caller's stderr. Without `stdio[2]: 'ignore'`,
- * `execFileSync` inherits fd 2 and `git show HEAD:<untracked>` prints `fatal: path … exists on disk,
- * but not in 'HEAD'` into the user's terminal alongside the message the CLI actually meant to emit.
+ * error, or whose stderr is noise the caller must not surface, so git's own diagnostic does not reach
+ * the caller's stderr. Without `stdio[2]: 'ignore'`, `execFileSync` inherits fd 2 and
+ * `git show HEAD:<untracked>` prints `fatal: path … exists on disk, but not in 'HEAD'` into the
+ * user's terminal alongside the message the CLI actually meant to emit.
+ *
+ * The second case arrived with task-092: `git status --porcelain -- <path>` exits **0** but prints
+ * `warning: could not open directory '<dir>/': No such file or directory` when an intermediate
+ * directory of the pathspec is absent — the ordinary case for a write guard asking about a file that
+ * has not been created yet. A non-zero exit still raises through `execFileSync` exactly as before.
  */
 function probeGit(root: string, args: readonly string[], options: CommitOptions): string {
   return execFileSync('git', ['-C', root, ...args], {
@@ -115,7 +121,10 @@ export function readPathAtRev(root: string, rev: string, path: string, options: 
  * from bytes would disagree with `git status` on exactly the machines where it matters.
  */
 export function pathPorcelainStatus(root: string, path: string, options: CommitOptions = {}): string {
-  const line = runGit(root, ['status', '--porcelain', '--', path], options).split('\n')[0] ?? '';
+  // `probeGit`, not `runGit`: git writes a `warning: could not open directory …` to stderr — while
+  // still exiting 0 and answering correctly — whenever an intermediate directory of the pathspec is
+  // absent, which is routine for a guard asking about a file that does not exist yet (task-092).
+  const line = probeGit(root, ['status', '--porcelain', '--', path], options).split('\n')[0] ?? '';
   return line.length === 0 ? '' : line.slice(0, 2);
 }
 
