@@ -5,7 +5,7 @@ title: "`nextSequenceNumber` derives an element's id by counting files in the wo
 status: open
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.3"
 contributor: ""
 credit: ""
