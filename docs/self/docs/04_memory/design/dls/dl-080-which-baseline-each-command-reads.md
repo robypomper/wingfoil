@@ -2,7 +2,7 @@
 id: "dl-080-which-baseline-each-command-reads"
 type: decision-log
 title: "Which state a command reads — the working tree or the committed repository — has been decided one bug at a time, twice differently, and five defects of one root cause are open"
-status: in-discussion
+status: ready
 context: "architecture"
 release: ""
 contributor: ""
