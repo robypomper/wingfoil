@@ -69,11 +69,23 @@ contents are lessons rather than schedulable work, and this release opened `bug-
 findings parked in prose are rescheduled by nothing. It was already proposed once, by `task-090`, and
 not filed.
 
-Worth establishing before fixing, rather than assuming: whether the remedy is `dna set` parsing a JSON
-value when the schema expects an array, or an append-style verb (`dna add-role`, `dna add-member`)
-that avoids making a user hand-write a whole array to add one entry. The second is friendlier and
-matches how the fields are actually used; the first is one behaviour rather than two new commands.
-`spec-008-cli-grammar` pins the CLI grammar, so either route touches a ratified document.
+**The framing above is narrower than the defect, and the measurement that widened it is in
+`dl-081-dna-mutation-surface-shape`.** This bug was filed as "no way to add a role or a member".
+Counted against the schema, `dna set` reaches **7 of roughly 38 fields** — `version` and the six
+scalars under `project` — while 11 fields are array-valued and 17 more live inside array entries.
+Nothing structured is reachable for **create, update or delete**: not a module's `path`, a
+technology's `version`, a member's `email`, nor the removal of any of them. Array indices do not
+traverse arrays at all — `setDnaValue` treats every path segment as an object key, so
+`dna set modules.0.description` replaces the array with an object and is caught only by the write
+path's re-validation.
+
+So the remedy is a **shape**, not a patch, and choosing it inside this bug would decide the whole
+pillar's surface as a side effect of repairing one flow — which is precisely how the baseline class
+(`dl-080`) came about. `dl-081` puts four shapes on the table with their costs: per-collection verbs,
+`dna set` learning JSON values and indexed paths, a `dna edit` that validates on save, or stating the
+restriction and amending the specs that imply otherwise. **Fix this under whatever `dl-081` ratifies**,
+and note action 2 there: whether this bug repairs only the two collections `dl-080` needs, or lands
+the chosen shape across the pillar, is itself a decision.
 
 ## Triage & Execution Notes
 
