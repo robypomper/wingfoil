@@ -2,7 +2,7 @@
 id: "bug-079-uncommitted-dna-yaml-grants-approval-authority"
 type: bug
 title: "An uncommitted `dna.yaml` edit grants the approval authority, and the resulting commit attests an `Approver:` the repository never recorded"
-status: in-review
+status: closed
 severity: "critical"
 release-origin: "v0.2"
 release: "v0.2"
