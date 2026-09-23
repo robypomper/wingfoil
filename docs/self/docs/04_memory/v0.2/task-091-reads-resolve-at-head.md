@@ -2,7 +2,7 @@
 id: "task-091-reads-resolve-at-head"
 type: task
 title: "Resolve the state machine and the role catalogue from the committed repository, per dl-080's ratified read rule"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "directives", "security", "audit-trail"]
