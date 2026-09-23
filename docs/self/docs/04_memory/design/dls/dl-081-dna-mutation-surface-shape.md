@@ -139,10 +139,10 @@ only shape that satisfies it while reaching every collection.
 referential integrity needs no new check in the verb, and the order it forces — role before member —
 is the one `dl-080`'s committed baseline requires anyway.
 
-#### What `--field` may hold, and why the choice is not free
+#### `--field` holds the full path, and what that settles
 
-Two readings were proposed: the **bare field name**, or a **partial or full path** into the structure.
-The schema decides between them, and the measurement is uncomfortable.
+Two readings were proposed — the bare field name, or a path. **The full path is adopted**, and the
+schema is what decides it.
 
 Counting every key declared in `src/dna/schema.ts`, **five names appear in more than one object**:
 
@@ -154,14 +154,41 @@ Counting every key declared in `src/dna/schema.ts`, **five names appear in more 
 | `notes` | `TechEntry`, `MethodologyEntry` |
 | **`roles`** | **`Team`** (the catalogue) and **`TeamMember`** (one member's list) |
 
-Of the eleven **collections**, ten have a unique leaf name — `modules`, `technologies`,
-`methodologies`, `members`, `agents`, `sources`, `tests`, `docs`, `config`, `governance` — and exactly
-one does not: **`roles`**. A bare `--field roles` cannot distinguish adding a role to the project's
-catalogue from adding a role to a person, and that is the operation `dl-080` makes routine.
+Of the eleven collections ten have a unique leaf name; exactly one does not, and it is `roles` — the
+project's catalogue against one person's list, which is the distinction `dl-080` makes routine. A bare
+name would work for ten of eleven and fail on the one that matters most. `--field team.roles` against
+`--field team.members.roles` is unambiguous by construction.
 
-So the bare name works for ten of eleven and fails on the one that matters most. The honest options are
-a full or partial path (`--field team.roles` against `--field team.members.roles`), or renaming one of
-the two in the schema — which is a `[SPEC]` field change requiring `spec-002` to move first.
+**What the full path settles, and what it only relocates:**
+
+- **The collision: settled.** Nothing further is needed.
+- **Entry addressing: settled only with a convention that must be stated.** The literal structural
+  path to a member's roles is `team.members.2.roles` — an **index**. Indices shift when an entry is
+  removed, so a path written today addresses a different entry tomorrow; that is a foot-gun, not a
+  contract. The usable form addresses a list as a map keyed by `name` —
+  `--field team.members.roberto.roles` — which is a convention **on top of** "full path" rather than a
+  consequence of it, and is adopted here explicitly.
+- **Uniqueness: not settled — promoted from an open question to a prerequisite.** Once entries are
+  addressed by `name`, uniqueness is what the addressing rests on. Measured against WingFoil's own
+  `dna.yaml`: **45 entries across 11 collections, zero duplicate names** — so the convention already
+  holds in practice, while `src/dna/schema.ts` carries no constraint that keeps it holding. The schema
+  needs a uniqueness refinement per collection, or the verbs must refuse on more than one match.
+
+**Two things the full path brings that a bare name would not:**
+
+- **It removes the aliasing question entirely.** With paths there is no singular-to-plural mapping to
+  invent (`team.members`, never `member`), so nothing extends `DNA_KEY_ALIASES` and (E) inherits none
+  of that machinery.
+- **It forces `bug-084`'s repair instead of carrying it.** Under add/remove/update semantics a path
+  that does not resolve must be **rejected**, not created — one cannot add to a collection that does
+  not exist. That is exactly the structure-aware, non-creating traversal `bug-084` needs, so adopting
+  this shape makes the fix a precondition rather than a follow-up.
+
+**One wrinkle to state rather than let a reader infer:** `--value` means two things depending on where
+the path ends. In `add --field team.members --value roberto` it is the new entry's identity; in
+`update --field team.members.roberto.email --value new@example.it` it is the new value. Coherent if
+`--field` is read as *the thing* and `--value` as *the payload*, but it is a convention and belongs in
+the grammar spec.
 
 #### Four path shapes, and only two of them fit `--field` + `--value`
 
@@ -175,15 +202,12 @@ the two in the schema — which is a `[SPEC]` field change requiring `spec-002` 
    per-collection options that differ: `--email`/`--role` for a member, `--category`/`--version` for a
    technology, `--phase` for a methodology, `--executes-as` for an agent.
 4. **Array of strings nested inside an array of objects** — `team.members[].roles` and
-   `team.agents[].executes_as`. **This shape does not fit.** Granting an *existing* member the
-   `approver` role needs two identities — which member, and which value — and `--field roles --value
-   approver` can express only the second. It needs either a path that carries the entry
-   (`--field team.members.roberto.roles`) or a third option (`--of roberto`), and both are grammar
-   this CLI does not currently have.
-
-Shape 4 is worth dwelling on because it is not an edge case: **creating** a member with a role works
-(`--field members --value roberto --role approver`, shape 3), while **amending** an existing member's
-roles does not — and that is exactly the flow `dl-080` turned into an everyday operation.
+   `team.agents[].executes_as`. This shape needs **two** identities — which member, and which value —
+   which a bare field name cannot express. Under the full-path form adopted above it resolves:
+   `add --field team.members.roberto.roles --value approver`. It is the reason entry-by-name
+   addressing is adopted rather than left implicit, since **creating** a member with a role would work
+   under any form while **amending** an existing member's roles works only under this one — and that
+   is exactly the flow `dl-080` turned into an everyday operation.
 
 #### Identity, and a constraint the schema does not have
 
