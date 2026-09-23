@@ -46,9 +46,49 @@ function listMarkdownFilesSorted(dir: string): string[] {
 /** Load and validate `.wingfoil/memory.yaml` in isolation (spec-001-memory-yaml-schema). */
 export function loadMemoryYaml(root: string): MemoryYaml {
   const filePath = join(root, '.wingfoil', 'memory.yaml');
-  const raw = readDocument(filePath);
-  const data = parseYaml(raw, filePath);
-  return runValidation(MemoryYaml, data, filePath);
+  return parseMemoryYaml(readDocument(filePath), filePath);
+}
+
+/**
+ * Root-relative POSIX path of `memory.yaml` — the form git wants for a revision read
+ * (`<rev>:<path>`), as opposed to the platform `join` every on-disk read uses. Counterpart of
+ * {@link DNA_YAML_PATH} (task-091).
+ */
+export const MEMORY_YAML_PATH = '.wingfoil/memory.yaml' as const;
+
+/**
+ * The Memory pillar's two-pass parse, over bytes that may come from anywhere — the working-tree file
+ * ({@link loadMemoryYaml}) or a git revision ({@link loadMemoryYamlAtHead}). `filePath` is a label
+ * only: it rides every issue this raises, so an error names the baseline it came from
+ * (`HEAD:.wingfoil/memory.yaml`, not just a path on disk).
+ */
+function parseMemoryYaml(raw: string, filePath: string): MemoryYaml {
+  return runValidation(MemoryYaml, parseYaml(raw, filePath), filePath);
+}
+
+/**
+ * Load and validate `.wingfoil/memory.yaml` **as the repository has committed it** — the version at
+ * `HEAD` — returning `null` when no commit of the repository contains that path (an untracked
+ * `memory.yaml`, or a repository with no commits at all). Same schema and same error shapes as
+ * {@link loadMemoryYaml}; only the source of the bytes differs.
+ *
+ * This is the baseline every Memory **state transition** resolves against
+ * (`prepareMemoryTransition`, `./memory-transition.ts`), per
+ * `dl-080-which-baseline-each-command-reads` option (B) — *a read that gates an operation resolves
+ * against the repository as committed at `HEAD`* — closing
+ * `bug-081-memory-yaml-read-from-worktree-fabricates-states`: an uncommitted edit to a type's
+ * `sequence` used to decide what transition a verb performed and what `status` it committed, through
+ * `memory submit`, which needs no authority at all, and left the element in a status the committed
+ * machine rejects, movable by no verb at all.
+ *
+ * `HEAD` rather than the commit being produced: a transition commit changes only the element path
+ * (`verifyCommittedScope`, task-088), so `memory.yaml` at `HEAD` and at the new commit are
+ * byte-identical, and `HEAD` is the one available before that commit exists.
+ */
+export function loadMemoryYamlAtHead(root: string): MemoryYaml | null {
+  const raw = readPathAtRev(root, 'HEAD', MEMORY_YAML_PATH);
+  if (raw === null) return null;
+  return parseMemoryYaml(raw, `HEAD:${MEMORY_YAML_PATH}`);
 }
 
 /**
@@ -110,8 +150,9 @@ function parseDnaYaml(raw: string, filePath: string): DnaYaml {
  * `dna.yaml`, or a repository with no commits at all). Same schema and same error shapes as
  * {@link loadDnaYaml}; only the source of the bytes differs.
  *
- * This exists for exactly one caller today, `requireApprovalAuthority`
- * (`./approval-authority.ts`, task-090 / `bug-079`): approval authority is a property of the
+ * Its caller is `requireApprovalAuthority` (`./approval-authority.ts`, task-090 / `bug-079`) —
+ * joined by `checkAssignable` (`./directive-assign.ts`, task-091 / `bug-082`), which validates
+ * `directive assign`'s `--role` against the same committed catalogue: approval authority is a property of the
  * repository, not of a working tree, so the roles it reads must be roles someone committed.
  * `adr-006-git-identity-role-based-authz`'s own Positive consequence — a fresh clone "reproduces the
  * full audit trail with zero extra infrastructure" — is what fixes the baseline: a clone carries
@@ -123,9 +164,12 @@ function parseDnaYaml(raw: string, filePath: string): DnaYaml {
  * byte-identical — the two shapes `bug-079`'s Expected Behavior offers cannot diverge, and `HEAD` is
  * the one available before the commit exists.
  *
- * Deliberately NOT how the working-tree loaders behave: this is the exception, argued for the
- * authority read alone, not a new default (`bug-078` covers the same question on the write side; the
- * general rule is a decision-log, not this function).
+ * Deliberately NOT how the working-tree loaders behave — but no longer an exception argued for one
+ * read: `dl-080-which-baseline-each-command-reads` is `ready`, ratified as option (B), and **a read
+ * that gates an operation resolves at `HEAD`** is now the rule this and {@link loadMemoryYamlAtHead}
+ * implement. A read that gates nothing — `dna show`, `paths`, `directives list`, the MCP Resources —
+ * still reports the working tree, which is what those exist to do. (`bug-078` is (B)'s write half:
+ * a write refuses while its target carries modifications it does not own.)
  */
 export function loadDnaYamlAtHead(root: string): DnaYaml | null {
   const raw = readPathAtRev(root, 'HEAD', DNA_YAML_PATH);

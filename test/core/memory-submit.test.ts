@@ -20,7 +20,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { commitMemoryTransition, CORE_MODULES, loadMemoryYaml, prepareMemoryTransition } from '../../src/core';
+import { commitMemoryTransition, CORE_MODULES, prepareMemoryTransition } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import { UsageError } from '../../src/core/usage-error';
@@ -158,7 +158,7 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
     const before = head(repo);
     const path = join(repo, 'docs/memory/v0.2/task-101.md');
     const original = readFileSync(path, 'utf-8');
-    const prepared = prepareMemoryTransition(repo, loadMemoryYaml(repo), 'task-101', 'submit');
+    const prepared = prepareMemoryTransition(repo, 'task-101', 'submit');
     expect(prepared.ok).toBe(true);
     if (!prepared.ok) return;
     // A corrupted render of the kind the first pass produced: a stray continuation line folded into `status`.
