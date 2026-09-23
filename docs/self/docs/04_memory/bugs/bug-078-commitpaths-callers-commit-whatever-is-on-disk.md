@@ -2,10 +2,10 @@
 id: "bug-078-commitpaths-callers-commit-whatever-is-on-disk"
 type: bug
 title: "`dna set`, the `directive` verbs, `init` and `memory add` commit their target path as it stands on disk, so an unrelated uncommitted edit rides into a `wf(...)` commit"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: ""
 contributor: ""
 credit: ""

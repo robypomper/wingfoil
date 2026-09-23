@@ -2,10 +2,10 @@
 id: "bug-083-dna-set-cannot-write-array-valued-fields"
 type: bug
 title: "`dna set` writes scalars only, so no command can add a team member or a role — and seeding the first approver has no CLI path at all"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P2.1"
 contributor: ""
 credit: ""

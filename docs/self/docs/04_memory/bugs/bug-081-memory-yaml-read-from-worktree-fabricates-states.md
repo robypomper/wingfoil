@@ -2,10 +2,10 @@
 id: "bug-081-memory-yaml-read-from-worktree-fabricates-states"
 type: bug
 title: "An uncommitted `memory.yaml` edit makes an ungated verb commit a state no committed machine defines, and strands the element in it"
-status: triaged
+status: planned
 severity: "critical"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.13"
 contributor: ""
 credit: ""
