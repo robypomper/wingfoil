@@ -20,9 +20,23 @@
  * holding approval authority is instead a `dna.yaml` fact (`team.agents[].approval_authority: false`)
  * enforced by process/governance (CLAUDE.md §4/§8: "AI agents ... never hold approval authority"), not
  * by this predicate.
+ *
+ * **"Who is authorized" is read from the COMMITTED `dna.yaml`, never from the working tree**
+ * (task-090, `bug-079-uncommitted-dna-yaml-grants-approval-authority`). The two halves of the check
+ * therefore take deliberately different baselines, and each takes the only one it can:
+ *
+ * - *who is asking* — the live git config, which is a local setting git never commits, and which is
+ *   also exactly what the resulting commit will record as its author;
+ * - *who may approve* — `HEAD`'s `.wingfoil/dna.yaml`, because an approval is evidence and evidence
+ *   is worth what an independent reader can re-derive from the artefact of record. An uncommitted
+ *   grant used to be enough to put `Approver: … (approver)` into a permanent commit that the
+ *   repository's own record, at that very commit, contradicted.
  */
 import type { DnaYaml } from '../dna/schema';
+import { ValidationError } from '../validation';
+
 import { readGitIdentity } from './git-identity';
+import { DNA_YAML_PATH, loadDnaYaml, loadDnaYamlAtHead } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 
 /** The one role that carries approval authority, uniformly across every Memory type (adr-006). */
@@ -48,25 +62,86 @@ export function hasApproverRole(dna: DnaYaml, email: string): boolean {
 }
 
 /**
- * Verify the principal identified by the live git identity at `root` holds the `approver` role
- * before an approval (`memory.approve`, P1.7) proceeds. Returns a `CoreResult.error` (code
- * `VALIDATION` — a failed authorization precondition, mapped to exit `1` by `exitCodeForError`,
- * mirroring `requireGitIdentity`'s own precondition shape) carrying the exact REQ-SEC-03 fit-criterion
- * message `user not authorized to approve type '<type>'` when the git-configured email holds no
- * `approver` role (including when it is unset, or matches no `team.members` entry at all); otherwise
+ * Whether the working tree's `dna.yaml` grants `email` the `approver` role — a **diagnostic only**,
+ * never a decision. It answers one question: is the user looking at a file that says something the
+ * repository has not recorded? Any failure to read or parse it is simply "no" (`false`): an
+ * unreadable working-tree file must never change the outcome of a check whose answer comes from
+ * `HEAD`.
+ */
+function workingTreeWouldGrant(root: string, email: string): boolean {
+  try {
+    return hasApproverRole(loadDnaYaml(root), email);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify the principal identified by the live git identity at `root` holds the `approver` role — **as
+ * the committed `.wingfoil/dna.yaml` records it** — before an approval (`memory.approve`, P1.7) or a
+ * rejection (`memory.reject`, P1.8) proceeds. Returns a `CoreResult.error` (code `VALIDATION` — a
+ * failed authorization precondition, mapped to exit `1` by `exitCodeForError`, mirroring
+ * `requireGitIdentity`'s own precondition shape; `spec-005` §1 reserves `2` for a malformed
+ * *invocation*, which none of these refusals is) carrying the exact REQ-SEC-03 fit-criterion message
+ * `user not authorized to approve type '<type>'` when the git-configured email holds no `approver`
+ * role at `HEAD` (including when it is unset, or matches no `team.members` entry at all); otherwise
  * `ok`. `typeName` is the Memory element type being approved (e.g. `task`, `adr`) — interpolated into
  * the refusal message only, it plays no role in the authority check itself (§ module doc comment: the
  * `approver` role is uniform across types).
  *
- * Callers (e.g. the future `wingfoil memory approve`, `task-046-memory-approve`) run this AFTER
- * `requireGitIdentity` (REQ-SEC-01) in the same mutating-op pre-flight sequence `dnaSetFn`/
- * `memoryAddFn` (`src/core/index.ts`) already establish — an unconfigured identity should surface as
- * REQ-SEC-01's own message, not this one.
+ * Three refusals, all fail-closed, all before anything is written:
+ *
+ * 1. **No authority at `HEAD`** — REQ-SEC-03's message verbatim. When the *working tree* would have
+ *    granted it, a second sentence names the baseline, so a user whose editor shows them as an
+ *    approver is told why the tool disagrees instead of being left to argue with the file on their
+ *    screen. That diagnostic is the half of option (b) — refusing while `dna.yaml` is modified —
+ *    worth keeping; the refusal itself remains a statement about the repository.
+ * 2. **No committed `dna.yaml` at all** — an untracked file, or a repository with no commits: there
+ *    is no record to read, so no authority can be established.
+ * 3. **A committed `dna.yaml` that does not parse or validate** — the baseline is unreadable, which
+ *    is not the same as "grants nothing", but leads to the same refusal.
+ *
+ * This function takes `root`, not a `DnaYaml`: a caller cannot hand it a parsed working-tree
+ * configuration even by accident, which is what makes the committed baseline a property of the read
+ * itself rather than of a precondition someone must remember to run (task-090, AC2).
+ *
+ * Callers run this AFTER `requireGitIdentity` (REQ-SEC-01) in the same mutating-op pre-flight
+ * sequence `dnaSetFn`/`memoryAddFn` (`src/core/index.ts`) establish — an unconfigured identity should
+ * surface as REQ-SEC-01's own message, not this one.
  */
-export function requireApprovalAuthority(root: string, dna: DnaYaml, typeName: string): CoreResult<void> {
+export function requireApprovalAuthority(root: string, typeName: string): CoreResult<void> {
   const { email } = readGitIdentity(root);
-  if (!hasApproverRole(dna, email)) {
-    return coreErr({ code: 'VALIDATION', message: `user not authorized to approve type '${typeName}'` });
+
+  let committed: DnaYaml | null;
+  try {
+    committed = loadDnaYamlAtHead(root);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `cannot resolve approval authority: the committed '${DNA_YAML_PATH}' (at HEAD) is not readable as DNA: ` +
+        `${error.message}. Approval authority is read from the committed configuration, so the committed file ` +
+        'must be valid; fix it and commit the fix, then retry.',
+      details: { issues: error.issues },
+    });
   }
-  return coreOk<void>(undefined);
+
+  if (committed === null) {
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `cannot resolve approval authority: '${DNA_YAML_PATH}' is not committed at HEAD. Approval authority is a ` +
+        'property of the repository, not of a working tree (adr-006), so an approval can only rest on roles some ' +
+        `commit records; commit '${DNA_YAML_PATH}' first, then retry.`,
+    });
+  }
+
+  if (hasApproverRole(committed, email)) return coreOk<void>(undefined);
+
+  const uncommittedGrant = workingTreeWouldGrant(root, email)
+    ? ` — the working tree's '${DNA_YAML_PATH}' grants it, but that change is not committed, and approval authority ` +
+      `is read from the committed configuration (adr-006); commit '${DNA_YAML_PATH}' first, then retry`
+    : '';
+  return coreErr({ code: 'VALIDATION', message: `user not authorized to approve type '${typeName}'${uncommittedGrant}` });
 }

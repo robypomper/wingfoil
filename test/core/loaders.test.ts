@@ -5,9 +5,16 @@
  */
 import { join } from 'path';
 
-import { loadDirectives, loadDnaYaml, loadMemoryYaml, loadRolesYaml, loadWorkflowsYaml } from '../../src/core/loaders';
+import {
+  loadDirectives,
+  loadDnaYaml,
+  loadDnaYamlAtHead,
+  loadMemoryYaml,
+  loadRolesYaml,
+  loadWorkflowsYaml,
+} from '../../src/core/loaders';
 import { ValidationError } from '../../src/validation';
-import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
+import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const MEMORY_YAML = `
 version: 1.1
@@ -186,5 +193,43 @@ describe('per-pillar loaders — validate the real, live docs/self/.wingfoil con
     expect(() => loadRolesYaml(liveRoot)).not.toThrow();
     const roles = loadRolesYaml(liveRoot);
     expect(roles.assignments.developer).toEqual(['code-quality', 'testing', 'determinism']);
+  });
+});
+
+/**
+ * `loadDnaYamlAtHead` — the committed-baseline read (task-090,
+ * `bug-079-uncommitted-dna-yaml-grants-approval-authority`). Same schema and same failure shapes as
+ * `loadDnaYaml`; the only difference is where the bytes come from, which is the whole point:
+ * `requireApprovalAuthority` must not be able to see a working-tree edit.
+ */
+describe('loadDnaYamlAtHead — the DNA as the repository committed it', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeAllFourPillars(repo);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('returns null while dna.yaml is untracked — there is no committed record to read', () => {
+    expect(loadDnaYamlAtHead(repo)).toBeNull();
+  });
+
+  it('returns HEAD\'s dna.yaml, not the working tree\'s, when the two differ', () => {
+    commitAll(repo, 'seed');
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML.replace('- name: core', '- name: INJECTED-BY-THE-WORKING-TREE'));
+
+    expect(loadDnaYaml(repo).modules[0]?.name).toBe('INJECTED-BY-THE-WORKING-TREE');
+    expect(loadDnaYamlAtHead(repo)?.modules[0]?.name).toBe('core');
+  });
+
+  it('throws ValidationError when the COMMITTED dna.yaml is invalid, even if the working-tree copy is fine', () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'version: 1.1\nmodules: "not a list"\n');
+    commitAll(repo, 'seed an invalid dna.yaml');
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', DNA_YAML);
+
+    expect(() => loadDnaYaml(repo)).not.toThrow();
+    expect(() => loadDnaYamlAtHead(repo)).toThrow(ValidationError);
   });
 });

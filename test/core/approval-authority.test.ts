@@ -5,16 +5,24 @@
  * real-config-fixture pattern for the pure role-lookup cases (parses the REAL
  * `docs/self/.wingfoil/dna.yaml`, whose one `team.members` entry — Roberto Pompermaier,
  * `robypomper@gmail.com` — holds the `approver` role among others).
+ *
+ * Since task-090 (`bug-079-uncommitted-dna-yaml-grants-approval-authority`), `requireApprovalAuthority`
+ * takes `(root, typeName)` and resolves the roles from the **committed** `.wingfoil/dna.yaml` itself —
+ * a caller can no longer hand it a `DnaYaml` parsed from the working tree. Every case below therefore
+ * COMMITS its fixture configuration into the throwaway repo; the cases that deliberately do not are
+ * the ones pinning that baseline. The pure-lookup describe is untouched: `resolveMemberRoles` /
+ * `hasApproverRole` are still pure functions of a parsed `DnaYaml`, whatever produced it.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'fs';
-import { load } from 'js-yaml';
+import { dump, load } from 'js-yaml';
 
 import { DnaYaml } from '../../src/dna/schema';
 import { hasApproverRole, requireApprovalAuthority, resolveMemberRoles } from '../../src/core/approval-authority';
+import * as loaders from '../../src/core/loaders';
 
 const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml'), 'utf-8');
 const realDna = DnaYaml.parse(load(raw));
@@ -90,34 +98,140 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     execFileSync('git', ['-C', dir, 'config', key, value], { encoding: 'utf-8' });
   }
 
+  /** Write `.wingfoil/dna.yaml` into the working tree WITHOUT committing it (task-090's baseline). */
+  function writeDna(text: string): void {
+    mkdirSync(join(dir, '.wingfoil'), { recursive: true });
+    writeFileSync(join(dir, '.wingfoil', 'dna.yaml'), text, 'utf-8');
+  }
+
+  /**
+   * Write it and COMMIT it — what makes a role real under task-090. The identity rides `-c` flags
+   * because this fixture blanks the global/system git config, so there is no committer otherwise.
+   */
+  function commitDna(text: string): void {
+    writeDna(text);
+    execFileSync('git', ['-C', dir, 'add', '--', '.wingfoil/dna.yaml'], { encoding: 'utf-8' });
+    const identity = ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid'];
+    execFileSync('git', ['-C', dir, ...identity, 'commit', '--quiet', '-m', 'seed dna.yaml'], { encoding: 'utf-8' });
+  }
+
   it('rejects with the exact REQ-SEC-03 message + VALIDATION code when the committer email holds no approver role', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, REVIEWER_ONLY_DNA, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
     });
   });
 
   it('rejects when the committer email matches no team member at all', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Stranger');
     setLocalConfig('user.email', 'stranger@example.com');
-    expect(requireApprovalAuthority(dir, REVIEWER_ONLY_DNA, 'adr')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'adr')).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'adr'" },
     });
   });
 
   it('succeeds when the committer email matches a team member holding the approver role', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Approver Amy');
     setLocalConfig('user.email', 'amy@example.com');
-    expect(requireApprovalAuthority(dir, REVIEWER_ONLY_DNA, 'task').ok).toBe(true);
+    expect(requireApprovalAuthority(dir, 'task').ok).toBe(true);
   });
 
   it('succeeds against the real dna.yaml for its configured approver (Roberto)', () => {
+    commitDna(raw);
     setLocalConfig('user.name', 'Roberto Pompermaier');
     setLocalConfig('user.email', 'robypomper@gmail.com');
-    expect(requireApprovalAuthority(dir, realDna, 'release').ok).toBe(true);
+    expect(requireApprovalAuthority(dir, 'release').ok).toBe(true);
+  });
+
+  // task-090 / bug-079 — the baseline itself, at this function's own seam. The verbs' end-to-end
+  // version lives in `test/core/approval-authority-baseline.test.ts`.
+  it('task-090: an UNCOMMITTED grant does not authorize — REQ-SEC-03 message first, then the baseline named', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
+    writeDna(
+      dump({
+        ...REVIEWER_ONLY_DNA,
+        team: {
+          ...REVIEWER_ONLY_DNA.team,
+          members: [{ name: 'Reviewer Ray', email: 'ray@example.com', roles: ['reviewer', 'developer', 'approver'] }],
+        },
+      }),
+    );
+    setLocalConfig('user.name', 'Reviewer Ray');
+    setLocalConfig('user.email', 'ray@example.com');
+
+    const result = requireApprovalAuthority(dir, 'task');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toMatch(/^user not authorized to approve type 'task' — the working tree's /);
+    expect(result.error.message).toContain('not committed');
+  });
+
+  it('task-090: an UNCOMMITTED withdrawal does not revoke — authority is what the repository records', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
+    writeDna(
+      dump({
+        ...REVIEWER_ONLY_DNA,
+        team: { ...REVIEWER_ONLY_DNA.team, members: [{ name: 'Approver Amy', email: 'amy@example.com', roles: ['reviewer'] }] },
+      }),
+    );
+    setLocalConfig('user.name', 'Approver Amy');
+    setLocalConfig('user.email', 'amy@example.com');
+    expect(requireApprovalAuthority(dir, 'task').ok).toBe(true);
+  });
+
+  // The diagnostic is a diagnostic: an unreadable working-tree file must not change an answer that
+  // comes from HEAD, and must not turn a refusal into a crash.
+  it('task-090: an unreadable working-tree dna.yaml leaves the refusal exactly as REQ-SEC-03 words it', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
+    rmSync(join(dir, '.wingfoil', 'dna.yaml'));
+    setLocalConfig('user.name', 'Reviewer Ray');
+    setLocalConfig('user.email', 'ray@example.com');
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
+    });
+
+    writeDna('this: [is not, a dna file\n');
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      error: { message: "user not authorized to approve type 'task'" },
+    });
+  });
+
+  // The one failure this gate does NOT convert into an authorization answer. A committed file that
+  // does not parse or validate is a refusal (`cannot resolve approval authority: …`); anything else
+  // would be a defect in the read path, and reporting a defect as "not authorized" — or as
+  // "authorized" — would put a wrong authorization decision on the record. It propagates instead.
+  // Reachable only by making the read fail in a way nothing in the code can produce, hence the spy.
+  it('task-090: an unexpected failure to read the committed baseline propagates, never becomes an authorization answer', () => {
+    setLocalConfig('user.name', 'Approver Amy');
+    setLocalConfig('user.email', 'amy@example.com');
+    const spy = jest.spyOn(loaders, 'loadDnaYamlAtHead').mockImplementation(() => {
+      throw new Error('git is not available');
+    });
+    try {
+      expect(() => requireApprovalAuthority(dir, 'task')).toThrow('git is not available');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('task-090: with no committed dna.yaml at all, no authority can be resolved', () => {
+    writeDna(dump(REVIEWER_ONLY_DNA));
+    setLocalConfig('user.name', 'Approver Amy');
+    setLocalConfig('user.email', 'amy@example.com');
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION' },
+    });
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+      error: { message: expect.stringContaining('is not committed at HEAD') },
+    });
   });
 
   // bug-017-agent-authority-guarantee-untested, absorbed into task-046-memory-approve (dl-045).
@@ -142,18 +256,21 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     expect(hasApproverRole(agentOnlyDna, 'ray@example.com')).toBe(false);
     expect(resolveMemberRoles(agentOnlyDna, 'ray@example.com')).not.toContain('approver');
 
+    // Committed, so the refusal is about the ROLES the repository records — not about the baseline.
+    commitDna(dump(agentOnlyDna));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, agentOnlyDna, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
     });
   });
 
   it('the error type-interpolation reflects the exact `typeName` argument passed in', () => {
+    commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, REVIEWER_ONLY_DNA, 'decision-log')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'decision-log')).toMatchObject({
       error: { message: "user not authorized to approve type 'decision-log'" },
     });
   });
