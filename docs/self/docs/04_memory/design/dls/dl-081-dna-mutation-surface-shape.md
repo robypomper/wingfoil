@@ -223,8 +223,12 @@ Three consequences for (E):
   first segment only: whatever aliasing (E) wants is new machinery, not an extension.
 - If (E) adopts path-valued `--field`, it inherits this behaviour unless the traversal is made
   structure-aware — which is the same repair (B) needs, so the two options share a prerequisite.
-- **It is a defect in its own right** and is not filed. Worth an element regardless of which shape is
-  ratified.
+- **It is a defect in its own right**, now filed as `bug-084-dna-key-alias-writes-unschemad-keys`
+  (`open`, medium). That bug also separates out the wider half this measurement exposed: an unknown
+  key is writable **at all**, because the pass-through that makes an unfamiliar document *load* also
+  lets `dna set` *invent* a key at any depth and commit it. Pass-through on read is defensible;
+  pass-through on write is a contract question this document should answer whichever shape it
+  ratifies.
 
 ### (D) Keep the surface as it is and say so
 
