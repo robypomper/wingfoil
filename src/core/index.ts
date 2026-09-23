@@ -52,6 +52,7 @@ import {
 } from '../memory';
 
 import {
+  DNA_YAML_PATH,
   loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
@@ -294,6 +295,7 @@ async function runDnaMutation(
   root: string,
   request: DnaMutationRequest,
   subject: string = dnaCommitSubject(request),
+  scalarOnly = false,
 ): Promise<CoreResult<{ key: string; value?: string }>> {
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity;
@@ -301,10 +303,21 @@ async function runDnaMutation(
   const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
   if (!loaded.ok) return loaded;
 
+  if (scalarOnly) {
+    const resolved = resolveDnaPath(loaded.value as Record<string, unknown>, request.field);
+    if (!resolved.ok) return coreErr({ code: 'VALIDATION', message: resolved.message });
+    if (resolved.target.kind !== 'scalar') {
+      return coreErr({
+        code: 'VALIDATION',
+        message: `'${request.field}' does not hold a single value: reach it with \`dna add|remove|update --field ${request.field} --value <v>\` (dl-081)`,
+      });
+    }
+  }
+
   const applied = applyDnaMutation(loaded.value as Record<string, unknown>, request);
   if (!applied.ok) return coreErr({ code: 'VALIDATION', message: applied.message });
 
-  const dnaPath = join(root, '.wingfoil', 'dna.yaml');
+  const dnaPath = join(root, DNA_YAML_PATH);
   const current = readDocument(dnaPath);
   const serialized = applyDnaEditInText(current, applied.edit, applied.dna) ?? dump(applied.dna, { lineWidth: -1 });
 
@@ -318,7 +331,7 @@ async function runDnaMutation(
   if (current === serialized) return coreOk(outcome);
 
   writeDocument(dnaPath, serialized);
-  const sha = commitPaths(root, ['.wingfoil/dna.yaml'], subject);
+  const sha = commitPaths(root, [DNA_YAML_PATH], subject);
   return coreOk(outcome, { sha, message: subject });
 }
 
@@ -357,24 +370,10 @@ const dnaSetFn: CoreFn<unknown, { key: string; value?: string }> = async (params
     throw new UsageError(`invalid key path: '${keyPath}'`);
   }
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const resolved = resolveDnaPath(loaded.value as Record<string, unknown>, keyPath);
-  if (!resolved.ok) return coreErr({ code: 'VALIDATION', message: resolved.message });
-  if (resolved.target.kind !== 'scalar') {
-    return coreErr({
-      code: 'VALIDATION',
-      message: `'${keyPath}' does not hold a single value: reach it with \`dna add|remove|update --field ${keyPath} --value <v>\` (dl-081)`,
-    });
-  }
-
   // `wf(dna): set <key>` — the subject `dna set` has always written (task-025), kept verbatim so a
-  // reader (and `git log --grep`) sees the command that was run, not the verb it delegates to.
-  return runDnaMutation(root, { verb: 'update', field: keyPath, value }, `wf(dna): set ${keyPath}`);
+  // reader (and `git log --grep`) sees the command that was run, not the verb it delegates to. The
+  // scalar-only restriction is applied inside the shared pipeline, on the document it already loaded.
+  return runDnaMutation(root, { verb: 'update', field: keyPath, value }, `wf(dna): set ${keyPath}`, true);
 };
 
 /**

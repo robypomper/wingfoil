@@ -16,6 +16,8 @@
  * The resolver reads `DnaYaml` (`src/dna/schema.ts`) itself rather than a hand-written field table, so
  * the write surface cannot drift from the schema it writes.
  */
+import { z } from 'zod';
+
 import { resolveDnaPath } from '../../src/dna/path';
 import { DnaYaml } from '../../src/dna/schema';
 
@@ -196,6 +198,39 @@ describe('the DNA pillar accepts an unknown key when READING and refuses to writ
   it('write: the same keys are refused by the resolver every write path goes through', () => {
     expect(refusal('stacks.cli.framework', withUnknownKeys)).toContain('stacks.cli.framework');
     expect(refusal('future_section.anything', withUnknownKeys)).toContain('future_section');
+  });
+});
+
+describe('what counts as an addressable shape — pinned against schemas spec-002 does not declare today', () => {
+  // `resolveDnaPath` takes the schema as a parameter precisely so these rules are exercised rather
+  // than asserted: `DnaYaml` happens to contain only objects, scalars, string arrays and object
+  // arrays, so every other shape would otherwise be an untested claim about what the traversal does.
+  const exotic = z.object({
+    matrix: z.array(z.array(z.string())),
+    pairs: z.array(z.tuple([z.string(), z.number()])),
+    when: z.date(),
+    counts: z.array(z.number()),
+    entries: z.array(z.object({ name: z.string(), size: z.number(), tags: z.array(z.string()), blob: z.date() })),
+  });
+
+  it('refuses a path that ends on a shape it cannot classify, rather than guessing a verb for it', () => {
+    for (const field of ['matrix', 'pairs', 'when', 'counts']) {
+      const resolved = resolveDnaPath({}, field, exotic);
+      expect(resolved.ok).toBe(false);
+      if (!resolved.ok) expect(resolved.message).toContain(field);
+    }
+  });
+
+  it("classifies an entry field it cannot map to an option value as 'other', leaving it as given", () => {
+    const resolved = resolveDnaPath({ entries: [] }, 'entries', exotic);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.target.entryFields).toEqual([
+      { name: 'name', kind: 'string', required: true },
+      { name: 'size', kind: 'number', required: true },
+      { name: 'tags', kind: 'string-list', required: true },
+      { name: 'blob', kind: 'other', required: true },
+    ]);
   });
 });
 

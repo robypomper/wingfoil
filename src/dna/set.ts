@@ -81,8 +81,12 @@ function indentOf(line: string): number {
  * Index within `rest` of the `#` that starts an inline comment, or `-1`. Quote-aware, so a `#`
  * inside a `'single'`- or `"double"`-quoted scalar is not mistaken for a comment; per the YAML spec
  * a comment must also be preceded by whitespace (or start the field).
+ *
+ * Exported for `./edit.ts`, the sequence-aware editor added by task-093: both write paths must agree
+ * on where a line's value ends and its comment begins, and two copies of this scanner would be two
+ * chances to disagree.
  */
-function inlineCommentIndex(rest: string): number {
+export function inlineCommentIndex(rest: string): number {
   let quote: string | undefined;
   for (let i = 0; i < rest.length; i += 1) {
     const char = rest[i]!;
@@ -100,7 +104,7 @@ function inlineCommentIndex(rest: string): number {
 }
 
 /** The value part of a key line's `rest`, with any inline comment and surrounding spaces removed. */
-function valueOf(rest: string): string {
+export function valueOf(rest: string): string {
   const commentIndex = inlineCommentIndex(rest);
   return (commentIndex < 0 ? rest : rest.slice(0, commentIndex)).trim();
 }

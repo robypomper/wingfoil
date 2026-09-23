@@ -10,6 +10,8 @@
  * it is given — a refused mutation must leave the caller's object byte-identical, since `src/core`'s
  * verbs re-validate and commit only what comes back.
  */
+import { z } from 'zod';
+
 import { applyDnaMutation } from '../../src/dna/mutate';
 
 function dna(): Record<string, unknown> {
@@ -225,6 +227,10 @@ describe('update', () => {
     expect((result.team as { members: Array<Record<string, unknown>> }).members[0]!.email).toBe('new@example.it');
   });
 
+  it('refuses an option that is not a field of the entry, through the entry-terminated path too', () => {
+    expect(refusal({ verb: 'update', field: 'modules.core', fields: { email: 'x@y.z' } })).toContain('email');
+  });
+
   it('refuses --value at an entry-terminated path, where it would say nothing the path has not said', () => {
     expect(refusal({ verb: 'update', field: 'team.members.roberto', value: 'roberto', fields: { email: 'x@y.z' } })).toMatch(
       /--value/,
@@ -246,6 +252,79 @@ describe('update', () => {
   it('refuses a rename through `name` — identity is what the path addresses (state it, do not infer it)', () => {
     const message = refusal({ verb: 'update', field: 'modules', value: 'core', fields: { name: 'renamed' } });
     expect(message).toContain('name');
+  });
+});
+
+describe('required arguments, per target kind — the checks that keep --value honest', () => {
+  it('refuses remove/update at a collection with no --value: nothing says which entry', () => {
+    expect(refusal({ verb: 'remove', field: 'modules' })).toContain('--value');
+    expect(refusal({ verb: 'update', field: 'modules' })).toContain('--value');
+  });
+
+  it('refuses a list operation with no --value, and one whose --value is only separators', () => {
+    expect(refusal({ verb: 'add', field: 'paths.sources' })).toContain('--value');
+    expect(refusal({ verb: 'add', field: 'paths.sources', value: ' , ' })).toContain('--value');
+  });
+
+  it('refuses an update at a leaf with no --value', () => {
+    expect(refusal({ verb: 'update', field: 'project.license' })).toContain('--value');
+  });
+
+  it('refuses removing a scalar that is not set — there is nothing to drop', () => {
+    expect(refusal({ verb: 'remove', field: 'project.repository' })).toContain('project.repository');
+  });
+
+  it('refuses an update at an entry-terminated path that carries no field to change', () => {
+    expect(refusal({ verb: 'update', field: 'modules.core' })).toMatch(/--path|--description/);
+  });
+});
+
+describe('option values are coerced against the field the schema declares', () => {
+  it("a boolean field takes true/false, not the string 'true'", () => {
+    const result = mutated({
+      verb: 'add',
+      field: 'team.agents',
+      value: 'claude',
+      fields: { executes_as: 'approver', approval_authority: 'false' },
+    });
+    expect((result.team as { agents: Array<Record<string, unknown>> }).agents[0]).toEqual({
+      name: 'claude',
+      executes_as: ['approver'],
+      approval_authority: false,
+    });
+  });
+
+  it("'true' is the other half of the boolean pair", () => {
+    const result = mutated({
+      verb: 'add',
+      field: 'team.agents',
+      value: 'claude',
+      fields: { executes_as: 'approver', approval_authority: 'true' },
+    });
+    expect((result.team as { agents: Array<Record<string, unknown>> }).agents[0]!.approval_authority).toBe(true);
+  });
+
+  it('a numeric field takes a number, and keeps an unparseable value as given', () => {
+    // `DnaYaml` declares no numeric field inside a collection today, so this is checked against a
+    // schema of its own — the same reason `applyDnaMutation` takes one (see its doc comment).
+    const schema = z.object({ items: z.array(z.object({ name: z.string(), size: z.number() })) });
+    const numeric = applyDnaMutation({ items: [] }, { verb: 'add', field: 'items', value: 'a', fields: { size: '42' } }, schema);
+    expect(numeric.ok).toBe(true);
+    if (numeric.ok) expect((numeric.dna.items as Array<Record<string, unknown>>)[0]).toEqual({ name: 'a', size: 42 });
+
+    const nonsense = applyDnaMutation({ items: [] }, { verb: 'add', field: 'items', value: 'a', fields: { size: 'big' } }, schema);
+    expect(nonsense.ok).toBe(true);
+    if (nonsense.ok) expect((nonsense.dna.items as Array<Record<string, unknown>>)[0]!.size).toBe('big');
+  });
+
+  it('a value that is not a boolean is left as given, for the schema re-validation to reject', () => {
+    const result = mutated({
+      verb: 'add',
+      field: 'team.agents',
+      value: 'claude',
+      fields: { executes_as: 'approver', approval_authority: 'yes-please' },
+    });
+    expect((result.team as { agents: Array<Record<string, unknown>> }).agents[0]!.approval_authority).toBe('yes-please');
   });
 });
 

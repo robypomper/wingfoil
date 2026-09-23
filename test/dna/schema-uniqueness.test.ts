@@ -51,31 +51,31 @@ describe('DnaYaml — duplicate entry names are a validation failure, per collec
 
   it('stacks.technologies', () => {
     const document = baseline();
-    ((document.stacks as Record<string, unknown[]>).technologies).push({ name: 'TypeScript', category: 'other' });
+    (document.stacks as Record<string, unknown[]>).technologies!.push({ name: 'TypeScript', category: 'other' });
     expect(issues(document)).toContain('TypeScript');
   });
 
   it('stacks.methodologies', () => {
     const document = baseline();
-    ((document.stacks as Record<string, unknown[]>).methodologies).push({ name: 'TDD' });
+    (document.stacks as Record<string, unknown[]>).methodologies!.push({ name: 'TDD' });
     expect(issues(document)).toContain('TDD');
   });
 
   it('team.members', () => {
     const document = baseline();
-    ((document.team as Record<string, unknown[]>).members).push({ name: 'roberto', roles: ['developer'] });
+    (document.team as Record<string, unknown[]>).members!.push({ name: 'roberto', roles: ['developer'] });
     expect(issues(document)).toContain('roberto');
   });
 
   it('team.agents', () => {
     const document = baseline();
-    ((document.team as Record<string, unknown[]>).agents).push({ name: 'claude', executes_as: ['developer'] });
+    (document.team as Record<string, unknown[]>).agents!.push({ name: 'claude', executes_as: ['developer'] });
     expect(issues(document)).toContain('claude');
   });
 
   it('team.roles', () => {
     const document = baseline();
-    ((document.team as Record<string, unknown[]>).roles).push({ name: 'developer' });
+    (document.team as Record<string, unknown[]>).roles!.push({ name: 'developer' });
     expect(issues(document)).toContain('developer');
   });
 

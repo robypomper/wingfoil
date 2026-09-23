@@ -144,8 +144,11 @@ exposure it backs.
 
 | function   | module              | mutates | CLI                | MCP                     |
 |------------|----------------------|---------|---------------------|--------------------------|
+| `dnaAdd`     | `dna`              | true    | `wingfoil dna add`    | Tool `dna.add`         |
+| `dnaRemove`  | `dna`              | true    | `wingfoil dna remove` | Tool `dna.remove`      |
 | `dnaSet`   | `dna`                | true    | `wingfoil dna set`  | Tool `dna.set`           |
 | `dnaShow`  | `dna`                | false   | `wingfoil dna show` | Resource `wingfoil://dna/show`    |
+| `dnaUpdate`  | `dna`              | true    | `wingfoil dna update` | Tool `dna.update`      |
 | `dnaInfer` | `dna` *(planned)*    | true    | `wingfoil dna infer`| Tool `dna.infer`         |
 | `pathsQuery` | `paths`            | false   | `wingfoil paths`    | Resource `wingfoil://dna/paths`   |
 
@@ -309,3 +312,28 @@ from an omission: a future reader looking for P3.7's operation should find this 
 one. The `directiveAssign` row is unchanged (its `module`, `mutates`, CLI and MCP cells all still hold);
 only the payload behind it widened, and §3 pins no result types. Edited in place without a supersede or
 a state change, per the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-23) — §3's DNA table gains `dnaAdd`, `dnaRemove` and `dnaUpdate`, per
+`dl-081-dna-mutation-surface-shape` (`ready`, approve commit `5aaa5af`, option (E)) and
+`task-093-dna-mutation-surface-add-remove-update`.** The table previously carried `dnaSet` alone for
+the mutating half of the DNA pillar, which matched the code and understated the contract: `dna set`
+reached 7 of roughly 38 schema fields, because everything array-valued — 11 fields, plus 17 more
+inside array entries — was unreachable for create, update and delete. No spec recorded that
+restriction, and the three that mention the command (this one, `spec-002`, and P2.1's "Basic CRUD
+operations" at Critical priority) implied the opposite.
+
+The shape ratified is the collection travelling in an **option** rather than in the verb name —
+`dna add|remove|update --field <full path> --value <v>` — exactly as `memory add --type … --title …`
+does. §3's one-Tool-per-function rule is what chose it: the verb count stays constant as `spec-002`'s
+schema grows, so the whole pillar costs **three** Tools rather than the dozen a per-collection verb set
+(`dna add-member`, `dna add-role`, …) would have cost, and rather than the none a `dna edit` could
+offer. The MCP column follows `spec-004` §4.1's dot form mechanically, as every other row does; the
+three names are asserted against the real registry in `test/core/dna-mutation-surface.test.ts`
+(`deriveVerb` → `deriveMcpToolName`) and the REQ-SYS-05 parity diff in `test/core/parity.test.ts` now
+enumerates twelve mutating operations on both surfaces.
+
+`dnaSet`'s row is unchanged and the operation is kept: `dl-081` AC9 settled that `update` does not
+subsume `set`, which keeps the positional `dna set <key> <value>` grammar `P2.1-dna-set.feature` and
+`spec-005` §4 name. Internally it is now `update` restricted to a single value — one resolver, one
+write path, two spellings. Edited in place without a supersede or a state change, per the same
+`spec-001` precedent the 2026-09-17 revision cites.

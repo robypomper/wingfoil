@@ -30,6 +30,8 @@
  * untouched and `src/core` re-validates and commits only what comes back. It sits under `src/core`
  * (`spec-006-core-domain-api` §1: the pillar is a leaf, and imports nothing from `core`).
  */
+import type { z } from 'zod';
+
 import type { DnaTextEdit, DnaTextStep } from './edit';
 import { resolveDnaPath, type DnaEntryField, type DnaPathTarget } from './path';
 
@@ -142,14 +144,21 @@ function containerFor(dna: Record<string, unknown>, segments: readonly string[])
   return node;
 }
 
-/** Read the list at `segments`, or `[]` when the schema declares it and the document omits it. */
-function listAt(dna: Record<string, unknown>, target: DnaPathTarget): { container: Record<string, unknown> | unknown[]; key: string; items: unknown[] } {
-  const container = containerFor(dna, target.segments);
+/**
+ * Read the list at `segments`, or `[]` when the schema declares it and the document omits it — which
+ * is how `dna add --field paths.tests --value test/` fills a category the file leaves out.
+ *
+ * The container is always a MAPPING: a list is reached through a mapping key, either a section's
+ * (`paths.sources`) or an entry's (`team.members.<name>.roles`), never as an element of another list,
+ * because the schema declares no list of lists and `resolveDnaPath` refuses one if it ever does.
+ */
+function listAt(dna: Record<string, unknown>, target: DnaPathTarget): { key: string; items: unknown[] } {
+  const container = containerFor(dna, target.segments) as Record<string, unknown>;
   const key = target.segments[target.segments.length - 1]!;
-  const current = Array.isArray(container) ? undefined : container[key];
+  const current = container[key];
   const items = Array.isArray(current) ? current : [];
-  if (!Array.isArray(container)) container[key] = items;
-  return { container, key, items };
+  container[key] = items;
+  return { key, items };
 }
 
 /** Apply `fields` to `entry`, refusing an option the collection's entry schema does not declare. */
@@ -182,9 +191,18 @@ function applyFields(
  * point of `bug-083`'s repair is that `dna set team.members '[…]'` used to fail with
  * `expected array, received string` from a schema re-validation, which says nothing about how to reach
  * the field.
+ *
+ * `schemaRoot` is passed straight to `resolveDnaPath` and defaults to `DnaYaml` there — the only schema
+ * any caller uses. It is a parameter for the same reason: the semantics below are a function of *a*
+ * schema (which field kinds exist, which are required), so they stay exercisable against shapes
+ * `spec-002` does not declare today rather than resting on an untested claim.
  */
-export function applyDnaMutation(dna: Record<string, unknown>, request: DnaMutationRequest): DnaMutationResult {
-  const resolved = resolveDnaPath(dna, request.field);
+export function applyDnaMutation(
+  dna: Record<string, unknown>,
+  request: DnaMutationRequest,
+  schemaRoot?: z.ZodType,
+): DnaMutationResult {
+  const resolved = resolveDnaPath(dna, request.field, schemaRoot);
   if (!resolved.ok) return refuse(resolved.message);
 
   const target = resolved.target;
@@ -204,8 +222,6 @@ export function applyDnaMutation(dna: Record<string, unknown>, request: DnaMutat
       return mutateStringList(next, target, request);
     case 'scalar':
       return mutateScalar(next, target, request);
-    default:
-      return refuse(`'${request.field}' is not a field this schema can address`);
   }
 }
 

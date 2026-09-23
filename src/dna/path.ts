@@ -30,6 +30,8 @@
  * Pure and deterministic (REQ-SYS-07): no wall-clock, no randomness, no filesystem, and the document
  * it is handed is never mutated — on a refusal as much as on a success.
  */
+import type { z } from 'zod';
+
 import { DnaYaml } from './schema';
 import { isValidKeyPath } from './set';
 
@@ -172,14 +174,20 @@ function unknownField(path: string, segments: readonly string[], depth: number):
  * `dna set project.license MIT` fill an optional section the document happens to omit. That is the
  * precise line `bug-084` draws — creating a node the schema declares is legitimate; inventing one it
  * does not declare is the defect.
+ *
+ * `schemaRoot` defaults to `DnaYaml` — the only schema any caller passes — and is a parameter because
+ * the traversal is a function of *a* schema and a document, not of this one: it keeps the
+ * "addressable shape" rules (which node kinds a path may end on, which it may descend through)
+ * testable against shapes `spec-002` does not declare today, rather than leaving them as assertions
+ * nothing exercises.
  */
-export function resolveDnaPath(dna: unknown, keyPath: string): DnaPathResolution {
+export function resolveDnaPath(dna: unknown, keyPath: string, schemaRoot: z.ZodType = DnaYaml): DnaPathResolution {
   if (!isValidKeyPath(keyPath)) {
     return { ok: false, message: `invalid key path: '${keyPath}'` };
   }
   const segments = keyPath.split('.');
 
-  let schema = DnaYaml as unknown as SchemaNode;
+  let schema = schemaRoot as unknown as SchemaNode;
   let value: unknown = dna;
   let collectionPath: string | undefined;
   let entryIndex: number | undefined;

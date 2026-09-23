@@ -33,7 +33,10 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
 ```
 
 - `<noun>` is a pillar namespace (`memory`, `dna`, `directive`, `directives`, `workflow`, `agent`) or a
-  flat command (`init`, `paths`, `audit`). The Directives pillar deliberately exposes two nouns —
+  flat command (`init`, `paths`, `audit`). The DNA pillar's verbs are `show`, `set`, and the three
+  mutation verbs `add`, `remove` and `update` (§9) — the collection they act on travels in `--field`,
+  not in the verb name, so the verb list does not grow as `spec-002`'s schema does
+  (`dl-081-dna-mutation-surface-shape`). The Directives pillar deliberately exposes two nouns —
   singular `directive` (`create`, `assign`, `remove`) and plural `directives` (`list`) — each the
   `CoreModule.name` its operations register under (`spec-006-core-domain-api` §3 `module` column,
   `dl-041-spec-006-module-grouping-vs-core-module-name`).
@@ -153,6 +156,13 @@ This table is the single source of truth for exit codes; ground-truth BDD scenar
 `P1.6-memory-submit`, `P1.7-memory-approve`, `P5.1.4-cli-ux`) exercise exactly these three codes and no
 others.
 
+A distinction the DNA verbs make visible, and which the table already decides: a **malformed** path is
+exit `2` (`dna set ..language python` → `error: invalid key path: '..language'`, `P2.1-dna-set.feature`)
+because the invocation itself is malformed, while a **well-formed path naming a field the schema does
+not declare** is exit `1` — a validation failure, like an unknown Memory type. The same reading is what
+`bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
+of failure, not its severity.
+
 ### 6. Error format (REQ-INT-08)
 
 Every user-facing error, on stderr, in `--format console` (default):
@@ -210,6 +220,46 @@ argument — the type is not repeated because IDs are globally unique (`id_patte
 Help output always renders as `--format console` regardless of the ambient `--format` flag, and always
 exits `0`.
 
+### 9. DNA field paths (`--field` / `--value`)
+
+`wingfoil dna add|remove|update` take no positionals: the collection travels in an option, exactly as
+`memory add --type <type> --title <title>` does (`dl-081-dna-mutation-surface-shape`, ratified option
+(E)). Two options carry the grammar, plus one option per field the addressed entry may hold.
+
+```
+wingfoil dna add    --field team.roles                   --value reviewer --description "reviews changes"
+wingfoil dna add    --field team.members                 --value roberto --email r@example.it --roles approver
+wingfoil dna add    --field team.members.roberto.roles   --value qa
+wingfoil dna add    --field paths.sources                --value "src/**"
+wingfoil dna update --field team.members                 --value roberto --email new@example.it
+wingfoil dna update --field modules.core.path            --value src/core
+wingfoil dna remove --field modules                      --value core
+```
+
+| Option | Meaning |
+|--------|---------|
+| `--field` | **Required.** The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. |
+| `--value` | The new entry's **identity** when `--field` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values. Required for `add`; required for `remove`/`update` unless `--field` already identifies the entry. |
+| `--<field>` | One option per field the entry schema declares (`--description`, `--path`, `--email`, `--roles`, `--category`, `--version`, `--notes`, `--phase`, `--executes_as`), spelled exactly as `spec-002` spells the field. Accepted by `add` and `update`. |
+
+Two rules the shape rests on, both ratified rather than inferred:
+
+- **Entries are addressed by `name`, never by index.** `team.members.roberto.roles` reaches that
+  member's list; `team.members.2.roles` is refused. An index shifts the moment an entry is removed, so
+  a path written today would address a different entry tomorrow. Name uniqueness per collection is
+  therefore a schema constraint (`spec-002`), not an assumption.
+- **A path that does not resolve is refused, never created** — exit `1`, naming the path (§5). Under
+  add/remove/update semantics one cannot add to a collection that does not exist, and the same rule
+  answers the wider question: the DNA pillar accepts unknown keys when *reading* a document and refuses
+  to write one (`bug-084-dna-key-alias-writes-unschemad-keys`).
+
+`--value`'s double duty is a convention the grammar cannot show, so it is stated here and in the
+option's own `--help` text (`CoreOption.description`, `src/core/registry.ts`) rather than left to be
+discovered.
+
+`wingfoil dna set <key> <value>` is unchanged and keeps its positional form: it is `update` restricted
+to a single value. A `<key>` that names a collection or a list is refused with the verb that reaches it.
+
 ## Consequences
 
 - Every command implementation under `src/cli` registers global flags exactly once, on the root
@@ -242,3 +292,15 @@ unrecordable-value messages and their exit `2`. Ratified by `dl-067`'s approve c
 records the option chosen and the sub-decisions taken with it; edited in place without a supersede or
 a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001` precedent the
 2026-09-17 revision cites.
+
+**Revision (2026-09-23) — §1's noun note, §5's malformed-vs-unresolvable distinction, and the new §9
+(DNA field paths), per `dl-081-dna-mutation-surface-shape` (`ready`, approve commit `5aaa5af`,
+option (E)) and `task-093-dna-mutation-surface-add-remove-update`.** The grammar grew by three verbs
+on the `dna` noun, and `dl-081` action 3 requires the grammar spec to record a shape rather than let
+it be discovered — "a ratified shape that no spec records is the defect this whole class came from".
+§9 pins the option-bearing form, `--value`'s two meanings, entry addressing by name, and the
+refuse-rather-than-create rule; §5 gains the sentence separating a malformed path (exit `2`, as
+`P2.1-dna-set.feature` pins it) from a path that names nothing the schema declares (exit `1`, per §5's
+own kind-of-failure rule and `bug-076`'s Correction). No existing row changed. Edited in place without
+a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001`
+precedent the 2026-09-17 revision cites.

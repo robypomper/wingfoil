@@ -22,7 +22,7 @@
  */
 import { dump, load } from 'js-yaml';
 
-import { setDnaValueInText } from './set';
+import { inlineCommentIndex, setDnaValueInText, valueOf } from './set';
 
 /** One step of a text path: a mapping key, or the index of an entry inside a block sequence. */
 export type DnaTextStep = { readonly key: string } | { readonly index: number };
@@ -174,30 +174,6 @@ function locate(lines: readonly string[], path: readonly DnaTextStep[]): Cursor 
     cursor = { region: span, indent: childIndentOf(lines, span) ?? cursor.indent + 2 };
   }
   return cursor;
-}
-
-/** Index within `rest` of the `#` starting an inline comment, or `-1` (quote-aware, YAML-correct). */
-function inlineCommentIndex(rest: string): number {
-  let quote: string | undefined;
-  for (let i = 0; i < rest.length; i += 1) {
-    const char = rest[i]!;
-    if (quote !== undefined) {
-      if (char === quote) {
-        if (quote === "'" && rest[i + 1] === "'") i += 1;
-        else quote = undefined;
-      } else if (quote === '"' && char === '\\') i += 1;
-      continue;
-    }
-    if (char === "'" || char === '"') quote = char;
-    else if (char === '#' && (i === 0 || rest[i - 1] === ' ' || rest[i - 1] === '\t')) return i;
-  }
-  return -1;
-}
-
-/** The value part of a key line's `rest`, with any inline comment and surrounding spaces removed. */
-function valueOf(rest: string): string {
-  const commentIndex = inlineCommentIndex(rest);
-  return (commentIndex < 0 ? rest : rest.slice(0, commentIndex)).trim();
 }
 
 /** Render a value as the single-line YAML token `js-yaml` itself would emit, or `undefined` if it spans lines. */
@@ -453,8 +429,6 @@ function applyOne(lines: string[], edit: DnaTextEdit, intended: unknown): string
       }
       return current;
     }
-    default:
-      return undefined;
   }
 }
 
