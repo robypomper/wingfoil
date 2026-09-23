@@ -87,7 +87,7 @@ baseline rule's ergonomics now depend on whatever this document decides.
 
 ## Decision
 
-Open. Four shapes, and they differ in what they cost the CLI grammar rather than in what they enable.
+Open. Five shapes, and they differ in what they cost the CLI grammar rather than in what they enable.
 
 ### (A) Per-collection verbs
 
@@ -116,6 +116,54 @@ One verb, no grammar growth, the user edits YAML directly and the tool validates
 AI-assisted development and whose MCP surface is meant to mirror the CLI (`spec-006` §3 parity). It
 also does nothing for `dl-080`'s flows, which need a *command* that commits.
 
+### (E) Three verbs, the collection as an argument — `dna add|remove|update <collection> <identity> [--field …]`
+
+Proposed by the approver on 2026-09-23. Instead of a verb per collection, the collection is the
+**first argument**:
+
+```
+wingfoil dna add    member roberto --email r@example.it --role approver
+wingfoil dna add    role   reviewer --description "reviews changes"
+wingfoil dna add    module core --path src/core
+wingfoil dna update member roberto --email new@example.it
+wingfoil dna remove member roberto
+```
+
+*What it buys, and why it is the strongest of the five against the constraints this document already
+names:*
+
+- **It is the grammar this CLI already uses.** `memory add --type adr --title "…"` puts the *kind* in
+  a parameter rather than in the verb — it is not `memory add-adr`. (E) applies the established shape
+  to the DNA pillar instead of inventing one for it, which is what (A) would do.
+- **MCP parity costs three Tools, not a dozen.** `dna.add`, `dna.remove`, `dna.update` against
+  `spec-006` §3's one-Tool-per-function rule. This is the constraint that most damages (A) and kills
+  (C), and (E) is the only shape that satisfies it while still reaching every collection.
+- **Referential integrity is already enforced and need not be re-implemented.** `Team`'s
+  `superRefine` rejects a member whose `roles` name a role absent from `team.roles`, and the same for
+  an agent's `executes_as` — so `dna add member … --role approver` is validated against the committed
+  catalogue by the schema on the write path, with no new check in the verb. It also imposes a natural
+  order — role before member — which is what `dl-080`'s committed baseline requires anyway.
+- **Update in place becomes expressible**, which is the thing (A) handles worst: `dna update member
+  roberto --email …` needs no third verb per collection and no add-overwrites-by-name convention.
+
+*What it costs, stated rather than discovered:*
+
+- **Identity is by `name`, and the schema does not enforce that names are unique.** There is no
+  uniqueness refinement anywhere in `src/dna/schema.ts` — only the referential one above. So
+  `dna update member roberto` is ambiguous the moment two members share a name. Either the verbs
+  refuse on more than one match, or the schema gains a uniqueness constraint — which is probably
+  correct regardless, and (E) is what makes the gap visible.
+- **`--help` is weaker than under (A).** The accepted options differ per collection (`--email`/`--role`
+  for a member, `--path` for a module, `--category`/`--version` for a technology), so
+  `dna add --help` can list the collections but not, in one place, what each accepts. (A)'s dozen
+  verbs each document themselves precisely; (E) trades that for a surface a tenth the size.
+- **`paths` is asymmetric.** Its five collections hold bare strings rather than objects, so the shape
+  needs two levels — `dna add path sources "src/**"` — or `paths` is excluded and stays a `dna set`
+  concern. Worth deciding explicitly rather than discovering at implementation.
+- The existing `DNA_KEY_ALIASES` is not machinery to lean on: it holds exactly one entry
+  (`tech_stack → stacks`), so singular/plural naming (`member` vs `members`) is a decision this option
+  has to make, not one it inherits.
+
 ### (D) Keep the surface as it is and say so
 
 Amend `spec-002` and P2.1 to state that `dna set` writes scalars, and that structured sections are
@@ -126,6 +174,12 @@ resolutions and this is the other one.
 
 ## Rationale
 
+- **(E) is the shape that fits the constraints this document was written to surface.** The MCP parity
+  rule in `spec-006` §3 is what makes (A) expensive and (C) impossible, and (E) is the only option
+  that reaches every collection at three Tools. It also has a precedent inside this CLI rather than
+  beside it. Its two real costs — identity by a field the schema does not constrain to be unique, and
+  a per-collection option set that `--help` cannot summarise in one place — are both smaller than a
+  dozen new commands, and the first is arguably a schema defect worth fixing on its own.
 - **The restriction was never decided, only implemented.** No spec states it, and the three that
   mention the command imply the opposite. That is the same shape as `dl-080`: an unstated contract
   filled in by whoever wrote the code first.
