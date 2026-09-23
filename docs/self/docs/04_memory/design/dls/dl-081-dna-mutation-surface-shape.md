@@ -116,53 +116,115 @@ One verb, no grammar growth, the user edits YAML directly and the tool validates
 AI-assisted development and whose MCP surface is meant to mirror the CLI (`spec-006` §3 parity). It
 also does nothing for `dl-080`'s flows, which need a *command* that commits.
 
-### (E) Three verbs, the collection as an argument — `dna add|remove|update <collection> <identity> [--field …]`
+### (E) Three verbs, the collection as an option — `dna add|remove|update --field <f> --value <v> [--…]`
 
-Proposed by the approver on 2026-09-23. Instead of a verb per collection, the collection is the
-**first argument**:
+Proposed by the approver on 2026-09-23 and revised the same day to follow Memory's grammar rather than
+a positional form:
 
 ```
-wingfoil dna add    member roberto --email r@example.it --role approver
-wingfoil dna add    role   reviewer --description "reviews changes"
-wingfoil dna add    module core --path src/core
-wingfoil dna update member roberto --email new@example.it
-wingfoil dna remove member roberto
+wingfoil dna add    --field members --value roberto --email r@example.it --role approver
+wingfoil dna add    --field roles   --value reviewer --description "reviews changes"
+wingfoil dna add    --field sources --value "src/**"
+wingfoil dna update --field members --value roberto --email new@example.it
+wingfoil dna remove --field members --value roberto
 ```
 
-*What it buys, and why it is the strongest of the five against the constraints this document already
-names:*
+This is exactly `memory add --type adr --title "…"`: the *kind* travels in an option, not in the verb
+name, and the verb count stays constant as the schema grows. `spec-006` §3's one-Tool-per-function
+rule then costs **three** Tools — `dna.add`, `dna.remove`, `dna.update` — against a dozen for (A) and
+none that makes sense for (C). That is the constraint this document exists to respect, and (E) is the
+only shape that satisfies it while reaching every collection.
 
-- **It is the grammar this CLI already uses.** `memory add --type adr --title "…"` puts the *kind* in
-  a parameter rather than in the verb — it is not `memory add-adr`. (E) applies the established shape
-  to the DNA pillar instead of inventing one for it, which is what (A) would do.
-- **MCP parity costs three Tools, not a dozen.** `dna.add`, `dna.remove`, `dna.update` against
-  `spec-006` §3's one-Tool-per-function rule. This is the constraint that most damages (A) and kills
-  (C), and (E) is the only shape that satisfies it while still reaching every collection.
-- **Referential integrity is already enforced and need not be re-implemented.** `Team`'s
-  `superRefine` rejects a member whose `roles` name a role absent from `team.roles`, and the same for
-  an agent's `executes_as` — so `dna add member … --role approver` is validated against the committed
-  catalogue by the schema on the write path, with no new check in the verb. It also imposes a natural
-  order — role before member — which is what `dl-080`'s committed baseline requires anyway.
-- **Update in place becomes expressible**, which is the thing (A) handles worst: `dna update member
-  roberto --email …` needs no third verb per collection and no add-overwrites-by-name convention.
+`Team`'s `superRefine` already rejects a member whose `roles` name a role absent from `team.roles`, so
+referential integrity needs no new check in the verb, and the order it forces — role before member —
+is the one `dl-080`'s committed baseline requires anyway.
 
-*What it costs, stated rather than discovered:*
+#### What `--field` may hold, and why the choice is not free
 
-- **Identity is by `name`, and the schema does not enforce that names are unique.** There is no
-  uniqueness refinement anywhere in `src/dna/schema.ts` — only the referential one above. So
-  `dna update member roberto` is ambiguous the moment two members share a name. Either the verbs
-  refuse on more than one match, or the schema gains a uniqueness constraint — which is probably
-  correct regardless, and (E) is what makes the gap visible.
-- **`--help` is weaker than under (A).** The accepted options differ per collection (`--email`/`--role`
-  for a member, `--path` for a module, `--category`/`--version` for a technology), so
-  `dna add --help` can list the collections but not, in one place, what each accepts. (A)'s dozen
-  verbs each document themselves precisely; (E) trades that for a surface a tenth the size.
-- **`paths` is asymmetric.** Its five collections hold bare strings rather than objects, so the shape
-  needs two levels — `dna add path sources "src/**"` — or `paths` is excluded and stays a `dna set`
-  concern. Worth deciding explicitly rather than discovering at implementation.
-- The existing `DNA_KEY_ALIASES` is not machinery to lean on: it holds exactly one entry
-  (`tech_stack → stacks`), so singular/plural naming (`member` vs `members`) is a decision this option
-  has to make, not one it inherits.
+Two readings were proposed: the **bare field name**, or a **partial or full path** into the structure.
+The schema decides between them, and the measurement is uncomfortable.
+
+Counting every key declared in `src/dna/schema.ts`, **five names appear in more than one object**:
+
+| name | appears in |
+|---|---|
+| `name` | `Project`, `Module`, `TechEntry`, `MethodologyEntry`, `TeamMember`, `AgentEntry`, `RoleEntry` |
+| `description` | `Project`, `Module`, `RoleEntry` |
+| `version` | `DnaYaml` (root, a number), `TechEntry` |
+| `notes` | `TechEntry`, `MethodologyEntry` |
+| **`roles`** | **`Team`** (the catalogue) and **`TeamMember`** (one member's list) |
+
+Of the eleven **collections**, ten have a unique leaf name — `modules`, `technologies`,
+`methodologies`, `members`, `agents`, `sources`, `tests`, `docs`, `config`, `governance` — and exactly
+one does not: **`roles`**. A bare `--field roles` cannot distinguish adding a role to the project's
+catalogue from adding a role to a person, and that is the operation `dl-080` makes routine.
+
+So the bare name works for ten of eleven and fails on the one that matters most. The honest options are
+a full or partial path (`--field team.roles` against `--field team.members.roles`), or renaming one of
+the two in the schema — which is a `[SPEC]` field change requiring `spec-002` to move first.
+
+#### Four path shapes, and only two of them fit `--field` + `--value`
+
+1. **Array of strings, depth 2** — `paths.sources`, `.tests`, `.docs`, `.config`, `.governance`.
+   `--field sources --value "src/**"` is exact: one value, no sub-fields, nothing else to say.
+2. **Array of objects, depth 1** — `modules`, whose entry is `{name, description?, path?}`.
+   `--value core` names the entry; `--path src/core` and `--description …` carry the rest. Works, but
+   `--value` now means "the entry's `name`" by convention rather than by anything the grammar states.
+3. **Array of objects, depth 2** — `team.members`, `team.roles`, `team.agents`,
+   `stacks.technologies`, `stacks.methodologies`. Same as (2), plus the `roles` collision above, plus
+   per-collection options that differ: `--email`/`--role` for a member, `--category`/`--version` for a
+   technology, `--phase` for a methodology, `--executes-as` for an agent.
+4. **Array of strings nested inside an array of objects** — `team.members[].roles` and
+   `team.agents[].executes_as`. **This shape does not fit.** Granting an *existing* member the
+   `approver` role needs two identities — which member, and which value — and `--field roles --value
+   approver` can express only the second. It needs either a path that carries the entry
+   (`--field team.members.roberto.roles`) or a third option (`--of roberto`), and both are grammar
+   this CLI does not currently have.
+
+Shape 4 is worth dwelling on because it is not an edge case: **creating** a member with a role works
+(`--field members --value roberto --role approver`, shape 3), while **amending** an existing member's
+roles does not — and that is exactly the flow `dl-080` turned into an everyday operation.
+
+#### Identity, and a constraint the schema does not have
+
+`--value` as the entry's identity assumes names are unique within a collection. They are not:
+`src/dna/schema.ts` carries **one** refinement, the referential check in `Team`, and **no uniqueness
+constraint anywhere**. So `dna update --field members --value roberto` is ambiguous the moment two
+members share a name. Either the verbs refuse on more than one match, or the schema gains a uniqueness
+refinement — which is probably correct regardless. (E) is what makes the gap visible.
+
+#### `DNA_KEY_ALIASES` is not a foundation — it is a trap this option would inherit
+
+`src/dna/set.ts` holds `DNA_KEY_ALIASES = { tech_stack: 'stacks' }` — **one entry**, applied to
+`segments[0]` only. It exists because `stacks` replaced the old fixed-key `tech_stack` object, which
+`spec-002` records as a rename with the note that "any consumer that read `tech_stack.<key>` must now
+scan" the lists.
+
+The alias does not implement that migration; it papers over the first segment and lets the rest of an
+old path land wherever it falls. Measured on 2026-09-23:
+
+```
+$ wingfoil dna set 'tech_stack.cli.framework' 'Commander'
+→ exit 0, commits
+
+$ # what is now in the file:
+stacks keys: ['technologies', 'methodologies', 'cli']
+stacks.cli: {'framework': 'Commander'}
+```
+
+A key that exists in no schema was written into `stacks` and **accepted**, because the object passes
+unknown keys through. The old shape's path was `tech_stack.cli.framework`; the alias turned it into
+`stacks.cli.framework`, which is not the same fact in a new place — it is garbage in a valid document,
+at exit 0, in the pillar every other pillar reads.
+
+Three consequences for (E):
+
+- It cannot lean on this mechanism for singular/plural naming (`member` → `team.members`). One entry,
+  first segment only: whatever aliasing (E) wants is new machinery, not an extension.
+- If (E) adopts path-valued `--field`, it inherits this behaviour unless the traversal is made
+  structure-aware — which is the same repair (B) needs, so the two options share a prerequisite.
+- **It is a defect in its own right** and is not filed. Worth an element regardless of which shape is
+  ratified.
 
 ### (D) Keep the surface as it is and say so
 
