@@ -2,7 +2,7 @@
 id: "task-093-dna-mutation-surface-add-remove-update"
 type: task
 title: "Build the DNA mutation surface dl-081 ratified: `dna add|remove|update --field <full path> --value <v>`, and make the traversal refuse a path that does not resolve"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "dna", "cli", "mcp"]
