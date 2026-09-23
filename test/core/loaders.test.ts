@@ -10,6 +10,7 @@ import {
   loadDnaYaml,
   loadDnaYamlAtHead,
   loadMemoryYaml,
+  loadMemoryYamlAtHead,
   loadRolesYaml,
   loadWorkflowsYaml,
 } from '../../src/core/loaders';
@@ -231,5 +232,51 @@ describe('loadDnaYamlAtHead — the DNA as the repository committed it', () => {
 
     expect(() => loadDnaYaml(repo)).not.toThrow();
     expect(() => loadDnaYamlAtHead(repo)).toThrow(ValidationError);
+  });
+});
+
+/**
+ * `loadMemoryYamlAtHead` — the Memory pillar's committed-baseline read (task-091,
+ * `bug-081-memory-yaml-read-from-worktree-fabricates-states`). Same schema and same failure shapes as
+ * `loadMemoryYaml`; the only difference is where the bytes come from, which is the whole point: a
+ * transition's state machine must not be decidable by an uncommitted edit.
+ */
+describe('loadMemoryYamlAtHead — the Memory config as the repository committed it', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeAllFourPillars(repo);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('returns null while memory.yaml is untracked — there is no committed machine to read', () => {
+    expect(loadMemoryYamlAtHead(repo)).toBeNull();
+  });
+
+  it("returns HEAD's memory.yaml, not the working tree's, when the two differ", () => {
+    commitAll(repo, 'seed');
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML.replace(/pending/g, 'FABRICATED-BY-A-DIRTY-TREE'));
+
+    expect(loadMemoryYaml(repo).types.task?.states?.sequence).toContain('FABRICATED-BY-A-DIRTY-TREE');
+    expect(loadMemoryYamlAtHead(repo)?.types.task?.states?.sequence).toEqual([
+      'draft',
+      'pending',
+      'backlog',
+      'in-progress',
+      'in-review',
+      'approved',
+      'done',
+    ]);
+  });
+
+  it('throws ValidationError when the COMMITTED memory.yaml is invalid, even if the working-tree copy is fine', () => {
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', 'version: 1\ntypes: "not a mapping"\n');
+    commitAll(repo, 'seed an invalid memory.yaml');
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+
+    expect(() => loadMemoryYaml(repo)).not.toThrow();
+    expect(() => loadMemoryYamlAtHead(repo)).toThrow(ValidationError);
   });
 });

@@ -2,7 +2,7 @@
 id: "bug-082-directive-assign-validates-role-against-worktree"
 type: bug
 title: "`directive assign` validates `--role` against the working-tree role catalogue, so it commits a binding to a role the committed `dna.yaml` does not define"
-status: planned
+status: in-review
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
