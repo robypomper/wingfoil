@@ -182,6 +182,44 @@ describe('dna set — refuses a dna.yaml carrying modifications it does not own 
   });
 });
 
+describe('dna add|remove|update — the same rule, on the same file (task-093, dl-081 option (E))', () => {
+  let repo: string;
+  beforeEach(() => {
+    repo = makeInitializedRepo();
+  });
+  afterEach(() => removeTempDir(repo));
+
+  // These three verbs edit `dna.yaml` IN PLACE, exactly as `dna set` does, so they take the plain
+  // `requireUnmodifiedTarget` rule rather than either of this task's two exceptions: `memory add`'s
+  // absence check is for a target that must be new, and `wingfoil init`'s exemption rests on
+  // `detectInitState` refusing an initialized project — while these verbs require one.
+  it.each<[string, string, Record<string, string>]>([
+    ['dnaAdd', 'add', { field: 'paths.sources', value: 'lib/' }],
+    ['dnaRemove', 'remove', { field: 'modules', value: 'core' }],
+    ['dnaUpdate', 'update', { field: 'project.name', value: 'Renamed' }],
+  ])('%s refuses a dirty dna.yaml, exits 1, names the file, and writes nothing', async (operation, _verb, options) => {
+    dirty(repo, DNA, UNRELATED);
+    const before = head(repo);
+
+    const result = await op('dna', operation)({ root: repo, options });
+
+    expect(result.ok).toBe(false);
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(errorMessage(result)).toContain(DNA);
+    expect(errorMessage(result)).toContain('the file content');
+    expect(head(repo)).toBe(before);
+    expect(readFile(repo, DNA)).toContain(UNRELATED);
+  });
+
+  it('on a clean tree `dna add` still commits, and the commit carries exactly what it declares', async () => {
+    const result = await op('dna', 'dnaAdd')({ root: repo, options: { field: 'paths.sources', value: 'lib/' } });
+
+    expect(result.ok).toBe(true);
+    expect(committedPaths(repo)).toEqual([DNA]);
+    expect(committedAdditions(repo).some((line) => line.includes('lib/'))).toBe(true);
+  });
+});
+
 describe('directive assign — refuses a roles.yaml carrying modifications it does not own (bug-078 R2)', () => {
   let repo: string;
   beforeEach(() => {
