@@ -1,45 +1,60 @@
 ---
 id: "bug-088-init-storage-has-no-already-initialized-guard"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`initWingfoilStorage` has no already-initialized check, so it overwrites a clean committed `dna.yaml` and commits the diff"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P5.1.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`initWingfoilProject` refuses to run in an initialized project: it checks
+`detectInitState(root) === 'initialized'` before writing anything. `initWingfoilStorage` — the library
+entry point beside it — runs no equivalent check, so it overwrites an existing, clean, committed,
+hand-authored `.wingfoil/dna.yaml` with the scaffold's version and commits the diff under
+`chore(wingfoil): initialize .wingfoil/ storage (P1.1)`.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Verified by `task-092`'s reviewer on a scratch project: with a committed, hand-edited
+`.wingfoil/dna.yaml`, calling `initWingfoilStorage` replaced it and committed the replacement.
+
+`src/core/init.ts`: `initWingfoilProject` runs the `detectInitState` check; `initWingfoilStorage` does
+not. `grep` for both to see the asymmetry.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The two entry points agree about whether an initialized project may be re-initialized. Whichever
+answer is right, one of them is currently wrong.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+One refuses, the other overwrites and commits.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**It is reachable only from library code.** `initWingfoilStorage` is exported from `src/core` but is
+wired to **neither the CLI nor MCP** — it is in no `CORE_MODULES` operation — so no user invocation
+reaches it today. That is the whole reason this is `low` rather than serious: the same defect on the
+CLI path would destroy a project's configuration on a mistyped command.
+
+`task-092` gave it the **dirty-target** guard that `dl-080`(B) requires, which is a different
+question: that guard refuses when the target carries uncommitted modifications, while this bug is
+about a target that is perfectly clean and simply already exists. The two are complementary and
+neither implies the other.
+
+Worth deciding rather than assuming when this is fixed: whether the right answer is to add the
+`detectInitState` check, or to give the function an explicit `force` parameter so a caller that means
+to re-scaffold can say so. `dl-062` records a related `--force` discussion scheduled to v0.3.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-23): **low**, **not a release blocker**. Unreachable from every shipped surface;
+  the cost is an inconsistency between two sibling entry points that a future caller could trip over.
+- Scheduled to **v0.3**. No fix task filed.
