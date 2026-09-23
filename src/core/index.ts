@@ -83,9 +83,16 @@ import type { CoreResult } from './types';
 export const MODULE_NAME = 'core' as const;
 
 export {
+  DNA_YAML_PATH,
+  MEMORY_YAML_PATH,
   loadDirectives,
   loadDnaYaml,
+  // The committed-baseline readers `dl-080` (B) makes the rule for any read that gates an operation.
+  // task-090 kept `loadDnaYamlAtHead` private while that rule was undecided; it is decided now, and a
+  // facility the ruling tells the next implementer to use has to be reachable (task-091, D3).
+  loadDnaYamlAtHead,
   loadMemoryYaml,
+  loadMemoryYamlAtHead,
   loadRolesYaml,
   loadWorkflowsYaml,
 } from './loaders';
@@ -838,10 +845,10 @@ export interface MemorySubmitResult {
  *
  * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit 1.
  * 2. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory history`.
- * 3. **Load `memory.yaml`** (`loadOrError`).
- * 4. **{@link prepareMemoryTransition}** — not found, unknown type, no machine, invalid state, or an
- *    illegal transition, each a `CoreResult.error` (exit 1); an illegal one carries the pinned
- *    `illegal transition <from> -> <to> for type '<type>'` (`dl-032`, P1.6 sc.2).
+ * 3. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
+ *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
+ *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
+ *    carries the pinned `illegal transition <from> -> <to> for type '<type>'` (`dl-032`, P1.6 sc.2).
  * 5. **Required fields** (spec-010 validation rules) — `title` and every `template.frontmatter.required`
  *    field must be non-empty, else `VALIDATION` `missing required field on submit: <fields>` (exit 1).
  * 6. **Edit + commit** — `status` set to the target and `rejection_reason` removed (spec-010 field-write
@@ -860,14 +867,11 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
     throw new UsageError('missing required argument: memory submit <id>');
   }
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const prepared = prepareMemoryTransition(root, loaded.value, id, 'submit');
+  const prepared = prepareMemoryTransition(root, id, 'submit');
   if (!prepared.ok) return prepared;
   const { type, path, frontmatter, content, from, to } = prepared.value;
 
-  const required = loaded.value.types[type]?.template?.frontmatter.required ?? [];
+  const required = prepared.value.memoryYaml.types[type]?.template?.frontmatter.required ?? [];
   const missing = missingRequiredFields(frontmatter, required);
   if (missing.length > 0) {
     return coreErr({ code: 'VALIDATION', message: `missing required field on submit: ${missing.join(', ')}` });
@@ -916,11 +920,11 @@ export interface MemoryApproveResult {
  * 2. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory submit`/`memory history`.
  * 3. **`requireReason`** (REQ-SEC-04, task-041) → `UsageError` `missing required argument: --reason`
  *    (exit 2, P1.7 sc.2). Placed before any file is read, so an omitted reason touches nothing.
- * 4. **Load `memory.yaml`** (`loadOrError`).
- * 5. **{@link prepareMemoryTransition}** — not found, unknown type, no machine, invalid state, or an
- *    illegal transition, each a `CoreResult.error` (exit 1); an illegal one carries the pinned
- *    `illegal transition <from> -> <to> for type '<type>'` (`dl-032`), whose `<to>` is `approve`'s own
- *    next legal edge (`dl-053`).
+ * 4. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
+ *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
+ *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
+ *    carries the pinned `illegal transition <from> -> <to> for type '<type>'` (`dl-032`), whose `<to>`
+ *    is `approve`'s own next legal edge (`dl-053`).
  * 6. **`requireApprovalAuthority`** (REQ-SEC-03, task-040) — exit 1 with
  *    `user not authorized to approve type '<type>'` (P1.7 sc.3). It runs after step 5 because its
  *    message interpolates the document's type, which is only knowable once the document is located,
@@ -950,10 +954,7 @@ const memoryApproveFn: CoreFn<unknown, MemoryApproveResult> = async (params) => 
   }
   const reason = requireReason(options);
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const prepared = prepareMemoryTransition(root, loaded.value, id, 'approve');
+  const prepared = prepareMemoryTransition(root, id, 'approve');
   if (!prepared.ok) return prepared;
   const { type, path, content, from, to } = prepared.value;
 
@@ -1010,8 +1011,9 @@ export interface MemoryRejectResult {
  * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`.
  * 3. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
  *    `missing required argument: --reason` (exit `2`, P1.8 sc.3).
- * 4. **Load `memory.yaml`** and **{@link prepareMemoryTransition}** with op `reject` — not found,
- *    unknown type, no machine, invalid state, or an illegal transition (the document is in no `gates`
+ * 4. **{@link prepareMemoryTransition}** with op `reject`, against the `memory.yaml` committed at
+ *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
+ *    unknown type, invalid state, or an illegal transition (the document is in no `gates`
  *    state), each a `CoreResult.error` at exit `1` carrying `dl-032`'s pinned contract message. The
  *    target is the type's `gates.<from>.reject` value, taken verbatim (`spec-001`), so it need not be
  *    a `sequence` member.
@@ -1042,10 +1044,7 @@ const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
   }
   const reason = requireReason(options);
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const prepared = prepareMemoryTransition(root, loaded.value, id, 'reject');
+  const prepared = prepareMemoryTransition(root, id, 'reject');
   if (!prepared.ok) return prepared;
   const { type, path, from, to, content } = prepared.value;
 
@@ -1109,8 +1108,9 @@ export interface MemoryDeprecateResult {
  *
  * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
  * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`.
- * 3. **Load `memory.yaml`** and **{@link prepareMemoryTransition}** with op `deprecate` — not found,
- *    unknown type, no machine, or a `status` that is not a state of the type, each a
+ * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` committed at
+ *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
+ *    unknown type, or a `status` that is not a state of the type, each a
  *    `CoreResult.error` (exit `1`). There is no illegal-transition branch: the wildcard edge is legal
  *    from every state.
  * 4. **Already-deprecated guard** (P1.9 sc.3) — `VALIDATION` `document already deprecated: <id>`
@@ -1144,10 +1144,7 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
   // (`dl-067` clauses 1 and 4; `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
   const reason = optionalReason(options);
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const prepared = prepareMemoryTransition(root, loaded.value, id, 'deprecate');
+  const prepared = prepareMemoryTransition(root, id, 'deprecate');
   if (!prepared.ok) return prepared;
   const { type, path, from, to, content } = prepared.value;
   if (from === to) {
@@ -1286,7 +1283,8 @@ export interface DirectiveAssignResult {
  *    value that parses to **no ids** (`""`, `"  "`, `","`) counts as absent, the same reading
  *    `parseTags` takes of an empty `--tags` (`[AUTHORING]`, task-056 D3: before P3.7 such a value
  *    reached step 3 and failed with an empty id in the message, `unknown directive: `).
- * 3. Load `dna.yaml` and every directive file; `checkAssignable` returns P3.2's exact
+ * 3. Load every directive file; `checkAssignable` — which resolves the role catalogue from the
+ *    `dna.yaml` committed at `HEAD` itself (task-091, `bug-082`, `dl-080` (B)) — returns P3.2's exact
  *    `unknown role '<role>' (not defined in dna.yaml)` / `unknown directive: <id>` as `NOT_FOUND`
  *    (exit 1), role first and then each id in argument order. It validates **every** id before
  *    anything is written, which is P3.7 Sc.3's "no partial assignment is persisted": one unknown id
@@ -1310,11 +1308,9 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
   const role = options?.role;
   if (role === undefined) throw new UsageError('missing required argument: --role');
 
-  const dna = loadOrError(() => loadDnaYaml(root));
-  if (!dna.ok) return dna;
   const directiveFiles = loadOrError(() => loadDirectives(root));
   if (!directiveFiles.ok) return directiveFiles;
-  const invalid = checkAssignable(dna.value, directiveFiles.value, role, directives);
+  const invalid = checkAssignable(root, directiveFiles.value, role, directives);
   if (invalid) return coreErr(invalid);
 
   const message = `wf(directive): assign ${directives.join(', ')} to ${role}`;

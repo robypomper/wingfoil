@@ -5,7 +5,7 @@ title: "`initWingfoilStorage` has no already-initialized check, so it overwrites
 status: open
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.1.1"
 contributor: ""
 credit: ""

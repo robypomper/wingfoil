@@ -60,9 +60,9 @@ import type { DnaYaml } from '../dna/schema';
 import { setRoleAssignmentsInText } from '../directives/roles-edit';
 import { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, writeDocument } from '../storage';
-import { parseYaml, toValidationError, type ValidationError } from '../validation';
+import { parseYaml, toValidationError, ValidationError } from '../validation';
 
-import type { DirectiveFile } from './loaders';
+import { DNA_YAML_PATH, loadDnaYaml, loadDnaYamlAtHead, type DirectiveFile } from './loaders';
 import type { CoreError, CoreResult } from './types';
 import { coreErr, coreOk } from './types';
 import { committedScopeError, requireUnmodifiedTarget } from './write-guard';
@@ -77,23 +77,92 @@ export interface RoleAssignmentUpdate {
 }
 
 /**
+ * A second sentence for the unknown-role refusal, appended **only** when the *working tree's*
+ * `dna.yaml` does define the role — the same diagnostic shape as `task-090`'s `workingTreeWouldGrant`
+ * (`./approval-authority.ts`): it tells a user whose editor shows the role why the tool disagrees,
+ * instead of leaving them to argue with the file on their screen. Any failure to read or parse the
+ * working-tree file is simply "no", so it can never change an outcome owned by `HEAD`.
+ */
+function workingTreeWouldDefine(root: string, role: string): boolean {
+  try {
+    return isRoleDefined(loadDnaYaml(root), role);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Validate an assignment request before anything is written. The role is checked first (it is the
  * binding's target and the REQ-SYS-08 check), then each id in argument order; the first failure wins.
  *
- * @param dna - The loaded `dna.yaml` (its `team.roles` is the role catalogue).
+ * **The role catalogue is read from the `dna.yaml` committed at `HEAD`**, never from the working tree
+ * (task-091, `bug-082-directive-assign-validates-role-against-worktree`,
+ * `dl-080-which-baseline-each-command-reads` option (B)). This function therefore takes `root`, not a
+ * `DnaYaml`: a caller cannot hand it a working-tree catalogue even by accident, which is what makes
+ * the committed baseline a property of the read rather than of a precondition someone must remember
+ * to run. An uncommitted role used to be enough to commit a `roles.yaml` binding to a role no commit
+ * of the repository defines — a dangling reference by construction, since **REQ-SYS-08** binds
+ * directives by role and every other clone sees the binding without the role.
+ *
+ * The cost was measured and accepted at `dl-080`'s ratification: extending the catalogue becomes
+ * *edit, commit, then assign*. `dl-081`/`task-093` are building the `dna` verbs that fold the first
+ * two steps into one command; nothing here waits on them.
+ *
+ * Two fail-closed refusals come with the baseline, mirroring `requireApprovalAuthority`'s: no
+ * committed `dna.yaml` at all, and a committed one that does not parse or validate.
+ *
+ * `--directive` ids are still resolved against the files on disk (`loadDirectives`). That read has
+ * the same baseline question and is deliberately left as it is: it needs a directory listing at a
+ * revision, which `src/storage` has no primitive for, and `dl-042`'s warnings channel already
+ * surfaces a binding whose directive file is missing (`directives list`). Filed as its own element
+ * by task-091's AC5 sweep rather than folded in here.
+ *
+ * @param root - Project root; the committed `dna.yaml` is read from it (`loadDnaYamlAtHead`).
  * @param directiveFiles - Every directive file on disk (`loadDirectives`).
  * @param role - The role to bind to.
  * @param ids - The directive ids to bind.
- * @returns `undefined` when assignable; otherwise a `NOT_FOUND` error carrying P3.2's exact message —
- *   `unknown role '<role>' (not defined in dna.yaml)` or `unknown directive: <id>`.
+ * @returns `undefined` when assignable; otherwise an error carrying P3.2's exact message verbatim as
+ *   its first sentence — `unknown role '<role>' (not defined in dna.yaml)` or
+ *   `unknown directive: <id>` — or, for an absent/unreadable committed catalogue, a `VALIDATION`
+ *   refusal naming the baseline.
  */
 export function checkAssignable(
-  dna: DnaYaml,
+  root: string,
   directiveFiles: readonly DirectiveFile[],
   role: string,
   ids: readonly string[],
 ): CoreError | undefined {
-  if (!isRoleDefined(dna, role)) return { code: 'NOT_FOUND', message: new UnknownRoleError(role).message };
+  let committed: DnaYaml | null;
+  try {
+    committed = loadDnaYamlAtHead(root);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return {
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the role catalogue: the committed '${DNA_YAML_PATH}' (at HEAD) is not readable as DNA: ` +
+        `${error.message}. A role binding is validated against the catalogue the repository records (dl-080), so the ` +
+        'committed file must be valid; fix it and commit the fix, then retry.',
+      details: { issues: error.issues },
+    };
+  }
+  if (committed === null) {
+    return {
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the role catalogue: '${DNA_YAML_PATH}' is not committed at HEAD. A binding must reference a ` +
+        `role the repository records, not one a working tree holds (REQ-SYS-08, dl-080); commit '${DNA_YAML_PATH}' ` +
+        'first, then retry.',
+    };
+  }
+
+  if (!isRoleDefined(committed, role)) {
+    const uncommittedRole = workingTreeWouldDefine(root, role)
+      ? ` — the working tree's '${DNA_YAML_PATH}' defines it, but that change is not committed, and a binding is ` +
+        `validated against the committed catalogue (REQ-SYS-08, dl-080); commit '${DNA_YAML_PATH}' first, then retry`
+      : '';
+    return { code: 'NOT_FOUND', message: `${new UnknownRoleError(role).message}${uncommittedRole}` };
+  }
   const known = new Set(directiveFiles.map((file) => file.frontmatter.id));
   const unknown = ids.find((id) => !known.has(id));
   return unknown === undefined ? undefined : { code: 'NOT_FOUND', message: `unknown directive: ${unknown}` };

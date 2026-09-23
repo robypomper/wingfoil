@@ -5,7 +5,8 @@
  * A transition verb always does the same two things around its own verb-specific rules:
  *
  * 1. {@link prepareMemoryTransition} — find the document by its bare id (spec-008-cli-grammar §7), read
- *    its declared `type` and current `status`, and resolve the legal target for the verb. Every expected
+ *    its declared `type` and current `status`, and resolve the legal target for the verb **against the
+ *    `memory.yaml` committed at `HEAD`** (task-091, `bug-081`, `dl-080` (B)). Every expected
  *    refusal is returned as a `CoreResult.error` (exit `1`), **before anything is written**, so "the
  *    state is unchanged" (P1.6 sc.2, REQ-STATE-01) holds by construction.
  * 2. {@link commitMemoryTransition} — write the new bytes and turn them into exactly one commit scoped
@@ -25,14 +26,22 @@ import {
   verifyDocumentEdit,
 } from '../memory';
 import type { DocumentScope, MemoryYaml, StateMachine, TransitionOp } from '../memory';
-import { commitPaths, readDocument, readPathAtRev, writeDocument } from '../storage';
+import { commitPaths, pathPorcelainStatus, readDocument, readPathAtRev, writeDocument } from '../storage';
 import { ValidationError } from '../validation';
 
+import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 import { requireUnmodifiedTarget, undeclaredCommittedPaths, type WriteTargetContract } from './write-guard';
 
 /** A document located and cleared for one transition — everything the verb needs to finish it. */
 export interface PreparedMemoryTransition {
+  /**
+   * The `memory.yaml` this transition was resolved against — **the one committed at `HEAD`**, never
+   * the working tree's (task-091, `bug-081`). It rides the result rather than being re-loaded by the
+   * verb so that a single command cannot decide its transition from one copy and its follow-up facts
+   * (`memory submit`'s `template.frontmatter.required`) from another.
+   */
+  readonly memoryYaml: MemoryYaml;
   readonly id: string;
   /** The document's declared frontmatter `type` (a registered `memory.yaml` type). */
   readonly type: string;
@@ -47,30 +56,90 @@ export interface PreparedMemoryTransition {
 }
 
 /**
- * Locate document `id` and resolve verb `op` on it. Refusals, all returned (never thrown) and all
- * exit `1`:
+ * A second sentence for a refusal, appended **only** when the working tree's `memory.yaml` and the
+ * committed one actually differ — the diagnostic half of `task-090`'s `workingTreeWouldGrant`, on
+ * this surface.
  *
+ * Under a committed baseline a refusal can contradict the file open in the user's editor, and
+ * `memory.yaml` is precisely the file an author edits while designing a new type or machine
+ * (`bug-081`'s Notes: "a half-finished edit is an ordinary state to be in"). So when the two copies
+ * disagree, say which one decided. It is computed *after* the decision and is empty on any failure
+ * to ask git, so no branch of it can change an outcome.
+ */
+function uncommittedMachineNote(root: string): string {
+  try {
+    if (pathPorcelainStatus(root, MEMORY_YAML_PATH) === '') return '';
+  } catch {
+    return '';
+  }
+  return (
+    ` — note that '${MEMORY_YAML_PATH}' carries uncommitted modifications and the state machine is read from the ` +
+    `committed copy (dl-080); commit '${MEMORY_YAML_PATH}' first if this transition depends on that change`
+  );
+}
+
+/**
+ * Locate document `id` and resolve verb `op` on it, **against the `memory.yaml` committed at
+ * `HEAD`** (`loadMemoryYamlAtHead`).
+ *
+ * The baseline is the point (task-091, `bug-081`, `dl-080` option (B)). This function takes no
+ * `MemoryYaml`: a caller cannot hand it a working-tree machine even by accident, which is what makes
+ * the committed baseline a property of the read itself rather than of a precondition someone must
+ * remember to run. An uncommitted edit to a type's `sequence` used to decide both the transition a
+ * verb performed and the `status` it committed — through `memory submit`, which requires no
+ * authority — and stranded the element in a state the committed machine rejects.
+ *
+ * Refusals, all returned (never thrown) and all exit `1`:
+ *
+ * - `HEAD` holds no `memory.yaml` → `VALIDATION`, fail-closed: with no committed machine there is no
+ *   `from → to` to record, and the only fail-open available is the working tree, which is the defect.
+ *   `wingfoil init` commits the scaffold, so no legitimate flow reaches this;
+ * - the committed `memory.yaml` does not parse or validate → `VALIDATION`, same reasoning;
  * - no document carries that frontmatter `id` → `NOT_FOUND` `document not found: <id>` (P1.6 sc.3);
  * - its `type` is not registered → `NOT_FOUND` with `memory add`'s unknown-type message;
  * - its `status` is not a state of the type → `VALIDATION` `invalid state '<s>' for type '<t>'`
  *   (task-036's `validateFrontmatterState`);
  * - the verb is illegal from that state → `INVALID_TRANSITION` with the `dl-032` contract message
  *   (`resolveTypeTransition`), the engine's explanation in `details.issues[0].detail`.
+ *
+ * The last four keep their pinned messages verbatim as the first sentence;
+ * {@link uncommittedMachineNote} may append a second one.
  */
-export function prepareMemoryTransition(
-  root: string,
-  memoryYaml: MemoryYaml,
-  id: string,
-  op: TransitionOp,
-): CoreResult<PreparedMemoryTransition> {
+export function prepareMemoryTransition(root: string, id: string, op: TransitionOp): CoreResult<PreparedMemoryTransition> {
+  let memoryYaml: MemoryYaml | null;
+  try {
+    memoryYaml = loadMemoryYamlAtHead(root);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the state machine: the committed '${MEMORY_YAML_PATH}' (at HEAD) is not readable as a Memory ` +
+        `configuration: ${error.message}. A transition is decided by the machine the repository records (dl-080), so ` +
+        'the committed file must be valid; fix it and commit the fix, then retry.',
+      details: { issues: error.issues },
+    });
+  }
+  if (memoryYaml === null) {
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the state machine: '${MEMORY_YAML_PATH}' is not committed at HEAD. A transition is decided by ` +
+        `the machine the repository records, not by a working tree (dl-080); commit '${MEMORY_YAML_PATH}' first, then retry.`,
+    });
+  }
+
   const found = findMemoryDocumentById(root, memoryYaml, id);
   if (!found) {
-    return coreErr({ code: 'NOT_FOUND', message: `document not found: ${id}` });
+    return coreErr({ code: 'NOT_FOUND', message: `document not found: ${id}${uncommittedMachineNote(root)}` });
   }
 
   const type = found.frontmatter.type;
   if (typeof type !== 'string' || memoryYaml.types[type] === undefined) {
-    return coreErr({ code: 'NOT_FOUND', message: `unknown memory type '${String(type)}' (not defined in memory.yaml)` });
+    return coreErr({
+      code: 'NOT_FOUND',
+      message: `unknown memory type '${String(type)}' (not defined in memory.yaml)${uncommittedMachineNote(root)}`,
+    });
   }
 
   // Always resolves: the type is registered (checked immediately above), and since task-071
@@ -88,11 +157,11 @@ export function prepareMemoryTransition(
     validateFrontmatterState(machine, type, from, found.path);
     const to = resolveTypeTransition(memoryYaml, type, from, op, found.path);
     const content = readDocument(join(root, found.path));
-    return coreOk({ id, type, path: found.path, frontmatter: found.frontmatter, content, from, to });
+    return coreOk({ memoryYaml, id, type, path: found.path, frontmatter: found.frontmatter, content, from, to });
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
     const code = error.issues.some((issue) => issue.code === E_INVALID_TRANSITION) ? 'INVALID_TRANSITION' : 'VALIDATION';
-    const message = error.issues.map((issue) => issue.message).join('; ');
+    const message = error.issues.map((issue) => issue.message).join('; ') + uncommittedMachineNote(root);
     return coreErr({ code, message, details: { issues: error.issues } });
   }
 }
