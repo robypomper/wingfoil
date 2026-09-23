@@ -11,7 +11,7 @@
  * memory/dna/directives/workflow domain-operation tables in spec-006 §3 (`memoryAdd`, `dnaSet`,
  * `directiveCreate`, ...) are feature work for task-018..030, not this task.
  */
-import { join, relative } from 'path';
+import { join, relative, sep } from 'path';
 
 import { dump } from 'js-yaml';
 
@@ -30,6 +30,10 @@ import {
 import { parseDirectiveIds, withAssignedDirectives } from '../directives/roles-edit';
 import type { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, removeDocument, StorageError, writeDocument } from '../storage';
+// Not re-exported by the `../storage` barrel, imported directly per that module's own convention
+// (same as `src/memory/entry.ts`): `memory add` needs the CONFINED target path before it writes, to
+// run task-092's absence guard on it.
+import { resolveConfinedMemoryPath } from '../storage/memory-path';
 import {
   findMemoryDocumentById,
   formatMemoryCommitMessage,
@@ -69,6 +73,7 @@ import { requireCustomAsset } from './builtin-asset';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule, CoreOption } from './registry';
 import { coreErr, coreOk } from './types';
@@ -123,6 +128,16 @@ export type {
 } from './relevance';
 export { commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
+export {
+  CONFIG_WRITE_CONTRACT,
+  committedScopeError,
+  requireAbsentTarget,
+  requireUnmodifiedTarget,
+  requireUnmodifiedTargets,
+  undeclaredCommittedPaths,
+  verifyCommittedPaths,
+} from './write-guard';
+export type { WriteTargetContract } from './write-guard';
 export { verifyBuiltinTemplates } from './builtin-integrity';
 export type { BuiltinIntegrityFailure, BuiltinTemplateKind, BuiltinTemplateSource } from './builtin-integrity';
 
@@ -267,29 +282,42 @@ export interface DnaSetParams {
  *    segment, the BDD's `..language`), is a usage error: `throw new UsageError(...)` → exit **2**
  *    (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1. A path that is well-formed
  *    but names nothing the schema declares is a different failure and exits **1** — see step 4.
- * 3. **Load** the current `.wingfoil/dna.yaml` through the same two-pass path `dnaShow` uses (a
+ * 3. **`requireUnmodifiedTarget` pre-flight** (`dl-080`(B) / `bug-078`, task-092) — refuse, before
+ *    anything is read or written, while `dna.yaml` carries modifications this operation does not own.
+ *    The plain "refuse a dirty target" rule applies here unaltered: all four verbs **edit an existing
+ *    file in place**, so `task-092`'s two exceptions are both inapplicable — `requireAbsentTarget` is
+ *    for a target that must be new (`memory add`), and `wingfoil init`'s exemption rests on
+ *    `detectInitState` refusing an initialized project before a guard could run, whereas these verbs
+ *    *require* an initialized project and load `dna.yaml` as their input. Placed before the load, so
+ *    no refusal and no written byte can depend on a value the dirty copy contributed — which is also
+ *    what makes `loadDnaYaml`'s working-tree read equivalent to `HEAD`'s here.
+ * 4. **Load** the current `.wingfoil/dna.yaml` through the same two-pass path `dnaShow` uses (a
  *    missing/invalid file → `NOT_FOUND`/`VALIDATION`, exit 1).
- * 4. **Resolve + apply** through `src/dna`'s `applyDnaMutation`, which resolves `--field` against
+ * 5. **Resolve + apply** through `src/dna`'s `applyDnaMutation`, which resolves `--field` against
  *    `DnaYaml` itself and **refuses a path that does not resolve rather than creating it**
  *    (`bug-084-dna-key-alias-writes-unschemad-keys`; `dl-081`'s ratification makes this a precondition
  *    of the surface). A refusal is a logic error (`VALIDATION` → exit 1, `spec-005` §1 as ruled on
  *    `bug-076`), returned not thrown, and nothing is written.
- * 5. **Produce the new bytes.** The PRIMARY path is `src/dna`'s `applyDnaEditInText`: a minimal
+ * 6. **Produce the new bytes.** The PRIMARY path is `src/dna`'s `applyDnaEditInText`: a minimal
  *    in-place textual edit, so every comment survives — including the inline `[SPEC]`/`[AUTHORING]`
  *    field-provenance annotations a whole-file re-serialization deletes
  *    (bug-004-dna-set-strips-yaml-comments, task-063). When no provably-minimal edit exists it returns
  *    `undefined` and this FALLS BACK to `dump(dna, { lineWidth: -1 })` — correct, but comment-stripping.
  *    Both paths are deterministic (REQ-SYS-07).
- * 6. **Re-validate the written bytes** against `DnaYaml` (spec-002) BEFORE persisting — re-parsing the
+ * 7. **Re-validate the written bytes** against `DnaYaml` (spec-002) BEFORE persisting — re-parsing the
  *    serialized form, not the in-memory object, so the check honours YAML's own scalar coercion and
  *    validates the exact bytes about to be written (`dna set version 2` writes `version: '2'` and
  *    still fails `z.number()` on read-back). It is also what enforces the cross-field rules the verbs
  *    do not duplicate: a member naming a role absent from `team.roles` fails here (REQ-SYS-08,
  *    `Team.superRefine`), which is why `dl-081` records that referential integrity needs no new check.
- * 7. **Persist + commit** through the single storage primitives (task-018) — `writeDocument` then
+ * 8. **Persist + commit** through the single storage primitives (task-018) — `writeDocument` then
  *    `commitPaths` on the ONE scoped path `.wingfoil/dna.yaml`; the returned sha rides
  *    `CoreResult.commit`. Writing the bytes already on disk is an idempotent no-op: no write, no
  *    empty commit.
+ * 9. **`committedScopeError` post-condition** (task-092) — assert the commit carries exactly the
+ *    bytes this operation wrote at that one path and nothing else. An alarm rather than a rollback:
+ *    with the step-3 guard in place no argument can reach it, but a repository-local `pre-commit`
+ *    hook that rewrites and re-stages the file still can.
  */
 async function runDnaMutation(
   root: string,
@@ -299,6 +327,9 @@ async function runDnaMutation(
 ): Promise<CoreResult<{ key: string; value?: string }>> {
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity;
+
+  const unmodified = requireUnmodifiedTarget(root, DNA_YAML_PATH);
+  if (!unmodified.ok) return unmodified;
 
   const loaded: CoreResult<DnaYaml> = loadOrError(() => loadDnaYaml(root));
   if (!loaded.ok) return loaded;
@@ -332,6 +363,8 @@ async function runDnaMutation(
 
   writeDocument(dnaPath, serialized);
   const sha = commitPaths(root, [DNA_YAML_PATH], subject);
+  const leaked = committedScopeError(root, sha, DNA_YAML_PATH, serialized);
+  if (leaked) return leaked;
   return coreOk(outcome, { sha, message: subject });
 }
 
@@ -372,7 +405,8 @@ const dnaSetFn: CoreFn<unknown, { key: string; value?: string }> = async (params
 
   // `wf(dna): set <key>` — the subject `dna set` has always written (task-025), kept verbatim so a
   // reader (and `git log --grep`) sees the command that was run, not the verb it delegates to. The
-  // scalar-only restriction is applied inside the shared pipeline, on the document it already loaded.
+  // scalar-only restriction, `dl-080`(B)'s dirty-target guard (task-092) and the committed-tree
+  // post-condition all live in the shared pipeline now, on the one document it loads.
   return runDnaMutation(root, { verb: 'update', field: keyPath, value }, `wf(dna): set ${keyPath}`, true);
 };
 
@@ -516,7 +550,22 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
     const scaffold = readDocument(join(root, '.wingfoil', template.file));
     const content = renderAddDocument(scaffold, { id, title, tags });
     const message = `wf(${type}): add ${id}`;
+
+    // dl-080 (B) / bug-078, AC3: this verb CREATES, so the rule is absence rather than cleanliness.
+    // `nextSequenceNumber` counts the WORKING TREE, so a tree that disagrees with `HEAD` about how
+    // many elements exist can generate an id landing on an occupied path — and the write below is
+    // unconditional, which turns `wf(<type>): add <id>` into a commit that overwrites (or deletes
+    // lines from) an existing element. The path is resolved here rather than taken from
+    // `writeMemoryEntry`'s return value because the guard must run BEFORE the write; the resolution
+    // is pure, so doing it twice is free of side effects and keeps that throwing storage primitive's
+    // contract untouched. A confinement escape still throws `StorageError` from this same call.
+    const targetPath = relative(root, resolveConfinedMemoryPath(root, pathPattern, { id })).split(sep).join('/');
+    const absent = requireAbsentTarget(root, targetPath);
+    if (!absent.ok) return absent;
+
     const { path, sha } = writeMemoryEntry(root, pathPattern, { id }, content, message);
+    const leaked = committedScopeError(root, sha, targetPath, content);
+    if (leaked) return leaked;
     return coreOk({ id, path: relative(root, path) }, { sha, message });
   } catch (error) {
     if (error instanceof StorageError) {
@@ -1181,10 +1230,18 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
   if (documentExists(absolutePath)) {
     return coreErr({ code: 'CONFLICT', message: `directive already exists: ${name}` });
   }
+  // dl-080 (B) / bug-078: the existence check above only sees the WORKING TREE, so a file deleted but
+  // not committed leaves this path "free" while `HEAD` still carries it — and the create then commits
+  // a diff that REMOVES the old content under a subject saying "create". Refuse instead.
+  const unmodified = requireUnmodifiedTarget(root, relativePath);
+  if (!unmodified.ok) return unmodified;
 
-  writeDocument(absolutePath, renderCustomDirective(name));
+  const content = renderCustomDirective(name);
+  writeDocument(absolutePath, content);
   const message = `wf(directive): create ${name}`;
   const sha = commitPaths(root, [relativePath], message);
+  const leaked = committedScopeError(root, sha, relativePath, content);
+  if (leaked) return leaked;
   return coreOk({ name, path: relativePath }, { sha, message });
 };
 
@@ -1353,9 +1410,18 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
   // `./loaders.ts`), so re-spell it with `/` for the value we return and the path we stage — git
   // speaks POSIX separators, and the payload must not differ by platform (REQ-SYS-07).
   const relativePath = ['.wingfoil', ...target.path.split(/[\\/]/)].join('/');
+  // dl-080 (B) / bug-078: staging a deletion discards the working-tree blob, so an uncommitted edit
+  // to the directive being removed does not ride into the commit — it is DESTROYED, reaching no
+  // commit anywhere. Different harm, same rule: the target carries modifications this operation does
+  // not own, so refuse and let the author decide what to do with them.
+  const unmodified = requireUnmodifiedTarget(root, relativePath);
+  if (!unmodified.ok) return unmodified;
+
   removeDocument(join(root, relativePath));
   const message = `wf(directive): remove ${name}`;
   const sha = commitPaths(root, [relativePath], message);
+  const leaked = committedScopeError(root, sha, relativePath, null);
+  if (leaked) return leaked;
   return coreOk({ name, path: relativePath }, { sha, message });
 };
 
