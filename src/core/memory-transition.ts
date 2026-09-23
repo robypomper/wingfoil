@@ -26,7 +26,7 @@ import {
   verifyDocumentEdit,
 } from '../memory';
 import type { DocumentScope, MemoryYaml, StateMachine, TransitionOp } from '../memory';
-import { commitPaths, readDocument, readPathAtRev, writeDocument } from '../storage';
+import { commitPaths, pathPorcelainStatus, readDocument, readPathAtRev, writeDocument } from '../storage';
 import { ValidationError } from '../validation';
 
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
