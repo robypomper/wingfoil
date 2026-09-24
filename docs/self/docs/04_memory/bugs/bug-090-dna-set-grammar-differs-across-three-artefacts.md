@@ -2,10 +2,10 @@
 id: "bug-090-dna-set-grammar-differs-across-three-artefacts"
 type: bug
 title: "`dna set`'s grammar is specified three different ways — positional in the code and its specs, `--field`/`--value` in the approved vision reference, and the vision layer is the one that wins"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P2.1"
 contributor: ""
 credit: ""

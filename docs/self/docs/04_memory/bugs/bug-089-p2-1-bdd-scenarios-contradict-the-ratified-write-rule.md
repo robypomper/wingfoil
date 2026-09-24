@@ -2,10 +2,10 @@
 id: "bug-089-p2-1-bdd-scenarios-contradict-the-ratified-write-rule"
 type: bug
 title: "`P2.1-dna-set.feature`'s first two scenarios assert a write the ratified rule refuses, and they pass today only because of the defect `bug-084` files"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P2.1"
 contributor: ""
 credit: ""

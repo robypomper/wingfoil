@@ -2,10 +2,10 @@
 id: "bug-080-read-status-at-reads-the-current-path-at-pre-rename-commits"
 type: bug
 title: "`readStatusAt` reads the element's current path at pre-rename commits, so a renamed element's transitions report null states — five `release` elements in this repository are in that state now"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.10"
 contributor: ""
 credit: ""

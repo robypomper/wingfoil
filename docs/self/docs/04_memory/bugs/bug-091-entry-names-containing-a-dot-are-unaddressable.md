@@ -2,10 +2,10 @@
 id: "bug-091-entry-names-containing-a-dot-are-unaddressable"
 type: bug
 title: "An entry whose `name` contains a dot cannot be addressed by the ratified `--field` path, and the schema does not forbid such names"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P2.1"
 contributor: ""
 credit: ""
