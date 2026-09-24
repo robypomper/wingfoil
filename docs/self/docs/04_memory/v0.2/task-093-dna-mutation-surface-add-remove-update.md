@@ -2,7 +2,7 @@
 id: "task-093-dna-mutation-surface-add-remove-update"
 type: task
 title: "Build the DNA mutation surface: `dna add|remove|update <full path> --value <v>` in the grammar dl-082 ratified, and make the traversal refuse a path that does not resolve"
-status: approved
+status: done
 rejection_reason: ""
 release: "v0.2"
 priority: "high"
