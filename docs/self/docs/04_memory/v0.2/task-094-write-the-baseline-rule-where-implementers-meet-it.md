@@ -234,6 +234,9 @@ Two pre-existing warnings also print (`unknown field(s) ignored: scope`) for `cl
   `roles.yaml`; both are `status: active`, so both would otherwise tell the next implementer to load
   the old set). `docs/self/.wingfoil/README.md` was checked and is **not** stale — it enumerates
   only the six P3.8 stand-ins, which are unchanged.
+  **This list was incomplete when written, and "fixed here" was an unearned exhaustiveness claim —
+  three more `active` plans and two `approved` specs also say it. See *Review round 1 — corrections*
+  §1 below for the sweep that should have produced this list in the first place.**
 
 ### Gates (run in this worktree, `npm ci` first — the worktree had no `node_modules`)
 
@@ -274,6 +277,146 @@ No `src/` file and no barrel is touched, so this branch cannot produce the seman
 brief warns about. The files a sibling might also touch are `spec-006` (tail: a Revision note —
 `task-099` may append one too) and the two `05_plans` files. `test/directives/schema.test.ts` and
 `test/core/loaders.test.ts` are touched in one hunk each, both in the live-config `describe` blocks.
+
+---
+
+## Review round 1 — corrections (2026-09-24)
+
+### 1. The staleness sweep was incomplete, and the heading claimed it was not
+
+The section above is headed "Sentences this pass made stale, **fixed here**" and named two plans. It
+was wrong. One command finds more:
+
+```
+$ grep -rn "doc-versioning\|security-secrets" docs/05_plans/rl-v1/rel-v0.2/
+  e2e-smoke-rel-v0.2-plan.md:89            (active)  — global set, made false by this change
+  release-submit-rel-v0.2-plan.md:80-81    (active)  — global set, made false by this change
+  release-publishing-rel-v0.2-plan.md:146  (active)  — architect + global set; ALSO already
+                                                       incomplete before this change (no
+                                                       `security-secrets`)
+```
+
+**This is the point of the directive this pass is writing, demonstrated against the pass itself.** A
+heading of the form "fixed here" is an **exhaustiveness** claim, and `claim-evidence` says an
+exhaustiveness claim is settled by running the command and pasting the output — not by listing the
+instances you happened to remember. I wrote the rule and then asserted completeness from memory in
+the same document. The reviewer found it with one grep. It is recorded here rather than quietly
+repaired because it is the best evidence the directive will ever have for existing.
+
+So the sweep was redone properly, over the whole repository rather than one directory:
+
+```
+$ git grep -n "security-secrets" -- '*.md' '*.yaml'
+```
+
+and every hit classified. Fixed (all `active`, all made false by this change):
+
+- `e2e-smoke-rel-v0.2-plan.md` 1.0 → 1.1, `release-submit-rel-v0.2-plan.md` 1.0 → 1.1.
+- `release-publishing-rel-v0.2-plan.md` 1.0 → 1.1 — **decided: fix it, including the pre-existing
+  gap.** Its architect row was made false by this change anyway (`command-baseline` missing), so the
+  line had to be touched; having touched it, leaving `security-secrets` off the global list beside a
+  word I had just edited would be precisely the habit `claim-evidence` exists to stop. The restored
+  item is called out in the line itself so the next reader knows it was not always there.
+- `spec-011-storage-layout` — its `custom/` tree and the paragraph saying "every directive file that
+  exists right now" both enumerate the set; twelve files now
+  (`ls docs/self/.wingfoil/directives/custom/*.md | wc -l` → 12). Amended with a dated Revision note,
+  `status: approved` and frontmatter untouched (AC6 route).
+- `spec-012-context-loader-relevance-filtering` §5 — enumerates the globals the loader adds to every
+  role; `claim-evidence` added, same Revision-note route.
+
+Checked and deliberately **not** touched: `docs/05_plans/rl-v1/rel-v0.1/dev-loop-rel-v0.1-plan.md`
+(a v0.1 plan, no frontmatter, a record of a released phase), `docs/self/X_wingfoil-init-plan.md`
+(grandfathered `X_` plan recording what `wingfoil-init` scaffolded then), every `task-0xx` Execution
+Note reciting the directives it loaded (historical records, true when written), and the
+decision-logs that quote captured listings (`dl-058`, `dl-059`, `dl-060`, `dl-062`).
+`release-publishing-rel-v0.2-plan.md:91` names `security-secrets` as the relevant global for one
+step rather than enumerating the set, so it stays true.
+
+### 2. Two attributions were looser than this document's own standard
+
+- **Corrected.** The directive previously quoted `dl-080` §(C)'s **Cost** paragraph — the DL
+  author's words — as "the reason it was withdrawn". The approver's actual ground (`333a3c0f`) is
+  different and is now quoted instead: (C) "is foreclosed by the decision to treat `bug-082` as
+  blocking, since (C) leaves that bug open by design; it is withdrawn rather than reshaped".
+- **And the correction strengthens the ruling.** (C) classified by *what a read produces* (durable
+  attestation or not); `task-096` classified by *what a read is for*. They are not the same test,
+  and the directive no longer equates them. Spelled out: under (C) **as written**, `directive
+  remove`'s read would have been **permitted** — what it gates is a deletion that is itself
+  committed and recoverable. Withdrawing (C) therefore withdrew that permission explicitly, which is
+  a tighter argument than "the reason applies unchanged", and a classification by what a read is
+  *for* is not even (C) — it is a further category arriving after the only classifying option on the
+  table was refused.
+
+### 3. The instance count, settled rather than repeated
+
+The notes said "eight" and then called `bug-087` "the ninth". Settled by enumeration:
+
+```
+$ grep -rl "dl-080" docs/self/docs/04_memory/bugs/
+  bug-081 closed · bug-082 closed · bug-083 closed · bug-084 closed · bug-085 closed
+  bug-086 closed · bug-087 open · bug-088 open · bug-096 open · bug-108 open
+```
+
+`bug-083`/`bug-084` cite `dl-080` as DNA-surface evidence (`dl-081` owns them) and `bug-096` is the
+twin rule, not this class. The class is: `dl-080`'s five founding instances (`bug-076`, `bug-078`,
+`bug-079`, `bug-081`, `bug-082`) plus **four** found since — `bug-085`, `bug-086`, `bug-087`, and
+**`bug-088`**, which the earlier count missed (`initWingfoilStorage` overwrites a clean committed
+`dna.yaml` with no guard: the write half, no read involved). That is nine, and `bug-108` is the
+deviation the directive itself names. The directive now says exactly that, and cites `bug-088` as a
+second both-halves example rather than asserting an unnamed ninth.
+
+### 4. Owners cited, and one note from the orchestration side
+
+`bug-108-directive-remove-resolves-its-target-on-the-working-tree` (`open`) and
+`bug-109-directives-schema-tsdoc-calls-spec-013-a-candidate` (`open`) arrived on `main` with the
+re-merge, so both findings this task proposed are owned. The directive now names `bug-108` where it
+names the deviation, and says the repair is the "explain, never decide" clause rather than a bare
+move to `HEAD`; `bug-109` owns the rest of the `src/directives/schema.ts` TSDoc, of which this task
+corrected only the two counts it made false.
+
+Worth recording, because it is the same failure seen from the other side: `task-096` proposed the
+`directiveRemoveFn` element **twice** and neither proposal was filed, so this directive came within
+one review of shipping a named live deviation that nothing scheduled. That is an orchestration-side
+instance of exactly what `claim-evidence` addresses, and it is an argument for the binding chosen —
+a rule bound only to the coding roles would not have reached the prose where it happened.
+
+### Re-merge and re-run (AC8, on the merged tree)
+
+`main` had moved through `task-099`, `task-100` and `task-101`. `git merge main` → merge commit
+`38346858`, **no conflicts**; the incoming `src/core/index.ts` hunks are `task-099`'s
+`splitDnaPath` TSDoc and argument-validation rewrites, which do not touch anything this task cites.
+Re-verified after merging rather than assumed: `git diff --stat 9642ab5f..HEAD` over
+`src/core/loaders.ts`, `src/core/write-guard.ts`, `src/core/memory-transition.ts`,
+`src/storage/commit.ts` → **empty**, so every symbol in the directive's primitive table is unchanged
+from the commit it is cited at; `directiveRemoveFn`'s "This read stays on the **working tree**"
+sentence is still present at the merged tree (`grep -n`), so the deviation the directive names is
+still real.
+
+Gates on the merged tree, after `npm ci` (`main` moved `package-lock.json`):
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **138 suites, 2292 tests, all passing** (was 135 / 2202 pre-merge) |
+| `npx jest --coverage` | **98.56 stmts / 94 branch / 98.75 funcs / 99.4 lines** |
+| `npx tsc -p tsconfig.build.json --noEmit` | 0 |
+| `npx tsc -p tsconfig.build.json` (emitting) | 0 |
+| `npx tsc --noEmit -p tsconfig.json` (full) | 0, silent |
+| `npm run lint` | 0 |
+| `npm run docs:api` | 0 |
+
+Coverage moved fractionally against the pre-merge figure (98.57 / 93.87 / 98.92 / 99.39): branch up,
+statements and functions down in the third decimal's worth. That movement is `main`'s, and the
+command that settles it rather than an assertion that it is:
+
+```
+$ git diff --stat main...HEAD -- src/    → src/directives/schema.ts | 4 ++-- (the TSDoc counts)
+$ git diff --stat main...HEAD -- test/   → two files, 18 insertions, 2 deletions (both assertions
+                                            strengthened, none removed)
+```
+
+This branch adds no executable `src/` line at all, so it cannot move a coverage denominator; the
+delta belongs to `task-099`/`task-100`/`task-101`, which arrived with the merge. All four figures
+remain ≥ 80.
 
 ## Material gathered while this task waited (2026-09-24)
 
