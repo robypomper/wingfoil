@@ -76,3 +76,31 @@ exists to answer.
 - No fix task filed. The remedy is known and narrow — thread each commit's historical path from the
   `--follow --name-status` output into `readStatusAt` — but the approver has not scheduled it, and
   `bug-071` should close with it rather than before it.
+
+## Correction (2026-09-24) — this bug's guidance about `bug-071` would have produced an untested close
+
+The Notes above say that when this bug is fixed, `bug-071` "should be closed as absorbed rather than
+worked". That is wrong, and `task-097` was right to contradict it: its AC4 required `bug-071` to be
+pinned by its own test and said explicitly not to rely on the path fix having removed the message.
+
+The reasoning is that fixing this bug removes the **occasion** for git's `fatal:` line, not the
+**leak**. `readStatusAt`'s `execFileSync` still inherited this process's stderr; it simply stopped
+being reached on an ordinary `--follow` walk once each commit was read at its historical path. The
+first commit that legitimately lacks the document — a deletion, or a walk that reaches past the
+element's creation — brings it straight back. `task-097`'s AC3 covers exactly that case, so the two
+defects are adjacent, not nested.
+
+The evidence is stronger than the argument. While implementing `task-097` the developer wrote a new
+`git log` probe without `stdio`, and the first otherwise-green test run printed
+`fatal: not a git repository (or any of the parent directories): .git` into the suite output. The
+leak was reproduced from a **different call** in the same pass that was supposedly making it
+impossible. Two further calls still carry it and are now `bug-093`.
+
+Recorded here rather than edited away because the sentence is standing guidance: a reader reaching
+this Notes section while closing `bug-071` would have been told, by this document, to close it on the
+strength of a symptom disappearing — which is the class of untested claim this release has rejected
+four tasks for.
+
+Proposed by `task-097` as an element. Filed as a correction rather than a decision-log because
+nothing here needs deciding: the guidance was simply false, and the task that disproved it has already
+shipped the test that settles it.
