@@ -184,9 +184,10 @@ the path the contract *refuses*, with the same two words. A reader who knew the 
 ruling in one line instead of having to reconstruct it, and the scenario doubles as the migration
 note for anyone still typing the retired shape.
 
-**Step vocabulary is house style, not invented.** `And the change is not committed` already exists in
-this corpus (`grep -rn "the change is not committed" docs/02_requirements/02_bdd/features/` →
-`p1-memory/P1.6-memory-add.feature`), as do
+**Step vocabulary is house style, not invented.** `the change is not committed` already exists in this
+corpus: `grep -rn "the change is not committed" docs/02_requirements/02_bdd/features/` returns, apart
+from the two new lines in this file, `p1-memory/P1.2-versioning-audit-trail.feature:25`, where it is a
+`Then` rather than the `And` continuation used here. So do
 `And the command exits with code <n> and message "..."` and `And the change is committed to git`. No
 tags, comments or `REQ-` references were added: `grep -rln "REQ-" docs/02_requirements/02_bdd/features/`
 returns nothing across all 63 feature files, and neither `#` comments nor `@tags` occur anywhere in
@@ -379,7 +380,7 @@ Four, none created here (parallel worktrees would collide on ids). Each was meas
    `acceptance_criteria`, the *verbatim* pre-rewrite scenario 1 including
    `wingfoil dna set tech_stack.language python`; the same entry's `acceptance_criteria_full` points
    at the live `.feature` file, which now says something else. A second entry in both files
-   (`TASK-025`-adjacent, the P2.4 row) asserts the file "declares the sections `modules`,
+   (`TASK-025`, `"ref": "P2.4"`, also `"release": "v0.1"`) asserts the file "declares the sections `modules`,
    `tech_stack`, `team`, `conventions`" — measured, the scaffolded `dna.yaml` declares
    `['version', 'project', 'modules', 'stacks', 'team', 'paths']`, so two of the four named sections
    do not exist. `task-093` handed the first of these to this task ("it follows `bug-089`'s rewrite
