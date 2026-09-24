@@ -2,7 +2,7 @@
 id: "task-101-route-commander-parse-errors-through-the-exit-code-contract"
 type: task
 title: "Intercept Commander's own parse errors at the CLI boundary and map them through `src/core`'s existing exit-code decision, so an unknown command and an unknown option exit 2 like every other usage error"
-status: approved
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "cli", "exit-codes"]
