@@ -81,9 +81,21 @@ $ wingfoil dna set project.license Apache-2.0
 { "key": "project.license", "value": "Apache-2.0" } exit 0
 ```
 
-Both write `project.license`. The grammars differ, so the redundancy is currently invisible; aligning
-them makes the two verbs identical in spelling as well as effect. This is a **consequence** of the
-decision below, not an argument against it — it exposes an overlap that already exists.
+They agree on refusal as well as on success, with the same message and the same exit code:
+
+```
+$ wingfoil dna set    nonsense.deep.key val
+$ wingfoil dna update --field nonsense.deep.key --value val
+error: unknown DNA field 'nonsense.deep.key': 'nonsense' is not declared
+under the dna.yaml schema                           exit 1, both
+```
+
+So the two verbs are not merely overlapping — on this build they are **indistinguishable**. The one
+behaviour `set` had that `update` lacked was creating the intermediate objects of a path that does not
+resolve, and that behaviour is `bug-084`, which `task-093` removed. The grammars differ, so the
+redundancy is currently invisible; aligning them makes the two verbs identical in spelling as well as
+in effect. This is a **consequence** of the decision below, not an argument against it — alignment
+exposes an overlap that already exists.
 
 ## Decision
 
