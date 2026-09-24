@@ -2,7 +2,7 @@
 id: "task-099-quoted-path-segments-for-dotted-entry-names"
 type: task
 title: "Implement `dl-083`'s quoted path segments so an entry named `Node.js` is addressable, and make the three dotted names already in `dna.yaml` a permanent part of the test corpus"
-status: approved
+status: done
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "dna", "cli"]
