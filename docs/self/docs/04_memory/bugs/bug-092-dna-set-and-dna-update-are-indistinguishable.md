@@ -92,3 +92,43 @@ open on purpose.
   `dna update X --value Y` are two names for one command invites the question at exactly the moment
   `v0.2` is published and the answer becomes expensive.
 - Found by measuring `dl-082`'s evidence rather than by a failure. Recorded as `E4` there.
+
+## Correction (2026-09-24) — "indistinguishable" overstates it: they differ at a collection
+
+This bug was filed on two measurements — a scalar leaf and a path that does not resolve — and both
+happen to be cases where the two verbs agree. A third case was never run, and it is the one where they
+differ. Measured against `task-093`'s build in a throwaway `wingfoil init --template Scrum` repository,
+in the grammar `dl-082` ratified:
+
+```
+$ wingfoil dna set    team.members --value roberto
+error: 'team.members' does not hold a single value: reach it with
+`dna add|remove|update team.members --value <v>` (dl-081)          exit 1
+
+$ wingfoil dna update team.members --value roberto
+error: no entry named 'roberto' in 'team.members'                   exit 1
+```
+
+Both refuse, but for different reasons and with different meanings: `set` refuses *the shape of the
+target*, while `update` accepts it and refuses because no such entry exists — it read `--value` as an
+entry identity, which is what `dl-081` says it means at a collection. Add the entry first and `update`
+succeeds where `set` never can.
+
+The mechanism, read at `c160072e`: `dnaSetFn` delegates to the shared pipeline as
+`runDnaMutation(root, { verb: 'update', field: keyPath, value }, subject, true)`. That fourth argument
+is `scalarOnly`, and it is the whole difference — `dna set` **is** `dna update` with a pre-check that
+the path resolves to a scalar.
+
+Entry fields are *not* excluded by it, which is the other thing the original filing implied without
+testing: `dna set team.members.roberto.email --value r@x.it` succeeds at exit 0, because that path
+resolves to a scalar. `set` is not confined to the seven `project` fields.
+
+**What survives.** `set` still has no behaviour `update` lacks — it is a strict restriction, identical
+to `update` on every input where it succeeds, refusing on a subset of the rest. So the redundancy
+question is real. But the accurate statement is *"`set` is a guard-railed subset of `update`"*, not
+*"they are the same command"*, and that difference matters to the decision: the guard rail is a design
+worth weighing, not an accident to be removed.
+
+The failure here is the one this release has rejected four tasks for — a claim written from the cases
+that were run rather than from the cases that would settle it. Recorded rather than edited away,
+because the title and the Summary above were both argued from it.
