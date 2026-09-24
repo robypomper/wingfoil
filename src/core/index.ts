@@ -436,10 +436,23 @@ function dnaMutationRequest(verb: DnaMutationVerb, options: Readonly<Record<stri
   if (!isValidKeyPath(field)) throw new UsageError(`invalid key path: '${field}'`);
   if (verb === 'add' && options?.value === undefined) throw new UsageError('missing required argument: --value');
 
+  // Every remaining option is an entry field, carried under its `--entry-<field>` name (see
+  // `DNA_ENTRY_OPTION_PREFIX`); it is stripped back to the schema's own field name here, which is what
+  // `applyDnaMutation` matches against the entry schema. Sorted so the request — and therefore the
+  // batch of text edits it produces — is a deterministic function of the invocation (REQ-SYS-07).
   const fields: Record<string, string> = {};
   for (const name of Object.keys(options ?? {}).sort()) {
     if (name === 'field' || name === 'value') continue;
-    fields[name] = options![name]!;
+    const entryField = dnaEntryFieldOfOption(name);
+    // Strict, and deliberately so: the CLI can only send names this operation declares (Commander
+    // refuses the rest), so accepting a BARE `version` here would mean the core layer speaks a
+    // vocabulary the CLI layer cannot produce — which is how a test at this layer went green while
+    // the real command line silently did nothing. The MCP surface, whose Tool arguments are arbitrary
+    // JSON, is the caller that can actually reach this, and it gets a named refusal.
+    if (entryField === undefined) {
+      throw new UsageError(`unknown option: --${name} (entry fields are passed as --${DNA_ENTRY_OPTION_PREFIX}<field>)`);
+    }
+    fields[entryField] = options![name]!;
   }
   return { verb, field, value: options?.value, fields };
 }
@@ -472,6 +485,48 @@ const dnaUpdateFn: CoreFn<unknown, { key: string; value?: string }> = async (par
  * as a convention rather than something the grammar shows: it is the new entry's IDENTITY when
  * `--field` ends at a collection and the new VALUE when it ends at a leaf (task-093 AC6).
  */
+/**
+ * The prefix every schema-derived entry-field option carries: `--entry-<field>`, spelled with the
+ * schema's own field name (`--entry-executes_as`, not `--entry-executes-as`).
+ *
+ * It exists because the option set is **derived** — `dnaEntryOptionNames()` reads `spec-002`'s entry
+ * schemas — while the global flags are **declared** (`spec-008` §2), and the two namespaces had no
+ * reason to stay disjoint. They did not: `TechEntry` declares `version`, so `dna add --field
+ * stacks.technologies --value Zod --category validation --version 4.0` reached Commander's
+ * program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing, while
+ * `--help` advertised the option as working. Measured on a real `wingfoil init` project.
+ *
+ * **It is not a `version` problem.** Driving a synthetic Commander tree with one subcommand option per
+ * global flag shows three distinct outcomes, two of them silent: `--version` fires the program's own
+ * action and exits; `--format` and `--verbose` are swallowed by the program-level option and simply
+ * do not appear in the subcommand's parsed options; `--color` and a non-colliding name survive. So
+ * the failure mode is "the value vanishes", and any future entry field named after any current or
+ * future global flag inherits it.
+ *
+ * **Why a prefix rather than refusing to register a shadowing name.** Refusal trades a silent failure
+ * for a loud hole: `version` is a field `spec-002` declares on `TechEntry`, so refusing it would make
+ * a schema-declared field permanently unwritable, and `dl-081` ratified a surface that reaches every
+ * collection. Refusal is also unstable in the wrong direction — the global set can grow (`spec-008`
+ * §2 is amendable), and a new global flag would then retroactively disable an entry field that had
+ * been writable, breaking scripts with no code change nearby. A prefix removes the collision **by
+ * construction**, for every present and future name on both sides, and it is uniform rather than
+ * conditional: a rule that prefixed only the colliding names would make an option's spelling depend
+ * on a table declared elsewhere, so adding a global flag later would silently RENAME an existing
+ * option. `test/cli/derived-option-namespace.test.ts` holds the invariant that keeps this true,
+ * derived from the built program rather than from a hand-listed copy of `spec-008` §2.
+ */
+export const DNA_ENTRY_OPTION_PREFIX = 'entry-' as const;
+
+/** The CLI/MCP option name carrying one entry field — the single place the prefix is applied. */
+export function dnaEntryOptionName(field: string): string {
+  return `${DNA_ENTRY_OPTION_PREFIX}${field}`;
+}
+
+/** The entry field an option name carries, or `undefined` when it is not an entry-field option. */
+export function dnaEntryFieldOfOption(option: string): string | undefined {
+  return option.startsWith(DNA_ENTRY_OPTION_PREFIX) ? option.slice(DNA_ENTRY_OPTION_PREFIX.length) : undefined;
+}
+
 const DNA_FIELD_OPTION: CoreOption = {
   name: 'field',
   required: true,
@@ -481,9 +536,9 @@ const DNA_VALUE_OPTION: CoreOption = {
   name: 'value',
   description: "the new entry's identity when --field ends at a collection; the new value when it ends at a leaf (comma-separated for a list of values)",
 };
-const DNA_ENTRY_OPTIONS: readonly CoreOption[] = dnaEntryOptionNames().map((name) => ({
-  name,
-  description: `'${name}' of the entry --field names, where that collection declares it`,
+const DNA_ENTRY_OPTIONS: readonly CoreOption[] = dnaEntryOptionNames().map((field) => ({
+  name: dnaEntryOptionName(field),
+  description: `'${field}' of the entry --field names, where that collection declares it`,
 }));
 
 /**

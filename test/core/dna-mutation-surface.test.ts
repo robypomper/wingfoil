@@ -18,7 +18,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CORE_MODULES, loadDnaYaml } from '../../src/core';
+import { CORE_MODULES, dnaEntryOptionName, loadDnaYaml } from '../../src/core';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import { deriveVerb } from '../../src/core/registry';
 import type { CoreFn } from '../../src/core/registry';
@@ -114,7 +114,11 @@ describe('the three verbs are registered, and reach both surfaces mechanically (
   it('exposes one option per entry field the schema declares, so every collection is reachable', () => {
     const names = (dnaModule?.operations.dnaAdd?.options ?? []).map((option) => option.name);
     for (const field of ['description', 'path', 'email', 'roles', 'category', 'version', 'notes', 'phase', 'executes_as']) {
-      expect(names).toContain(field);
+      // Under the `entry-` namespace, not bare: a bare `--version` is Commander's program-level flag,
+      // which swallowed the value and exited 0 (see `DNA_ENTRY_OPTION_PREFIX` and
+      // `test/cli/derived-option-namespace.test.ts`).
+      expect(names).toContain(dnaEntryOptionName(field));
+      expect(names).not.toContain(field);
     }
   });
 });
@@ -150,7 +154,7 @@ describe('dna add | remove | update — all four path shapes, end to end (AC3, A
   it('shape 2 — adds, updates and removes an entry of an object array at depth 1 (modules)', async () => {
     const added = await dnaOp('dnaAdd')({
       root: repo,
-      options: { field: 'modules', value: 'cli', path: 'src/cli' },
+      options: { field: 'modules', value: 'cli', 'entry-path': 'src/cli' },
     });
     expect(added.ok).toBe(true);
     expect(loadDnaYaml(repo).modules).toEqual([
@@ -160,7 +164,7 @@ describe('dna add | remove | update — all four path shapes, end to end (AC3, A
 
     const updated = await dnaOp('dnaUpdate')({
       root: repo,
-      options: { field: 'modules', value: 'cli', description: 'Human interface.' },
+      options: { field: 'modules', value: 'cli', 'entry-description': 'Human interface.' },
     });
     expect(updated.ok).toBe(true);
     expect(loadDnaYaml(repo).modules[1]).toEqual({ name: 'cli', path: 'src/cli', description: 'Human interface.' });
@@ -174,14 +178,14 @@ describe('dna add | remove | update — all four path shapes, end to end (AC3, A
   it('shape 3 — adds an entry to an object array at depth 2 (team.members, stacks.technologies)', async () => {
     const member = await dnaOp('dnaAdd')({
       root: repo,
-      options: { field: 'team.members', value: 'ada', email: 'ada@example.it', roles: 'developer' },
+      options: { field: 'team.members', value: 'ada', 'entry-email': 'ada@example.it', 'entry-roles': 'developer' },
     });
     expect(member.ok).toBe(true);
     expect((loadDnaYaml(repo).team as { members: unknown[] }).members).toHaveLength(2);
 
     const tech = await dnaOp('dnaAdd')({
       root: repo,
-      options: { field: 'stacks.technologies', value: 'Node.js', category: 'runtime', version: '22.12+' },
+      options: { field: 'stacks.technologies', value: 'Node.js', 'entry-category': 'runtime', 'entry-version': '22.12+' },
     });
     expect(tech.ok).toBe(true);
     expect((loadDnaYaml(repo).stacks as { technologies: unknown[] }).technologies[1]).toEqual({
@@ -215,7 +219,7 @@ describe('dna add | remove | update — all four path shapes, end to end (AC3, A
     expect(role.ok).toBe(true);
     const member = await dnaOp('dnaAdd')({
       root: repo,
-      options: { field: 'team.members', value: 'new approver', email: 'a@example.it', roles: 'approver,qa' },
+      options: { field: 'team.members', value: 'new approver', 'entry-email': 'a@example.it', 'entry-roles': 'approver,qa' },
     });
     expect(member.ok).toBe(true);
     const team = loadDnaYaml(repo).team as { members: Array<{ name: string; roles: string[] }> };
@@ -223,7 +227,7 @@ describe('dna add | remove | update — all four path shapes, end to end (AC3, A
   });
 
   it('keeps every comment, including the [SPEC]/[AUTHORING] provenance annotations (bug-004 stays fixed)', async () => {
-    await dnaOp('dnaAdd')({ root: repo, options: { field: 'modules', value: 'cli', path: 'src/cli' } });
+    await dnaOp('dnaAdd')({ root: repo, options: { field: 'modules', value: 'cli', 'entry-path': 'src/cli' } });
     await dnaOp('dnaAdd')({ root: repo, options: { field: 'paths.sources', value: 'lib/' } });
     await dnaOp('dnaUpdate')({ root: repo, options: { field: 'project.license', value: 'Apache-2.0' } });
 
@@ -287,7 +291,7 @@ describe('refusals — exit 1 for a path or an entry the document/schema does no
   it('a member naming a role the catalogue does not define is refused by the schema re-validation (REQ-SYS-08)', async () => {
     const result = await dnaOp('dnaAdd')({
       root: repo,
-      options: { field: 'team.members', value: 'ada', roles: 'nonexistent-role' },
+      options: { field: 'team.members', value: 'ada', 'entry-roles': 'nonexistent-role' },
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(exitCodeForResult(result)).toBe(1);
@@ -312,6 +316,18 @@ describe('usage errors — a malformed invocation is exit 2 (spec-005 §1, spec-
     } catch (error) {
       expect(error).toBeInstanceOf(UsageError);
       expect((error as UsageError).message).toBe('missing required argument: --field');
+      expect(exitCodeForThrow(error).exitCode).toBe(2);
+    }
+  });
+
+  it('an option that is not an entry field is a usage error naming the namespace (the MCP surface can send one)', async () => {
+    try {
+      await dnaOp('dnaAdd')({ root: repo, options: { field: 'stacks.technologies', value: 'Zod', version: '4.0' } });
+      throw new Error('expected a UsageError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(UsageError);
+      expect((error as UsageError).message).toContain('--version');
+      expect((error as UsageError).message).toContain('entry-');
       expect(exitCodeForThrow(error).exitCode).toBe(2);
     }
   });

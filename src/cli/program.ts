@@ -205,8 +205,24 @@ function buildOptionValues(
   if (declared.length === 0) return undefined;
   const optionValues: Record<string, string> = {};
   for (const { name } of declared) {
-    const value = options[name];
+    const value = options[commanderKey(name)];
     if (typeof value === 'string') optionValues[name] = value;
   }
   return optionValues;
+}
+
+/**
+ * The property Commander stores a `--{name} <value>` option under: it camel-cases across `-`
+ * (`--entry-executes_as` -> `entryExecutes_as`) and leaves every other character alone.
+ *
+ * `CoreOption.name` is the declared name, and `CliCommand.run` hands core its options keyed by THAT,
+ * so this is the one place the two spellings meet. Before task-093 the lookup used the declared name
+ * directly, which worked only because every option declared so far happened to be a single word: a
+ * dashed name would have been read as `undefined` and dropped in silence — the same failure mode as
+ * the shadowing this task fixes, one layer further in. `test/cli/derived-option-namespace.test.ts`
+ * drives every dashed option the registry declares through the real CLI, so neither can return
+ * unnoticed.
+ */
+function commanderKey(name: string): string {
+  return name.replace(/-([a-zA-Z0-9])/g, (_match, char: string) => char.toUpperCase());
 }

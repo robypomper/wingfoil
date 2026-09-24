@@ -378,7 +378,7 @@ paths:
       expect(role.status).toBe(0);
 
       const member = runCliInRoot(
-        repo, 'dna', 'add', '--field', 'team.members', '--value', 'Ada', '--email', 'ada@example.it', '--roles', 'approver,developer',
+        repo, 'dna', 'add', '--field', 'team.members', '--value', 'Ada', '--entry-email', 'ada@example.it', '--entry-roles', 'approver,developer',
       );
       expect(member.status).toBe(0);
 

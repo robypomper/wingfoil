@@ -342,6 +342,18 @@ describe('the safety contract: verified, or `undefined` for the caller to fall b
     });
   });
 
+  it('declines when its own candidate does not parse — the last line of the safety contract', () => {
+    // The one route that reaches the re-parse `catch`: a key inserted under a parent that already
+    // holds a scalar produces `a: 1` followed by an indented `b: x`, which is not a YAML document at
+    // all. Nothing the mutation verbs can request lands here — `resolveDnaPath` refuses a path that
+    // descends through a value — but the editor is handed edits by a caller, and this is what it does
+    // when the bytes it just built cannot be read back.
+    const text = 'a: 1\n';
+    const edit = { kind: 'set-scalar' as const, path: [{ key: 'a' }, { key: 'b' }], value: 'x' };
+    expect(() => load('a: 1\n  b: x\n')).toThrow();
+    expect(applyDnaEditInText(text, edit, { a: { b: 'x' } })).toBeUndefined();
+  });
+
   it('declines when the edited text would not read back as the intended document', () => {
     // The last line of defence, and the one that makes a mis-located edit cost the comments rather
     // than the content: the candidate is correct YAML and the edit applied cleanly, but the caller's
