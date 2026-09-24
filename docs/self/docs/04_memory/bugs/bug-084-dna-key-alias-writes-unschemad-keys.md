@@ -2,7 +2,7 @@
 id: "bug-084-dna-key-alias-writes-unschemad-keys"
 type: bug
 title: "`DNA_KEY_ALIASES` rewrites only a path's first segment, so an old-shape key path lands as an unschema'd key inside `stacks` and is committed at exit 0"
-status: in-review
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
