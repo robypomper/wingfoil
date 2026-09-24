@@ -333,8 +333,10 @@ export function loadDirectivesAtHead(root: string): DirectiveFile[] {
 
 /**
  * Root-relative POSIX path of `roles.yaml` — the form git wants for a revision read (`<rev>:<path>`),
- * as opposed to the platform `join` every on-disk read uses. Re-exported by `./directive-assign.ts`,
- * which is where it used to live (task-096).
+ * as opposed to the platform `join` every on-disk read uses. It lived in `./directive-assign.ts` until
+ * task-096 moved it here, beside {@link DNA_YAML_PATH} / {@link MEMORY_YAML_PATH} and beside the
+ * committed-baseline reader that uses it; `./directive-assign.ts` now **imports** it like any other
+ * caller, and `src/core`'s barrel exports it from here.
  */
 export const ROLES_YAML_PATH = '.wingfoil/roles.yaml' as const;
 

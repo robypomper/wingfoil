@@ -169,9 +169,13 @@ const LS_TREE_BLOB_RECORD = /^\d+ blob [0-9a-f]+\t/;
  * **Blobs only.** Whatever this returns must be readable with `readPathAtRev` at the same revision; a
  * gitlink would break that, so it is filtered out rather than reported as a file.
  *
- * **`-z`, not the default output.** git C-quotes any path containing a space, a quote or a non-ASCII
- * byte (`"two words.md"`, quotes included) unless records are NUL-separated, and a caller would then
- * look for a file whose name it has mis-spelled. NUL separation is never ambiguous.
+ * **`-z`, not the default output.** Without it git C-quotes a path containing a byte outside printable
+ * ASCII (`core.quotePath`, on by default), a control byte, a `"` or a `\`: it wraps the whole name in
+ * double quotes and escapes the offending bytes, so `caffè.md` is reported as `"caff\303\250.md"` and
+ * a caller then looks for a file whose name it has mis-spelled. A **space is not quoted** — worth
+ * naming because it makes `two words.md` a useless test of this property, and only a name git really
+ * quotes can hold the flag in place (`test/storage/list-paths-at-rev.test.ts`, "the `-z` pin"). With
+ * `-z` the records are NUL-separated and never quoted, whatever the bytes.
  *
  * **`null` is not `[]`.** `[]` means *the revision exists and holds nothing under `prefix`*; `null`
  * means *`rev` does not resolve at all* — an unborn `HEAD` in a repository with no commits, or a name

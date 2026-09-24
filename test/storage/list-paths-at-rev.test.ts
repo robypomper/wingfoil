@@ -110,14 +110,26 @@ describe('listPathsAtRev — a directory listing at a revision (task-096 AC1)', 
     expect(listed).toHaveLength(3);
   });
 
-  it('returns a path containing a space verbatim, never git-quoted', () => {
-    writeFixtureFile(repo, '.wingfoil/directives/custom/two words.md', 'awkward name\n');
-    commitAll(repo, 'fixture: a path with a space');
+  // This is the `-z` pin, and the fixture names are chosen so that it IS one. Measured against git
+  // 2.43.0 — `git ls-tree -r --name-only HEAD` over a tree holding all five of these prints:
+  //
+  //     "d/caff\303\250.md"     "d/has\"quote.md"     "d/tab\tin.md"
+  //     d/two words.md          d/plain.md
+  //
+  // git C-quotes a path only for a byte outside printable ASCII (`core.quotePath`, default true), a
+  // control byte, a `"` or a `\`. **A space is not quoted.** A space-only fixture therefore passes
+  // with and without `-z` and pins nothing — which is exactly what the first draft of this test did.
+  // Two independent triggers are used below, so a change in how git handles either one still fails.
+  it('returns an awkward path verbatim, never git-quoted (the `-z` pin)', () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/caffè.md', 'a non-ASCII name\n');
+    writeFixtureFile(repo, '.wingfoil/directives/custom/has"quote.md', 'an embedded quote\n');
+    commitAll(repo, 'fixture: paths git would C-quote');
 
     const listed = listPathsAtRev(repo, 'HEAD', '.wingfoil/directives') ?? [];
 
-    expect(listed).toContain('.wingfoil/directives/custom/two words.md');
-    expect(listed.some((path) => path.startsWith('"'))).toBe(false);
+    expect(listed).toContain('.wingfoil/directives/custom/caffè.md');
+    expect(listed).toContain('.wingfoil/directives/custom/has"quote.md');
+    expect(listed.some((path) => path.startsWith('"') || path.includes('\\'))).toBe(false);
   });
 
   it('a listed path can be read back with readPathAtRev at the same revision', () => {

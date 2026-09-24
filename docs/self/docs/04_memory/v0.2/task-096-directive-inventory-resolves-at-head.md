@@ -677,3 +677,120 @@ submitted). Merged (`1d9c65b`). Both are under `docs/self/` and neither touches 
 (`git diff --stat 1d5abda..main -- src/ test/` → empty), so the gate table above still describes this
 branch's code; the "moved by four commits" sentence in the sync section is corrected here rather than
 left standing as six.
+
+### review corrections — role: developer
+
+Two corrections in place, chosen by the approver over another cycle. The task stays `in-review`.
+
+#### C1 — the `-z` "decision worth naming, each of which is a test" was not one
+
+The `refactor` §/`design` § D1 claim that every `listPathsAtRev` decision is pinned by a test. For
+`-z` that was false, and the TSDoc stated the reason wrongly: it said git C-quotes **any path
+containing a space**. Re-measured here rather than taken on report, against `git 2.43.0`, on a tree
+holding five deliberately awkward names:
+
+```
+$ git ls-tree -r --name-only --full-tree HEAD -- d      # no -z
+"d/caff\303\250.md"
+"d/has\"quote.md"
+d/plain.md
+"d/tab\tin.md"
+d/two words.md
+$ git ls-tree -r -z --name-only --full-tree HEAD -- d | tr '\0' '\n'
+d/caffè.md
+d/has"quote.md
+d/plain.md
+d/tab	in.md
+d/two words.md
+$ git config --get core.quotePath      ->  (unset -> default true)
+```
+
+git quotes a name for a byte outside printable ASCII, a control byte, a `"` or a `\`. **A space is
+not quoted** — so `two words.md`, the one example the test used, is precisely the one that cannot
+demonstrate the property.
+
+**The mutation, run both ways, in this worktree.** Two mutations, because the crude one and the
+realistic one measure different things:
+
+```
+# A — crude: drop `-z`, leave the split on '\0'
+Tests:       9 failed, 3 passed, 12 total
+```
+
+That is record *parsing* collapsing (one NUL-free blob), not the quoting property — it would fire for
+any reason at all, so it is not evidence the pin works.
+
+```
+# B — realistic: drop `-z` AND change .split('\0') to .split('\n'), the
+#     "equivalent simplification" a later maintainer would actually write
+Tests:       1 failed, 11 passed, 12 total
+  ● listPathsAtRev … › returns an awkward path verbatim, never git-quoted (the `-z` pin)
+    Expected value: ".wingfoil/directives/custom/caffè.md"
+    Received array: ["\".wingfoil/directives/custom/caff\\303\\250.md\"",
+                     "\".wingfoil/directives/custom/has\\\"quote.md\"", …]
+```
+
+Exactly one failure, and it is the pin. Then the control that settles whether the fixture was the
+problem — the **original space-only test body**, restored verbatim, under that same mutation B:
+
+```
+Tests:       12 passed, 12 total
+```
+
+Twelve green with `-z` removed. The old pin protected nothing, and a later simplification would have
+silently mis-spelled every directive filename outside ASCII.
+
+Fixed: the fixture is now `caffè.md` **and** `has"quote.md` — two independent quoting triggers, so a
+change in git's handling of either still fails — the assertion also rejects any `\` in the output,
+and both the test comment and the `listPathsAtRev` TSDoc now state what git actually quotes, naming
+the space as the trap. The flag itself was right and is unchanged.
+
+*A process note I am recording against myself, since it is the same class of error twice.* The green §
+says "each of which is a test" about six decisions and I verified the other five by running them; for
+this one I asserted the mechanism (`-z` prevents quoting — true) and never checked that my fixture
+**triggers** it. A test can be green, meaningful-looking, and pin nothing. The cheap guard is the one
+used above: mutate the line the test claims to protect and watch it fail, which takes one command.
+
+#### C2 — `ROLES_YAML_PATH`'s TSDoc described a re-export the refactor had deleted
+
+The green § moved the constant to `loaders.ts` and re-exported it from `directive-assign.ts`; the
+refactor § deleted that re-export (a CommonJS re-export compiles to a getter no test can call). The
+TSDoc kept the green-step wording, so the two notes contradicted each other and the code agreed with
+neither:
+
+```
+$ grep -rn 'ROLES_YAML_PATH' src/
+src/core/index.ts:84:          ROLES_YAML_PATH,                      # barrel export, from ./loaders
+src/core/directive-assign.ts:73:  ROLES_YAML_PATH,                   # an IMPORT from ./loaders
+src/core/loaders.ts:339: export const ROLES_YAML_PATH = …           # the definition
+… plus four use sites in directive-assign.ts, two in loaders.ts — no `export {` anywhere
+```
+
+The sentence now says what is there: the constant lives in `loaders.ts`, `directive-assign.ts`
+imports it like any other caller, and the `src/core` barrel exports it from `loaders.ts`.
+
+#### Not done here, deliberately
+
+The AC4 exception — `remove`'s resolution read staying on the working tree — rests on a *resolution
+read vs gate read* distinction that `dl-080` option (B) does not contain, so it needs recording as a
+decision rather than as TSDoc. That is `task-094`'s, not this task's. The explanation in
+`directiveRemoveFn`'s step 3 stays as it is. The reviewer also checked the direction I did not: a
+directive committed at `HEAD` but **deleted in the working tree** answers `unknown directive`, where a
+strict-`HEAD` read would have said something accurate — so the exception buys one good message and
+costs another, and `task-092`'s guard decides destruction after both either way. That is the same
+trade my "Proposed elements" entry named, now measured from both sides.
+
+#### Gates re-run after both corrections
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **125 suites, 1956 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.72 / 93.60 / 98.91 / 99.25** — identical to the pre-correction run, still above base `02b77f9` on all four |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| **Emitting build** | `npx tsc -p tsconfig.build.json` (after `rm -rf dist`) | exit **0**, `dist/cli.js` produced |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+Both corrections are documentation and test-fixture changes; no `src/` behaviour changed, which is
+why the coverage figures are unchanged rather than merely close.
