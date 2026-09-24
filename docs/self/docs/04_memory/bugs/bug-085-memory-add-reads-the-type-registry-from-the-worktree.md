@@ -2,7 +2,7 @@
 id: "bug-085-memory-add-reads-the-type-registry-from-the-worktree"
 type: bug
 title: "`memory add` resolves the type registry, `path` and `template` from the working tree, so an element created against an uncommitted type answers `document not found` to every verb"
-status: in-review
+status: closed
 severity: "critical"
 release-origin: "v0.2"
 release: "v0.2"
