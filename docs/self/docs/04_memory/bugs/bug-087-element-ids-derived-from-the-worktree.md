@@ -72,3 +72,44 @@ one of them.
 - Scheduled to **v0.3**. No fix task filed: deriving the id from a non-colliding source is a small
   design question (highest existing number rather than a count; or the committed tree rather than the
   working one) and it should be answered under `dl-080`'s rule with `bug-085` in view.
+
+## Correction (2026-09-24) — the destructive face is not gone, and the severity was re-derived rather than inherited
+
+The Notes above say that after `task-092` "the destructive face is gone — the command refuses and
+tells the user to choose a different title — so what remains is a usability defect". The first half
+holds only when the **title also matches**. With a different title the path does not collide, the
+absence guard sees nothing, and two elements are created with the same sequence number silently.
+
+Measured on `main`'s build, in a throwaway `wingfoil init --template Scrum` repository, on a **fully
+clean, fully committed** tree:
+
+```
+$ git rm -q docs/memory/adr/adr-001-alpha.md && git commit -q -m gap
+$ git status --porcelain              -> (empty)
+$ node dist/cli.js memory add --type adr --title 'Gamma'
+{ "id": "adr-002-gamma", ... }           exit 0, no message
+$ ls docs/memory/adr/
+adr-002-beta.md   adr-002-gamma.md
+```
+
+Found independently by `task-095`'s implementer and its reviewer, and reproduced a third time by the
+orchestrator before being recorded here.
+
+**What this is and is not, stated precisely because the first framing was imprecise in both
+directions.** Nothing is overwritten and no *id* collides — `adr-002-beta` and `adr-002-gamma` differ
+by slug. What collides is the **sequence number**, which stops being an ordering key and makes any
+reference to "adr-002" ambiguous. So it is an invariant violation, not data loss. The genuinely
+destructive face — same type, same title, silent overwrite — is the one `task-092` closed, and that
+half of the Notes stands.
+
+**Severity: re-derived on 2026-09-24 and confirmed `medium`.** The approver ruled it stays, on the
+ground that nothing is destroyed. It is recorded as a re-derivation rather than left as an inherited
+grade because the sentence the original `medium` rested on is false, and a severity that survives on
+a false premise is not the same thing as a severity that was reconsidered and held.
+
+**Release unchanged at `v0.3`.** It does not block `v0.2`.
+
+**One consequence for whoever fixes it.** The absence guard `task-092` added is title-sensitive, so it
+cannot be the model for the fix here. Deriving the sequence number from the committed history is the
+actual remedy, and it closes both faces at once — which is the `dl-080` framing the Notes above
+already give.

@@ -79,6 +79,7 @@ import { requireCustomAsset } from './builtin-asset';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule, CoreOption } from './registry';
@@ -141,6 +142,8 @@ export type {
 } from './relevance';
 export { commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
+export { resolveAddType } from './memory-add-type';
+export type { ResolvedAddType } from './memory-add-type';
 export {
   CONFIG_WRITE_CONTRACT,
   committedScopeError,
@@ -593,16 +596,23 @@ export interface MemoryAddParams {
  *    → exit **2** with the exact `missing required argument: --<name>` message
  *    (spec-008-cli-grammar §5, mapped by `exitCodeForThrow`), same classification as `dna set`'s
  *    missing positional.
- * 3. **Resolve `--type` against the `memory.yaml` type registry** (spec-001-memory-yaml-schema) via
- *    `loadMemoryYaml` — an unknown type is a domain `NOT_FOUND` (exit 1) with the exact P1.3 message
+ * 3. **Resolve `--type` against the `memory.yaml` committed at `HEAD`** (spec-001-memory-yaml-schema)
+ *    via {@link resolveAddType} — the type registry, the type's `path` and its `template` scaffold
+ *    all resolve against the repository as committed, never against the working tree (task-095,
+ *    `bug-085`, `dl-080` option (B)). That step takes no parsed `MemoryYaml` and this function holds
+ *    none, so no call path can reach the decision with a working-tree registry. An unknown type is a
+ *    domain `NOT_FOUND` (exit 1) with the exact P1.3 message
  *    `unknown memory type '<t>' (not defined in memory.yaml)`, returned BEFORE any write.
- * 4. **Generate the id** deterministically from the type's `id_pattern` (task-002's `generateId`,
- *    REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence
- *    counter derived from the committed on-disk siblings (`src/memory/add.ts`; no wall-clock/random).
- * 5. **Copy the type's `template.file` scaffold verbatim** (`.wingfoil/<file>`) and fill only the
- *    `id`/`status: draft`/`--title`/`--tags` skeleton (P1.3; spec-010-memory-frontmatter-schema),
- *    then **write + commit** through task-022's confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write
- *    + one scoped commit `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
+ * 4. **Generate the id** deterministically from the type's committed `id_pattern` (task-002's
+ *    `generateId`, REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a
+ *    sequence counter over the type's directory (`src/memory/add.ts`; no wall-clock/random). That
+ *    counter still reads the WORKING TREE: it is `bug-087` (`release: v0.3`), a different read in
+ *    this verb and deliberately not task-095's. What changed is only that the directory it counts in
+ *    is now derived from the committed `path` pattern.
+ * 5. **Fill the committed scaffold's bytes** with only the `id`/`status: draft`/`--title`/`--tags`
+ *    skeleton (P1.3; spec-010-memory-frontmatter-schema), then **write + commit** through task-022's
+ *    confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write + one scoped commit
+ *    `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
  *
  * A thrown `StorageError` (e.g. a confinement violation, an unresolved path placeholder for a
  * workflow-seeded type) or a `ValidationError` (a malformed `id_pattern`) is a logic error mapped to a
@@ -621,24 +631,18 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
   if (title === undefined) throw new UsageError('missing required argument: --title');
   const tags = parseTags(options?.tags);
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const entry = loaded.value.types[type];
-  if (!entry) {
-    return coreErr({ code: 'NOT_FOUND', message: `unknown memory type '${type}' (not defined in memory.yaml)` });
-  }
-  const { path: pathPattern, id_pattern: idPattern, template } = entry;
-  if (idPattern === undefined || template === undefined) {
-    return coreErr({ code: 'VALIDATION', message: `memory type '${type}' has no id_pattern/template in memory.yaml` });
-  }
+  // task-095 / `bug-085`: the registry, the `path` and the scaffold all resolve at HEAD, inside a
+  // function that accepts no parsed `MemoryYaml` — so this verb cannot decide any of the three from
+  // a working-tree copy, in the same way task-091 made that true of the four transition verbs.
+  const resolved = resolveAddType(root, type);
+  if (!resolved.ok) return resolved;
+  const { pathPattern, idPattern, scaffold } = resolved.value;
 
   try {
     const sequence = hasNumericToken(idPattern)
       ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern), idPattern)
       : 0;
     const id = generateId(idPattern, { slug: slugifyTitle(title), n: sequence });
-    const scaffold = readDocument(join(root, '.wingfoil', template.file));
     const content = renderAddDocument(scaffold, { id, title, tags });
     const message = `wf(${type}): add ${id}`;
 
