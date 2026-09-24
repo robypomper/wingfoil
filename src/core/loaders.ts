@@ -15,7 +15,7 @@ import { join } from 'path';
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
-import { documentExists, extractFrontmatter, readDocument, readPathAtRev } from '../storage';
+import { documentExists, extractFrontmatter, listPathsAtRev, readDocument, readPathAtRev } from '../storage';
 import { E_YAML_PARSE_ERROR, parseYaml, runValidation, ValidationError } from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
 
@@ -239,35 +239,106 @@ export interface DirectiveFile {
 }
 
 /**
+ * Root-relative POSIX path of the Directives tree — the form git wants for a revision listing, as
+ * opposed to the platform `join` every on-disk read uses. Counterpart of {@link DNA_YAML_PATH} /
+ * {@link MEMORY_YAML_PATH} for the one pillar whose baseline is a **directory** (task-096).
+ */
+export const DIRECTIVES_DIR_PATH = '.wingfoil/directives' as const;
+
+/**
+ * The Directives pillar's per-file parse, over bytes that may come from anywhere — the working-tree
+ * file ({@link loadDirectives}) or a git revision ({@link loadDirectivesAtHead}). `filePath` is a
+ * label only: it rides every issue this raises, so an error names the baseline it came from
+ * (`HEAD:.wingfoil/directives/custom/x.md`, not just a path on disk). Lifted out so the two loaders
+ * cannot drift on what a directive file *is*.
+ *
+ * @param relativePath - The file's path relative to `.wingfoil/directives/`, POSIX-spelled.
+ */
+function parseDirectiveFile(raw: string, filePath: string, relativePath: string): DirectiveFile {
+  const frontmatterText = extractFrontmatter(raw);
+  if (frontmatterText === null) {
+    throw ValidationError.semantic([
+      {
+        code: 'E_MISSING_FRONTMATTER',
+        path: '',
+        file: filePath,
+        message: 'directive file has no frontmatter block',
+      },
+    ]);
+  }
+  const data = parseYaml(frontmatterText, filePath);
+  const frontmatter = runValidation(DirectiveFrontmatter, data, filePath);
+  // `join`, so `DirectiveFile.path` carries the platform separator on both loaders — `requireCustomAsset`
+  // and `selectDirectivesById` see one spelling whichever baseline produced the file.
+  return { path: join('directives', ...relativePath.split('/')), frontmatter };
+}
+
+/**
  * Load and validate every Directives file in isolation (task-004-decoupled-pillars — see
  * `src/directives/schema.ts` for why this pillar has no dedicated approved tech-spec yet). Reads
- * every `.md` file under `.wingfoil/directives/**` (built-in + custom), sorted deterministically
- * (REQ-SYS-07: no unordered iteration in a context-building path), extracts its frontmatter
- * (`storage.extractFrontmatter`), and validates it against `DirectiveFrontmatter`.
+ * every `.md` file under `.wingfoil/directives/**` (built-in + custom) **in the working tree**,
+ * sorted deterministically (REQ-SYS-07: no unordered iteration in a context-building path), extracts
+ * its frontmatter (`storage.extractFrontmatter`), and validates it against `DirectiveFrontmatter`.
+ *
+ * This is the *report* baseline — what the user has now — and it is what `directives list`, context
+ * assembly and the MCP Resources read. A read that **gates** a mutation reads
+ * {@link loadDirectivesAtHead} instead (`dl-080` (B)).
  */
 export function loadDirectives(root: string): DirectiveFile[] {
   const directivesDir = join(root, '.wingfoil', 'directives');
+  return listMarkdownFilesSorted(directivesDir).map((relativePath) =>
+    parseDirectiveFile(readDocument(join(directivesDir, relativePath)), join(directivesDir, relativePath), relativePath),
+  );
+}
+
+/**
+ * Load and validate every Directives file **as the repository has committed it** — the tree at
+ * `HEAD`.
+ *
+ * This is the inventory a read that gates a mutation resolves against
+ * (`checkAssignable`, `./directive-assign.ts`), per `dl-080-which-baseline-each-command-reads` option
+ * (B), closing the `assign` half of `bug-086-directive-inventory-read-from-the-worktree`: an
+ * untracked directive file used to be bindable, and the committed `roles.yaml` then named a directive
+ * present in no commit — a dangling reference by construction, since every other clone gets the
+ * binding without the file (REQ-SYS-08's referential integrity, the same way `bug-082` broke it for
+ * `--role`).
+ *
+ * Unlike every other committed-baseline loader, this one needs a **directory listing at a revision**
+ * (`storage.listPathsAtRev`, task-096) rather than one `readPathAtRev`: the pillar's members are
+ * discovered, not named in advance. That missing primitive is why `task-091` deferred this half.
+ *
+ * Same schema and same error shapes as {@link loadDirectives}; only the source of the bytes differs.
+ *
+ * Returns an **array, never `null`**, unlike its three sibling committed-baseline loaders. They read
+ * one named file, where "not committed" and "committed but empty" are different facts a caller may
+ * need to tell apart; here the two collapse — a `HEAD` that does not resolve (no commits at all) and
+ * a `HEAD` that commits no directive file both mean *the repository records no directive*, and both
+ * produce the same refusal from the only gate that consults this (`checkAssignable`: every id is
+ * unknown). `listPathsAtRev` keeps the distinction for callers that do need it.
+ */
+export function loadDirectivesAtHead(root: string): DirectiveFile[] {
+  const paths = listPathsAtRev(root, 'HEAD', DIRECTIVES_DIR_PATH) ?? [];
   const files: DirectiveFile[] = [];
-  for (const relativePath of listMarkdownFilesSorted(directivesDir)) {
-    const filePath = join(directivesDir, relativePath);
-    const raw = readDocument(filePath);
-    const frontmatterText = extractFrontmatter(raw);
-    if (frontmatterText === null) {
-      throw ValidationError.semantic([
-        {
-          code: 'E_MISSING_FRONTMATTER',
-          path: '',
-          file: filePath,
-          message: 'directive file has no frontmatter block',
-        },
-      ]);
-    }
-    const data = parseYaml(frontmatterText, filePath);
-    const frontmatter = runValidation(DirectiveFrontmatter, data, filePath);
-    files.push({ path: join('directives', relativePath), frontmatter });
+  for (const path of paths) {
+    if (!path.endsWith('.md')) continue;
+    const raw = readPathAtRev(root, 'HEAD', path);
+    // Unreachable by construction — git has just listed this blob. Reachable only if the ref moved
+    // between the two calls, and skipping is the fail-closed answer there: a directive nobody can read
+    // is a directive that does not exist, so a binding to it is refused rather than committed.
+    if (raw === null) continue;
+    files.push(parseDirectiveFile(raw, `HEAD:${path}`, path.slice(DIRECTIVES_DIR_PATH.length + 1)));
   }
   return files;
 }
+
+/**
+ * Root-relative POSIX path of `roles.yaml` — the form git wants for a revision read (`<rev>:<path>`),
+ * as opposed to the platform `join` every on-disk read uses. It lived in `./directive-assign.ts` until
+ * task-096 moved it here, beside {@link DNA_YAML_PATH} / {@link MEMORY_YAML_PATH} and beside the
+ * committed-baseline reader that uses it; `./directive-assign.ts` now **imports** it like any other
+ * caller, and `src/core`'s barrel exports it from here.
+ */
+export const ROLES_YAML_PATH = '.wingfoil/roles.yaml' as const;
 
 /**
  * Load and validate `.wingfoil/roles.yaml` in isolation (task-037-role-task-scoped-context,
@@ -282,4 +353,27 @@ export function loadRolesYaml(root: string): RolesYaml {
   const raw = readDocument(filePath);
   const data = parseYaml(raw, filePath);
   return runValidation(RolesYaml, data, filePath);
+}
+
+/**
+ * Load and validate `.wingfoil/roles.yaml` **as the repository has committed it** — the version at
+ * `HEAD` — returning `null` when no commit contains that path (an untracked `roles.yaml`, a committed
+ * deletion of it, or a repository with no commits).
+ *
+ * This is the baseline REQ-SEC-07 clause (b) is answered from (`checkUnreferenced`,
+ * `./directive-assign.ts`), per `dl-080-which-baseline-each-command-reads` option (B), closing the
+ * `remove` half of `bug-086-directive-inventory-read-from-the-worktree`: an **uncommitted** deletion
+ * of the two `- <id>` lines was enough to delete a directive file the committed `roles.yaml` still
+ * bound — on the only verb in the system that destroys an artefact.
+ *
+ * `null` is not an error and does not fail closed there, unlike `loadDnaYamlAtHead`'s: "is anything
+ * still referencing this asset" is a question a missing record *answers*, with "nothing" (which is
+ * also how an absent `roles.yaml` has always been read — "no bindings yet", task-051/task-053). A
+ * committed `roles.yaml` that does not **validate** is the different case, and that one does refuse.
+ */
+export function loadRolesYamlAtHead(root: string): RolesYaml | null {
+  const raw = readPathAtRev(root, 'HEAD', ROLES_YAML_PATH);
+  if (raw === null) return null;
+  const label = `HEAD:${ROLES_YAML_PATH}`;
+  return runValidation(RolesYaml, parseYaml(raw, label), label);
 }

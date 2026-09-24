@@ -491,8 +491,10 @@ describe('CORE_MODULES directive.directiveAssign — P3.7 scenarios (multi-direc
     }
   });
 
-  // dl-051 / spec-012 §5.1 (task-055): `checkAssignable` requires every id to exist on disk BEFORE the
-  // write, so `directive assign` can never create a dangling binding — no matter how long the list.
+  // dl-051 / spec-012 §5.1 (task-055): `checkAssignable` requires every id to exist BEFORE the write,
+  // so `directive assign` can never create a dangling binding — no matter how long the list. Since
+  // task-096 (`bug-086`) that existence is checked against the tree committed at HEAD, which is what
+  // makes the guarantee survive a clone; this fixture's directives are committed, so it still holds.
   it('creates no dangling-binding warning: every assigned id resolves to a directive file', async () => {
     await directiveAssignFn()({
       root: repo,

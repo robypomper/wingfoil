@@ -85,10 +85,31 @@ comparing them.
 Recorded at the approver's instruction while ruling on this bug, because it is the same drift in the
 same document and whoever edits `X_cli-cmds.md` will be standing in front of it.
 
-`docs/01_vision/X_cli-cmds.md` declares `[--format json/yaml]` as a **per-command** option on nine
-rows across four pillars — `memory search`, `memory history`, `dna show`, `paths`,
-`directives list`, `workflow status`, `workflow next`, `workflow list`, `workflow show`, and
-`agent execute`'s neighbours. The implementation registers it **once, on the root program**
+`docs/01_vision/X_cli-cmds.md` declares `[--format json/yaml]` as a **per-command** option on **ten**
+command rows across four pillars. Enumerated by
+`grep -n 'format json/yaml' docs/01_vision/X_cli-cmds.md` at `66ef6304`, which returns eleven lines —
+ten table rows plus one prose bullet (line 235, "All output commands support
+`--format json/yaml/console`"):
+
+| line | command | built? |
+|---|---|---|
+| 26 | `memory search` | yes |
+| 32 | `memory history` | yes |
+| 61 | `dna show` | yes |
+| 63 | `paths` | yes |
+| 98 | `directives list` | yes |
+| 144 | `workflow status` | **no** |
+| 145 | `workflow next` | **no** |
+| 148 | `workflow list` | yes |
+| 149 | `workflow show` | **no** |
+| 178 | `audit` | **no** |
+
+> **Correction (2026-09-24).** This paragraph originally said *nine* rows and named nine commands
+> plus a vague "`agent execute`'s neighbours". Both halves are wrong: there are **ten** rows, and the
+> tenth is **`audit`** — `agent execute` carries no `--format` at all, and neither do `memory import`
+> or `dna infer`. The list was written from reading the pillar tables without grepping, and
+> `task-098` then restated a differently-wrong version of it in durable prose, which its reviewer
+> caught. Replaced above with the enumeration and the command that produces it. The implementation registers it **once, on the root program**
 (`src/cli/program.ts`, the `.option('--format <format>', ...)` call in `buildProgram`, alongside
 `--verbose`, `--no-color` and `--no-interactive`), and no subcommand declares a `--format` of its own.
 
