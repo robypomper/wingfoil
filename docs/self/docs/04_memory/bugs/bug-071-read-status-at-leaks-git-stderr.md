@@ -2,7 +2,7 @@
 id: "bug-071-read-status-at-leaks-git-stderr"
 type: bug
 title: "`readStatusAt` runs `git show` without `stdio`, so `memory history` prints a `fatal:` from git on every run, clean ones included"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2"
