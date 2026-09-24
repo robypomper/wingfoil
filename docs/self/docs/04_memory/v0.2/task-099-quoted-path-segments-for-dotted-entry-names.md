@@ -317,3 +317,38 @@ they never reach WingFoil, and the entry named `Commander.js` is removed by its 
 | AC6 | `DOTTED_DNA` in `path-quoting.test.ts` carries `Node.js`, `Commander.js` and `AI agent (Claude/Cursor/etc.)`, and each is asserted addressable; the core suite's fixture carries them too. |
 | AC7 | the AC7 describe block: the document **loads**, the names survive byte-for-byte, and `uniquelyNamed` still refuses duplicates. A dot refinement attached inside `DnaYaml` fails the first of those on read. |
 | AC8 | `spec-008` §9 + §5 + the `<path>` row; `spec-002`'s *Unknown keys* ground, both with dated Revisions. |
+
+### Found, not fixed — proposed to the orchestrator, not filed here
+
+Parallel worktrees would collide on ids, so these are **proposals**; registering them is the
+orchestrator's act.
+
+1. **`dna show` takes a top-level section name, not a path — so `dl-083`'s own `dna show` example
+   cannot work.** `dl-083`'s Decision shows `wingfoil dna show 'stacks.technologies."Commander.js"'`,
+   but `dnaShowFn` (`src/core/index.ts`) resolves one key —
+   `const key = DNA_KEY_ALIASES[section] ?? section; if (!(key in dna))` — and never splits. Measured
+   on the real CLI built from this branch, on a scratch project:
+
+   ```
+   $ node …/dist/cli.js dna show 'stacks.technologies."Commander.js"'
+   error: no DNA key named 'stacks.technologies."Commander.js"'      exit 1
+   $ node …/dist/cli.js dna show stacks.technologies
+   error: no DNA key named 'stacks.technologies'                     exit 1
+   $ node …/dist/cli.js dna show stacks                              exit 0
+   ```
+
+   Quoting is **not** what is missing there: the bare dotted path fails identically, so this is a read
+   surface that never grew the path grammar the write surface has, and AC1's "read paths and write
+   paths behave identically" holds only within the resolver. Widening `dna show` is a new read surface
+   with its own refusal rules (what does a path landing on a `collection` print? on an absent optional
+   section?) and its own BDD scenario, which is why it was not done inside this task. Proposed as a
+   **bug** against P2.2 (the spec example does not run), or a **decision-log** if the answer is instead
+   to correct `dl-083`'s example.
+
+2. **Nothing prevents a future reader of a DNA path from splitting it itself.** `splitDnaPath` is now
+   the only splitter in `src/` (`grep -rn "split('\.')" src/` returns nothing under `src/dna`), but
+   that is a fact about today's code, not an invariant anything enforces — the same shape as the
+   `bug-084` alias trap, where one call site diverged from the rule. A guard test in the spirit of
+   `test/cli/derived-option-namespace.test.ts` (derive the invariant, do not hand-list it) would keep
+   it. Low severity, no current defect. Proposed as a **bug** or left as a note, the orchestrator's
+   call.
