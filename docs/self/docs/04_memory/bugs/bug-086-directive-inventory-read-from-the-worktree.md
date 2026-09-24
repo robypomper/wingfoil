@@ -2,7 +2,7 @@
 id: "bug-086-directive-inventory-read-from-the-worktree"
 type: bug
 title: "The directive inventory and its references are read from the working tree: `assign` binds a file present in no commit, and `remove` deletes an asset the committed `roles.yaml` still binds"
-status: in-progress
+status: in-review
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
