@@ -303,3 +303,22 @@ resolutions and this is the other one.
   CLI/MCP parity), `spec-008-cli-grammar`, `spec-005-cli-command-contract` (`approved`), and P2.1's
   "Basic CRUD operations".
 - **Same pattern as:** `dl-080` — a contract nobody stated, filled in by the first implementation.
+
+## Amendments (2026-09-24)
+
+Two later decisions change this one's surface without disturbing what it settled. Recorded here as
+pointers so a reader of this document is not misled by its examples; the decisions themselves live in
+their own files and carry their own ratification.
+
+- **`dl-082-cli-parameter-shape`** replaces `--field <path>` with a **positional** `<path>` on all
+  three verbs, under a rule the rest of the CLI already followed: a positional carries the identity of
+  the target, an option carries a named attribute. `--value` and the `--entry-<field>` options are
+  unchanged. Everything this document ratified about *semantics* — entries addressed by name, a path
+  that does not resolve is refused rather than created, name uniqueness as a prerequisite, `--value`
+  meaning identity at a collection and new value at a leaf — stands exactly as written. So every
+  example above should be read with the path moved out of `--field`:
+  `dna add team.members --value roberto --entry-email r@example.it`.
+- **`dl-083-dotted-entry-names-in-paths`** adds double-quoted path segments, so an entry named
+  `Node.js` is reachable as `stacks.technologies."Node.js".version`. This closes a gap this document
+  opened without noticing: making `name` the addressing key made two properties of `name` load-bearing,
+  and only uniqueness was identified here.
