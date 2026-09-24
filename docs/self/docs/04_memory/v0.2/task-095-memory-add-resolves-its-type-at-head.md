@@ -2,7 +2,7 @@
 id: "task-095-memory-add-resolves-its-type-at-head"
 type: task
 title: "Resolve `memory add`'s type registry, `path` and `template` from the committed repository, so an element cannot be created against a type no commit defines"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "audit-trail"]
