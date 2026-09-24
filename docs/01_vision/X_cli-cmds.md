@@ -1,7 +1,7 @@
 # CLI Commands Reference — WingFoil
 
-**Version:** 1.2
-**Date:** 2026-07-02  
+**Version:** 1.3
+**Date:** 2026-09-24  
 **Status:** Approved
 
 ---
@@ -52,26 +52,45 @@ type — so e.g. approving a `task` during planning lands in `backlog`, while ap
 ## Pillar 2: Project DNA Commands
 
 **Philosophy:** DNA is the source of truth for project structure, tech stack, and team. Changes to DNA trigger automatic
-synchronization of Directives and Workflow built-in templates. DNA structure includes: modules, tech-stack, team,
-conventions, and resource paths.
+synchronization of Directives and Workflow built-in templates. DNA structure is the top-level keys of `dna.yaml` as
+`spec-002-dna-yaml-schema` declares them: `version`, `project`, `modules`, `stacks` (`technologies` + `methodologies`),
+`team` (`members`, `agents`, `roles`), and `paths`. There is no `tech-stack` key and no `conventions` key — `spec-002`
+renamed the first to `stacks` and removed the second, its rules having moved to `.wingfoil/directives/custom/`.
 
-| Command                                                      | Description                                                                         | Actors       | Journeys  | Notes                                                                                                                        |
-|--------------------------------------------------------------|-------------------------------------------------------------------------------------|--------------|-----------|------------------------------------------------------------------------------------------------------------------------------|
-| `wingfoil dna set [--field FIELD] [--value VALUE]`           | Define/update project DNA field (interactive or flag-based)                         | All          | 0a, 6     | Modifies `.wingfoil/dna.yaml`. Supports nested fields (e.g., `--field tech-stack.backend --value nodejs`)                    |
-| `wingfoil dna show [--section SECTION] [--format json/yaml]` | Query and display project DNA                                                       | Casey, All   | 3, 5      | Show full DNA or specific section (modules, tech-stack, team, conventions, paths)                                            |
-| `wingfoil dna infer [--confirm]`                             | Auto-scan codebase and propose DNA structure                                        | Morgan, Alex | 0b        | Infers modules from directory structure, languages/frameworks from files. Requires human review/approval before updating DNA |
-| `wingfoil paths [category] [--format json/yaml]`             | Query project resource paths by category (sources, tests, docs, config, governance) | All          | 0a, 0b, 5 | Reads from DNA `paths:` section. Drill-down support (e.g., `paths sources --list`). Console/JSON/YAML output                 |
+**Parameter shape (`dl-082-cli-parameter-shape`, `ready`):** across every pillar, **a positional carries the identity of
+the thing the command acts on** — a DNA path, a document id, a category — and **an option carries a named attribute of
+the action** (`--value`, `--type`, `--reason`, `--entry-<field>`). The four write verbs below are `P2.1`'s "Basic CRUD
+operations" decomposed by `dl-081-dna-mutation-surface-shape`; `P2.1` authorises the CRUD, `dl-081` chose the four-verb
+decomposition, and `dl-082` fixed the spelling.
+
+| Command                                                                     | Description                                                                         | Actors       | Journeys  | Notes                                                                                                                                                                                                                                                    |
+|-----------------------------------------------------------------------------|-------------------------------------------------------------------------------------|--------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `wingfoil dna set <PATH> --value VALUE`                                     | Update an existing **scalar** DNA field                                             | All          | 0a, 6     | Modifies `.wingfoil/dna.yaml` and creates a `wf(dna): set <PATH>` commit. `<PATH>` is the full dotted path to a scalar leaf — `dna set project.license --value MIT`. A path the schema does not declare is **refused**, never created (`bug-084`). Collections and lists go through `add`/`remove`/`update` |
+| `wingfoil dna add <PATH> --value VALUE [--entry-FIELD VALUE ...]`           | Add an entry to a DNA collection, or a value to a list                              | All          | 0a, 6     | `--value` is the new entry's `name` when `<PATH>` ends at a collection — `dna add stacks.technologies --value TypeScript --entry-category language`. One `--entry-<field>` per field the entry schema declares; the `entry-` prefix keeps that derived namespace disjoint from the global flags (`spec-008` §9) |
+| `wingfoil dna update <PATH> --value VALUE [--entry-FIELD VALUE ...]`        | Update an existing entry or leaf, addressed by name                                 | All          | 0a, 6     | Entries are addressed by `name`, never by index (`dl-081`) — `dna update stacks.technologies --value TypeScript --entry-version 5.9`. Reaches a nested field of a named entry directly: `dna update modules.core.path --value src/core`                  |
+| `wingfoil dna remove <PATH> --value VALUE`                                  | Remove an entry from a DNA collection, or a value from a list                       | All          | 0a, 6     | `--value` names the entry to remove — `dna remove stacks.technologies --value TypeScript`. Refused when `<PATH>` or the named entry does not resolve                                                                                                    |
+| `wingfoil dna show [SECTION] [--format json/yaml]`                          | Query and display project DNA                                                       | Casey, All   | 3, 5      | Show the full DNA, or one **top-level** section as a positional: `version`, `project`, `modules`, `stacks`, `team`, `paths`. Not a dotted path — `dna show stacks.technologies` is refused (exit `1`)                                                              |
+| `wingfoil dna infer [--confirm]`                                            | Auto-scan codebase and propose DNA structure                                        | Morgan, Alex | 0b        | *Not built* (`spec-006`: planned). Infers modules from directory structure, languages/frameworks from files. Requires human review/approval before updating DNA                                                                                          |
+| `wingfoil paths [category] [--format json/yaml]`                            | Query project resource paths by category (sources, tests, docs, config, governance) | All          | 0a, 0b, 5 | Reads from DNA `paths:` section. Drill-down support (e.g., `paths sources --list`). Console/JSON/YAML output                                                                                                                                            |
+
+> **On interactivity.** No DNA command prompts. `init` is the only command with a prompt layer — the negatable global
+> `--interactive` is read only by it — and every other command fails immediately on a missing required argument, at exit
+> `2`: `wingfoil dna set` → `error: missing required argument: wingfoil dna set <path> --value <value>`,
+> `wingfoil dna set project.license` → `error: missing required argument: --value`. The prompt layer is not abandoned
+> scope: it stays specified for all commands in `spec-008-cli-grammar` §4 ("Interactive-prompt rules"), which is where a
+> reader should look for the intended behaviour. What is written above is what ships; §4 is what is intended.
 
 ### Parameters for Pillar 2 Commands
 
-| Parameter   | Type         | Description                                                      | Where Found                          | How Managed                                              | Where Saved                         |
-|-------------|--------------|------------------------------------------------------------------|--------------------------------------|----------------------------------------------------------|-------------------------------------|
-| `FIELD`     | path         | DNA field path (e.g., `tech-stack.backend`, `team.lead`)         | User specifies or interactive prompt | Structured YAML path navigation                          | `.wingfoil/dna.yaml` nested keys    |
-| `VALUE`     | string/array | New value for DNA field                                          | User input (flag or prompt)          | Validated against DNA schema                             | `.wingfoil/dna.yaml`                |
-| `SECTION`   | enum         | DNA section: modules, tech-stack, team, conventions, paths       | User specifies or shows all          | Matches top-level keys in YAML                           | `.wingfoil/dna.yaml`                |
-| `category`  | enum         | Resource path category: sources, tests, docs, config, governance | User specifies                       | Defined in DNA `paths:` section                          | `.wingfoil/dna.yaml` under `paths:` |
-| `--confirm` | flag         | On `dna infer`; skip confirmation and accept proposed DNA        | User specifies via flag              | If set, auto-confirms inferred values without prompting  | N/A (affects execution flow)        |
-| `--list`    | flag         | Drill-down on `paths` (e.g., `paths sources --list`)             | User specifies via flag              | If set, expands the category into its full list of paths | N/A (affects query output only)     |
+| Parameter        | Type         | Description                                                                                                                                                                                                        | Where Found                            | How Managed                                                                            | Where Saved                         |
+|------------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|----------------------------------------------------------------------------------------|-------------------------------------|
+| `PATH`           | path         | **Positional**, and the only positional a write verb reads. The full dotted path to the target — `project.license`, `stacks.technologies`, `modules.core.path`. Never a bare field name: `team.roles` and `team.members.<name>.roles` are different fields | User specifies in the command          | Resolved against the `dna.yaml` schema; an undeclared path is refused (exit `1`)        | `.wingfoil/dna.yaml` nested keys    |
+| `--value`        | string/array | The new entry's **identity** when `PATH` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values                                                     | User input (flag)                      | Validated against DNA schema                                                            | `.wingfoil/dna.yaml`                |
+| `--entry-<field>` | string/array | One option per field the entry schema declares — `--entry-description`, `--entry-path`, `--entry-email`, `--entry-roles`, `--entry-category`, `--entry-version`, `--entry-notes`, `--entry-phase`, `--entry-executes_as`, `--entry-approval_authority`. Accepted by `add` and `update` | User input (flag)                      | The `entry-` prefix is required; it keeps this derived namespace disjoint from the global flags (`spec-008` §9) | `.wingfoil/dna.yaml` entry fields   |
+| `SECTION`        | enum         | **Positional** on `dna show`: one top-level DNA key — `version`, `project`, `modules`, `stacks`, `team`, `paths`                                                                                                 | User specifies, or omits to show all   | Matches top-level keys in YAML; a dotted path is refused                                | `.wingfoil/dna.yaml`                |
+| `category`       | enum         | Resource path category: sources, tests, docs, config, governance                                                                                                                                                 | User specifies                         | Defined in DNA `paths:` section                                                         | `.wingfoil/dna.yaml` under `paths:` |
+| `--confirm`      | flag         | On `dna infer`; skip confirmation and accept proposed DNA                                                                                                                                                        | User specifies via flag                | If set, auto-confirms inferred values without prompting                                 | N/A (affects execution flow)        |
+| `--list`         | flag         | Drill-down on `paths` (e.g., `paths sources --list`)                                                                                                                                                             | User specifies via flag                | If set, expands the category into its full list of paths                                | N/A (affects query output only)     |
 
 ---
 
@@ -225,19 +244,30 @@ All commands support:
     - Example: `wingfoil memory add --type adr --title "Async Design"`
     - Example: `wingfoil workflow status --format json`
 
-- **Required vs. optional arguments:** Required arguments in `[brackets]`, optional in `--flags`
-    - If required argument missing, command prompts interactively
+- **Positional vs. option:** a parameter is **positional** when it identifies the target of the command, and an
+  **option** when it names an attribute of the action (`dl-082-cli-parameter-shape`)
+    - Notation: a required positional is written `<ANGLE>` and an optional one `[BRACKETS]` — the Pillar 2 write verbs
+      above follow this, as `spec-008-cli-grammar` §9 does. The Pillar 1, 3, 4 and 5 rows predate the convention and
+      still bracket a required positional (e.g. `memory approve [document-id]`, where the id is required)
+    - If a required argument is missing, the command exits `2` with an `error: missing required argument: …`
+      message that names what is missing. The text after the colon is per case, not one template: a missing **option**
+      is named by its flag (`wingfoil memory add` → `--type`; `wingfoil dna set project.license` → `--value`), while a
+      missing **positional** is named by reprinting the command's synopsis (`wingfoil dna set` →
+      `wingfoil dna set <path> --value <value>`; `wingfoil memory approve` → `memory approve <id>`)
 
-- **Interactive mode:** Commands run in interactive mode by default if critical flags are omitted
-    - Example: `wingfoil memory add` prompts for type, title, tags
-    - Example: `wingfoil memory add --type adr --title "title"` runs without prompts
+- **Interactive mode — specified, and built for `init` only.** `spec-008-cli-grammar` §4 specifies that a command with a
+  missing required argument prompts for it in a TTY unless `--no-interactive` is passed. **As shipped, only `wingfoil
+  init` has a prompt layer**; every other command fails immediately whether or not it is on a TTY
+    - Specified: `wingfoil memory add` prompts for type, title, tags (`spec-008` §4)
+    - Shipped: `wingfoil memory add` → `error: missing required argument: --type`, exit `2`
+    - Shipped and specified agree here: `wingfoil memory add --type adr --title "title"` runs without prompts
 
 - **Output formats:** All output commands support `--format json/yaml/console`
     - Console (default): human-readable, colored output
     - JSON/YAML: machine-parseable for scripting and CI/CD
 
-- **State and commits:** Commands that modify state (add, submit, approve, reject, deprecate, dna set, directive create)
-  automatically:
+- **State and commits:** Commands that modify state (memory add, submit, approve, reject, deprecate, `dna set`,
+  `dna add`, `dna update`, `dna remove`, directive create) automatically:
     - Create git commits with descriptive messages
     - Update relevant state files (Memory frontmatter, DNA YAML, etc.)
     - Include actor name and timestamp in state records
@@ -255,6 +285,9 @@ All commands support:
 **v0.2 (Jul 17):**
 
 - Pillar 1: `memory submit`, `memory approve`, `memory reject`, `memory deprecate`, `memory history`
+- Pillar 2: `dna add`, `dna remove`, `dna update` — the rest of `P2.1`'s CRUD, decomposed by `dl-081` and spelled by
+  `dl-082`. `dna set` loses its second positional in the same release — a **breaking change to a shipped command**,
+  landing before `minor-v0.2` is published, to be recorded in the changelog the `user-docs` phase owns (`dl-013`)
 - Pillar 3: `directive create`, `directive assign`, `directive remove`, `directives list`
 
 **v0.3 (Jul 24):**
@@ -323,3 +356,38 @@ All commands support:
 - Checks pending reviews via `workflow status`
 - Launches review agent with review role
 - Submits review decisions via `memory approve/reject`
+
+---
+
+## Revision history
+
+**Version 1.3 (2026-09-24) — Pillar 2 is brought onto `dl-082-cli-parameter-shape`'s grammar, and two claims that were
+never true of a shipped command are retired.** Closes `bug-090-dna-set-grammar-differs-across-three-artefacts`.
+
+What changed:
+
+- **`dna set`** is respelled `wingfoil dna set <PATH> --value VALUE`. Version 1.2 specified
+  `dna set [--field FIELD] [--value VALUE]`, a grammar no build has ever had.
+- **`dna add`, `dna update`, `dna remove`** get rows. They are `P2.1`'s "Basic CRUD operations"
+  (`docs/01_vision/06_features.md`), decomposed into four verbs by `dl-081-dna-mutation-surface-shape` and spelled by
+  `dl-082`. The authority was always here; only the record was missing — `bug-090`'s 2026-09-24 note sets that out.
+- **`dna show`** is respelled `dna show [SECTION]`: the section is a positional, and it is a top-level key, not a dotted
+  path.
+- **The `tech-stack.backend` example is gone.** `spec-002-dna-yaml-schema` renamed `tech-stack` to `stacks` and made
+  `technologies` a list of `{name, category, …}` entries; the old example is refused at exit `1`. Every example now in
+  the Pillar 2 tables was executed against a `wingfoil init --template Scrum` repository before being written.
+- **"interactive or flag-based" is corrected, not deleted.** Only `init` has a prompt layer today. The prompt layer
+  remains specified for every command in `spec-008-cli-grammar` §4; the tables now say which of the two a reader is
+  looking at.
+
+**Why an Approved vision document was corrected to match the implementation.** CLAUDE.md §10.1 puts `docs/01_vision/`
+above configuration and code, so the ordinary remedy for a mismatch is to change the code. `dl-082`'s Decision section
+records why this case is the exception, and confines it to this case: the Version 1.2 row was not describing an unbuilt
+intention that the code had failed to honour — it described a *grammar*, one of three in circulation, against a schema
+(`tech-stack.backend`) the project had already retired, and the shape it named is not the shape `dl-082` adopts either.
+No layer is overruled by the code here; all three layers are moved onto a rule none of them had stated. Do not read this
+revision as a precedent for correcting the vision to the implementation generally.
+
+**Not changed in this pass:** the per-row `[--format json/yaml]` annotations — all **ten** of them, `dna show`'s
+included, which keeps its annotation across the respelling — the DNA-change *Sync Process* paragraphs in Pillars 2/3/4,
+and the `--dry-run` row under Global Options. See `task-098`'s Execution Notes for the measurements behind each.
