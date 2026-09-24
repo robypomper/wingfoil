@@ -69,7 +69,7 @@ decomposition, and `dl-082` fixed the spelling.
 | `wingfoil dna add <PATH> --value VALUE [--entry-FIELD VALUE ...]`           | Add an entry to a DNA collection, or a value to a list                              | All          | 0a, 6     | `--value` is the new entry's `name` when `<PATH>` ends at a collection — `dna add stacks.technologies --value TypeScript --entry-category language`. One `--entry-<field>` per field the entry schema declares; the `entry-` prefix keeps that derived namespace disjoint from the global flags (`spec-008` §9) |
 | `wingfoil dna update <PATH> --value VALUE [--entry-FIELD VALUE ...]`        | Update an existing entry or leaf, addressed by name                                 | All          | 0a, 6     | Entries are addressed by `name`, never by index (`dl-081`) — `dna update stacks.technologies --value TypeScript --entry-version 5.9`. Reaches a nested field of a named entry directly: `dna update modules.core.path --value src/core`                  |
 | `wingfoil dna remove <PATH> --value VALUE`                                  | Remove an entry from a DNA collection, or a value from a list                       | All          | 0a, 6     | `--value` names the entry to remove — `dna remove stacks.technologies --value TypeScript`. Refused when `<PATH>` or the named entry does not resolve                                                                                                    |
-| `wingfoil dna show [SECTION]`                                               | Query and display project DNA                                                       | Casey, All   | 3, 5      | Show the full DNA, or one **top-level** section as a positional: `version`, `project`, `modules`, `stacks`, `team`, `paths`. Not a dotted path — `dna show stacks.technologies` is refused (exit `1`)                                                              |
+| `wingfoil dna show [SECTION] [--format json/yaml]`                          | Query and display project DNA                                                       | Casey, All   | 3, 5      | Show the full DNA, or one **top-level** section as a positional: `version`, `project`, `modules`, `stacks`, `team`, `paths`. Not a dotted path — `dna show stacks.technologies` is refused (exit `1`)                                                              |
 | `wingfoil dna infer [--confirm]`                                            | Auto-scan codebase and propose DNA structure                                        | Morgan, Alex | 0b        | *Not built* (`spec-006`: planned). Infers modules from directory structure, languages/frameworks from files. Requires human review/approval before updating DNA                                                                                          |
 | `wingfoil paths [category] [--format json/yaml]`                            | Query project resource paths by category (sources, tests, docs, config, governance) | All          | 0a, 0b, 5 | Reads from DNA `paths:` section. Drill-down support (e.g., `paths sources --list`). Console/JSON/YAML output                                                                                                                                            |
 
@@ -249,7 +249,11 @@ All commands support:
     - Notation: a required positional is written `<ANGLE>` and an optional one `[BRACKETS]` — the Pillar 2 write verbs
       above follow this, as `spec-008-cli-grammar` §9 does. The Pillar 1, 3, 4 and 5 rows predate the convention and
       still bracket a required positional (e.g. `memory approve [document-id]`, where the id is required)
-    - If a required argument is missing, the command exits `2` with `error: missing required argument: --<name>`
+    - If a required argument is missing, the command exits `2` with an `error: missing required argument: …`
+      message that names what is missing. The text after the colon is per case, not one template: a missing **option**
+      is named by its flag (`wingfoil memory add` → `--type`; `wingfoil dna set project.license` → `--value`), while a
+      missing **positional** is named by reprinting the command's synopsis (`wingfoil dna set` →
+      `wingfoil dna set <path> --value <value>`; `wingfoil memory approve` → `memory approve <id>`)
 
 - **Interactive mode — specified, and built for `init` only.** `spec-008-cli-grammar` §4 specifies that a command with a
   missing required argument prompts for it in a TTY unless `--no-interactive` is passed. **As shipped, only `wingfoil
@@ -384,6 +388,6 @@ intention that the code had failed to honour — it described a *grammar*, one o
 No layer is overruled by the code here; all three layers are moved onto a rule none of them had stated. Do not read this
 revision as a precedent for correcting the vision to the implementation generally.
 
-**Not changed in this pass:** the per-row `[--format json/yaml]` annotations, the DNA-change *Sync Process* paragraphs in
-Pillars 2/3/4, and the `--dry-run` row under Global Options. See `task-098`'s Execution Notes for the measurements
-behind each.
+**Not changed in this pass:** the per-row `[--format json/yaml]` annotations — all **ten** of them, `dna show`'s
+included, which keeps its annotation across the respelling — the DNA-change *Sync Process* paragraphs in Pillars 2/3/4,
+and the `--dry-run` row under Global Options. See `task-098`'s Execution Notes for the measurements behind each.
