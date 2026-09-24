@@ -257,7 +257,7 @@ none, so the honest fix is "exit `2` **and** emit an error line", which is a beh
 here asks for. Filed as a proposal in the final report rather than smuggled in. Pinned as-is in AC5's
 suite so whichever way it is decided, it is decided rather than drifting.
 
-### Gates (run on the merged tree — `main` merged in at `51eac46b`, merge commit `0a3eb1d3`)
+### Gates (run on the merged tree — `main` merged in twice, at `51eac46b` and at `9642ab5f`; the second merge is docs-only)
 
 | Gate | Result |
 |---|---|
@@ -280,6 +280,10 @@ Coverage of the two files this task touched: `src/core/exit-code.ts` 100 % stmts
 This branch touches **no `index.ts` barrel** and no file `task-096`/`task-098`/`task-099` is working
 in. The one import line added to a shared file is `src/cli/program.ts`'s
 `import { exitCodeForParseOutcome } from '../core/exit-code';`, deliberately routed around the
-`../core` barrel. `main` was merged in at `51eac46b` (which carried `task-096`'s `src/core/index.ts`
-and `src/core/loaders.ts` changes) with no conflict, and the **emitting** build was re-run afterwards,
-not only `--noEmit`.
+`../core` barrel. `main` was merged in twice with no conflict: at `51eac46b` (carrying `task-096`'s
+`src/core/index.ts` and `src/core/loaders.ts` changes) and again at `9642ab5f` (`task-098`, docs only
+— `git diff --stat` on that merge shows five `.md` files and nothing under `src/` or `test/`). The
+**emitting** build and the full suite were re-run after each, not only `--noEmit`. `task-098`'s
+rewritten `docs/01_vision/X_cli-cmds.md` was read for exit-code claims this task could have made
+stale: its three (`dna show` on a dotted path → `1`, an undeclared write path → `1`, a missing
+required argument → `2`) are all errors WingFoil raises itself and none of them moves.
