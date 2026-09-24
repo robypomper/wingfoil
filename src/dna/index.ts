@@ -25,7 +25,12 @@ export {
   Paths,
 } from './schema';
 
-export { isValidKeyPath, setDnaValueInText, DNA_KEY_ALIASES } from './set';
+// `splitDnaPath` (task-099, `dl-083-dotted-entry-names-in-paths`) is the pillar's path parser: the one
+// place a dotted path is split, and therefore the one definition of the quoted-segment rule that makes
+// an entry named `Node.js` addressable. `isValidKeyPath` is that parser reduced to a boolean, and
+// `quoteDnaSegment` is its inverse, used where a refusal echoes part of a path.
+export { isValidKeyPath, quoteDnaSegment, splitDnaPath, setDnaValueInText, DNA_KEY_ALIASES } from './set';
+export type { DnaPathSplit } from './set';
 
 // task-093-dna-mutation-surface-add-remove-update — the mutation surface `dl-081-dna-mutation-surface-shape`
 // ratified (option (E)): one schema-driven traversal (`./path`), the pure add|remove|update semantics
