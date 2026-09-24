@@ -346,7 +346,8 @@ orchestrator's act.
    to correct `dl-083`'s example.
 
 2. **Nothing prevents a future reader of a DNA path from splitting it itself.** `splitDnaPath` is now
-   the only splitter in `src/` (`grep -rn "split('\.')" src/` returns nothing under `src/dna`), but
+   the only splitter in `src/` — `grep -rn "split('\.')" src/` now returns exactly one line, the
+   sentence in `splitDnaPath`'s own doc comment that says so — but
    that is a fact about today's code, not an invariant anything enforces — the same shape as the
    `bug-084` alias trap, where one call site diverged from the rule. A guard test in the spirit of
    `test/cli/derived-option-namespace.test.ts` (derive the invariant, do not hand-list it) would keep
