@@ -369,3 +369,97 @@ the asymmetry deliberate and cites the missing primitive — mine to fix, and fi
 | **AC5** — the ordinary flows, each pinned | **mixed, and honestly so.** *Characterization*: assign a committed directive to a committed role; remove a directive whose reference was removed and committed; `task-091`'s `--role` check; both pinned `unknown …` messages; REQ-SEC-07 (a) first. *Red-first*: the write → commit → assign sequence, whose "before the commit it is refused" half is the defect. | Seven of the thirteen first-run passes are these. |
 | **AC6** — tests pin both defects and fail against current code | **red-first** | `red` § — 24 failed / 13 passed before the fix, commands recorded. |
 | **AC7** — six gates green, full `tsc --noEmit` silent | **process** | Run at `refactor`/`review`. |
+
+### red — role: developer
+
+Commit `75fefa8`. Three new suites, no change to any existing one at this step:
+
+- **`test/storage/list-paths-at-rev.test.ts`** — AC1's primitive, tested **directly** rather than only
+  through the verbs that need it, because it is written to outlive them: the prefix listing, the
+  revision-not-the-working-tree property in both directions, an older revision, `[]` vs `null`, the
+  whole-tree default, the blobs-only filter (against a real gitlink), a path with a space returned
+  unquoted, composition with `readPathAtRev`, and the `env` passthrough.
+- **`test/core/directive-inventory-baseline.test.ts`** — both halves at the `CoreFn` seam, driving the
+  REAL registered `directive.directiveAssign` / `directive.directiveRemove` in throwaway repos: the
+  two `bug-086` defects, the two mirror cases where the working tree *withdraws* what `HEAD` records,
+  both fail-closed refusals, `D4`'s deliberate fail-open for an uncommitted `roles.yaml`, AC4's two
+  write-guard cases, every AC5 ordinary flow, and `D5`'s two warnings-channel measurements.
+- **`test/cli/directive-inventory-at-head.integration.test.ts`** — the two things only the process
+  boundary shows: the exit code a script keys on and the stderr a human reads, through the compiled
+  `dist/cli.js` in a real `wingfoil init` project, plus the `init`-commits-both-baselines measurement.
+  `spawnSync`, per `task-086`'s gotcha (recorded in the file's TSDoc so the next reader does not
+  "simplify" it back).
+
+Observed red — AC6's command, before any `src/` change:
+
+```
+$ npx jest test/storage/list-paths-at-rev.test.ts test/core/directive-inventory-baseline.test.ts \
+           test/cli/directive-inventory-at-head.integration.test.ts
+Test Suites: 3 failed, 3 total
+Tests:       24 failed, 13 passed, 37 total
+```
+
+The 24 failures are the two defects plus the absent primitive (twelve of them
+`TypeError: (0 , storage_1.listPathsAtRev) is not a function`). The 13 passes are exactly the cases T1
+classifies as characterization: both AC4 write-guard refusals; assigning an already-committed
+directive; the second half of write → commit → assign; `task-091`'s `--role` refusal; both pinned
+`unknown …` messages (assign and remove); REQ-SEC-07 (a) firing first; removing a
+reference-removed-**and-committed** directive; an uncommitted `roles.yaml` permitting removal
+(`D4`'s fail-open, already the behaviour for an absent file); `init` committing both baselines; and
+the dl-042 warning still firing from `directives list`.
+
+Two first-draft cases were **fixture** bugs rather than reds and were corrected before the commit, so
+the red count above is the honest one: withdrawing the only entry of a `roles.yaml` list leaves
+`global:` with no items, which YAML reads back as `null` and `RolesYaml` then rejects — a fixture
+failure that looks exactly like a real refusal. Every list in the fixture now carries two entries.
+
+### green — role: developer
+
+Two source modules, one new function each side of the `core`/`storage` boundary, and four call sites.
+
+| Change | Where |
+|---|---|
+| **`listPathsAtRev(root, rev, prefix?, options?)`** — `git ls-tree -r -z --full-tree`, blobs only, sorted, `null` for an unresolvable revision. Appended as its own section beside `readPathAtRev`; `probeGit`, so a `fatal: Not a valid object name` never reaches the user's terminal | **new**, `src/storage/commit.ts` |
+| exported from the `storage` barrel (one line) | `src/storage/index.ts` |
+| `parseDirectiveFile(raw, filePath, relativePath)` — the per-file frontmatter parse lifted out of `loadDirectives` so the same schema and the same error shapes serve bytes from any source; `filePath` becomes a **label** (`HEAD:.wingfoil/directives/custom/x.md`), so an error names the baseline it came from | `src/core/loaders.ts` |
+| `loadDirectivesAtHead(root): DirectiveFile[] \| null` and `loadRolesYamlAtHead(root): RolesYaml \| null`, plus the root-relative POSIX constants `DIRECTIVES_DIR_PATH` and `ROLES_YAML_PATH` (the latter **moved** here from `directive-assign.ts`, beside `DNA_YAML_PATH`/`MEMORY_YAML_PATH`, and re-exported from its old home so no importer changed) | same |
+| `checkAssignable(root, role, ids)` — **the signature changed**: it no longer accepts `directiveFiles` and resolves the committed inventory itself, with a `VALIDATION` refusal for a committed directive file that does not parse | `src/core/directive-assign.ts` |
+| `checkUnreferenced(root, id)` — **the signature changed** the same way: no `RolesYaml` parameter, `loadRolesYamlAtHead` resolved internally, `null` meaning "nothing is bound" and a `VALIDATION` refusal for a committed `roles.yaml` that does not validate | same |
+| `directiveAssignFn` loses its `loadDirectives` pre-load; `directiveRemoveFn` loses its `documentExists` + `loadRolesYaml` block. Each verb's TSDoc step list now says which baseline it reads, and step 3 of `remove` records AC4's decision | `src/core/index.ts` |
+| barrel: `loadDirectivesAtHead`, `loadRolesYamlAtHead`, `DIRECTIVES_DIR_PATH`, `ROLES_YAML_PATH` added to the existing `export { … } from './loaders'` block (`D3`'s reasoning from task-091, unchanged) | same |
+
+Design points worth naming:
+
+- **Both fixes are in the signature, not next to the call**, exactly as `task-090`/`task-091` did.
+  Neither function can be handed a working-tree document any more, so "unreachable rather than
+  guarded" is enforced by the type checker: a call that tried would not compile. Six lines of caller
+  code disappeared rather than being added to.
+- **The two verbs got *shorter*.** `directiveRemoveFn` lost a `documentExists` probe, a `loadOrError`
+  and a mutable `RolesYaml | undefined`; `directiveAssignFn` lost a `loadOrError`. The only import
+  line I had to touch in a shared file is `src/core/index.ts`'s — `loadRolesYaml` and
+  `ROLES_YAML_PATH` are no longer used there, and `type RolesYaml` was removed with them (flagged by
+  `lint.clean`, not by `tsc`). Named here because the brief asks where a merge should look.
+- **`?? []` rather than a null branch.** `loadDirectivesAtHead` returning `null` (no commits at all)
+  is "no directive is committed", which is already the refusal every id gets — so `assign`'s
+  fail-closed behaviour needs no special case, and there is no branch that only a contrived fixture
+  could reach.
+- **Asymmetric `null` handling is the same rule, not two rules.** See `D4`: `assign` needs a positive
+  fact and refuses without a record; `remove` needs a negative one and is satisfied by a missing
+  record. Both *validation* failures refuse.
+- **`remove`'s resolution read deliberately stays on the working tree** (AC4). Recorded in
+  `directiveRemoveFn`'s step 3, so the next reader does not "finish the job" and turn an accurate
+  refusal into `unknown directive: <id>`.
+- **The pinned fit criteria are untouched.** `unknown directive: <id>` (P3.2 Sc.3),
+  `unknown role '<role>' (not defined in dna.yaml)` (P3.2 Sc.2),
+  `cannot remove '<id>': still assigned to role '<role>'` (P3.3 Sc.2) and task-052's `global` variant
+  are all byte-identical, and no new message is appended to any of them (`D3`).
+- **Exit `1` for every refusal** (`CoreResult.error`, codes `VALIDATION`/`NOT_FOUND`/`CONFLICT`, all
+  mapped to `1` by `exitCodeForError`), per `spec-005` §1 and AC3. Not re-argued; `bug-076` ruled it.
+- **Three sentences this pass made stale, fixed in the same pass**: `checkAssignable`'s module-header
+  bullet ("every directive id must exist **on disk**"), and two test comments that described the
+  asymmetry as a live finding (`directive-assign.test.ts`, `directive-assign-role-baseline.test.ts`).
+  `directives-list.ts`'s "files on disk" wording is **not** stale — that operation is a report of the
+  working tree and stays one (`D5`).
+
+Full suite after green: `npx jest` → **125 suites, 1949 tests passed**, exit 0. No existing test
+changed, and none broke.

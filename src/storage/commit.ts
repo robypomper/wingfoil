@@ -143,3 +143,70 @@ export function changedPathsBetween(root: string, from: string, to: string, opti
     .split('\n')
     .filter((path) => path.length > 0);
 }
+
+// --- Listing a DIRECTORY at a revision (task-096, bug-086) -------------------------------------
+
+/**
+ * One `git ls-tree -z` record: `<mode> SP <type> SP <object> TAB <path>`. Matched rather than split
+ * so that (a) only **blobs** survive — a gitlink (submodule, mode `160000`) is an entry in the tree
+ * but not a file anyone can read back — and (b) the path is taken verbatim from the first TAB
+ * onwards, which is the one separator a path cannot contain.
+ */
+const LS_TREE_BLOB_RECORD = /^\d+ blob [0-9a-f]+\t/;
+
+/**
+ * Every **file** that exists at revision `rev` under `prefix`, recursively, as root-relative POSIX
+ * paths sorted ascending — the directory counterpart of {@link readPathAtRev}, and the primitive a
+ * read whose baseline is a *directory* needs (`task-096`, `bug-086`).
+ *
+ * `readPathAtRev` answers "what does this one path contain at `<rev>`", which is enough while every
+ * committed-baseline read is of a file named in advance (`.wingfoil/dna.yaml`,
+ * `.wingfoil/memory.yaml`). It is not enough for `.wingfoil/directives/**`, whose members are
+ * discovered rather than named: without this, resolving the directive inventory at `HEAD` was
+ * impossible and `task-091` scoped `bug-086` out on exactly that ground. The two compose — list, then
+ * read each entry — and `src/core/loaders.ts`'s `loadDirectivesAtHead` is the first caller to do so.
+ *
+ * **Blobs only.** Whatever this returns must be readable with `readPathAtRev` at the same revision; a
+ * gitlink would break that, so it is filtered out rather than reported as a file.
+ *
+ * **`-z`, not the default output.** git C-quotes any path containing a space, a quote or a non-ASCII
+ * byte (`"two words.md"`, quotes included) unless records are NUL-separated, and a caller would then
+ * look for a file whose name it has mis-spelled. NUL separation is never ambiguous.
+ *
+ * **`null` is not `[]`.** `[]` means *the revision exists and holds nothing under `prefix`*; `null`
+ * means *`rev` does not resolve at all* — an unborn `HEAD` in a repository with no commits, or a name
+ * no object carries. A caller that must fail closed when there is no committed baseline has to be able
+ * to tell those apart; one that only wants "what is committed there" can write `?? []`.
+ *
+ * **Sorted explicitly** even though git's own output already is (REQ-SYS-07: no unordered iteration in
+ * a context-building path — the working-tree walk in `loadDirectives` sorts for the same reason, and
+ * the two must not differ by accident).
+ *
+ * @param root - Project root (the git repository).
+ * @param rev - Any tree-ish git accepts: a sha, `HEAD`, `HEAD~1`, a tag.
+ * @param prefix - Root-relative directory to limit the listing to; **omitted or empty lists the whole
+ *   tree**, because `git ls-tree -- ''` is an error rather than a match-all. Passed verbatim after
+ *   `--`, so a path that looks like a flag is never misread.
+ * @returns The paths, or `null` when `rev` does not resolve.
+ */
+export function listPathsAtRev(
+  root: string,
+  rev: string,
+  prefix = '',
+  options: CommitOptions = {},
+): string[] | null {
+  const pathspec = prefix.length === 0 ? [] : ['--', prefix];
+  let records: string;
+  try {
+    // `probeGit`: an unresolvable revision is an expected answer here, and git's `fatal: Not a valid
+    // object name` must not reach the user's terminal beside the CLI's own message.
+    records = probeGit(root, ['ls-tree', '-r', '-z', '--full-tree', rev, ...pathspec], options);
+  } catch {
+    return null;
+  }
+  return records
+    .split('\0')
+    .filter((record) => LS_TREE_BLOB_RECORD.test(record))
+    .map((record) => record.slice(record.indexOf('\t') + 1))
+    .sort();
+}

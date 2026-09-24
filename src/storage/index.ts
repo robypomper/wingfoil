@@ -15,7 +15,7 @@ export { renderMemoryPath, resolveMemoryPath } from './memory-path';
 export { extractFrontmatter, splitFrontmatter } from './frontmatter';
 export type { FrontmatterSplit } from './frontmatter';
 export { readDocument, documentExists, removeDocument, writeDocument } from './document';
-export { changedPathsBetween, commitParent, commitPaths, EMPTY_TREE_SHA, pathPorcelainStatus, readPathAtRev } from './commit';
+export { changedPathsBetween, commitParent, commitPaths, EMPTY_TREE_SHA, listPathsAtRev, pathPorcelainStatus, readPathAtRev } from './commit';
 export type { CommitOptions } from './commit';
 export { initStorage, scaffoldFiles, WINGFOIL_DIR, INIT_COMMIT_MESSAGE } from './layout';
 export type { ScaffoldFile } from './layout';
