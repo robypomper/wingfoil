@@ -66,3 +66,306 @@ Declared a release blocker at `high`.
 ## Execution Notes
 
 <!-- filled in per phase -->
+
+### start — role: developer
+
+`status: backlog → in-progress` (`b4818c2`). `bug:` names one bug, so `bug.sync_state` ran as its own
+commit: `bug-086` `planned → in-progress` (`ee053b8`).
+
+Worktree `/home/robypomper/Workspaces/.wf2-wt/task-096`, branch
+`task/task-096-directive-inventory-resolves-at-head`, from `main` at `02b77f9`.
+`npm ci --prefer-offline --no-audit --no-fund` → exit 0.
+
+### design — role: architect
+
+Directives loaded: architecture, determinism, traceability (architect); code-quality, testing,
+determinism (developer); doc-versioning, documentation, security-secrets (global).
+
+#### `read_related` (`dl-015`, HARD gate)
+
+- **`task-091-reads-resolve-at-head` (`done`) — Execution Notes read in full**, including its `D2`
+  section, which argues the boundary this task overturns. What I took from it:
+  1. **The shape, and that it is a shape rather than a check.** `D1`/`D2` both *remove the parameter*
+     through which a working-tree document could reach the decision — `prepareMemoryTransition(root,
+     id, op)` and `checkAssignable(root, directiveFiles, role, ids)` — so "unreachable rather than
+     guarded" is enforced by the type checker. Both fixes below copy that literally: `checkAssignable`
+     loses `directiveFiles` and `checkUnreferenced` loses `rolesYaml`.
+  2. **`D2`, the boundary, and why it goes.** task-091 offered "the role catalogue is *governance*,
+     the directive file is the *asset being operated on*" and its own `D2` then names the real reason:
+     *"it needs a directory listing at a revision, which `src/storage` has no primitive for"*. Its
+     reviewer showed the boundary does not hold (`directive remove`'s clause-(b) check reads
+     `roles.yaml`, governance by that same definition). `bug-086`'s Notes settle it: what separates
+     them is cost, and cost is a scheduling reason. So AC1's primitive is the task, and the boundary
+     is simply deleted rather than re-argued.
+  3. **The fail-closed precedent, and that it is a precedent and not a rule** (its `D4`, three
+     grounds, only one shared with task-090). `D4` below re-derives the answer for *each* of this
+     task's two reads and gets **different** answers, which is the point of re-deriving it.
+  4. **The diagnostic that never decides** (`D5`, `workingTreeWouldDefine`). Reused unchanged for the
+     role half; `D3` below says why the two new reads do not get one of their own.
+  5. **Its own AC5 sweep rows `S2` and `S3` are this task's subject** — they are `bug-086`'s two
+     transcripts. AC2 re-derives them from scratch rather than pasting, as it asks.
+  6. **The measurement gotcha:** `execFileSync` + `catch` reads back `stderr: ''` for a command that
+     exits `0` while printing to fd 2, so CLI-level assertions use `spawnSync`. Reused.
+- **`task-092-writes-refuse-a-dirty-target` (`done`) — Execution Notes read in full.** It is the other
+  `depends_on`, and it turns out to *answer* AC4 rather than merely neighbour it:
+  1. **`requireUnmodifiedTarget` already guards `directive remove`'s target**, added by its `green`
+     step (`src/core/index.ts`, the call before `removeDocument`). `pathPorcelainStatus` returns a
+     non-empty code for an **untracked** file (`??`) as well as a modified one, so an uncommitted
+     directive file is already un-removable. Measured, not inferred — AC4 below.
+  2. **Its `R3` is the same verb from the write side**: staging a deletion discards the working-tree
+     blob, so an uncommitted edit to the directive being removed is *destroyed* rather than swept in.
+     That is why the refusal, not a read change, is the right answer to AC4.
+  3. **Its AC3 method** — "establish what a caller can actually absorb, rather than assume" — is what
+     `D4` does for the two reads here.
+  4. **Its per-path narrowness** (`dl-080`'s rejected option (D)): an unrelated dirty file must never
+     block a write. Nothing here widens that.
+- **`bug-086` (`high`, release blocker) — read in full**, including the Notes that record why the two
+  halves are one element and why `remove` is graded above `assign`.
+- **`dl-080-which-baseline-each-command-reads` (`ready`) — read in full.** Option (B) is the rule;
+  its cost is "accepted knowingly". Nothing below re-argues it.
+
+#### `verify_specs`
+
+No new `tech-spec` and no amendment to an approved one; everything this task enforces is already
+written down.
+
+- **`dl-080`** (`ready`) is the rule itself and needs no spec.
+- **`spec-005-cli-command-contract`** § "1. Exit-code contract (REQ-INT-04)" — **not** amended: every
+  refusal here is a well-formed invocation failing a repository-state precondition, i.e. exit `1`
+  (AC3; ruled on `bug-076`, restated by `task-090`/`task-091`/`task-092`).
+- **REQ-SEC-07** clause (b) (`docs/02_requirements/03_sard/05_security-compliance.md`) is the
+  requirement `remove`'s half enforces; `dl-030-req-sec-07-referenced-asset-ownership` (option (b))
+  is what assigned it to the directive verb. Neither changes — what changes is *which copy of
+  `roles.yaml` answers it*.
+- **REQ-SYS-08** is what `assign`'s half protects, in the same shape `bug-082` broke it: a committed
+  binding whose referent exists in no commit.
+- **`spec-011-storage-layout`** fixes `.wingfoil/directives/{built-in,custom}/`, which the new
+  primitive is pointed at; it is cited, not amended.
+- **`dl-042-directives-list-output-contract`** (D) owns the dangling-binding warning the
+  Implementation Notes ask about. `D5` below records what I measured about it. No amendment: the
+  warning's wording and channel are unchanged.
+
+`design` gate state: `frontmatter.required` (`title`, `release`) present; `depends_on.acknowledged`
+satisfied above; `tech-spec.approved` — no spec scaffolded, so the approver gate passes through.
+
+#### AC2 — both halves reproduced, on scratch projects, before any `src/` change
+
+Built this branch at its base (`npm run build`, exit 0 — no `src/` edit yet, so `dist/` is `main` at
+`02b77f9` plus the two `start` commits), then throwaway projects under the session scratchpad. A
+scratch project is required: `bug-075` means the verbs cannot be pointed at this repository's own
+configuration.
+
+**`assign` — a committed binding to a directive present in no commit.**
+
+```
+$ git init -q . && git config user.name 'Test User' && git config user.email 'test@example.test'
+$ node dist/cli.js init --template scrum        # exit 0; git status --porcelain -> clean
+$ printf -- '---\nid: ghost\nname: ghost\ntype: directive\nkind: custom\ntitle: "Ghost"\n---\n\n# Ghost\n' \
+    > .wingfoil/directives/custom/ghost.md
+$ git status --porcelain
+?? .wingfoil/directives/custom/ghost.md
+$ node dist/cli.js directive assign --directive ghost --role developer          exit 0
+$ git log -1 --format='%s'          ->  wf(directive): assign ghost to developer
+$ git show HEAD:.wingfoil/roles.yaml | grep -c ghost                   ->  1
+$ git cat-file -e HEAD:.wingfoil/directives/custom/ghost.md
+fatal: path '.wingfoil/directives/custom/ghost.md' exists on disk, but not in 'HEAD'    exit 128
+```
+
+**`remove` — a committed, still-referenced asset destroyed (the sharper half).**
+
+```
+$ node dist/cli.js init --template scrum >/dev/null
+$ node dist/cli.js directive remove determinism
+error: cannot remove 'determinism': still assigned to role 'architect'          exit 1   # control
+$ git show HEAD:.wingfoil/roles.yaml | grep -c determinism              ->  2
+$ sed -i '/- determinism/d' .wingfoil/roles.yaml      # uncommitted
+$ git status --porcelain -- .wingfoil/roles.yaml
+ M .wingfoil/roles.yaml
+$ node dist/cli.js directive remove determinism                                  exit 0
+$ git log -1 --format='%s'          ->  wf(directive): remove determinism
+$ git show --name-only --format='' HEAD  ->  .wingfoil/directives/custom/determinism.md
+$ test -e .wingfoil/directives/custom/determinism.md && echo PRESENT || echo GONE   ->  GONE
+$ git show HEAD:.wingfoil/roles.yaml | grep -c determinism              ->  2
+```
+
+The file is gone and the `roles.yaml` committed **at that very commit** still binds it twice — an
+uncommitted edit walking past the one check REQ-SEC-07 clause (b) exists to enforce, on the only verb
+in the system that destroys an artefact.
+
+#### AC4 — what happens when the directive file itself is uncommitted, measured first
+
+```
+$ node dist/cli.js init --template scrum >/dev/null
+$ node dist/cli.js directive create --name alpha     exit 0
+$ git log -1 --format='%s'   ->  wf(directive): create alpha       # create COMMITS the file
+$ git status --porcelain     ->  (clean)
+
+# B — an UNTRACKED directive file, removed
+$ printf -- '---\nid: ghost\n…\n---\n' > .wingfoil/directives/custom/ghost.md
+$ node dist/cli.js directive remove ghost
+error: refusing to commit .wingfoil/directives/custom/ghost.md: it carries uncommitted modifications
+this operation does not own [git status '??'] — the file is not in the index, the file is not tracked
+at HEAD. A `wf(...)` commit records the change its subject declares and nothing else; commit or stash
+these changes first, then retry.                                                  exit 1
+$ test -e .wingfoil/directives/custom/ghost.md    ->  PRESENT      # nothing destroyed
+$ git log -1 --format='%s'   ->  wf(directive): create alpha       # HEAD unchanged
+
+# C — a COMMITTED directive carrying an uncommitted edit, removed
+$ printf '\nAN UNCOMMITTED PARAGRAPH.\n' >> .wingfoil/directives/custom/alpha.md
+$ node dist/cli.js directive remove alpha
+error: refusing to commit .wingfoil/directives/custom/alpha.md: … [git status ' M'] — the body. …
+                                                                                   exit 1
+```
+
+**The argument (AC4 asks for one, not a report).** Deleting an untracked file is indeed not the same
+act as deleting a committed one — and it is **not this verb's act at all**. `directive remove`'s
+contract is to produce one scoped commit that *records* the deletion (`wf(directive): remove <name>`,
+`commitPaths`); a file in no commit has no deletion to record, so the verb cannot honour its own
+contract over it. Refusing is therefore not a conservative tax, it is the only outcome that keeps the
+verb's contract true. Three further points decide it, all measured above:
+
+1. **It is already the behaviour**, delivered by `task-092`'s write rule rather than by any read: `??`
+   is a non-empty porcelain code, so `requireUnmodifiedTarget` refuses. Nothing needs to be *added*
+   for AC4 — what the fix must do is *not break it*, which is why it is pinned by two tests.
+2. **The refusal a user needs is that one, not "unknown directive".** This is the live design risk of
+   this task: moving `remove`'s *resolution* read to `HEAD` as well would have turned case B into
+   `unknown directive: ghost` — a message that is false to the user's screen, where the file plainly
+   is. So the resolution read (`loadDirectives` → `selectDirectivesById`, step 3 of `directiveRemoveFn`)
+   **deliberately stays on the working tree**: it answers "which file on disk am I being asked to
+   delete", the asset itself, and `task-092`'s guard then decides whether that file may be deleted.
+   What moves to `HEAD` is only the *reference* check, which is the read `bug-086` names.
+3. **Asymmetric risk.** Refusing costs `git add && git commit` (or `rm`, if the author never wanted
+   the file). Accepting destroys content that exists in no commit anywhere — `task-092`'s `R3`
+   measured exactly that loss on the same verb.
+
+A residual of leaving the resolution read on the working tree, stated rather than smuggled: a
+directive that is committed but **deleted in the working tree** resolves to nothing, so
+`directive remove <id>` answers `unknown directive: <id>` where `HEAD` still carries the file. That is
+a refusal, so nothing is destroyed and no wrong record is written; it is the same class as the two
+defects but on the harmless side of it. Raised as a proposed element rather than folded in.
+
+#### AC1/AC3 — the design
+
+**D1 — the missing primitive: `listPathsAtRev` (`src/storage/commit.ts`), beside `readPathAtRev`.**
+
+`readPathAtRev` answers *"what does this one path contain at `<rev>`"*. Every committed-baseline read
+so far (`loadDnaYamlAtHead`, `loadMemoryYamlAtHead`, the write guard's three probes) is of a file
+whose name was known in advance. The Directives pillar is the first whose baseline is a **directory**
+whose members are discovered, and that is the whole of `task-091`'s cost argument. So:
+
+```ts
+listPathsAtRev(root, rev, prefix = '', options = {}): string[] | null
+```
+
+`git ls-tree -r -z --full-tree <rev> [-- <prefix>]`. Decisions worth naming, each of which is a test:
+
+- **`-z`, always.** Without it git C-quotes any path containing a space or a non-ASCII byte, so a
+  caller would silently receive `"two words.md"` *with* the quotes and never find the file. `-z` is
+  NUL-separated and never quotes.
+- **Blobs only.** The full `ls-tree` record (`<mode> SP <type> SP <sha> TAB <path>`) is matched
+  against `/^\d+ blob [0-9a-f]+\t/`, so a gitlink (submodule, mode `160000`) under the prefix is not
+  reported as a file. A listing whose entries cannot be `readPathAtRev`-ed would be a trap.
+- **`null` vs `[]` is load-bearing, not cosmetic.** `[]` means *the revision exists and holds nothing
+  there*; `null` means *the revision does not resolve* (an unborn `HEAD`, a bad ref). Callers that
+  must fail closed need to tell those apart, and it mirrors `readPathAtRev`'s `null`.
+- **Sorted explicitly** (REQ-SYS-07), even though git's own order already is: `loadDirectives` sorts
+  its `readdirSync` walk for exactly this reason, and the two loaders must not differ by accident.
+- **`--full-tree`** so paths are root-relative regardless of where git thinks the cwd is, and the
+  pathspec is read against the root too.
+- **Empty `prefix` lists the whole tree**, because `git ls-tree -- ''` is a `fatal:` rather than a
+  match-all; the argument is simply omitted in that case.
+
+Written in `commit.ts` and not a new file because `runGit`/`probeGit` are private there and this is
+the same kind of thing: a thin, throwing-or-`null` git reader. `probeGit`, not `runGit` — a bad
+revision is an expected answer here, and git's `fatal:` must not reach the user's terminal next to the
+CLI's own message.
+
+**What else could use it** (AC1 says to say so): `memory search` and the Memory Resources, if the
+committed baseline ever reaches them (`task-091`'s S1 filed `memory add`, whose type registry has the
+same question); `computeStateSnapshot` (`src/storage/snapshot.ts`), which today walks the working
+tree and is REQ-SYS-01's fit criterion; `loadWorkflowsYaml`'s Layer-2 `include` resolution, which will
+need a committed baseline the moment a workflow gates anything; and any future "what did this
+directory look like at release `vX`" report.
+
+**D2 — `directive assign`: `checkAssignable` resolves its own committed inventory.**
+
+`checkAssignable(root, directiveFiles, role, ids)` → `checkAssignable(root, role, ids)`, reading
+`loadDirectivesAtHead(root)` itself — the exact move task-091 made on the same function for the role
+half, finishing the job on the same line of code. `directiveAssignFn`'s `loadDirectives(root)`
+pre-load disappears with it (that was its only consumer). After this, no call path can reach the
+binding decision with a working-tree inventory, because there is no argument through which one could
+arrive.
+
+`loadDirectivesAtHead` (`src/core/loaders.ts`) is `listPathsAtRev` + `readPathAtRev` per entry + the
+**same** frontmatter parse `loadDirectives` uses, lifted into `parseDirectiveFile` so the two loaders
+cannot drift on what a directive file is. Error labels name the baseline (`HEAD:.wingfoil/…`), as
+`parseMemoryYaml` does since task-091.
+
+**D3 — no working-tree diagnostic on these two refusals, and that is a decision.**
+
+task-091's `D5` appends a second sentence when the working tree and `HEAD` disagree. I did **not** add
+one here, for a reason specific to each:
+
+- `assign`'s refusal is `unknown directive: <id>`, P3.2 Scenario 3's **pinned** wording. A note would
+  have to be appended to a message three suites match with `toBe`, and the equivalent information is
+  one command away (`git status`). More importantly the remedy is already obvious from the message a
+  user sees next to their own untracked file.
+- `remove`'s refusal is `cannot remove '<id>': still assigned to role '<role>'`, P3.3's pinned
+  wording — and here a note would be actively wrong: it would advertise "commit your unbinding and
+  this will succeed", which is a suggestion to delete a file. The refusal should not coach.
+
+Recorded as a judgement rather than an oversight; a reviewer may disagree.
+
+**D4 — an absent committed baseline: fail-closed for `assign`, fail-**open** for `remove`, and the
+two are the same rule.**
+
+task-091's `D4` fails closed on an absent committed `dna.yaml`. Re-derived here per read, and the
+answers differ:
+
+- **`assign`'s inventory — closed.** "May `<id>` be bound" needs the **positive** fact *a directive
+  with this id exists*. An absent or empty committed tree cannot supply it, so every id is unknown and
+  the request is refused — which falls out of the code with no extra branch (`loadDirectivesAtHead(root)
+  ?? []`), rather than being a special case someone must remember. A **committed** directive file that
+  does not validate is a `VALIDATION` refusal naming `HEAD`, mirroring the role half: a defect in the
+  read must never become an answer.
+- **`remove`'s reference check — open, and it is not fail-open.** "Is anything referencing it" needs
+  the **negative** fact *no binding names this id*. A `roles.yaml` that is not committed at `HEAD` is
+  not a missing answer; it is the answer *nothing is bound*, and it is exactly the reading
+  `checkUnreferenced` already had for an absent file (task-051/053, "no bindings yet"). Failing closed
+  here would refuse every removal in a project that binds nothing — a legitimate configuration, and
+  `init` is not even a defence for it, because a user may commit the deletion of `roles.yaml`. A
+  committed `roles.yaml` that does not **validate** is a different thing and does fail closed, for the
+  same reason as above.
+
+So the rule is one rule: **a check that needs a positive fact fails closed when the record is missing;
+a check that needs the absence of a fact is satisfied by a missing record.** That is not a compromise
+between the two halves — it is what "resolve at `HEAD`" *means* in each.
+
+**D5 — `dl-042`'s warnings channel, checked rather than assumed** (Implementation Notes).
+
+The warning `directive '<id>' bound to role '<role>' has no directive file` lives in
+`resolveRoleDirectives` (`src/core/context.ts`), reached from `loadDirectiveListing` — a `mutates:
+false` operation that reports what the user has **now**. It is neither dead nor changed in meaning:
+
+- **Still reachable**, measured: commit a binding and its directive, delete the file in the working
+  tree, `directives list --role developer` still warns. Pinned by a test.
+- **No longer reachable through `directive assign`**, which is the part `bug-086` closes — and that is
+  the warning's *cause* narrowing, not its meaning. It said "this binding names no file" before and
+  says the same now; what changed is that the tool can no longer manufacture the state, so a warning
+  that fires is now evidence of a hand-edit or a working-tree deletion. Its wording carries no claim
+  about who produced it, so nothing in it is made stale. Also pinned.
+
+The one sentence that *is* made stale by this task is `checkAssignable`'s own TSDoc, which declares
+the asymmetry deliberate and cites the missing primitive — mine to fix, and fixed in `green`.
+
+#### T1 — AC classification (`dl-014`, `testing` directive)
+
+| AC | Class | Evidence for the class |
+|---|---|---|
+| **AC1** — the primitive comes first, with its own tests and TSDoc | **red-first** | `listPathsAtRev` does not exist: `grep -rn "ls-tree" src/` → no match before this task. Its twelve tests fail with `TypeError: (0 , storage_1.listPathsAtRev) is not a function` on the first run. |
+| **AC2** — reproduce both halves on scratch projects | **process gate, not testable** | The AC2 section above, run against `dist/` built at the branch base before any `src/` edit. AC6's tests are its durable form. |
+| **AC3** — both reads resolve at `HEAD`; refusals exit `1` | **red-first** | Measured red: both AC2 transcripts exit **0** today. `grep -n "AtHead" src/core/directive-assign.ts` → one hit, `loadDnaYamlAtHead` (the role half only); nothing in either inventory path reads a revision. |
+| **AC4** — establish and argue the uncommitted-directive-file case | **design obligation + characterization** | The argument is the AC4 section; its testable half *already passes* on the pre-fix code (two cases, green on the first run) because `task-092`'s guard owns it. Fabricating a red for it would mean asserting it is broken, which it is not. |
+| **AC5** — the ordinary flows, each pinned | **mixed, and honestly so.** *Characterization*: assign a committed directive to a committed role; remove a directive whose reference was removed and committed; `task-091`'s `--role` check; both pinned `unknown …` messages; REQ-SEC-07 (a) first. *Red-first*: the write → commit → assign sequence, whose "before the commit it is refused" half is the defect. | Seven of the thirteen first-run passes are these. |
+| **AC6** — tests pin both defects and fail against current code | **red-first** | `red` § — 24 failed / 13 passed before the fix, commands recorded. |
+| **AC7** — six gates green, full `tsc --noEmit` silent | **process** | Run at `refactor`/`review`. |
