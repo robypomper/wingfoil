@@ -668,3 +668,12 @@ and is the check that catches this class.
 would collide on ids). Listed in this run's final report: `directive remove`'s resolution read
 answering `unknown directive: <id>` for a directive committed at `HEAD` but deleted in the working
 tree; and `dl-080` Action 4, still unowned.
+
+### post-submit — role: developer
+
+`main` advanced by two more commits between the gate run above and the submit
+(`8a0a49f` + `c866743` — `bug-095-concurrent-jest-runs-in-one-worktree-corrupt-dist`, added and
+submitted). Merged (`1d9c65b`). Both are under `docs/self/` and neither touches `src/` or `test/`
+(`git diff --stat 1d5abda..main -- src/ test/` → empty), so the gate table above still describes this
+branch's code; the "moved by four commits" sentence in the sync section is corrected here rather than
+left standing as six.
