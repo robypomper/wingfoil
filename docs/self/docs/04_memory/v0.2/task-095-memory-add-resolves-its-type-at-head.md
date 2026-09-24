@@ -429,7 +429,8 @@ changed, and none broke.
 
 ### refactor — role: developer
 
-No behaviour added; the coverage the green step owed, plus the two properties it asserted in prose.
+Commit `9e4ddcf3`. No behaviour added; the coverage the green step owed, plus the two properties it
+asserted in prose.
 
 - **`test/core/memory-add-type-resolve.test.ts`** exercises `resolveAddType` **directly**, on
   hand-made commits — `task-090`/`task-091`'s precedent, for their reason: with the resolution in
