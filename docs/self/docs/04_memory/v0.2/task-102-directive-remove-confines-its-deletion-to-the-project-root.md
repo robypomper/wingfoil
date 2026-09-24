@@ -2,7 +2,7 @@
 id: "task-102-directive-remove-confines-its-deletion-to-the-project-root"
 type: task
 title: "Refuse before unlinking when a directive resolves outside the project root, so a symlinked `directives/custom` cannot cost someone a file they never pointed the tool at"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "directives", "security"]
