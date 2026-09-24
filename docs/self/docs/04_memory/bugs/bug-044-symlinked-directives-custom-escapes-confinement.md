@@ -2,7 +2,7 @@
 id: "bug-044-symlinked-directives-custom-escapes-confinement"
 type: bug
 title: "A symlinked directives/custom/ lets `directive remove` delete a file outside the project root, then fails with an unmapped raw git error"
-status: planned
+status: in-progress
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
