@@ -729,3 +729,264 @@ the **emitting** `npx tsc -p tsconfig.build.json`, `npx tsc --noEmit -p tsconfig
 which is the expected result for a change that touches only Markdown — and the reason to run them is
 that "expected" is not "observed". The task stays `in-review`; this is a correction commit, not a
 resubmission.
+
+### third pass — the reject (`3570de87`), one defect and one ruling
+
+The reject separates the two halves itself, and they are kept separate here. Nothing the second
+reject declared settled is reopened: `bug-084`'s repair, the uniqueness refinement, the YAML editor,
+the `task-092` hand-off, the `--entry-` namespace and the two same-class defects found inside it all
+stand exactly as reviewed.
+
+#### 1. The defect — `spec-008` §9 claimed something false, pinned where it could not fail
+
+§9's option row ended: *"An unprefixed spelling is an unknown option (exit `1`), never a silent
+no-op."* Measured against the build that shipped it, in a throwaway `wingfoil init` repository:
+
+```
+$ wingfoil dna add --field stacks.technologies --value Go --version 1.22
+0.1.0
+                                                exit 0, nothing written, nothing committed
+$ wingfoil dna add --field stacks.technologies --value Go --notes x
+error: unknown option '--notes'                 exit 1
+```
+
+Both outcomes are correct *behaviour* — `spec-008` §1 gives a global precedence over a subcommand
+option of the same name, and `spec-005` §1 gives `--version` exit `0` — and the sentence describes
+only the second. It is the worse kind of wrong: the claim is false for `version`, which is the one
+name §9 itself uses as a worked example, and nothing goes red when a spec sentence is false.
+
+The test pinning it drove `--category`, a name for which the sentence *does* hold. That is verifying
+a criterion where it cannot fail, which is the pattern the first reject named, so the repair is in two
+parts.
+
+**The clause** now states both outcomes and names the overlap. There is exactly one name in it today,
+and that is derived rather than recalled:
+
+```
+$ node -e "const {dnaEntryOptionNames}=require('./dist/dna/path');\
+  const g=new Set(['format','verbose','color','interactive','version','help']);\
+  console.log(dnaEntryOptionNames().filter(f=>g.has(f)))"
+[ 'version' ]
+```
+
+**The test** (`test/cli/derived-option-namespace.test.ts`) now *derives* that set from the built
+program — `program.options`, plus `version`/`help`, which `program.version()` and Commander register
+outside `.option()` and which are precisely the two that take an action and exit — and drives both
+cases through the compiled CLI:
+
+- a name no global declares (`--category`) → exit `1`, `unknown option '--category'`, nothing written;
+- a name a global declares (`--version`) → exit `0`, the CLI version on stdout, `dna.yaml` byte-identical
+  before and after, asserted by reading the file rather than by trusting the exit code;
+- the same field under `--entry-version` → written, which is what makes the prefix the fix rather than
+  a rename.
+
+There is also an `expect(shadowed).toEqual(['version'])`, deliberately exact: if a future schema or
+flag change empties that set, §9's second bullet has no example left and must be re-measured rather
+than quietly kept.
+
+**Classification (`dl-014`/T1).** *Characterization.* The behaviour is correct and pre-existing; what
+was wrong was the sentence describing it. The falsification is recorded above — the previous claim,
+run as written, produces `0.1.0` at exit `0` — and the new test pins what actually happens.
+
+**Mutation check on the namespace suite** (the reviewer's own method, re-run after the rewrite):
+`DNA_ENTRY_OPTION_PREFIX` set to `''`, `dist` rebuilt → **11 of 13 red**. The two that survive are the
+shadowed-set derivation and the `--version`-is-swallowed drive, which is correct: both characterize
+the *environment* the prefix exists to defeat, not the prefix, and neither would change if the prefix
+were removed. Restored → 13/13 green.
+
+#### 2. The spelling sweep, finished — including three the reject did not list
+
+The five doc comments named in the reject are refreshed to the post-`dl-082` grammar
+(`src/dna/path.ts` ×2, `src/core/index.ts`, `src/dna/mutate.ts` ×2), and the orphaned `--field`/
+`--value` block in `src/core/index.ts` is reattached to the consts it documents — it now sits directly
+above `DNA_VALUE_OPTION`/`DNA_SET_VALUE_OPTION`/`DNA_ENTRY_OPTIONS`, and the prefix's own comment
+keeps its own.
+
+Running the sweep properly turned up **runtime messages** carrying the same staleness, which is worse
+than a comment because a user reads it:
+
+```
+$ wingfoil dna add --field stacks.technologies --value Go        # before
+error: an entry of 'stacks.technologies' requires --category     # an option that does not exist
+$ wingfoil dna add stacks.technologies --value Go                # after
+error: an entry of 'stacks.technologies' requires --entry-category
+```
+
+Five message sites in `src/dna/mutate.ts` printed bare `--<field>` names (the missing-required list,
+the not-a-field-of-this-collection list, and the two "carries no change" lists). They were correct
+before the second pass and were made false by it — my own staleness, so mine to fix.
+
+Fixing them needed the prefix inside the pillar, and `src/dna` may not import `src/core`
+(`spec-006` §1: the pillar is a leaf). `DNA_ENTRY_OPTION_PREFIX`, `dnaEntryOptionName` and
+`dnaEntryFieldOfOption` therefore **moved to `src/dna/path.ts`**, which already owns the derivation
+they belong to, and `src/core/index.ts` re-exports all three, so its public surface is unchanged.
+Duplicating the literal in `mutate.ts` was the alternative and was declined: it would falsify
+`dnaEntryOptionName`'s own comment ("the single place the prefix is applied"), which is the invariant
+that makes the namespace trustworthy.
+
+`test/dna/mutate.test.ts` gained three assertions that read the option names from
+`dnaEntryOptionName` rather than spelling them, plus a negative lookbehind so a bare `--path` /
+`--category` cannot creep back. One of them is how the staleness surfaced: the existing test matched
+`/--path|--description/`, which `--entry-path` does not satisfy — a loose regex that had been
+passing on a message it no longer described.
+
+**Classification.** *Red-first* for the three message assertions (they fail against the pre-fix tree,
+naming the bare spelling), *characterization* for the comment refresh.
+
+#### 3. The ruling — `dl-082-cli-parameter-shape`, and only where the path lives
+
+`dl-082` became `ready` on 2026-09-24 and states a rule no document had written down although nine of
+the eleven `dna`/`memory` commands already followed it: **a parameter is positional when it identifies
+the target of the command, and an option when it names an attribute of the action.** The path is the
+target. The shipped grammar is now:
+
+```
+wingfoil dna set    <path> --value <v>
+wingfoil dna add    <path> --value <v> [--entry-<field> <v> ...]
+wingfoil dna remove <path> --value <v>
+wingfoil dna update <path> --value <v>
+```
+
+Everything `dl-081` ratified about *semantics* is untouched, and deliberately so: entries addressed by
+name and never by index, a path that does not resolve refused rather than created, uniqueness as a
+prerequisite, `--value` meaning identity at a collection and new value at a leaf, and the
+`--entry-<field>` namespace, which solves a different problem `dl-082` does not touch.
+
+**Implementation.** `DNA_FIELD_OPTION` is gone; the three verbs and `dna set` all read
+`positionals[0]` through one shared `dnaPathPositional`. No new CLI seam was needed — `program.ts` has
+registered a variadic `[positionals...]` on every command since `task-025`, so the path arrives the
+same way `dna show`'s section and `memory approve`'s id always have. `dnaSet` now declares its own
+`--value` (`DNA_SET_VALUE_OPTION`, `required: true`) with a narrower `--help` line than the other
+three: it is the scalar verb, so `--value` there carries only the second of the two meanings and
+advertising the first would describe a case it refuses.
+
+**The breaking change is made loud rather than silent.** `dna set <key> <value>` has shipped since
+`task-025`. Dropping the second word quietly would make `dna set project.license MIT` refuse for a
+reason naming neither the extra word nor the new grammar, so an extra positional is its own usage
+error on all four verbs:
+
+```
+$ wingfoil dna set project.license MIT
+error: wingfoil dna set takes one positional <path>; the value travels in --value (got 2 positionals)
+                                                exit 2, nothing written
+```
+
+**The order of the three checks in `dnaPathPositional` is a contract, not an accident.** Malformed is
+tested before extra-positional, because `P2.1-dna-set.feature`'s third scenario runs
+`wingfoil dna set ..language python` — two positionals *and* a malformed path — and pins
+`invalid key path: '..language'` at exit `2`. Measured after the change: unchanged, verbatim. A test
+pins the ordering, and a mutation check confirms it is not vacuous — swapping the two checks turns
+**exactly one** test red out of 2114, and it is that one.
+
+**Classification.** *Red-first* throughout (a positional grammar that did not exist, a migration error
+that did not exist), except the `..language` ordering test, which is *characterization* of a message
+`P2.1` has pinned since `task-025` and which this pass had to work to preserve.
+
+#### What the P2.1 BDD scenarios do after this change
+
+Reported, not fixed: `bug-089` owns them and is sequenced after this, so they are rewritten once
+(`dl-082`'s Actions 3–4). Measured on the compiled CLI:
+
+| Scenario | Before this pass (branch at `c160072e`) | After |
+|---|---|---|
+| 1 — `dna set tech_stack.language python` | exit `1`, `unknown DNA field 'tech_stack.language': 'tech_stack' is not declared under the dna.yaml schema` | exit `2`, `wingfoil dna set takes one positional <path>; the value travels in --value (got 2 positionals)` |
+| 2 — `dna set tech_stack.language go` | same as 1 | same as 1 |
+| 3 — `dna set ..language python` → exit `2`, `invalid key path: '..language'` | **passes** | **passes, byte-identical** |
+
+Scenarios 1 and 2 do not acquire a *second* reason to be stale — the reason **moves**. The argv is now
+refused before the path is ever resolved, and under the new spelling the old refusal is still exactly
+what they would get: `wingfoil dna set tech_stack.language --value python` → exit `1`, the same
+unknown-DNA-field message. So `bug-089` still has one thing to rewrite per scenario, now in two
+places at once: the spelling (`dl-082`) and the assertion (`bug-084`'s ratified refusal). Scenario 3
+is untouched on purpose and now has a unit test defending it.
+
+This repository has no automated BDD runner — `.feature` files are prose contracts hand-mapped into
+Jest suites (`bug-089`'s own Actual Behavior section says so) — so nothing goes red either way. That
+is why it is reported here in a table rather than left to be discovered.
+
+#### Specs amended (dated in-place Revision notes, `dl-047` route)
+
+- **`spec-008`** — §9 rewritten to the positional grammar and retitled (`<path>` / `--value`); the
+  false clause replaced by the two-outcome statement above; §1's noun note respelled. The Revision
+  note records the ruling and the defect as two separate things, because they are.
+- **`spec-002`** — no schema change at all. The three invocations quoted in prose are respelled so a
+  reader copying one gets a command that runs.
+- **`spec-006`** — §3's table is untouched and could not be otherwise: its cells carry function names,
+  `mutates`, a CLI command and an MCP Tool name, none of which `dl-082` moves; the MCP surface has no
+  positional/option distinction at all. What is corrected is the 2026-09-23 note's *prose*, which
+  quoted both old grammars.
+
+`docs/01_vision/X_cli-cmds.md` is **not** touched: `dl-082` Action 3 puts it with `bug-090`, and
+`bug-090` is out of scope here.
+
+#### Also respelled, outside the reject's list — because this pass made them false
+
+- **`README.md`** ×3 (the command table, the worked example, the sentence under it). Owned by the
+  `user-docs` gate (`dl-013`), which owns the `CHANGELOG.md` entry `dl-082` requires; a factual
+  correction to a command I broke is not the same thing as that gate's work, and leaving three false
+  lines in the user-facing entry point is the exact pattern the last two rejects named.
+- **`scripts/e2e-smoke.cjs`** — the `dl-023` gate drives `dna set` for real. Left unfixed it would
+  have gone red at release, which is late.
+- **`docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`** — the `drive-cli` action string, `version`
+  bumped `1.0 → 1.1` with the reason inline, per the doc-versioning directive and the file's own
+  convention.
+- **`test/cli/fixtures/cli-harness.cjs`** — a comment describing the seam.
+
+#### `dl-083`'s seam, left rather than built
+
+`dl-083-dotted-entry-names-in-paths` is `ready` and is explicitly a separate task, sequenced after
+this one because it touches `src/dna/path.ts`. Nothing was built for it, and no unused abstraction was
+added. What a reviewer should know is **where** it lands, so the estimate is not guessed:
+
+- `isValidKeyPath` (`src/dna/set.ts`) — `keyPath.split('.').every(...)`, the well-formedness predicate;
+- `resolveDnaPath` (`src/dna/path.ts`) — `keyPath.split('.')`, the resolution traversal;
+- `setDnaValueInText`'s resolver (`src/dna/set.ts`) — the third `split('.')`, on the text path.
+
+Three call sites, the same one-line split. The cheap shape is a `splitDnaPath(keyPath)` in
+`src/dna/set.ts` returning segments or a refusal, with all three calling it; the unterminated-quote
+exit `2` `dl-083` requires then has one place to live. That is a description, not a seam: adding the
+function now with one caller would be dead code, and `dl-083` Action 1 is the task that should write
+it together with its tests.
+
+#### Gates — re-run for this pass, not carried over
+
+All seven, on the final tree:
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **128 suites / 2114 tests passed** |
+| `npx jest --coverage` | `98.50 stmts · 93.65 branch · 98.89 funcs · 99.38 lines` — all well over the 80% floor, and non-regressing |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit `0` |
+| `npx tsc -p tsconfig.build.json` (**emitting**) | exit `0` |
+| `npx tsc --noEmit -p tsconfig.json` (full, tests included) | exit `0` |
+| `npm run lint` | exit `0` |
+| `npm run docs:api` | exit `0` |
+
+Test count `2103 → 2114`, and the +11 reconciles rather than being asserted:
+`test/cli/derived-option-namespace.test.ts` **11 → 13** (the two new unprefixed-spelling drives;
+7 → 9 `it`/`it.each` blocks, one of which expands over the 5-row `DRIVES` table in both versions),
+`test/dna/mutate.test.ts` **48 → 50** (the three option-spelling assertions replacing one loose
+regex), `test/core/dna-mutation-surface.test.ts` **+6** (the AC2 row now covers `dnaSet` too, plus
+four migration cases and the ordering case), and `test/cli/program.integration.test.ts` **+1** (the
+old spelling driven through the real command line). Coverage is unchanged to the digit from the
+second pass, which is the expected result: no production branch was added, only moved.
+
+#### review-ready summary — third pass
+
+Two things changed and they are unrelated to each other. The **grammar** moved where the path lives,
+on a ruling that arrived after the work; the **spec clause** was corrected because it said something
+that is not true, and its test was moved off the case where it could not fail. The second is the one
+worth reading first — it is the third instance of the same class, and the only defence that has held
+so far is the one applied again here: run the command that settles the claim, and put the command in
+the note.
+
+**Where a reviewer should look, in order.**
+
+1. `spec-008` §9's two-outcome paragraph, and the three tests under
+   `test/cli/derived-option-namespace.test.ts`'s new `describe` — the claim, and the drive that would
+   catch it being wrong again.
+2. `dnaPathPositional` (`src/core/index.ts`) — three checks whose **order** is the contract, and the
+   one-test mutation result that proves it.
+3. The P2.1 table above — the only place the breaking change is visible as a behaviour a contract
+   already pins, and the hand-off `bug-089` needs.
+4. `src/dna/mutate.ts`'s refusal messages, and why the prefix helpers moved into the pillar.
