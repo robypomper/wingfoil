@@ -2,7 +2,7 @@
 id: "bug-103-a-noun-without-a-verb-exits-1-with-no-error-line"
 type: bug
 title: "`wingfoil dna` and `wingfoil help nosuchnoun` exit `1` printing usage to stderr with no `error:` line, breaking two separate rules of `spec-005` §1 at once"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
