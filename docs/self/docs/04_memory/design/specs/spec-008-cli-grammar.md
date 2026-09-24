@@ -423,9 +423,19 @@ existed. Measured at `c2102c87`, three do, in this repository's own `dna.yaml`: 
 refinement attached where `uniquelyNamed` is attached would have rejected that file **on read**, taking
 `dna show`, `paths` and every DNA-reading command with it.
 
-So the grammar carries the cost instead. Nothing already written changes meaning: a `"` could not
-appear in a resolving path before this rule, quoting stays optional where it is unnecessary, and
-`--value` is untouched. What is new is a spelling that reaches names the schema has always permitted,
+So the grammar carries the cost instead. Quoting stays optional where it is unnecessary and `--value`
+is untouched — but this is **not** a change under which every existing path keeps its meaning. Before
+the rule, `"` was an ordinary character inside a segment; under it every `"` is a delimiter, so any
+path containing one is narrowed. Two measured consequences, neither hypothetical:
+`isValidKeyPath('modules.co"re')` was `true` and is now `false`; and where a collection carries an
+entry named `"a"` beside one named `a` — the schema permits both, `uniquelyNamed` included —
+`stacks.technologies."a".category` resolved to the quote-named entry before and resolves to the
+**other** entry now, silently rather than by refusing. `dl-083` accepts that narrowing deliberately
+(a name containing `"` becomes unaddressable, with no escape sequence); what it does not do is make
+such names impossible, so this is a consequence to know about rather than one to be surprised by —
+and a grammar contract is where the next reader will look for it.
+
+What is new is a spelling that reaches names the schema has always permitted,
 two usage errors at exit `2` (an unterminated quote; a `"` no delimiter can account for — the latter
 refused as an **unaddressable name**, because there is no escape sequence and `dl-083` accepted that),
 and the shell-versus-WingFoil quoting overlap stated outright, since the examples are unreadable

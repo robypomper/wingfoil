@@ -52,8 +52,16 @@ const QUOTE = '"';
  * - the closing `"` must be followed by `.` or by the end of the path;
  * - a segment that does not begin with `"` ends at the next `.`;
  * - quoting is optional where it is unnecessary: `team."members".roberto` and `team.members.roberto`
- *   are the same path. Nothing that parsed before this rule existed parses differently under it,
- *   because a `"` could not appear in a *resolving* path at all.
+ *   are the same path.
+ *
+ * **The rule narrows what a path may mean, and for one class of path that is a breaking change.**
+ * Before it, `"` was an ordinary character inside a segment; under it every `"` is a delimiter. Two
+ * measured consequences, neither hypothetical: `isValidKeyPath('modules.co"re')` was `true` and is
+ * now `false`; and where a collection carries an entry named `"a"` beside one named `a` — the schema
+ * permits both, `uniquelyNamed` included — `stacks.technologies."a".category` resolved to the
+ * quote-named entry before and resolves to the **other** entry now, silently rather than by refusing.
+ * `dl-083` accepts the narrowing deliberately (a name containing `"` becomes unaddressable, with no
+ * escape sequence), but accepting it is not the same as nothing having changed.
  *
  * At a shell prompt the two quoting layers overlap and are easy to confuse:
  * `wingfoil dna update 'stacks.technologies."Node.js".version' --value 22.14+` has the **shell's**
@@ -127,10 +135,25 @@ function unaddressable(keyPath: string): DnaPathSplit {
 }
 
 /**
- * The path spelling of one segment: quoted when its name contains a `.`, bare otherwise — the inverse
- * of {@link splitDnaPath}, used wherever a refusal echoes part of a path so the reported prefix can be
- * pasted back into a command. Without it `stacks.technologies.Node.js` would be reported for the entry
- * named `Node.js`, and that re-splits into four segments and names a different node.
+ * The path spelling of one segment: quoted when its name contains a `.`, bare otherwise. Used wherever
+ * a refusal echoes part of a path, so the reported prefix can be pasted back into a command — without
+ * it `stacks.technologies.Node.js` would be reported for the entry named `Node.js`, and that re-splits
+ * into four segments and names a different node.
+ *
+ * **It is the inverse of {@link splitDnaPath} on the segments `splitDnaPath` produces — not on every
+ * string**, and the difference is worth stating precisely rather than calling it "the inverse".
+ * Brute-forced over the alphabet `{a, ., "}` up to five characters (363 names): 62 round-trip
+ * unchanged, 294 produce a path `splitDnaPath` refuses, and **7 produce a path that parses back to a
+ * different name** — `"a"` contains no `.`, so it is returned bare and re-parses as `a`; `a"."a`
+ * becomes `"a"."a"`, which is two segments.
+ *
+ * All 7 have a `"` in the name, and that is why the gap is unreachable at the one call site
+ * (`prefixOf`, `./path.ts`), structurally rather than by luck: `prefixOf` is fed
+ * `DnaPathTarget.segments`, which comes from `splitDnaPath`, and a segment it returns can never
+ * contain a `"` — a bare segment containing one is refused as unaddressable, and a quoted segment
+ * ends at the *first* `"`. Measured over the same 363: **0** parse to a segment containing a quote.
+ * So the hardening a general inverse would need is unreachable code, and is deliberately not written;
+ * what is written instead is this note and the `"`-free precondition it rests on.
  */
 export function quoteDnaSegment(name: string): string {
   return name.includes('.') ? `${QUOTE}${name}${QUOTE}` : name;

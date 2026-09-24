@@ -185,8 +185,10 @@ Two suites, written before any `src/` change, committed as the red:
 
 `npx jest test/dna/path-quoting.test.ts test/core/dna-quoted-path-segments.test.ts` on the red tree:
 **24 failed, 8 passed, 32 total**. The 8 that passed are exactly the ones classified
-**characterization** above plus four "still true" guards — enumerated from the run's own JSON rather
-than asserted:
+**characterization** above plus three "still true" guards — 5 + 3 = 8, which is what the run's JSON
+shows. (This sentence said *four* against its own list below until the review caught it; corrected in
+place, since the number carried nothing and a document that contradicts itself helps no one.)
+Enumerated from the run's own JSON rather than asserted:
 
 ```
 $ npx jest … --json | node -e "…for(const t of s.assertionResults) if(t.status==='passed')…"
@@ -353,3 +355,105 @@ orchestrator's act.
    `test/cli/derived-option-namespace.test.ts` (derive the invariant, do not hand-list it) would keep
    it. Low severity, no current defect. Proposed as a **bug** or left as a note, the orchestrator's
    call.
+
+### review corrections (2026-09-24) — four sentences, no code
+
+The review found nothing to change in `src/` and reproduced every gate, the red at 24/8 with the same
+eight, the three live names resolving on the shipped binary, and all three refusals at exit `2`. It
+also attacked the malformed-vs-unaddressable split with a dozen inputs I had not chosen (a quote
+mid-segment, a segment that is only a quote, an empty quoted segment, a trailing quote,
+`"Node.js"x"y"`) and found it holds on all of them, and it added a hypothetical dot ban inside
+`uniquelyNamed` and got **10 red, including both AC7 pins failing on read** — which is what `dl-083`
+Action 4 asked the AC6 fixture to guarantee.
+
+What it found were four false or imprecise **sentences of mine**. Each is corrected below; two were
+corrected in place because they sit in contracts other work reads, and the one that carried a decision
+is retracted here rather than edited away, per `bug-091`'s own precedent.
+
+**C1 — "nothing already written changes meaning" was false, and it was in a ratified spec.** The
+`spec-008` Revision and `splitDnaPath`'s TSDoc both claimed a `"` could not appear in a resolving path
+before this rule. Measured by running `main`'s `src/dna/set.ts` and `src/dna/path.ts` side by side with
+this branch's (both copied out with `git show main:…`, in one jest run, against one document):
+
+```
+isValidKeyPath('modules.co"re')                 main = true    branch = false
+resolveDnaPath(doc, 'stacks.technologies."a".category')   # doc has entries named `a` AND `"a"`
+  main   = OK value="y"  segments=["stacks","technologies","\"a\"","category"]
+  branch = OK value="x"  segments=["stacks","technologies","a","category"]
+```
+
+The second is the sharper one: not a refusal but a **silent redirection** to a different entry, and
+`uniquelyNamed` permits both names to coexist. The narrowing is intended — `dl-083` accepts that
+quote-bearing names become unaddressable — but "nothing changes" is a compatibility guarantee, and it
+was untrue. Corrected **in place** in both places, with the measurement beside it, because a grammar
+contract is where the next reader looks for exactly this.
+
+**C2 — the reason I gave for homing the parser in `set.ts` was false; the placement is right.** My
+design note said a parser in `path.ts` "would have to be imported back by `set.ts` and the two modules
+would import each other". That is wrong, and one look at the imports settles it: `set.ts` imports
+**only `js-yaml`**, and `path.ts`'s only import from `set.ts` is the parser family itself. Moving
+`splitDnaPath`, `quoteDnaSegment` and `isValidKeyPath` together would reverse that edge, not close a
+cycle. The sentence stands above, retracted here rather than erased, because it is the reason a later
+reader would weigh when deciding whether to move this code — and a false reason points them at a
+constraint that does not exist.
+
+**The real argument, which I should have made:** `set.ts` is a **leaf** — `js-yaml`, no zod, no
+schema — and it is the pure, comment-preserving text writer. `path.ts` is schema-aware: it imports
+`DnaYaml` and reads zod's introspection surface. Homing the parser in `path.ts` would make the text
+writer depend at runtime on the schema-aware resolver and, through it, on zod, to answer a question
+that is purely about the shape of a string. The dependency direction is the substance; the cycle was
+not. Two supports for the placement beyond that: `task-093`'s `dl-015` hand-off names `set.ts`
+explicitly ("a `splitDnaPath(keyPath)` in `src/dna/set.ts` … with all three calling it"), written by
+the task that owns both files; and `dl-083` Action 1's "(`src/dna/path.ts`)" is a **locator**, not the
+substance of the decision — the substance is the quoted-segment rule and the exit-`2` refusal, both
+met. Today's Correction on `dl-083` is the reason to weigh that parenthetical lightly: its `dna show`
+example was written by analogy and never run, and the same hand wrote both parentheses.
+
+**C3 — `quoteDnaSegment` is not the exact inverse of `splitDnaPath`, and I documented it as one.**
+Brute-forced over the alphabet `{a, ., "}` up to five characters, 363 names:
+
+```
+total=363   roundtrip=62   refused=294   different=7
+"a"    -> "a"      -> ["a"]          # no dot, so returned bare, re-parses as the OTHER name `a`
+a"."a  -> "a"."a"  -> ["a","a"]      # two segments
+(+ 4 more, every one of them a name containing a `"`)
+segments returned by splitDnaPath that contain a `"`, over the same 363:  0
+```
+
+Unreachable at its one call site, and structurally so rather than by luck — which is the same argument
+I made for `edit.ts`'s `insertMissingScalarPath` and failed to make for an **exported** symbol.
+`prefixOf` is fed `DnaPathTarget.segments`, which comes from `splitDnaPath`, and a segment it returns
+can never contain a `"`: a bare segment carrying one is refused as unaddressable, and a quoted segment
+ends at the *first* `"`. The `0` above is that precondition measured rather than asserted. The TSDoc
+now states the precondition and the 62/294/7 split instead of claiming an inverse, and no hardening
+was added — it would be unreachable code.
+
+**C4 — a count.** "plus four 'still true' guards" against a list of three; 5 + 3 = 8 is what the JSON
+shows. Corrected in place.
+
+**One lesson worth keeping, which the reviewer named.** The AC4 message survived every attack because
+it is phrased as a **rule** — *a segment may not contain `"` and there is no escape sequence* — rather
+than as a claim about the input in hand, and a message phrased as a rule cannot be false when it
+prints. C1, C2 and C3 are all sentences that made a claim about the world ("nothing changes", "would
+import each other", "the inverse") where a rule, or a measurement, was available. C1 and C3 now carry
+the measurement; C2 now carries the dependency rule.
+
+**Not filed by me:** `bug-101` (an all-digit name stays unaddressable even quoted — the index guard in
+`resolveDnaPath` runs after the delimiters are stripped, so `modules."0".path` is still refused as an
+index; my class of defect, surviving my fix) and `bug-102` (nothing enforces that `splitDnaPath` stays
+the only splitter — the proposal I made above) are already registered by the orchestrator.
+
+### Gates — re-run after the corrections
+
+Documentation and comments only; no `src/` behaviour changed, and the tree is otherwise the one the
+review read.
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **134 suites / 2189 tests passed** |
+| `npx jest --coverage` | `98.57 stmts · 93.94 branch · 98.91 funcs · 99.39 lines` — unchanged, over the floor, non-regressing |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit `0` |
+| `npx tsc -p tsconfig.build.json` (**emitting**) | exit `0` |
+| `npx tsc --noEmit -p tsconfig.json` (full, tests included) | exit `0` |
+| `npm run lint` | exit `0` |
+| `npm run docs:api` | exit `0` |

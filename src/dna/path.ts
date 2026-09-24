@@ -210,7 +210,11 @@ function kindOf(node: SchemaNode): DnaTargetKind | undefined {
  * A segment whose name contains a `.` is re-quoted (`quoteDnaSegment`, task-099/`dl-083`), so the
  * reported prefix is a path that re-parses to the node it names: `stacks.technologies."Node.js"`,
  * never `stacks.technologies.Node.js`, which would re-split into four segments and name something
- * else. The join is the exact inverse of `splitDnaPath`.
+ * else.
+ *
+ * The round trip holds here because `segments` came out of `splitDnaPath` and therefore carries no
+ * `"`: `quoteDnaSegment` is the inverse on exactly those names, not on every string — its own note
+ * measures where it stops being one, and why that gap cannot be reached from here.
  */
 function prefixOf(segments: readonly string[], depth: number): string {
   return segments.slice(0, depth).map(quoteDnaSegment).join('.');
