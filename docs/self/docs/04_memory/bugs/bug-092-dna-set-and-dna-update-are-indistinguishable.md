@@ -2,7 +2,7 @@
 id: "bug-092-dna-set-and-dna-update-are-indistinguishable"
 type: bug
 title: "`dna set` and `dna update` agree on success, on refusal, on message and on exit code — the only behaviour that separated them was `bug-084`, which has been removed"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
