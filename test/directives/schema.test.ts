@@ -136,8 +136,16 @@ describe('RolesYaml — validates the real, live docs/self/.wingfoil/roles.yaml 
     }
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.assignments.developer).toEqual(['code-quality', 'testing', 'determinism']);
+      // `command-baseline` joined this list in task-094 (dl-080 option (B), written where an
+      // implementer meets it); `claim-evidence` joined `global` in the same change.
+      expect(result.data.assignments.developer).toEqual([
+        'code-quality',
+        'testing',
+        'determinism',
+        'command-baseline',
+      ]);
       expect(result.data.global).toContain('doc-versioning');
+      expect(result.data.global).toContain('claim-evidence');
     }
   });
 });
