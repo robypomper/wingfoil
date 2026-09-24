@@ -105,3 +105,32 @@ schema.
 
 Not scheduled. Whoever corrects `X_cli-cmds.md` for this bug should decide whether the same pass
 carries the `--format` rows, and say which it did.
+
+## Note (2026-09-24) — the vision reference lists no row for `dna add`, `dna remove` or `dna update`
+
+Raised by the approver while ruling on this bug: where do the three new verbs come from, given the
+vision reference does not contain them? Answered here because the answer widens this bug's fix.
+
+**They trace to `P2.1`, not to a new feature.** `docs/01_vision/06_features.md` lists `P2.1` as
+`wingfoil dna set` — "Define/update project DNA" — and its prioritisation row calls it "Basic CRUD
+operations" at Critical priority. `dl-081`'s Context quotes exactly that and observes that none of
+`P2.1`, `spec-002` or `spec-006` "states a restriction", while the shipped command reaches 7 of
+roughly 38 schema fields with no create and no delete. So `add`/`remove`/`update` are the rest of
+`P2.1`, not an addition to the feature set.
+
+**What is genuinely missing is the record, not the authority.** The chain exists as far as the specs:
+`P2.1` → `dl-081` → `spec-002`, `spec-006` §3 (which now carries `dnaAdd`, `dnaRemove` and `dnaUpdate`
+rows with their Tool pairings) and `spec-008` §9, each amended by `task-093` under a dated Revision
+note. It stops at `docs/01_vision/X_cli-cmds.md`, whose Pillar 2 table still lists only `dna set`,
+`dna show`, `dna infer` and `paths`. Nobody extended it, and nothing would have reported that.
+
+Worth stating plainly rather than leaving implied: `P2.1` authorises CRUD over the DNA, but it does
+not by itself authorise a *decomposition into four commands*. That was a design choice `dl-081` made,
+which is within a decision-log's remit — and the CLI reference is the layer that should record the
+result of such a choice. That it did not is the same failure this bug is about, seen from the other
+side: this bug has a row that describes a grammar nothing implements, and this note has three commands
+no row describes.
+
+**Fix scope grows accordingly.** The pass that corrects the `dna set` row must also add rows for the
+three new verbs, in the grammar `dl-082` ratified, and `bug-092` should be referenced from whichever
+row survives if that bug has been decided by then.
