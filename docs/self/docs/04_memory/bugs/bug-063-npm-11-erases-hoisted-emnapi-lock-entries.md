@@ -2,7 +2,7 @@
 id: "bug-063-npm-11-erases-hoisted-emnapi-lock-entries"
 type: bug
 title: "A plain `npm install` under npm 11.x silently deletes the hoisted `@emnapi` lock entries that make the release gate installable, reverting task-080"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
