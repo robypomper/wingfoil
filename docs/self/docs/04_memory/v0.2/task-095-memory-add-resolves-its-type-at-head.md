@@ -347,3 +347,276 @@ after the fix under AC5 below.
 | **AC6** — a test pins the defect and fails against current code | **red-first** | Same evidence as AC3; the observed red is recorded under `red`. |
 | **AC7** — `bug-087` not in scope | **process gate** | Negative obligation, discharged in D6 and re-measured under AC5 after the fix. |
 | **AC8** — six gates green, full `tsc` silent | **process** | Run at `refactor`/`review`. |
+
+### red — role: developer
+
+Commit `9455ca82`. Two new suites, no change to any existing one at this step:
+
+- **`test/core/memory-add-type-baseline.test.ts`** — the baseline at the `CoreFn` seam, driving the
+  REAL registered `memory.memoryAdd` operation in throwaway repos (`bug-075`): the `bug-085` type
+  refusal, the diagnostic's two directions, the committed `path` deciding where an element lands, the
+  committed scaffold deciding what bytes it carries, the mirror case where the working tree
+  *withdraws* a scaffold `HEAD` records, the uncommitted-scaffold refusal, both AC4 fail-closed
+  refusals, the "a working-tree read failure cannot decide" property, and the four AC5 ordinary
+  flows including `task-092`'s absence guard.
+- **`test/cli/memory-add-type-baseline.integration.test.ts`** — the two things only the process
+  boundary shows: the exit code a script keys on and the stderr a human reads, through the compiled
+  `dist/cli.js` in a real `wingfoil init` project, plus AC4's `init` measurement in the form this
+  task needs it (the registry **and every `template.file` it names**, read out of the registry rather
+  than hard-coded). `spawnSync`, per `task-086`'s gotcha, with the reason in the file's TSDoc so the
+  next reader does not "simplify" it back.
+
+Observed red — AC6's command, before any `src/` change:
+
+```
+$ npx jest test/core/memory-add-type-baseline.test.ts \
+           test/cli/memory-add-type-baseline.integration.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       10 failed, 9 passed, 19 total
+```
+
+The 10 failures are the defect. The 9 passes are exactly the cases T1 classifies as
+characterization: the genuinely-unknown-type message (both seams); `init` committing the registry and
+its templates; the ordinary add on a committed type (both seams); *edit → commit → add* (both seams —
+the commit was not yet required, so the positive half already passed); `task-092`'s absence guard;
+and adding while another element is dirty.
+
+**One fixture bug was corrected before the commit, so the red count above is the honest one:**
+`git status --porcelain` reports an unstaged modification as `' M <path>'` and my first draft
+`.trim()`-ed the leading space away. Corrected to `.trimEnd()`. It was an assertion about git's
+output format, not about the code under test.
+
+*Not* corrected, because it is a genuine red: the "a working-tree read failure cannot change the
+refusal" case fails by **throwing** on the pre-fix code rather than by a failed expectation. That is
+the defect in its purest form — today the working-tree read *is* the decision, so its failure
+propagates; after the fix it is a diagnostic wrapped in `catch → undefined` and the refusal is
+returned normally.
+
+### green — role: developer
+
+Commit `27d8346f`. One new module, one call site, one export block.
+
+| Change | Where |
+|---|---|
+| `resolveAddType(root, type): CoreResult<ResolvedAddType>` — resolves `loadMemoryYamlAtHead(root)` itself, returns the committed `path`/`id_pattern`/`template` plus the scaffold's committed bytes (`readPathAtRev(root, 'HEAD', '.wingfoil/' + template.file)`). Five refusals, all `CoreResult.error`, all exit `1`; two private diagnostics (`workingTreeEntry`, `workingTreeHasScaffold`) that fail to "no disagreement" | **new** `src/core/memory-add-type.ts` |
+| `memoryAddFn` — the `loadMemoryYaml` pre-load, the registry lookup and the `readDocument` scaffold read all replaced by one `resolveAddType` call; its TSDoc steps 3–5 rewritten to name the baseline each step reads, including the `bug-087` carve-out | `src/core/index.ts` |
+| `resolveAddType` / `ResolvedAddType` exported from `src/core` | `src/core/index.ts` |
+
+Design points worth naming:
+
+- **The fix is in the shape, not next to the call.** `memoryAddFn` no longer holds a `MemoryYaml` at
+  all and `resolveAddType` accepts none, so AC2's "unreachable rather than guarded" is enforced by
+  the type checker: a call handing either one a working-tree registry would not compile. The honest
+  difference from `task-091` is recorded in D1 — there was no parameter to delete, so the decision
+  moved behind a function whose only inputs are a root and a type name.
+- **One baseline per command.** Registry, `path`, `id_pattern`, `template` block and scaffold bytes
+  all come from the single `resolveAddType` call, so `memory add` cannot decide two of them from two
+  copies — `task-091`'s D1 property, on this verb.
+- **Both diagnostics fail to "no disagreement".** `workingTreeEntry` returns `undefined` and
+  `workingTreeHasScaffold` returns `false` on any failure to read or parse; both are pinned by tests,
+  two of them with spies.
+- **The pinned fit criteria are untouched.** `unknown memory type '<t>' (not defined in memory.yaml)`
+  (P1.3 sc.2, spec-008 § 6) and `memory type '<t>' has no id_pattern/template in memory.yaml` remain
+  the verbatim **first** sentence; a second one is appended only when the working tree and `HEAD`
+  actually disagree about *that type*. Every existing assertion matching those messages with
+  `toBe`/`===` runs on a committed fixture and still matches byte for byte.
+- **`task-092`'s guards are untouched and still run in the same order** — `requireAbsentTarget`
+  before the write, `committedScopeError` after the commit. What changed beneath them is only that
+  the target path is now derived from the committed `path` pattern.
+
+Full suite after green: `npx jest` → **124 suites, 1930 tests passed**, exit 0. No existing test
+changed, and none broke.
+
+### refactor — role: developer
+
+No behaviour added; the coverage the green step owed, plus the two properties it asserted in prose.
+
+- **`test/core/memory-add-type-resolve.test.ts`** exercises `resolveAddType` **directly**, on
+  hand-made commits — `task-090`/`task-091`'s precedent, for their reason: with the resolution in
+  place, `memory add` itself cannot reach several of its branches, so an indirect test could only
+  assert that a diagnostic stays silent. It covers the branch `memory add` can never produce (a
+  registered type declaring no `id_pattern`/`template` — `memory add` cannot register a type), the
+  scaffold refusal's second tail (`add '<path>' and commit it`, when the file is on disk nowhere),
+  and:
+  - **neither diagnostic can decide** — a throwing `loadMemoryYaml` and a throwing `documentExists`
+    each leave the refusal exactly as `HEAD` words it (two `jest.spyOn`s);
+  - **a defect in the committed read propagates** — a non-`ValidationError` from
+    `loadMemoryYamlAtHead` must not be converted into "unknown type" or "invalid registry"; a
+    `ValidationError` becomes the fail-closed refusal and carries its `issues`. Same property and
+    same technique `task-091` used on the transition read.
+
+#### AC3/AC5 — the AC1 reproduction re-run against the fixed build
+
+```
+# same scratch recipe, same uncommitted `fabricated-type` + untracked scaffold
+$ node dist/cli.js memory add --type fabricated-type --title 'Probe'
+error: unknown memory type 'fabricated-type' (not defined in memory.yaml) — the working tree's
+'.wingfoil/memory.yaml' defines it, but that change is not committed, and an element is created
+against the committed registry (dl-080); commit '.wingfoil/memory.yaml' first, then retry
+$ echo $?              ->  1
+$ git log --oneline | wc -l    ->  1      # unchanged: nothing was written
+$ ls docs                      ->  (no such directory)
+$ git add -A && git commit -q -m 'chore: register a new memory type'
+$ node dist/cli.js memory add --type fabricated-type --title 'Probe'
+{ "id": "fab-001-probe", "path": "docs/memory/fabricated/fab-001-probe.md" }        exit 0
+$ git log -1 --format='%s'                     ->  wf(fabricated-type): add fab-001-probe
+$ git show HEAD~1:.wingfoil/memory.yaml | grep -c fabricated-type   ->  1
+```
+
+The element and the type that defines it are now in the same committed record, which is the whole of
+`bug-085`'s Expected Behavior. The `Steps to Reproduce`'s step 5 no longer has a subject: there is no
+committed element to strand.
+
+#### AC7 — `bug-087` re-measured after the fix, and left alone
+
+Its Steps to Reproduce, walked verbatim against this branch's `dist/`:
+
+```
+$ node dist/cli.js memory add --type adr --title 'Alpha'   # adr-001-alpha
+$ node dist/cli.js memory add --type adr --title 'Beta'    # adr-002-beta
+$ git rm -q docs/memory/adr/adr-001-alpha.md && git commit -q -m 'chore: remove alpha, leaving a gap'
+$ git status --porcelain                     ->  (clean, fully committed)
+$ node dist/cli.js memory add --type adr --title 'Beta'
+error: refusing to create docs/memory/adr/adr-002-beta.md: something already exists there (at HEAD,
+in the index, in the working tree). …                                              exit 1
+```
+
+Unchanged from what `bug-087` records for `task-092`'s branch. My change touches its ground in
+exactly one narrow way and closes nothing: `resolveTypeDirectory(root, pathPattern)` is now fed the
+`path` pattern from `HEAD`, so the **directory** the counter reads is the committed one — but the
+**count** inside it is still `readdirSync` of the working tree, which is the whole of `bug-087`. It
+is not trivially closable and I did not widen to reach it.
+
+The same walk turned up a **face of `bug-087` its own record does not carry**, and it bears on the
+premise its triage rests on. Raised as a proposed element, not acted on:
+
+```
+$ node dist/cli.js memory add --type adr --title 'Gamma'   # after the same gap, a DIFFERENT title
+{ "id": "adr-002-gamma", … }                                                       exit 0
+$ ls docs/memory/adr/
+adr-002-beta.md   adr-002-gamma.md
+```
+
+Two distinct elements both numbered `002`, on a fully clean and fully committed repository, at exit
+`0` and silently. `bug-087`'s Notes say that after `task-092` "what is left refuses loudly rather
+than corrupting quietly" and its triage grades it `medium`, **not a release blocker**, on exactly
+that sentence; this case neither refuses nor is loud. It collides only when the title matches.
+
+#### Coverage — measured on both sides, not quoted
+
+Baseline taken by running `npx jest --coverage` in a detached worktree at this branch's base
+(`02b77f97`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `02b77f97` | 98.71 | 93.52 | 98.90 | 99.24 | 1909 |
+| this branch | **98.72** | **93.62** | **98.90** | **99.26** | **1939** |
+
+No metric regressed. `src/core/memory-add-type.ts` is at **100 / 100 / 100 / 100**; `src/core/index.ts`
+is unchanged at 98.79 / 92.30 / 100 / 99.53.
+
+The `+30` tests are accounted for rather than assumed: 19 in the two `red` suites, 8 in the
+`refactor` suite, and **3** in `test/core/latency-budget-placement.test.ts`, whose `it.each` runs one
+case per file under `test/` — three new test files, three new cases. Settled by running that suite
+alone on both sides (`126` at base, `129` here).
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git -C /home/robypomper/Workspaces/WingFoil2 log --oneline -1 main
+99fb235d docs(self): bug-092 — correct "indistinguishable" to "a guard-railed subset"
+$ git merge main
+Merge made by the 'ort' strategy.
+ …bug-092-dna-set-and-dna-update-are-indistinguishable.md | 40 ++++++++++++++
+ 1 file changed, 40 insertions(+)
+```
+
+`main` moved by one commit while this task ran, and it touches one `bug` document under
+`docs/self/docs/04_memory/bugs/` — no `src/`, no `test/`, nothing this task cites. Every gate below
+was run **after** that merge.
+
+#### Gates (run in this worktree, after the merge)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **125 suites, 1939 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.72 / 93.62 / 98.90 / 99.26** — no metric below base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Build typecheck, **emitting** | `npx tsc -p tsconfig.build.json` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, no output (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+BDD acceptance scenarios touched by this change, and the tests that cover them:
+
+| BDD scenario | Test that covers it |
+|---|---|
+| P1.3 sc.1 *Add a new Memory document in draft state* | `test/core/memory-add.test.ts` (unchanged, green) + `memory-add-type-baseline.test.ts` "AC5: adding an element of a COMMITTED type still works, in one scoped commit" |
+| P1.3 sc.2 *Error — adding a document of an undefined type* | `test/core/memory-add.test.ts` (unchanged — its fixture commits `memory.yaml`, so the message matches byte for byte) + `memory-add-type-baseline.test.ts` "AC1/AC3/AC6: a type defined only in the working tree is refused at exit 1" and "AC3: a genuinely unknown type keeps the pinned P1.3 message verbatim" |
+| P1.3 sc.3 *Error — missing required title* | `test/core/memory-add.test.ts` (unchanged) — still the only exit-2 path, thrown before any baseline read |
+| spec-008 § 6 *error envelope* | `test/cli/memory-add-type-baseline.integration.test.ts` "AC3: a genuinely unknown type still prints the spec-008 §6 example verbatim at exit 1" |
+| P5.1.1 *fresh init then add* | `test/cli/fresh-init-transitions.test.ts` (untouched, green) + the CLI suite's `init` measurement and ordinary-add case |
+| P1.11 `writeMemoryEntry` / REQ-SEC-06 confinement | `test/memory/entry.test.ts`, `test/storage/memory-path.test.ts` (both unchanged) — the confined write is untouched |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** `memory add` decided three things from the files on disk — whether
+a type exists, where its files land and which scaffold to copy — so an uncommitted `types:` entry was
+enough to commit an element of a type no commit defines and whose body came from a file in no commit,
+after which every verb answered `document not found`; all three now resolve against the
+`.wingfoil/memory.yaml` committed at `HEAD` and the scaffold committed beside it, inside
+`resolveAddType(root, type)`, which accepts no parsed configuration — so there is no call path that
+can reach the decision with a working-tree copy.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 reproduce first on a scratch project, commands in the notes | done | `design` § AC1 — exit 0, `git show HEAD:.wingfoil/memory.yaml \| grep -c` → 0, `git cat-file -e` on the scaffold → 128, and all three verbs answering `document not found` after the tree is restored |
+| AC2 registry, `path` and `template` all resolve at `HEAD`, `task-091`'s shape | done | `design` § D1/D2; `green` §. D1 records the one honest difference — no parameter existed to remove — and what was done instead, rather than substituting a guard |
+| AC3 refusal exits `1`, names the type, says it is not committed; second sentence only on real disagreement | done | `design` § D3/D4; `refactor` § transcript; both suites assert `1`, never `2`, and the diagnostic is keyed on the type rather than on the file being dirty |
+| AC4 `init` leaves no bootstrap window (re-verified); fail-closed pinned | done — **fail-closed**, argued in D5 on three grounds, one shared with `task-091` | `design` § AC4 — re-measured, and extended to the **seven scaffold templates**, which `task-091` had no reason to measure; tests at both seams |
+| AC5 the three ordinary flows pinned, absence guard not regressed | done | four characterization cases at the `CoreFn` seam + two at the process boundary, all green on the pre-fix run |
+| AC6 a test pins the defect and fails against current code | done | `red` § — 10 failed / 9 passed before, 19 passed after; commands recorded |
+| AC7 `bug-087` not widened into | done | `refactor` § AC7 — its Steps walked verbatim on the fixed build, unchanged; the one narrow way my change touches its ground is stated, and a face of it its record does not carry is raised rather than acted on |
+| AC8 all six gates green, full `tsc` silent | done | `refactor` § Gates |
+
+**Weak spots a reviewer should check**
+
+1. **A behaviour change in the permissive direction** (`task-091`'s M2, on a new surface): a scaffold
+   committed at `HEAD` but deleted in the working tree used to fail with a raw `ENOENT` (leaking an
+   absolute path through the `error:` envelope) and now **succeeds** from the committed bytes. Correct
+   under the rule adopted, measured in D2, and pinned by a test — but it is where the new behaviour
+   permits what the old refused.
+2. **The scaffold read moved too, and AC2 can be read as naming only `memory.yaml`'s `template` key.**
+   D2 argues the wider reading from `task-091`'s own one-baseline-per-command principle and from
+   AC1's measurement that the committed element's body came from an untracked file. A reviewer who
+   disagrees should say so: it is the one place I extended past the narrowest reading of the AC.
+3. **Refusal messages grew a second sentence**, only when the working tree and `HEAD` disagree about
+   the requested type. Any consumer matching a message with `===` rather than a prefix would see the
+   difference; in this repository nothing does (`test/core/memory-add.test.ts:190` commits its
+   fixture and still matches exactly).
+4. **A new file in `src/core`.** `resolveAddType` could have gone into `src/core/index.ts` or into
+   `memory-transition.ts`. It went into its own module for the reason `write-guard.ts` did — one
+   decision, one place — and, practically, to keep this branch's footprint in the shared
+   `src/core/index.ts` down to one import line, one call site and one export block while `task-093`,
+   `task-096` and `task-097` are in flight on the same file.
+5. **`bug-087` remains open and its ground moved slightly.** `resolveTypeDirectory` now takes the
+   committed `path` pattern. Nothing about the counter changed, but a reviewer scoping `bug-087`'s
+   eventual fix should read D6 first.
+
+**Files touched outside the task file:** `src/core/memory-add-type.ts` (new), `src/core/index.ts`,
+and three new test files (`test/core/memory-add-type-baseline.test.ts`,
+`test/core/memory-add-type-resolve.test.ts`,
+`test/cli/memory-add-type-baseline.integration.test.ts`). **In `src/core/index.ts` the change is one
+added import line (`import { resolveAddType } from './memory-add-type';`, next to the
+`memory-transition` import), one export block, a TSDoc rewrite of `memoryAddFn`'s steps 3–5, and a
+13-line replacement inside `memoryAddFn`'s body.** No barrel other than `src/core/index.ts` is
+touched, and no existing import line was rewritten — which is the specific hazard the wave brief
+names (`task-091`/`task-092`'s clean-but-semantic merge conflict).
+
+**Out of scope, raised rather than fixed (brief rule: proposing is mine, filing is the
+orchestrator's).** Listed in this run's final report: the silent duplicate-sequence face of
+`bug-087`; and the observation that `memory search`/`memory history` and the MCP Memory Resources
+still read the working-tree registry — correctly, since they gate nothing, but `memory search --type`
+is what a user reaches for after one of these refusals, so the two can disagree.
