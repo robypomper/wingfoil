@@ -2,7 +2,7 @@
 id: "dl-082-cli-parameter-shape"
 type: decision-log
 title: "The CLI already states parameters one way — positional for the target, option for its attributes — and the DNA surface is the only place that disagrees"
-status: in-discussion
+status: ready
 context: "architecture"
 release: ""
 contributor: ""

@@ -2,7 +2,7 @@
 id: "dl-083-dotted-entry-names-in-paths"
 type: decision-log
 title: "An entry named `Node.js` cannot be addressed by a dotted path, and forbidding the dot would make WingFoil's own DNA invalid"
-status: in-discussion
+status: ready
 context: "architecture"
 release: ""
 contributor: ""
