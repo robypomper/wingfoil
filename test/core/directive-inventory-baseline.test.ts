@@ -31,9 +31,13 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CORE_MODULES, loadDirectiveListing } from '../../src/core';
+import { CORE_MODULES, loadDirectiveListing, loadDirectives, loadRolesYaml } from '../../src/core';
+import { checkAssignable, checkUnreferenced } from '../../src/core/directive-assign';
 import { exitCodeForResult } from '../../src/core/exit-code';
+import * as loaders from '../../src/core/loaders';
+import { loadDirectivesAtHead, loadRolesYamlAtHead } from '../../src/core/loaders';
 import type { CoreFn } from '../../src/core/registry';
+import * as storage from '../../src/storage';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const DNA_PATH = '.wingfoil/dna.yaml';
@@ -445,5 +449,92 @@ describe("dl-042's dangling-binding warning after the inventory resolves at HEAD
 
     expect((await assign(repo, 'ghost')).ok).toBe(false);
     expect(loadDirectiveListing(repo, 'developer').warnings.filter((w) => w.includes('ghost'))).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The two committed-baseline loaders, and the properties only a direct call can reach
+// ---------------------------------------------------------------------------------------------
+
+describe('loadDirectivesAtHead / loadRolesYamlAtHead (task-096)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  it('reads the committed tree, not the working tree, and ignores non-Markdown entries under it', () => {
+    // `.gitkeep` is not a hypothetical: `wingfoil init` scaffolds one into `directives/built-in/`
+    // (spec-011), so the listing must skip it rather than try to parse it as a directive.
+    repo = seedRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/built-in/.gitkeep', '');
+    commitAll(repo, 'fixture: a non-Markdown entry in the directives tree');
+    writeFixtureFile(repo, '.wingfoil/directives/custom/ghost.md', directiveMd('ghost', 'custom'));
+
+    const ids = loadDirectivesAtHead(repo).map((file) => file.frontmatter.id);
+
+    expect(ids).toEqual(['documentation', 'global-rule', 'keeper', 'spare', 'testing']);
+  });
+
+  it('spells `DirectiveFile.path` exactly as the working-tree loader does, so downstream sees one shape', () => {
+    repo = seedRepo();
+
+    const fromHead = loadDirectivesAtHead(repo).map((file) => file.path);
+    const fromDisk = loadDirectives(repo).map((file) => file.path);
+
+    expect(fromHead).toEqual(fromDisk);
+  });
+
+  it('returns [] — not a throw — in a repository with no commits at all', () => {
+    repo = makeTempGitRepo();
+
+    expect(loadDirectivesAtHead(repo)).toEqual([]);
+    expect(loadRolesYamlAtHead(repo)).toBeNull();
+  });
+
+  it('loadRolesYamlAtHead returns the COMMITTED bindings while the working tree says otherwise', () => {
+    repo = seedRepo();
+    writeFileSync(join(repo, ROLES_PATH), ROLES_WITHOUT_TESTING, 'utf-8');
+
+    expect(loadRolesYamlAtHead(repo)?.assignments.developer).toEqual(['testing', 'keeper']);
+    expect(loadRolesYaml(repo).assignments.developer).toEqual(['keeper']);
+  });
+
+  // Defensive branches nothing an argument can reach — the same property task-091 pinned on the
+  // Memory and role reads, and the same technique: a defect in a committed read must never be
+  // converted into a domain answer ("unknown directive", "nothing references it").
+  it('a non-ValidationError from the committed inventory propagates rather than becoming `unknown directive`', () => {
+    repo = seedRepo();
+    const spy = jest.spyOn(loaders, 'loadDirectivesAtHead').mockImplementation(() => {
+      throw new Error('disk on fire');
+    });
+    try {
+      expect(() => checkAssignable(repo, 'developer', ['testing'])).toThrow('disk on fire');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a non-ValidationError from the committed bindings propagates rather than becoming "unreferenced"', () => {
+    repo = seedRepo();
+    const spy = jest.spyOn(loaders, 'loadRolesYamlAtHead').mockImplementation(() => {
+      throw new Error('disk on fire');
+    });
+    try {
+      expect(() => checkUnreferenced(repo, 'testing')).toThrow('disk on fire');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a listed blob that cannot be read back is skipped, not parsed as empty', () => {
+    // Unreachable through any argument — git has just listed the blob — so it is reachable only by
+    // making the second read fail, which is what a ref moving between the two calls would do.
+    // Skipping is the fail-closed answer: a directive nobody can read is one that does not exist.
+    repo = seedRepo();
+    const spy = jest.spyOn(storage, 'readPathAtRev').mockReturnValue(null);
+    try {
+      expect(loadDirectivesAtHead(repo)).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

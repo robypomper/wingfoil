@@ -463,3 +463,208 @@ Design points worth naming:
 
 Full suite after green: `npx jest` → **125 suites, 1949 tests passed**, exit 0. No existing test
 changed, and none broke.
+
+### refactor — role: developer
+
+No behaviour added; the coverage the green step owed, plus one design correction the coverage run
+surfaced.
+
+- **`loadDirectivesAtHead` now returns `DirectiveFile[]`, not `DirectiveFile[] | null`.** The first
+  coverage run left the `?? []` in `checkAssignable` half-covered, and the reason was not a missing
+  test: that branch is **unreachable through the verb**, because `loadDnaYamlAtHead` has already
+  refused when `HEAD` does not resolve. Rather than reach it with a spy, the `null` was removed from
+  the loader: for *this* pillar "`HEAD` does not resolve" and "`HEAD` commits no directive file" are
+  the same fact — the repository records no directive — and both produce the same refusal. The
+  distinction stays where it is load-bearing, in `listPathsAtRev` itself, and is documented on both.
+  (`export { ROLES_YAML_PATH }` from `directive-assign.ts` went the same way: nothing imports it from
+  there since the call sites shrank, and a CommonJS re-export compiles to a getter that no test can
+  call — an uncovered "function" that would have been noise, not signal.)
+- **The two committed-baseline loaders are tested directly**, mirroring task-091's block for
+  `loadMemoryYamlAtHead`: the committed tree against a dirty working tree; a non-Markdown entry under
+  `directives/` skipped (`.gitkeep` is not hypothetical — `wingfoil init` scaffolds one, spec-011);
+  `[]`/`null` in a repository with no commits; and that `DirectiveFile.path` is spelled **identically**
+  by both loaders, asserted by comparing them in one expectation, so `requireCustomAsset` and
+  `selectDirectivesById` cannot start seeing two shapes.
+- **A defect in a committed read must never become a domain answer.** A non-`ValidationError` out of
+  `loadDirectivesAtHead` / `loadRolesYamlAtHead` must propagate rather than turn into
+  `unknown directive` or "nothing references it" — pinned on both surfaces with a `jest.spyOn` on the
+  loaders module, the same property and the same technique task-090/task-091 used.
+- **One more spy, for the one branch nothing else can reach**: a blob `listPathsAtRev` just listed
+  that `readPathAtRev` then cannot read (a ref moving between the two calls). It is skipped, which is
+  the fail-closed answer, and the test says so.
+- **Not a new instance of `bug-093`** (`open`, filed while this wave ran): `listPathsAtRev` uses
+  `probeGit`, so git's `fatal: Not a valid object name HEAD` on an unborn `HEAD` — the ordinary case
+  for this primitive — never reaches the operator's terminal. Checked deliberately, since the new
+  code is a git call in exactly the class that bug is about.
+
+#### Coverage — measured on both sides, not quoted
+
+Baseline taken by running `npx jest --coverage` in a detached worktree at this branch's base
+(`02b77f9`), since removed:
+
+| | Stmts | Branch | Funcs | Lines | Tests |
+|---|---|---|---|---|---|
+| base `02b77f9` | 98.71 | 93.52 | 98.90 | 99.24 | 1909 |
+| this branch | **98.72** | **93.60** | **98.91** | **99.25** | 1956 |
+
+No metric regressed; all four are up. `src/core/directive-assign.ts` is at **100 / 100 / 100 / 100**;
+`src/storage/commit.ts` at **100 / 94.11 / 100 / 100** (its one uncovered branch, the `?? ''` at
+`commit.ts:127`, is pre-existing and was measured on the base run too). `src/core/loaders.ts`'s
+uncovered statements are exactly the four the base run reported (`29`, `105`, `139`, `142` — the
+`listMarkdownFilesSorted` early return and `parseDnaYaml`'s YAML-error re-wrap), compared
+line-for-line between the two `coverage-final.json` files rather than eyeballed.
+
+#### AC3/AC4 — the AC2 reproductions re-run against the fixed build
+
+```
+# assign, same scratch recipe, ghost.md untracked
+$ node dist/cli.js directive assign --directive ghost --role developer
+error: unknown directive: ghost                                                  exit 1
+$ git log -1 --format='%s'   ->  chore(wingfoil): initialize …      # nothing written
+$ git add -- .wingfoil/directives/custom/ghost.md && git commit -q -m 'chore: add ghost'
+$ node dist/cli.js directive assign --directive ghost --role developer           exit 0
+$ git show HEAD:.wingfoil/roles.yaml | grep -c ghost           ->  1
+$ git cat-file -t HEAD:.wingfoil/directives/custom/ghost.md    ->  blob
+# the binding and the file it names are now in the same committed record.
+
+# remove, same scratch recipe, the unbinding uncommitted
+$ sed -i '/- determinism/d' .wingfoil/roles.yaml
+$ git status --porcelain -- .wingfoil/roles.yaml   ->   M .wingfoil/roles.yaml
+$ node dist/cli.js directive remove determinism
+error: cannot remove 'determinism': still assigned to role 'architect'           exit 1
+$ test -e .wingfoil/directives/custom/determinism.md   ->  PRESENT
+$ git add -- .wingfoil/roles.yaml && git commit -q -m 'chore: unbind determinism'
+$ node dist/cli.js directive remove determinism                                  exit 0
+$ git show --name-only --format='' HEAD  ->  .wingfoil/directives/custom/determinism.md
+
+# AC4 — an untracked directive file is still refused by the WRITE guard, not by the read
+$ node dist/cli.js directive remove ghost2
+error: refusing to commit .wingfoil/directives/custom/ghost2.md: … [git status '??'] …     exit 1
+$ test -e .wingfoil/directives/custom/ghost2.md   ->  PRESENT
+```
+
+#### D5 re-measured against the fixed build (`dl-042`'s warnings channel)
+
+```
+$ rm .wingfoil/directives/custom/traceability.md          # working-tree deletion only
+$ node dist/cli.js directives list --role architect --format json
+… "warnings":["directive 'traceability' bound to role 'architect' has no directive file"]
+$ node dist/cli.js directive assign --directive ghost2 --role developer
+error: unknown directive: ghost2                                                 exit 1
+$ node dist/cli.js directives list --role developer --format json | grep -c ghost2   ->  0
+```
+
+Still reachable from the read-only report; no longer manufacturable by `assign`. Neither dead nor
+changed in meaning — see `D5`.
+
+#### Sync with `main` before submit (`dl-035` — merge, never rebase)
+
+```
+$ git -C /home/robypomper/Workspaces/WingFoil2 log --oneline -1 main
+1d5abda docs(self): bug-094 — withdraw the first half, lower severity to low
+$ git merge main            ->  merge commit 7a00351
+$ git log --oneline main~4..main
+1d5abda docs(self): bug-094 …      7d842a1 docs(plans): retrospective v0.2 …
+480b323 wf(bug): sync bug-092 …    a67ff7c docs(self): bug-080 …
+```
+
+`main` moved by four commits while this task ran, **all of them under `docs/self/`** — no `src/` or
+`test/` change, so nothing merged can interact with this branch's code and every gate below was run
+*after* the merge. `bug-093` (new on `main`) is checked against this task's new git call above.
+
+#### Gates (run in this worktree, after the merge)
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **125 suites, 1956 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.72 / 93.60 / 98.91 / 99.25** — every metric above base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| **Emitting build** | `npx tsc -p tsconfig.build.json` (after `rm -rf dist`) | exit **0**, `dist/cli.js` produced |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+BDD acceptance scenarios touched by this change, and the tests that cover them:
+
+| BDD scenario | Test that covers it |
+|---|---|
+| P3.2 sc.1 *Assign a directive to a role* | `test/core/directive-assign.test.ts` (unchanged, green — its fixture commits the scaffold) + `directive-inventory-baseline.test.ts` "AC5: assigning a COMMITTED directive to a COMMITTED role still works, in one scoped commit" |
+| P3.2 sc.2 *Error — assigning to a role not defined in DNA* | `test/core/directive-assign-role-baseline.test.ts` (unchanged) + `directive-inventory-baseline.test.ts` "AC5: task-091's `--role` check is unchanged" |
+| P3.2 sc.3 *Error — assigning a non-existent directive* | `test/core/directive-assign.test.ts` (unchanged) + `directive-inventory-baseline.test.ts` "AC3/AC6: an UNTRACKED directive file cannot be bound" and "AC5: an unknown directive id is still reported with P3.2 Sc.3 wording, verbatim" |
+| P3.3 sc.1 *Remove an unreferenced custom directive* | `test/core/directive-remove.test.ts` (unchanged) + "AC5: removing a directive whose reference was removed AND COMMITTED still works, in one scoped commit" |
+| P3.3 sc.2 *Error — removing a directive still referenced* | `test/core/directive-remove.test.ts` (unchanged) + "AC3/AC6: an UNCOMMITTED unbinding does not permit removal" and its `global` twin |
+| P3.3 sc.3 *Error — removing a built-in directive* | `test/core/directive-remove.test.ts` (unchanged) + "AC5: REQ-SEC-07 clause (a) still fires first for a built-in" |
+| P3.7 sc.1/2/3 *multi-directive assignment* | `test/core/directive-assign.test.ts` (unchanged) — `checkAssignable` still validates every id before anything is written, now against the committed inventory |
+| P3.4 / dl-042 *directives list warnings* | `test/core/directives-list.test.ts`, `test/core/context.test.ts` (both unchanged) + the two `D5` cases in `directive-inventory-baseline.test.ts` |
+| P5.1.1 *fresh init* | `test/cli/fresh-init-transitions.test.ts`, `test/core/init-project.test.ts` (unchanged) + `directive-inventory-at-head.integration.test.ts` "`init` commits the whole directives tree and roles.yaml" |
+
+### review-ready summary — role: reviewer
+
+**What changed, in one sentence.** Which directives exist, and what still references them, were both
+read from the files on disk — so an untracked file could be bound into a permanent `roles.yaml` no
+clone can resolve, and an **uncommitted** deletion of a reference was enough to make the one verb
+that deletes an artefact destroy a file the committed `roles.yaml` still bound; both now resolve
+against the repository as committed at `HEAD`, through a new `src/storage` primitive that lists a
+directory at a revision, and neither `checkAssignable` nor `checkUnreferenced` accepts a parsed
+document from its caller any more, so no call path can reach either decision with a working-tree
+file.
+
+**AC coverage**
+
+| AC | Status | Where |
+|---|---|---|
+| AC1 the missing primitive first, in `src/storage`, with its own tests and TSDoc | done | `listPathsAtRev` (`src/storage/commit.ts`, beside `readPathAtRev`) + `test/storage/list-paths-at-rev.test.ts` (12 cases, testing it directly). `design` § D1 records every decision and what else could use it |
+| AC2 reproduce both halves first, on scratch projects, commands in the notes | done | `design` § AC2 — both transcripts, `remove`'s showing the file gone and `git show HEAD:.wingfoil/roles.yaml \| grep -c` still `2` |
+| AC3 both reads resolve at `HEAD`, task-091's shape, refusals exit `1` | done | `design` § D2/D4; `green` § — both signatures changed, enforced by the type checker. Every refusal is `VALIDATION`/`NOT_FOUND`/`CONFLICT` → exit `1`, pinned at the process boundary |
+| AC4 establish and argue the uncommitted directive file | done — **refuse, and it already does** | `design` § AC4: measured first, argued on three grounds, and the live risk (turning an accurate refusal into `unknown directive`) is what kept `remove`'s *resolution* read on the working tree. Recorded in `directiveRemoveFn`'s TSDoc step 3 and pinned by two tests |
+| AC5 the ordinary flows, each pinned | done | seven characterization cases plus the write → commit → assign sequence; every pre-existing directive suite unchanged and green |
+| AC6 tests pin both defects and fail against current code | done | `red` § — 24 failed / 13 passed before, 37 passed after; commands recorded |
+| AC7 all six gates green, full `tsc --noEmit` silent | done | `refactor` § Gates — seven rows, including the **emitting** build |
+
+**Weak spots a reviewer should check**
+
+1. **Two behaviour changes in the permissive direction**, one per half, both pinned by tests: a
+   directive committed at `HEAD` but deleted in the working tree is still assignable, and a binding
+   that exists only in the working tree no longer blocks a removal. Both are correct under `dl-080`
+   (B) and both are the same shape as task-091's M2, but they are the cases where the new baseline
+   *permits* where the old refused — and on the `remove` side that means a file gets deleted. What
+   bounds the risk: after this change anything `remove` deletes is by construction committed and
+   clean (task-092's guard), so it is always recoverable from git.
+2. **`remove`'s resolution read deliberately stays on the working tree** (AC4). Argued and measured,
+   but it is a judgement: a reviewer may prefer one baseline for the whole verb, at the cost of
+   answering an untracked file with `unknown directive: <id>`.
+3. **No working-tree diagnostic on either new refusal** (`D3`), reversing task-091's `D5` habit. Both
+   refusal messages are BDD-pinned wording, and on `remove` a note would coach the user toward
+   deleting a file. Deliberate; a reviewer may take the opposite view.
+4. **Three `jest.spyOn`s**, each reaching a defensive branch nothing an argument can produce. They
+   pin real properties — a defect in a read must never become a domain answer, and a blob that
+   vanishes mid-read is skipped rather than parsed as empty — but module spying is worth a second
+   opinion. task-091 flagged the same.
+5. **One git process per committed directive file.** `loadDirectivesAtHead` is one `ls-tree` plus one
+   `git show` per entry — eleven processes on a fresh Scrum scaffold, on a command that already
+   spawns several. It is only paid on `directive assign`, a rare, interactive, already-committing
+   command, and `git cat-file --batch` would trade that for a long-lived child process and a binary
+   protocol. Measured cost, not an oversight; if `directives list` ever moves to this baseline it
+   should be revisited.
+6. **`ROLES_YAML_PATH` moved** from `src/core/directive-assign.ts` to `src/core/loaders.ts` (beside
+   `DNA_YAML_PATH`/`MEMORY_YAML_PATH`) and is now exported from the `src/core` barrel. No importer
+   outside `src/core` existed, and none changed.
+
+**Files touched outside the task file:** `src/storage/commit.ts` (append-only, a new section at the
+end), `src/storage/index.ts` (one export line), `src/core/loaders.ts`, `src/core/directive-assign.ts`,
+`src/core/index.ts`, two new test files, one new CLI integration test, and two one-comment edits in
+existing directive suites.
+
+**Merge note for the orchestrator** (brief rule: say where to look). In `src/core/index.ts` this
+branch changes **import lines**: `loadRolesYaml` and `ROLES_YAML_PATH` are removed from two import
+statements and `type { RolesYaml } from '../directives/schema'` is deleted outright, while the
+`export { … } from './loaders'` block gains four names. That is exactly the region where merging
+task-092 into task-091 produced a clean-but-broken merge. Everything else in that file is inside
+`directiveAssignFn` / `directiveRemoveFn` and their TSDoc. `src/storage/commit.ts` is a pure append
+after `changedPathsBetween`. The full `npx tsc -p tsconfig.build.json` was run after merging `main`
+and is the check that catches this class.
+
+**Out of scope, proposed rather than fixed** (no Memory elements created here; parallel worktrees
+would collide on ids). Listed in this run's final report: `directive remove`'s resolution read
+answering `unknown directive: <id>` for a directive committed at `HEAD` but deleted in the working
+tree; and `dl-080` Action 4, still unowned.

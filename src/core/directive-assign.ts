@@ -77,13 +77,6 @@ import type { CoreError, CoreResult } from './types';
 import { coreErr, coreOk } from './types';
 import { committedScopeError, requireUnmodifiedTarget } from './write-guard';
 
-/**
- * Root-relative location of the role → directive bindings file (spec-011). Defined in `./loaders.ts`
- * since task-096, beside the committed-baseline reader that uses it; re-exported here because this is
- * where every caller has imported it from since task-051.
- */
-export { ROLES_YAML_PATH };
-
 /** The outcome of {@link updateRoleAssignments}: the role's list as it stands afterwards. */
 export interface RoleAssignmentUpdate {
   /** `assignments.<role>` after the update (unchanged when nothing needed writing). */
@@ -138,7 +131,8 @@ function workingTreeWouldDefine(root: string, role: string): boolean {
  * An absent or empty committed inventory needs no special case: no id is known, so every request is
  * refused with `unknown directive: <id>`. That is the right answer rather than a tolerated one — "may
  * this id be bound" needs the *positive* fact that a directive with it exists, and a missing record
- * cannot supply one.
+ * cannot supply one. (Contrast {@link checkUnreferenced}, which needs the *absence* of a fact and is
+ * therefore satisfied by a missing record.)
  *
  * @param root - Project root; both committed baselines are read from it.
  * @param role - The role to bind to.
@@ -183,8 +177,7 @@ export function checkAssignable(root: string, role: string, ids: readonly string
 
   let inventory: readonly DirectiveFile[];
   try {
-    // `?? []` — an unresolvable HEAD is "no directive is committed", which is already the refusal.
-    inventory = loadDirectivesAtHead(root) ?? [];
+    inventory = loadDirectivesAtHead(root);
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
     return {

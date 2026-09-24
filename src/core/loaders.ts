@@ -293,8 +293,7 @@ export function loadDirectives(root: string): DirectiveFile[] {
 
 /**
  * Load and validate every Directives file **as the repository has committed it** — the tree at
- * `HEAD` — returning `null` when `HEAD` does not resolve at all (a repository with no commits). An
- * empty array means the opposite thing: `HEAD` exists and commits no directive file.
+ * `HEAD`.
  *
  * This is the inventory a read that gates a mutation resolves against
  * (`checkAssignable`, `./directive-assign.ts`), per `dl-080-which-baseline-each-command-reads` option
@@ -309,10 +308,16 @@ export function loadDirectives(root: string): DirectiveFile[] {
  * discovered, not named in advance. That missing primitive is why `task-091` deferred this half.
  *
  * Same schema and same error shapes as {@link loadDirectives}; only the source of the bytes differs.
+ *
+ * Returns an **array, never `null`**, unlike its three sibling committed-baseline loaders. They read
+ * one named file, where "not committed" and "committed but empty" are different facts a caller may
+ * need to tell apart; here the two collapse — a `HEAD` that does not resolve (no commits at all) and
+ * a `HEAD` that commits no directive file both mean *the repository records no directive*, and both
+ * produce the same refusal from the only gate that consults this (`checkAssignable`: every id is
+ * unknown). `listPathsAtRev` keeps the distinction for callers that do need it.
  */
-export function loadDirectivesAtHead(root: string): DirectiveFile[] | null {
-  const paths = listPathsAtRev(root, 'HEAD', DIRECTIVES_DIR_PATH);
-  if (paths === null) return null;
+export function loadDirectivesAtHead(root: string): DirectiveFile[] {
+  const paths = listPathsAtRev(root, 'HEAD', DIRECTIVES_DIR_PATH) ?? [];
   const files: DirectiveFile[] = [];
   for (const path of paths) {
     if (!path.endsWith('.md')) continue;
