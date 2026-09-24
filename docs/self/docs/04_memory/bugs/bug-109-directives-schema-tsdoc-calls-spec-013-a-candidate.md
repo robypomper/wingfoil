@@ -1,45 +1,55 @@
 ---
 id: "bug-109-directives-schema-tsdoc-calls-spec-013-a-candidate"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`src/directives/schema.ts`'s module TSDoc says no approved tech-spec exists for the Directives pillar and names `spec-013` as a candidate — `spec-013` is `approved`"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P3.5"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+The module doc comment on `src/directives/schema.ts` states that the Directives pillar has no
+approved tech-spec, and records `spec-013-directive-frontmatter-schema` as a *candidate* with a
+follow-up to promote it. `spec-013` is `approved`.
+
+So the file that implements the frontmatter schema tells a reader the schema is unspecified, and
+carries a follow-up that has already happened.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Read the module TSDoc, then
+`awk '/^status:/{print; exit}' docs/self/docs/04_memory/design/specs/spec-013-*.md` → `approved`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The module cites the approved spec it implements.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+It denies that the spec exists and proposes creating it.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Pre-existing, and larger than one line.** The whole paragraph is written around the premise that no
+spec exists — it explains what the schema is derived from *instead*. Correcting it means rewriting
+the paragraph and deleting the follow-up, not swapping a word.
+
+**Worth doing while the pillar is being read anyway.** `bug-108` and any work under the new
+`command-baseline` directive both land in this area, and this is a paragraph a reader of
+`src/directives/` meets first.
+
+**Found by `task-094`, which recorded it as "a finding, not my sentence to rewrite — proposed
+below" and then proposed nothing below.** Its reviewer caught the dangling pointer. Filed here so the
+finding has the owner the note assumed it already had.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-24): **low**. A comment, in a file whose behaviour is correct and tested. Filed
+  because it misinforms about governance — it tells a reader the pillar is unspecified, which is the
+  opposite of true, and points at work already done.
