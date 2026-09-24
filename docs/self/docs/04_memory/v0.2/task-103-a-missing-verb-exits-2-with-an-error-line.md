@@ -2,7 +2,7 @@
 id: "task-103-a-missing-verb-exits-2-with-an-error-line"
 type: task
 title: "Give a noun invoked without a verb the exit code and the error line `spec-005` §1 requires, closing the half of the exit-code contract `task-101` could not reach"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "cli", "exit-codes"]
