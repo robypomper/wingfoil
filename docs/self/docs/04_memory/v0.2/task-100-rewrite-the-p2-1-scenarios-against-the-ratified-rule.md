@@ -417,3 +417,63 @@ Four, none created here (parallel worktrees would collide on ids). Each was meas
    `task-093`. The tests are right and the sentence above them is not. Left alone here deliberately:
    this task's diff stays out of `test/` so the branch is trivial to merge alongside the wave's other
    three.
+
+### verify (second pass) — `main` moved mid-task, so everything above was re-taken
+
+**What happened.** The "`main` did not move" sentence at the top of these notes was true when it was
+written and false forty minutes later: `task-099-quoted-path-segments-for-dotted-entry-names` was
+merged into `main` (`78b0b19e`) while this task was writing its notes. It was caught by
+`git diff main --stat` showing changes to `src/dna/path.ts`, `src/dna/set.ts`, `src/core/index.ts`,
+`spec-002` and `spec-008` that this branch does not contain — i.e. the branch was **behind**, not
+ahead. `git merge-base --is-ancestor main HEAD` now answered `NO` where it had answered `YES`.
+
+The baseline sentence is left standing above rather than edited, because it records what was true of
+the first pass; this section is the correction, and the numbers here are the ones that count.
+
+**The merge.** `git merge main` (`dl-035`: merge, never rebase) — **clean, no conflicts**, 10 files,
++1232/-32, all of them `task-099`'s. Nothing of this task's was touched: `task-099` changed
+`src/dna/` and `test/`, this task changed one `.feature` file, and the two do not overlap.
+
+**`task-099`'s work does not reach this contract, checked rather than assumed.**
+
+```
+$ git log --oneline 9642ab5f..main -- docs/02_requirements/
+(no output — main's new commits touch no BDD file)
+
+$ grep -rn "does not hold a single value\|is not declared under" src/
+src/core/index.ts:368: …'${request.field}' does not hold a single value: reach it with `dna add|remove|update …` (dl-081)
+src/dna/path.ts:226:   …unknown DNA field '${path}': '${segments[depth]}' is not declared under ${where}
+```
+
+Both messages the new scenarios quote verbatim survive the merge unchanged — only their line numbers
+moved (`path.ts:205` → `:226`, `index.ts:367` → `:368`), which is why the scenarios quote the *text*
+and these notes carry the offsets (`dl-075`: offsets are legal in Execution Notes, not in the durable
+contract). `dl-083`'s quoted path segments (`stacks.technologies."Node.js".version`) are `task-099`'s
+own contract and are asserted by its own tests; P2.1 neither gained nor lost an obligation from them.
+
+**The whole transcript was re-executed on the merged build** — `npm run build`, then a *fresh*
+throwaway `wingfoil init --template Scrum` repository, all five scenarios in order. Every line is
+identical to the first-pass transcript above: exit `0` + `license: MIT` under `project` + one commit
++ clean worktree; exit `0` + `Apache-2.0`; then exit `1`, exit `1`, exit `2` with the three messages
+as quoted, each leaving `dna.yaml` byte-identical, `HEAD` unmoved and zero dirty paths.
+
+**Gates re-run on the merged tree** (the numbers that count; the table above is the pre-merge run):
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **137 suites / 2236 tests passed**, 0 failed (142 s) — up from 135 / 2202, the delta being `task-099`'s two new suites |
+| `npx jest --coverage` | 137 / 2236 passed; **98.58 % stmts, 93.99 % branch, 98.92 % funcs, 99.40 % lines** — ≥ 80, and **non-regressing**: every figure is at or above the pre-merge run (98.57 / 93.87 / 98.92 / 99.39) |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc -p tsconfig.build.json` (emitting) | exit 0 — the check the wave brief singles out, since a semantically-clean merge can still fail to compile |
+| `npx tsc --noEmit -p tsconfig.json` (full) | exit 0, no output — `bug-026` stays closed |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+
+`git status --porcelain` after all of them: empty.
+
+A caution for whoever reads the jest numbers: `pgrep` was checked before the run per `bug-095` (two
+concurrent jest runs in one worktree delete and rebuild each other's `dist/`). The pattern
+`pgrep -f "node.*jest"` matched **this shell's own command string**, which contains the word, so it
+is not a usable probe — `pgrep -fa jest` and reading the output is. No second jest was running in
+this worktree either time, and both runs passed, which is the direction `bug-095` does not affect:
+it manufactures false *failures*, never false passes.
