@@ -88,3 +88,23 @@ places that have drifted apart, which is worth seeing as one problem.
   traceability chain exists to prevent — and with no BDD runner, nothing will ever report it.
 - No fix task filed: the direction is the approver's to rule. Once ruled, the edit is small either
   way.
+
+## Ruling (2026-09-24) — the acceptance contract moves
+
+The approver ruled on 2026-09-24: **the BDD contract moves, not the ratified rule.**
+
+The reasoning worth preserving is that this is not code-against-spec, so CLAUDE.md section 10.1 is
+not in tension. The two scenarios are stale *independently* of `bug-084`: `spec-002` retired the
+fixed-key `tech_stack` object in favour of two flat lists, so `stacks.technologies` is an array of
+`{name, category, ...}` entries and the schema declares no `language` key anywhere. The scenarios
+assert a shape no layer still describes. It is spec-against-spec, with the later and more specific
+one winning.
+
+Moving the rule instead would have meant keeping pass-through on write, which re-opens `bug-084` and
+unpicks the precondition `dl-081`'s whole ratified shape rests on. That was the alternative, and it
+was declined.
+
+**The fix depends on `bug-090` and must not be scheduled before it.** What the rewritten scenarios
+should *say* is settled; how they should *spell it* is not, because `bug-090` decides `dna set`'s
+grammar. Rewriting them against today's positional spelling would make them stale a second time in
+the same release. Sequence the two so the BDD rewrite reads the grammar `bug-090` lands.

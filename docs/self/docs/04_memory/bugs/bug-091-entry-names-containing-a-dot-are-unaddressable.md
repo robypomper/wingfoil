@@ -77,3 +77,39 @@ so nothing is broken today — it is a gap between two ratified properties that 
   real project would write.
 - No fix task filed: the three candidates change the schema, the grammar spec, or both, so it is a
   decision before it is work.
+
+## Correction (2026-09-24) — this bug's central factual claim was false
+
+The Notes and the triage note above both assert that "no entry in this repository's `dna.yaml` or in
+either `init` template currently carries a dot in a name, so nothing is broken today", and that
+assertion carried the severity down to **medium**. It is wrong, and it was never checked before it
+was written. Measured at `c2102c87`:
+
+```
+$ grep -n '^\s*- name: .*\.' docs/self/.wingfoil/dna.yaml
+73:    - name: Node.js
+78:    - name: Commander.js
+132:    - name: AI agent (Claude/Cursor/etc.)
+```
+
+Three entries across two collections — `stacks.technologies` twice and `team.agents` once. This is
+the failure mode the release has rejected work for three times: a claim about file state written
+without running the command that settles it. It is recorded here rather than edited away because the
+severity and the ruling both rested on it.
+
+**What it changes.** `task-093` places `uniquelyNamed` on the collections inside the schema itself
+(`src/dna/schema.ts`, `stacks.technologies`, `stacks.methodologies`, `team.members`, `team.agents`,
+`team.roles`, `modules`), so the refinement runs on **every** `loadDnaYaml`, not only on write. A
+dot refinement added the same way would reject WingFoil's own `dna.yaml` at load — taking `dna show`,
+`paths` and every DNA-reading command with it — until those three entries are renamed. So forbidding
+dots is not a change landing on a clean corpus; it is a breaking change to the project's own
+configuration, and the names it breaks (`Node.js`, `Commander.js`) are the correct spellings of the
+things they name.
+
+The same objection generalises past this repository: `Vue.js`, `Next.js`, `Socket.io`, `ASP.NET` and
+`Node.js` are what a real project would write in `stacks.technologies`, and a rule forbidding dots
+makes the DNA unable to record its own subject accurately.
+
+**The 2026-09-24 ruling to forbid dots is therefore suspended pending re-decision**, since it was
+given against the false premise above. The three candidates in the Notes stand; candidate 2
+(quoting/escaping in the path) is the only one that leaves the three existing entries valid.

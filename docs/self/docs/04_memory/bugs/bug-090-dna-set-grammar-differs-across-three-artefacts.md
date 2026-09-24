@@ -79,3 +79,29 @@ comparing them.
   without the benefit of knowing a higher layer had already made it.
 - No fix task filed: question (1) is a ruling, (2) is a correction that follows from it, and (3) is a
   scope question that may belong to v0.3 planning.
+
+## Note (2026-09-24) — `--format` is global, and the vision reference says otherwise on every row
+
+Recorded at the approver's instruction while ruling on this bug, because it is the same drift in the
+same document and whoever edits `X_cli-cmds.md` will be standing in front of it.
+
+`docs/01_vision/X_cli-cmds.md` declares `[--format json/yaml]` as a **per-command** option on nine
+rows across four pillars — `memory search`, `memory history`, `dna show`, `paths`,
+`directives list`, `workflow status`, `workflow next`, `workflow list`, `workflow show`, and
+`agent execute`'s neighbours. The implementation registers it **once, on the root program**
+(`src/cli/program.ts`, the `.option('--format <format>', ...)` call in `buildProgram`, alongside
+`--verbose`, `--no-color` and `--no-interactive`), so `wingfoil --format json memory search foo` is
+the shape that works and no subcommand declares a `--format` of its own. Measured at `c2102c87`:
+`wingfoil --help` lists `--format` under the root Options block, and `wingfoil memory search --help`
+lists only `--tag`, `--status` and `--type`.
+
+**This is a divergence of form, not of capability, and the implementation is probably the better
+shape** — one declaration instead of ten, and it cannot drift row by row. It is recorded rather than
+fixed in passing for two reasons: it is *wider* than this bug, spanning four pillars and ten rows
+where this bug concerns one command, so absorbing it here would silently widen the ruling; and it
+interacts with `task-093`'s finding that a root-level option **swallows** a subcommand option of the
+same name, which is why `--format` is one of the names that must never be derivable from the DNA
+schema.
+
+Not scheduled. Whoever corrects `X_cli-cmds.md` for this bug should decide whether the same pass
+carries the `--format` rows, and say which it did.
