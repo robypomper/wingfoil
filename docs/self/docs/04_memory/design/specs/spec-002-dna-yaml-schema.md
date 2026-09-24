@@ -61,7 +61,7 @@ mapping).
 import { z } from "zod";
 
 // Per-collection NAME UNIQUENESS. Entries of a collection are addressed by `name`
-// (`dna update --field team.members.roberto.roles`, dl-081-dna-mutation-surface-shape), so two
+// (`dna update team.members.roberto.roles --value …`, dl-081 + dl-082-cli-parameter-shape), so two
 // entries sharing one makes the address ambiguous — and the ambiguity would reach every reader that
 // looks an entry up by name (resolveRoleHolders, the role bindings), not only the write verbs.
 // Enforced here rather than in each verb so a violating document fails to LOAD, the same way Team's
@@ -192,20 +192,20 @@ serve as the catalogue. `dna.yaml` therefore remains the authoritative role regi
 
 Every node is `.passthrough()`, which is a statement about **reading**: a document carrying fields a
 newer (or older) WingFoil does not know still loads, and those fields are preserved rather than
-stripped. It is **not** a statement about writing. A write command resolves its `--field`/`<key>`
+stripped. It is **not** a statement about writing. A write command resolves its `<path>` argument
 against this schema and **refuses a path the schema does not declare rather than creating it**
 (`dl-081-dna-mutation-surface-shape`, ratified; implemented in `src/dna/path.ts`); the refusal is a
 validation failure, exit `1` per `spec-005-cli-command-contract` §1.
 
 The two halves are deliberately asymmetric. Pass-through on read is forward compatibility; pass-through
-on **write** meant `dna set nonsense.at.any.depth value` invented a key at any depth and committed it at
+on **write** meant `dna set nonsense.at.any.depth --value v` invented a key at any depth and committed it at
 exit `0`, in the pillar every other pillar reads
 (`bug-084-dna-key-alias-writes-unschemad-keys`). Creating a node the schema **declares** and the
 document merely omits — an absent optional `project:`, an absent `paths.tests` — is not that case and
 stays legal; it is the only way an optional section can ever be filled.
 
 A consequence worth stating: `tech_stack` is not an alias on the write path. `dna show tech_stack`
-still resolves to `stacks` (see Consequences below), but `dna set tech_stack.<key> <v>` is refused as
+still resolves to `stacks` (see Consequences below), but `dna set tech_stack.<key> --value <v>` is refused as
 the unknown key it is, because `stacks` replaced a fixed-key object and a first-segment rewrite cannot
 perform a change of shape.
 
@@ -303,6 +303,17 @@ load-bearing:
 - *Unknown keys.* This spec ratified `.passthrough()` on every node without saying whether it governs
   writes as well as reads. It does not, and the new *Unknown keys* section above says so. Nothing
   about the read contract changed.
+
+Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
+`spec-006`'s 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — the write-path examples are respelled to `dl-082-cli-parameter-shape`'s
+grammar.** `dl-082` (`ready`) moves a DNA verb's path out of `--field` into a positional, and turns
+`dna set`'s second positional into `--value`, under a rule the other nine `dna`/`memory` commands
+already followed: a positional carries the identity of the target, an option a named attribute of the
+action. Nothing in this schema changes — not a field, not a refinement, not the read/write asymmetry
+the 2026-09-23 revision added. Only the three invocations quoted above are respelled, so a reader
+copying one out of this document gets a command that runs. `spec-008` §9 holds the grammar itself.
 
 Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
 `spec-006`'s 2026-09-17 revision cites.
