@@ -2,7 +2,7 @@
 id: "bug-098-unknown-command-and-unknown-option-exit-1-not-2"
 type: bug
 title: "An unknown command or unknown option exits `1`, while `spec-005` §1 assigns usage errors exit `2` — Commander's own parse errors never reach the exit-code contract"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2"
