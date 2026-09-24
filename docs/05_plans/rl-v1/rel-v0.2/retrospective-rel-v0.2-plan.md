@@ -550,6 +550,42 @@ theme, it is an impression — put it to the approver at §3.2 as a question ins
 
 ---
 
+## 6.2 A vision-layer correction is scheduled into this phase — `06_features.md` and the DNA surface
+
+Decided by the approver on 2026-09-24 while ruling on `bug-092`. This is a concrete edit with a known
+target, not a finding to be mined — do it, and record it in the Dispositions table as work performed
+rather than as something discovered.
+
+**What is wrong.** `docs/01_vision/06_features.md` lists `P2.1` as `wingfoil dna set` and nothing
+else; its prioritisation row calls the feature "Basic CRUD operations" at Critical priority. The DNA
+surface is now **four** commands — `dna set`, `dna add`, `dna remove`, `dna update` — ratified by
+`dl-081` and `dl-082` and shipped by `task-093`. The feature list has never said so.
+
+**Why it is here and not in a fix task.** `bug-090` covers `docs/01_vision/X_cli-cmds.md`, the command
+*reference*, and `task-098` corrects it — including adding rows for the three verbs it never carried.
+Nothing covers the feature *list*, which is the artefact that decides what `P2.1` is understood to
+be, and which the traceability chain (feature → US → BDD → REQ → task) hangs from. Correcting a
+feature definition is a vision-layer conclusion about the release, which is this phase's subject.
+
+**What the edit must say, and what it must not.** `P2.1` already authorises the four commands — the
+three new verbs trace to its "Basic CRUD operations" framing, which is the reasoning recorded in
+`bug-090`'s 2026-09-24 note. So this records a surface that was always within the feature, rather
+than adding scope. Do not invent a `P2.6`; do not restate the grammar, which `X_cli-cmds.md` owns
+after `task-098`.
+
+**Record that `dna set` and `dna update` both stay, and why.** The approver ruled on 2026-09-24 that
+the two coexist: `set` is `update` with a scalar-only pre-check, and that pre-check is a guard rail
+whose refusal names the verbs that would work. A reader of the feature list should not be left to
+conclude one of them is redundant — `bug-092` carries the full reasoning, including the proposal to
+deprecate `update` and the two objections that declined it.
+
+**Check the neighbours before you finish.** `06_features.md` also carries `P2.3 wingfoil dna infer`,
+which is not built (`spec-006` marks `dnaInfer` *planned*), and `P2.4`'s description still names
+`conventions`, which `spec-002` removed from `dna.yaml` in v1.1. Neither is in scope here. Say in the
+Dispositions table which you checked and left, so the next reader knows the omission was deliberate.
+
+---
+
 ## 6.1 A second, unrelated decision-log is created in this phase — by scheduling, not by derivation
 
 Decided by the approver on 2026-09-22, and **confirmed directly to this plan's author** the same day:
