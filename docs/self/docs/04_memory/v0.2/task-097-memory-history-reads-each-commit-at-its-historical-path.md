@@ -2,7 +2,7 @@
 id: "task-097-memory-history-reads-each-commit-at-its-historical-path"
 type: task
 title: "Read each commit at the path the element had *then*, so a renamed element's transitions stop reporting null states — and stop leaking git's `fatal:` to the operator while doing it"
-status: pending
+status: backlog
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "history"]
