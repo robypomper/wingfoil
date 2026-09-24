@@ -129,11 +129,14 @@ describe('`memory history` on a project scaffolded by `wingfoil init`', () => {
   });
 
   it('prints nothing on stderr while reporting success — the phantom entry was the only thing asking git for a path that was never there', () => {
-    // AC7: no stderr suppression is added anywhere by this task. The `fatal: path ... exists on
-    // disk, but not in <sha>` that `bug-071-read-status-at-leaks-git-stderr` records disappears here
-    // purely as fallout, because the commit that provoked it is no longer part of this element's
-    // history. It is NOT fixed: `readStatusAt` still asks for the current path at pre-rename
-    // commits, so a renamed element still leaks it.
+    // AC7: no stderr suppression was added anywhere by THIS task. The `fatal: path ... exists on
+    // disk, but not in <sha>` that `bug-071-read-status-at-leaks-git-stderr` records disappeared
+    // here purely as fallout, because the commit that provoked it is no longer part of this
+    // element's history — which is why the assertion below could pass while a renamed element still
+    // leaked. Both halves were closed afterwards by
+    // `task-097-memory-history-reads-each-commit-at-its-historical-path`: `readStatusAt` now reads
+    // at each commit's own path (`bug-080`) and its `git show` runs with an explicit `stdio`
+    // (`bug-071`), pinned in `test/memory/history-rename-path.test.ts`.
     const { run } = history(repo, transitioned);
 
     expect([run.status, run.stderr]).toEqual([0, '']);
