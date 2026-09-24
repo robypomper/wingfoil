@@ -2,7 +2,7 @@
 id: "task-094-write-the-baseline-rule-where-implementers-meet-it"
 type: task
 title: "Write dl-080's baseline rule where an implementer meets it — a directive and the specs — so the next read or write is not decided by whoever adds it"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "governance", "directives", "determinism"]
