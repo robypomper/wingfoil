@@ -610,8 +610,11 @@ export interface MemoryHistoryParams {
  *   (`parseCommitReason`) so a `deprecate` reason is not lost with the missing approver.
  *
  * `from` is `null` only on the element's creation entry (no prior state to name) — which is what
- * "1 entry describing the creation" in the feature's edge scenario looks like. `to` is `null` only in
- * the documented rename edge case `reconstructMemoryTransitions` describes.
+ * "1 entry describing the creation" in the feature's edge scenario looks like. `to` is `null` only
+ * when the commit genuinely has no document to read — before the element's creation, or after a
+ * deletion. It used to be `null` at every commit older than a rename too, which was
+ * `bug-080-read-status-at-reads-the-current-path-at-pre-rename-commits` and is fixed: the walk now
+ * carries each commit's own path and `reconstructMemoryTransitions` reads at it.
  */
 export interface MemoryHistoryEntryView {
   readonly sha: string;

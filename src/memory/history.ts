@@ -40,6 +40,19 @@ export interface MemoryHistoryEntry {
   readonly date: string;
   readonly subject: string;
   readonly body: string;
+  /**
+   * The root-relative path the document occupied **at this commit**, which is not in general the
+   * path the caller asked for: the walk follows renames, so a commit older than one holds the
+   * element under its former name ({@link collectHistoricalPaths}).
+   *
+   * Carried on the entry rather than recomputed by each consumer, because the walk is the only thing
+   * that knows it — `git log --follow --name-status` reports every `R<score> <old> <new>` edge it
+   * crosses. A reader that instead asks git for the CURRENT path at every sha gets nothing back at
+   * the pre-rename ones, which is
+   * `bug-080-read-status-at-reads-the-current-path-at-pre-rename-commits`
+   * (`task-097-memory-history-reads-each-commit-at-its-historical-path`).
+   */
+  readonly path: string;
 }
 
 const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
@@ -139,6 +152,106 @@ export function dropPreCreationAncestry(
 }
 
 /**
+ * The same `--follow` walk again, printing each commit's sha followed by its name-status line for
+ * the followed path. A third `git log` invocation for the same reason as {@link CREATION_PROBE_ARGS}
+ * and stated in full there: `--name-status` output is appended OUTSIDE the `--format` string, and
+ * `walkGitLogFields` recovers records by field arity over a stream of `<field>NUL` groups, so it
+ * would read those lines as the next record's first field (task-086).
+ *
+ * `core.quotePath=false` is set for the invocation (never written to the repository's config) so a
+ * path carrying non-ASCII bytes arrives as its own UTF-8 rather than as git's `"\303\251"` escape
+ * form — the parser would otherwise have to un-escape it to hand `git show` something that resolves.
+ */
+const PATH_PROBE_ARGS = ['-c', 'core.quotePath=false'];
+const PATH_PROBE_LOG_ARGS = ['--follow', '--name-status', '--format=%H'];
+
+/** A full sha on a line of its own — git's `--format=%H` output, which carries nothing else. */
+const SHA_LINE_RE = /^[0-9a-f]{40}$/;
+
+/**
+ * Where `relativePath`'s document lived at each commit of its `--follow` walk, keyed by sha.
+ *
+ * `git log --follow --name-status` prints, per commit, the sha then that commit's status line for
+ * the followed path — `A <path>`, `M <path>`, `D <path>`, or `R<score> <old> <new>` at a rename. The
+ * path the file occupies **at** a commit is always the LAST tab-separated field of that line: the
+ * destination of a rename, the single path otherwise. Everything older than that rename then reports
+ * the old path, which is the whole point — it is what
+ * `git show <sha>:<path>` needs in order to resolve at all.
+ *
+ * A commit git reports no status line for (it shows no diff for a merge without `-m`) is simply
+ * absent from the map; {@link attachHistoricalPaths} decides what to do about that, so the rule is
+ * testable without a repository.
+ *
+ * **Throws** — never returns an empty map — when git itself fails, for the same reason
+ * {@link findElementCreationSha} does: "git could not answer" and "this element was never renamed"
+ * are different answers, and folding the first into the second silently reinstates `bug-080` by
+ * reading every commit at the current path again. {@link getMemoryHistory} calls this only once the
+ * main walk has returned commits, so the repository and the path are both known good by then.
+ *
+ * @param root - Absolute path of the repository to walk.
+ * @param relativePath - The element's current root-relative path, as the caller named it.
+ * @returns sha → the root-relative path the document occupied at that commit.
+ */
+export function collectHistoricalPaths(root: string, relativePath: string): Map<string, string> {
+  let stdout: string;
+  try {
+    stdout = execFileSync(
+      'git',
+      ['-C', root, ...PATH_PROBE_ARGS, 'log', ...PATH_PROBE_LOG_ARGS, '--', relativePath],
+      // Same `stdio` rule as `./audit`'s `readStatusAt`, for the same reason
+      // (`bug-071-read-status-at-leaks-git-stderr`): the failure is reported by the throw below, so
+      // git's own `fatal:` must land in a pipe this process owns rather than on the operator's
+      // terminal. A call added while closing that bug must not reopen it somewhere else.
+      { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (cause) {
+    throw new Error(
+      `git log --follow --name-status failed for ${relativePath}: cannot establish where the element lived at each commit`,
+      { cause },
+    );
+  }
+
+  const pathBySha = new Map<string, string>();
+  let currentSha: string | null = null;
+  for (const line of stdout.split('\n')) {
+    if (SHA_LINE_RE.test(line)) {
+      currentSha = line;
+      continue;
+    }
+    if (currentSha === null || !line.includes('\t') || pathBySha.has(currentSha)) continue;
+    const fields = line.split('\t');
+    pathBySha.set(currentSha, fields[fields.length - 1] as string);
+  }
+  return pathBySha;
+}
+
+/**
+ * Stamp each walked commit with the path the element occupied at it, from
+ * {@link collectHistoricalPaths}' map.
+ *
+ * Pure: no git, no filesystem — separated from the probe for the same reason
+ * {@link dropPreCreationAncestry} is separated from {@link findElementCreationSha}, so the rule and
+ * its fallback are exercised directly rather than through a repository fixture.
+ *
+ * Falls back to `fallbackPath` (the path the caller named) for a sha the probe reported no diff for,
+ * rather than throwing: unlike the creation probe's invariant, an absent entry here is not evidence
+ * of a broken walk — git shows no diff for a merge commit — and the fallback is precisely the
+ * behaviour that shipped before this field existed, so it can degrade no further than the status quo.
+ *
+ * @param entries - The `--follow` walk, oldest first.
+ * @param pathBySha - sha → historical path, from {@link collectHistoricalPaths}.
+ * @param fallbackPath - The element's current root-relative path.
+ * @returns A new array; `entries` is not mutated.
+ */
+export function attachHistoricalPaths(
+  entries: readonly MemoryHistoryEntry[],
+  pathBySha: ReadonlyMap<string, string>,
+  fallbackPath: string,
+): MemoryHistoryEntry[] {
+  return entries.map((entry) => ({ ...entry, path: pathBySha.get(entry.sha) ?? fallbackPath }));
+}
+
+/**
  * Walk every commit that touched `relativePath`, oldest first (P1.10-memory-history.feature: "lists
  * ... entries in chronological order") — `git log` itself returns newest-first, reversed by
  * {@link walkGitLogFields} — and only those commits. The walk follows renames, so an element moved on
@@ -149,7 +262,13 @@ export function dropPreCreationAncestry(
  * when `root` is not a git repository — "document not found" is a caller/feature-layer concern
  * (task-021/026-style CLI error rendering), not this primitive's. That is also why the creation
  * probe runs only on a non-empty walk: on an empty one there is nothing to truncate and nothing to
- * conclude from git's silence.
+ * conclude from git's silence — and the same for the path probe.
+ *
+ * Every returned entry carries the path the element occupied at its own commit
+ * ({@link MemoryHistoryEntry.path}), not the one the caller named. That is what makes this walk the
+ * single source of truth for "where was this file at this commit": a consumer that reads content per
+ * commit — `./audit`'s `reconstructMemoryTransitions`, which reads the frontmatter `status:` — must
+ * take the path from here rather than re-using its own argument (`bug-080`).
  */
 export function getMemoryHistory(root: string, relativePath: string): MemoryHistoryEntry[] {
   const records = walkGitLogFields(root, LOG_FIELDS, [relativePath], ['--follow']);
@@ -173,9 +292,10 @@ export function getMemoryHistory(root: string, relativePath: string): MemoryHist
       string,
       string,
     ];
-    return { sha, authorName, authorEmail, date, subject, body: body.trim() };
+    return { sha, authorName, authorEmail, date, subject, body: body.trim(), path: relativePath };
   });
 
   if (entries.length === 0) return entries;
-  return dropPreCreationAncestry(entries, findElementCreationSha(root, relativePath));
+  const located = attachHistoricalPaths(entries, collectHistoricalPaths(root, relativePath), relativePath);
+  return dropPreCreationAncestry(located, findElementCreationSha(root, relativePath));
 }

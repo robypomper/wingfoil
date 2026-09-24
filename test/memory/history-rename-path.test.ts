@@ -16,10 +16,17 @@
  * `path` pattern interpolates the release-line id) rather than reading the live case itself.
  */
 import { spawnSync } from 'child_process';
-import { mkdirSync } from 'fs';
+import { mkdirSync, mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 
 import { reconstructMemoryTransitions } from '../../src/memory/audit';
+import {
+  attachHistoricalPaths,
+  collectHistoricalPaths,
+  getMemoryHistory,
+  type MemoryHistoryEntry,
+} from '../../src/memory/history';
 import {
   commitAll,
   git,
@@ -60,6 +67,68 @@ function makeRenamedElementRepo(): string {
   commitAll(repo, 'wf(release): approve minor-v0.1 [planning -> in-development]');
   return repo;
 }
+
+describe('collectHistoricalPaths — the walk is the source of truth for where the file was (AC1)', () => {
+  let repo = '';
+
+  afterEach(() => removeTempDir(repo));
+
+  it('maps every commit of the --follow walk to the path the element occupied at that commit', () => {
+    repo = makeRenamedElementRepo();
+
+    const paths = collectHistoricalPaths(repo, NEW_PATH);
+    const walked = getMemoryHistory(repo, NEW_PATH);
+
+    // One entry per walked commit — the probe and the walk are the same walk, narrowed differently.
+    expect(paths.size).toBe(walked.length);
+    expect(walked.map((entry) => entry.path)).toEqual([
+      OLD_PATH, // add
+      OLD_PATH, // submit
+      NEW_PATH, // the rename commit itself: the file is at its DESTINATION there
+      NEW_PATH, // approve
+    ]);
+    expect(walked.map((entry) => paths.get(entry.sha))).toEqual(walked.map((entry) => entry.path));
+  });
+
+  it('surfaces a failing probe as an error rather than as "this element was never renamed"', () => {
+    repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+
+    // Same reasoning as `findElementCreationSha` (task-089): collapsing "git could not answer" into
+    // "no rename edges" restores the defect silently, reading every commit at the current path again.
+    expect(() => collectHistoricalPaths(repo, NEW_PATH)).toThrow(/--follow --name-status/);
+  });
+});
+
+describe('attachHistoricalPaths — pure merge of walk and probe (AC1)', () => {
+  const entry = (sha: string, subject: string): MemoryHistoryEntry => ({
+    sha,
+    authorName: 'A',
+    authorEmail: 'a@e.test',
+    date: '2026-01-01T00:00:00+00:00',
+    subject,
+    body: '',
+    path: 'unset.md',
+  });
+
+  it('gives each entry the path the probe recorded for its own sha', () => {
+    const entries = [entry('1'.repeat(40), 'add'), entry('2'.repeat(40), 'approve')];
+    const probe = new Map([
+      ['1'.repeat(40), OLD_PATH],
+      ['2'.repeat(40), NEW_PATH],
+    ]);
+
+    expect(attachHistoricalPaths(entries, probe, NEW_PATH).map((e) => e.path)).toEqual([
+      OLD_PATH,
+      NEW_PATH,
+    ]);
+  });
+
+  it('falls back to the current path for a sha the probe reported no diff for', () => {
+    const entries = [entry('3'.repeat(40), 'merge')];
+
+    expect(attachHistoricalPaths(entries, new Map(), NEW_PATH).map((e) => e.path)).toEqual([NEW_PATH]);
+  });
+});
 
 describe('reconstructMemoryTransitions across a rename (bug-080, AC2)', () => {
   let repo = '';

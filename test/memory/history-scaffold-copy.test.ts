@@ -179,7 +179,7 @@ describe('the truncation never stands in for a failure (AC5) — a real error st
 
   it('surfaces a disagreement between the two walks as an error rather than skipping the truncation', () => {
     const entries: MemoryHistoryEntry[] = [
-      { sha: 'a'.repeat(40), authorName: 'A', authorEmail: 'a@e.test', date: '2026-01-01T00:00:00+00:00', subject: 'one', body: '' },
+      { sha: 'a'.repeat(40), authorName: 'A', authorEmail: 'a@e.test', date: '2026-01-01T00:00:00+00:00', subject: 'one', body: '', path: ADR_PATH },
     ];
 
     expect(() => dropPreCreationAncestry(entries, 'b'.repeat(40))).toThrow(/not present in the history walk/);
@@ -193,6 +193,7 @@ describe('the truncation never stands in for a failure (AC5) — a real error st
       date: '2026-01-01T00:00:00+00:00',
       subject,
       body: '',
+      path: ADR_PATH,
     });
     const entries = [entry('1'.repeat(40), 'template'), entry('2'.repeat(40), 'add'), entry('3'.repeat(40), 'submit')];
 
