@@ -2,7 +2,8 @@
 id: "task-093-dna-mutation-surface-add-remove-update"
 type: task
 title: "Build the DNA mutation surface dl-081 ratified: `dna add|remove|update --field <full path> --value <v>`, and make the traversal refuse a path that does not resolve"
-status: in-review
+status: in-progress
+rejection_reason: "The derived --version entry option is shadowed by Commander's program-level -V, --version, so `dna add --field stacks.technologies --value Zod --category validation --version 4.0` prints the CLI version, exits 0 and writes nothing, while --help advertises the option as working. A silent success in the pillar every other pillar reads \u2014 the class this task exists to close. No test catches it because AC3/AC5/AC6 are pinned at the CoreFn layer where Commander never runs, and the CLI-layer pins happen to use only the options that do not collide. version is the only collision today, but the option set is derived from the schema, so the next field named after a global flag lands the same way with no gate. Fix: rename or namespace the registered option, or refuse to register one that shadows a global \u2014 plus a CLI-level test driving EVERY name dnaEntryOptionNames() returns. Second: the coverage note attributes the statement delta entirely to path.ts and mutate.ts fallback arms over Zod's untyped def; 8 of the 11 uncovered statements are in edit.ts, which is the largest single contributor and includes the re-parse catch \u2014 the last line of the safety contract the notes ask a reviewer to trust. Correct the attribution to what coverage-final.json shows."
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "dna", "cli", "mcp"]
