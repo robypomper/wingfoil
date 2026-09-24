@@ -193,7 +193,15 @@ describe('per-pillar loaders — validate the real, live docs/self/.wingfoil con
   it('loadRolesYaml parses the real, live docs/self/.wingfoil/roles.yaml', () => {
     expect(() => loadRolesYaml(liveRoot)).not.toThrow();
     const roles = loadRolesYaml(liveRoot);
-    expect(roles.assignments.developer).toEqual(['code-quality', 'testing', 'determinism']);
+    // task-094 added `command-baseline` (dl-080 option (B)) to the three code-writing roles.
+    expect(roles.assignments.developer).toEqual([
+      'code-quality',
+      'testing',
+      'determinism',
+      'command-baseline',
+    ]);
+    expect(roles.assignments.reviewer).toContain('command-baseline');
+    expect(roles.assignments.architect).toContain('command-baseline');
   });
 });
 

@@ -44,8 +44,10 @@ docs/self/.wingfoil/                  ← WingFoil root for the dogfooding setup
 │   │                                    not yet implemented, see README.md "interim decision"
 │   └── custom/                       ← P3.5 rules + P3.8 stand-ins (kind: custom, ref: [P3.8])
 │       ├── architecture.md
+│       ├── claim-evidence.md        ← WingFoil rule (assigned globally)
 │       ├── code-quality.md
 │       ├── code-review.md
+│       ├── command-baseline.md      ← WingFoil rule (developer, architect, reviewer)
 │       ├── determinism.md
 │       ├── doc-versioning.md
 │       ├── documentation.md
@@ -115,7 +117,7 @@ Each of these four files is independently loadable and schema-validated (REQ-SYS
 - `custom/` — every directive file that exists right now, including the six P3.8 **stand-ins**
   (`code-quality`, `testing`, `code-review`, `architecture`, `security`, `documentation` — each
   authored with `kind: custom`, `ref: [P3.8]`) plus WingFoil-specific rules (`determinism`,
-  `doc-versioning`, `security-secrets`, `traceability`). `roles.yaml` binds by directive **name**,
+  `doc-versioning`, `security-secrets`, `traceability`, `command-baseline`, `claim-evidence`). `roles.yaml` binds by directive **name**,
   independent of which of the two subdirectories currently holds the file — so promoting a stand-in
   from `custom/` to `built-in/` later requires no change to `roles.yaml`.
 
@@ -214,3 +216,11 @@ within `.wingfoil/` is excluded.
 Cross-checked against the actual current tree at `docs/self/.wingfoil/` (via
 `find docs/self/.wingfoil -maxdepth 4`) and against `docs/02_requirements/03_sard/01_architecture.md`
 (REQ-SYS-01 through REQ-SYS-09).
+
+**Revision (2026-09-24) — the `custom/` listing carries `command-baseline` and `claim-evidence`, per
+`task-094-write-the-baseline-rule-where-implementers-meet-it` (`dl-080` Action 4).** Both the tree
+above and the `custom/` paragraph enumerate "every directive file that exists right now", so adding
+two files to `docs/self/.wingfoil/directives/custom/` made both listings false; twelve files now,
+measured with `ls docs/self/.wingfoil/directives/custom/*.md | wc -l`. Nothing about the layout,
+the `built-in/`-versus-`custom/` split or the `roles.yaml` binding rule changes. Edited in place
+without a supersede or a state change, per the `spec-001` precedent this spec's siblings cite.

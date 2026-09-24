@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2-plan"
 type: plan
 title: "Dev-loop — v0.2 (Project Directives + role-based context + publishing pipeline)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "dev-loop"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -104,12 +104,16 @@ is created (same rationale as the v0.1 dev-loop plan).
 
 | Phase | Role | Directives auto-loaded |
 |---|---|---|
-| start, red, green, refactor, done | developer | code-quality, testing, determinism |
-| design | architect | architecture, determinism, traceability |
-| review | reviewer | code-review, traceability |
+| start, red, green, refactor, done | developer | code-quality, testing, determinism, command-baseline |
+| design | architect | architecture, determinism, traceability, command-baseline |
+| review | reviewer | code-review, traceability, command-baseline |
 | design / review approval gates | approver | — (approval authority only) |
 
-Global (every phase): doc-versioning, documentation, security-secrets.
+Global (every phase): doc-versioning, documentation, security-secrets, claim-evidence.
+
+> `command-baseline` and `claim-evidence` were added to `roles.yaml` (v1.1) mid-phase by
+> `task-094-write-the-baseline-rule-where-implementers-meet-it`, implementing `dl-080` Action 4.
+> Every task started after that carries them.
 
 ### Quality-gate checks on `refactor` — `docs.api.*` (ramp closed) and `lint.clean` (`dl-034`)
 

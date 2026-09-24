@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -143,7 +143,10 @@ that link.
 ## 3. Step 2 — amend `spec-015` §4 (`dl-074` (a))
 
 - **Role:** `architect` (agents may execute as `architect`); directives `architecture`,
-  `determinism`, `traceability`, plus the global `doc-versioning`, `documentation`
+  `determinism`, `traceability`, `command-baseline`, plus the global `doc-versioning`,
+  `documentation`, `security-secrets`, `claim-evidence` (`command-baseline` and `claim-evidence`
+  added to `roles.yaml` v1.1 by `task-094`; `security-secrets` was missing from this list before
+  that and is restored here)
 - **Action:** an **in-place dated Revision note** on an `approved` tech-spec — no supersede, no state
   change, no `version:` bump
 - **Produces:** an edit to

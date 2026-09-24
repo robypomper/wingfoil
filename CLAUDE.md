@@ -75,7 +75,7 @@ this config up to date (Memory transitions, workflow execution) do not exist yet
 | `docs/self/.wingfoil/memory/templates/`                    | Memory (P1.13)         | One Markdown scaffold per element type (`frontmatter.required` enforced on submit)                                                                                                                   |
 | `docs/self/docs/04_memory/planning/{id}.md`                | Memory (P1.11)         | The **release-line** roadmap (one file per major version, e.g. `rl-v1.md`)                                                                                                                           |
 | `docs/self/docs/04_memory/planning/{release-line}/{id}.md` | Memory (P1.11)         | That release-line's **minor releases** (v0.1→v1.0 for `rl-v1`), derived from `docs/03_backlog/`                                                                                                      |
-| `docs/self/.wingfoil/directives/custom/`                   | Directives (P3.5/P3.8) | Rules: P3.8 template **stand-ins** (`code-quality, testing, code-review, architecture, security, documentation`) + WingFoil-specific (`determinism, doc-versioning, security-secrets, traceability`) |
+| `docs/self/.wingfoil/directives/custom/`                   | Directives (P3.5/P3.8) | Rules: P3.8 template **stand-ins** (`code-quality, testing, code-review, architecture, security, documentation`) + WingFoil-specific (`determinism, doc-versioning, security-secrets, traceability, command-baseline, claim-evidence`) |
 | `docs/self/.wingfoil/roles.yaml`                           | Directives (P3.2/P3.7) | Role → directive bindings                                                                                                                                                                            |
 | `docs/self/.wingfoil/workflows.yaml` + `workflows/custom/` | Workflow (P4.1)        | `sw-life-cycle` (main) + sub-workflows + three ingest mains                                                                                                                                          |
 
@@ -360,15 +360,19 @@ spec/doc phases from the existence of their `produces:` artifacts.
 
 Bindings are by **role**, never by person (REQ-SYS-08).
 
-| Role                   | Directives                                      |
-|------------------------|-------------------------------------------------|
-| developer              | code-quality, testing, determinism              |
-| reviewer               | code-review, traceability                       |
-| qa                     | testing                                         |
-| architect              | architecture, determinism, traceability         |
-| product-owner          | traceability                                    |
-| tech-lead              | architecture, code-review                       |
-| **global (all roles)** | doc-versioning, documentation, security-secrets |
+| Role                   | Directives                                                      |
+|------------------------|-----------------------------------------------------------------|
+| developer              | code-quality, testing, determinism, command-baseline            |
+| reviewer               | code-review, traceability, command-baseline                     |
+| qa                     | testing                                                         |
+| architect              | architecture, determinism, traceability, command-baseline       |
+| product-owner          | traceability                                                    |
+| tech-lead              | architecture, code-review                                       |
+| **global (all roles)** | doc-versioning, documentation, security-secrets, claim-evidence |
+
+`command-baseline` states which state a command may read and write (`dl-080`, option (B));
+`claim-evidence` states that a sentence asserting a fact about the code names the command that
+establishes it. Both were written by `task-094`, which is why `roles.yaml` is at v1.1.
 
 When executing under a role, **auto-load and obey that role's directives** (P3.6/P5.4.2).
 

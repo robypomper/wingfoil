@@ -101,7 +101,8 @@ DNA is small and fully declared, so selection is inclusion-by-category, not fuzz
 
 - Look up the request `role` in `roles.yaml`; collect its bound directives (P5.4.2, REQ-SYS-08 — bind by
   role, never by person).
-- Add the **global** directives applied to all roles (`doc-versioning, documentation, security-secrets`).
+- Add the **global** directives applied to all roles (`doc-versioning, documentation, security-secrets,
+  claim-evidence`).
 - Deduplicate by directive id; **sort the final list lexicographically by directive id** (stable,
   reproducible order — never rely on `roles.yaml` listing order or file-system enumeration order).
 - **Precedence when two directives share an id: `custom/` wins over `built-in/`** — a local
@@ -290,3 +291,10 @@ decision. Every statement in it was read off the code on `main` at `194ff91` —
 and `resolveRoleDirectives(...).warnings` with one) — and cross-checked against the shipped assertions
 in `test/core/context.test.ts` and `test/core/directives-list.test.ts`. Edited in place without a
 supersede or a state change, per the `spec-001` precedent `dl-041` cites.
+
+**Revision (2026-09-24) — §5's global-directive enumeration gains `claim-evidence`, per
+`task-094-write-the-baseline-rule-where-implementers-meet-it`.** The list is parenthetical but it is
+an enumeration of what the loader adds for every role, and `roles.yaml` v1.1 binds a fourth global
+directive, so the sentence would otherwise under-report what a role's context contains. The
+resolution rules themselves — deduplicate by id, sort lexicographically, `custom/` wins over
+`built-in/` — are untouched. Edited in place without a supersede or a state change.

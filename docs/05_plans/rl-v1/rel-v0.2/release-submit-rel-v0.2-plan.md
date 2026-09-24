@@ -3,7 +3,7 @@ id: "release-submit-rel-v0.2-plan"
 type: plan
 title: "Release-submit — v0.2 (assemble the release, enter `releasing`, stop at the approver gate)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "release-submit"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -78,7 +78,8 @@ not started yet** — say so and stop.
 - **Workflow phase:** `pre-release-checks`
 - **Role:** `qa` (agents may execute as `qa` — `dna.yaml` `team.agents[0].executes_as`)
 - **Directives auto-loaded (`roles.yaml`):** `testing`; plus the global set `doc-versioning`,
-  `documentation`, `security-secrets`
+  `documentation`, `security-secrets`, `claim-evidence` (the last added to `roles.yaml` v1.1 by
+  `task-094`: every line of the evidence table names the command that produced it)
 - **Actions:** none declared — this phase is `checks.pre` only
 - **Produces:** no file change. Its output is the evidence table you paste into the report to the
   approver (§8)
