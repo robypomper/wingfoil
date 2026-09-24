@@ -23,6 +23,12 @@
  *   `team.members.roberto.roles` reaches one member's role list; `team.members.2.roles` does not
  *   resolve at all, because an index shifts the moment an entry is removed and a path written today
  *   would address a different entry tomorrow.
+ * - **A path segment may be quoted, and a quoted segment is taken verbatim, dots included**
+ *   (`dl-083-dotted-entry-names-in-paths`, task-099). `stacks.technologies."Node.js".version`
+ *   addresses the entry named `Node.js` — a name this repository's own `dna.yaml` carries, along with
+ *   `Commander.js` and `AI agent (Claude/Cursor/etc.)`, which is why the alternative of forbidding
+ *   dots in `name` was declined. The grammar lives in `splitDnaPath` (`./set.ts`); this module is one
+ *   of its three callers and adds nothing to it.
  * - **The schema is the only source of truth.** The traversal reads `DnaYaml` itself (Zod v4 exposes
  *   `def.shape` / `def.element` / `def.innerType`, and does so through `.passthrough()` and
  *   `.superRefine()` alike), never a hand-written field table, so the write surface cannot drift from
@@ -34,7 +40,7 @@
 import type { z } from 'zod';
 
 import { DnaYaml } from './schema';
-import { isValidKeyPath } from './set';
+import { quoteDnaSegment, splitDnaPath } from './set';
 
 /**
  * The prefix every schema-derived entry-field option carries: `--entry-<field>`, spelled with the
@@ -113,7 +119,11 @@ export interface DnaPathTarget {
   readonly kind: DnaTargetKind;
   /** The path as given (paths are never rewritten — see {@link DNA_KEY_ALIASES}'s note in `./set.ts`). */
   readonly path: string;
-  /** `path` split on `.`; for an `entry`, the last segment is the entry's `name`. */
+  /**
+   * `path` parsed by `splitDnaPath`; for an `entry`, the last segment is the entry's `name`. A quoted
+   * segment contributes its name **without** the delimiters and with its dots intact, so
+   * `stacks.technologies."Node.js".version` yields four segments, not five (`dl-083`, task-099).
+   */
   readonly segments: readonly string[];
   /** The value in the document at this path, or `undefined` when the node is declared but absent. */
   readonly value: unknown;
@@ -194,9 +204,20 @@ function kindOf(node: SchemaNode): DnaTargetKind | undefined {
   return undefined;
 }
 
-/** `a.b.c` for the first `depth` segments — how a refusal names the part of the path that did resolve. */
+/**
+ * `a.b.c` for the first `depth` segments — how a refusal names the part of the path that did resolve.
+ *
+ * A segment whose name contains a `.` is re-quoted (`quoteDnaSegment`, task-099/`dl-083`), so the
+ * reported prefix is a path that re-parses to the node it names: `stacks.technologies."Node.js"`,
+ * never `stacks.technologies.Node.js`, which would re-split into four segments and name something
+ * else.
+ *
+ * The round trip holds here because `segments` came out of `splitDnaPath` and therefore carries no
+ * `"`: `quoteDnaSegment` is the inverse on exactly those names, not on every string — its own note
+ * measures where it stops being one, and why that gap cannot be reached from here.
+ */
 function prefixOf(segments: readonly string[], depth: number): string {
-  return segments.slice(0, depth).join('.');
+  return segments.slice(0, depth).map(quoteDnaSegment).join('.');
 }
 
 /** The refusal a segment the schema does not declare produces: it names the whole path AND the segment. */
@@ -232,10 +253,11 @@ function unknownField(path: string, segments: readonly string[], depth: number):
  * nothing exercises.
  */
 export function resolveDnaPath(dna: unknown, keyPath: string, schemaRoot: z.ZodType = DnaYaml): DnaPathResolution {
-  if (!isValidKeyPath(keyPath)) {
-    return { ok: false, message: `invalid key path: '${keyPath}'` };
+  const split = splitDnaPath(keyPath);
+  if (!split.ok) {
+    return { ok: false, message: split.message };
   }
-  const segments = keyPath.split('.');
+  const segments = split.segments;
 
   let schema = schemaRoot as unknown as SchemaNode;
   let value: unknown = dna;
