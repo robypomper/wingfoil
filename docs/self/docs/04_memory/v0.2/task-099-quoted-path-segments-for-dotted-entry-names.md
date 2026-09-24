@@ -171,3 +171,149 @@ dotted path (`src/core/index.ts`, `dnaShowFn`: `const key = DNA_KEY_ALIASES[sect
 so `dna show 'stacks.technologies."Commander.js"'` — one of `dl-083`'s own Decision examples — cannot
 work, and quoting is not what is missing from it. Proposed as a separate element rather than widened
 into here, where it would be a new read surface with its own refusal rules.
+
+### red — role: developer
+
+Two suites, written before any `src/` change, committed as the red:
+
+- **`test/dna/path-quoting.test.ts`** — the grammar at the parser and the resolver (AC1–AC4, AC6,
+  AC7), on a fixture transcribed from `docs/self/.wingfoil/dna.yaml` at commit `3a350aa6` carrying all
+  three live dotted names.
+- **`test/core/dna-quoted-path-segments.test.ts`** — the same grammar through the **real registered**
+  `dna.set/add/remove/update` `CoreFn`s in a throwaway temp git repo: a write on `Node.js` lands and
+  commits, the two refusals are usage errors at exit `2`, and `--value` is untouched (AC5).
+
+`npx jest test/dna/path-quoting.test.ts test/core/dna-quoted-path-segments.test.ts` on the red tree:
+**24 failed, 8 passed, 32 total**. The 8 that passed are exactly the ones classified
+**characterization** above plus four "still true" guards — enumerated from the run's own JSON rather
+than asserted:
+
+```
+$ npx jest … --json | node -e "…for(const t of s.assertionResults) if(t.status==='passed')…"
+AC7 … a document carrying all three live dotted names LOADS
+AC7 … the three names survive validation byte-for-byte
+AC7 … duplicate names are still refused — `uniquelyNamed` stays exactly as task-093 left it
+AC5 … an entry with a dotted name is removed by its bare name in --value
+AC5 … a --value carrying WingFoil quotes names an entry that does not exist, rather than being stripped
+(+ 3 guards: the bare spelling still does NOT resolve, at the resolver and through dnaUpdate; `..language` still reports its own message)
+```
+
+No red was fabricated and no dead code was added to force one: every one of the 24 failed because the
+behaviour does not exist (`splitDnaPath is not a function`, then the four refusals measured in the
+design step).
+
+### green — role: developer
+
+- **`src/dna/set.ts`** — `splitDnaPath(keyPath)` (the grammar, with its three refusals),
+  `quoteDnaSegment(name)` (its inverse), `DnaPathSplit`; `isValidKeyPath` is now
+  `splitDnaPath(...).ok`, so the predicate cannot disagree with the parser; `setDnaValueInText` splits
+  through it (its separate `isValidKeyPath` guard is gone — it was the same check twice).
+- **`src/dna/path.ts`** — `resolveDnaPath` splits through `splitDnaPath` and returns **its** message;
+  `prefixOf` maps `quoteDnaSegment` over the prefix, so a refusal under a quoted segment reports
+  `'bogus' is not declared under 'stacks.technologies."Node.js"'` rather than the ambiguous
+  `stacks.technologies.Node.js`, which re-splits into four segments and names a different node.
+- **`src/core/index.ts`** — `dnaPathPositional` throws the parser's own message, so AC3's and AC4's
+  messages reach exit `2` instead of a flat `invalid key path`.
+- **`src/dna/index.ts`** — the two new symbols and the type re-exported from the pillar barrel.
+
+**Shared-file change, flagged for the merge** (wave brief): `src/core/index.ts` line 30 changes from
+`import { DNA_KEY_ALIASES, isValidKeyPath } from '../dna/set';` to
+`import { DNA_KEY_ALIASES, splitDnaPath } from '../dna/set';`, and the only other edits in that file
+are inside `dnaPathPositional` and two doc comments. That is the entire footprint in a file
+`task-095`/`task-096`/`task-098` also touch — this task adds no symbol to `CORE_MODULES` and changes
+no operation's registration.
+
+**Two red fixes that were the test's fault, not the code's**, both recorded because each is a claim
+that would otherwise be wrong:
+
+- `DnaPathTarget.path` is the path **as given** and is deliberately never rewritten (it is what the
+  commit subject echoes), so `team."members".roberto.roles` and `team.members.roberto.roles` resolve
+  to targets that differ in `path` and in nothing else. The AC2 test compares the rest and says why.
+- the first `team.agents` fixture had no `reviewer` in `team.roles`, so the add failed `Team`'s
+  referential refinement (`references undefined role "reviewer"`) — a fixture bug that had nothing to
+  do with quoting. Diagnosed by printing the `CoreResult` rather than by guessing.
+
+### refactor — role: developer
+
+Documentation only — AC8 — plus the doc comments listed above:
+
+- **`spec-008` §9** gains a *Quoting a segment* subsection: the three worked invocations, the
+  shell-versus-WingFoil overlap stated outright (outer single quotes the shell's, inner double quotes
+  WingFoil's — and `--value "Node.js"` the other way round), and the rules in full. §5 names the two
+  new usage errors beside `..language`, and the `<path>` row points at the subsection.
+- **`spec-002`** gains a Revision recording both halves: the path may quote a segment, and **no dot
+  constraint joins `uniquelyNamed`** — with `bug-091`'s Correction's measurement and `dl-083`'s ground
+  for declining it even on a clean corpus.
+
+Both are dated Revisions edited in place, no supersede, no state change — the shape `task-093` used
+and `dl-047-tech-specs-carry-no-version-field` allows.
+
+**Checked and deliberately not changed.** `src/dna/edit.ts`'s `insertMissingScalarPath` rebuilds a key
+path with `edit.path.map(step => step.key).join('.')` — the inverse of the parser, without
+`quoteDnaSegment`. It cannot produce a wrong path today and the reason is structural, not lucky: the
+line above it is `if (!edit.path.every((step) => 'key' in step)) return undefined;`, so every step is a
+**mapping key**, and mapping keys come from `DnaYaml`'s own shape (`project`, `license`, `version`) —
+a collection entry, the only place a dotted name can occur, arrives as an `{ index }` step and is
+filtered out one line earlier. Left alone rather than "hardened", which would have been dead code.
+
+### Gates — run on the final tree, after merging `main`
+
+`git merge main` (`dl-035`: merge, never rebase) brought `4a6b5846..66ef6304` — 27 commits including
+`task-095`'s merge — into the branch before these were run, so they are the numbers for the tree that
+will be merged back, not for an isolated one. No conflict, textual or semantic.
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **134 suites / 2189 tests passed** |
+| `npx jest --coverage` | `98.57 stmts · 93.94 branch · 98.91 funcs · 99.39 lines` — over the 80% floor, and non-regressing against `task-093`'s `98.50 / 93.65 / 98.89 / 99.38` |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit `0` |
+| `npx tsc -p tsconfig.build.json` (**emitting**) | exit `0` |
+| `npx tsc --noEmit -p tsconfig.json` (full, tests included) | exit `0` |
+| `npm run lint` | exit `0` |
+| `npm run docs:api` | exit `0` |
+
+Before the merge, on this branch alone: 131 suites / 2159 tests, `98.55 / 93.87 / 98.90 / 99.39`. One
+run of the full suite reported `test/mcp/resource-latency.test.ts` failing its latency-growth trend
+assertion (`lastMean 129.5 < 110.3` expected); re-run alone it passed `4 passed`, and every subsequent
+full run passed it too. A timing-sensitive REQ-PERF-04 assertion under machine load, untouched by this
+task, which changes no code that suite reaches.
+
+### The CLI, driven for real (not inferred from the unit tests)
+
+The gates above exercise `CoreFn`s. WingFoil is experimental, so the shipped binary was driven too, on
+a throwaway git repo carrying the fixture — `node dist/cli.js`, built from this tree:
+
+```
+$ node …/dist/cli.js dna update 'stacks.technologies."Node.js".version' --value 22.14+
+{ "key": "stacks.technologies.\"Node.js\".version", "value": "22.14+" }        exit 0
+$ git log -1 --format=%s
+wf(dna): update stacks.technologies."Node.js".version 22.14+
+$ grep -A2 'name: Node.js' .wingfoil/dna.yaml
+    - name: Node.js
+      category: runtime
+      version: 22.14+     # [SPEC] Product Brief §Technical Stack      ← comment preserved and realigned
+
+$ node …/dist/cli.js dna set 'stacks."Node.js' --value x
+error: invalid key path: 'stacks."Node.js': unterminated quote — a segment that opens with " must close with "     exit 2
+$ node …/dist/cli.js dna set 'stacks."say "hi""' --value x
+error: unaddressable entry name in key path 'stacks."say "hi""': a segment may not contain " and there is
+no escape sequence, so an entry whose name contains " cannot be addressed                                  exit 2
+$ node …/dist/cli.js dna remove stacks.technologies --value "Commander.js"
+{ "key": "stacks.technologies", "value": "Commander.js" }                      exit 0   (entry gone: grep -c → 0)
+```
+
+The last two lines are the AC5 point in its natural habitat: those double quotes are the **shell's**,
+they never reach WingFoil, and the entry named `Commander.js` is removed by its bare name.
+
+### Per-AC outcome
+
+| AC | Where it is pinned |
+|---|---|
+| AC1 | `path-quoting.test.ts` "a quoted segment is taken verbatim" + `resolveDnaPath` block; `dna-quoted-path-segments.test.ts` update/set end to end. One parser: the resolver, the predicate and the text editor all call `splitDnaPath`. |
+| AC2 | "the delimiters are dropped…" and "a quoted dot-free segment resolves to the same place as the bare spelling"; end to end via `team."members".roberto.roles`. |
+| AC3 | `splitError('stacks.technologies."Node.js')` + `exitCodeForThrow(...).exitCode === 2` on all four verbs; driven on the real CLI above. |
+| AC4 | "a `"` the delimiters cannot account for…" — message asserted to say *unaddressable*, to mention *escape*, and **not** to say *invalid key path*; plus the deliberate split from the malformed `"Node.js"x` case, so the unaddressable message is true whenever it prints. |
+| AC5 | the `--value` describe block: removal by bare `Node.js`, a WingFoil-quoted `--value` naming nothing, and an entry added by `--value` then reached by a quoted segment. |
+| AC6 | `DOTTED_DNA` in `path-quoting.test.ts` carries `Node.js`, `Commander.js` and `AI agent (Claude/Cursor/etc.)`, and each is asserted addressable; the core suite's fixture carries them too. |
+| AC7 | the AC7 describe block: the document **loads**, the names survive byte-for-byte, and `uniquelyNamed` still refuses duplicates. A dot refinement attached inside `DnaYaml` fails the first of those on read. |
+| AC8 | `spec-008` §9 + §5 + the `<path>` row; `spec-002`'s *Unknown keys* ground, both with dated Revisions. |
