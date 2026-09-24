@@ -8,7 +8,7 @@ description: >-
   scaffolded artifacts. Would have caught bug-005 at release time instead of at the last task.
   STAGED per the dl-014 B-DECISION (Option 2): warn on failure until the gate runs green for a
   release, then flip to hard-reject.
-version: 1.0
+version: 1.1                     # dl-082: `dna set` respelled to `<path> --value <v>` (task-093)
 element: release
 
 phases:
@@ -27,7 +27,7 @@ phases:
     role: qa
     actions:
       - 'cli.run("dna show")'
-      - 'cli.run("dna set <key> <value>")'
+      - 'cli.run("dna set <path> --value <v>")'
       - 'cli.run("memory add ...; memory submit ...")'
       - 'cli.run("paths <category>")'
       - 'cli.run("directives list")'

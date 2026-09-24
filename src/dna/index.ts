@@ -25,7 +25,28 @@ export {
   Paths,
 } from './schema';
 
-export { isValidKeyPath, setDnaValue, setDnaValueInText, DNA_KEY_ALIASES } from './set';
+export { isValidKeyPath, setDnaValueInText, DNA_KEY_ALIASES } from './set';
+
+// task-093-dna-mutation-surface-add-remove-update — the mutation surface `dl-081-dna-mutation-surface-shape`
+// ratified (option (E)): one schema-driven traversal (`./path`), the pure add|remove|update semantics
+// over it (`./mutate`), and the comment-preserving structural edit that writes the result (`./edit`).
+// `setDnaValue` is gone with them: it treated every path segment as an object key and created an object
+// for any segment it could not descend into, which is the mechanism `bug-084` filed.
+export {
+  resolveDnaPath,
+  dnaCollectionPaths,
+  dnaEntryOptionNames,
+  DNA_ENTRY_OPTION_PREFIX,
+  dnaEntryOptionName,
+  dnaEntryFieldOfOption,
+} from './path';
+export type { DnaEntryField, DnaFieldKind, DnaPathResolution, DnaPathTarget, DnaTargetKind } from './path';
+
+export { applyDnaMutation } from './mutate';
+export type { DnaMutationRequest, DnaMutationResult, DnaMutationVerb } from './mutate';
+
+export { applyDnaEditInText } from './edit';
+export type { DnaTextEdit, DnaTextStep } from './edit';
 
 export {
   isRoleDefined,

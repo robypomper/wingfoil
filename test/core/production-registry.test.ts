@@ -12,7 +12,7 @@ import { CORE_MODULES } from '../../src/core';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 describe('CORE_MODULES — production registry', () => {
-  it('registers the currently-existing operations, incl. the mutating ops `dna.dnaSet` (task-025), `memory.memoryAdd` (task-020) + `directive.directiveCreate` (task-050)', () => {
+  it('registers the currently-existing operations, incl. the mutating ops `dna.dnaAdd`/`dnaRemove`/`dnaUpdate` (task-093), `dna.dnaSet` (task-025), `memory.memoryAdd` (task-020) + `directive.directiveCreate` (task-050)', () => {
     const flat = enumerateOperations(CORE_MODULES).map(
       (entry) => `${entry.module.name}.${entry.operation.name}`,
     );
@@ -25,8 +25,15 @@ describe('CORE_MODULES — production registry', () => {
       'directive.directiveCreate',
       'directive.directiveRemove',
       'directives.directivesList',
+      // task-093-dna-mutation-surface-add-remove-update adds the three verbs `dl-081` ratified
+      // (option (E)): the collection travels in the verb's `<path>` positional rather than in the verb
+      // name (`dl-082-cli-parameter-shape`), so the DNA
+      // pillar reaches every collection at three operations instead of a dozen.
+      'dna.dnaAdd',
+      'dna.dnaRemove',
       'dna.dnaSet',
       'dna.dnaShow',
+      'dna.dnaUpdate',
       'memory.memoryAdd',
       'memory.memoryApprove',
       'memory.memoryDeprecate',
@@ -39,13 +46,16 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('nine operations mutate today — `directive.directiveAssign` (P3.2), `directive.directiveCreate` (P3.1), `directive.directiveRemove` (P3.3), `dna.dnaSet` (P2.1), `memory.memoryAdd` (P1.3), `memory.memorySubmit` (P1.6), `memory.memoryApprove` (P1.7), `memory.memoryReject` (P1.8) + `memory.memoryDeprecate` (P1.9); the rest are read-only', () => {
+  it('twelve operations mutate today — the nine before task-093 plus `dna.dnaAdd`, `dna.dnaRemove` and `dna.dnaUpdate` (P2.1, dl-081); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveAssign',
       'directive.directiveCreate',
       'directive.directiveRemove',
+      'dna.dnaAdd',
+      'dna.dnaRemove',
       'dna.dnaSet',
+      'dna.dnaUpdate',
       'memory.memoryAdd',
       'memory.memoryApprove',
       'memory.memoryDeprecate',

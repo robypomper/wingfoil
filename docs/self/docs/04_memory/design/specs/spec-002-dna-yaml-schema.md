@@ -60,6 +60,16 @@ mapping).
 ```typescript
 import { z } from "zod";
 
+// Per-collection NAME UNIQUENESS. Entries of a collection are addressed by `name`
+// (`dna update team.members.roberto.roles --value …`, dl-081 + dl-082-cli-parameter-shape), so two
+// entries sharing one makes the address ambiguous — and the ambiguity would reach every reader that
+// looks an entry up by name (resolveRoleHolders, the role bindings), not only the write verbs.
+// Enforced here rather than in each verb so a violating document fails to LOAD, the same way Team's
+// referential check below does. [SPEC: dl-081]
+function uniquelyNamed<T extends z.ZodType>(entry: T): z.ZodArray<T> {
+  return z.array(entry).superRefine((value, ctx) => { /* one issue per repeated `name` */ });
+}
+
 const Project = z.object({
   name:        z.string().optional(),
   description: z.string().optional(),
@@ -97,8 +107,8 @@ const MethodologyEntry = z.object({
 // stacks replaces the old fixed-key tech_stack (cli/mcp/testing sub-objects). Both lists are
 // optional so a minimal project may declare technologies without methodologies (or vice versa).
 const Stacks = z.object({
-  technologies:  z.array(TechEntry).optional(),        // [SPEC: P2.4] (values) / [AUTHORING] (shape)
-  methodologies: z.array(MethodologyEntry).optional(), // [AUTHORING]
+  technologies:  uniquelyNamed(TechEntry).optional(),  // [SPEC: P2.4] (values) / [AUTHORING] (shape)
+  methodologies: uniquelyNamed(MethodologyEntry).optional(), // [AUTHORING]
 }).passthrough();
 
 const TeamMember = z.object({
@@ -119,9 +129,9 @@ const RoleEntry = z.object({
 }).passthrough();
 
 const Team = z.object({
-  members: z.array(TeamMember),         // [SPEC: P2.4]
-  agents:  z.array(AgentEntry).optional(),  // [AUTHORING] agent execution model
-  roles:   z.array(RoleEntry),          // [SPEC: REQ-SYS-08] canonical role catalogue
+  members: uniquelyNamed(TeamMember),   // [SPEC: P2.4]
+  agents:  uniquelyNamed(AgentEntry).optional(),  // [AUTHORING] agent execution model
+  roles:   uniquelyNamed(RoleEntry),    // [SPEC: REQ-SYS-08] canonical role catalogue
 }).passthrough();
 
 // paths: category name → list of path strings. Fixed category names per P2.5 / X_cli-cmds.md,
@@ -137,7 +147,7 @@ const Paths = z.object({
 export const DnaYaml = z.object({
   version: z.number().positive(),
   project: Project.optional(),
-  modules: z.array(Module),
+  modules: uniquelyNamed(Module),
   stacks:  Stacks,
   team:    Team,
   paths:   Paths,
@@ -177,6 +187,27 @@ is always `false`.
 (P3.2/P3.7) — it is keyed by role name but does not define the role set. It omits `facilitator` and
 `approver` (which carry no directive bindings) and carries no per-role `description`, so it cannot
 serve as the catalogue. `dna.yaml` therefore remains the authoritative role registry.
+
+### Unknown keys: accepted on read, refused on write
+
+Every node is `.passthrough()`, which is a statement about **reading**: a document carrying fields a
+newer (or older) WingFoil does not know still loads, and those fields are preserved rather than
+stripped. It is **not** a statement about writing. A write command resolves its `<path>` argument
+against this schema and **refuses a path the schema does not declare rather than creating it**
+(`dl-081-dna-mutation-surface-shape`, ratified; implemented in `src/dna/path.ts`); the refusal is a
+validation failure, exit `1` per `spec-005-cli-command-contract` §1.
+
+The two halves are deliberately asymmetric. Pass-through on read is forward compatibility; pass-through
+on **write** meant `dna set nonsense.at.any.depth --value v` invented a key at any depth and committed it at
+exit `0`, in the pillar every other pillar reads
+(`bug-084-dna-key-alias-writes-unschemad-keys`). Creating a node the schema **declares** and the
+document merely omits — an absent optional `project:`, an absent `paths.tests` — is not that case and
+stays legal; it is the only way an optional section can ever be filled.
+
+A consequence worth stating: `tech_stack` is not an alias on the write path. `dna show tech_stack`
+still resolves to `stacks` (see Consequences below), but `dna set tech_stack.<key> --value <v>` is refused as
+the unknown key it is, because `stacks` replaced a fixed-key object and a first-segment rewrite cannot
+perform a change of shape.
 
 ### Categories (P2.5)
 
@@ -251,3 +282,38 @@ paths:
   fields are preserved.
 - Depends on this staying stable: `wingfoil dna show/set`, `wingfoil paths`, the `wingfoil://dna` MCP
   Resource, and any role-binding resolution.
+
+## Process Notes
+
+**Revision (2026-09-23) — the six object collections gain a per-collection `name` uniqueness
+refinement, and the write path's treatment of unknown keys is stated, per
+`dl-081-dna-mutation-surface-shape` (`ready`, approve commit `5aaa5af`) and
+`task-093-dna-mutation-surface-add-remove-update`.** Two things this spec did not say, both now
+load-bearing:
+
+- *Uniqueness.* `dl-081` ratified addressing entries by `name` rather than by index, which makes
+  uniqueness a prerequisite rather than a convention; the schema carried no constraint keeping it
+  (the one refinement was `Team`'s referential check). The ratification left the mechanism open — a
+  refinement per collection, or verbs that refuse on more than one match — and the refinement was
+  chosen, because it makes the ambiguity unreachable and protects readers that are not verbs.
+  Measured non-breaking before adoption: WingFoil's own `dna.yaml` carries 38 object entries across
+  these six collections with zero duplicates, and both registered `wingfoil init` templates scaffold
+  distinct names (pinned by `test/dna/schema-uniqueness.test.ts` over the real `templateScaffold`
+  output, so a future template cannot introduce one silently).
+- *Unknown keys.* This spec ratified `.passthrough()` on every node without saying whether it governs
+  writes as well as reads. It does not, and the new *Unknown keys* section above says so. Nothing
+  about the read contract changed.
+
+Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
+`spec-006`'s 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — the write-path examples are respelled to `dl-082-cli-parameter-shape`'s
+grammar.** `dl-082` (`ready`) moves a DNA verb's path out of `--field` into a positional, and turns
+`dna set`'s second positional into `--value`, under a rule the other nine `dna`/`memory` commands
+already followed: a positional carries the identity of the target, an option a named attribute of the
+action. Nothing in this schema changes — not a field, not a refinement, not the read/write asymmetry
+the 2026-09-23 revision added. Only the three invocations quoted above are respelled, so a reader
+copying one out of this document gets a command that runs. `spec-008` §9 holds the grammar itself.
+
+Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
+`spec-006`'s 2026-09-17 revision cites.

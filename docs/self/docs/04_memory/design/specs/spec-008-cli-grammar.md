@@ -33,7 +33,10 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
 ```
 
 - `<noun>` is a pillar namespace (`memory`, `dna`, `directive`, `directives`, `workflow`, `agent`) or a
-  flat command (`init`, `paths`, `audit`). The Directives pillar deliberately exposes two nouns —
+  flat command (`init`, `paths`, `audit`). The DNA pillar's verbs are `show`, `set`, and the three
+  mutation verbs `add`, `remove` and `update` (§9) — the collection they act on travels in their
+  `<path>` argument, not in the verb name, so the verb list does not grow as `spec-002`'s schema does
+  (`dl-081-dna-mutation-surface-shape`). The Directives pillar deliberately exposes two nouns —
   singular `directive` (`create`, `assign`, `remove`) and plural `directives` (`list`) — each the
   `CoreModule.name` its operations register under (`spec-006-core-domain-api` §3 `module` column,
   `dl-041-spec-006-module-grouping-vs-core-module-name`).
@@ -153,6 +156,14 @@ This table is the single source of truth for exit codes; ground-truth BDD scenar
 `P1.6-memory-submit`, `P1.7-memory-approve`, `P5.1.4-cli-ux`) exercise exactly these three codes and no
 others.
 
+A distinction the DNA verbs make visible, and which the table already decides: a **malformed** path is
+exit `2` (`dna set ..language --value python` → `error: invalid key path: '..language'`, as
+`P2.1-dna-set.feature` pins it)
+because the invocation itself is malformed, while a **well-formed path naming a field the schema does
+not declare** is exit `1` — a validation failure, like an unknown Memory type. The same reading is what
+`bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
+of failure, not its severity.
+
 ### 6. Error format (REQ-INT-08)
 
 Every user-facing error, on stderr, in `--format console` (default):
@@ -210,6 +221,65 @@ argument — the type is not repeated because IDs are globally unique (`id_patte
 Help output always renders as `--format console` regardless of the ambient `--format` flag, and always
 exits `0`.
 
+### 9. DNA field paths (`<path>` / `--value`)
+
+The DNA verbs state their parameters the way the other nine `memory`/`paths` commands already do
+(`dl-082-cli-parameter-shape`): **the path is a positional, because it identifies the target; every
+attribute is an option.** `dl-081-dna-mutation-surface-shape` ratified the surface (option (E)) with
+the path in a `--field` option; `dl-082` amended that one point and left its semantics untouched.
+
+```
+wingfoil dna set    project.license              --value MIT
+wingfoil dna add    team.roles                   --value reviewer --entry-description "reviews changes"
+wingfoil dna add    team.members                 --value roberto --entry-email r@example.it --entry-roles approver
+wingfoil dna add    team.members.roberto.roles   --value qa
+wingfoil dna add    paths.sources                --value "src/**"
+wingfoil dna update team.members                 --value roberto --entry-email new@example.it
+wingfoil dna update modules.core.path            --value src/core
+wingfoil dna remove modules                      --value core
+```
+
+| Parameter | Meaning |
+|--------|---------|
+| `<path>` | **Required**, and the only positional the verb reads. The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. A second positional is refused at exit `2` naming the new grammar — the migration error for `dna set <key> <value>`. |
+| `--value` | The new entry's **identity** when `<path>` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values. Required for `add` and for `set`; required for `remove`/`update` unless `<path>` already identifies the entry. |
+| `--entry-<field>` | One option per field the entry schema declares (`--entry-description`, `--entry-path`, `--entry-email`, `--entry-roles`, `--entry-category`, `--entry-version`, `--entry-notes`, `--entry-phase`, `--entry-executes_as`), the `<field>` spelled exactly as `spec-002` spells it. Accepted by `add` and `update`. The `entry-` prefix is **required**, and is what keeps this derived namespace disjoint from the declared global flags in §2 — see the two outcomes below. |
+
+**What an unprefixed spelling does, which is two different things.** The option set is derived from
+`spec-002`'s entry schemas; §2's global flags are declared here. Where the two namespaces overlap, the
+global wins silently, which is the whole reason for the prefix:
+
+- A name §2 does **not** declare — `--category`, `--email`, `--notes` — is refused by Commander as an
+  unknown option, exit `1`, nothing written.
+- A name §2 **does** declare is consumed by the global instead and is never reported. Today the overlap
+  is exactly one name, `version` (`TechEntry` declares it), and because `--version` is an *action* flag
+  the result is a silent no-op: `wingfoil dna add stacks.technologies --value Go --version 1.22` prints
+  the CLI version and exits `0` having written nothing — §1's precedence rule and `spec-005` §1's exit
+  code, both working as specified. A global that merely carries a value (`--format`) or sets a boolean
+  (`--verbose`) would instead swallow the value and let the command run with that field absent.
+
+The second outcome is what the prefix removes **by construction**, for every present and future name on
+both sides: §2 is amendable, so a global flag added later would otherwise silently disable an entry
+field that had been writable, and a prefix applied only to the names that happen to collide would make
+an option's spelling depend on §2 — adding a flag there would silently *rename* an existing option.
+
+Two rules the shape rests on, both ratified rather than inferred:
+
+- **Entries are addressed by `name`, never by index.** `team.members.roberto.roles` reaches that
+  member's list; `team.members.2.roles` is refused. An index shifts the moment an entry is removed, so
+  a path written today would address a different entry tomorrow. Name uniqueness per collection is
+  therefore a schema constraint (`spec-002`), not an assumption.
+- **A path that does not resolve is refused, never created** — exit `1`, naming the path (§5). Under
+  add/remove/update semantics one cannot add to a collection that does not exist, and the same rule
+  answers the wider question: the DNA pillar accepts unknown keys when *reading* a document and refuses
+  to write one (`bug-084-dna-key-alias-writes-unschemad-keys`).
+
+`--value`'s double duty is a convention the grammar cannot show, so it is stated here and in the
+option's own `--help` text (`CoreOption.description`, `src/core/registry.ts`) rather than left to be
+discovered. `dna set` is the exception that proves it: it is `update` restricted to a scalar, so its
+`--value` carries only the second meaning and its `--help` says so. A `<path>` that names a collection
+or a list is refused there with the verb that reaches it.
+
 ## Consequences
 
 - Every command implementation under `src/cli` registers global flags exactly once, on the root
@@ -242,3 +312,67 @@ unrecordable-value messages and their exit `2`. Ratified by `dl-067`'s approve c
 records the option chosen and the sub-decisions taken with it; edited in place without a supersede or
 a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001` precedent the
 2026-09-17 revision cites.
+
+**Revision (2026-09-23) — §1's noun note, §5's malformed-vs-unresolvable distinction, and the new §9
+(DNA field paths), per `dl-081-dna-mutation-surface-shape` (`ready`, approve commit `5aaa5af`,
+option (E)) and `task-093-dna-mutation-surface-add-remove-update`.** The grammar grew by three verbs
+on the `dna` noun, and `dl-081` action 3 requires the grammar spec to record a shape rather than let
+it be discovered — "a ratified shape that no spec records is the defect this whole class came from".
+§9 pins the option-bearing form, `--value`'s two meanings, entry addressing by name, and the
+refuse-rather-than-create rule; §5 gains the sentence separating a malformed path (exit `2`, as
+`P2.1-dna-set.feature` pins it) from a path that names nothing the schema declares (exit `1`, per §5's
+own kind-of-failure rule and `bug-076`'s Correction). No existing row changed. Edited in place without
+a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001`
+precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — §9's per-entry options carry an `entry-` prefix, corrected in the same task
+that shipped them.** The 2026-09-23 note above wrote them bare (`--email`, `--version`), which is what
+`task-093` first implemented and what its review rejected: the option set is derived from `spec-002`'s
+entry schemas while §2's global flags are declared, nothing kept the two namespaces disjoint, and
+`TechEntry`'s `version` collided. Measured on a real project, `dna add … --version 4.0` reached
+Commander's program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing,
+while `--help` advertised the option as working; `--format` and `--verbose` are swallowed the same way
+without even the print.
+
+The prefix is **not** a fix for `version` in particular: it is what makes a **derived** namespace and a
+**declared** one disjoint, for every present and future name on both sides. §2 is amendable, so a
+global flag added later would otherwise silently disable an entry field that had been writable — and a
+prefix applied only to the names that happen to collide would make an option's spelling depend on §2,
+so adding a flag there would silently *rename* an existing option. Only the **spelling** of the
+per-entry options changes here: `--field`, `--value`, entry addressing by name and the refusal rules
+are exactly as ratified, so this corrects what §9 records rather than reopening what it decided.
+
+`spec-002` and `spec-006` were checked for the same staleness and carry none — both mention only
+`--field`/`--value`, never a per-entry option, so neither needed a correction.
+
+**Revision (2026-09-24) — §9 is rewritten to `dl-082-cli-parameter-shape`'s grammar, and its
+unprefixed-option claim is corrected.** Two changes, one ruled and one a defect, in the pass that
+shipped the section.
+
+*The grammar.* `dl-082` (`ready`) states the rule nine of the eleven `dna`/`memory` commands already
+followed and no document had written down: **a parameter is positional when it identifies the target
+of the command, and an option when it names an attribute of the action.** Applied here, the path
+leaves `--field` for a positional `<path>` on `add`/`remove`/`update`, and `dna set`'s second
+positional — the value, an attribute in positional clothing — becomes `--value`. Everything `dl-081`
+ratified about *semantics* is untouched: entries addressed by name and never by index, a path that
+does not resolve refused rather than created, uniqueness as a prerequisite, and `--value` meaning the
+entry's identity at a collection and the new value at a leaf. §1's noun note is respelled to match.
+`dna set` losing a positional is a **breaking change to a shipped command**; it lands before
+`minor-v0.2` is published, must appear in `CHANGELOG.md` (the `user-docs` phase owns it), and
+`P2.1-dna-set.feature` still shows the old spelling — `bug-089` rewrites those scenarios and is
+sequenced after this, so they are written once.
+
+*The defect.* The 2026-09-23 note's option row ended "an unprefixed spelling is an unknown option
+(exit `1`), never a silent no-op". Measured against the build that shipped it,
+`wingfoil dna add --field stacks.technologies --value Go --version 1.22` printed `0.1.0` and exited
+`0` having written nothing: the sentence was false for the very field §9 uses as its worked example,
+and false again for any name §2 declares that carries a value or sets a boolean. The *behaviour* was
+correct and specified — §1 gives a global precedence, `spec-005` §1 gives `--version` exit `0` — and
+only the claim was wrong, which is worse than a wrong behaviour because nothing goes red. The test
+that pinned it drove `--category`, one of the names for which the sentence does hold, so the criterion
+was verified where it could not fail. §9 now states both outcomes and names the overlap (today exactly
+`version`), and `test/cli/derived-option-namespace.test.ts` derives that overlap from the built
+program and drives every member of it.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
