@@ -794,3 +794,31 @@ trade my "Proposed elements" entry named, now measured from both sides.
 
 Both corrections are documentation and test-fixture changes; no `src/` behaviour changed, which is
 why the coverage figures are unchanged rather than merely close.
+
+#### Third `main` sync — this one carries the sibling branches, so the gates were re-run against it
+
+The two syncs recorded above were docs-only. This one is not: between the corrections and now, `main`
+took `task-093`, `task-095` and `task-097` (and `task-094`'s evidence commit) — **39 files, real
+`src/` and `test/` changes**, including the `src/core/index.ts` region this branch's merge note flags.
+Merged (`96db97e`), no textual conflict, and then re-verified rather than assumed, because a clean
+merge is exactly what `task-092`-into-`task-091` also produced:
+
+| Gate | Command | Result on the merged tree |
+|---|---|---|
+| **Emitting build** (run first — it is the check that catches a clean-but-broken merge) | `npx tsc -p tsconfig.build.json` after `rm -rf dist` | exit **0**, `dist/cli.js` produced |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, **no output** |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Full suite | `npx jest` | **135 suites, 2202 tests passed**, exit 0 |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
+
+Coverage is re-baselined, because the earlier base (`02b77f9`) is no longer the tree this branch sits
+on. Measured on both sides again, in a detached worktree at `main` `bfd1b2a` (since removed):
+
+| | Stmts | Branch | Funcs | Lines | Suites / Tests |
+|---|---|---|---|---|---|
+| new base `bfd1b2a` (main, with 093/095/097) | 98.54 | 93.75 | 98.90 | 99.38 | 129 / 2125 |
+| this branch merged onto it | **98.57** | **93.87** | **98.92** | **99.39** | 135 / 2202 |
+
+No metric regressed against the new base either; the earlier `98.72 / 93.60 / 98.91 / 99.25` pair is
+left in place above as what was true of the older tree, not silently overwritten.
