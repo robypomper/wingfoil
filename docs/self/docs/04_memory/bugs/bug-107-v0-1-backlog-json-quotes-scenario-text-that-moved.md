@@ -1,45 +1,61 @@
 ---
 id: "bug-107-v0-1-backlog-json-quotes-scenario-text-that-moved"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "The backlog JSON quotes P2.1 scenario text that `task-100` rewrote, and asserts a DNA shape retired two releases ago — in a file with one commit in its entire history"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`docs/03_backlog/04_backlog/backlog.json` and `by-release/v0.1.json` both carry, in
+`TASK-023.acceptance_criteria`, the **verbatim pre-rewrite text of `P2.1-dna-set.feature` scenario 1**
+— the scenario `task-100` replaced. The same entry's `acceptance_criteria_full` points at the live
+file, which now says something else.
+
+A second entry, `TASK-025` (`ref: P2.4`), asserts the DNA declares `modules, tech_stack, team,
+conventions`. Measured, a fresh scaffold declares `version, project, modules, stacks, team, paths`.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+`grep -n 'tech_stack' docs/03_backlog/04_backlog/backlog.json` and read `TASK-023` and `TASK-025`.
+`git log --oneline -- docs/03_backlog/04_backlog/backlog.json` → **one commit** (`b9c4df0b`), the
+initial import.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Either the backlog reflects the contracts it quotes, or it is understood to be a frozen record of
+what was planned and nothing reads it as current.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+It is neither, and nothing says which it is.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**`task-100` declined to fix it, and the reasoning is the substance of this bug.** Both entries record
+`"release": "v0.1"` tasks in a release that is **already `released`**; the file has exactly one commit
+in the whole history; and correcting one of two stale entries in the same file leaves it *harder* to
+reason about than correcting neither, because a reader then cannot tell fresh from frozen.
+
+**The real question is not the two entries.** It is whether `backlog.json` is a live artefact or an
+archive. `feedback_backlog_json_not_authoritative` already records that `by-release/*.json` is a
+suggestion for `build-backlog` rather than a source of truth, and CLAUDE.md §5.1 states that no
+`approve` commit should ever touch it. If that is the settled reading, the fix is a header sentence
+in the file saying so — not a correction of two rows, which would imply the rest is current.
+
+**Worth resolving before `v0.2` publishes**, because the file ships in the repository and a new reader
+has nothing telling them it is historical.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-24): **low**. Nothing reads these fields at runtime and no workflow consumes them;
+  the cost is that a human or an agent mining the backlog for context is handed retired contracts.
+- Handed from `task-093` to `task-100`, and declined there for the reason above rather than by
+  omission.
