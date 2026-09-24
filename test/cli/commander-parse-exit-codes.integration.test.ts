@@ -144,10 +144,18 @@ describe('AC4 — the messages do not change; only the codes do', () => {
   });
 
   it("the closest-match suggestion survives the interception — `P5.1.4-cli-ux.feature`'s own example", () => {
-    // Commander writes the message AND the suggestion before calling the exit callback, so routing the
-    // code through the contract cannot drop either. This is the half of spec-008 §1's
-    // `E_UNKNOWN_COMMAND` that was already implemented (commander's `showSuggestionAfterError`); with
-    // exit 2 the scenario's three parts — message, suggestion, non-zero exit — now all hold.
+    // What this pins: commander writes the message AND the suggestion before calling the exit callback,
+    // so routing the exit CODE through the contract cannot drop either. `P5.1.4-cli-ux.feature` as
+    // literally written — the message, a suggestion naming `memory`, a non-zero exit — passes in full
+    // here, which it did not before this task, because only the exit code was missing.
+    //
+    // What this does NOT pin, despite the exact string below: the suggestion's CONTRACT. `spec-008` §1
+    // asks for `spec-005` §3.1's `hint: did you mean "memory"?` at Levenshtein <= 2, and what is
+    // asserted is commander's own `(Did you mean memory?)` from a Damerau-Levenshtein matcher with
+    // `maxDistance = 3` — WingFoil's `src/cli/error.ts` emitter is not on this path at all. That gap is
+    // `bug-104`, not something this task closed. So a commander upgrade that rewords its suffix should
+    // fail HERE and be resolved by re-reading the line and updating it (or by `bug-104`'s fix replacing
+    // it outright) — never by concluding that the contract changed.
     const result = runCli('memroy', 'add');
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("error: unknown command 'memroy'");

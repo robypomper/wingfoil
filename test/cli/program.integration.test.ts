@@ -44,11 +44,13 @@
  * `this.error(message, { code: 'commander.unknownCommand' })`, `exitCode` defaulting to `1`) — against
  * spec-005 §1's exit `2` for a usage error. `buildProgram` now installs an `exitOverride` that routes
  * every Commander termination through `exitCodeForParseOutcome` (`src/core/exit-code.ts`), so the
- * assertions below read `2`. That also completes spec-008 §1's `E_UNKNOWN_COMMAND` treatment, whose
- * other half — the closest-match suggestion `P5.1.4-cli-ux.feature` asks for — commander already
- * supplies (`showSuggestionAfterError`, on by default): `wingfoil memroy add` answers
- * `error: unknown command 'memroy'` followed by `(Did you mean memory?)`, now at exit `2`. It is
- * pinned in `./commander-parse-exit-codes.integration.test.ts`.
+ * assertions below read `2`. That is the EXIT-CODE half of spec-008 §1's `E_UNKNOWN_COMMAND`, and only
+ * that half: §1 also asks for a closest-match suggestion in `spec-005` §3.1's `hint: ` form, computed
+ * at Levenshtein distance <= 2, and what the binary emits is commander's own
+ * `\n(Did you mean memory?)` from `showSuggestionAfterError` — a different line, from a different
+ * matcher (`node_modules/commander/lib/suggestSimilar.js`: Damerau-Levenshtein, `maxDistance = 3`, a
+ * 0.4 similarity ratio), never routed through WingFoil's `src/cli/error.ts` emitter. That divergence
+ * is `bug-104`; this task did not close it and does not claim to.
  */
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';

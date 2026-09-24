@@ -242,12 +242,12 @@ They are version surface, so `test/core/exit-code.test.ts` drives every one of t
 Commander upgrade that renames one fails there rather than silently reverting an exit code in
 production.
 
-### A side effect worth recording: `P5.1.4-cli-ux` scenario 1 now passes in full
+### A side effect worth recording: `P5.1.4-cli-ux` scenario 1, as literally written, now passes
 
-`P5.1.4-cli-ux.feature`'s "unknown command yields an actionable error" asks for the message, a
-closest-match suggestion, and a non-zero exit. The suggestion half was already there — commander's
-`showSuggestionAfterError` is on by default — and it is unaffected by the interception, because
-commander writes message and suggestion before calling the exit callback. Measured on the built CLI:
+`P5.1.4-cli-ux.feature`'s "unknown command yields an actionable error" asks for three things: the
+message, a suggestion naming `memory`, and a non-zero exit. All three now hold, and only the exit code
+was ever missing — commander writes message and suggestion before calling the exit callback, so the
+interception cannot drop either. Measured on the built CLI:
 
 ```
 $ node dist/cli.js memroy add ; echo "exit=$?"
@@ -256,9 +256,18 @@ error: unknown command 'memroy'
 exit=2
 ```
 
-Pinned in the new suite. This corrected a sentence I had just written into
-`test/cli/program.integration.test.ts`'s header while updating it — that the closest-match suggestion
-was the part still unimplemented. It is implemented; only the exit code was missing.
+**That is the scenario, not the contract, and the distinction is the whole of the claim.** `spec-008`
+§1 asks for the suggestion in `spec-005` §3.1's form — `hint: did you mean "memory"?`, emitted through
+`src/cli/error.ts` — at Levenshtein distance <= 2. What ships is commander's own
+`(Did you mean memory?)`, produced by `node_modules/commander/lib/suggestSimilar.js` (Damerau-
+Levenshtein, `maxDistance = 3`, a 0.4 similarity ratio) on a path WingFoil's emitter never touches. So
+this task closes the **exit-code** half of §1's `E_UNKNOWN_COMMAND` and nothing else; the format
+divergence is `bug-104`.
+
+The pin in the new suite asserts commander's exact suffix, which is more than the contract guarantees.
+That is deliberate and its comment says so: a commander upgrade that rewords the suffix should fail
+there and be resolved by re-reading the line — or by `bug-104`'s fix replacing it — never by inferring
+that the contract moved.
 
 ### The one case left alone — and why deliberately
 
@@ -269,18 +278,21 @@ Commander's errors, and the mapping leaves it at `1` on purpose — `exitCodeFor
 only the codes shown to be usage errors, and the unit test pins that a non-usage outcome with a
 non-zero suggestion stays `1`.
 
+Registered since as **`bug-103`**, together with `wingfoil help nosuchnoun`, which the reviewer found
+and which has the same root and the same two violations.
+
 Left alone because changing it is a separate question with a separate answer: `spec-005` §1 also says
 a non-zero exit is **always** accompanied by an `error: <reason>` line on stderr, and this path writes
 none, so the honest fix is "exit `2` **and** emit an error line", which is a behaviour change no AC
 here asks for. Filed as a proposal in the final report rather than smuggled in. Pinned as-is in AC5's
 suite so whichever way it is decided, it is decided rather than drifting.
 
-### Gates (run on the merged tree — `main` merged in twice, at `51eac46b` and at `9642ab5f`; the second merge is docs-only)
+### Gates (re-run in full on the review pass, at merge commit `147145be` — `main` merged in three times: `51eac46b`, `9642ab5f`, `147145be`)
 
 | Gate | Result |
 |---|---|
-| `npx jest` | **136 suites / 2258 tests, all passing** |
-| `npx jest --coverage` | **All files 98.54 % stmts / 93.89 % branch / 98.74 % funcs / 99.40 % lines** (≥ 80) |
+| `npx jest` | **138 suites / 2292 tests, all passing** (up from 136/2258 — `task-099`'s suites arrived with the third merge) |
+| `npx jest --coverage` | **All files 98.56 % stmts / 94.00 % branch / 98.75 % funcs / 99.40 % lines** (≥ 80) |
 | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
 | `npx tsc -p tsconfig.build.json` (**emitting**) | exit 0 |
 | `npx tsc --noEmit -p tsconfig.json` (full, `test/**` included) | exit 0, **no output** (`bug-026` stays closed) |
@@ -289,11 +301,11 @@ suite so whichever way it is decided, it is decided rather than drifting.
 
 Coverage of the two files this task touched: `src/core/exit-code.ts` 100 % stmts / 100 % lines,
 `src/cli/program.ts` 100 % lines. The two uncovered branch markers reported in them
-(`exit-code.ts:131`, `program.ts:170`) are both inside code this task did not write —
+(`exit-code.ts:138`, `program.ts:170`) are both inside code this task did not write —
 `exitCodeForThrow`'s `ValidationError` branch (`task-025`) and the derived-command action callback
 (`task-025`/`task-028`) — so nothing added here is unexercised.
 
-### Note for the orchestrator's merge
+### Note for the orchestrator's merge (superseded — see the review pass below)
 
 This branch touches **no `index.ts` barrel** and no file `task-096`/`task-098`/`task-099` is working
 in. The one import line added to a shared file is `src/cli/program.ts`'s
@@ -305,3 +317,76 @@ in. The one import line added to a shared file is `src/cli/program.ts`'s
 rewritten `docs/01_vision/X_cli-cmds.md` was read for exit-code claims this task could have made
 stale: its three (`dna show` on a dotted path → `1`, an undeclared write path → `1`, a missing
 required argument → `2`) are all errors WingFoil raises itself and none of them moves.
+
+## Execution Notes — review pass (2026-09-24)
+
+The reviewer stressed every claim and found **no code defect**; two prose claims overreached, plus one
+observation worth recording. No behaviour changed in this pass.
+
+### 1. The merge note was false, and `git merge-tree` proved it
+
+It said this branch touches no file `task-096`/`task-098`/`task-099` is working in. `task-099` edits
+`spec-008-cli-grammar.md` — the same file — and has since landed on `main`:
+
+```
+$ git merge-tree --write-tree main HEAD ; echo "rc=$?"
+CONFLICT (content): Merge conflict in docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md
+rc=1
+```
+
+One conflict, docs only: `task-099` and this task each appended a Revision block at EOF. **Resolved
+here rather than left for the orchestrator** — `main` merged in a third time (merge commit
+`147145be`, `main` at `2cbc93d8`) keeping both blocks in the order they landed, `task-099`'s
+quoted-segment revision first, then this task's exit-code one. Each closes with the file's own
+"Edited in place without a supersede or a state change" paragraph, per its convention. §9's
+unprefixed-option bullet (this task's one-word edit, `exit 1` → `exit 2`) survives the merge intact,
+at line 254.
+
+The lesson is not that the claim was careless when written — it was true at `9642ab5f` — but that
+**a merge claim goes stale the moment a sibling lands**, so `merge-tree` belongs in the last minute
+before reporting, not in the sync step. That is where it ran this time.
+
+*Corrected state:* no `index.ts` barrel touched; the only import line added to a shared file is
+`src/cli/program.ts`'s `from '../core/exit-code'`, deliberately routed around the `../core` barrel;
+three `main` merges (`51eac46b`, `9642ab5f`, `147145be`), one docs-only conflict, resolved.
+
+### 2. "Completes `spec-008` §1's `E_UNKNOWN_COMMAND`" claimed more than was measured
+
+Only the **exit-code** half is done. The suggestion half diverges from the contract in two ways, both
+checked against the files rather than recalled:
+
+| | `spec-008` §1 / `spec-005` §3.1 asks | the binary emits |
+|---|---|---|
+| Line | `hint: did you mean "memory"?` via `src/cli/error.ts` (`spec-005` §3.1, and `hint` as a field in the §3.2 JSON/YAML shape) | `(Did you mean memory?)`, written by commander, never through that emitter |
+| Matcher | Levenshtein distance <= 2 (`spec-008` §1) | Damerau-Levenshtein, `maxDistance = 3`, `minSimilarity = 0.4` (`node_modules/commander/lib/suggestSimilar.js`) |
+
+That divergence is **`bug-104`**, on `main`. The claim is narrowed to what was measured in the notes
+above, in `test/cli/program.integration.test.ts`'s header, and in the new suite's own case comment —
+the last of which matters most, because that case asserts commander's exact suffix and a reader has to
+know the assertion is a **pin on today's wording, not a statement of the contract**. What survives,
+and is worth stating, is the narrower fact: `P5.1.4-cli-ux.feature` as literally written — the
+message, a suggestion naming `memory`, a non-zero exit — now passes in full, and did not before.
+
+### 3. `commander.excessArguments` is mapped but unreachable in production today
+
+Every derived command registers a variadic `[positionals...]` (`src/cli/program.ts`), so Commander
+never has an excess argument to refuse. Measured on the build at `147145be`:
+
+```
+wingfoil dna show project extra                    exit=0   (accepted silently)
+wingfoil memory search extra1 extra2               exit=0   (accepted silently)
+wingfoil dna set project.license --value MIT extra exit=2   error: wingfoil dna set takes one positional <path>; the value travels in --value (got 2 positionals)
+```
+
+So of the nine codes mapped to exit `2`, that one is dead today — an extra positional is either
+swallowed by the variadic or refused by WingFoil's own check, which already exits `2`. Pre-existing
+and untouched here. Recorded beside the mapping in `src/core/exit-code.ts` as well as here, so the
+next reader finds an explanation rather than an apparent mistake. It stays mapped: the table has to be
+correct for the code, not for today's registration shape.
+
+### Also in this pass
+
+- The bare-noun finding is registered as **`bug-103`** (with its sibling `wingfoil help nosuchnoun`,
+  which the reviewer found — same root, same two `spec-005` §1 violations). Both it and `bug-104` are
+  cited from this task's `spec-008` revision block, so the spec now names what it does not answer.
+- Nothing was filed by this task; both elements were already on `main`.
