@@ -39,6 +39,11 @@ import { CORE_MODULES, dnaEntryOptionName } from '../../src/core';
 import { dnaEntryOptionNames } from '../../src/dna/path';
 import { makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
 
+/** Commander's `Command`, taken from `buildProgram`'s own return type — the package is ESM-only, so a
+ * direct `import type { Command } from 'commander'` needs a resolution-mode attribute that this test
+ * does not otherwise need (see `src/cli/program.ts`'s module doc). */
+type BuiltProgram = Awaited<ReturnType<typeof buildProgram>>;
+
 const CLI = join(__dirname, '..', '..', 'dist', 'cli.js');
 const DNA = '.wingfoil/dna.yaml';
 
@@ -54,9 +59,8 @@ describe('the invariant: a derived option never shadows a global flag (spec-008 
   it('no option of any derived command shares a long name with a global flag', async () => {
     const program = await buildProgram(CORE_MODULES, {
       resolveRoot: () => '/fixture-root',
-      buildParams: () => ({}),
-      runOperation: async () => undefined,
-    } as unknown as Parameters<typeof buildProgram>[1]);
+      buildParams: (ctx) => ({ root: ctx.root }),
+    });
 
     const globals = new Set(program.options.map((option) => option.long).filter((long): long is string => Boolean(long)));
     // `--version` is registered by `program.version()` rather than `.option()`, and `--help` by
@@ -66,13 +70,13 @@ describe('the invariant: a derived option never shadows a global flag (spec-008 
     expect(globals.size).toBeGreaterThan(2);
 
     const collisions: string[] = [];
-    const walk = (command: { name(): string; options: Array<{ long?: string | null }>; commands: unknown[] }): void => {
+    const walk = (command: BuiltProgram): void => {
       for (const option of command.options) {
         if (option.long && globals.has(option.long)) collisions.push(`${command.name()} ${option.long}`);
       }
-      for (const child of command.commands) walk(child as Parameters<typeof walk>[0]);
+      for (const child of command.commands) walk(child);
     };
-    for (const child of program.commands) walk(child as Parameters<typeof walk>[0]);
+    for (const child of program.commands) walk(child);
 
     expect(collisions).toEqual([]);
   });

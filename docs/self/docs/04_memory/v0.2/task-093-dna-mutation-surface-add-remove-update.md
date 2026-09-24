@@ -471,15 +471,35 @@ add`'s type registry) nor `bug-086` (the directive inventory) touches any code t
 session (`npx jest --coverage`, 122 suites / 1909 tests): `98.71 / 93.52 / 98.90 / 99.24`. This branch:
 `98.49 / 93.65 / 99.07 / 99.34`. **Branch +0.13, functions +0.17, lines +0.10, statements −0.22.**
 
-The statement delta is where it should be looked at rather than waved through. It is entirely
-`src/dna/path.ts` and `src/dna/mutate.ts`'s remaining uncovered lines, and every one of them is a
-fallback arm of a `??` or `?:` over Zod's untyped `def` — `def.shape ?? {}`, `def.element === undefined
-? …`, `target.entryFields ?? []`, `field?.kind ?? 'string'`. Each is unreachable given its callers
-(an object schema always has a shape; a collection target always carries its entry fields), so no test
-can exercise them, and the alternative to keeping them is a cast that turns a schema-shape surprise
-into a crash instead of a refusal. Three of the four metrics improved, including the branch coverage
-the new code was most at risk of dragging down; the one that moved down did so by 0.22 points on a
-+3,400-line change. Called out rather than buried, since "non-regressing" is the directive's wording.
+**CORRECTED 2026-09-24 — the paragraph that stood here was false, and the reject caught it.** It
+attributed the statement delta "entirely" to `path.ts` and `mutate.ts` fallback arms over Zod's untyped
+`def`. That characterisation is accurate for the uncovered **branches** and wrong for the
+**statements**, which it was written about: read out of `coverage/coverage-final.json`, most of the
+uncovered statements in the new modules are in `edit.ts`. Writing it from the summary table's per-file
+*percentages* rather than from the statement map is the claims-about-file-state class this release has
+rejected on repeatedly. The measurement below is read from the file, by counting `s` entries with a
+zero hit count in `coverage/coverage-final.json`:
+
+```
+47 uncovered statements of 3135 across src/, of which, in this task's modules:
+   7  src/dna/edit.ts      2  src/dna/mutate.ts     1  src/dna/path.ts
+   1  src/dna/schema.ts    1  src/cli/program.ts
+```
+
+So `edit.ts` is the **largest single contributor**, at 7 of the 11 uncovered statements in the modules
+this task adds, and all seven are `return undefined` **decline guards** — `valueAtPath`'s two shape
+checks, `renderItems` returning nothing for an unrenderable item, `locate` landing on something that is
+not a mapping key (twice), and `rewriteFlow`'s non-array check. They are the module's refusal contract,
+one line each, reachable only from a caller that hands the editor an edit its own resolver would never
+produce. The `??`/`?:`-over-Zod arms in `path.ts`/`mutate.ts` are real, and they are **3** statements
+rather than the whole delta.
+
+The **re-parse `catch`** was in that list at submission — the last line of the safety contract these
+notes ask a reviewer to trust — and is now covered: `test/dna/edit.test.ts` "declines when its own
+candidate does not parse" drives the one route that reaches it. A key inserted under a parent that
+already holds a scalar produces `a: 1` followed by an indented `b: x`, which is not a YAML document at
+all; the test asserts both that the candidate is unparseable and that the editor declines rather than
+writing it.
 
 ### review-ready summary
 
@@ -516,3 +536,150 @@ with every comment line byte-identical**.
 4. The `task-092` hand-off is carried: all four DNA write verbs take `requireUnmodifiedTarget` and
    `committedScopeError`, under the plain "refuse a dirty target" rule, argued against both of that
    task's exceptions rather than assumed.
+
+### second pass — the reject (`ab5e752d`), and what it changed
+
+Rejected `in-review → in-progress` on 2026-09-23 for two narrow things, with the substance explicitly
+settled and not reworked: `bug-084`'s repair, the uniqueness refinement, the comment-preserving
+editor, the `task-092` hand-off, the three spec Revision notes, and the decision not to split all
+stand as approved. Nothing below touches any of them.
+
+#### 1. The derived `--version` option was shadowed, and the surface silently did nothing
+
+**Reproduced first, on a real project, before any fix** — `npx tsc -p tsconfig.build.json`, then a
+throwaway `git init` + `wingfoil init --template Scrum`:
+
+```
+$ node dist/cli.js dna add --field stacks.technologies --value Zod --category validation --version "4.0"
+0.1.0
+exit=0
+$ # .wingfoil/dna.yaml:  technologies: []      — nothing written, nothing committed
+$ node dist/cli.js dna add --field stacks.technologies --value Zod --category validation
+{ "key": "stacks.technologies", "value": "Zod" }   → technologies: [{name: Zod, category: validation}]
+```
+
+`TechEntry` declares `version`, `dnaEntryOptionNames()` derives the option set from the schema, so
+`--version <value>` was registered on `dna add`/`dna update` and Commander's program-level `-V,
+--version` won. `--help` advertised it as a working option throughout. This is the class `bug-084`
+files — a silent success in the pillar every other pillar reads — delivered inside the surface that
+closes it.
+
+**It is not a `version` problem, and the measurement says so.** Driving a synthetic Commander tree
+with one subcommand option per global flag (`node`, a 10-line script, deleted after) gives three
+outcomes, two of them silent:
+
+| invocation | outcome |
+|---|---|
+| `--version 4.0` | the program's own action fires: prints the version, exits `0`, the value is lost |
+| `--format json` | **swallowed** by the program-level option — never appears in the subcommand's parsed options |
+| `--verbose x` | **swallowed**, same way |
+| `--color blue` | survives (the program's is a negated boolean; the subcommand's value option wins) |
+| `--notes n` | survives (no global of that name) |
+
+So the failure mode is "the value vanishes", and every present and future global flag
+(`spec-008` §2 is amendable) is a live collision for every present and future entry field.
+
+**Fix: namespace, not refusal — argued rather than assumed.** Every schema-derived entry option is
+registered as `--entry-<field>`, spelled with the schema's own field name. The reject offered refusing
+to register a shadowing name as the alternative; it is the wrong half of the trade:
+
+- `version` is a field `spec-002` **declares** on `TechEntry`. Refusing it would make a
+  schema-declared field permanently unwritable, in a surface `dl-081` ratified as reaching every
+  collection — a loud hole in place of a silent one.
+- Refusal is unstable in the wrong direction: the global set can grow, and a new global flag would
+  then retroactively disable an entry field that had been writable, with no code change nearby.
+- A **conditional** prefix (only the colliding names) would be worse than either: an option's spelling
+  would depend on a table declared elsewhere, so adding a global flag later would silently *rename* an
+  existing option. The prefix is uniform, which makes the two namespaces disjoint **by construction**
+  and the spelling predictable from the schema alone.
+
+Two defects of the same class, found while fixing it and fixed with it:
+
+- **`buildOptionValues` read Commander's options by the declared name.** That works only while every
+  name is a single word: Commander camel-cases across `-`, so `--entry-version` is stored as
+  `entryVersion` and the declared-name lookup would have returned `undefined` and dropped the value —
+  the same silent-drop one layer further in, introduced by the fix itself. It now resolves Commander's
+  key (`commanderKey`, `src/cli/program.ts`).
+- **`dnaMutationRequest` accepted a bare field name as well as a namespaced one.** It no longer does:
+  anything that is not `--field`, `--value` or `--entry-<field>` is a `UsageError` at exit `2` naming
+  the namespace. Accepting both would have left the core layer speaking a vocabulary the CLI cannot
+  produce — which is precisely how a green test at that layer coexisted with a command line that did
+  nothing. The MCP surface, whose Tool arguments are arbitrary JSON, is the caller that can actually
+  reach the refusal, and it gets a named one.
+
+#### 2. The test that could not have caught it, repaired at the layer where it can
+
+`test/cli/derived-option-namespace.test.ts`, two halves:
+
+- **The invariant** (in-process, real `buildProgram` over the real `CORE_MODULES`): no option of any
+  derived command may share a long name with a global flag. **Both sides are read off the built
+  program** — the globals from `program.options` plus `--version`/`--help`, which Commander registers
+  outside that list and which are exactly the two that take an action and exit — so a new global flag
+  or a new schema field is checked against what is actually registered, never against a hand-copied
+  transcription of `spec-008` §2 that can go stale.
+- **The drive** (out-of-process, the compiled `dist/cli.js`): every entry-field option the registry
+  declares, passed on a real command line, asserted on **what reached `dna.yaml`** rather than on the
+  exit code — the defect exited `0`. A completeness check compares the driven set against the
+  registry's declared set, so a field added to `spec-002` cannot slip in undriven, and the `--help`
+  case asserts that the advertised names are exactly the ones that work.
+
+**Verified to fail on the unfixed build**, which is the only way to know a regression test regresses:
+`git checkout -- src/`, rebuild, run → 11 of 11 fail, and the invariant names the defect precisely —
+`Array ["add --version", "update --version"]`. Restored, rebuilt, 11 of 11 pass.
+
+The CoreFn-layer pins were re-pointed to the namespaced spelling at the same time, so that layer now
+speaks the CLI's vocabulary rather than a superset of it.
+
+#### 3. The coverage attribution
+
+Corrected in place, above, from the statement map rather than the summary table — see
+*CORRECTED 2026-09-24*. The re-parse `catch` it named is now covered by a test.
+
+#### Gate record — second pass (all six re-run at `HEAD`, plus the emitting build)
+
+| Gate | Command | Result |
+|---|---|---|
+| tests | `npx jest` | **128 suites / 2103 tests passed** |
+| coverage | `npx jest --coverage` | `98.50 stmts · 93.65 branch · 98.89 funcs · 99.38 lines` |
+| build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit `0` |
+| **emitting build** | `npx tsc -p tsconfig.build.json` | exit `0` |
+| full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit `0` |
+| lint | `npm run lint` | exit `0` |
+| API docs | `npm run docs:api` | exit `0` |
+
+Baseline for the coverage comparison, `main` at `c2102c87`, measured the same way in the same session:
+`98.71 / 93.52 / 98.90 / 99.24` (122 suites / 1909 tests). Branch **+0.13**, lines **+0.14**,
+statements **−0.21**, functions **−0.01**.
+
+**The full typecheck earned its place in this list.** Its first run on the second pass **failed** —
+`TS2352` on the new test file's cast of a Commander `Command` — while `npx jest` on the same tree was
+green, because `test/**` is not type-checked by jest (`isolatedModules`). The cast is gone: the walk
+is typed as `Awaited<ReturnType<typeof buildProgram>>`, which is Commander's own `Command`, so the
+traversal is checked against the real shape instead of an assertion about it. Re-run: exit `0`.
+
+#### Merge
+
+`git merge main` at `c2102c87`, clean — it carried only `bug-089`, `bug-090` and `bug-091`, the three
+governance findings this task reported and the approver filed as their own elements. All three are
+left alone, as instructed: `bug-089` (the two `P2.1-dna-set` scenarios), `bug-090` (`dna set`'s
+grammar differing across three artefacts), `bug-091` (an entry name containing a dot).
+
+### review-ready summary — second pass
+
+The ratified surface is unchanged and still whole; what changed is that it now works from a command
+line as well as from a `CoreFn` call. The defect the reject caught was mine in the sharpest possible
+place — the failure mode this task exists to eliminate, inside the code that eliminates it — and the
+repair is the general one: the derived and declared option namespaces are disjoint by construction,
+and the invariant that keeps them so is asserted against the built program rather than against a
+description of it.
+
+**Where a reviewer should look, in order.**
+
+1. `test/cli/derived-option-namespace.test.ts` — the answer to "why did no test catch it". Worth
+   reading before the fix itself, because it is the part that has to hold for the next schema field.
+2. `DNA_ENTRY_OPTION_PREFIX`'s doc comment (`src/core/index.ts`) — the argument for namespacing over
+   refusal, and the measured table of what each global flag does to a colliding subcommand option.
+3. `commanderKey` (`src/cli/program.ts`) — the one-line seam that would have re-introduced the same
+   silent drop, and the reason the first half of the fix was not sufficient on its own.
+4. The corrected coverage paragraph — what it says now is read from `coverage-final.json`'s statement
+   map, and the command that reads it is in the notes.
