@@ -80,3 +80,47 @@ class produced two different architectures.
 ## Execution Notes
 
 <!-- filled in per phase -->
+
+## Material gathered while this task waited (2026-09-24)
+
+This task was deliberately held at `backlog` after its dependencies cleared, because each week of
+delivery adds evidence for exactly the rule it exists to write. Three items accumulated; all three
+are inputs, not scope changes.
+
+**1. A "resolution read" versus "gate read" distinction now exists in a TSDoc and nowhere else.**
+`task-096` deliberately left `directive remove`'s resolution read on the working tree, and its
+reviewer verified the reasoning in both directions: the exception buys an accurate refusal for an
+untracked file (`requireUnmodifiedTarget` names it) and loses one for a file committed at `HEAD` but
+deleted in the working tree (which gets `unknown directive` instead). Neither choice can destroy
+anything — `task-092`'s guard decides that after both — so it is a message-quality trade, not a
+safety one.
+
+The problem is the classification itself. `dl-080` option (B) says *a read that gates an operation*
+resolves at `HEAD`; step 3 of `directive remove` **is** a read that gates, since it returns
+`NOT_FOUND` at exit 1. Calling it a "resolution read" is a category `dl-080` does not contain, and it
+sits close to the option (C) the approver explicitly withdrew rather than reshaped. Today that
+distinction lives only in `directiveRemoveFn`'s TSDoc and `task-096`'s Execution Notes, which is
+precisely the placement this task exists to fix. **Either write the exception into the rule, or write
+that there is no exception and let `bug` handle the message quality.** Do not leave it where an
+implementer meets it by accident.
+
+**2. Four tasks have now re-derived the rule from prose.** `task-091`, `task-092`, `task-093` and
+`task-096` each implemented `dl-080` and each wrote its own set of TSDoc comments restating it.
+`task-096`'s implementer raised this itself as a proposed element. That is the cost `dl-080`'s
+Action 4 was written to stop, and it now has a number rather than an intuition.
+
+**3. A twin rule belongs beside it, and `bug-096` carries the evidence.** `task-093` was rejected
+twice and approved over a third finding, all three for the same habit: a sentence asserting a fact
+about the code, written without running the command that settles it — a coverage attribution, a
+`spec-008` §9 clause, then a comment about `program.options`. `task-096` produced a fourth in the same
+week: a TSDoc claiming git C-quotes paths containing spaces, which it does not, next to a test whose
+fixture was chosen so that the claim could not be checked.
+
+The rule is one sentence — *a comment or note that asserts a fact about the code names the command
+that establishes it* — and the release has four measured instances arguing for it. It belongs in the
+same directive as `dl-080`'s rule because it has the same shape: something everybody was expected to
+know, that nothing wrote down, rediscovered once per task at review cost.
+
+**How to treat this section.** It is evidence for the rule's *placement and wording*, not an
+instruction to widen scope. If any of the three turns out to belong elsewhere, say so in the Execution
+Notes and name where — do not carry it silently.
