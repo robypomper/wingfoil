@@ -31,31 +31,46 @@ you believe the rule is wrong for your case, file a `decision-log`, do not devia
 
 Half a rule prevents half the class. `dl-080`'s own table splits its five founding instances across
 both halves — `bug-076` and `bug-078` were fixed by refusing a write, `bug-079`, `bug-081` and
-`bug-082` by moving a read to `HEAD` — and the three found since (`bug-085`, `bug-086`, `bug-087`)
-include one, `bug-087`, where a **read** of the working tree decided the **path a write created**.
-Which half a defect lands on is not obvious from the defect; state both halves or you have stated
-neither.
+`bug-082` by moving a read to `HEAD` — and of the four found since (`bug-085`, `bug-086`, `bug-087`,
+`bug-088`) one, `bug-087`, is a **read** of the working tree deciding the **path a write created**,
+and another, `bug-088`, is a write with no guard at all, overwriting a clean committed file. Which
+half a defect lands on is not obvious from the defect; state both halves or you have stated neither.
 
 ## There is no third category of read
 
 A read that decides anything resolves at `HEAD`, **whatever it is about** — including a read that
 only resolves which file or element the argument names, when failing to resolve it is itself a
 refusal. Do not introduce a sub-kind of gating read ("this one merely resolves a name") to justify
-the working tree: classifying reads by what they are *for* is option **(C)**, which the approver
-withdrew rather than reshaped, and the reason it was withdrawn applies unchanged — "every new read
-needs classifying, and the classification is a judgement rather than a mechanical test"
-(`dl-080` Decision §(C)). The test in (B) is mechanical, and that is its whole value.
+the working tree.
 
-**The one place the shipped code still deviates.** `directiveRemoveFn` (`src/core/index.ts`, step 3
-of its TSDoc, read at `9642ab5f`) resolves the directive it is asked to delete from the working
-tree, on exactly the "this read only resolves a name" argument refused above — and that read returns
-a domain `NOT_FOUND` at exit `1`, which is a refusal, which is a gate. Nothing can be destroyed by
-it: `requireUnmodifiedTarget` still decides whether the file may be deleted, after it. So the
-deviation costs a message, not data — which is why it is a defect to be repaired under this rule
-rather than an exception written into it. The measured trade runs both ways (an untracked file gets
-a better message today; a directive committed at `HEAD` but deleted in the working tree gets a false
-`unknown directive`), and that symmetry is the argument for deciding it once, here, instead of per
-command.
+The ratification closes this directly. `dl-080` offered exactly one option that classified reads
+rather than applying one baseline — **(C)**, which sorted them by *what a read produces*: a read
+whose outcome becomes a durable attestation resolves at `HEAD`, while "a read that merely gates an
+operation whose result is itself committed, visible and recoverable may read the working tree". The
+approver's `Reason:` (`333a3c0f`) withdraws it, and on a ground worth reading precisely: (C) "is
+foreclosed by the decision to treat `bug-082` as blocking, since (C) leaves that bug open by
+design; it is withdrawn rather than reshaped". Note what follows for a `directive remove`-shaped
+read: under (C) *as written* it would have been **permitted**, since what it gates is a deletion
+that is itself committed and recoverable. Withdrawing (C) withdrew that permission. A classification
+by what a read is *for* — "this one only resolves a name" — is not even (C); it is a further
+category the ratified rule does not contain, arriving after the only classifying option on the table
+was refused.
+
+The test in (B) is mechanical — *can this read change whether the command refuses, or what it
+writes?* — and that is its whole value.
+
+**The one place the shipped code still deviates — and it has an owner.** `directiveRemoveFn`
+(`src/core/index.ts`, step 3 of its TSDoc: "This read stays on the **working tree**, deliberately")
+resolves the directive it is asked to delete from the working tree, on exactly the "this read only
+resolves a name" argument refused above — and that read returns a domain `NOT_FOUND` at exit `1`,
+which is a refusal, which is a gate. Nothing can be destroyed by it: `requireUnmodifiedTarget` still
+decides whether the file may be deleted, after it. So the deviation costs a message, not data —
+which is why it is a defect to be repaired under this rule rather than an exception written into it.
+The measured trade runs both ways (an untracked file gets a better message today; a directive
+committed at `HEAD` but deleted in the working tree gets a false `unknown directive`), and that
+symmetry is the argument for deciding it once, here, instead of per command. Filed as
+**`bug-108-directive-remove-resolves-its-target-on-the-working-tree`** (`open`), whose repair is the
+paragraph below rather than a plain move to `HEAD`.
 
 **The working tree may be read to *explain* a refusal, never to decide one.** When resolving at
 `HEAD` would produce a true refusal with a poor message — a file that exists on the author's screen
@@ -104,8 +119,9 @@ bindings yet", not a failure) and say so where you decide it.
 Four tasks — `task-091`, `task-092`, `task-093`, `task-096` — each implemented this rule and each
 restated it in its own TSDoc, because it lived only in a decision-log. `dl-080`'s own rationale calls
 that a **determinism** finding before a security one: two agents given the same defect class produced
-two different architectures. This is not a retrospective rule: the ninth instance is already open and
-unfixed (`bug-087`, `release: v0.3`).
+two different architectures. This is not a retrospective rule: two instances of the class are open
+and unfixed (`bug-087`, `bug-088`, both `release: v0.3`), and so is the deviation this directive
+names (`bug-108`).
 
 > Rationale: what the tool treats as authoritative must be what the repository records. A commit that
 > attests something no clone can re-derive is not an audit trail (`adr-006-git-identity-role-based-authz`,

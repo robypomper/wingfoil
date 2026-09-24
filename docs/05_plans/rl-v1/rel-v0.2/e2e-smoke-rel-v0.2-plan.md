@@ -3,7 +3,7 @@ id: "e2e-smoke-rel-v0.2-plan"
 type: plan
 title: "E2E smoke — v0.2 (fresh-init + CLI black-box release gate, first run)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "e2e-smoke"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -86,7 +86,9 @@ orders these two phases, and smoking a release that is not yet assembled proves 
 - **After merging any dependency change, run `npm ci`.** `test/cli/types-node-floor.test.ts` reads
   the installed `@types/node` and fails against a stale `node_modules`.
 - **Role and directives (`roles.yaml`, auto-loaded on execution per P3.6).** All three phases run as
-  `qa` → `testing`, plus the global `doc-versioning, documentation, security-secrets`.
+  `qa` → `testing`, plus the global `doc-versioning, documentation, security-secrets,
+  claim-evidence` (`claim-evidence` added to `roles.yaml` v1.1 by `task-094`; it is the one that
+  bites in a smoke report — a sentence saying the smoke covers X names the run that shows it).
 
 ---
 
