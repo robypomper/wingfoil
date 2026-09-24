@@ -2,7 +2,7 @@
 id: "task-100-rewrite-the-p2-1-scenarios-against-the-ratified-rule"
 type: task
 title: "Rewrite `P2.1-dna-set.feature`'s first two scenarios so the acceptance contract asserts a write the ratified rule permits, in the grammar the CLI reference now records"
-status: approved
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "dna", "bdd"]
