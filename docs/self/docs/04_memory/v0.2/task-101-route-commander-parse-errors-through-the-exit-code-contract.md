@@ -350,6 +350,18 @@ before reporting, not in the sync step. That is where it ran this time.
 `src/cli/program.ts`'s `from '../core/exit-code'`, deliberately routed around the `../core` barrel;
 three `main` merges (`51eac46b`, `9642ab5f`, `147145be`), one docs-only conflict, resolved.
 
+*Measured last, immediately before reporting,* per the lesson above — `main` had moved on again to
+`11757e5b` (three new `bug` documents, docs only) and this branch was **not** re-merged, because it
+does not need to be:
+
+```
+$ git merge-tree --write-tree main HEAD ; echo "rc=$?"
+rc=0
+```
+
+Clean, no conflict. That is the claim as of this report and it can go stale the same way — a sibling
+landing in `spec-008-cli-grammar.md` or `src/core/exit-code.ts` is the thing to re-check.
+
 ### 2. "Completes `spec-008` §1's `E_UNKNOWN_COMMAND`" claimed more than was measured
 
 Only the **exit-code** half is done. The suggestion half diverges from the contract in two ways, both
