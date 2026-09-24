@@ -38,14 +38,15 @@
  *
  * Every exit code / message asserted below was confirmed by running the harness by hand against the
  * compiled `dist/` before writing the assertion (see this task's Execution Notes) — not guessed from
- * `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md`. Notably, spec-008 §1 describes an
- * *aspirational* `E_UNKNOWN_COMMAND` -> exit `2` for an unknown command/verb; `program.ts` does not
- * implement that yet (it is a thin Commander wrapper with no custom `unknownCommand` handling), so an
- * unknown command actually exits `1` today — Commander's own built-in default
- * (`Command.unknownCommand()` -> `this.error(message, { code: 'commander.unknownCommand' })`, which
- * defaults `exitCode` to `1` absent an explicit override). This test asserts the real, current
- * behavior; if a future task implements spec-008's full grammar (closest-match suggestion, exit `2`),
- * update this test alongside that change.
+ * `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md`. Until
+ * task-101-route-commander-parse-errors-through-the-exit-code-contract (`bug-098`) an unknown command
+ * exited `1` here — Commander's own built-in default (`Command.unknownCommand()` ->
+ * `this.error(message, { code: 'commander.unknownCommand' })`, `exitCode` defaulting to `1`) — against
+ * spec-005 §1's exit `2` for a usage error. `buildProgram` now installs an `exitOverride` that routes
+ * every Commander termination through `exitCodeForParseOutcome` (`src/core/exit-code.ts`), so the
+ * assertions below read `2`. What spec-008 §1 still describes and `program.ts` still does not
+ * implement is the rest of that grammar's `E_UNKNOWN_COMMAND` treatment — the closest-match suggestion
+ * — not the exit code.
  */
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';
@@ -1170,15 +1171,15 @@ types:
     expect(result.stdout).toBe('');
   });
 
-  it('an unknown noun exits 1 with commander\'s own "unknown command" message on stderr (see header comment: spec-008\'s exit-2 grammar is not implemented by program.ts yet)', () => {
+  it('an unknown noun exits 2 (spec-005 §1 usage error) with commander\'s own "unknown command" message on stderr', () => {
     const result = runCli('bogus', 'verb');
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toContain("unknown command 'bogus'");
   });
 
-  it('an unknown verb under a known noun also exits 1 the same way', () => {
+  it('an unknown verb under a known noun also exits 2 the same way', () => {
     const result = runCli('dna', 'bogus');
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toContain("unknown command 'bogus'");
   });
 });

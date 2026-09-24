@@ -250,7 +250,7 @@ wingfoil dna remove modules                      --value core
 global wins silently, which is the whole reason for the prefix:
 
 - A name §2 does **not** declare — `--category`, `--email`, `--notes` — is refused by Commander as an
-  unknown option, exit `1`, nothing written.
+  unknown option, exit `2`, nothing written.
 - A name §2 **does** declare is consumed by the global instead and is never reported. Today the overlap
   is exactly one name, `version` (`TechEntry` declares it), and because `--version` is an *action* flag
   the result is a silent no-op: `wingfoil dna add stacks.technologies --value Go --version 1.22` prints
@@ -373,6 +373,26 @@ that pinned it drove `--category`, one of the names for which the sentence does 
 was verified where it could not fail. §9 now states both outcomes and names the overlap (today exactly
 `version`), and `test/cli/derived-option-namespace.test.ts` derives that overlap from the built
 program and drives every member of it.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — §9's unprefixed-option outcome is `2`, not `1`: Commander's own parse errors
+now reach §5's table.** §5 has always assigned exit `2` to "unknown command/flag", and the shipped CLI
+honoured it only for the errors WingFoil itself raised. Commander detects an unknown command and an
+unknown option before any WingFoil code runs and terminated through its own `process.exit(1)`, so
+those two classes reported `1` — §5's code for a *valid* invocation whose operation failed. `bug-098`
+files the gap and `task-101-route-commander-parse-errors-through-the-exit-code-contract` closes it, by
+routing every Commander termination through `exitCodeForParseOutcome` (`src/core/exit-code.ts`), the
+same module `task-012` made the single decision site.
+
+Only §9's first unprefixed-option bullet changes text: it recorded the measured `1`, and the measured
+value is now `2`. §5's table needed no change — it already said what the CLI now does. The second
+bullet is untouched: a name §2 *does* declare is still consumed by the global and still exits `0`,
+because `--version` is a successful termination and not a parse error. A noun invoked with no verb
+(`wingfoil dna`) also keeps its current exit `1` with help on stderr; that is Commander's
+`commander.help`, not one of its errors, and whether §5 and `spec-005` §1 should claim it is a
+separate question this revision does not answer.
 
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
 and the same `spec-001` precedent the 2026-09-17 revision cites.

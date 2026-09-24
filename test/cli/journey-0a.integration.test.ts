@@ -154,12 +154,15 @@ describe('Journey 0a (v0.1-scoped slice) — real CLI, fresh throwaway project (
   it('known gap (out of v0.1 scope, not a release blocker): `wingfoil workflow start`/`wingfoil agent` are not implemented — Journey 0a step 3 / Journey 1 steps 2-4', () => {
     expect(runCliInRoot(repo, 'init', '--template', 'Scrum').status).toBe(0);
 
+    // Exit 2, not 1: an unknown command is a USAGE error under spec-005 §1, and since
+    // task-101-route-commander-parse-errors-through-the-exit-code-contract (`bug-098`) Commander's own
+    // parse errors are routed through that contract instead of ending at Commander's suggested 1.
     const workflowStart = runCliInRoot(repo, 'workflow', 'start', '--name', 'Scrum');
-    expect(workflowStart.status).toBe(1);
+    expect(workflowStart.status).toBe(2);
     expect(workflowStart.stderr).toContain("unknown command 'start'");
 
     const agentExecute = runCliInRoot(repo, 'agent', 'execute', '--next');
-    expect(agentExecute.status).toBe(1);
+    expect(agentExecute.status).toBe(2);
     expect(agentExecute.stderr).toContain("unknown command 'agent'");
   });
 
