@@ -158,8 +158,9 @@ others.
 
 A distinction the DNA verbs make visible, and which the table already decides: a **malformed** path is
 exit `2` (`dna set ..language --value python` → `error: invalid key path: '..language'`, as
-`P2.1-dna-set.feature` pins it)
-because the invocation itself is malformed, while a **well-formed path naming a field the schema does
+`P2.1-dna-set.feature` pins it) — and so are the two ways §9's quoting can fail, an unterminated
+quote and a `"` no delimiter can account for — because the invocation itself is malformed, while a
+**well-formed path naming a field the schema does
 not declare** is exit `1` — a validation failure, like an unknown Memory type. The same reading is what
 `bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
 of failure, not its severity.
@@ -241,7 +242,7 @@ wingfoil dna remove modules                      --value core
 
 | Parameter | Meaning |
 |--------|---------|
-| `<path>` | **Required**, and the only positional the verb reads. The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. A second positional is refused at exit `2` naming the new grammar — the migration error for `dna set <key> <value>`. |
+| `<path>` | **Required**, and the only positional the verb reads. The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. A segment may be double-quoted, which makes an entry whose `name` contains a `.` addressable — see *Quoting a segment* below. A second positional is refused at exit `2` naming the new grammar — the migration error for `dna set <key> <value>`. |
 | `--value` | The new entry's **identity** when `<path>` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values. Required for `add` and for `set`; required for `remove`/`update` unless `<path>` already identifies the entry. |
 | `--entry-<field>` | One option per field the entry schema declares (`--entry-description`, `--entry-path`, `--entry-email`, `--entry-roles`, `--entry-category`, `--entry-version`, `--entry-notes`, `--entry-phase`, `--entry-executes_as`), the `<field>` spelled exactly as `spec-002` spells it. Accepted by `add` and `update`. The `entry-` prefix is **required**, and is what keeps this derived namespace disjoint from the declared global flags in §2 — see the two outcomes below. |
 
@@ -273,6 +274,41 @@ Two rules the shape rests on, both ratified rather than inferred:
   add/remove/update semantics one cannot add to a collection that does not exist, and the same rule
   answers the wider question: the DNA pillar accepts unknown keys when *reading* a document and refuses
   to write one (`bug-084-dna-key-alias-writes-unschemad-keys`).
+
+**Quoting a segment** (`dl-083-dotted-entry-names-in-paths`, ratified). Entries are addressed by
+`name`, and a `name` may contain a `.` — `stacks.technologies` in this repository's own `dna.yaml`
+carries `Node.js` and `Commander.js`, and `team.agents` carries `AI agent (Claude/Cursor/etc.)`. A
+path segment may therefore be **double-quoted**, and a quoted segment is taken verbatim, dots
+included:
+
+```
+wingfoil dna update 'stacks.technologies."Node.js".version'                   --value 22.14+
+wingfoil dna add    'team.agents."AI agent (Claude/Cursor/etc.)".executes_as' --value reviewer
+wingfoil dna remove  stacks.technologies                                      --value "Node.js"
+```
+
+**The two quoting layers overlap, and that is the thing a reader gets wrong.** In the first line the
+**outer single quotes are the shell's** — without them the shell would eat the double quotes — and the
+**inner double quotes are WingFoil's**. Both are needed. The third line is the other way round: the
+double quotes there are the **shell's alone**, because `--value` never takes WingFoil quoting, and
+`--value '"Node.js"'` would name an entry whose name literally begins and ends with a quote.
+
+The rules, in full:
+
+- a segment is quoted when it **begins and ends** with `"`; the delimiters are not part of the name,
+  and inside them `.` is an ordinary character;
+- quoting is **optional** where it is unnecessary: `team."members".roberto` and
+  `team.members.roberto` are the same path;
+- a quoted segment may **not contain `"`**, and there is **no escape sequence** — a name containing a
+  double quote stays unaddressable. `dl-083` accepted that cost deliberately (no plausible technology,
+  module, role or person is named that way), so the refusal says the **name** is unaddressable rather
+  than that the path is malformed;
+- an **unterminated** quote is a usage error at exit `2` (§5), not a name that happens to begin with
+  `"`. So is a `"` no delimiter can account for, and so is an empty segment: all three are properties
+  of how the argument is spelled, decided before anything is read, which is what separates them from
+  the exit-`1` refusal of a path that is well-formed but resolves nowhere;
+- quoting applies to the **path only**. `--value` carries an entry's identity directly and never needs
+  it.
 
 `--value`'s double duty is a convention the grammar cannot show, so it is stated here and in the
 option's own `--help` text (`CoreOption.description`, `src/core/registry.ts`) rather than left to be
@@ -377,6 +413,35 @@ program and drives every member of it.
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
 and the same `spec-001` precedent the 2026-09-17 revision cites.
 
+**Revision (2026-09-24) — §9 gains the quoted-segment rule, and §5 names the two usage errors it adds,
+per `dl-083-dotted-entry-names-in-paths` (`ready`) and `task-099`.** `dl-081` made an entry's `name`
+the key it is addressed by, which made two properties of `name` load-bearing: uniqueness, and
+expressibility inside a dotted path. The 2026-09-23 revision recorded the first; only `bug-091` noticed
+the second, and its first ruling — forbid dots in `name` — was given against a claim that no such entry
+existed. Measured at `c2102c87`, three do, in this repository's own `dna.yaml`: `Node.js` and
+`Commander.js` in `stacks.technologies`, `AI agent (Claude/Cursor/etc.)` in `team.agents`. A dot
+refinement attached where `uniquelyNamed` is attached would have rejected that file **on read**, taking
+`dna show`, `paths` and every DNA-reading command with it.
+
+So the grammar carries the cost instead. Quoting stays optional where it is unnecessary and `--value`
+is untouched — but this is **not** a change under which every existing path keeps its meaning. Before
+the rule, `"` was an ordinary character inside a segment; under it every `"` is a delimiter, so any
+path containing one is narrowed. Two measured consequences, neither hypothetical:
+`isValidKeyPath('modules.co"re')` was `true` and is now `false`; and where a collection carries an
+entry named `"a"` beside one named `a` — the schema permits both, `uniquelyNamed` included —
+`stacks.technologies."a".category` resolved to the quote-named entry before and resolves to the
+**other** entry now, silently rather than by refusing. `dl-083` accepts that narrowing deliberately
+(a name containing `"` becomes unaddressable, with no escape sequence); what it does not do is make
+such names impossible, so this is a consequence to know about rather than one to be surprised by —
+and a grammar contract is where the next reader will look for it.
+
+What is new is a spelling that reaches names the schema has always permitted,
+two usage errors at exit `2` (an unterminated quote; a `"` no delimiter can account for — the latter
+refused as an **unaddressable name**, because there is no escape sequence and `dl-083` accepted that),
+and the shell-versus-WingFoil quoting overlap stated outright, since the examples are unreadable
+without it. `test/dna/path-quoting.test.ts` holds the grammar and carries the three live names as a
+fixture, so the dot ban cannot be reintroduced without a failing test.
+
 **Revision (2026-09-24) — §9's unprefixed-option outcome is `2`, not `1`: Commander's own parse errors
 now reach §5's table.** §5 has always assigned exit `2` to "unknown command/flag", and the shipped CLI
 honoured it only for the errors WingFoil itself raised. Commander detects an unknown command and an
@@ -392,7 +457,9 @@ bullet is untouched: a name §2 *does* declare is still consumed by the global a
 because `--version` is a successful termination and not a parse error. A noun invoked with no verb
 (`wingfoil dna`) also keeps its current exit `1` with help on stderr; that is Commander's
 `commander.help`, not one of its errors, and whether §5 and `spec-005` §1 should claim it is a
-separate question this revision does not answer.
+separate question this revision does not answer — it is `bug-103`. The closest-match suggestion §1
+asks for is likewise untouched: the binary emits Commander's own `(Did you mean memory?)` rather than
+`spec-005` §3.1's `hint: ` line, which is `bug-104`. This revision changes exit codes only.
 
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
 and the same `spec-001` precedent the 2026-09-17 revision cites.

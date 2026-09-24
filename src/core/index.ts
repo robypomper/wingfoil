@@ -27,7 +27,7 @@ import {
   dnaEntryOptionNames,
   resolveDnaPath,
 } from '../dna/path';
-import { DNA_KEY_ALIASES, isValidKeyPath } from '../dna/set';
+import { DNA_KEY_ALIASES, splitDnaPath } from '../dna/set';
 import {
   INVALID_DIRECTIVE_NAME_MESSAGE,
   isValidDirectiveName,
@@ -302,8 +302,9 @@ export interface DnaSetParams {
  *
  * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
  *    `user.name`/`user.email` are unset, returning its `CoreResult.error` unchanged (exit 1).
- * 2. **Argument validation** — a missing required argument, or a MALFORMED dotted path (an empty
- *    segment, the BDD's `..language`), is a usage error: `throw new UsageError(...)` → exit **2**
+ * 2. **Argument validation** — a missing required argument, or a dotted path `splitDnaPath` cannot
+ *    parse (an empty segment, the BDD's `..language`; an unterminated quote; a `"` no delimiter can
+ *    account for), is a usage error: `throw new UsageError(...)` → exit **2**
  *    (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1. A path that is well-formed
  *    but names nothing the schema declares is a different failure and exits **1** — see step 4.
  * 3. **`requireUnmodifiedTarget` pre-flight** (`dl-080`(B) / `bug-078`, task-092) — refuse, before
@@ -410,10 +411,14 @@ function dnaCommitSubject(request: DnaMutationRequest): string {
  * Three usage errors, in the order they are checked, and the order is load-bearing:
  *
  * 1. **Missing** — nothing to act on.
- * 2. **Malformed** — an empty segment (the BDD's `..language`). Checked BEFORE the extra-positional
- *    rule below so that `dna set ..language python`, which is `P2.1-dna-set.feature`'s third
- *    scenario verbatim, keeps reporting `invalid key path: '..language'` rather than the migration
- *    hint. A stale invocation that is also malformed is malformed first.
+ * 2. **Unparseable** — whatever `splitDnaPath` (`src/dna/set.ts`) refuses, reported with **its own**
+ *    message rather than a flat one, because the three cases are not the same complaint: an empty
+ *    segment (the BDD's `..language`) is malformed, an unterminated quote is a typo in the
+ *    delimiters, and a `"` no delimiter can account for means the *name* has no spelling at all
+ *    (`dl-083-dotted-entry-names-in-paths`, task-099). Checked BEFORE the extra-positional rule below
+ *    so that `dna set ..language python`, which is `P2.1-dna-set.feature`'s third scenario verbatim,
+ *    keeps reporting `invalid key path: '..language'` rather than the migration hint. A stale
+ *    invocation that is also malformed is malformed first.
  * 3. **Extra positionals** — the old `dna set <key> <value>` spelling, and any slip of the same
  *    shape on the three new verbs. It gets a named message rather than being ignored, because
  *    `dl-082` is a breaking change to a shipped command and silently dropping the second word would
@@ -427,8 +432,9 @@ function dnaPathPositional(verb: string, positionals: readonly string[] | undefi
   if (path === undefined) {
     throw new UsageError(`missing required argument: wingfoil dna ${verb} <path> --value <value>`);
   }
-  if (!isValidKeyPath(path)) {
-    throw new UsageError(`invalid key path: '${path}'`);
+  const split = splitDnaPath(path);
+  if (!split.ok) {
+    throw new UsageError(split.message);
   }
   if ((positionals?.length ?? 0) > 1) {
     throw new UsageError(
