@@ -2,10 +2,10 @@
 id: "bug-098-unknown-command-and-unknown-option-exit-1-not-2"
 type: bug
 title: "An unknown command or unknown option exits `1`, while `spec-005` §1 assigns usage errors exit `2` — Commander's own parse errors never reach the exit-code contract"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P5.1"
 contributor: ""
 credit: ""
@@ -77,5 +77,5 @@ defect a documentation task finds precisely because it runs things nobody runs.
 - triage (2026-09-24): **medium**. Nothing is destroyed and every message is correct, so a human is
   never misled; a script is. Not `low` because it is a declared contract in an `approved` spec that
   the shipped binary does not honour, on the most frequently-hit error path there is.
-- **Whether it blocks `v0.2` is an approver decision and has not been made.** Filed without a
-  `release:` stamp so the choice is explicit rather than inherited.
+- **Scheduled into `v0.2` by the approver on 2026-09-24**, which makes it a release blocker: the
+  release-submit gate's C2 check selects bugs by their `release:` field. Fix task: `task-101`.
