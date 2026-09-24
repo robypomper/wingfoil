@@ -49,7 +49,7 @@ describe('CLI — a write verb refuses a dirty target at exit 1 (bug-078, spec-0
     appendFileSync(join(repo, DNA), unrelated, 'utf-8');
     const before = git(repo, ['rev-parse', 'HEAD']).trim();
 
-    const result = runCli(repo, ['dna', 'set', 'project.name', 'Renamed']);
+    const result = runCli(repo, ['dna', 'set', 'project.name', '--value', 'Renamed']);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(DNA);
@@ -59,7 +59,7 @@ describe('CLI — a write verb refuses a dirty target at exit 1 (bug-078, spec-0
   });
 
   it('`dna set` on a clean tree still exits 0 and commits exactly its own path', () => {
-    const result = runCli(repo, ['dna', 'set', 'project.name', 'Renamed']);
+    const result = runCli(repo, ['dna', 'set', 'project.name', '--value', 'Renamed']);
 
     expect(result.status).toBe(0);
     expect(git(repo, ['log', '-1', '--format=%s']).trim()).toBe('wf(dna): set project.name');
@@ -68,7 +68,7 @@ describe('CLI — a write verb refuses a dirty target at exit 1 (bug-078, spec-0
 
   it('an unrelated dirty file never blocks the write — the guard is per-path (dl-080 rejected (D))', () => {
     appendFileSync(join(repo, 'unrelated.txt'), 'work in progress\n', 'utf-8');
-    const result = runCli(repo, ['dna', 'set', 'project.name', 'Renamed']);
+    const result = runCli(repo, ['dna', 'set', 'project.name', '--value', 'Renamed']);
 
     expect(result.status).toBe(0);
     expect(git(repo, ['status', '--porcelain']).trim()).toContain('unrelated.txt');

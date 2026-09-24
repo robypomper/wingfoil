@@ -32,7 +32,14 @@ export { isValidKeyPath, setDnaValueInText, DNA_KEY_ALIASES } from './set';
 // over it (`./mutate`), and the comment-preserving structural edit that writes the result (`./edit`).
 // `setDnaValue` is gone with them: it treated every path segment as an object key and created an object
 // for any segment it could not descend into, which is the mechanism `bug-084` filed.
-export { resolveDnaPath, dnaCollectionPaths, dnaEntryOptionNames } from './path';
+export {
+  resolveDnaPath,
+  dnaCollectionPaths,
+  dnaEntryOptionNames,
+  DNA_ENTRY_OPTION_PREFIX,
+  dnaEntryOptionName,
+  dnaEntryFieldOfOption,
+} from './path';
 export type { DnaEntryField, DnaFieldKind, DnaPathResolution, DnaPathTarget, DnaTargetKind } from './path';
 
 export { applyDnaMutation } from './mutate';

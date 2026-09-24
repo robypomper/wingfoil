@@ -13,6 +13,7 @@
 import { z } from 'zod';
 
 import { applyDnaMutation } from '../../src/dna/mutate';
+import { dnaEntryOptionName } from '../../src/dna/path';
 
 function dna(): Record<string, unknown> {
   return {
@@ -288,8 +289,30 @@ describe('required arguments, per target kind — the checks that keep --value h
     expect(refusal({ verb: 'remove', field: 'project.repository' })).toContain('project.repository');
   });
 
-  it('refuses an update at an entry-terminated path that carries no field to change', () => {
-    expect(refusal({ verb: 'update', field: 'modules.core' })).toMatch(/--path|--description/);
+  /**
+   * The refusal has to name options a user can actually type. It used to read `--path`, `--description`
+   * — the schema's bare field names — which stopped being spellings of anything the moment the
+   * namespace prefix landed in this task's second pass. The names are taken from `dnaEntryOptionName`
+   * rather than written out, so the next change to the namespace fails here instead of shipping advice
+   * that does not work.
+   */
+  it('refuses an update at an entry-terminated path, naming options that exist', () => {
+    const message = refusal({ verb: 'update', field: 'modules.core' });
+    expect(message).toContain(`--${dnaEntryOptionName('path')}`);
+    expect(message).toContain(`--${dnaEntryOptionName('description')}`);
+    expect(message).not.toMatch(/(?<!-)--path\b/);
+  });
+
+  it('a field the collection does not declare is refused in the option spelling the CLI registers', () => {
+    const message = refusal({ verb: 'add', field: 'modules', value: 'new', fields: { email: 'a@b.c' } });
+    expect(message).toContain(`--${dnaEntryOptionName('email')}`);
+    expect(message).toContain(`--${dnaEntryOptionName('description')}`);
+  });
+
+  it('a missing REQUIRED entry field is refused in the same spelling', () => {
+    const message = refusal({ verb: 'add', field: 'stacks.technologies', value: 'Go' });
+    expect(message).toContain(`--${dnaEntryOptionName('category')}`);
+    expect(message).not.toMatch(/(?<!-)--category\b/);
   });
 });
 

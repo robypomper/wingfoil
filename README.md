@@ -81,7 +81,7 @@ Every command below is real, implemented, and covered by the walkthrough in
 wingfoil init [--template <Scrum|Kanban>]   # Bootstrap .wingfoil/ in the current git repo
 
 wingfoil dna show [section]                 # Query project structure (whole file, or one top-level key)
-wingfoil dna set <key> <value>              # Set a single dotted key path (e.g. project.name)
+wingfoil dna set <path> --value <v>         # Set a single dotted key path (e.g. project.name)
 
 wingfoil memory add --type <t> --title <t> [--tags <t1,t2>]      # Create a Memory document (draft)
 wingfoil memory search [keyword] [--tag <t>] [--type <t>] [--status <s>]  # Find docs by keyword/metadata
@@ -156,14 +156,14 @@ $ wingfoil dna show project
 **3. Edit a DNA field**
 
 ```bash
-$ wingfoil dna set project.name "My Project"
+$ wingfoil dna set project.name --value "My Project"
 {
   "key": "project.name",
   "value": "My Project"
 }
 ```
 
-`dna set <key> <value>` writes one dotted key path and commits the change (`wf(dna): set project.name`).
+`dna set <path> --value <v>` writes one dotted key path and commits the change (`wf(dna): set project.name`).
 Confirm it stuck:
 
 ```bash

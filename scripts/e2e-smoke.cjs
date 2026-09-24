@@ -37,7 +37,7 @@ function smokeSteps(template) {
   return [
     { args: ['init', '--template', template] },
     { args: ['dna', 'show', '--format', 'json'], json: true },
-    { args: ['dna', 'set', 'project.name', 'WingFoil smoke'] },
+    { args: ['dna', 'set', 'project.name', '--value', 'WingFoil smoke'] },
     { args: ['memory', 'add', '--type', 'task', '--title', 'Smoke task', '--format', 'json'], json: true },
     { args: ['paths', 'config', '--list', '--format', 'json'], json: true },
     { args: ['directives', 'list', '--format', 'json'], json: true },

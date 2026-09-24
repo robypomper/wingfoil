@@ -8,7 +8,8 @@
  *   schema is **refused, never created**. `setDnaValue` used to create an object for any segment it
  *   could not descend into, which is how `dna set tech_stack.cli.framework Commander` wrote
  *   `stacks.cli.framework` — a key in no schema — and committed it at exit 0.
- * - `dl-081-dna-mutation-surface-shape` (AC3/AC5, ratified option (E)): `--field` holds the FULL path,
+ * - `dl-081-dna-mutation-surface-shape` (AC3/AC5, ratified option (E)): the verb's `<path>` argument
+ *   holds the FULL path,
  *   entries inside a collection are addressed **by `name`** rather than by index, and all four path
  *   shapes resolve — a string array at depth 2, an object array at depth 1, an object array at depth 2,
  *   and a string array nested inside an object array.

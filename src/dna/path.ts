@@ -35,6 +35,55 @@ import type { z } from 'zod';
 import { DnaYaml } from './schema';
 import { isValidKeyPath } from './set';
 
+/**
+ * The prefix every schema-derived entry-field option carries: `--entry-<field>`, spelled with the
+ * schema's own field name (`--entry-executes_as`, not `--entry-executes-as`).
+ *
+ * It exists because the option set is **derived** — `dnaEntryOptionNames()` reads `spec-002`'s entry
+ * schemas — while the global flags are **declared** (`spec-008` §2), and the two namespaces had no
+ * reason to stay disjoint. They did not: `TechEntry` declares `version`, so
+ * `dna add stacks.technologies --value Zod --category validation --version 4.0` reached Commander's
+ * program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing, while
+ * `--help` advertised the option as working. Measured on a real `wingfoil init` project.
+ *
+ * **It is not a `version` problem.** Driving a synthetic Commander tree with one subcommand option per
+ * global flag shows three distinct outcomes, two of them silent: `--version` fires the program's own
+ * action and exits; `--format` and `--verbose` are swallowed by the program-level option and simply
+ * do not appear in the subcommand's parsed options; `--color` and a non-colliding name survive. So
+ * the failure mode is "the value vanishes", and any future entry field named after any current or
+ * future global flag inherits it.
+ *
+ * **What an unprefixed spelling therefore does, which is two different things.** A name §2 does not
+ * declare (`--category`, `--email`) is refused by Commander as an unknown option, exit `1`. A name §2
+ * DOES declare — today exactly one, `version`, which is the whole overlap between the derived set and
+ * the global set — is consumed by the global instead and is never reported: that is the silent no-op
+ * above. `spec-008` §9's option row states both halves, because stating only the first is a claim
+ * that is false for the very field the section uses as its example.
+ *
+ * **Why a prefix rather than refusing to register a shadowing name.** Refusal trades a silent failure
+ * for a loud hole: `version` is a field `spec-002` declares on `TechEntry`, so refusing it would make
+ * a schema-declared field permanently unwritable, and `dl-081` ratified a surface that reaches every
+ * collection. Refusal is also unstable in the wrong direction — the global set can grow (`spec-008`
+ * §2 is amendable), and a new global flag would then retroactively disable an entry field that had
+ * been writable, breaking scripts with no code change nearby. A prefix removes the collision **by
+ * construction**, for every present and future name on both sides, and it is uniform rather than
+ * conditional: a rule that prefixed only the colliding names would make an option's spelling depend
+ * on a table declared elsewhere, so adding a global flag later would silently RENAME an existing
+ * option. `test/cli/derived-option-namespace.test.ts` holds the invariant that keeps this true,
+ * derived from the built program rather than from a hand-listed copy of `spec-008` §2.
+ */
+export const DNA_ENTRY_OPTION_PREFIX = 'entry-' as const;
+
+/** The CLI/MCP option name carrying one entry field — the single place the prefix is applied. */
+export function dnaEntryOptionName(field: string): string {
+  return `${DNA_ENTRY_OPTION_PREFIX}${field}`;
+}
+
+/** The entry field an option name carries, or `undefined` when it is not an entry-field option. */
+export function dnaEntryFieldOfOption(option: string): string | undefined {
+  return option.startsWith(DNA_ENTRY_OPTION_PREFIX) ? option.slice(DNA_ENTRY_OPTION_PREFIX.length) : undefined;
+}
+
 /** The kind of node a resolved path lands on — what a verb is allowed to do there. */
 export type DnaTargetKind =
   /** An object node (`project`, `team`, `paths`): a section, not a writable field. */
@@ -109,7 +158,7 @@ function isOptional(node: SchemaNode): boolean {
   return node.def.type === 'optional' || node.def.type === 'default' || node.def.type === 'nullable';
 }
 
-/** How a leaf's value is shaped, for coercing a `--<field>` option string into it. */
+/** How a leaf's value is shaped, for coercing a `--entry-<field>` option string into it. */
 function fieldKind(node: SchemaNode): DnaFieldKind {
   const inner = unwrap(node);
   if (inner.def.type === 'string') return 'string';
@@ -303,7 +352,7 @@ export function dnaCollectionPaths(): readonly string[] {
 /**
  * The union of every field name the entries of every collection may carry, minus `name` (which travels
  * in `--value`, per `dl-081`'s `--value`-is-the-identity convention), in a fixed order. This is the
- * `--<field>` option set `dna add`/`dna update` register on both surfaces.
+ * `--entry-<field>` option set `dna add`/`dna update` register on both surfaces (see {@link dnaEntryOptionName}).
  */
 export function dnaEntryOptionNames(): readonly string[] {
   const seen = new Set<string>();

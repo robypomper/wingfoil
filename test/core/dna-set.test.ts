@@ -70,7 +70,7 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
 
   it('AC(a): sets a field, writes it, commits exactly one scoped commit, returns ok + commit sha (exit 0)', async () => {
     const before = head(repo);
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.license'], options: { value: 'MIT' } });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.commit?.sha).toMatch(/^[0-9a-f]{40}$/);
@@ -93,8 +93,8 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
   });
 
   it('AC(b): updating an existing key overwrites in place — one key, no duplicate', async () => {
-    await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
-    await dnaSetFn()({ root: repo, positionals: ['project.license', 'Apache-2.0'] });
+    await dnaSetFn()({ root: repo, positionals: ['project.license'], options: { value: 'MIT' } });
+    await dnaSetFn()({ root: repo, positionals: ['project.license'], options: { value: 'Apache-2.0' } });
 
     const dna = loadDnaYaml(repo) as { project: Record<string, unknown> };
     expect(dna.project.license).toBe('Apache-2.0');
@@ -105,12 +105,12 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
   });
 
   it('re-setting a key to its current value is a deterministic, idempotent no-op: exit 0, no new commit, byte-identical file', async () => {
-    const firstResult = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
+    const firstResult = await dnaSetFn()({ root: repo, positionals: ['project.license'], options: { value: 'MIT' } });
     expect(firstResult.ok).toBe(true);
     const afterFirst = dnaText(repo);
     const headAfterFirst = head(repo);
 
-    const secondResult = await dnaSetFn()({ root: repo, positionals: ['project.license', 'MIT'] });
+    const secondResult = await dnaSetFn()({ root: repo, positionals: ['project.license'], options: { value: 'MIT' } });
     expect(secondResult.ok).toBe(true);
     if (secondResult.ok) expect(secondResult.commit).toBeUndefined(); // no-op: no new commit
     expect(dnaText(repo)).toBe(afterFirst); // re-serialization is stable (REQ-SYS-07)
@@ -121,11 +121,11 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
     const before = head(repo);
     const beforeText = dnaText(repo);
 
-    await expect(dnaSetFn()({ root: repo, positionals: ['..language', 'python'] })).rejects.toBeInstanceOf(
+    await expect(dnaSetFn()({ root: repo, positionals: ['..language'], options: { value: 'python' } })).rejects.toBeInstanceOf(
       UsageError,
     );
     try {
-      await dnaSetFn()({ root: repo, positionals: ['..language', 'python'] });
+      await dnaSetFn()({ root: repo, positionals: ['..language'], options: { value: 'python' } });
       throw new Error('expected a UsageError');
     } catch (error) {
       expect(error).toBeInstanceOf(UsageError);
@@ -142,7 +142,7 @@ describe('CORE_MODULES dna.dnaSet — P2.1 fit criteria (repo with a configured 
     const beforeText = dnaText(repo);
 
     // `version` must be a positive number; a non-numeric string re-parses as a string and fails Zod.
-    const result = await dnaSetFn()({ root: repo, positionals: ['version', 'not-a-number'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['version'], options: { value: 'not-a-number' } });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('VALIDATION');
@@ -178,7 +178,7 @@ describe('CORE_MODULES dna.dnaSet — bug-084: an unschema\'d path is refused, n
     const before = head(repo);
     const beforeText = dnaText(repo);
 
-    const result = await dnaSetFn()({ root: repo, positionals: ['tech_stack.cli.framework', 'Commander'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['tech_stack.cli.framework'], options: { value: 'Commander' } });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(exitCodeForResult(result)).toBe(1);
@@ -193,14 +193,14 @@ describe('CORE_MODULES dna.dnaSet — bug-084: an unschema\'d path is refused, n
 
   it('the general case — `dna set nonsense.at.any.depth value` — is refused at exit 1 too', async () => {
     const before = head(repo);
-    const result = await dnaSetFn()({ root: repo, positionals: ['nonsense.at.any.depth', 'value'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['nonsense.at.any.depth'], options: { value: 'value' } });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(exitCodeForResult(result)).toBe(1);
     expect(head(repo)).toBe(before);
   });
 
   it('`dna set` on an array-valued field is refused by NAME rather than by a type mismatch (bug-083)', async () => {
-    const result = await dnaSetFn()({ root: repo, positionals: ['team.members', '[{"name":"X"}]'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['team.members'], options: { value: '[{"name":"X"}]' } });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(exitCodeForResult(result)).toBe(1);
@@ -244,7 +244,7 @@ describe('CORE_MODULES dna.dnaSet — REQ-SEC-01 git-identity pre-flight (no con
 
   it('refuses with the exact REQ-SEC-01 message (CoreResult.error VALIDATION -> exit 1), writing nothing', async () => {
     const beforeText = dnaText(repo);
-    const result = await dnaSetFn()({ root: repo, positionals: ['stacks.language', 'python'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['stacks.language'], options: { value: 'python' } });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('VALIDATION');

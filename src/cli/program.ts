@@ -122,12 +122,17 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
 
     // A variadic optional bare positional list (task-025-implement-dna-set's `positionals` seam,
     // generalizing task-026's single `[positional]`) — registered on every command regardless of how
-    // many positionals its operation reads (harmless if ignored), so `dna show [section]` /
-    // `paths [category]` (one) and `dna set <key> <value>` (two) share ONE positional mechanism.
+    // many positionals its operation reads (harmless if ignored), so `dna show [section]`,
+    // `paths [category]`, `memory approve [id]` and `dna set|add|remove|update <path>` share ONE
+    // positional mechanism. Every one of them now reads at most ONE positional: `dl-082-cli-parameter-shape`
+    // states the rule the nine older commands already followed — a positional carries the identity of
+    // the command's target, an option a named attribute — and task-093 moved `dna set`'s second
+    // positional into `--value` to match. The list stays variadic so an operation can refuse an extra
+    // positional with its own message rather than have Commander refuse it with an arity error.
     // Plus this command's own `--{flag}` options (task-028-implement-paths-category's
     // `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander rejects an unknown option, so each
     // declared flag must be registered explicitly.
-    target.argument('[positionals...]', 'optional positional arguments (e.g. a section/category name, or `dna set <key> <value>`)');
+    target.argument('[positionals...]', 'optional positional arguments (the command target — e.g. a section/category name, a document id, or a `dna` field path)');
     for (const name of command.flags ?? []) {
       target.option(`--${name}`, `${name} flag`);
     }

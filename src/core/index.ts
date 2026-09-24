@@ -20,7 +20,13 @@ import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
 import { applyDnaEditInText } from '../dna/edit';
 import { applyDnaMutation, type DnaMutationRequest, type DnaMutationVerb } from '../dna/mutate';
-import { dnaEntryOptionNames, resolveDnaPath } from '../dna/path';
+import {
+  DNA_ENTRY_OPTION_PREFIX,
+  dnaEntryFieldOfOption,
+  dnaEntryOptionName,
+  dnaEntryOptionNames,
+  resolveDnaPath,
+} from '../dna/path';
 import { DNA_KEY_ALIASES, isValidKeyPath } from '../dna/set';
 import {
   INVALID_DIRECTIVE_NAME_MESSAGE,
@@ -269,13 +275,19 @@ const dnaShowFn: CoreFn<unknown, unknown> = async (params) => {
 };
 
 /**
- * `dna set <key> <value>` params (P2.1, task-025-implement-dna-set) — the first mutating operation.
- * `positionals` is the full CLI positional list (`ParamsContext.positionals`, `core/registry.ts`'s
- * additive seam this task adds): `positionals[0]` is the dotted key path, `positionals[1]` the value.
+ * `dna set <path> --value <v>` params (P2.1, task-025-implement-dna-set) — the first mutating
+ * operation. `positionals` is the full CLI positional list (`ParamsContext.positionals`,
+ * `core/registry.ts`): `positionals[0]` is the dotted path and is the ONLY positional the verb reads.
+ *
+ * The value moved out of `positionals[1]` into `--value` in `task-093`, per
+ * `dl-082-cli-parameter-shape`: a positional carries the identity of the target, an option carries a
+ * named attribute of the action. The path is the target; the value was an attribute in positional
+ * clothing. See {@link DnaMutationParams} — the four verbs now share one parameter shape.
  */
 export interface DnaSetParams {
   readonly root: string;
   readonly positionals?: readonly string[];
+  readonly options?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -300,7 +312,7 @@ export interface DnaSetParams {
  *    what makes `loadDnaYaml`'s working-tree read equivalent to `HEAD`'s here.
  * 4. **Load** the current `.wingfoil/dna.yaml` through the same two-pass path `dnaShow` uses (a
  *    missing/invalid file → `NOT_FOUND`/`VALIDATION`, exit 1).
- * 5. **Resolve + apply** through `src/dna`'s `applyDnaMutation`, which resolves `--field` against
+ * 5. **Resolve + apply** through `src/dna`'s `applyDnaMutation`, which resolves the `<path>` against
  *    `DnaYaml` itself and **refuses a path that does not resolve rather than creating it**
  *    (`bug-084-dna-key-alias-writes-unschemad-keys`; `dl-081`'s ratification makes this a precondition
  *    of the surface). A refusal is a logic error (`VALIDATION` → exit 1, `spec-005` §1 as ruled on
@@ -347,7 +359,7 @@ async function runDnaMutation(
     if (resolved.target.kind !== 'scalar') {
       return coreErr({
         code: 'VALIDATION',
-        message: `'${request.field}' does not hold a single value: reach it with \`dna add|remove|update --field ${request.field} --value <v>\` (dl-081)`,
+        message: `'${request.field}' does not hold a single value: reach it with \`dna add|remove|update ${request.field} --value <v>\` (dl-081)`,
       });
     }
   }
@@ -386,28 +398,65 @@ function dnaCommitSubject(request: DnaMutationRequest): string {
 }
 
 /**
- * `dna set <key> <value>` `CoreOperation.fn` (P2.1) — kept, and kept positional
- * (`P2.1-dna-set.feature`, `spec-002`, `spec-005` §4 all name it in this form). Since task-093 it is
- * **`update` restricted to a single value**, in positional dress: the same resolver, the same write
- * path, one spelling for the scalar case and `dna update --field … --value …` for everything
- * structured (`dl-081` AC9 — `update` does not subsume `set`, and `set` does not grow a second
- * mechanism).
+ * The dotted path every DNA verb acts on, read from `positionals[0]` — the ONE place the four verbs
+ * agree on where their target comes from (`dl-082-cli-parameter-shape`: a positional carries the
+ * identity of the target).
  *
- * A `--field` that names a collection or a list is refused here with the verb that does reach it,
- * rather than with the schema re-validation's `expected array, received string` — which is
+ * Three usage errors, in the order they are checked, and the order is load-bearing:
+ *
+ * 1. **Missing** — nothing to act on.
+ * 2. **Malformed** — an empty segment (the BDD's `..language`). Checked BEFORE the extra-positional
+ *    rule below so that `dna set ..language python`, which is `P2.1-dna-set.feature`'s third
+ *    scenario verbatim, keeps reporting `invalid key path: '..language'` rather than the migration
+ *    hint. A stale invocation that is also malformed is malformed first.
+ * 3. **Extra positionals** — the old `dna set <key> <value>` spelling, and any slip of the same
+ *    shape on the three new verbs. It gets a named message rather than being ignored, because
+ *    `dl-082` is a breaking change to a shipped command and silently dropping the second word would
+ *    make `dna set project.license MIT` look like it worked (`--value` absent, the write refused for
+ *    a reason that names neither the second word nor the new grammar).
+ *
+ * All three are exit `2` (`UsageError` → `exitCodeForThrow`, `spec-005-cli-command-contract` §1).
+ */
+function dnaPathPositional(verb: string, positionals: readonly string[] | undefined): string {
+  const path = positionals?.[0];
+  if (path === undefined) {
+    throw new UsageError(`missing required argument: wingfoil dna ${verb} <path> --value <value>`);
+  }
+  if (!isValidKeyPath(path)) {
+    throw new UsageError(`invalid key path: '${path}'`);
+  }
+  if ((positionals?.length ?? 0) > 1) {
+    throw new UsageError(
+      `wingfoil dna ${verb} takes one positional <path>; the value travels in --value (got ${positionals!.length} positionals)`,
+    );
+  }
+  return path;
+}
+
+/**
+ * `dna set <path> --value <v>` `CoreOperation.fn` (P2.1) — kept, and still the scalar spelling
+ * (`spec-002`, `spec-005` §4). Since task-093 it is **`update` restricted to a single value**: the
+ * same resolver, the same write path, one spelling for the scalar case and
+ * `dna update <path> --value …` for everything structured (`dl-081` AC9 — `update` does not subsume
+ * `set`, and `set` does not grow a second mechanism).
+ *
+ * Its **second positional became `--value`** in this task (`dl-082-cli-parameter-shape`): the key was
+ * the target and stays positional, the value was an attribute wearing a positional's clothes. That is
+ * a breaking change to a shipped command, tracked as such — `P2.1-dna-set.feature` still shows the
+ * old spelling and is rewritten by `bug-089`, and `CHANGELOG.md` by the `user-docs` phase.
+ *
+ * A path that names a collection or a list is refused here with the verb that does reach it, rather
+ * than with the schema re-validation's `expected array, received string` — which is
  * `bug-083-dna-set-cannot-write-array-valued-fields`'s headline symptom and says nothing about how to
  * write the field.
  */
 const dnaSetFn: CoreFn<unknown, { key: string; value?: string }> = async (params) => {
-  const { root, positionals } = params as DnaSetParams;
+  const { root, positionals, options } = params as DnaSetParams;
 
-  const keyPath = positionals?.[0];
-  const value = positionals?.[1];
-  if (keyPath === undefined || value === undefined) {
-    throw new UsageError('missing required argument: dna set <key> <value>');
-  }
-  if (!isValidKeyPath(keyPath)) {
-    throw new UsageError(`invalid key path: '${keyPath}'`);
+  const keyPath = dnaPathPositional('set', positionals);
+  const value = options?.value;
+  if (value === undefined) {
+    throw new UsageError('missing required argument: --value');
   }
 
   // `wf(dna): set <key>` — the subject `dna set` has always written (task-025), kept verbatim so a
@@ -418,22 +467,27 @@ const dnaSetFn: CoreFn<unknown, { key: string; value?: string }> = async (params
 };
 
 /**
- * `dna add|remove|update` params (task-093). Everything rides the value-bearing option seam
- * `memory add --type … --title …` established (`ParamsContext.options`, `core/registry.ts`): `--field`
- * is the FULL dotted path, `--value` the payload, and every remaining option is a field of the entry
- * `--field` names. No positional is read, so the grammar stays `memory add`'s rather than a second one
- * invented for this pillar (`dl-081` option (E)).
+ * `dna add|remove|update` params (task-093). The **path** is `positionals[0]` — it identifies the
+ * target, and `dl-082-cli-parameter-shape` is the rule that puts a target in a positional. Everything
+ * else rides the value-bearing option seam `memory add --type … --title …` established
+ * (`ParamsContext.options`, `core/registry.ts`): `--value` is the payload, and every remaining option
+ * is a field of the entry the path names. Identical in shape to {@link DnaSetParams}, which is the
+ * point — all four DNA verbs state their parameters the same way, and the same way the other nine
+ * `memory`/`paths` commands already did (`dl-082` E2).
  */
 export interface DnaMutationParams {
   readonly root: string;
+  readonly positionals?: readonly string[];
   readonly options?: Readonly<Record<string, string>>;
 }
 
-/** Split a verb's options into `--field`, `--value` and the per-entry `--<field>` values. */
-function dnaMutationRequest(verb: DnaMutationVerb, options: Readonly<Record<string, string>> | undefined): DnaMutationRequest {
-  const field = options?.field;
-  if (field === undefined) throw new UsageError('missing required argument: --field');
-  if (!isValidKeyPath(field)) throw new UsageError(`invalid key path: '${field}'`);
+/** Split a verb's invocation into the positional `<path>`, `--value` and the per-entry `--entry-<field>` values. */
+function dnaMutationRequest(
+  verb: DnaMutationVerb,
+  positionals: readonly string[] | undefined,
+  options: Readonly<Record<string, string>> | undefined,
+): DnaMutationRequest {
+  const field = dnaPathPositional(verb, positionals);
   if (verb === 'add' && options?.value === undefined) throw new UsageError('missing required argument: --value');
 
   // Every remaining option is an entry field, carried under its `--entry-<field>` name (see
@@ -442,7 +496,7 @@ function dnaMutationRequest(verb: DnaMutationVerb, options: Readonly<Record<stri
   // batch of text edits it produces — is a deterministic function of the invocation (REQ-SYS-07).
   const fields: Record<string, string> = {};
   for (const name of Object.keys(options ?? {}).sort()) {
-    if (name === 'field' || name === 'value') continue;
+    if (name === 'value') continue;
     const entryField = dnaEntryFieldOfOption(name);
     // Strict, and deliberately so: the CLI can only send names this operation declares (Commander
     // refuses the rest), so accepting a BARE `version` here would mean the core layer speaks a
@@ -459,86 +513,55 @@ function dnaMutationRequest(verb: DnaMutationVerb, options: Readonly<Record<stri
 
 /** `dna add` — create an entry, or append to a list (`dl-081` option (E); spec-006 §3, Tool `dna.add`). */
 const dnaAddFn: CoreFn<unknown, { key: string; value?: string }> = async (params) => {
-  const { root, options } = params as DnaMutationParams;
-  return runDnaMutation(root, dnaMutationRequest('add', options));
+  const { root, positionals, options } = params as DnaMutationParams;
+  return runDnaMutation(root, dnaMutationRequest('add', positionals, options));
 };
 
 /** `dna remove` — drop an entry, a value from a list, or an optional field (Tool `dna.remove`). */
 const dnaRemoveFn: CoreFn<unknown, { key: string; value?: string }> = async (params) => {
-  const { root, options } = params as DnaMutationParams;
-  return runDnaMutation(root, dnaMutationRequest('remove', options));
+  const { root, positionals, options } = params as DnaMutationParams;
+  return runDnaMutation(root, dnaMutationRequest('remove', positionals, options));
 };
 
 /** `dna update` — change a value, a list, or the fields of one entry (Tool `dna.update`). */
 const dnaUpdateFn: CoreFn<unknown, { key: string; value?: string }> = async (params) => {
-  const { root, options } = params as DnaMutationParams;
-  return runDnaMutation(root, dnaMutationRequest('update', options));
+  const { root, positionals, options } = params as DnaMutationParams;
+  return runDnaMutation(root, dnaMutationRequest('update', positionals, options));
 };
 
 /**
- * The `--field`/`--value` pair every mutation verb declares, plus — for `add`/`update` — one option per
- * field the collection entry schemas declare, derived from `DnaYaml` rather than hand-listed
- * (`dnaEntryOptionNames`, `src/dna/path.ts`), so a collection added to `spec-002` becomes writable
- * without editing this file.
- *
- * `--value`'s description carries `dl-081`'s one stated convention, because the ratification records it
- * as a convention rather than something the grammar shows: it is the new entry's IDENTITY when
- * `--field` ends at a collection and the new VALUE when it ends at a leaf (task-093 AC6).
+ * The `--entry-<field>` namespace, re-exported from the DNA pillar (`src/dna/path.ts`), which owns it
+ * because it owns the derivation: the option set is read off `spec-002`'s entry schemas, and the
+ * refusal messages `src/dna/mutate.ts` writes have to spell those options the same way this module
+ * registers them. Re-exported rather than moved-and-forgotten so `src/core`'s public surface is
+ * unchanged (`spec-006` §1: the pillar is a leaf, and `src/core` is what both adapters import).
  */
+export { DNA_ENTRY_OPTION_PREFIX, dnaEntryOptionName, dnaEntryFieldOfOption } from '../dna/path';
+
 /**
- * The prefix every schema-derived entry-field option carries: `--entry-<field>`, spelled with the
- * schema's own field name (`--entry-executes_as`, not `--entry-executes-as`).
+ * The options the DNA verbs declare beside their positional `<path>`: `--value` on all four, plus —
+ * for `add`/`update` — one `--entry-<field>` option per field the collection entry schemas declare,
+ * derived from `DnaYaml` rather than hand-listed (`dnaEntryOptionNames`, `src/dna/path.ts`), so a
+ * collection added to `spec-002` becomes writable without editing this file.
  *
- * It exists because the option set is **derived** — `dnaEntryOptionNames()` reads `spec-002`'s entry
- * schemas — while the global flags are **declared** (`spec-008` §2), and the two namespaces had no
- * reason to stay disjoint. They did not: `TechEntry` declares `version`, so `dna add --field
- * stacks.technologies --value Zod --category validation --version 4.0` reached Commander's
- * program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing, while
- * `--help` advertised the option as working. Measured on a real `wingfoil init` project.
- *
- * **It is not a `version` problem.** Driving a synthetic Commander tree with one subcommand option per
- * global flag shows three distinct outcomes, two of them silent: `--version` fires the program's own
- * action and exits; `--format` and `--verbose` are swallowed by the program-level option and simply
- * do not appear in the subcommand's parsed options; `--color` and a non-colliding name survive. So
- * the failure mode is "the value vanishes", and any future entry field named after any current or
- * future global flag inherits it.
- *
- * **Why a prefix rather than refusing to register a shadowing name.** Refusal trades a silent failure
- * for a loud hole: `version` is a field `spec-002` declares on `TechEntry`, so refusing it would make
- * a schema-declared field permanently unwritable, and `dl-081` ratified a surface that reaches every
- * collection. Refusal is also unstable in the wrong direction — the global set can grow (`spec-008`
- * §2 is amendable), and a new global flag would then retroactively disable an entry field that had
- * been writable, breaking scripts with no code change nearby. A prefix removes the collision **by
- * construction**, for every present and future name on both sides, and it is uniform rather than
- * conditional: a rule that prefixed only the colliding names would make an option's spelling depend
- * on a table declared elsewhere, so adding a global flag later would silently RENAME an existing
- * option. `test/cli/derived-option-namespace.test.ts` holds the invariant that keeps this true,
- * derived from the built program rather than from a hand-listed copy of `spec-008` §2.
+ * `--value`'s description carries `dl-081`'s one stated convention, because the ratification records
+ * it as a convention rather than something the grammar shows: it is the new entry's IDENTITY when the
+ * path ends at a collection and the new VALUE when it ends at a leaf (task-093 AC6). `dna set` gets
+ * its own, narrower description: it is the scalar verb, so `--value` there has only the second
+ * meaning and advertising the first would describe a case the verb refuses.
  */
-export const DNA_ENTRY_OPTION_PREFIX = 'entry-' as const;
-
-/** The CLI/MCP option name carrying one entry field — the single place the prefix is applied. */
-export function dnaEntryOptionName(field: string): string {
-  return `${DNA_ENTRY_OPTION_PREFIX}${field}`;
-}
-
-/** The entry field an option name carries, or `undefined` when it is not an entry-field option. */
-export function dnaEntryFieldOfOption(option: string): string | undefined {
-  return option.startsWith(DNA_ENTRY_OPTION_PREFIX) ? option.slice(DNA_ENTRY_OPTION_PREFIX.length) : undefined;
-}
-
-const DNA_FIELD_OPTION: CoreOption = {
-  name: 'field',
-  required: true,
-  description: "full dotted path to the field, e.g. 'team.roles' or 'team.members.<name>.roles' (entries are addressed by name, never by index)",
-};
 const DNA_VALUE_OPTION: CoreOption = {
   name: 'value',
-  description: "the new entry's identity when --field ends at a collection; the new value when it ends at a leaf (comma-separated for a list of values)",
+  description: "the new entry's identity when <path> ends at a collection; the new value when it ends at a leaf (comma-separated for a list of values)",
+};
+const DNA_SET_VALUE_OPTION: CoreOption = {
+  name: 'value',
+  required: true,
+  description: 'the new value for <path> (scalar fields only — use `dna update` for collections and lists)',
 };
 const DNA_ENTRY_OPTIONS: readonly CoreOption[] = dnaEntryOptionNames().map((field) => ({
   name: dnaEntryOptionName(field),
-  description: `'${field}' of the entry --field names, where that collection declares it`,
+  description: `'${field}' of the entry <path> names, where that collection declares it`,
 }));
 
 /**
@@ -1524,19 +1547,22 @@ export const CORE_MODULES: readonly CoreModule[] = [
     name: 'dna',
     operations: {
       // The DNA mutation surface (task-093, `dl-081-dna-mutation-surface-shape` option (E)): three
-      // verbs carrying the collection in an option rather than in the verb name, exactly as
-      // `memory add --type … --title …` does, so the verb count stays constant as `spec-002`'s schema
-      // grows and spec-006 §3's one-Tool-per-function rule costs three Tools (`dna.add`, `dna.remove`,
-      // `dna.update`) instead of the dozen a per-collection verb set would need.
-      dnaAdd: { name: 'dnaAdd', mutates: true, options: [DNA_FIELD_OPTION, DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaAddFn },
+      // verbs carrying the collection in their argument rather than in the verb name, so the verb
+      // count stays constant as `spec-002`'s schema grows and spec-006 §3's one-Tool-per-function rule
+      // costs three Tools (`dna.add`, `dna.remove`, `dna.update`) instead of the dozen a
+      // per-collection verb set would need. The path itself is the POSITIONAL `<path>` every command
+      // in this CLI uses for its target (`dl-082-cli-parameter-shape`), registered generically by
+      // `src/cli/program.ts`, which is why no option declares it here.
+      dnaAdd: { name: 'dnaAdd', mutates: true, options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaAddFn },
       // `remove` declares no entry-field options: it takes what to drop, never what to write.
-      dnaRemove: { name: 'dnaRemove', mutates: true, options: [DNA_FIELD_OPTION, DNA_VALUE_OPTION], fn: dnaRemoveFn },
+      dnaRemove: { name: 'dnaRemove', mutates: true, options: [DNA_VALUE_OPTION], fn: dnaRemoveFn },
       // The FIRST `mutates: true` operation in production (spec-006 §3 dna table) — by construction an
       // MCP Tool (`dna.set`) + CLI command (`wingfoil dna set`), and the op the REQ-SYS-05 parity test
-      // now actually guards (task-025-implement-dna-set).
-      dnaSet: { name: 'dnaSet', mutates: true, fn: dnaSetFn },
+      // now actually guards (task-025-implement-dna-set). Its second positional became `--value` in
+      // task-093 (`dl-082`) — a breaking change to a shipped command, made before `minor-v0.2` ships.
+      dnaSet: { name: 'dnaSet', mutates: true, options: [DNA_SET_VALUE_OPTION], fn: dnaSetFn },
       dnaShow: { name: 'dnaShow', mutates: false, fn: dnaShowFn },
-      dnaUpdate: { name: 'dnaUpdate', mutates: true, options: [DNA_FIELD_OPTION, DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaUpdateFn },
+      dnaUpdate: { name: 'dnaUpdate', mutates: true, options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaUpdateFn },
     },
   },
   {

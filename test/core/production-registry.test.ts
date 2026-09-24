@@ -26,7 +26,8 @@ describe('CORE_MODULES — production registry', () => {
       'directive.directiveRemove',
       'directives.directivesList',
       // task-093-dna-mutation-surface-add-remove-update adds the three verbs `dl-081` ratified
-      // (option (E)): the collection travels in `--field` rather than in the verb name, so the DNA
+      // (option (E)): the collection travels in the verb's `<path>` positional rather than in the verb
+      // name (`dl-082-cli-parameter-shape`), so the DNA
       // pillar reaches every collection at three operations instead of a dozen.
       'dna.dnaAdd',
       'dna.dnaRemove',

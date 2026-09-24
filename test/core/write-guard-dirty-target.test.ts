@@ -149,7 +149,7 @@ describe('dna set — refuses a dna.yaml carrying modifications it does not own 
     dirty(repo, DNA, UNRELATED);
     const before = head(repo);
 
-    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name', 'Renamed'] });
+    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name'], options: { value: 'Renamed' } });
 
     expect(result.ok).toBe(false);
     expect(exitCodeForResult(result)).toBe(1);
@@ -162,7 +162,7 @@ describe('dna set — refuses a dna.yaml carrying modifications it does not own 
   });
 
   it('AC4: on a clean tree it still commits, and the commit carries exactly the field it declares', async () => {
-    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name', 'Renamed'] });
+    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name'], options: { value: 'Renamed' } });
 
     expect(result.ok).toBe(true);
     expect(committedPaths(repo)).toEqual([DNA]);
@@ -173,7 +173,7 @@ describe('dna set — refuses a dna.yaml carrying modifications it does not own 
   it('AC4: the guard is per-path — an unrelated dirty file does not block the write (dl-080 rejected (D))', async () => {
     writeFixtureFile(repo, 'docs/notes.md', 'work in progress, uncommitted');
 
-    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name', 'Renamed'] });
+    const result = await op('dna', 'dnaSet')({ root: repo, positionals: ['project.name'], options: { value: 'Renamed' } });
 
     expect(result.ok).toBe(true);
     expect(committedPaths(repo)).toEqual([DNA]);
@@ -193,15 +193,15 @@ describe('dna add|remove|update — the same rule, on the same file (task-093, d
   // `requireUnmodifiedTarget` rule rather than either of this task's two exceptions: `memory add`'s
   // absence check is for a target that must be new, and `wingfoil init`'s exemption rests on
   // `detectInitState` refusing an initialized project — while these verbs require one.
-  it.each<[string, string, Record<string, string>]>([
-    ['dnaAdd', 'add', { field: 'paths.sources', value: 'lib/' }],
-    ['dnaRemove', 'remove', { field: 'modules', value: 'core' }],
-    ['dnaUpdate', 'update', { field: 'project.name', value: 'Renamed' }],
-  ])('%s refuses a dirty dna.yaml, exits 1, names the file, and writes nothing', async (operation, _verb, options) => {
+  it.each<[string, string, string, Record<string, string>]>([
+    ['dnaAdd', 'add', 'paths.sources', { value: 'lib/' }],
+    ['dnaRemove', 'remove', 'modules', { value: 'core' }],
+    ['dnaUpdate', 'update', 'project.name', { value: 'Renamed' }],
+  ])('%s refuses a dirty dna.yaml, exits 1, names the file, and writes nothing', async (operation, _verb, path, options) => {
     dirty(repo, DNA, UNRELATED);
     const before = head(repo);
 
-    const result = await op('dna', operation)({ root: repo, options });
+    const result = await op('dna', operation)({ root: repo, positionals: [path], options });
 
     expect(result.ok).toBe(false);
     expect(exitCodeForResult(result)).toBe(1);
@@ -212,7 +212,7 @@ describe('dna add|remove|update — the same rule, on the same file (task-093, d
   });
 
   it('on a clean tree `dna add` still commits, and the commit carries exactly what it declares', async () => {
-    const result = await op('dna', 'dnaAdd')({ root: repo, options: { field: 'paths.sources', value: 'lib/' } });
+    const result = await op('dna', 'dnaAdd')({ root: repo, positionals: ['paths.sources'], options: { value: 'lib/' } });
 
     expect(result.ok).toBe(true);
     expect(committedPaths(repo)).toEqual([DNA]);

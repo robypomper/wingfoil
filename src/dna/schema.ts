@@ -13,7 +13,7 @@ import { z } from 'zod';
  * An array of named entries in which **no two entries share a `name`**.
  *
  * `dl-081-dna-mutation-surface-shape` ratified that entries are addressed by `name`
- * (`--field team.members.roberto.roles`) rather than by index, because an index shifts the moment an
+ * (`dna update team.members.roberto.roles …`) rather than by index, because an index shifts the moment an
  * entry is removed and a path written today would address a different entry tomorrow. Uniqueness is
  * therefore not a nicety but the **prerequisite** that addressing rests on, and the ratification left
  * the mechanism open: "a uniqueness refinement per collection, or the verbs must refuse on more than

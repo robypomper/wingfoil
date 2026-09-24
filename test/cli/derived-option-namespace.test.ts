@@ -5,7 +5,7 @@
  * `dna add|remove|update`'s per-entry options are **derived** from `spec-002`'s entry schemas
  * (`dnaEntryOptionNames`), while the global flags are **declared** (`spec-008` §2). Nothing kept the
  * two namespaces disjoint, and they collided on the first try: `TechEntry` declares `version`, so
- * `dna add --field stacks.technologies --value Zod --category validation --version 4.0` reached
+ * `dna add stacks.technologies --value Zod --category validation --version 4.0` reached
  * Commander's program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing —
  * while `dna add --help` advertised `--version <value>` as a working option. A silent success in the
  * pillar every other pillar reads, which is the class `bug-084` files.
@@ -87,7 +87,8 @@ describe('the invariant: a derived option never shadows a global flag (spec-008 
       expect(declared).toContain(dnaEntryOptionName(field));
       expect(declared).not.toContain(field);
     }
-    // `--field` and `--value` are the ratified grammar (dl-081) and stay unprefixed; everything else
+    // `--value` is the ratified grammar (dl-081; the path is the positional, dl-082) and stays
+    // unprefixed; everything else
     // a verb declares is an entry field.
     expect(declared.filter((name) => name !== 'field' && name !== 'value').every((name) => name.startsWith('entry-'))).toBe(true);
   });
@@ -126,14 +127,14 @@ describe('the drive: every declared entry-field option lands, through the real c
   }> = [
     {
       fields: ['description', 'path'],
-      args: ['dna', 'add', '--field', 'modules', '--value', 'core', '--entry-description', 'Shared domain logic.', '--entry-path', 'src/core'],
+      args: ['dna', 'add', 'modules', '--value', 'core', '--entry-description', 'Shared domain logic.', '--entry-path', 'src/core'],
       expect: (document) => (document.modules as unknown as unknown[])[0],
       value: { name: 'core', description: 'Shared domain logic.', path: 'src/core' },
     },
     {
       fields: ['category', 'version', 'notes'],
       args: [
-        'dna', 'add', '--field', 'stacks.technologies', '--value', 'Zod',
+        'dna', 'add', 'stacks.technologies', '--value', 'Zod',
         '--entry-category', 'validation', '--entry-version', '4.0', '--entry-notes', 'schema validation',
       ],
       expect: (document) => ((document.stacks as unknown as { technologies: unknown[] }).technologies)[0],
@@ -141,7 +142,7 @@ describe('the drive: every declared entry-field option lands, through the real c
     },
     {
       fields: ['phase'],
-      args: ['dna', 'add', '--field', 'stacks.methodologies', '--value', 'Lean Inception', '--entry-phase', 'inception'],
+      args: ['dna', 'add', 'stacks.methodologies', '--value', 'Lean Inception', '--entry-phase', 'inception'],
       expect: (document) => {
         const list = (document.stacks as unknown as { methodologies: Array<{ name: string }> }).methodologies;
         return list[list.length - 1];
@@ -151,7 +152,7 @@ describe('the drive: every declared entry-field option lands, through the real c
     {
       fields: ['email', 'roles'],
       args: [
-        'dna', 'add', '--field', 'team.members', '--value', 'Ada',
+        'dna', 'add', 'team.members', '--value', 'Ada',
         '--entry-email', 'ada@example.it', '--entry-roles', 'developer,reviewer',
       ],
       expect: (document) => (document.team as unknown as { members: unknown[] }).members[0],
@@ -160,7 +161,7 @@ describe('the drive: every declared entry-field option lands, through the real c
     {
       fields: ['executes_as', 'approval_authority'],
       args: [
-        'dna', 'add', '--field', 'team.agents', '--value', 'agent',
+        'dna', 'add', 'team.agents', '--value', 'agent',
         '--entry-executes_as', 'developer,qa', '--entry-approval_authority', 'false',
       ],
       expect: (document) => (document.team as unknown as { agents: unknown[] }).agents[0],
@@ -188,17 +189,69 @@ describe('the drive: every declared entry-field option lands, through the real c
   );
 
   it('the reported reproduction now writes the field instead of printing the CLI version', () => {
-    const shadowed = runCli(['dna', 'add', '--field', 'stacks.technologies', '--value', 'Zod', '--entry-category', 'validation', '--entry-version', '4.0']);
+    const shadowed = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Zod', '--entry-category', 'validation', '--entry-version', '4.0']);
     expect(shadowed.status).toBe(0);
     expect(shadowed.stdout).not.toContain('0.1.0');
     expect(((dna().stacks as unknown as { technologies: Array<{ version?: string }> }).technologies)[0]?.version).toBe('4.0');
   });
 
-  it('an entry option spelled without the namespace is a loud unknown option, not a silent no-op', () => {
-    const result = runCli(['dna', 'add', '--field', 'stacks.technologies', '--value', 'Go', '--category', 'language']);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("unknown option '--category'");
-    expect((dna().stacks as unknown as { technologies: unknown[] }).technologies).toEqual([]);
+  /**
+   * An unprefixed spelling does TWO different things, and the first draft of `spec-008` §9 claimed only
+   * the first — "an unprefixed spelling is an unknown option (exit 1), never a silent no-op" — while
+   * pinning it with `--category`, one of the names for which it happens to hold. The claim is false for
+   * `version`, which is §9's own worked example. Both outcomes are driven here, and the set of names
+   * the second applies to is DERIVED from the built program rather than written out, so a new global
+   * flag (or a new schema field) moves a name between the two cases without this file going stale.
+   */
+  describe('an unprefixed spelling: unknown option, or swallowed by the global of the same name', () => {
+    /** The derived entry fields whose bare name a global flag also declares. Today: exactly `version`. */
+    async function shadowedFields(): Promise<readonly string[]> {
+      const program = await buildProgram(CORE_MODULES, {
+        resolveRoot: () => '/fixture-root',
+        buildParams: (ctx) => ({ root: ctx.root }),
+      });
+      const globals = new Set(
+        program.options.map((option) => option.long?.replace(/^--(no-)?/, '')).filter((name): name is string => Boolean(name)),
+      );
+      // `--version` and `--help` are registered by `program.version()` / commander itself rather than
+      // by `.option()`, so they are absent from `program.options` — and they are precisely the two that
+      // take an ACTION and exit, i.e. the damaging ones.
+      globals.add('version').add('help');
+      return dnaEntryOptionNames().filter((field) => globals.has(field));
+    }
+
+    it('a name no global declares is refused as an unknown option at exit 1, writing nothing', async () => {
+      const shadowed = await shadowedFields();
+      expect(dnaEntryOptionNames().filter((field) => !shadowed.includes(field))).toContain('category');
+      const result = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Go', '--category', 'language']);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unknown option '--category'");
+      expect((dna().stacks as unknown as { technologies: unknown[] }).technologies).toEqual([]);
+    });
+
+    it('a name a global DOES declare is consumed by the global, never reported — the case the prefix removes', async () => {
+      const shadowed = await shadowedFields();
+      // If this ever empties, `spec-008` §9's second bullet has no example left and must be re-measured
+      // rather than quietly kept.
+      expect(shadowed).toEqual(['version']);
+
+      const before = readFileSync(join(repo, DNA), 'utf-8');
+      const result = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Go', '--version', '1.22']);
+
+      // NOT an unknown option, NOT exit 1: the program's own `-V, --version` fires, prints and exits 0.
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+      // And the whole point: nothing was written, at a success exit code.
+      expect(readFileSync(join(repo, DNA), 'utf-8')).toBe(before);
+      expect((dna().stacks as unknown as { technologies: unknown[] }).technologies).toEqual([]);
+    });
+
+    it('the SAME field under its prefixed name is written instead, which is what makes the prefix the fix', () => {
+      const result = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Go', '--entry-category', 'language', '--entry-version', '1.22']);
+      expect(result.status).toBe(0);
+      expect(((dna().stacks as unknown as { technologies: Array<{ version?: string }> }).technologies)[0]?.version).toBe('1.22');
+    });
   });
 
   it('`--help` advertises exactly the names that work', () => {

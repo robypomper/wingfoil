@@ -310,7 +310,7 @@ paths:
     afterEach(() => removeTempDir(repo));
 
     it('sets a schema-declared field, commits, and exits 0 (AC(a))', () => {
-      const result = runCliInRoot(repo, 'dna', 'set', 'project.license', 'MIT');
+      const result = runCliInRoot(repo, 'dna', 'set', 'project.license', '--value', 'MIT');
       expect(result.status).toBe(0);
       const dna = yamlLoad(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')) as {
         project: { license?: string };
@@ -322,7 +322,7 @@ paths:
 
     it('refuses a path no schema declares at exit 1, writing and committing nothing (bug-084, task-093)', () => {
       const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
-      const result = runCliInRoot(repo, 'dna', 'set', 'tech_stack.cli.framework', 'Commander');
+      const result = runCliInRoot(repo, 'dna', 'set', 'tech_stack.cli.framework', '--value', 'Commander');
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('tech_stack.cli.framework');
       expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
@@ -330,7 +330,7 @@ paths:
 
     it('an invalid dotted key path exits 2 with the exact BDD message, leaving the file unchanged (AC(c))', () => {
       const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
-      const result = runCliInRoot(repo, 'dna', 'set', '..language', 'python');
+      const result = runCliInRoot(repo, 'dna', 'set', '..language', '--value', 'python');
       expect(result.status).toBe(2);
       expect(result.stderr).toBe("error: invalid key path: '..language'\n");
       expect(result.stdout).toBe('');
@@ -341,7 +341,7 @@ paths:
   // task-093-dna-mutation-surface-add-remove-update (`dl-081-dna-mutation-surface-shape` option (E),
   // closes `bug-083`/`bug-084`) — the three mutation verbs driven end-to-end through the real,
   // compiled commander wiring, in a THROWAWAY temp repo. `dna set` above stays the scalar shorthand.
-  describe('`dna add|remove|update --field <path> --value <v>` — the DNA mutation surface (task-093)', () => {
+  describe('`dna add|remove|update <path> --value <v>` — the DNA mutation surface (task-093)', () => {
     const DNA_FIXTURE = `version: 1.1
 modules:
   - name: core
@@ -374,11 +374,11 @@ paths:
     }
 
     it('adds a role and then a member holding it — the flow no command could perform (bug-083)', () => {
-      const role = runCliInRoot(repo, 'dna', 'add', '--field', 'team.roles', '--value', 'approver');
+      const role = runCliInRoot(repo, 'dna', 'add', 'team.roles', '--value', 'approver');
       expect(role.status).toBe(0);
 
       const member = runCliInRoot(
-        repo, 'dna', 'add', '--field', 'team.members', '--value', 'Ada', '--entry-email', 'ada@example.it', '--entry-roles', 'approver,developer',
+        repo, 'dna', 'add', 'team.members', '--value', 'Ada', '--entry-email', 'ada@example.it', '--entry-roles', 'approver,developer',
       );
       expect(member.status).toBe(0);
 
@@ -391,41 +391,56 @@ paths:
     });
 
     it('amends one member\'s roles — the shape only entry-by-name addressing can express (dl-081)', () => {
-      const added = runCliInRoot(repo, 'dna', 'add', '--field', 'team.members.Test User.roles', '--value', 'reviewer');
+      const added = runCliInRoot(repo, 'dna', 'add', 'team.members.Test User.roles', '--value', 'reviewer');
       expect(added.status).toBe(1); // `reviewer` is not in the role catalogue (REQ-SYS-08)
-      expect(runCliInRoot(repo, 'dna', 'add', '--field', 'team.roles', '--value', 'reviewer').status).toBe(0);
-      expect(runCliInRoot(repo, 'dna', 'add', '--field', 'team.members.Test User.roles', '--value', 'reviewer').status).toBe(0);
+      expect(runCliInRoot(repo, 'dna', 'add', 'team.roles', '--value', 'reviewer').status).toBe(0);
+      expect(runCliInRoot(repo, 'dna', 'add', 'team.members.Test User.roles', '--value', 'reviewer').status).toBe(0);
 
       const team = dnaOf(repo).team as unknown as { members: Array<{ roles: string[] }> };
       expect(team.members[0]!.roles).toEqual(['developer', 'reviewer']);
     });
 
     it('updates a module path and removes the module again', () => {
-      expect(runCliInRoot(repo, 'dna', 'update', '--field', 'modules.core.path', '--value', 'source/core').status).toBe(0);
+      expect(runCliInRoot(repo, 'dna', 'update', 'modules.core.path', '--value', 'source/core').status).toBe(0);
       expect((dnaOf(repo).modules as unknown as Array<{ path: string }>)[0]!.path).toBe('source/core');
 
-      expect(runCliInRoot(repo, 'dna', 'remove', '--field', 'modules', '--value', 'core').status).toBe(0);
+      expect(runCliInRoot(repo, 'dna', 'remove', 'modules', '--value', 'core').status).toBe(0);
       expect(dnaOf(repo).modules as unknown as unknown[]).toEqual([]);
     });
 
     it('refuses a field no schema declares at exit 1, naming it, and commits nothing', () => {
       const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
-      const result = runCliInRoot(repo, 'dna', 'add', '--field', 'tech_stack.cli', '--value', 'Commander');
+      const result = runCliInRoot(repo, 'dna', 'add', 'tech_stack.cli', '--value', 'Commander');
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('tech_stack.cli');
       expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
     });
 
-    it('a missing --field is a usage error at exit 2 (spec-008 §5)', () => {
+    it('a missing <path> is a usage error at exit 2, naming the grammar (spec-008 §5, §9)', () => {
       const result = runCliInRoot(repo, 'dna', 'add', '--value', 'x');
       expect(result.status).toBe(2);
-      expect(result.stderr).toBe('error: missing required argument: --field\n');
+      expect(result.stderr).toBe('error: missing required argument: wingfoil dna add <path> --value <value>\n');
     });
 
-    it("`--help` states --value's two meanings rather than leaving them to be inferred (AC6)", () => {
+    // `dl-082-cli-parameter-shape` takes the second positional away from a SHIPPED command, so the old
+    // spelling is driven here through the real command line rather than only at the `CoreFn` layer:
+    // the migration message is the only thing standing between a user's muscle memory and a refusal
+    // that names neither the extra word nor the new grammar.
+    it('the old `dna set <key> <value>` spelling is refused at exit 2, naming the new grammar', () => {
+      const before = readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8');
+      const result = runCliInRoot(repo, 'dna', 'set', 'project.license', 'MIT');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe(
+        'error: wingfoil dna set takes one positional <path>; the value travels in --value (got 2 positionals)\n',
+      );
+      expect(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')).toBe(before);
+    });
+
+    it("`--help` shows the positional and states --value's two meanings rather than leaving them inferred (AC6)", () => {
       const result = runCliInRoot(repo, 'dna', 'add', '--help');
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('--field');
+      expect(result.stdout).toContain('positionals');
+      expect(result.stdout).not.toContain('--field');
       expect(result.stdout).toContain('--value');
       expect(result.stdout.toLowerCase()).toContain('collection');
     });

@@ -1,7 +1,7 @@
 /**
  * Per-collection name uniqueness in `DnaYaml` (`src/dna/schema.ts`), task-093 AC4 —
  * `dl-081-dna-mutation-surface-shape`'s ratified **prerequisite**: once entries are addressed by
- * `name` (`--field team.members.roberto.roles`), uniqueness is what the addressing rests on, and the
+ * `name` (`dna update team.members.roberto.roles …`), uniqueness is what the addressing rests on, and the
  * schema carried no constraint that kept it holding.
  *
  * The ratification left the mechanism open — "a uniqueness refinement per collection, **or** the

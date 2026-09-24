@@ -9,18 +9,20 @@
  * or delete: not a module's `path`, a technology's `version`, a member's `email`, nor the removal of any
  * of them, nor the addition of a role or a member (`dl-081` E2/E3).
  *
- * The grammar the ratification chose, and which this module implements:
+ * The grammar the ratification chose, and which this module implements — with the path in the verb's
+ * **positional** (`dl-082-cli-parameter-shape`: a positional carries the identity of the target, an
+ * option a named attribute of the action) and every attribute in an option:
  *
  * ```
- * dna add    --field team.roles              --value reviewer --description "reviews changes"
- * dna add    --field team.members            --value roberto  --email r@example.it --roles approver
- * dna add    --field team.members.roberto.roles --value qa
- * dna update --field team.members            --value roberto  --email new@example.it
- * dna update --field modules.core.path       --value src/core
- * dna remove --field modules                 --value core
+ * dna add    team.roles                 --value reviewer --entry-description "reviews changes"
+ * dna add    team.members               --value roberto  --entry-email r@example.it --entry-roles approver
+ * dna add    team.members.roberto.roles --value qa
+ * dna update team.members               --value roberto  --entry-email new@example.it
+ * dna update modules.core.path          --value src/core
+ * dna remove modules                    --value core
  * ```
  *
- * `--value` carries **two** things by position — the new entry's identity when `--field` ends at a
+ * `--value` carries **two** things by position — the new entry's identity when the path ends at a
  * collection, the new value when it ends at a leaf. That is a convention rather than something the
  * grammar states, so it is stated: here, in `--help` (`src/core/index.ts`'s option descriptions) and in
  * `spec-008-cli-grammar`.
@@ -33,19 +35,19 @@
 import type { z } from 'zod';
 
 import type { DnaTextEdit, DnaTextStep } from './edit';
-import { resolveDnaPath, type DnaEntryField, type DnaPathTarget } from './path';
+import { dnaEntryOptionName, resolveDnaPath, type DnaEntryField, type DnaPathTarget } from './path';
 
-/** The three verbs `dl-081` ratified. `dna set` is `update` restricted to a scalar, in positional dress. */
+/** The three verbs `dl-081` ratified. `dna set` is `update` restricted to a scalar. */
 export type DnaMutationVerb = 'add' | 'remove' | 'update';
 
-/** One mutation request: the full `--field` path, the `--value` payload, and the per-entry `--<field>` options. */
+/** One mutation request: the full `<path>`, the `--value` payload, and the per-entry `--entry-<field>` options. */
 export interface DnaMutationRequest {
   readonly verb: DnaMutationVerb;
   /** The FULL dotted path (`dl-081`: never a bare field name — `team.roles` and `team.members.roles` differ). */
   readonly field: string;
   /** The entry's identity at a collection; the new value at a leaf. Optional only where the path says everything. */
   readonly value?: string;
-  /** `--<entry-field>` options, as raw strings; coerced against the entry schema (`{ email: 'r@x.y' }`). */
+  /** `--entry-<field>` options, keyed by the schema's own field name and still raw strings; coerced against the entry schema (`{ email: 'r@x.y' }`). */
   readonly fields?: Readonly<Record<string, string>>;
 }
 
@@ -64,7 +66,7 @@ function clone(dna: Record<string, unknown>): Record<string, unknown> {
   return structuredClone(dna);
 }
 
-/** Coerce one `--<field>` option string into the shape the entry schema declares for it. */
+/** Coerce one `--entry-<field>` option string into the shape the entry schema declares for it. */
 function coerce(raw: string, kind: DnaEntryField['kind']): unknown {
   if (kind === 'string-list') return splitList(raw);
   if (kind === 'number') {
@@ -146,7 +148,7 @@ function containerFor(dna: Record<string, unknown>, segments: readonly string[])
 
 /**
  * Read the list at `segments`, or `[]` when the schema declares it and the document omits it — which
- * is how `dna add --field paths.tests --value test/` fills a category the file leaves out.
+ * is how `dna add paths.tests --value test/` fills a category the file leaves out.
  *
  * The container is always a MAPPING: a list is reached through a mapping key, either a section's
  * (`paths.sources`) or an entry's (`team.members.<name>.roles`), never as an element of another list,
@@ -170,12 +172,12 @@ function applyFields(
 ): string | undefined {
   for (const name of Object.keys(fields)) {
     if (name === 'name') {
-      return `'name' is an entry's identity, not a field to update: it is what '--field ${collectionPath}.<name>' addresses. Remove the entry and add it under the new name.`;
+      return `'name' is an entry's identity, not a field to update: it is what the path '${collectionPath}.<name>' addresses. Remove the entry and add it under the new name.`;
     }
     const field = declared.find((candidate) => candidate.name === name);
     if (field === undefined) {
-      const known = declared.filter((candidate) => candidate.name !== 'name').map((candidate) => `--${candidate.name}`);
-      return `'--${name}' is not a field of '${collectionPath}' entries; they carry ${known.join(', ')}`;
+      const known = declared.filter((candidate) => candidate.name !== 'name').map((candidate) => `--${dnaEntryOptionName(candidate.name)}`);
+      return `'--${dnaEntryOptionName(name)}' is not a field of '${collectionPath}' entries; they carry ${known.join(', ')}`;
     }
     entry[name] = coerce(fields[name]!, field.kind);
   }
@@ -225,7 +227,7 @@ export function applyDnaMutation(
   }
 }
 
-/** `--field` ends at an array of objects: `add` creates an entry, `remove` drops one, `update` amends one. */
+/** The path ends at an array of objects: `add` creates an entry, `remove` drops one, `update` amends one. */
 function mutateCollection(
   next: Record<string, unknown>,
   target: DnaPathTarget,
@@ -249,7 +251,7 @@ function mutateCollection(
     if (failure !== undefined) return refuse(failure);
     const missing = declared
       .filter((field) => field.required && field.name !== 'name' && entry[field.name] === undefined)
-      .map((field) => `--${field.name}`);
+      .map((field) => `--${dnaEntryOptionName(field.name)}`);
     if (missing.length > 0) {
       return refuse(`an entry of '${target.path}' requires ${missing.join(', ')}`);
     }
@@ -268,8 +270,8 @@ function mutateCollection(
   }
 
   if (Object.keys(fields).length === 0) {
-    const known = declared.filter((field) => field.name !== 'name').map((field) => `--${field.name}`);
-    return refuse(`\`dna update --field ${target.path} --value ${name}\` carries no change: pass one of ${known.join(', ')}`);
+    const known = declared.filter((field) => field.name !== 'name').map((field) => `--${dnaEntryOptionName(field.name)}`);
+    return refuse(`\`dna update ${target.path} --value ${name}\` carries no change: pass one of ${known.join(', ')}`);
   }
   const entry = items[index] as Record<string, unknown>;
   const failure = applyFields(entry, fields, declared, target.path);
@@ -277,7 +279,7 @@ function mutateCollection(
   return { ok: true, dna: next, edit: entryFieldEdit(next, target, index, fields, declared) };
 }
 
-/** `--field` ends at one entry (`modules.core`): the path already says which, so `--value` would repeat it. */
+/** The path ends at one entry (`modules.core`): the path already says which, so `--value` would repeat it. */
 function mutateEntry(
   next: Record<string, unknown>,
   target: DnaPathTarget,
@@ -287,10 +289,10 @@ function mutateEntry(
   const collectionPath = target.collectionPath!;
   const name = target.segments[target.segments.length - 1]!;
   if (request.verb === 'add') {
-    return refuse(`'${target.path}' already exists: \`dna add --field ${collectionPath} --value <name>\` creates a new entry, \`dna update\` changes this one`);
+    return refuse(`'${target.path}' already exists: \`dna add ${collectionPath} --value <name>\` creates a new entry, \`dna update\` changes this one`);
   }
   if (request.value !== undefined) {
-    return refuse(`--value says nothing '--field ${target.path}' has not already said: drop it, or address the collection with \`--field ${collectionPath} --value ${name}\``);
+    return refuse(`--value says nothing the path '${target.path}' has not already said: drop it, or address the collection with \`${collectionPath} --value ${name}\``);
   }
 
   // The collection resolved on the way to the entry, so this re-resolution against the clone cannot
@@ -307,8 +309,8 @@ function mutateEntry(
 
   const declared = target.entryFields ?? [];
   if (Object.keys(fields).length === 0) {
-    const known = declared.filter((field) => field.name !== 'name').map((field) => `--${field.name}`);
-    return refuse(`\`dna update --field ${target.path}\` carries no change: pass one of ${known.join(', ')}`);
+    const known = declared.filter((field) => field.name !== 'name').map((field) => `--${dnaEntryOptionName(field.name)}`);
+    return refuse(`\`dna update ${target.path}\` carries no change: pass one of ${known.join(', ')}`);
   }
   const entry = items[index] as Record<string, unknown>;
   const failure = applyFields(entry, fields, declared, collectionPath);
@@ -316,7 +318,7 @@ function mutateEntry(
   return { ok: true, dna: next, edit: entryFieldEdit(next, collection.target, index, fields, declared) };
 }
 
-/** `--field` ends at an array of strings: `add` appends, `remove` drops, `update` replaces the list. */
+/** The path ends at an array of strings: `add` appends, `remove` drops, `update` replaces the list. */
 function mutateStringList(next: Record<string, unknown>, target: DnaPathTarget, request: DnaMutationRequest): DnaMutationResult {
   if (request.value === undefined) {
     return refuse(`--value is required at '${target.path}'`);
@@ -353,13 +355,13 @@ function mutateStringList(next: Record<string, unknown>, target: DnaPathTarget, 
   return { ok: true, dna: next, edit: { kind: 'remove-items', path, indexes: [...indexes].sort((a, b) => a - b) } };
 }
 
-/** `--field` ends at a single value: `update` writes it, `remove` drops it when the schema allows, `add` does not apply. */
+/** The path ends at a single value: `update` writes it, `remove` drops it when the schema allows, `add` does not apply. */
 function mutateScalar(next: Record<string, unknown>, target: DnaPathTarget, request: DnaMutationRequest): DnaMutationResult {
   const key = target.segments[target.segments.length - 1]!;
   const container = containerFor(next, target.segments) as Record<string, unknown>;
 
   if (request.verb === 'add') {
-    return refuse(`'${target.path}' holds a single value: use \`dna update --field ${target.path} --value <v>\` (or \`dna set ${target.path} <v>\`)`);
+    return refuse(`'${target.path}' holds a single value: use \`dna update ${target.path} --value <v>\` (or \`dna set ${target.path} --value <v>\`)`);
   }
   if (request.verb === 'remove') {
     if (target.required) {

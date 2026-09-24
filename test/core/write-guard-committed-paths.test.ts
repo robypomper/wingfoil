@@ -158,7 +158,7 @@ describe('the alarm is reachable — a pre-commit hook that rewrites the target 
     chmodSync(hook, 0o755);
 
     const operation = CORE_MODULES.find((module) => module.name === 'dna')?.operations.dnaSet;
-    const result = await operation!.fn({ root: repo, positionals: ['project.name', 'Renamed'] });
+    const result = await operation!.fn({ root: repo, positionals: ['project.name'], options: { value: 'Renamed' } });
 
     expect(result.ok).toBe(false);
     expect(exitCodeForResult(result)).toBe(1);

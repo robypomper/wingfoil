@@ -106,7 +106,7 @@ describe('Journey 0a (v0.1-scoped slice) — real CLI, fresh throwaway project (
 
     // dna set <key> <value> + read-back (task-025/P2.1) — the only mutating DNA path; a scalar leaf,
     // never requiring hand-editing `.wingfoil/dna.yaml`.
-    const setResult = runCliInRoot(repo, 'dna', 'set', 'project.name', 'E2E Demo Project');
+    const setResult = runCliInRoot(repo, 'dna', 'set', 'project.name', '--value', 'E2E Demo Project');
     expect(setResult.status).toBe(0);
     const readBack = runCliInRoot(repo, 'dna', 'show', 'project', '--format', 'json');
     expect(readBack.status).toBe(0);
@@ -169,11 +169,11 @@ describe('Journey 0a (v0.1-scoped slice) — real CLI, fresh throwaway project (
     // Until task-093 this was a documented dead end: the write failed with the schema re-validation's
     // `E_VALIDATION … expected array, received string`, which says nothing about how to write the
     // field, and no other command in the surface could write it either (bug-083).
-    const viaSet = runCliInRoot(repo, 'dna', 'set', 'paths.sources', 'src');
+    const viaSet = runCliInRoot(repo, 'dna', 'set', 'paths.sources', '--value', 'src');
     expect(viaSet.status).toBe(1);
     expect(viaSet.stderr).toContain('dna add|remove|update');
 
-    const viaAdd = runCliInRoot(repo, 'dna', 'add', '--field', 'paths.sources', '--value', 'src');
+    const viaAdd = runCliInRoot(repo, 'dna', 'add', 'paths.sources', '--value', 'src');
     expect(viaAdd.status).toBe(0);
     const dna = yamlLoad(readFileSync(join(repo, '.wingfoil', 'dna.yaml'), 'utf-8')) as { paths: { sources: string[] } };
     expect(dna.paths.sources).toEqual(['src']);
