@@ -2,7 +2,7 @@
 id: "task-098-align-the-cli-reference-and-specs-to-the-ratified-dna-grammar"
 type: task
 title: "Bring the approved CLI reference and the DNA specs onto `dl-082`'s grammar — correct the `dna set` row, add the three rows that were never written, and retire two claims that are no longer true"
-status: in-review
+status: approved
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "dna", "cli", "docs"]
