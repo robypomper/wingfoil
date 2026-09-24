@@ -317,3 +317,32 @@ copying one out of this document gets a command that runs. `spec-008` §9 holds 
 
 Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
 `spec-006`'s 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — the path form a write resolves against may quote a segment, and no character
+constraint joins `uniquelyNamed`, per `dl-083-dotted-entry-names-in-paths` (`ready`) and `task-099`.**
+The *Unknown keys* section above describes a write resolving its `<path>` against this schema, and the
+2026-09-23 revision made `name` the key an entry is addressed by. Neither said what happens when a
+`name` contains a `.` — and three do, in the file this spec scopes: measured at `c2102c87`,
+`stacks.technologies` carries `Node.js` and `Commander.js`, and `team.agents` carries
+`AI agent (Claude/Cursor/etc.)`.
+
+Two things follow, and the second is the one that belongs in a schema document:
+
+- *The path.* A segment may be double-quoted and is then taken verbatim, dots included:
+  `dna update 'stacks.technologies."Node.js".version' --value 22.14+` (the outer single quotes are the
+  **shell's**, the inner double quotes are **WingFoil's**). `spec-008` §9 holds the grammar itself.
+- *The schema.* **No dot constraint is added.** `uniquelyNamed` remains the only per-collection
+  refinement, and nothing constrains the characters a `name` may contain. The alternative — extending
+  that refinement, which is the cheapest change and the one uniqueness itself took — was declined:
+  because the refinement runs inside `DnaYaml`, and therefore on every `loadDnaYaml`, it would reject
+  this project's own configuration **on read** rather than on write; and because `Node.js`,
+  `Commander.js`, `Vue.js`, `Socket.io` and `ASP.NET` are the correct names of the things they name, so
+  a schema that cannot hold them fails at the one thing it exists to do (`bug-091`'s Correction;
+  `dl-083`'s Rationale declines it on the second ground even for a clean corpus).
+
+`test/dna/path-quoting.test.ts` carries the three live names as a fixture and asserts both halves — the
+document loads, and each name is addressable — so a future dot constraint goes red rather than landing
+silently.
+
+Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
+`spec-006`'s 2026-09-17 revision cites.

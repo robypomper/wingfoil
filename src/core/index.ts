@@ -297,8 +297,9 @@ export interface DnaSetParams {
  *
  * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
  *    `user.name`/`user.email` are unset, returning its `CoreResult.error` unchanged (exit 1).
- * 2. **Argument validation** — a missing required argument, or a MALFORMED dotted path (an empty
- *    segment, the BDD's `..language`), is a usage error: `throw new UsageError(...)` → exit **2**
+ * 2. **Argument validation** — a missing required argument, or a dotted path `splitDnaPath` cannot
+ *    parse (an empty segment, the BDD's `..language`; an unterminated quote; a `"` no delimiter can
+ *    account for), is a usage error: `throw new UsageError(...)` → exit **2**
  *    (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1. A path that is well-formed
  *    but names nothing the schema declares is a different failure and exits **1** — see step 4.
  * 3. **`requireUnmodifiedTarget` pre-flight** (`dl-080`(B) / `bug-078`, task-092) — refuse, before
