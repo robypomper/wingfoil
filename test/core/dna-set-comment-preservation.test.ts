@@ -80,7 +80,7 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
   });
 
   it('AC(b): every comment line — including the [SPEC]/[AUTHORING] provenance annotations — survives a set', async () => {
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.name', 'WingFoil Renamed'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.name'], options: { value: 'WingFoil Renamed' } });
     expect(result.ok).toBe(true);
 
     const after = dnaText(repo);
@@ -89,7 +89,7 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
   });
 
   it('AC(a): ONLY the target value changes — exactly one line differs, and it is the target key line', async () => {
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.name', 'WingFoil Renamed'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.name'], options: { value: 'WingFoil Renamed' } });
     expect(result.ok).toBe(true);
 
     const changes = changedLines(REAL_DNA, dnaText(repo));
@@ -100,7 +100,7 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
 
   it('an inline trailing comment on the edited line is kept (the annotation lives ON the field line)', async () => {
     // `methodology: custom            # see .wingfoil/workflows.yaml (main: sw-life-cycle)`
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.methodology', 'scrum'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.methodology'], options: { value: 'scrum' } });
     expect(result.ok).toBe(true);
 
     const line = dnaText(repo)
@@ -116,8 +116,8 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
       writeFixtureFile(second, '.wingfoil/dna.yaml', REAL_DNA);
       commitAll(second, 'seed WingFoil own dna.yaml');
 
-      await dnaSetFn()({ root: repo, positionals: ['project.name', 'WingFoil Renamed'] });
-      await dnaSetFn()({ root: second, positionals: ['project.name', 'WingFoil Renamed'] });
+      await dnaSetFn()({ root: repo, positionals: ['project.name'], options: { value: 'WingFoil Renamed' } });
+      await dnaSetFn()({ root: second, positionals: ['project.name'], options: { value: 'WingFoil Renamed' } });
 
       expect(dnaText(second)).toBe(dnaText(repo));
     } finally {
@@ -126,15 +126,19 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
   });
 
   it('a key absent from the file is inserted into its parent block, adding exactly one line and no comment loss', async () => {
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.owner', 'Roberto'] });
+    // task-093/bug-084: the inserted key must be one the SCHEMA declares — an undeclared key is now
+    // refused at exit 1 rather than created. `stacks.technologies` carries a `version?` field that the
+    // `Zod` entry does not fill, so this still exercises "absent key, inserted in place", and it does
+    // so inside a sequence entry, which is the shape `setDnaValueInText` alone could never reach.
+    const result = await dnaSetFn()({ root: repo, positionals: ['stacks.technologies.Zod.version'], options: { value: '4.4.3' } });
     expect(result.ok).toBe(true);
 
     const after = dnaText(repo);
     expect(commentLines(after)).toEqual(commentLines(REAL_DNA));
     expect(after.split('\n')).toHaveLength(REAL_DNA.split('\n').length + 1);
-    expect(after).toContain('\n  owner: Roberto\n');
+    expect(after).toContain('\n    - name: Zod\n      category: validation\n      version: 4.4.3\n');
 
-    // ...and it really is under `project`, not appended somewhere that merely looks right.
+    // ...and it really is inside that entry, not appended somewhere that merely looks right.
     const changed = execFileSync('git', ['-C', repo, 'show', '--name-only', '--format=', 'HEAD'], {
       encoding: 'utf-8',
     }).trim();
@@ -143,7 +147,7 @@ describe('dna.dnaSet — bug-004: a comment-rich dna.yaml survives a set (task-0
 
   it('a set to the current value stays an idempotent no-op on the comment-rich file (byte-identical, no commit)', async () => {
     const before = dnaText(repo);
-    const result = await dnaSetFn()({ root: repo, positionals: ['project.name', 'WingFoil'] });
+    const result = await dnaSetFn()({ root: repo, positionals: ['project.name'], options: { value: 'WingFoil' } });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.commit).toBeUndefined();
     expect(dnaText(repo)).toBe(before);

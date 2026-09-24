@@ -222,15 +222,35 @@ export interface MemoryTransition {
 }
 
 /**
- * Read `relativePath`'s frontmatter `status:` field as it existed at `sha` (`git show sha:path`),
+ * Read `historicalPath`'s frontmatter `status:` field as it existed at `sha` (`git show sha:path`),
  * without validating it against any type's Zod schema — this is a historical-snapshot read, not a
  * live document validation. Returns `null` if the path didn't exist at `sha`, has no frontmatter
  * block, or the frontmatter has no string `status` field.
+ *
+ * `historicalPath` is the path the element occupied **at that commit** — `MemoryHistoryEntry.path`,
+ * produced by the same `--follow` walk that selected the commit — never the caller's current path.
+ * Passing the current one was `bug-080-read-status-at-reads-the-current-path-at-pre-rename-commits`:
+ * every commit older than a rename asked git for a path that tree does not contain, the read failed,
+ * and the transition reported `null` states. `dl-080` — a read that gates an operation resolves at
+ * `HEAD` — does not reach here: this read gates nothing, and its subject is by construction *other*
+ * commits.
+ *
+ * The explicit `stdio` is `bug-071-read-status-at-leaks-git-stderr`, and it is not made redundant by
+ * the paragraph above. `execFileSync` hands the child this process's own stderr by default, so on
+ * the failure that remains legitimate — a commit where the document genuinely does not exist, before
+ * its creation or after a deletion — git's `fatal: path ... does not exist in '<sha>'` went straight
+ * to the operator's terminal while the command reported success. Capturing it into a pipe this
+ * process owns (and discarding it, the failure being handled right here) is what keeps a genuine
+ * `fatal:` distinguishable from a routine one — that line is how `bug-050`'s forged history
+ * announced itself.
  */
-function readStatusAt(root: string, sha: string, relativePath: string): string | null {
+function readStatusAt(root: string, sha: string, historicalPath: string): string | null {
   let raw: string;
   try {
-    raw = execFileSync('git', ['-C', root, 'show', `${sha}:${relativePath}`], { encoding: 'utf-8' });
+    raw = execFileSync('git', ['-C', root, 'show', `${sha}:${historicalPath}`], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
   } catch {
     return null;
   }
@@ -238,7 +258,7 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
   const { frontmatter } = splitFrontmatter(raw);
   if (!frontmatter) return null;
 
-  const parsed = parseYaml(frontmatter, `${relativePath}@${sha}`);
+  const parsed = parseYaml(frontmatter, `${historicalPath}@${sha}`);
   if (parsed === null || typeof parsed !== 'object') return null;
 
   const status = (parsed as Record<string, unknown>).status;
@@ -253,22 +273,25 @@ function readStatusAt(root: string, sha: string, relativePath: string): string |
  * its own entry shape, deriving no further state of its own; this function is the reconstruction
  * itself, not that command's output formatting.
  *
- * Known limitation: `getMemoryHistory` walks with `git log --follow` (rename-following), but
- * `readStatusAt` reads `git show sha:{relativePath}` using the CURRENT path. For a commit that
- * predates a rename, the current path won't resolve at that `sha`, yielding a spurious
- * `toState: null` for those pre-rename commits — plus git's own `fatal: path ... exists on disk, but
- * not in <sha>` on stderr (`bug-071-read-status-at-leaks-git-stderr`).
+ * **Renames are followed on both halves of the derivation**, which is the correction
+ * `task-097-memory-history-reads-each-commit-at-its-historical-path` made. `getMemoryHistory` always
+ * walked with `git log --follow`, so it *found* the commits preceding a rename; `readStatusAt` then
+ * read each of them at the CURRENT path, which those trees do not contain, so all of them reported
+ * `null` states (`bug-080-…`). The walk now carries the path each commit actually used
+ * (`MemoryHistoryEntry.path`, from `--follow --name-status`) and this function reads at that path —
+ * the walk is the source of truth for "where was this file at this commit", and the read no longer
+ * guesses.
  *
- * This paragraph used to continue "Memory files are not renamed in practice (their path pattern is
- * fixed by `memory.yaml`, spec-011) ... a documented edge case, not a live defect".
- * `task-089-fix-history-walk-attributes-only-real-commits` measured that claim and it is **false**:
- * `docs/self/docs/04_memory/planning/v1/*` became `planning/rl-v1/*` in a single commit, moving five
- * `release` elements at once, precisely BECAUSE the type's `path` pattern interpolates a component —
- * the release-line id — that itself changed. Any edit to a `path` pattern, or to an id one
- * interpolates, renames documents; for those five, every transition before the rename is reported
- * with a `null` state today. Resolve by threading each commit's historical path (from
- * `--follow --name-status`) into `readStatusAt`. Out of scope for task-089, which repairs which
- * COMMITS are walked, not which PATH each one is read at.
+ * This was never the hypothetical the TSDoc here used to call "a documented edge case, not a live
+ * defect": `docs/self/docs/04_memory/planning/v1/*` became `planning/rl-v1/*` in a single commit,
+ * moving five `release` elements at once, precisely BECAUSE the `release` type's `path` pattern
+ * interpolates a component — the release-line id — that itself changed. Any edit to a `path`
+ * pattern, or to an id one interpolates, renames documents.
+ *
+ * `toState` is still `null` where a commit in the walk genuinely has no document to read — before
+ * the element's creation, or after a deletion. That is a legitimate answer, distinct from the defect
+ * above, and it no longer arrives with a `fatal:` on the operator's stderr (`bug-071`; see
+ * {@link readStatusAt}).
  */
 export function reconstructMemoryTransitions(root: string, relativePath: string): MemoryTransition[] {
   const history = getMemoryHistory(root, relativePath); // oldest first already
@@ -276,7 +299,7 @@ export function reconstructMemoryTransitions(root: string, relativePath: string)
   const transitions: MemoryTransition[] = [];
   let previousState: string | null = null;
   for (const entry of history) {
-    const toState = readStatusAt(root, entry.sha, relativePath);
+    const toState = readStatusAt(root, entry.sha, entry.path);
     const operationMatch = OPERATION_RE.exec(entry.subject);
     transitions.push({
       sha: entry.sha,

@@ -64,7 +64,9 @@ const FIXTURE_MODULES: CoreModule[] = [
     name: 'dna',
     operations: {
       dnaShow: { name: 'dnaShow', mutates: false, fn: async () => coreOk({ hello: 'world' }) },
-      dnaSet: { name: 'dnaSet', mutates: true, fn: async () => coreOk({ committed: true }) },
+      // Mirrors the real registration since `dl-082-cli-parameter-shape`: the path is the command's
+      // positional, the value a declared `--value` option (`CORE_MODULES`, `src/core/index.ts`).
+      dnaSet: { name: 'dnaSet', mutates: true, options: [{ name: 'value' }], fn: async () => coreOk({ committed: true }) },
     },
   },
   {
@@ -206,9 +208,9 @@ describe('buildProgram — command tree derivation (spec-006 §4, spec-008 §1)'
 });
 
 describe('buildProgram — action forwarding into `registrar.run` (the wiring bug-007 left unverified)', () => {
-  it('forwards the ambient `--format` and the full positional list of a `<noun> <verb>` command', async () => {
+  it('forwards the ambient `--format`, the positional list and the declared options of a `<noun> <verb>` command', async () => {
     const program = await buildFixtureProgram();
-    await program.parseAsync(['node', 'wingfoil', 'dna', 'set', 'tech_stack.language', 'python', '--format', 'json']);
+    await program.parseAsync(['node', 'wingfoil', 'dna', 'set', 'tech_stack.language', '--value', 'python', '--format', 'json']);
 
     expect(seenContexts).toHaveLength(1);
     expect(seenContexts[0]).toMatchObject({
@@ -216,7 +218,8 @@ describe('buildProgram — action forwarding into `registrar.run` (the wiring bu
       operationName: 'dnaSet',
       root: '/fixture-root',
       positional: 'tech_stack.language',
-      positionals: ['tech_stack.language', 'python'],
+      positionals: ['tech_stack.language'],
+      options: { value: 'python' },
     });
     expect(written(stdoutSpy)).toBe(JSON.stringify({ committed: true }) + '\n');
     expect(exitSpy).toHaveBeenCalledWith(0);

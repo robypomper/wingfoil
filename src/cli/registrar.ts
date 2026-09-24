@@ -52,8 +52,9 @@ export interface CliCommand {
   /**
    * Execute this command given the resolved `--format` flag value (still unvalidated at this point),
    * the FULL list of bare positional arguments the invocation supplied (task-025-implement-dna-set's
-   * additive `positionals` seam — e.g. `wingfoil dna set <key> <value>` -> `['<key>', '<value>']`;
-   * `wingfoil dna show tech_stack` -> `['tech_stack']`), this command's own parsed `--{flag}`
+   * additive `positionals` seam — e.g. `wingfoil dna show tech_stack` -> `['tech_stack']`,
+   * `wingfoil dna set project.license --value MIT` -> `['project.license']`, one positional per
+   * command since `dl-082-cli-parameter-shape`), this command's own parsed `--{flag}`
    * values (task-028, e.g. `{ list: true }`), and its parsed value-bearing `--{name} <value>` OPTIONS
    * (task-020, e.g. `{ type: 'decision', title: 'Use PostgreSQL' }`). All are additive/optional — a
    * command that reads no positional and declares no flags/options is still called exactly as before:

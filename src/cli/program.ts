@@ -122,12 +122,17 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
 
     // A variadic optional bare positional list (task-025-implement-dna-set's `positionals` seam,
     // generalizing task-026's single `[positional]`) — registered on every command regardless of how
-    // many positionals its operation reads (harmless if ignored), so `dna show [section]` /
-    // `paths [category]` (one) and `dna set <key> <value>` (two) share ONE positional mechanism.
+    // many positionals its operation reads (harmless if ignored), so `dna show [section]`,
+    // `paths [category]`, `memory approve [id]` and `dna set|add|remove|update <path>` share ONE
+    // positional mechanism. Every one of them now reads at most ONE positional: `dl-082-cli-parameter-shape`
+    // states the rule the nine older commands already followed — a positional carries the identity of
+    // the command's target, an option a named attribute — and task-093 moved `dna set`'s second
+    // positional into `--value` to match. The list stays variadic so an operation can refuse an extra
+    // positional with its own message rather than have Commander refuse it with an arity error.
     // Plus this command's own `--{flag}` options (task-028-implement-paths-category's
     // `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander rejects an unknown option, so each
     // declared flag must be registered explicitly.
-    target.argument('[positionals...]', 'optional positional arguments (e.g. a section/category name, or `dna set <key> <value>`)');
+    target.argument('[positionals...]', 'optional positional arguments (the command target — e.g. a section/category name, a document id, or a `dna` field path)');
     for (const name of command.flags ?? []) {
       target.option(`--${name}`, `${name} flag`);
     }
@@ -135,7 +140,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     // --type/--title/--tags`): Commander rejects an unknown option, so each declared option must be
     // registered explicitly with a `<value>` operand (distinguishing it from a boolean `--flag`).
     for (const option of command.options ?? []) {
-      target.option(`--${option.name} <value>`, `${option.name} value`);
+      target.option(`--${option.name} <value>`, option.description ?? `${option.name} value`);
     }
 
     // Commander's action callback for a `[positionals...]` variadic + options command is
@@ -205,8 +210,24 @@ function buildOptionValues(
   if (declared.length === 0) return undefined;
   const optionValues: Record<string, string> = {};
   for (const { name } of declared) {
-    const value = options[name];
+    const value = options[commanderKey(name)];
     if (typeof value === 'string') optionValues[name] = value;
   }
   return optionValues;
+}
+
+/**
+ * The property Commander stores a `--{name} <value>` option under: it camel-cases across `-`
+ * (`--entry-executes_as` -> `entryExecutes_as`) and leaves every other character alone.
+ *
+ * `CoreOption.name` is the declared name, and `CliCommand.run` hands core its options keyed by THAT,
+ * so this is the one place the two spellings meet. Before task-093 the lookup used the declared name
+ * directly, which worked only because every option declared so far happened to be a single word: a
+ * dashed name would have been read as `undefined` and dropped in silence — the same failure mode as
+ * the shadowing this task fixes, one layer further in. `test/cli/derived-option-namespace.test.ts`
+ * drives every dashed option the registry declares through the real CLI, so neither can return
+ * unnoticed.
+ */
+function commanderKey(name: string): string {
+  return name.replace(/-([a-zA-Z0-9])/g, (_match, char: string) => char.toUpperCase());
 }

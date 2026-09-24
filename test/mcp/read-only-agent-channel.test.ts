@@ -78,8 +78,8 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign, directive.create, directive.remove, dna.set, memory.add, memory.approve, memory.deprecate, memory.reject, memory.submit — task-051/050/052/025/020/046/048/047/045)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes all nine mutating ops — `directive.assign`, `directive.create`, `directive.remove`, `dna.set`, `memory.add`, `memory.approve`, `memory.deprecate`, `memory.reject` + `memory.submit`', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign|create|remove, dna.add|remove|set|update, memory.add|approve|deprecate|reject|submit — task-051/050/052/093/025/020/046/048/047/045)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes all twelve mutating ops — `directive.assign|create|remove`, `dna.add|remove|set|update` + `memory.add|approve|deprecate|reject|submit`', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
@@ -100,7 +100,12 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'directiveAssign',
       'directiveCreate',
       'directiveRemove',
+      // task-093-dna-mutation-surface-add-remove-update — `dl-081` option (E)'s three verbs, which are
+      // mutations and therefore reach the agent surface as Tools only, never as Resources.
+      'dnaAdd',
+      'dnaRemove',
       'dnaSet',
+      'dnaUpdate',
       'memoryAdd',
       'memoryApprove',
       'memoryDeprecate',
@@ -112,7 +117,10 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'directive.assign',
       'directive.create',
       'directive.remove',
+      'dna.add',
+      'dna.remove',
       'dna.set',
+      'dna.update',
       'memory.add',
       'memory.approve',
       'memory.deprecate',

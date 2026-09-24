@@ -121,10 +121,37 @@ field:
 for f in docs/self/docs/04_memory/bugs/*.md; do
   r=$(awk -F'"' '/^release:/{print $2; exit}' "$f")
   s=$(awk '/^status:/{print $2; exit}' "$f")
-  [ "$r" = "v0.2" ] && [ "$s" != "closed" ] && [ "$s" != "resolved" ] \
-    && echo "NOT RESOLVED: $(basename "$f") -> $s"
+  [ "$r" != "v0.2" ] && continue
+  case "$s" in
+    closed|resolved) ;;                                    # passes, silently
+    deprecated) echo "RETIRED: $(basename "$f") -> deprecated — confirm deliberately" ;;
+    *) echo "NOT RESOLVED: $(basename "$f") -> $s" ;;
+  esac
 done
 ```
+
+**Three outcomes, not two, and the middle one is the point.** `resolved`/`closed` pass in silence;
+anything else blocks. **`deprecated` is reported and does not block by itself** — the person running
+the gate must look at it and decide.
+
+The reason is `bug-094`. `deprecate` is the **only** legal way to retire a bug once it is past
+`triaged` — the single `reject: closed` gate sits on `open` — so a bug ruled not-a-defect after triage
+can reach no state this check accepts, and under the original two-way test it would have blocked the
+release permanently.
+
+The obvious repair, adding `deprecated` to the accepted list, was considered and **declined**: it
+would let anyone clear this gate by deprecating the bug standing in front of it. A gate that can be
+passed by retiring the obstacle is not a gate. Reporting keeps the escape hatch available and makes it
+**visible**, which is the actual failure mode — the silence, not the possibility.
+
+So: if this check prints a `RETIRED:` line, read that bug's `Reason:` and its ruling before you
+proceed, and say in the release record that you did. If it prints `NOT RESOLVED:`, stop.
+
+> Note this is the *executed* form. The declared check in
+> `docs/self/.wingfoil/workflows/custom/release-submit.yaml` still reads
+> `"all bugs where tags=[{release.version}] are status: [resolved, closed]"` and carries the same gap.
+> Nothing evaluates that string today — there is no workflow engine — so it is `bug-094`'s to correct,
+> not this plan's.
 
 **C3 — `tests.passing`:** `npx jest` exits 0.
 

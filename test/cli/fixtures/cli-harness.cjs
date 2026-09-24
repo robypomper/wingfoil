@@ -38,7 +38,8 @@ function main() {
   return buildProgram(CORE_MODULES, {
     resolveRoot: () => fixtureRoot,
     // Mirrors the real `src/cli.ts` production wiring: main's single bare `positional`
-    // (task-026-implement-dna-show's seam), task-025's full `positionals` list (`dna set <key> <value>`),
+    // (task-026-implement-dna-show's seam), task-025's full `positionals` list (every command reads at
+    // most one, since `dl-082-cli-parameter-shape`),
     // task-028's additive `flags` spread (e.g. `paths`'s `--list`), plus task-020's value-bearing
     // `options` record (e.g. `memory add --type/--title/--tags`, `memory search --tag/--status/--type`
     // — task-021) — this harness must stay in lockstep with `cli.ts`'s own buildParams. Previously
