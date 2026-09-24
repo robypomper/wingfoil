@@ -5,7 +5,7 @@ title: "`dna set` and `dna update` agree on success, on refusal, on message and 
 status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: "v0.2"
+release: ""
 feature: "P2.1"
 contributor: ""
 credit: ""
@@ -132,3 +132,43 @@ worth weighing, not an accident to be removed.
 The failure here is the one this release has rejected four tasks for — a claim written from the cases
 that were run rather than from the cases that would settle it. Recorded rather than edited away,
 because the title and the Summary above were both argued from it.
+
+## Ruling (2026-09-24) — both commands stay
+
+The approver ruled on 2026-09-24: **`dna set` and `dna update` both remain.** There is no defect to
+fix, and the redundancy this document describes is accepted as a design.
+
+What makes it a design rather than an accident is the measurement in the Correction above. `dna set`
+is `dna update` with `scalarOnly` set, and that pre-check is a guard rail with a teaching error: a
+user who aims `set` at a collection is refused at exit 1 by a message that names the three verbs that
+would work. Removing `set` would take that away; removing `update` would take away the collection case
+entirely, which is what `bug-083` exists to provide.
+
+**The proposal that was declined, and why it is worth recording.** The approver first considered
+deprecating `update` on the ground that it does not appear in the vision reference. Two objections
+settled it. The provenance argument does not isolate `update`: neither `add` nor `remove` appears
+there either, all three come from `dl-081`, and all three trace to `P2.1`'s "Basic CRUD operations" —
+applied consistently it would delete `add`, which is the verb `bug-083` was filed to obtain. And
+giving `set` the full behaviour would leave a name that describes the wrong thing: `set` implies
+create-or-replace, while the ratified rule is replace-only — a path that does not resolve is refused,
+never created, which is `bug-084`'s repair and the precondition `dl-081` rests on.
+
+**`release:` is cleared and this bug no longer blocks `v0.2`.** The follow-up it leaves is
+documentation and it is scheduled into the retrospective phase, which runs after `release-publishing`;
+a bug stamped `v0.2` would block `release-submit` waiting for work that by design happens later.
+
+**Status.** This is a wontfix, and the `bug` machine cannot express one after `triaged` — the only
+`reject: closed` gate sits on `open`. That gap is now `bug-094`. Until it is resolved this document
+stays at `triaged` with no release, which understates it: it is decided, not merely unscheduled, and
+this section is the only place that says so.
+
+## Follow-up scheduled into the retrospective
+
+`docs/01_vision/06_features.md` lists `P2.1` as `wingfoil dna set` alone, and its prioritisation row
+calls it "Basic CRUD operations". The DNA surface is now four commands. `task-098` corrects
+`docs/01_vision/X_cli-cmds.md`, which is the command reference; **nothing corrects the feature list**,
+and it is the artefact that decides what `P2.1` is understood to be.
+
+That correction is recorded in `docs/05_plans/rl-v1/rel-v0.2/retrospective-rel-v0.2-plan.md` rather
+than done here, because it is a vision-layer edit and the retrospective is where this release's
+vision-layer conclusions are gathered.
