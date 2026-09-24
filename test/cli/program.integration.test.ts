@@ -44,9 +44,11 @@
  * `this.error(message, { code: 'commander.unknownCommand' })`, `exitCode` defaulting to `1`) — against
  * spec-005 §1's exit `2` for a usage error. `buildProgram` now installs an `exitOverride` that routes
  * every Commander termination through `exitCodeForParseOutcome` (`src/core/exit-code.ts`), so the
- * assertions below read `2`. What spec-008 §1 still describes and `program.ts` still does not
- * implement is the rest of that grammar's `E_UNKNOWN_COMMAND` treatment — the closest-match suggestion
- * — not the exit code.
+ * assertions below read `2`. That also completes spec-008 §1's `E_UNKNOWN_COMMAND` treatment, whose
+ * other half — the closest-match suggestion `P5.1.4-cli-ux.feature` asks for — commander already
+ * supplies (`showSuggestionAfterError`, on by default): `wingfoil memroy add` answers
+ * `error: unknown command 'memroy'` followed by `(Did you mean memory?)`, now at exit `2`. It is
+ * pinned in `./commander-parse-exit-codes.integration.test.ts`.
  */
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';

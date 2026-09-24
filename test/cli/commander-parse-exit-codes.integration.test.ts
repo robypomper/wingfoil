@@ -142,6 +142,17 @@ describe('AC4 — the messages do not change; only the codes do', () => {
   it("an unknown option still reads `error: unknown option '--x'`", () => {
     expect(runCli('dna', 'show', '--section', 'project').stderr).toContain("error: unknown option '--section'");
   });
+
+  it("the closest-match suggestion survives the interception — `P5.1.4-cli-ux.feature`'s own example", () => {
+    // Commander writes the message AND the suggestion before calling the exit callback, so routing the
+    // code through the contract cannot drop either. This is the half of spec-008 §1's
+    // `E_UNKNOWN_COMMAND` that was already implemented (commander's `showSuggestionAfterError`); with
+    // exit 2 the scenario's three parts — message, suggestion, non-zero exit — now all hold.
+    const result = runCli('memroy', 'add');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error: unknown command 'memroy'");
+    expect(result.stderr).toContain('(Did you mean memory?)');
+  });
 });
 
 describe('AC5 — `--help` and `--version` still exit 0 (characterization: the trap)', () => {

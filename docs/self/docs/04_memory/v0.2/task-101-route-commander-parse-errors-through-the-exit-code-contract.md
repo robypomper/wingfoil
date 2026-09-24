@@ -242,6 +242,24 @@ They are version surface, so `test/core/exit-code.test.ts` drives every one of t
 Commander upgrade that renames one fails there rather than silently reverting an exit code in
 production.
 
+### A side effect worth recording: `P5.1.4-cli-ux` scenario 1 now passes in full
+
+`P5.1.4-cli-ux.feature`'s "unknown command yields an actionable error" asks for the message, a
+closest-match suggestion, and a non-zero exit. The suggestion half was already there — commander's
+`showSuggestionAfterError` is on by default — and it is unaffected by the interception, because
+commander writes message and suggestion before calling the exit callback. Measured on the built CLI:
+
+```
+$ node dist/cli.js memroy add ; echo "exit=$?"
+error: unknown command 'memroy'
+(Did you mean memory?)
+exit=2
+```
+
+Pinned in the new suite. This corrected a sentence I had just written into
+`test/cli/program.integration.test.ts`'s header while updating it — that the closest-match suggestion
+was the part still unimplemented. It is implemented; only the exit code was missing.
+
 ### The one case left alone — and why deliberately
 
 A noun invoked with no verb (`wingfoil dna`) prints its help **to stderr** and exits `1`. That is
@@ -261,7 +279,7 @@ suite so whichever way it is decided, it is decided rather than drifting.
 
 | Gate | Result |
 |---|---|
-| `npx jest` | **136 suites / 2257 tests, all passing** |
+| `npx jest` | **136 suites / 2258 tests, all passing** |
 | `npx jest --coverage` | **All files 98.54 % stmts / 93.89 % branch / 98.74 % funcs / 99.40 % lines** (≥ 80) |
 | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
 | `npx tsc -p tsconfig.build.json` (**emitting**) | exit 0 |
