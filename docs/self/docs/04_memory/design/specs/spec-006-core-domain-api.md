@@ -232,6 +232,35 @@ step-advance into two functions, this table is the record to update (§ Conseque
 - This table (§3) is the enumeration source for the REQ-SYS-05 parity test; when `X_cli-cmds.md` gains
   or removes a command, this spec is revised in the same change (§ Consequences).
 
+### 6. Configuration baseline — which state a core function reads and writes
+
+Because both surfaces call the same core function (§1, §4), the baseline a decision is made against
+is `src/core`'s property, not the CLI's or the MCP server's. It is ratified in
+`dl-080-which-baseline-each-command-reads` (`ready`, option (B), approve commit `333a3c0f`) and
+elaborated for implementers in the `command-baseline` directive
+(`docs/self/.wingfoil/directives/custom/command-baseline.md`, bound to `developer`, `architect` and
+`reviewer` in `roles.yaml`). Normatively, for every `CoreOperation`:
+
+1. **A read that gates resolves at `HEAD`.** A read gates when its answer can change whether the
+   operation fails or what it writes — authority (`dna.yaml`), the state machine and type registry
+   (`memory.yaml`), role bindings (`roles.yaml`), the element's committed `status`, and the id or
+   path a verb is about to create. Use `loadDnaYamlAtHead` / `loadMemoryYamlAtHead`
+   (`src/core/loaders.ts`), which call `readPathAtRev` (`src/storage/commit.ts`); both return `null`
+   when no commit carries the path, and each operation states what that means for it.
+2. **A write refuses while its target carries modifications the operation does not own** —
+   `requireUnmodifiedTarget` / `requireUnmodifiedTargets` (`src/core/write-guard.ts`) — and the
+   commit it produces is proved to have touched only its declared scope (`verifyCommittedScope`,
+   `src/core/memory-transition.ts`).
+3. **A refusal under either half is a domain failure**: it reaches the caller as a `CoreResult` error
+   (§2) and exits `1` per `spec-005-cli-command-contract` §1 — never `2`, which stays for malformed
+   invocations, and never a throw.
+4. **There is no third category of read.** An operation whose result gates nothing may read the
+   working tree — that is what `dna show`, `paths`, `directives list`, `memory search`,
+   `memory history` and the MCP Resources exist to do. An operation that can refuse on what it read
+   has gated, whatever the read was nominally *for*.
+
+Symbols in this section read at `9642ab5f`.
+
 ## Consequences
 
 - `src/cli` and `src/mcp` become thin: no business logic to keep in sync by hand, so a bug fix or a
@@ -358,3 +387,22 @@ positional and an option changes neither the function set nor the one-Tool-per-f
 `test/core/parity.test.ts` still enumerates the same twelve mutating operations on both surfaces.
 Edited in place without a supersede or a state change, per the same `spec-001` precedent the
 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — the new §6 records which baseline a core function reads and writes, per
+`dl-080-which-baseline-each-command-reads` (`ready`, option (B), approve commit `333a3c0f`) Action 4
+and `task-094-write-the-baseline-rule-where-implementers-meet-it`.** Nothing above §6 changes; §3's
+table, the parity rule and the naming conventions are untouched, because the baseline is a property
+of how an operation decides, not of which operations exist.
+
+Why this spec rather than `spec-005` or `spec-008`, the two `task-094`'s AC1 names: the reads are
+made in `src/core`, the primitives that make them live in `src/core`, and REQ-SYS-05 means an MCP
+Tool inherits the rule from the same function the CLI calls. `spec-005`'s scope is the exit-code /
+output-format / error-message layer and `spec-008`'s is the invocation grammar; a rule placed in
+either would have bound one surface and said nothing about the other. §6.3 is the only clause that
+belongs to `spec-005`, and it cites it rather than restating it.
+
+The rule's day-to-day form lives in the `command-baseline` directive, which is auto-loaded by role
+(P3.6) — the audience this spec does not reach is the implementer who never opens it, which is
+precisely the audience that re-derived this rule four times (`task-091`, `task-092`, `task-093`,
+`task-096`). Edited in place without a supersede or a state change, per the same `spec-001`
+precedent the 2026-09-17 revision cites.
