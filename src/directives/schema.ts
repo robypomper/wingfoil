@@ -9,8 +9,8 @@
  * `.wingfoil/directives/**` (Directives files are `.md` with YAML frontmatter, not `.yaml` — the
  * AC's "directives/*.yaml" phrasing does not match the real file extension either). This schema is
  * therefore an [AUTHORING]-level minimal shape, grounded directly in the fields every one of the
- * ten real files under `docs/self/.wingfoil/directives/custom/*.md` actually carries (`id`, `name`,
- * `type: directive`, `kind`, `title`, `tags`, `ref`, and — on two files — `scope`), not a
+ * twelve real files under `docs/self/.wingfoil/directives/custom/*.md` actually carries (`id`,
+ * `name`, `type: directive`, `kind`, `title`, `tags`, `ref`, and — on three files — `scope`), not a
  * transcription of an approved spec. See this task's Execution Notes for why this was not treated
  * as a hard STOP (design-gap) and the follow-up this leaves for the reviewer/approver (a candidate
  * `spec-013-directive-frontmatter-schema`).
