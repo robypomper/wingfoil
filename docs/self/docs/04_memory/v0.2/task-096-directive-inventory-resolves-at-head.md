@@ -2,7 +2,7 @@
 id: "task-096-directive-inventory-resolves-at-head"
 type: task
 title: "Resolve the directive inventory and its references at `HEAD`, so `assign` cannot bind a file present in no commit and `remove` cannot delete one the committed `roles.yaml` still binds"
-status: approved
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "directives", "security"]
