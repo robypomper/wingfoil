@@ -3,7 +3,7 @@ id: "user-docs-rel-v0.2-plan"
 type: plan
 title: "User-docs — v0.2 (align user-facing documentation to the shipped surface)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "user-docs"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -114,9 +114,12 @@ Do not edit the README ahead of it either. Ask the approver to settle item 3 bef
   `spec-015`), not to this gate. Write the CHANGELOG's v0.2 heading; leave the manifest alone.
 - **Roles and their directives (`roles.yaml`, auto-loaded on execution per P3.6).**
   `check-implementation-complete` → tech-lead → `architecture, code-review`. `align-user-docs` →
-  developer → `code-quality, testing, determinism`. Global for both: `doc-versioning, documentation,
-  security-secrets`. `doc-versioning` means: bump a doc's `version` only on its **first** edit after
-  it is committed, and update its date when you bump.
+  developer → `code-quality, testing, determinism, command-baseline`. Global for both:
+  `doc-versioning, documentation, security-secrets, claim-evidence`. `doc-versioning` means: bump a
+  doc's `version` only on its **first** edit after it is committed, and update its date when you
+  bump. `command-baseline` and `claim-evidence` were added to `roles.yaml` (v1.1) by `task-094`
+  (`dl-080` Action 4) after this plan was written; `claim-evidence` is the one that bites here — a
+  user-facing sentence asserting what the tool does names the command that establishes it.
 
 ---
 
