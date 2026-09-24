@@ -513,8 +513,15 @@ Baseline taken by running `npx jest --coverage` in a detached worktree at this b
 | base `02b77f97` | 98.71 | 93.52 | 98.90 | 99.24 | 1909 |
 | this branch | **98.72** | **93.62** | **98.90** | **99.26** | **1939** |
 
-No metric regressed. `src/core/memory-add-type.ts` is at **100 / 100 / 100 / 100**; `src/core/index.ts`
-is unchanged at 98.79 / 92.30 / 100 / 99.53.
+No metric regressed. `src/core/memory-add-type.ts` is at **100 / 100 / 100 / 100**.
+
+> **Corrected after review — see the `correction` § at the end of these notes.** This paragraph
+> originally also claimed `src/core/index.ts` was "unchanged at 98.79 / 92.30 / 100 / 99.53". That
+> claim was false and is withdrawn: `jest.config.js` sets
+> `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`, so **the coverage run reports no row
+> for that file, or for any `index.ts`** (`npx jest --coverage | grep -c "index.ts"` → `0`), and the
+> figures I quoted match no row it does contain. The file's real numbers, and the one change in
+> them, are measured in the `correction` § below.
 
 The `+30` tests are accounted for rather than assumed: 19 in the two `red` suites, 8 in the
 `refactor` suite, and **3** in `test/core/latency-budget-placement.test.ts`, whose `it.each` runs one
@@ -621,3 +628,106 @@ orchestrator's).** Listed in this run's final report: the silent duplicate-seque
 `bug-087`; and the observation that `memory search`/`memory history` and the MCP Memory Resources
 still read the working-tree registry — correctly, since they gate nothing, but `memory search --type`
 is what a user reaches for after one of these refusals, so the two can disagree.
+
+### correction — role: developer
+
+Two documentary corrections applied in place at the approver's direction, after review approved the
+engineering. The task stays `in-review`; this is a correction, not a resubmission, and no `src/` file
+was touched.
+
+#### C1 — the `submit` commit subject carried a bracket it is not entitled to
+
+`wf(task): submit task-095-… [in-progress → in-review]` → `wf(task): submit task-095-…`.
+
+Verified before amending rather than taken on report:
+
+- **`spec-004-mcp-surface-contract` § 4.3** (`approved`): "`add` and `submit` subjects stay
+  **plain**", and § 4.3's own note records this as "Ratified by `dl-054-submit-commit-subject-bracket`
+  (option 2), which chose the form already written here over the hand-made bracketed `submit`
+  subjects that accumulated in this" repository. So the bracket was the accumulated habit and the
+  plain form is the ratified rule.
+- **The practised grammar agrees**, which is what makes mine the outlier rather than the precedent:
+  `git log --format='%s' main | grep -E "^wf\(task\): submit task-0(8[5-9]|9[0-4])"` returns 15
+  subjects from `task-085` through `task-094`, **every one of them plain**.
+- The `wf(bug): sync` bracket is a different grammar and is untouched.
+
+**Why an amend is legal here, checked before touching anything.** `git branch -vv` shows this branch
+with no upstream, and `git branch -r --contains HEAD` returns nothing — the branch exists in no
+remote, so nothing is rewritten that anyone else holds. `dl-035` forbids rewriting *merged* `wf`
+commits; after the merge this subject becomes permanent, which is exactly why it is corrected now.
+The two `wf()` commits **below** the submit keep their original shas — `bab307d4` (`start`) and
+`2a2b8d00` (the first `bug` sync) — which matters because the `start` § above cites both. Only the
+`wf(bug): sync` immediately above was replayed, message byte-identical, and the submit commit's
+**tree is unchanged**: `git rev-parse <submit>^{tree}` → `7936b338…` before and after.
+
+#### C2 — the `src/core/index.ts` coverage figure was written from a report that has no such row
+
+The withdrawn sentence is the release's named top rejection cause in miniature, and in its own
+category rather than a near miss: the figure was not merely read off the wrong line, it corresponds
+to **no** line of the report. What the report actually contains:
+
+```
+$ grep -n "collectCoverageFrom" jest.config.js
+48:  collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts'],
+$ npx jest --coverage | grep -c "index.ts"
+0
+$ npx jest --coverage | grep -E "^ src/core "
+ src/core               |   99.18 |       95 |     100 |   99.53 |
+```
+
+So there is no row for `src/core/index.ts`, nor for any `index.ts`; and `98.79 / 92.30` is not the
+`src/core` directory aggregate either (`99.18 / 95`). Only the `99.53` coincided.
+
+**Establishing the file's coverage, since the default run cannot.** Lift the exclusion for one run
+and measure the file alone, on both sides — the same detached-worktree method the coverage table
+above used for the global figures (base worktree at `02b77f97`, since removed):
+
+```
+$ npx jest --coverage --collectCoverageFrom='src/core/index.ts'
+```
+
+| `src/core/index.ts` | Stmts | Branch | Funcs | Lines |
+|---|---|---|---|---|
+| base `02b77f97` | 96.98 (386/398) | 92.78 (180/194) | **80.30 (53/66)** | 99.38 (323/325) |
+| this branch | **97.20** (383/394) | **93.08** (175/188) | **78.78 (52/66)** | 99.37 (319/321) |
+
+Statements and branches rise; lines are flat to 0.01; **functions fall by exactly one covered
+function**, and "unchanged" would have been wrong even had the row existed. Identified rather than
+excused, by diffing the uncovered-function declaration lines out of `coverage-final.json` on both
+sides:
+
+```
+$ diff <uncovered fn decl lines, base> <uncovered fn decl lines, branch>
+> export { resolveAddType } from './memory-add-type';
+```
+
+That is the whole difference: one line, and it is the **getter TypeScript emits for a re-export**.
+It is never invoked because the only consumer imports the symbol from its own module
+(`test/core/memory-add-type-resolve.test.ts:19` — `import { resolveAddType } from
+'../../src/core/memory-add-type';`) rather than through the barrel. `jest.config.js`'s own comment
+on line 46–47 names this exact category as the reason for the exclusion — "so the threshold measures
+real logic once tasks add it, not placeholder re-exports" — so the configured gate is unaffected,
+and the seven gates below are re-run and green.
+
+I am leaving it rather than changing that import: the approver scoped this correction to these two
+items, and the barrel re-export is exercised in production by `src/cli`/`src/mcp` only when a
+consumer needs it. A reviewer who would rather see the symbol imported through `src/core` in that
+suite should say so — it is a one-line change to a test.
+
+#### Observed while doing this, acted on in neither direction
+
+`main` has moved since the merge recorded above (`99fb235d` → `b8b9d57b`, `wf(bug): submit bug-096…,
+bug-097…`). I did **not** re-merge: this correction is scoped to two documentary items, the gates
+below were run on the tree as it stands, and a further sync is the orchestrator's call at merge time.
+
+#### Gates re-run after both corrections
+
+| Gate | Command | Result |
+|---|---|---|
+| Full suite | `npx jest` | **125 suites, 1939 tests passed**, exit 0 |
+| Coverage ≥ 80, non-regressing | `npx jest --coverage` | **98.72 / 93.62 / 98.90 / 99.26** — unchanged from submit, no metric below base |
+| Build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit **0**, no output |
+| Build typecheck, **emitting** | `npx tsc -p tsconfig.build.json` | exit **0**, no output |
+| Full typecheck | `npx tsc --noEmit -p tsconfig.json` | exit **0**, no output (`bug-026` stays closed) |
+| Lint | `npm run lint` | exit **0**, no output |
+| API docs | `npm run docs:api` | exit **0** |
