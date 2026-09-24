@@ -683,3 +683,49 @@ description of it.
    silent drop, and the reason the first half of the fix was not sufficient on its own.
 4. The corrected coverage paragraph — what it says now is read from `coverage-final.json`'s statement
    map, and the command that reads it is in the notes.
+
+### spec-008 §9 corrected to the shipped spelling (2026-09-24, after submit)
+
+I flagged this in the second-pass report as a question for the approver rather than fixing it, and
+that was the wrong call in both directions at once: it left a spec sentence I knew to be false
+standing while the task sat in review, and it asked someone else to rule on something inside my own
+task. The approver's answer, which is the right reading: AC8 being "settled by the reject" means **do
+not re-open the amendments' scope** — not that an amendment may describe something untrue. Fixing a
+sentence this pass made stale is finishing the pass, not widening it.
+
+**What was wrong.** §9's worked examples and its `--<field>` option row documented the bare spelling
+(`--email`, `--roles`, `--version`), which is what the first pass implemented and what §9 correctly
+recorded *at the time*. The second pass changed the shipped grammar to `--entry-<field>`, so §9 became
+a spec describing a grammar the tool does not have — and confidently, with worked examples a reader
+would copy. `dna add --field team.members --value roberto --email r@example.it`, exactly as §9 printed
+it, now answers `error: unknown option '--email'` at exit `1`.
+
+**What it is not.** This is *new* drift, introduced by this pass, and distinct from
+`bug-090-dna-set-grammar-differs-across-three-artefacts`, which owns a **pre-existing** divergence:
+`X_cli-cmds.md` (approved v1.2) has specified `dna set [--field FIELD] [--value VALUE]` since before
+this task existed, against a positional implementation that never matched it. `bug-090` is left
+untouched, as are `bug-089` and `bug-091`.
+
+**The correction**, as a dated in-place Revision note under `dl-047` alongside the 2026-09-23 one:
+§9's seven worked examples and the option row now carry `--entry-<field>`, the row states that the
+prefix is required and that an unprefixed spelling is an unknown option at exit `1` rather than a
+silent no-op, and the note gives the reason as the **namespace** rather than the collision — a derived
+option set and a declared flag set that nothing kept disjoint, of which `TechEntry`'s `version` was
+merely the first instance. Only the spelling of the per-entry options changed; `--field`, `--value`,
+entry addressing by name and the refusal rules are exactly as ratified.
+
+**The sibling specs were checked, and carry none of it.** `grep -n -- '--[a-z]'` over both:
+`spec-002` matches twice (`dna update --field team.members.roberto.roles`, and `--field`/`<key>` in
+the *Unknown keys* section), `spec-006` four times (`--next` on `agentExecute`, `--directive`/`--role`
+on `directiveAssign`, and `dna add|remove|update --field <full path> --value <v>`). Every one is
+`--field`/`--value` or another command's grammar; **neither spec mentions a per-entry option at all**,
+so neither needed correcting. `spec-008` §9 was the only artefact carrying the stale spelling.
+
+**Gates re-run after the correction** (a documentation-only change, so unchanged as expected, but run
+rather than assumed): `npx jest` **128 suites / 2103 tests passed**; `npx jest --coverage`
+`98.50 stmts · 93.65 branch · 98.89 funcs · 99.38 lines`; `npx tsc -p tsconfig.build.json --noEmit`,
+the **emitting** `npx tsc -p tsconfig.build.json`, `npx tsc --noEmit -p tsconfig.json`,
+`npm run lint` and `npm run docs:api` all exit `0`. Identical to the second-pass run at `437e939a`,
+which is the expected result for a change that touches only Markdown — and the reason to run them is
+that "expected" is not "observed". The task stays `in-review`; this is a correction commit, not a
+resubmission.

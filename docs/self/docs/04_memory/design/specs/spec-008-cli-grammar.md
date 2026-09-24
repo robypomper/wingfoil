@@ -227,20 +227,20 @@ exits `0`.
 (E)). Two options carry the grammar, plus one option per field the addressed entry may hold.
 
 ```
-wingfoil dna add    --field team.roles                   --value reviewer --description "reviews changes"
-wingfoil dna add    --field team.members                 --value roberto --email r@example.it --roles approver
-wingfoil dna add    --field team.members.roberto.roles   --value qa
-wingfoil dna add    --field paths.sources                --value "src/**"
-wingfoil dna update --field team.members                 --value roberto --email new@example.it
-wingfoil dna update --field modules.core.path            --value src/core
-wingfoil dna remove --field modules                      --value core
+wingfoil dna add    --field team.roles                 --value reviewer --entry-description "reviews changes"
+wingfoil dna add    --field team.members               --value roberto --entry-email r@example.it --entry-roles approver
+wingfoil dna add    --field team.members.roberto.roles --value qa
+wingfoil dna add    --field paths.sources              --value "src/**"
+wingfoil dna update --field team.members               --value roberto --entry-email new@example.it
+wingfoil dna update --field modules.core.path          --value src/core
+wingfoil dna remove --field modules                    --value core
 ```
 
 | Option | Meaning |
 |--------|---------|
 | `--field` | **Required.** The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. |
 | `--value` | The new entry's **identity** when `--field` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values. Required for `add`; required for `remove`/`update` unless `--field` already identifies the entry. |
-| `--<field>` | One option per field the entry schema declares (`--description`, `--path`, `--email`, `--roles`, `--category`, `--version`, `--notes`, `--phase`, `--executes_as`), spelled exactly as `spec-002` spells the field. Accepted by `add` and `update`. |
+| `--entry-<field>` | One option per field the entry schema declares (`--entry-description`, `--entry-path`, `--entry-email`, `--entry-roles`, `--entry-category`, `--entry-version`, `--entry-notes`, `--entry-phase`, `--entry-executes_as`), the `<field>` spelled exactly as `spec-002` spells it. Accepted by `add` and `update`. The `entry-` prefix is **required**, and is what keeps this derived namespace disjoint from the declared global flags in §2: without it `TechEntry`'s `version` registered a `--version` that Commander's program-level `-V, --version` swallowed — the command printed the CLI version, exited `0` and wrote nothing. An unprefixed spelling is an unknown option (exit `1`), never a silent no-op. |
 
 Two rules the shape rests on, both ratified rather than inferred:
 
@@ -304,3 +304,23 @@ refuse-rather-than-create rule; §5 gains the sentence separating a malformed pa
 own kind-of-failure rule and `bug-076`'s Correction). No existing row changed. Edited in place without
 a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001`
 precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — §9's per-entry options carry an `entry-` prefix, corrected in the same task
+that shipped them.** The 2026-09-23 note above wrote them bare (`--email`, `--version`), which is what
+`task-093` first implemented and what its review rejected: the option set is derived from `spec-002`'s
+entry schemas while §2's global flags are declared, nothing kept the two namespaces disjoint, and
+`TechEntry`'s `version` collided. Measured on a real project, `dna add … --version 4.0` reached
+Commander's program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing,
+while `--help` advertised the option as working; `--format` and `--verbose` are swallowed the same way
+without even the print.
+
+The prefix is **not** a fix for `version` in particular: it is what makes a **derived** namespace and a
+**declared** one disjoint, for every present and future name on both sides. §2 is amendable, so a
+global flag added later would otherwise silently disable an entry field that had been writable — and a
+prefix applied only to the names that happen to collide would make an option's spelling depend on §2,
+so adding a flag there would silently *rename* an existing option. Only the **spelling** of the
+per-entry options changes here: `--field`, `--value`, entry addressing by name and the refusal rules
+are exactly as ratified, so this corrects what §9 records rather than reopening what it decided.
+
+`spec-002` and `spec-006` were checked for the same staleness and carry none — both mention only
+`--field`/`--value`, never a per-entry option, so neither needed a correction.
