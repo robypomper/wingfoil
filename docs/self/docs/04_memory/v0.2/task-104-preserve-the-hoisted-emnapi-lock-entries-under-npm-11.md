@@ -2,7 +2,7 @@
 id: "task-104-preserve-the-hoisted-emnapi-lock-entries-under-npm-11"
 type: task
 title: "Stop an ordinary `npm install` on npm 11 from reverting the two hoisted `@emnapi` lock entries the release gate needs, and make the reversion fail a check instead of passing silently"
-status: backlog
+status: in-progress
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "release", "tooling"]
