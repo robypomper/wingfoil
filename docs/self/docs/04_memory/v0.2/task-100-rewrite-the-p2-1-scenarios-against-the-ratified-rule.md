@@ -477,3 +477,129 @@ concurrent jest runs in one worktree delete and rebuild each other's `dist/`). T
 is not a usable probe — `pgrep -fa jest` and reading the output is. No second jest was running in
 this worktree either time, and both runs passed, which is the direction `bug-095` does not affect:
 it manufactures false *failures*, never false passes.
+
+### review corrections (2026-09-24) — three claims about *other* files, re-grepped
+
+The reviewer re-executed all five scenarios and walked all 18 steps: **the `.feature` file needs no
+change**, scenario 4 stays, and the AC4 judgement — leave line 2 alone — stands. What came back is the
+**evidence** around that judgement. Three sentences above are wrong; no code and no `.feature` line
+moves. Each is corrected here rather than edited in place, and each correction was measured first.
+
+Every wrong sentence in this set is a claim about a file this task does not own, which is the pattern
+worth naming: the two that matter are inside a **proposed element**, where a wrong file reference is
+not a note-keeping slip — it sends a fixer to a clean line and leaves a real defect with no owner. A
+claim inside a proposed element deserves the same `grep` as a claim inside the deliverable, and these
+did not get it.
+
+#### C1 — "a **verbatim transcription** of US-0A-08" is overstated
+
+The two sentences, side by side:
+
+- US-0A-08 (`docs/02_requirements/01_user_story_map/01_init-migrate.md:32-33`): "As Alex, I want to
+  define/update project DNA with `wingfoil dna set` **so that I can set initial modules, stack, and
+  conventions.**"
+- `P2.1-dna-set.feature:2-3`: "As Alex, I want to define/update project DNA **so modules, stack, and
+  conventions are recorded in .wingfoil/dna.yaml.**"
+
+The stale **phrase** — "modules, stack, and conventions" — is shared verbatim. The **sentence** is a
+paraphrase: the story says "so that I can set initial …", the feature says "so … are recorded in
+.wingfoil/dna.yaml". So the accurate sentence is: *line 2 carries a phrase taken verbatim from
+US-0A-08, inside a paraphrase of it*. The argument is unaffected — the phrase still originates in the
+story, so a fix still has to start there and editing the feature alone would still desynchronise the
+chain — but "transcription" claimed more than the diff shows.
+
+#### C2 — "the same stale wording sits in **P2.2's** and P2.4's narrative lines" is false for P2.2
+
+P2.2's narrative line is clean, and I cleared the file on the strength of its *second* scenario rather
+than reading it whole — the same shortcut AC4 exists to forbid, one file over:
+
+```
+$ sed -n '2p' docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature
+  As Jordan, I want to query and display project DNA so I understand the team architecture.
+```
+
+Neither `conventions` nor `tech_stack`. **P2.4's narrative line is the only other one**, and it does
+carry the wording — "As Alex, I want a structured project map (modules, tech stack, team,
+conventions) in …" (`P2.4-project-dna-config.feature:2`). So the narrative-class defect spans **three**
+documents, not four: US-0A-08, `P2.1:2`, `P2.4:2`.
+
+**P2.2's real stale occurrence is an assertion, not narrative**, and it belongs to the other class:
+
+```
+$ sed -n '7,9p' docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature
+  Scenario: Display the full DNA
+    When I run "wingfoil dna show"
+    Then the output includes tech stack, modules, conventions, and team sections
+```
+
+Measured on a fresh `wingfoil init --template Scrum` repository with this branch's build:
+
+```
+$ wingfoil dna show | python3 -c "import json,sys;print(list(json.load(sys.stdin).keys()))"
+['version', 'project', 'modules', 'stacks', 'team', 'paths']                         exit=0
+$ wingfoil dna show conventions
+error: no DNA key named 'conventions'                                                exit=1
+```
+
+`conventions` is not among them and cannot be shown; `stacks` and `paths` are emitted and unnamed by
+the step. That is an acceptance step asserting a retired section — exactly the class of `bug-089` and
+of `P2.4:11` — so it moves into the assertion-class element below.
+
+What I *was* right about is P2.2's second scenario, and it is worth restating so the corrected element
+does not over-collect: `dna show tech_stack` is a **deliberate** read alias, exit `0` returning the
+`stacks` subtree, pinned on purpose by `test/core/dna-show.test.ts:77` ("tech_stack" resolves as a
+BDD-compat alias for "stacks", spec-002 Consequences). `P2.2:13-14` needs no change.
+
+#### C3 — "scenarios 3, 4 and 5 assert `And the change is not committed`" — scenario 5 does not
+
+Scenario 5 is the unedited three-step original, and having no such step is the point of leaving it
+alone:
+
+```
+$ sed -n '31,34p' docs/02_requirements/02_bdd/features/p2-dna/P2.1-dna-set.feature
+  Scenario: Error - invalid dotted key path
+    When I run "wingfoil dna set ..language python"
+    Then ".wingfoil/dna.yaml" is unchanged
+    And the command exits with code 2 and message "invalid key path: '..language'"
+```
+
+So: **scenarios 3 and 4** assert `And the change is not committed`; all three refusal scenarios assert
+`".wingfoil/dna.yaml" is unchanged`. The `HEAD`-before/after measurement was taken for scenario 5 too
+and it holds — nothing was committed — but the contract does not state it there, and the notes should
+not claim a step the file does not carry.
+
+#### Proposed elements 2 and 3, corrected — **register these, not the versions above**
+
+- **2 (narrative class) — `conventions` survives in three documents' narrative prose after `spec-002`
+  retired the section.** `US-0A-08` (`01_init-migrate.md:32-33`) and the two As-a lines that carry its
+  phrase: `P2.1-dna-set.feature:2` and `P2.4-project-dna-config.feature:2`. **Not** `P2.2`, whose
+  narrative line names neither retired term. These assert nothing, which is why they are their own
+  element; the story is where a fix starts, because the feature files take the phrase from it.
+- **3 (assertion class) — two acceptance steps assert retired DNA sections.**
+  `P2.4-project-dna-config.feature:11`, "And the file declares the sections `modules`, `tech_stack`,
+  `team`, `conventions`", and `P2.2-dna-show.feature:9`, "Then the output includes tech stack,
+  modules, conventions, and team sections". Both measured false above: a scaffolded `dna.yaml`
+  declares `['version', 'project', 'modules', 'stacks', 'team', 'paths']` and `dna show` emits exactly
+  those; `dna show conventions` exits `1`. This is `bug-089`'s own class — an acceptance contract
+  written against a schema `spec-002` retired — in two files this task does not own. `P2.2:13-14` is
+  explicitly **not** part of it.
+
+Elements 1 and 4 are unchanged and were re-checked: `TASK-023`/`TASK-025` still carry the stale
+`acceptance_criteria` in both backlog files, and `test/core/dna-set.test.ts:2` still states
+`wingfoil dna set <key> <value>`.
+
+#### Gates re-run after these corrections
+
+The diff since the last gate run is this section of this document and nothing else — no `.feature`
+line, no `src/`, no `test/`. Re-run anyway, solitary (`pgrep -fa jest` → no jest process; the
+`node.*jest` pattern from the last pass is unusable, it matches the invoking shell):
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **137 suites / 2236 tests passed**, 0 failed |
+| `npx jest --coverage` | 137 / 2236 passed; **98.58 % stmts, 93.99 % branch, 98.92 % funcs, 99.40 % lines** — unchanged from the post-merge run, as a docs-only diff must leave them |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc -p tsconfig.build.json` (emitting) | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` (full) | exit 0, no output |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
