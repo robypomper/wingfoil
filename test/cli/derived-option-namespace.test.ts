@@ -197,7 +197,8 @@ describe('the drive: every declared entry-field option lands, through the real c
 
   /**
    * An unprefixed spelling does TWO different things, and the first draft of `spec-008` §9 claimed only
-   * the first — "an unprefixed spelling is an unknown option (exit 1), never a silent no-op" — while
+   * the first — "an unprefixed spelling is an unknown option (exit 2 since task-101; `1` when spec-008
+   * §9 was written), never a silent no-op" — while
    * pinning it with `--category`, one of the names for which it happens to hold. The claim is false for
    * `version`, which is §9's own worked example. Both outcomes are driven here, and the set of names
    * the second applies to is DERIVED from the built program rather than written out, so a new global
@@ -220,11 +221,15 @@ describe('the drive: every declared entry-field option lands, through the real c
       return dnaEntryOptionNames().filter((field) => globals.has(field));
     }
 
-    it('a name no global declares is refused as an unknown option at exit 1, writing nothing', async () => {
+    it('a name no global declares is refused as an unknown option at exit 2, writing nothing', async () => {
       const shadowed = await shadowedFields();
       expect(dnaEntryOptionNames().filter((field) => !shadowed.includes(field))).toContain('category');
       const result = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Go', '--category', 'language']);
-      expect(result.status).toBe(1);
+      // `2`, not the `1` this asserted before task-101-route-commander-parse-errors-through-the-exit-code-contract
+      // (`bug-098`): an unknown option is a usage error under spec-005 §1, and Commander's parse errors
+      // now terminate through that contract. What the case is here to prove is unchanged — the name is
+      // REFUSED rather than silently swallowed, and nothing is written.
+      expect(result.status).toBe(2);
       expect(result.stderr).toContain("unknown option '--category'");
       expect((dna().stacks as unknown as { technologies: unknown[] }).technologies).toEqual([]);
     });
@@ -238,7 +243,8 @@ describe('the drive: every declared entry-field option lands, through the real c
       const before = readFileSync(join(repo, DNA), 'utf-8');
       const result = runCli(['dna', 'add', 'stacks.technologies', '--value', 'Go', '--version', '1.22']);
 
-      // NOT an unknown option, NOT exit 1: the program's own `-V, --version` fires, prints and exits 0.
+      // NOT an unknown option, NOT the exit 2 an unknown option gets: the program's own `-V, --version`
+      // fires, prints and exits 0.
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
       expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);

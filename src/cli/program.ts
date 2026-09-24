@@ -38,6 +38,9 @@ import { join } from 'node:path';
 import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
 import type { CoreModule } from '../core/registry';
+// Direct module import, not the `../core` barrel — the same path `./registrar.ts` already uses for the
+// other two exit-code mappings (task-101; keeps this file out of the barrel's merge surface).
+import { exitCodeForParseOutcome } from '../core/exit-code';
 
 import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
 import { runInit, createReadlinePrompt } from './init-command';
@@ -67,6 +70,23 @@ function readPackageVersion(): string {
 export async function buildProgram(modules: readonly CoreModule[], options: BuildCommandsOptions): Promise<Command> {
   const { Command: CommandCtor } = await import('commander');
   const program = new CommandCtor('wingfoil');
+  // Route Commander's OWN terminations through the spec-005 §1 exit-code contract
+  // (task-101-route-commander-parse-errors-through-the-exit-code-contract, `bug-098`). Commander
+  // detects an unknown command / unknown option / missing option argument before any WingFoil code
+  // runs and, left alone, ends the process itself at its suggested exit code — `1` for every error it
+  // raises, which is the code spec-005 §1 reserves for a well-formed invocation that failed. The
+  // callback is the whole interception: the *code* is chosen by `exitCodeForParseOutcome`
+  // (`src/core/exit-code.ts`, beside the other two mappings — this file adds no second decision site),
+  // and the process ends through `exitWith`, the single exit seam of `./exit.ts`, like every other
+  // outcome.
+  //
+  // MESSAGES ARE UNAFFECTED: Commander has already written its own `error: …` line (or the help text)
+  // before calling this, so `exitWith` is deliberately called with no message of its own.
+  //
+  // ORDER MATTERS: `.command()` copies the parent's `_exitCallback` into each subcommand at
+  // *registration* time (`Command#copyInheritedSettings`, commander@15.0.0), so this must be installed
+  // before the first `.command()` call below or a subcommand's parse errors would still bypass it.
+  program.exitOverride((error) => exitWith(exitCodeForParseOutcome(error)));
   // Register `-V, --version` so `wingfoil --version` prints the version and exits 0
   // (spec-008-cli-grammar §1, bug-001-cli-version-flag) — Commander handles it before any command.
   program.version(readPackageVersion());

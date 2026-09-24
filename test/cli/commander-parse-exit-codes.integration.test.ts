@@ -1,0 +1,242 @@
+/**
+ * Commander's own parse outcomes, routed through the spec-005 §1 exit-code contract
+ * (task-101-route-commander-parse-errors-through-the-exit-code-contract, `bug-098`).
+ *
+ * `spec-005-cli-command-contract` §1 assigns exit **2** to usage errors ("unknown command/pillar/verb,
+ * unknown flag, missing required argument, invalid flag value") and exit **1** to a well-formed
+ * invocation that failed on business logic. Before this task the CLI honoured that only for the errors
+ * WingFoil itself raised: Commander detects an unknown command / unknown option / missing option
+ * argument *before* any WingFoil code runs and terminated through its own `process.exit(1)`, so two
+ * whole classes of usage error reported `1` — the code a script reads as "your request was well-formed
+ * and failed".
+ *
+ * Every assertion here is an **out-of-process** exit code: each case spawns `fixtures/cli-harness.cjs`,
+ * which drives the COMPILED `dist/` (built once by jest's `globalSetup`) exactly as the real `wingfoil`
+ * bin does, and `execFileSync`'s `status` is the real process status. Nothing is measured through a
+ * pipe — a pipe reports the last command's status, which is how this class of measurement goes wrong.
+ *
+ * Scope note: the unknown-option sweep is driven from `CORE_MODULES` (AC8) rather than a hand-picked
+ * sample, so a command added later is covered the day it is registered; `init` and `mcp` are
+ * hand-wired bootstrap commands outside `CORE_MODULES` and are asserted explicitly.
+ */
+import { execFileSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
+
+import { buildCliCommands, listRegisteredCliCommands } from '../../src/cli/registrar';
+import { CORE_MODULES } from '../../src/core';
+
+const REPO_ROOT = join(__dirname, '..', '..');
+const DIST_DIR = join(REPO_ROOT, 'dist');
+const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
+const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
+const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
+
+interface CliResult {
+  readonly status: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+interface ExecFileSyncError {
+  readonly status: number | null;
+  readonly stdout: Buffer | string;
+  readonly stderr: Buffer | string;
+}
+
+function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
+  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
+}
+
+/** Spawn the compiled CLI against the static fixture root; `status` is the real process exit code. */
+function runCli(...args: readonly string[]): CliResult {
+  try {
+    const stdout = execFileSync('node', [HARNESS, DIST_DIR, FIXTURE_ROOT, ...args], { encoding: 'utf-8' });
+    return { status: 0, stdout, stderr: '' };
+  } catch (error) {
+    if (!isExecFileSyncError(error)) throw error;
+    return { status: error.status ?? 1, stdout: error.stdout.toString(), stderr: error.stderr.toString() };
+  }
+}
+
+/**
+ * Every `wingfoil <noun> [verb]` invocation path the production registry derives, as argv token
+ * arrays — the AC8 surface. Built from `CORE_MODULES` through the same registrar the CLI uses, so this
+ * list cannot drift from what is actually registered.
+ */
+const DERIVED_COMMAND_PATHS: readonly (readonly string[])[] = listRegisteredCliCommands(
+  buildCliCommands(CORE_MODULES, { resolveRoot: () => FIXTURE_ROOT, buildParams: (ctx) => ({ root: ctx.root }) }),
+).map((name) => name.split(' '));
+
+/** The two hand-wired bootstrap commands (`src/cli/program.ts`), which are NOT derived from `CORE_MODULES`. */
+const BOOTSTRAP_COMMAND_PATHS: readonly (readonly string[])[] = [['init'], ['mcp']];
+
+beforeAll(() => {
+  // `dist/` is built once by jest's globalSetup (test/global-setup.cjs) — bug-003-cli-integration-dist-race.
+  expect(existsSync(join(DIST_DIR, 'cli', 'program.js'))).toBe(true);
+  // Guard the sweep below against silently degenerating into "verified where it cannot fail".
+  expect(DERIVED_COMMAND_PATHS.length).toBeGreaterThanOrEqual(10);
+});
+
+describe('AC2 — an unknown command exits 2 at every level (spec-005 §1)', () => {
+  it('a bare unknown noun exits 2', () => {
+    const result = runCli('nosuchpillar');
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+  });
+
+  it('an unknown verb under a known noun exits 2', () => {
+    const result = runCli('dna', 'nosuchverb');
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+  });
+
+  it('a plausible-but-unregistered verb under a known noun exits 2 (the typo a script actually hits)', () => {
+    expect(runCli('dna', 'infer').status).toBe(2);
+    expect(runCli('memory', 'list').status).toBe(2);
+    expect(runCli('workflow', 'start').status).toBe(2);
+  });
+});
+
+describe('AC3 — an unknown option exits 2 on every registered command (AC8: the whole surface)', () => {
+  it.each(DERIVED_COMMAND_PATHS.map((path) => [path.join(' '), path] as const))(
+    '`wingfoil %s --nosuchoption` exits 2',
+    (_label, path) => {
+      const result = runCli(...path, '--nosuchoption');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("error: unknown option '--nosuchoption'");
+      expect(result.stdout).toBe('');
+    },
+  );
+
+  it.each(BOOTSTRAP_COMMAND_PATHS.map((path) => [path.join(' '), path] as const))(
+    '`wingfoil %s --nosuchoption` exits 2 — the hand-wired bootstrap commands a CORE_MODULES sweep misses',
+    (_label, path) => {
+      const result = runCli(...path, '--nosuchoption');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain("error: unknown option '--nosuchoption'");
+    },
+  );
+
+  it('an unknown option on a command that carries derived `--entry-<field>` options exits 2', () => {
+    // `dna add` is the command whose option set is derived per-field (task-093's `--entry-` namespace),
+    // so its unknown-option path runs with a large registered option list rather than an empty one.
+    const result = runCli('dna', 'add', 'stacks.technologies', '--value', 'Zod', '--nosuchoption', 'x');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error: unknown option '--nosuchoption'");
+  });
+
+  it('an unknown option BEFORE the noun (a global-flag position) exits 2', () => {
+    const result = runCli('--nosuchoption', 'dna', 'show');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error: unknown option '--nosuchoption'");
+  });
+});
+
+describe('AC4 — the messages do not change; only the codes do', () => {
+  it("an unknown command still reads `error: unknown command 'x'`", () => {
+    expect(runCli('nosuchpillar').stderr).toContain("error: unknown command 'nosuchpillar'");
+    expect(runCli('dna', 'nosuchverb').stderr).toContain("error: unknown command 'nosuchverb'");
+  });
+
+  it("an unknown option still reads `error: unknown option '--x'`", () => {
+    expect(runCli('dna', 'show', '--section', 'project').stderr).toContain("error: unknown option '--section'");
+  });
+
+  it("the closest-match suggestion survives the interception — `P5.1.4-cli-ux.feature`'s own example", () => {
+    // What this pins: commander writes the message AND the suggestion before calling the exit callback,
+    // so routing the exit CODE through the contract cannot drop either. `P5.1.4-cli-ux.feature` as
+    // literally written — the message, a suggestion naming `memory`, a non-zero exit — passes in full
+    // here, which it did not before this task, because only the exit code was missing.
+    //
+    // What this does NOT pin, despite the exact string below: the suggestion's CONTRACT. `spec-008` §1
+    // asks for `spec-005` §3.1's `hint: did you mean "memory"?` at Levenshtein <= 2, and what is
+    // asserted is commander's own `(Did you mean memory?)` from a Damerau-Levenshtein matcher with
+    // `maxDistance = 3` — WingFoil's `src/cli/error.ts` emitter is not on this path at all. That gap is
+    // `bug-104`, not something this task closed. So a commander upgrade that rewords its suffix should
+    // fail HERE and be resolved by re-reading the line and updating it (or by `bug-104`'s fix replacing
+    // it outright) — never by concluding that the contract changed.
+    const result = runCli('memroy', 'add');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error: unknown command 'memroy'");
+    expect(result.stderr).toContain('(Did you mean memory?)');
+  });
+});
+
+describe('AC5 — `--help` and `--version` still exit 0 (characterization: the trap)', () => {
+  it('`wingfoil --help` exits 0 and prints usage on stdout', () => {
+    const result = runCli('--help');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage: wingfoil');
+  });
+
+  it('`wingfoil dna --help` (noun level) exits 0', () => {
+    const result = runCli('dna', '--help');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage: wingfoil dna');
+  });
+
+  it('`wingfoil dna set --help` (verb level) exits 0', () => {
+    const result = runCli('dna', 'set', '--help');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage: wingfoil dna set');
+  });
+
+  it('`wingfoil init --help` (a hand-wired bootstrap command) exits 0', () => {
+    expect(runCli('init', '--help').status).toBe(0);
+  });
+
+  it('`wingfoil --version` exits 0 and prints the package version', () => {
+    const result = runCli('--version');
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(PKG_VERSION);
+  });
+
+  it("commander's built-in `help` command exits 0, at both depths", () => {
+    expect(runCli('help').status).toBe(0);
+    expect(runCli('help', 'dna').status).toBe(0);
+  });
+
+  it('a noun invoked bare prints its help and keeps its current exit 1 — NOT turned into 2 by the interception', () => {
+    // Commander reaches this through `commander.help` (`this.help({ error: true })`, suggested exit
+    // code 1), a different code from the `commander.unknownCommand` this task remaps. Pinned as-is:
+    // whether a bare noun should be exit 2 with an `error:` line is a separate question from routing
+    // Commander's *errors* through the contract, and changing it here would be an unrequested
+    // behaviour change riding along with this one.
+    const result = runCli('dna');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Usage: wingfoil dna');
+  });
+});
+
+describe('AC7 — the conformant cases stay conformant (characterization)', () => {
+  it('an invalid flag value is still a usage error at exit 2, with its own message', () => {
+    const result = runCli('--format', 'nosuchformat', 'dna', 'show', 'project');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toBe('error: invalid --format value "nosuchformat", expected one of: console, json, yaml\n');
+  });
+
+  it("a missing required argument WingFoil itself raises is still exit 2", () => {
+    const result = runCli('dna', 'set');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('error: missing required argument');
+  });
+
+  it('a value option given without its operand is a usage error at exit 2 (commander.optionMissingArgument)', () => {
+    const result = runCli('memory', 'add', '--type');
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("error: option '--type <value>' argument missing");
+  });
+
+  it('a validation / logic failure is still exit 1 — a well-formed invocation that failed', () => {
+    const result = runCli('dna', 'show', 'nosuchsection');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('error: ');
+  });
+
+  it('a successful command is still exit 0', () => {
+    const result = runCli('dna', 'show', '--format', 'json');
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+});

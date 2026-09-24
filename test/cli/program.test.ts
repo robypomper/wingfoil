@@ -36,6 +36,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 import { buildProgram } from '../../src/cli/program';
+import { exitCodeForParseOutcome } from '../../src/core/exit-code';
 import type { CoreModule, ParamsContext } from '../../src/core/registry';
 import { coreOk } from '../../src/core/types';
 
@@ -103,9 +104,17 @@ async function buildFixtureProgram() {
       return { root: ctx.root };
     },
   });
-  // Commander's own terminal paths (`--version`, `--help`, unknown command) call `process.exit`;
-  // `exitOverride` turns them into throws so they can be asserted without ending the jest worker.
-  program.exitOverride();
+  // Commander's own terminal paths (`--version`, `--help`, unknown command) end the process:
+  // `buildProgram` itself installs an `exitOverride` that calls `exitWith` (task-101). Replacing it
+  // with commander's DEFAULT override turns those paths into throws instead, so they can be asserted
+  // without ending the jest worker. It has to be applied to every command in the tree, not just the
+  // root: `.command()` copies the parent's callback into each subcommand at REGISTRATION time
+  // (`copyInheritedSettings`), so subcommands already carry `buildProgram`'s process-exiting one.
+  const applyDefaultOverride = (command: Awaited<ReturnType<typeof buildProgram>>): void => {
+    command.exitOverride();
+    command.commands.forEach(applyDefaultOverride);
+  };
+  applyDefaultOverride(program);
   return program;
 }
 
@@ -198,12 +207,21 @@ describe('buildProgram — command tree derivation (spec-006 §4, spec-008 §1)'
     expect(memoryAdd?.options.map((option) => option.flags)).toEqual(['--type <value>', '--title <value>']);
   });
 
-  it("an unknown noun terminates through commander's own `unknownCommand` (exit code 1, not spec-008's aspirational 2)", async () => {
+  it("an unknown noun terminates through commander's own `unknownCommand`, whose SUGGESTED exit code is 1", async () => {
     const program = await buildFixtureProgram();
-    await expect(program.parseAsync(['node', 'wingfoil', 'bogus', 'verb'])).rejects.toMatchObject({
-      code: 'commander.unknownCommand',
-      exitCode: 1,
-    });
+    const error = await program.parseAsync(['node', 'wingfoil', 'bogus', 'verb']).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+    // Commander's raw outcome, with the override this suite installs in place of `buildProgram`'s: the
+    // code string and the `1` commander itself suggests. Those are facts about commander v15, and they
+    // are exactly the two inputs the contract reads.
+    expect(error).toMatchObject({ code: 'commander.unknownCommand', exitCode: 1 });
+    // And the contract's answer for that outcome, which is what the CLI actually exits with since
+    // task-101-route-commander-parse-errors-through-the-exit-code-contract (`bug-098`): a usage error,
+    // exit 2 (spec-005 §1). The real process-level proof is
+    // `./commander-parse-exit-codes.integration.test.ts`, which spawns the compiled CLI.
+    expect(exitCodeForParseOutcome(error as { code: string; exitCode: number })).toBe(2);
   });
 });
 
