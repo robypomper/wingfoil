@@ -4,7 +4,8 @@
  *
  * It exists because the previous traversal had no notion of the schema at all: `setDnaValue` walked a
  * dotted path treating every segment as an object key and **created** an object for any segment it
- * could not descend into, so `dna set tech_stack.cli.framework Commander` wrote `stacks.cli.framework`
+ * could not descend into, so `dna set tech_stack.cli.framework Commander` (the then-current spelling,
+ * before `dl-082` moved the value into `--value`) wrote `stacks.cli.framework`
  * — a key no schema declares — and committed it at exit `0`
  * (`bug-084-dna-key-alias-writes-unschemad-keys`). `dl-081-dna-mutation-surface-shape`'s ratification
  * makes the repair a **precondition** of the mutation surface rather than a follow-up to it: under
@@ -220,7 +221,7 @@ function unknownField(path: string, segments: readonly string[], depth: number):
  *   loader.
  *
  * A **declared but absent** node is not a refusal: it resolves with `exists: false`, which is what lets
- * `dna set project.license MIT` fill an optional section the document happens to omit. That is the
+ * `dna set project.license --value MIT` fill an optional section the document happens to omit. That is the
  * precise line `bug-084` draws — creating a node the schema declares is legitimate; inventing one it
  * does not declare is the defect.
  *

@@ -930,7 +930,19 @@ is why it is reported here in a table rather than left to be discovered.
 - **`docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`** — the `drive-cli` action string, `version`
   bumped `1.0 → 1.1` with the reason inline, per the doc-versioning directive and the file's own
   convention.
-- **`test/cli/fixtures/cli-harness.cjs`** — a comment describing the seam.
+- **`test/cli/fixtures/cli-harness.cjs`**, **`src/cli/registrar.ts`**, **`src/core/registry.ts`** —
+  the three comments describing the `positionals` seam, which was introduced *because* `dna set` took
+  two data inputs. It no longer does: every command reads at most one positional, so the seam is now
+  uniform rather than shaped by one verb, and it stays variadic precisely so an operation can refuse
+  an extra positional with its own message.
+- Two `dna set <key> <value>` invocations inside `src/dna/mutate.ts` / `src/dna/path.ts` doc comments,
+  and `spec-008` §5's `..language` example. `src/dna/path.ts`'s account of what the *old* traversal
+  did is left in the old spelling and marked as such — it quotes an invocation as it was typed at the
+  time, and respelling a historical measurement would make it a different claim.
+
+Deliberately **not** respelled: the `docs/05_plans/` phase plans and the earlier tasks' Execution
+Notes under `docs/04_memory/`. Those are records of what was run on the day; editing them would
+falsify a log.
 
 #### `dl-083`'s seam, left rather than built
 
@@ -962,6 +974,16 @@ All seven, on the final tree:
 | `npm run lint` | exit `0` |
 | `npm run docs:api` | exit `0` |
 
+**One anomalous run, explained rather than re-rolled.** A `npx jest` I had left in the background
+reported `3 suites / 48 tests failed` while a second `npx jest` was running in the **same worktree**.
+Three runs before it and a deliberately sole run after it — `pgrep -fa jest` first, to establish
+there was no second one — all report `128 suites / 2114 tests passed`. The cause is in
+`test/global-setup.cjs`, which does `rmSync(dist)` + `tsc` at the start of every run: that is
+`bug-003-cli-integration-dist-race`'s fix, and it removes the race **between the suites of one run**,
+not **between two concurrent runs of one worktree**, where one deletes `dist/` while the other's
+workers are spawning `node dist/cli.js`. Not a product defect and not introduced here, but a real
+operator hazard with no guard, reported under "found, not fixed" below.
+
 Test count `2103 → 2114`, and the +11 reconciles rather than being asserted:
 `test/cli/derived-option-namespace.test.ts` **11 → 13** (the two new unprefixed-spelling drives;
 7 → 9 `it`/`it.each` blocks, one of which expands over the 5-row `DRIVES` table in both versions),
@@ -970,6 +992,30 @@ regex), `test/core/dna-mutation-surface.test.ts` **+6** (the AC2 row now covers 
 four migration cases and the ordering case), and `test/cli/program.integration.test.ts` **+1** (the
 old spelling driven through the real command line). Coverage is unchanged to the digit from the
 second pass, which is the expected result: no production branch was added, only moved.
+
+#### Found, not fixed
+
+- **The task's own `title` still reads `dna add|remove|update --field <full path> --value <v>`.** It
+  records the shape as ratified when the task was filed, and `dl-082` amended that shape mid-flight.
+  Left alone deliberately: rewriting a Memory element's title is an identity-level edit, and this
+  pass has no mandate for one. The Execution Notes and the three amended specs carry the shipped
+  grammar. The approver may want it corrected on approve.
+- **Two concurrent `npx jest` runs in one worktree corrupt each other's `dist/`** (measured above).
+  `test/global-setup.cjs`'s `rmSync` + rebuild has no lock and no per-run output directory, so the
+  second run's `globalSetup` deletes the first run's `dist/` under its workers. The failure looks
+  exactly like a real regression and disappears on re-run, which is the worst combination. Not this
+  task's scope — it predates it and touches the test harness for every suite — and worth its own
+  element.
+- **`docs/03_backlog/04_backlog/backlog.json` and `by-release/v0.1.json`** carry `P2.1`'s scenario
+  text verbatim, including `wingfoil dna set tech_stack.language python`. Left untouched: that JSON
+  is an output of the specification phase and quotes the `.feature` file, so it follows `bug-089`'s
+  rewrite rather than leading it.
+- **`docs/01_vision/X_cli-cmds.md`** still specifies `dna set [--field FIELD] [--value VALUE]` with
+  the retired `tech-stack.backend` example. That is `bug-090`'s scope by `dl-082` Action 3, and
+  `bug-090` is `triaged`.
+- **`dna set` and `dna update` are now indistinguishable in spelling as well as in effect** — the
+  consequence `dl-082` E4 predicted and explicitly did not settle. `bug-092-dna-set-and-dna-update-are-indistinguishable`
+  already owns it; nothing was decided here.
 
 #### review-ready summary — third pass
 

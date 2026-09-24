@@ -120,7 +120,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * The container a path's last segment lives in.
  *
  * A **declared but absent** object on the way is created — that is what lets
- * `dna set project.license MIT` fill an optional section the document omits — and this is deliberately
+ * `dna set project.license --value MIT` fill an optional section the document omits — and this is deliberately
  * NOT the creation `bug-084` filed: every segment here has already been resolved against the schema by
  * `resolveDnaPath`, so nothing the schema does not declare can reach this function. An existing array is
  * descended into by entry name rather than replaced, which is exactly what the old traversal got wrong.

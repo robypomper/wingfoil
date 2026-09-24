@@ -173,9 +173,14 @@ export interface ParamsContext {
    * The FULL list of bare CLI positional arguments following `<noun> <verb>` (or `<noun>` for a flat
    * command) — task-025-implement-dna-set's additive extension of the single-`positional` seam, needed
    * by the first operation taking two data inputs (`dna set <key> <value>` -> `['<key>', '<value>']`).
+   * Since `dl-082-cli-parameter-shape` (task-093) every command reads at most ONE positional — the
+   * identity of its target — and `dna set`'s value travels in `--value`, so the list is now a
+   * uniform seam rather than one shaped by a single two-input verb; it stays variadic so an
+   * operation can refuse an extra positional with its own message.
    * {@link positional} is exactly `positionals?.[0]` and is kept unchanged for the single-positional
    * read ops that predate this (`dna show [section]`, `paths [category]`), so their `buildParams` and
-   * `CoreFn`s are untouched; a multi-input op (`dnaSet`, and task-020's `memoryAdd`) reads `positionals`
+   * `CoreFn`s are untouched; an op that must validate its positional (`dnaSet` and the three mutation
+   * verbs, which reject an extra one) reads `positionals`
    * instead. Same additive contract as {@link positional}/{@link flags}: the MCP surface never
    * populates it (a zero-argument Tool/Resource template carries no positional — see {@link positional}),
    * so an MCP `buildParams` simply never sets it.

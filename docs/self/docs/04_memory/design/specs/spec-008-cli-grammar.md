@@ -157,7 +157,8 @@ This table is the single source of truth for exit codes; ground-truth BDD scenar
 others.
 
 A distinction the DNA verbs make visible, and which the table already decides: a **malformed** path is
-exit `2` (`dna set ..language python` → `error: invalid key path: '..language'`, `P2.1-dna-set.feature`)
+exit `2` (`dna set ..language --value python` → `error: invalid key path: '..language'`, as
+`P2.1-dna-set.feature` pins it)
 because the invocation itself is malformed, while a **well-formed path naming a field the schema does
 not declare** is exit `1` — a validation failure, like an unknown Memory type. The same reading is what
 `bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
