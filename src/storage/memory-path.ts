@@ -10,8 +10,9 @@
  * (`src/validation/id.ts`, task-002-validation-id-engine); callers pass the already-generated id in
  * `values` like any other placeholder.
  */
-import { isAbsolute, join, relative, resolve, sep } from 'path';
+import { join, resolve } from 'path';
 
+import { escapesRoot } from './confinement';
 import { E_MISSING_PATH_VALUE, E_PATH_ESCAPES_ROOT, StorageError } from './errors';
 
 /** Exact confinement-violation message required by REQ-SEC-06's fit criterion — do not reword. */
@@ -62,6 +63,13 @@ export function resolveMemoryPath(
  * establishes as project truth — this refuses that **before** returning a path, so no caller ever
  * writes outside the root.
  *
+ * The boundary itself is {@link escapesRoot} (`./confinement.ts`), shared with every other store so
+ * that "inside the project root" has one definition. This entry point stays **textual**, which is
+ * all a rendered pattern needs: it decides where a document will be *created* from placeholder
+ * values, and no filesystem answer exists for a path that does not exist yet. A caller holding a
+ * real file on disk — where a symlinked directory can put the target outside the root with no
+ * traversal in the string at all — wants `resolveRealPathInRoot` instead (`bug-044`).
+ *
  * @returns the absolute, confinement-verified target path.
  * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message {@link CONFINEMENT_MESSAGE}) when the
  *   resolved path is the root itself or escapes it.
@@ -73,9 +81,7 @@ export function resolveConfinedMemoryPath(
 ): string {
   const resolvedRoot = resolve(root);
   const target = resolve(resolvedRoot, renderMemoryPath(pattern, values));
-  const rel = relative(resolvedRoot, target);
-  const escapes = rel.length === 0 || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
-  if (escapes) {
+  if (escapesRoot(resolvedRoot, target)) {
     throw new StorageError(E_PATH_ESCAPES_ROOT, CONFINEMENT_MESSAGE);
   }
   return target;
