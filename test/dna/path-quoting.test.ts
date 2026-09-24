@@ -200,7 +200,11 @@ describe('resolveDnaPath — the same grammar on the resolution traversal (AC1, 
   it('AC2: a quoted dot-free segment resolves to the same place as the bare spelling', () => {
     const quoted = target('team."members"."roberto".roles');
     const bare = target('team.members.roberto.roles');
-    expect(quoted).toEqual(bare);
+    // `path` is the only difference, and deliberately so: it is the path AS GIVEN (never rewritten),
+    // because it is what the commit subject echoes back to the author. Everything the verbs act on —
+    // the segments, the node kind, the value — is identical.
+    expect({ ...quoted, path: bare.path }).toEqual(bare);
+    expect(quoted.segments).toEqual(['team', 'members', 'roberto', 'roles']);
     expect(quoted.value).toEqual(['approver', 'developer']);
   });
 

@@ -73,6 +73,7 @@ team:
   roles:
     - name: approver
     - name: developer
+    - name: reviewer
 
 paths:
   sources:
