@@ -227,8 +227,10 @@ describe('directive assign validates `--role` at HEAD (bug-082, dl-080 (B))', ()
     }
   });
 
-  // The role is checked before the ids, and an unknown directive still reports its own message —
-  // the directive inventory's own baseline is a separate finding (task-091 design § AC5 S2).
+  // The role is checked before the ids, and an unknown directive still reports its own message. The
+  // directive inventory's own baseline was a separate finding when this suite was written (task-091
+  // design § AC5 S2); task-096 closed it, and `test/core/directive-inventory-baseline.test.ts` owns
+  // that half. `seedRepo` commits the directive file, so this case is unaffected either way.
   it('an unknown directive id is still reported as such, with the role valid at HEAD', async () => {
     repo = seedRepo();
 

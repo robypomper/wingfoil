@@ -117,3 +117,42 @@ alternative's.
 - Closes `bug-091-entry-names-containing-a-dot-are-unaddressable`.
 - Interacts with `dl-082-cli-parameter-shape`, which moves the path from `--field` into a positional;
   the quoting rule is the same either way.
+
+## Correction (2026-09-24) — the `dna show` example in the Decision block cannot run, and quoting is not why
+
+The Decision block gives two worked examples. The second,
+
+```
+wingfoil dna show 'stacks.technologies."Commander.js"'
+```
+
+does not work, and would not work if the quoting rule were already implemented. Raised by `task-099`
+and measured independently on `main`'s build at `66ef6304`:
+
+```
+$ wingfoil dna show stacks             exit 0   (the whole subtree)
+$ wingfoil dna show stacks.technologies
+error: no DNA key named 'stacks.technologies'                                  exit 1
+$ wingfoil dna show project.license
+error: no DNA key named 'project.license'                                      exit 1
+```
+
+`dnaShowFn` resolves **a single top-level key** and never splits on `.` at all. So the read surface
+has no dotted-path grammar to quote *into* — a plain dotted path fails identically. The example was
+written by analogy with the write verbs without being run.
+
+**What this does and does not change.** It does not touch the decision: the quoting rule is about
+`--field`'s successor, the positional `<path>` that `dna set`, `dna add`, `dna remove` and
+`dna update` take, and `task-099` implemented it there. Every other example in this document is a
+write verb and is sound. It changes one illustration, and it surfaces a real gap nobody had named:
+`dna show` cannot address anything below a top-level key.
+
+**That gap is not this decision's to close.** Giving `dna show` a path grammar is a new read surface
+with its own questions — what it prints for a collection, what it does for an absent optional
+section, what exit code an unresolvable read gets — and its own BDD scenario. It is filed separately
+rather than absorbed here, because absorbing it would let a ratified decision grow a surface it never
+argued for.
+
+The example above should be read as **aspirational for `dna show` and correct for the write verbs**:
+`wingfoil dna update 'stacks.technologies."Node.js".version' --value 22.14+` is the shape that works
+today, and it is the first example in the block.

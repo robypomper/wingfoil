@@ -34,7 +34,6 @@ import {
   renderCustomDirective,
 } from '../directives/create';
 import { parseDirectiveIds, withAssignedDirectives } from '../directives/roles-edit';
-import type { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, removeDocument, StorageError, writeDocument } from '../storage';
 // Not re-exported by the `../storage` barrel, imported directly per that module's own convention
 // (same as `src/memory/entry.ts`): `memory add` needs the CONFINED target path before it writes, to
@@ -66,19 +65,19 @@ import {
   loadDirectives,
   loadDnaYaml,
   loadMemoryYaml,
-  loadRolesYaml,
   loadWorkflowsYaml,
   type WorkflowsLoadResult,
 } from './loaders';
 import { loadDirectiveListing, type DirectiveListing } from './directives-list';
 import { selectDirectivesById } from './context';
-import { checkAssignable, checkUnreferenced, ROLES_YAML_PATH, updateRoleAssignments } from './directive-assign';
+import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule, CoreOption } from './registry';
@@ -89,17 +88,21 @@ import type { CoreResult } from './types';
 export const MODULE_NAME = 'core' as const;
 
 export {
+  DIRECTIVES_DIR_PATH,
   DNA_YAML_PATH,
   MEMORY_YAML_PATH,
+  ROLES_YAML_PATH,
   loadDirectives,
-  loadDnaYaml,
   // The committed-baseline readers `dl-080` (B) makes the rule for any read that gates an operation.
   // task-090 kept `loadDnaYamlAtHead` private while that rule was undecided; it is decided now, and a
   // facility the ruling tells the next implementer to use has to be reachable (task-091, D3).
+  loadDirectivesAtHead,
+  loadDnaYaml,
   loadDnaYamlAtHead,
   loadMemoryYaml,
   loadMemoryYamlAtHead,
   loadRolesYaml,
+  loadRolesYamlAtHead,
   loadWorkflowsYaml,
 } from './loaders';
 export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
@@ -141,6 +144,8 @@ export type {
 } from './relevance';
 export { commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
+export { resolveAddType } from './memory-add-type';
+export type { ResolvedAddType } from './memory-add-type';
 export {
   CONFIG_WRITE_CONTRACT,
   committedScopeError,
@@ -587,16 +592,23 @@ export interface MemoryAddParams {
  *    → exit **2** with the exact `missing required argument: --<name>` message
  *    (spec-008-cli-grammar §5, mapped by `exitCodeForThrow`), same classification as `dna set`'s
  *    missing positional.
- * 3. **Resolve `--type` against the `memory.yaml` type registry** (spec-001-memory-yaml-schema) via
- *    `loadMemoryYaml` — an unknown type is a domain `NOT_FOUND` (exit 1) with the exact P1.3 message
+ * 3. **Resolve `--type` against the `memory.yaml` committed at `HEAD`** (spec-001-memory-yaml-schema)
+ *    via {@link resolveAddType} — the type registry, the type's `path` and its `template` scaffold
+ *    all resolve against the repository as committed, never against the working tree (task-095,
+ *    `bug-085`, `dl-080` option (B)). That step takes no parsed `MemoryYaml` and this function holds
+ *    none, so no call path can reach the decision with a working-tree registry. An unknown type is a
+ *    domain `NOT_FOUND` (exit 1) with the exact P1.3 message
  *    `unknown memory type '<t>' (not defined in memory.yaml)`, returned BEFORE any write.
- * 4. **Generate the id** deterministically from the type's `id_pattern` (task-002's `generateId`,
- *    REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence
- *    counter derived from the committed on-disk siblings (`src/memory/add.ts`; no wall-clock/random).
- * 5. **Copy the type's `template.file` scaffold verbatim** (`.wingfoil/<file>`) and fill only the
- *    `id`/`status: draft`/`--title`/`--tags` skeleton (P1.3; spec-010-memory-frontmatter-schema),
- *    then **write + commit** through task-022's confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write
- *    + one scoped commit `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
+ * 4. **Generate the id** deterministically from the type's committed `id_pattern` (task-002's
+ *    `generateId`, REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a
+ *    sequence counter over the type's directory (`src/memory/add.ts`; no wall-clock/random). That
+ *    counter still reads the WORKING TREE: it is `bug-087` (`release: v0.3`), a different read in
+ *    this verb and deliberately not task-095's. What changed is only that the directory it counts in
+ *    is now derived from the committed `path` pattern.
+ * 5. **Fill the committed scaffold's bytes** with only the `id`/`status: draft`/`--title`/`--tags`
+ *    skeleton (P1.3; spec-010-memory-frontmatter-schema), then **write + commit** through task-022's
+ *    confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write + one scoped commit
+ *    `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
  *
  * A thrown `StorageError` (e.g. a confinement violation, an unresolved path placeholder for a
  * workflow-seeded type) or a `ValidationError` (a malformed `id_pattern`) is a logic error mapped to a
@@ -615,24 +627,18 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
   if (title === undefined) throw new UsageError('missing required argument: --title');
   const tags = parseTags(options?.tags);
 
-  const loaded: CoreResult<MemoryYaml> = loadOrError(() => loadMemoryYaml(root));
-  if (!loaded.ok) return loaded;
-
-  const entry = loaded.value.types[type];
-  if (!entry) {
-    return coreErr({ code: 'NOT_FOUND', message: `unknown memory type '${type}' (not defined in memory.yaml)` });
-  }
-  const { path: pathPattern, id_pattern: idPattern, template } = entry;
-  if (idPattern === undefined || template === undefined) {
-    return coreErr({ code: 'VALIDATION', message: `memory type '${type}' has no id_pattern/template in memory.yaml` });
-  }
+  // task-095 / `bug-085`: the registry, the `path` and the scaffold all resolve at HEAD, inside a
+  // function that accepts no parsed `MemoryYaml` — so this verb cannot decide any of the three from
+  // a working-tree copy, in the same way task-091 made that true of the four transition verbs.
+  const resolved = resolveAddType(root, type);
+  if (!resolved.ok) return resolved;
+  const { pathPattern, idPattern, scaffold } = resolved.value;
 
   try {
     const sequence = hasNumericToken(idPattern)
       ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern), idPattern)
       : 0;
     const id = generateId(idPattern, { slug: slugifyTitle(title), n: sequence });
-    const scaffold = readDocument(join(root, '.wingfoil', template.file));
     const content = renderAddDocument(scaffold, { id, title, tags });
     const message = `wf(${type}): add ${id}`;
 
@@ -1364,12 +1370,15 @@ export interface DirectiveAssignResult {
  *    value that parses to **no ids** (`""`, `"  "`, `","`) counts as absent, the same reading
  *    `parseTags` takes of an empty `--tags` (`[AUTHORING]`, task-056 D3: before P3.7 such a value
  *    reached step 3 and failed with an empty id in the message, `unknown directive: `).
- * 3. Load every directive file; `checkAssignable` — which resolves the role catalogue from the
- *    `dna.yaml` committed at `HEAD` itself (task-091, `bug-082`, `dl-080` (B)) — returns P3.2's exact
+ * 3. `checkAssignable` — which resolves **both** of its baselines from the repository as committed at
+ *    `HEAD` itself, the role catalogue (task-091, `bug-082`) and the directive inventory (task-096,
+ *    `bug-086`), per `dl-080` (B) — returns P3.2's exact
  *    `unknown role '<role>' (not defined in dna.yaml)` / `unknown directive: <id>` as `NOT_FOUND`
  *    (exit 1), role first and then each id in argument order. It validates **every** id before
  *    anything is written, which is P3.7 Sc.3's "no partial assignment is persisted": one unknown id
- *    leaves `roles.yaml` byte-identical and commits nothing.
+ *    leaves `roles.yaml` byte-identical and commits nothing. There is no working-tree pre-load to
+ *    pass it: an untracked directive file used to be bindable, and the committed `roles.yaml` then
+ *    named a directive no clone would have.
  * 4. `updateRoleAssignments` appends the ids (`withAssignedDirectives`: idempotent, order-preserving,
  *    never sorting) through the comment-preserving `roles.yaml` writer and makes ONE commit,
  *    `wf(directive): assign <id1>, <id2> to <role>`, staging only `.wingfoil/roles.yaml`. A request
@@ -1389,9 +1398,7 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
   const role = options?.role;
   if (role === undefined) throw new UsageError('missing required argument: --role');
 
-  const directiveFiles = loadOrError(() => loadDirectives(root));
-  if (!directiveFiles.ok) return directiveFiles;
-  const invalid = checkAssignable(root, directiveFiles.value, role, directives);
+  const invalid = checkAssignable(root, role, directives);
   if (invalid) return coreErr(invalid);
 
   const message = `wf(directive): assign ${directives.join(', ')} to ${role}`;
@@ -1436,16 +1443,28 @@ export interface DirectiveRemoveResult {
  *    with P3.2's wording, reused: `unknown directive: <name>`. Because the path comes from a file
  *    that was just read, a traversal-shaped argument can never reach the filesystem — it simply
  *    resolves to nothing.
+ *
+ *    This read stays on the **working tree**, deliberately (task-096 AC4). It answers *which file on
+ *    disk am I being asked to delete* — the asset itself, not a gate on it — and step 6's write guard
+ *    (`requireUnmodifiedTarget`, task-092) then decides whether that file may be deleted at all. Resolving it at `HEAD` instead would
+ *    answer an **untracked** directive file with `unknown directive: <id>`, which is false to the
+ *    user's screen, where the file plainly is; the refusal they need is the write guard's, which
+ *    names the file and its `git status` code. Deleting a file that exists in no commit is not this
+ *    verb's act anyway: its contract is to produce one commit that *records* the deletion, and there
+ *    is nothing there to record.
  * 4. **REQ-SEC-07 clause (a)** — `requireCustomAsset('directive', <that file's path>)`. Passing the
  *    RESOLVED path rather than the bare name is what makes P3.3's pinned
  *    `built-in directives cannot be removed` fire instead of the primitive's generic refusal; task-042's
  *    reviewer recorded that name→path gap as this task's hand-off. Since `task-057` a fresh project
  *    really does carry six built-ins, so the scenario is exercised against the real scaffold.
- * 5. **REQ-SEC-07 clause (b)** — {@link checkUnreferenced} over `roles.yaml`: a role (or `global`)
- *    that still binds the id refuses the removal, naming the referrer. An absent `roles.yaml` means
- *    "no bindings yet" (task-051/053), not a failure. Note the interaction with step 4: a custom file
- *    SHADOWING a built-in is removable, so removing it changes which file wins resolution — that is
- *    dl-037's precedence working as specified, and the built-in is left byte-identical.
+ * 5. **REQ-SEC-07 clause (b)** — {@link checkUnreferenced} over the `roles.yaml` committed at `HEAD`:
+ *    a role (or `global`) that still binds the id refuses the removal, naming the referrer. It
+ *    resolves that baseline itself (task-096, `bug-086`, `dl-080` (B)); there is no working-tree
+ *    pre-load to pass it, because an **uncommitted** deletion of the reference used to be enough to
+ *    destroy a file the committed `roles.yaml` still bound. A `roles.yaml` absent from `HEAD` still
+ *    means "no bindings yet" (task-051/053), not a failure. Note the interaction with step 4: a custom
+ *    file SHADOWING a built-in is removable, so removing it changes which file wins resolution — that
+ *    is dl-037's precedence working as specified, and the built-in is left byte-identical.
  * 6. **Delete + commit** — `removeDocument` then `commitPaths` on the ONE scoped path, producing
  *    exactly one commit `wf(directive): remove <name>`; the sha rides `CoreResult.commit`, the same
  *    shape every other mutating op returns. `commitPaths` stages with `git add -- <path>`, which
@@ -1474,13 +1493,7 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
   const custom = requireCustomAsset('directive', target.path);
   if (!custom.ok) return custom;
 
-  let roles: RolesYaml | undefined;
-  if (documentExists(join(root, ROLES_YAML_PATH))) {
-    const loaded = loadOrError(() => loadRolesYaml(root));
-    if (!loaded.ok) return loaded;
-    roles = loaded.value;
-  }
-  const referrer = checkUnreferenced(roles, name);
+  const referrer = checkUnreferenced(root, name);
   if (referrer) return coreErr(referrer);
 
   // `DirectiveFile.path` is built with the PLATFORM separator (`join('directives', …)` in

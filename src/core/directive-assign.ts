@@ -27,10 +27,11 @@
  *
  * - {@link checkAssignable} — the pre-write validation: the role must be defined in `dna.yaml`
  *   (REQ-SYS-08, via task-034's binding resolver `isRoleDefined`/`UnknownRoleError` — never the
- *   approval-authority module, dl-033) and every directive id must exist on disk under
- *   `.wingfoil/directives/**` (built-in or custom alike: assignment binds by id and modifies no asset,
- *   dl-037/dl-030). Everything is checked before anything is written, so a request is applied whole
- *   or not at all.
+ *   approval-authority module, dl-033) and every directive id must exist under
+ *   `.wingfoil/directives/**` **as committed at `HEAD`** (built-in or custom alike: assignment binds
+ *   by id and modifies no asset, dl-037/dl-030). Both halves read the committed repository since
+ *   task-096 (`bug-086`); everything is checked before anything is written, so a request is applied
+ *   whole or not at all.
  * - {@link checkUnreferenced} — the mirror-image pre-write validation for `directive remove` (P3.3,
  *   task-052): REQ-SEC-07 clause (b), refusing to remove a directive any role — or `global` — still
  *   binds, naming the referrer.
@@ -62,13 +63,19 @@ import { RolesYaml } from '../directives/schema';
 import { commitPaths, documentExists, readDocument, writeDocument } from '../storage';
 import { parseYaml, toValidationError, ValidationError } from '../validation';
 
-import { DNA_YAML_PATH, loadDnaYaml, loadDnaYamlAtHead, type DirectiveFile } from './loaders';
+import {
+  DIRECTIVES_DIR_PATH,
+  DNA_YAML_PATH,
+  loadDirectivesAtHead,
+  loadDnaYaml,
+  loadDnaYamlAtHead,
+  loadRolesYamlAtHead,
+  ROLES_YAML_PATH,
+  type DirectiveFile,
+} from './loaders';
 import type { CoreError, CoreResult } from './types';
 import { coreErr, coreOk } from './types';
 import { committedScopeError, requireUnmodifiedTarget } from './write-guard';
-
-/** Root-relative location of the role → directive bindings file (spec-011). */
-export const ROLES_YAML_PATH = '.wingfoil/roles.yaml';
 
 /** The outcome of {@link updateRoleAssignments}: the role's list as it stands afterwards. */
 export interface RoleAssignmentUpdate {
@@ -111,27 +118,31 @@ function workingTreeWouldDefine(root: string, role: string): boolean {
  * Two fail-closed refusals come with the baseline, mirroring `requireApprovalAuthority`'s: no
  * committed `dna.yaml` at all, and a committed one that does not parse or validate.
  *
- * `--directive` ids are still resolved against the files on disk (`loadDirectives`). That read has
- * the same baseline question and is deliberately left as it is: it needs a directory listing at a
- * revision, which `src/storage` has no primitive for, and `dl-042`'s warnings channel already
- * surfaces a binding whose directive file is missing (`directives list`). Filed as its own element
- * by task-091's AC5 sweep rather than folded in here.
+ * **The directive inventory is read the same way**, since task-096 /
+ * `bug-086-directive-inventory-read-from-the-worktree` — `loadDirectivesAtHead`, the tree at `HEAD`.
+ * task-091 left this half on the files on disk and offered a boundary for it (the role catalogue is
+ * *governance*, the directive file is the *asset*); its reviewer showed the boundary does not hold,
+ * and `bug-086` settles that what actually separated them was **cost**: reading the inventory at a
+ * revision needs a directory listing at a revision, which `src/storage` did not have. It has one now
+ * (`listPathsAtRev`), so the parameter is gone too and the two halves of this one function read one
+ * baseline. Before that, an untracked directive file produced a committed `roles.yaml` binding to a
+ * directive present in no commit.
  *
- * @param root - Project root; the committed `dna.yaml` is read from it (`loadDnaYamlAtHead`).
- * @param directiveFiles - Every directive file on disk (`loadDirectives`).
+ * An absent or empty committed inventory needs no special case: no id is known, so every request is
+ * refused with `unknown directive: <id>`. That is the right answer rather than a tolerated one — "may
+ * this id be bound" needs the *positive* fact that a directive with it exists, and a missing record
+ * cannot supply one. (Contrast {@link checkUnreferenced}, which needs the *absence* of a fact and is
+ * therefore satisfied by a missing record.)
+ *
+ * @param root - Project root; both committed baselines are read from it.
  * @param role - The role to bind to.
  * @param ids - The directive ids to bind.
  * @returns `undefined` when assignable; otherwise an error carrying P3.2's exact message verbatim as
  *   its first sentence — `unknown role '<role>' (not defined in dna.yaml)` or
- *   `unknown directive: <id>` — or, for an absent/unreadable committed catalogue, a `VALIDATION`
- *   refusal naming the baseline.
+ *   `unknown directive: <id>` — or, for an absent/unreadable committed catalogue or an unreadable
+ *   committed directive file, a `VALIDATION` refusal naming the baseline.
  */
-export function checkAssignable(
-  root: string,
-  directiveFiles: readonly DirectiveFile[],
-  role: string,
-  ids: readonly string[],
-): CoreError | undefined {
+export function checkAssignable(root: string, role: string, ids: readonly string[]): CoreError | undefined {
   let committed: DnaYaml | null;
   try {
     committed = loadDnaYamlAtHead(root);
@@ -163,7 +174,22 @@ export function checkAssignable(
       : '';
     return { code: 'NOT_FOUND', message: `${new UnknownRoleError(role).message}${uncommittedRole}` };
   }
-  const known = new Set(directiveFiles.map((file) => file.frontmatter.id));
+
+  let inventory: readonly DirectiveFile[];
+  try {
+    inventory = loadDirectivesAtHead(root);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return {
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the directive inventory: a file committed under '${DIRECTIVES_DIR_PATH}' (at HEAD) is not ` +
+        `readable as a directive: ${error.message}. A binding is validated against the directives the repository ` +
+        'records (dl-080), so the committed files must be valid; fix it and commit the fix, then retry.',
+      details: { issues: error.issues },
+    };
+  }
+  const known = new Set(inventory.map((file) => file.frontmatter.id));
   const unknown = ids.find((id) => !known.has(id));
   return unknown === undefined ? undefined : { code: 'NOT_FOUND', message: `unknown directive: ${unknown}` };
 }
@@ -198,16 +224,46 @@ export function checkAssignable(
  * has no field that can reference a directive, so P3.3's "or workflow step" precondition is vacuous
  * today, and P4.9's workflow half of clause (b) has no owner in v0.2 per `dl-030`.
  *
- * @param rolesYaml - The loaded `roles.yaml`, or `undefined` when the project has none — "no bindings
- *   yet" (task-051/task-053's reading), not a failure.
+ * **The bindings are read from the `roles.yaml` committed at `HEAD`**, never from the working tree
+ * (task-096, `bug-086-directive-inventory-read-from-the-worktree`, `dl-080` option (B)). This
+ * function therefore takes `root`, not a `RolesYaml`: a caller cannot hand it a working-tree copy
+ * even by accident, which is what makes the committed baseline a property of the read. Before that,
+ * deleting the two `- <id>` lines **without committing** was enough to walk past this check entirely
+ * and **destroy** a file the committed `roles.yaml` still bound — on the only verb in the system that
+ * deletes an artefact, and against the one clause REQ-SEC-07 (b) exists to enforce.
+ *
+ * A `roles.yaml` that is **not committed at all** is still "no bindings yet" (task-051/task-053's
+ * reading) and permits the removal. That is not a fail-open tolerance: this check needs the *negative*
+ * fact *nothing names this id*, and a record that does not exist answers it. (Contrast
+ * {@link checkAssignable}, which needs a positive fact and therefore refuses when its record is
+ * missing.) A committed `roles.yaml` that does not **validate** is the genuinely unanswerable case,
+ * and it refuses.
+ *
+ * @param root - Project root; the committed `roles.yaml` is read from it (`loadRolesYamlAtHead`).
  * @param id - The directive id about to be removed.
  * @returns `undefined` when nothing references it; otherwise a `CONFLICT` error (exit 1) carrying the
  *   message above. `CONFLICT` and not `VALIDATION`: the request is well-formed and the *state*
  *   refuses it — the same distinction `directiveCreate` draws for `directive already exists: <name>`,
- *   as against `requireCustomAsset`'s `VALIDATION` for a request inadmissible on its own terms.
+ *   as against `requireCustomAsset`'s `VALIDATION` for a request inadmissible on its own terms. An
+ *   unreadable committed `roles.yaml` is `VALIDATION`, naming the baseline.
  */
-export function checkUnreferenced(rolesYaml: RolesYaml | undefined, id: string): CoreError | undefined {
-  if (rolesYaml === undefined) return undefined;
+export function checkUnreferenced(root: string, id: string): CoreError | undefined {
+  let rolesYaml: RolesYaml | null;
+  try {
+    rolesYaml = loadRolesYamlAtHead(root);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    return {
+      code: 'VALIDATION',
+      message:
+        `cannot resolve the directive bindings: the committed '${ROLES_YAML_PATH}' (at HEAD) is not readable as ` +
+        `role assignments: ${error.message}. Whether an asset may be deleted is answered from the bindings the ` +
+        'repository records (REQ-SEC-07, dl-080), so the committed file must be valid; fix it and commit the fix, ' +
+        'then retry.',
+      details: { issues: error.issues },
+    };
+  }
+  if (rolesYaml === null) return undefined;
   // `Object.entries` (own enumerable properties only) + an explicit ascending sort, never YAML
   // mapping order — REQ-SYS-07, and the same walk `directives-list.ts` uses.
   const [boundRole] = Object.entries(rolesYaml.assignments)
