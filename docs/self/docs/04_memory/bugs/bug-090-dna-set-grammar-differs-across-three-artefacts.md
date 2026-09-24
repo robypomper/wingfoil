@@ -90,8 +90,25 @@ rows across four pillars — `memory search`, `memory history`, `dna show`, `pat
 `directives list`, `workflow status`, `workflow next`, `workflow list`, `workflow show`, and
 `agent execute`'s neighbours. The implementation registers it **once, on the root program**
 (`src/cli/program.ts`, the `.option('--format <format>', ...)` call in `buildProgram`, alongside
-`--verbose`, `--no-color` and `--no-interactive`), so `wingfoil --format json memory search foo` is
-the shape that works and no subcommand declares a `--format` of its own. Measured at `c2102c87`:
+`--verbose`, `--no-color` and `--no-interactive`), and no subcommand declares a `--format` of its own.
+
+> **Correction (2026-09-24).** This paragraph originally went on to say that
+> `wingfoil --format json memory search foo` "is the shape that works", which implies a trailing
+> `--format` does not. That implication is false, and it was written without running the command that
+> settles it. Measured on `main`'s build in a throwaway `wingfoil init --template Scrum` repository,
+> both placements succeed and return identical output:
+>
+> ```
+> $ wingfoil --format json dna show project   -> {"name":"", ...}   exit 0
+> $ wingfoil dna show project --format json   -> {"name":"", ...}   exit 0
+> $ wingfoil memory search foo --format json  -> {"query":"foo", ...} exit 0
+> ```
+>
+> Commander accepts a program-level option in trailing position. `task-098` caught this while
+> deciding AC6, and the correction matters to that decision: because both placements work, the
+> reference's nine `[--format json/yaml]` annotations are **not false about what a user may type**,
+> which is most of why `task-098` left them. Had the original claim been true they would have been
+> wrong and would have had to move. Measured at `c2102c87`:
 `wingfoil --help` lists `--format` under the root Options block, and `wingfoil memory search --help`
 lists only `--tag`, `--status` and `--type`.
 
