@@ -278,10 +278,11 @@ reasons against carrying them in this pass:
    against a per-command declaration: "the flag is registered globally so every command honours it
    uniformly (REQ-SYS-05)". There is nothing left to decide, and nothing in the reference contradicts
    it once one knows that.
-2. Six of the ten rows carrying `--format` belong to commands that **do not exist** (`memory import`,
-   `dna infer`, `workflow status`, `workflow next`, `workflow show`, `agent execute`). Editing their
-   signatures asserts a future grammar, which is exactly what `dl-082` E3 declined to re-decide
-   ("it is **not** re-decided here").
+2. **Four** of the ten rows carrying `--format` belong to commands that **do not exist** —
+   `workflow status`, `workflow next`, `workflow show` and `audit`. (Corrected after review; the
+   original sentence here said six and named the wrong set. See "Review corrections", item 2, for the
+   `grep` and the four refusals that settle it.) Editing their signatures asserts a future grammar,
+   which is exactly what `dl-082` E3 declined to re-decide ("it is **not** re-decided here").
 3. `bug-090` is about one command's grammar; `dl-082` E3 warns that absorbing a ten-row, four-pillar
    change here "would silently widen the ruling".
 
@@ -407,3 +408,228 @@ produce the semantic-merge hazard the wave brief warns about.
    records the behavioural half (`dl-082` E4, Action 5). Worth noting that whichever way it is
    resolved — alias, deprecation, or keeping `set` as a scalar-only convenience — `X_cli-cmds.md`
    Pillar 2 changes again, and this pass wrote the rows so that either outcome is a small edit.
+
+---
+
+## Review corrections (2026-09-24)
+
+Four items came back from review, all confirmed by re-measuring on this branch. The task stays
+`in-review`. Appended rather than folded into the narrative above; where a durable sentence was
+false it was corrected in place and the correction is recorded here.
+
+### 1. The `dna show` row had lost its `[--format json/yaml]`, and the Revision history denied it
+
+True, and self-contradictory: the Revision history said "Not changed in this pass: the per-row
+`[--format json/yaml]` annotations" while the diff it sat in had removed one of them. The annotation
+went out when `[--section SECTION] [--format json/yaml]` was respelled to `[SECTION]` — the whole
+signature was rewritten and the second half was not carried across.
+
+Counted rather than eyeballed, on `main` (`e32aa7a4`) and on this branch before the fix:
+
+```
+$ grep -n 'format json/yaml' <main's X_cli-cmds.md>     → 11 lines: 10 command rows + 1 prose bullet
+                                                          (26 memory search, 32 memory history,
+                                                           61 dna show, 63 paths, 98 directives list,
+                                                           144 workflow status, 145 workflow next,
+                                                           148 workflow list, 149 workflow show,
+                                                           178 audit; 235 the prose bullet)
+$ grep -n 'format json/yaml' docs/01_vision/X_cli-cmds.md  → 11 lines, but only 9 command rows
+                                                          (dna show absent; the 11th is the new
+                                                           Revision history's own mention)
+```
+
+The effect is worse than the bookkeeping, which is why it is item 1 and not a nit: `dna show` accepts
+`--format` in both placements —
+
+```
+$ wingfoil --format json dna show project
+{"name":"","description":"","methodology":"Scrum"}                                   exit=0
+$ wingfoil dna show project --format json
+{"name":"","description":"","methodology":"Scrum"}                                   exit=0
+```
+
+— so the corrected row was the only output-command row in the document denying an option its command
+takes. **Restored.** The decision recorded under AC6 was to leave the annotations alone; leaving them
+alone means all ten. The row is now
+`wingfoil dna show [SECTION] [--format json/yaml]`, and `grep -c 'format json/yaml'` returns ten
+command rows again, matching `main`. The Revision history sentence now states the count and says
+`dna show` keeps its annotation across the respelling, so it is true of the diff it sits in.
+
+### 2. "Six of the ten rows … `memory import`, `dna infer`, … `agent execute`" was wrong
+
+It is **four**, and the fourth is `audit`. Corrected in place above.
+
+This is the failure the release keeps rejecting — a durable sentence asserting file state, written
+without running the command that settles it. The source was `bug-090`'s note, which said "nine rows"
+and listed nine names plus "`agent execute`'s neighbours"; I restated a differently-wrong version of
+it instead of grepping. `bug-090` has since been corrected on `main` with the full enumeration. **I
+did not take that version on trust either** — the enumeration in item 1 above is my own `grep`, run
+against `main`'s file and against this branch's.
+
+The three commands I wrongly named carry no `--format` at all:
+
+```
+$ grep -n 'agent execute \[\|memory import \[\|dna infer \[' <main's X_cli-cmds.md>
+27:  | `wingfoil memory import [path] [--action copy/move/link]`      … no --format
+62:  | `wingfoil dna infer [--confirm]`                                … no --format
+197: | `wingfoil agent execute [--next] [--role ROLE] [--element TYPE:ID]` … no --format
+```
+
+And the four that are genuinely unbuilt, each refused by the build rather than inferred from a table:
+
+```
+$ wingfoil audit            → error: unknown command 'audit'     exit=1
+$ wingfoil workflow status  → error: unknown command 'status'    exit=1
+$ wingfoil workflow next    → error: unknown command 'next'      exit=1
+$ wingfoil workflow show    → error: unknown command 'show'      exit=1
+# `wingfoil workflow --help` lists `list` as its only subcommand
+```
+
+AC6's decision is unaffected: `spec-008` §2 already ruling for the global declaration, plus the
+trailing-placement measurement, carry it without this sentence. Four unbuilt rows instead of six
+weakens the reason but does not remove it — and the other two reasons stand untouched.
+
+### 3. The missing-required-argument sub-bullet over-specified the message
+
+It claimed the message is `error: missing required argument: --<name>`. The exit code is right; the
+template is not. Measured:
+
+```
+$ wingfoil memory add              → error: missing required argument: --type                                  exit=2
+$ wingfoil dna set project.license → error: missing required argument: --value                                 exit=2
+$ wingfoil dna set                 → error: missing required argument: wingfoil dna set <path> --value <value> exit=2
+$ wingfoil memory approve          → error: missing required argument: memory approve <id>                     exit=2
+```
+
+Two shapes, and the split is principled: a missing **option** is named by its flag, a missing
+**positional** by reprinting the command's synopsis. The bullet now states the exit code, the shared
+`error: missing required argument: …` prefix, and both cases with an example each, rather than one
+template that is false half the time.
+
+### 4. The four row claims that had no executed command
+
+AC1's substitute for a red was executing every claim in a corrected row. Four slipped past. All four
+were executed; **all four rows are right**, so nothing in the document changed — the evidence was the
+gap, not the content.
+
+**(a) `dna set`'s "Collections and lists go through `add`/`remove`/`update`".** The refusal is
+explicit and names the alternative:
+
+```
+$ wingfoil dna set stacks.technologies --value TypeScript
+error: 'stacks.technologies' does not hold a single value: reach it with
+`dna add|remove|update stacks.technologies --value <v>` (dl-081)                     exit=1
+
+$ wingfoil dna set modules --value core
+error: 'modules' does not hold a single value: reach it with
+`dna add|remove|update modules --value <v>` (dl-081)                                 exit=1
+
+$ wingfoil dna set team.roles --value auditor
+error: 'team.roles' does not hold a single value: reach it with
+`dna add|remove|update team.roles --value <v>` (dl-081)                              exit=1
+```
+
+**(b) `dna remove`'s "Refused when `<PATH>` or the named entry does not resolve".** Two distinct
+refusals, one per half of the claim:
+
+```
+$ wingfoil dna remove nonsense.path --value x
+error: unknown DNA field 'nonsense.path': 'nonsense' is not declared under the dna.yaml schema   exit=1
+
+$ wingfoil dna remove stacks.technologies --value NotPresent
+error: no entry named 'NotPresent' in 'stacks.technologies'                          exit=1
+```
+
+**(c) Bare `dna show`** — the "Show the full DNA" half of that row, run on the `--template Scrum`
+scaffold before any write:
+
+```
+$ wingfoil dna show
+{
+  "version": 1,
+  "project": { "name": "", "description": "", "methodology": "Scrum" },
+  "modules": [],
+  "stacks": {
+    "technologies": [],
+    "methodologies": [ { "name": "Scrum" }, { "name": "Specification by Example (BDD)" }, { "name": "TDD" } ]
+  },
+  "team": {
+    "members": [],
+    "roles": [ { "name": "developer" }, { "name": "reviewer" }, { "name": "qa" }, { "name": "architect" },
+               { "name": "product-owner" }, { "name": "tech-lead" }, { "name": "approver" } ]
+  },
+  "paths": { "sources": [], "tests": [], "docs": [], "config": [ ".wingfoil" ], "governance": [] }
+}                                                                                    exit=0
+```
+
+All six top-level keys the Philosophy paragraph and the `SECTION` parameter row name are present, in
+that order — which is the other thing that row asserts.
+
+**(d) The ten `--entry-<field>` names, "Accepted by `add` and `update`".** Derived from the built
+program rather than transcribed from the parameter table:
+
+```
+$ wingfoil dna add    --help | grep -o -- '--entry-[a-z_]*' | sort -u   → 10 names
+$ wingfoil dna update --help | grep -o -- '--entry-[a-z_]*' | sort -u   → the same 10 names
+$ wingfoil dna remove --help | grep -o -- '--entry-[a-z_]*' | sort -u   → none
+
+  --entry-approval_authority  --entry-category  --entry-description  --entry-email
+  --entry-executes_as  --entry-notes  --entry-path  --entry-phase  --entry-roles  --entry-version
+```
+
+`add` and `update` carry exactly the ten the parameter table lists, in the same spelling; `remove`
+carries none, and refuses one when offered:
+
+```
+$ wingfoil dna remove stacks.technologies --value TypeScript --entry-category language
+error: unknown option '--entry-category'                                             exit=1
+```
+
+So "Accepted by `add` and `update`" is exact on both halves — the set, and the exclusion of `remove`.
+
+### Why `X_cli-cmds.md` stays at Version 1.3
+
+Flagged rather than decided silently, because the `doc-versioning` directive is ambiguous here and a
+reviewer should be able to overrule it. The directive says "bump the version only on the **first edit
+after the file has been committed** to git", and the v1.3 edit *was* committed on this branch
+(`45698a80`) before these corrections were made — read literally, that is a bump to 1.4.
+
+Left at **1.3**, on the directive's own stated rationale: "keeps version numbers meaningful (one bump
+per **committed revision**) rather than churning on every micro-edit." These four items correct the
+v1.3 revision *before it lands*; they are not a second revision of it. Bumping would mint a 1.4 whose
+only difference from a 1.3 no reader outside this branch ever saw is a restored annotation, a
+generalised bullet and a corrected count — and the `## Revision history` section, which documents the
+change as "Version 1.3", would then describe a version the document no longer claims. The `Date:`
+stays 2026-09-24, which is also today.
+
+If the reviewer reads the rule literally instead, the fix is one line in the header and one in the
+Revision history heading.
+
+### On the transcript's replay order
+
+Noted for next time rather than corrected: the first transcript prints `dna show paths` with two
+`sources` entries above the `dna add paths.sources` that creates them, so replaying it in written
+order returns `sources: []`. Nothing in it is false, but a transcript whose whole value is that
+someone can re-run it must be written in the order it ran. The measurements in this section are in
+replay order, from a fresh `git init` + `wingfoil init --template Scrum`, each block independent of
+the ones after it.
+
+### Gates — re-run after these corrections
+
+| Gate | Command | Result |
+|---|---|---|
+| unit + BDD | `npx jest` | **135 suites / 2202 tests, all passing** |
+| coverage | `npx jest --coverage` | **98.57 %** statements, 93.87 branches, 98.92 functions, 99.39 lines |
+| build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | 0 errors |
+| **emitting build** | `npx tsc -p tsconfig.build.json` | 0 errors |
+| full typecheck | `npx tsc --noEmit -p tsconfig.json` | **0 errors, no exception** |
+| lint | `npm run lint` | 0 problems |
+| API docs | `npm run docs:api` | 0 errors |
+
+These corrections touch two Markdown files and nothing under `src/` or `test/`. The suite is larger
+than in the first gate run because `main` was merged again first (`ae6d097a`, bringing `main` up to
+`51eac46b`), and that merge **did** carry `src/` and `test/` changes — `src/core/memory-add-type.ts`
+and six new test files — unlike the earlier docs-only merge. So the build was regenerated
+(`npm run build`) before anything was re-measured, and every gate above, the emitting
+`tsc -p tsconfig.build.json` included, ran after it. 129 suites / 2125 tests / 98.54 % was this
+branch's number before that merge; both runs were green.
