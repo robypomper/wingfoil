@@ -17,10 +17,17 @@
  * and the `testing` directive forbid a unit test to reach for. What it pins instead is a purely local
  * property of two committed files: **every peer pinned in `overrides` has a hoisted lock entry at
  * exactly the pinned version, and the package it is pinned for still declares it as a peer.** That is
- * the property whose absence *is* `bug-056`, and it is the one that silently reverts — a plain
- * `npm install` under npm 11.x re-resolves the tree and drops both hoisted entries again (measured in
- * this task's Execution Notes, `green`/D1), taking the release gate down with it and touching nothing
- * else in the diff.
+ * the property whose absence *is* `bug-056`.
+ *
+ * **Amended by task-104 (`bug-063`).** Until that task, this property silently reverted: a plain
+ * `npm install` under npm 11.x re-resolved the tree and dropped both hoisted entries again (measured
+ * in task-080's Execution Notes, `green`/D1, and again at task-104's branch base), taking the release
+ * gate down with it and touching nothing else in the diff. It no longer does — `@emnapi/core` and
+ * `@emnapi/runtime` are now exact **direct** devDependencies of this package, and npm never prunes a
+ * node a manifest directly depends on. The assertions below are unchanged and still meaningful: they
+ * are what fails if that declaration is removed and the entries go with it. The check that names the
+ * remediation, and the one that asserts the direct declaration itself, live in
+ * `check-lockfile-pins.test.ts` / `scripts/check-lockfile-pins.cjs`.
  *
  * Deterministic and offline by construction: it reads `package.json` and `package-lock.json` and never
  * runs npm. Nothing here keys on npm's output — `dl-069` S1/E4 (the same lock produced two different
