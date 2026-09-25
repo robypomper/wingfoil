@@ -12,7 +12,7 @@
  */
 import { join, resolve } from 'path';
 
-import { escapesRoot } from './confinement';
+import { escapesRoot, resolveRealPathInRoot } from './confinement';
 import { E_MISSING_PATH_VALUE, E_PATH_ESCAPES_ROOT, StorageError } from './errors';
 
 /** Exact confinement-violation message required by REQ-SEC-06's fit criterion — do not reword. */
@@ -64,21 +64,37 @@ export function resolveMemoryPath(
  * writes outside the root.
  *
  * The boundary itself is {@link escapesRoot} (`./confinement.ts`), shared with every other store so
- * that "inside the project root" has one definition. This entry point is still **textual**, and that
- * is a known gap rather than a justified choice: a symlinked directory on the way to a Memory
- * document puts the write outside the root with no traversal anywhere in the string, so this
- * function returns the path and the caller writes there. A filesystem answer does exist even for a
- * path not yet created — `resolveRealPathInRoot` (`./confinement.ts`) resolves as far as the
- * filesystem goes and keeps the missing tail verbatim, which is exactly the "path that does not
- * exist yet" case — so nothing about rendering a pattern prevents this from being resolved too.
- * Measured on the Memory store by `task-102`'s review; the repair is owned by
- * `bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store` (a v0.2 blocker,
- * fix task `task-105`), not by `task-102`, whose boundary was `directive remove`. Until then, a caller that can reach a
- * real directory on disk should use `resolveRealPathInRoot` (`bug-044`).
+ * that "inside the project root" has one definition. It is asked **twice, about two resolutions of
+ * the same path**, because a string and a filesystem answer different questions and a Memory write
+ * has to survive both (`task-105`, `bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store`):
  *
- * @returns the absolute, confinement-verified target path.
- * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message {@link CONFINEMENT_MESSAGE}) when the
- *   resolved path is the root itself or escapes it.
+ * 1. **Textually** (`task-017`) — what the rendered pattern *says*. This is what catches traversal
+ *    smuggled through a placeholder value, and it is the only one that can: `../` in an `id` is a
+ *    property of the string, and a filesystem that happens to link it back inside the project must
+ *    not launder it.
+ * 2. **On the filesystem** ({@link resolveRealPathInRoot}) — where the write will actually land. A
+ *    symlinked type directory puts the document outside the root with no traversal anywhere in the
+ *    string, so the textual answer is "inside" and the write is outside; that is `bug-044`'s
+ *    crossing in the store REQ-SEC-06 is written for. A filesystem answer exists even for a path not
+ *    yet created: `resolveRealPathInRoot` resolves as far as the filesystem goes and keeps the
+ *    missing tail verbatim, which is exactly this case — the document is about to be created.
+ *
+ * The second read resolves against the **working tree** rather than `HEAD`, deliberately and against
+ * `command-baseline`'s general rule for a gating read. The argument is `task-102`'s, recorded in
+ * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` (`in-discussion`) and not
+ * re-derived here: what this predicts is where `writeFileSync` will land, and it follows the symlinks
+ * that are on disk, not the ones a commit records.
+ *
+ * **The target's parent is resolved; its own name is not** — the asymmetry is
+ * {@link resolveRealPathInRoot}'s contract (see that function), and it is the reason this returns a
+ * path spelled under `root` **as the caller gave it** rather than under the real root: `commitPaths`
+ * runs `git -C <root>` and callers take `relative(root, …)`, so re-spelling a legitimate path would
+ * take it out of the repository's own vocabulary.
+ *
+ * @returns the absolute, confinement-verified target path, spelled under `root`.
+ * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message: {@link CONFINEMENT_MESSAGE} plus the
+ *   two spellings of the path, since the two differing is the finding) when the resolved path is the
+ *   root itself, escapes it textually, or lands outside it on the filesystem.
  */
 export function resolveConfinedMemoryPath(
   root: string,
@@ -86,9 +102,21 @@ export function resolveConfinedMemoryPath(
   values: Record<string, string>,
 ): string {
   const resolvedRoot = resolve(root);
-  const target = resolve(resolvedRoot, renderMemoryPath(pattern, values));
+  const rendered = renderMemoryPath(pattern, values);
+  const target = resolve(resolvedRoot, rendered);
   if (escapesRoot(resolvedRoot, target)) {
-    throw new StorageError(E_PATH_ESCAPES_ROOT, CONFINEMENT_MESSAGE);
+    throw new StorageError(
+      E_PATH_ESCAPES_ROOT,
+      `${CONFINEMENT_MESSAGE}: '${rendered}' resolves to '${target}', outside the project root.`,
+    );
+  }
+  const onDisk = resolveRealPathInRoot(resolvedRoot, rendered);
+  if (!onDisk.within) {
+    throw new StorageError(
+      E_PATH_ESCAPES_ROOT,
+      `${CONFINEMENT_MESSAGE}: '${rendered}' resolves to '${onDisk.real}', outside the project root — ` +
+        'a directory on the way to it is a symlink leaving the project.',
+    );
   }
   return target;
 }
