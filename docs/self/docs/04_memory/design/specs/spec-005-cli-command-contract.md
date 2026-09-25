@@ -48,8 +48,16 @@ Rules:
   mapping above cannot be bypassed by an uncaught code path.
 - A non-zero exit code (`1` or `2`) is **always** accompanied by an error message on stderr in the
   format defined in §3 below — a bare non-zero exit with no message is a contract violation.
+- A **noun invoked without its verb** (`wingfoil dna`), `wingfoil` invoked with no command at all, and
+  `wingfoil help <unknown>` are **"missing required argument"** in the row above — the third case
+  already enumerated there, not a fourth one. The verb is a required argument of the noun, so its
+  absence makes the invocation malformed: exit `2`, and — because the rule above admits no exception —
+  an `error: ` line naming what was missing, even where the argument parser answers such an invocation
+  by printing the command's usage. Printing that usage is not itself the error message.
 - `--help` and `--version` always exit `0`, even if other arguments on the same invocation are invalid
-  (they take precedence and short-circuit the rest of parsing).
+  (they take precedence and short-circuit the rest of parsing). So does an explicit request for help
+  by name (`wingfoil help`, `wingfoil help <known-command>`): a request the CLI satisfied is a success,
+  and it is distinct from the incomplete invocation above even when the two print the same text.
 - Read-only commands (`memory search`, `dna show`, `workflow status`, `paths`, …) can only exit `0`
   (found/empty result) or `1` (e.g. malformed query); they never exit `2` once argument parsing has
   succeeded.
@@ -219,6 +227,25 @@ Exit code: `0`
   are out of scope here and are governed by spec-008-cli-grammar; any interaction between those flags
   and this contract (e.g. how `--dry-run` reports its outcome) is defined there or in the owning
   command's own spec, not here.
+
+## Revision notes
+
+**Revision (2026-09-25) — §1 settles what a missing verb is, per `bug-103` and
+`task-103-a-missing-verb-exits-2-with-an-error-line`.** §1's exit-`2` row enumerates "unknown
+command/pillar/verb, unknown flag, missing required argument, invalid flag value", and a *missing*
+verb is arguably the third of those and arguably a case of its own. The ambiguity was not academic:
+it is what made `task-101`'s decision to leave `wingfoil dna` at exit `1` a judgement rather than a
+lookup, and it left the shipped CLI breaking the section twice at once — a malformed invocation
+reporting `1`, and a non-zero exit carrying no error message at all, which is the one thing §1 states
+in absolute terms. §1's Rules now say it outright, in both directions: a noun without its verb is a
+missing required argument (exit `2`, with an `error: ` line), and an explicit `wingfoil help` is a
+success (exit `0`), even though an argument parser may print the same usage text for both.
+
+No behaviour of this contract changed — the sentences name a case the table already covered. The
+measured result is in `task-103`'s Execution Notes; `spec-008-cli-grammar` §5 carries the same
+sentence, since its table is the grammar-side statement of the same contract.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`.
 
 ## Process Notes
 

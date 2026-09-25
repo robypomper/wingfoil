@@ -172,3 +172,25 @@ and it is the artefact that decides what `P2.1` is understood to be.
 That correction is recorded in `docs/05_plans/rl-v1/rel-v0.2/retrospective-rel-v0.2-plan.md` rather
 than done here, because it is a vision-layer edit and the retrospective is where this release's
 vision-layer conclusions are gathered.
+
+## Note (2026-09-25) — the ruling has a documentation cost, and it is now visible
+
+Raised by `task-098` while correcting the CLI reference, and recorded here because it is a consequence
+of this bug's ruling rather than a separate defect.
+
+Before `dl-082` the two verbs were spelled differently — `dna set <key> <value>` against
+`dna update --field <path> --value <v>` — and the difference in grammar concealed the overlap. They
+are now both `<path> --value <v>`, so `docs/01_vision/X_cli-cmds.md` carries **two rows a reader
+cannot choose between from the rows alone**.
+
+The ruling of 2026-09-24 keeps both commands, so the rows must both stay. What is needed is that each
+says what distinguishes it: `set` refuses a target that is not a scalar, with a message naming the
+verbs that reach it; `update` accepts a collection and reads `--value` as an entry identity. That is
+one clause per row.
+
+`task-098` wrote the rows so any resolution is a small edit, and did not make it, because the ruling
+had not been given when it wrote them.
+
+**Where the work lands:** with `bug-099` and `bug-100`, in the `user-docs` phase. All three are
+residual accuracy work on the same document, and the person correcting one is already reading the
+others.

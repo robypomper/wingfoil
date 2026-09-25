@@ -118,6 +118,55 @@ async function buildFixtureProgram() {
   return program;
 }
 
+/**
+ * The same program with `buildProgram`'s OWN `exitOverride` left in place — the callback that routes
+ * commander's terminations through the contract and, since
+ * task-103-a-missing-verb-exits-2-with-an-error-line, writes the `error:` line commander does not
+ * (`bug-103`). `buildFixtureProgram` above replaces that callback, so nothing in this suite exercised
+ * it; here it runs for real against the `process.stderr.write` spy installed in `beforeEach`.
+ *
+ * `process.exit` must STOP execution for these, which the suite-wide no-op spy does not: commander
+ * keeps running after the callback returns and reaches code the real process never gets to. Measured
+ * rather than assumed — with the no-op spy, `wingfoil help` prints its help, exits 0, then *continues*
+ * into `_dispatchHelpCommand`'s `_findCommand(undefined)` fallback and raises a SECOND termination,
+ * this time an incomplete invocation, so the callback writes `error: missing required argument:
+ * wingfoil help <command>` for an invocation the real binary answers at exit 0 with empty stderr.
+ * That is a harness artefact and asserting on it would pin a fiction, so {@link ProcessExited} turns
+ * the first exit into a throw and {@link parseIgnoringFallout} catches it — leaving exactly one
+ * termination per invocation, as in the real process.
+ *
+ * The process-level proof stays `./missing-verb-exit-code.integration.test.ts`, which spawns the
+ * compiled CLI; this half proves WHICH line and WHICH code the callback chooses.
+ */
+async function buildFixtureProgramWithRealExitCallback() {
+  return buildProgram(FIXTURE_MODULES, {
+    resolveRoot: () => '/fixture-root',
+    buildParams: (ctx) => {
+      seenContexts.push(ctx);
+      return { root: ctx.root };
+    },
+  });
+}
+
+/** What the `process.exit` spy throws so execution stops where the real process would end. */
+class ProcessExited extends Error {
+  constructor(readonly code: unknown) {
+    super(`process.exit(${String(code)})`);
+  }
+}
+
+/** Parse, catching the {@link ProcessExited} the first termination throws. */
+async function parseIgnoringFallout(
+  program: Awaited<ReturnType<typeof buildProgram>>,
+  ...argv: readonly string[]
+): Promise<void> {
+  try {
+    await program.parseAsync(['node', 'wingfoil', ...argv]);
+  } catch (error) {
+    if (!(error instanceof ProcessExited)) throw error;
+  }
+}
+
 /** The text written to stdout (or stderr) across all calls of that spy, concatenated. */
 function written(spy: jest.SpyInstance): string {
   return spy.mock.calls.map((call) => String(call[0])).join('');
@@ -350,5 +399,66 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     const program = await buildFixtureProgram();
     await program.parseAsync(['node', 'wingfoil', 'mcp', '--format', 'xml']);
     expect(jest.mocked(runMcp).mock.calls[0]?.[0]).toMatchObject({ format: 'console' });
+  });
+});
+
+describe("buildProgram — the exit callback's own behaviour (task-103, `bug-103`)", () => {
+  // These drive `buildProgram`'s REAL `exitOverride` (see `buildFixtureProgramWithRealExitCallback`),
+  // which every other test in this file replaces. They are the white-box half of
+  // `./missing-verb-exit-code.integration.test.ts`: that suite proves the process really exits 2 and
+  // really writes the line, this one proves WHICH line and WHICH code the callback asks for, against a
+  // synthetic registry, without spawning anything.
+
+  beforeEach(() => {
+    // Replaces the suite-wide no-op `process.exit` spy with one that stops execution, so each
+    // invocation terminates exactly once — see `buildFixtureProgramWithRealExitCallback`'s doc for the
+    // measured reason. `afterEach`'s `mockRestore` still cleans it up.
+    exitSpy.mockImplementation((code?: unknown) => {
+      throw new ProcessExited(code);
+    });
+  });
+
+  it('a noun invoked with no verb asks for exit 2 and writes the error line commander does not', async () => {
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, 'dna');
+    expect(written(stderrSpy)).toContain('error: missing required argument: wingfoil dna <command>');
+    expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('`wingfoil` with no arguments at all is the same case one level up', async () => {
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program);
+    expect(written(stderrSpy)).toContain('error: missing required argument: wingfoil <command>');
+    expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('`help <unknown>` gets the unknown-command line, read off the root program\'s own operands', async () => {
+    // The operands come from `program.args` — commander's own parse result, global options already
+    // removed — so the callback never re-parses argv. `--format json` before the noun proves it: a
+    // naive `process.argv.slice(2)` would name `--format` as the unknown command here.
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, '--format', 'json', 'help', 'nosuchnoun');
+    expect(written(stderrSpy)).toContain("error: unknown command 'nosuchnoun'");
+    expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('an explicit `help` writes NO error line and asks for exit 0 — the trap, at the callback level', async () => {
+    // `help` and `wingfoil dna` reach this callback through the SAME commander code
+    // (`commander.help`); only the suggested exit code separates them. If that discriminator is ever
+    // weakened, this is the assertion that fails rather than a user discovering `wingfoil help` exits
+    // 2.
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, 'help');
+    expect(written(stderrSpy)).toBe('');
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('an error commander DID write a message for gets no second line from the callback', async () => {
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, 'nosuchnoun');
+    expect(written(stderrSpy)).toContain("error: unknown command 'nosuchnoun'");
+    // Exactly one `error: ` line: the callback must not add its own on top of commander's.
+    expect(written(stderrSpy).split('error: ').length - 1).toBe(1);
+    expect(exitSpy).toHaveBeenCalledWith(2);
   });
 });
