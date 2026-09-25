@@ -411,6 +411,48 @@ in this repository has been run under an npm no CI job will ever use" — writte
 failed. Option (F) is the status quo with the finding recorded, and its only claim is that a named
 trap is better than an unnamed one.
 
+### E8 — a third instance, and the first one with a guard: `bug-063` and `task-104` (2026-09-25)
+
+The class produced a third instance after this document was written, and it is the most informative
+of the three because it now has a working defence and a measurable remaining window.
+
+**The defect.** `task-080` added two hoisted `@emnapi` entries to `package-lock.json` because
+npm 10.9.x refuses a lock without them. Under **npm 11.x a plain `npm install` removes both again**,
+with `EXIT=0` and `added 500 packages` — the twenty-five deleted lines are the whole diff, and npm's
+output never mentions a removal. The pruned lock then fails `npm ci` under the pinned CI npm with
+`EUSAGE`. So an ordinary command, run by a developer with no reason to look at the lockfile, silently
+disarms the release gate.
+
+**Why it belongs here rather than only in `bug-063`.** It is E1's divergence acting on a *file*
+rather than on a *behaviour*: npm 11.6.2 locally against the 10.9.x the pinned Node bundles, with the
+lockfile as the shared artefact neither side agrees about. `bug-119` is the residue on the other side
+— npm 10.9.0 strips `"peer": true` from twelve entries that npm 11 writes, metadata only, no version
+or integrity moves. **The lock has two authors and each produces a diff the other did not ask for.**
+
+**What `task-104` changed, and what it deliberately did not.** Declaring both packages as exact
+direct `devDependencies` makes npm record them — `overrides` binds a *version* but never makes npm
+record a *node*, and npm never prunes a node the manifest directly depends on. The durable half is
+`scripts/check-lockfile-pins.cjs` and `npm run check:lockfile`, which **fails** when the entries are
+absent and names the remedy; `task-080` restored the entries and nothing noticed when they came
+undone, so a fix of that shape would have been reverted the same way.
+
+**The residual window, which is what this document must decide about.** The check runs **on demand**,
+inside `npx jest`, and in the **tag-triggered** gate. It does **not** run on commit, and it does not
+run on push. The window is far narrower than before, since the reversion no longer *happens* on an
+ordinary install — but it is the same window E4 describes for every other gate in this class, and
+closing it is option **(D)** here or option **(a)** of `dl-069`, neither ratified.
+
+`task-104` declined to carry it further on a real constraint rather than a preference: `spec-015` §2
+and `test/cli/publish-pipeline.test.ts` pin `prepack` literally, so extending that hook would have
+required a spec revision.
+
+**What E8 adds to the options above.** It is the first evidence that **(D)** would have caught a real
+instance at the moment it was introduced rather than at the tag, and the first where a per-instance
+guard already exists — so (D)'s cost can now be weighed against a known alternative instead of
+against nothing. It is also the first instance where **(F)**, writing it down and changing nothing,
+is demonstrably insufficient: the divergence was already written down in `task-080`'s notes, and it
+recurred anyway.
+
 ### What ratification would require of a developer working here today
 
 Stated explicitly, because "does my wrong npm become a problem?" is the question anyone reading this
