@@ -8,7 +8,7 @@
  */
 import { coreErr, coreOk } from '../../src/core/types';
 import type { CoreErrorCode } from '../../src/core/types';
-import { exitCodeForError, exitCodeForParseOutcome, exitCodeForResult } from '../../src/core/exit-code';
+import { classifyParseOutcome, exitCodeForError, exitCodeForParseOutcome, exitCodeForResult } from '../../src/core/exit-code';
 
 const ALL_CODES: readonly CoreErrorCode[] = ['NOT_FOUND', 'INVALID_TRANSITION', 'VALIDATION', 'CONFLICT', 'IO'];
 
@@ -61,11 +61,15 @@ describe('exitCodeForParseOutcome — an argument parser\'s own termination → 
     },
   );
 
-  it('keeps a non-zero suggestion on a non-usage outcome at 1 rather than promoting it to 2', () => {
-    // `commander.help` reached through `this.help({ error: true })` — a noun invoked with no verb —
-    // suggests 1. That case is NOT a usage error this task reclassifies: it keeps the code it had, so
-    // this change cannot smuggle in a behaviour it was never asked to change.
-    expect(exitCodeForParseOutcome({ code: 'commander.help', exitCode: 1 })).toBe(1);
+  it('maps an incomplete invocation reported through `commander.help` to a usage-error exit 2', () => {
+    // `commander.help` with a NON-ZERO suggestion is `Command#help({ error: true })` — a noun with no
+    // verb, `wingfoil` with no arguments, or `help <unknown>`: the invocation was incomplete, which
+    // spec-005 §1 calls a usage error (task-103, `bug-103`). The same code with suggestion 0 is the
+    // built-in `help` command and stays at 0 (the `it.each` above). That one bit is the whole
+    // discriminator between "help printed because the user asked" and "help printed because there was
+    // nothing to run", so both halves are pinned; weakening it to "the code alone" breaks one or the
+    // other, and `wingfoil help` becoming a usage error is the direction that would go unnoticed.
+    expect(exitCodeForParseOutcome({ code: 'commander.help', exitCode: 1 })).toBe(2);
   });
 
   it('gives an unrecognised parser code the status quo, never a usage-error meaning by default', () => {
@@ -78,5 +82,58 @@ describe('exitCodeForParseOutcome — an argument parser\'s own termination → 
 
   it('narrows any out-of-contract suggestion into the three-code contract', () => {
     expect(exitCodeForParseOutcome({ code: 'commander.somethingNew', exitCode: 127 })).toBe(1);
+  });
+});
+
+describe('classifyParseOutcome — who owes the `error:` line (spec-005 §1, task-103)', () => {
+  it('is the single rule `exitCodeForParseOutcome` reads — the two can never disagree', () => {
+    // `exitCodeForParseOutcome` delegates here rather than re-deciding, which is what keeps AC6 of
+    // task-101 (one place decides an exit code) true after this task added a second thing to decide.
+    for (const outcome of [
+      { code: 'commander.unknownCommand', exitCode: 1 },
+      { code: 'commander.help', exitCode: 1 },
+      { code: 'commander.help', exitCode: 0 },
+      { code: 'commander.helpDisplayed', exitCode: 0 },
+      { code: 'commander.executeSubCommandAsync', exitCode: 1 },
+      { code: 'commander.somethingNew', exitCode: 127 },
+    ]) {
+      expect(classifyParseOutcome(outcome).exitCode).toBe(exitCodeForParseOutcome(outcome));
+    }
+  });
+
+  it('asks the surface for an error line only on the outcome where the parser wrote none', () => {
+    // spec-005 §1: a non-zero exit is ALWAYS accompanied by an error message on stderr. Commander
+    // writes its own `error: …` line for every code in the usage-error set, and prints only help text
+    // for an incomplete invocation — so that one outcome, and only that one, needs the surface to
+    // emit the line (`bug-103`'s second violation).
+    expect(classifyParseOutcome({ code: 'commander.help', exitCode: 1 })).toEqual({ exitCode: 2, needsErrorLine: true });
+  });
+
+  it.each([
+    ['commander.unknownCommand', 1, 2],
+    ['commander.unknownOption', 1, 2],
+    ['commander.missingArgument', 1, 2],
+  ])('leaves %s to commander, which already wrote its own message', (code, suggested, expected) => {
+    expect(classifyParseOutcome({ code, exitCode: suggested })).toEqual({ exitCode: expected, needsErrorLine: false });
+  });
+
+  it.each([
+    ['commander.help', 0],
+    ['commander.helpDisplayed', 0],
+    ['commander.version', 0],
+  ])('never asks for an error line on a successful termination (%s)', (code, suggested) => {
+    expect(classifyParseOutcome({ code, exitCode: suggested })).toEqual({ exitCode: 0, needsErrorLine: false });
+  });
+
+  it('never asks for an error line on an outcome this contract does not classify', () => {
+    // The default branch keeps the parser's own suggestion, so it can still end at exit 1 with no
+    // message — the residual case of the §1 rule. It is deliberately not papered over with a
+    // manufactured message: `commander.executeSubCommandAsync` is the only code that reaches it today
+    // and WingFoil registers no executable subcommand, so the branch is unreachable in production. A
+    // future commander code landing here must be classified explicitly, not absorbed silently.
+    expect(classifyParseOutcome({ code: 'commander.executeSubCommandAsync', exitCode: 1 })).toEqual({
+      exitCode: 1,
+      needsErrorLine: false,
+    });
   });
 });
