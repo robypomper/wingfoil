@@ -2,7 +2,7 @@
 id: "bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store"
 type: bug
 title: "`memory add` writes an element outside the project root when a Memory directory is a symlink — `bug-044`'s crossing, in the store REQ-SEC-06 is actually about"
-status: in-progress
+status: in-review
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
