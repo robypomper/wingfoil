@@ -637,6 +637,50 @@ Process note accepted rather than argued: `57d214c1` mixed a Memory-document edi
 change in one commit, which nothing in the last 200 commits on `main` does. This pass keeps them
 apart — `8309642c` is plans only, and this notes entry is its own commit.
 
+### review round 1 — merge and gates
+
+**Where this branch sits.** `main` moved twice while the review corrections were being written —
+`task-102` (`7a67890b`) and then `task-103` plus the `bug-110`…`bug-118` / `dl-085` / `dl-086`
+filings and `task-105`'s scheduling. Per `dl-035` both were **merged**, never rebased, at `539c3611`
+and `86cb1cb7`. `main` at `98871b8d` is now fully contained
+(`git merge-base --is-ancestor main HEAD` → true), and this tree carries `task-102` and `task-103`
+both `done` and `task-105` `backlog`.
+
+**An earlier version of this paragraph claimed `main` had not moved, and that was false when it was
+written.** The `git log --oneline -1 main` in the very command that appended it printed
+`7a67890b Merge branch 'task/task-102-…'`; the sentence was written in the same heredoc and
+contradicted its own output. It is recorded rather than quietly overwritten, because it is the same
+defect class this document convicts itself of over the twelve-entry list: a claim written beside the
+evidence that refutes it.
+
+**Neither merge can invalidate a measurement in this document.** `comm -12` over the two change sets
+shows no file touched by both — `main` brought `src/core/{confinement,exit-code,index}.ts`,
+`src/storage/*`, `src/cli/program.ts` and their suites, and this branch touches no `src/` file at all
+— and neither merge touched the manifest or the lockfile
+(`git diff --stat babd1930 HEAD -- package.json package-lock.json` → empty output). So no AC1–AC5
+package-manager transcript was re-run, and none needed to be.
+
+Gates below were run at `86cb1cb7`, after `rm -rf node_modules && npm ci` (`added 502 packages`,
+exit 0, `git status --porcelain` empty — `npm ci` rewrote nothing). **No figure is carried forward
+from before the merge.**
+
+| Gate | Result at `86cb1cb7` (post-merge) |
+|---|---|
+| `npx jest` | **142 suites / 2358 tests passed**, exit 0 |
+| `npx jest --coverage` | **98.57 / 94 / 98.93 / 99.41**, 142 suites / 2358 passed, exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| **`npx tsc -p tsconfig.build.json` (emitting)** | exit 0 — re-run after the merge, per the wave brief's semantic-conflict warning |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output, no exception carried |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+| `npm run check:lockfile` | exit 0 — *"carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves from the lock"* |
+
+The 139 → 142 suites and 2306 → 2358 tests are `task-102`'s and `task-103`'s, arriving through the
+merges; coverage moves 98.56 → 98.57 statements and 98.75 → 98.93 functions for the same reason.
+Nothing this branch owns changed between the pre- and post-merge runs: the review corrections touched
+three Markdown documents and one comment block, and no assertion anywhere changed.
+
+
 ## Proposed elements
 
 Registered by the orchestrator, not by this task (parallel worktrees would collide on ids). Each is
@@ -695,46 +739,3 @@ instructed. It is now materially cheaper to fix and it is worth saying exactly w
 plus remediation convention, and already runs in three places. The missing assertion is one more
 `problems.push` in `checkLockfilePins` and one synthetic test, with no new wiring. `bug-048` (CI pins
 a Node version two dev dependencies reject) is neither helped nor hindered by anything here.
-
-### review round 1 — gates re-run
-
-Run at `d49f2679`, after both corrections landed.
-
-**This paragraph originally said `main` had not moved, and that was false when it was written.** The
-`git log --oneline -1 main` in the very command that appended it printed
-`7a67890b Merge branch 'task/task-102-…'` and the ancestry check printed `MAIN MOVED`; the sentence
-was written in the same heredoc and contradicted its own output. Recording it rather than quietly
-overwriting it, because it is the same defect class this document already convicts itself of once
-above: a claim written beside the evidence that refutes it.
-
-What actually happened: `task-102` merged to `main` (`7a67890b`) while this notes entry was being
-appended, so `main` **had** moved, and per `dl-035` it was merged into this branch — never rebased —
-at `539c3611`. The merge is clean and empty of conflict by construction: `comm -12` over the two
-change sets shows **no file touched by both** (`main` brought `src/core/{confinement,exit-code,index}.ts`,
-`src/storage/*`, `src/cli/program.ts` and their suites; this branch touches none of them, and `src/`
-not at all). It did **not** touch the manifest or the lockfile —
-`git diff --stat 04b636c9 HEAD -- package.json package-lock.json` → empty output — so no AC1–AC5
-measurement is invalidated by it and none was re-run. `npm ci` was re-run on the merged tree from the
-existing install (`added 502 packages`, exit 0, `git status --porcelain` empty). The gate table below
-is from the **post-merge** run.
-
-| Gate | Result (post-merge, at `539c3611`) |
-|---|---|
-| `npx jest` | **142 suites / 2358 tests passed**, exit 0 |
-| `npx jest --coverage` | **98.57 / 94 / 98.93 / 99.41**, 142 suites / 2358 passed, exit 0 |
-| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
-| **`npx tsc -p tsconfig.build.json` (emitting)** | exit 0 — re-run *after* the merge, per the wave brief's semantic-conflict warning |
-| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output, no exception carried |
-| `npm run lint` | exit 0 |
-| `npm run docs:api` | exit 0 |
-| `npm run check:lockfile` | exit 0 — *"carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves from the lock"* |
-
-The 139 → 142 suites and 2306 → 2358 tests are `task-102`'s, arriving through the merge; coverage
-moves 98.56 → 98.57 statements and 98.75 → 98.93 functions for the same reason. Nothing this branch
-owns changed between the pre- and post-merge runs: the review corrections touched three Markdown
-documents and one comment block, and no assertion anywhere changed.
-
-No package-manager transcript was re-run for the corrections or for the merge — the merge leaves
-`package.json` and `package-lock.json` untouched, which is checked above rather than assumed. The one
-measurement that *was* re-run is the twelve-entry `peer`-flag set, because writing it into a plan
-document turned it into a durable citation and the original reading of it proved wrong.
