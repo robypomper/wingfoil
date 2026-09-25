@@ -456,10 +456,30 @@ $ node scripts/check-lockfile-pins.cjs >/dev/null ; echo EXIT=$?
 EXIT=0
 ```
 
-Twelve `"peer": true` flags, on `@babel/core`, `@emnapi/core`, `@emnapi/runtime`,
-`@typescript-eslint/parser`, `acorn`, `eslint`, `express`, `hono`, `jest`, `typescript`, `zod`,
-`zod-to-json-schema` — metadata only; no version, `resolved` or `integrity` moves, the `@emnapi`
-entries survive, and the check stays green. `task-080` saw the same class from the other direction
+Twelve `"peer": true` flags. **The set was re-derived by comparing the two locks entry by entry,
+because reading it off the interleaved diff above got it wrong** — that reading listed
+`zod-to-json-schema`, which is not in the set, and missed `browserslist`, which is:
+
+```
+$ node -e '…compare packages{} of the npm-11 lock and the npm-10.9 lock…'
+entries whose `peer` flag differs: 12
+   node_modules/@babel/core               npm11: true  npm10.9: false
+   node_modules/@emnapi/core              npm11: true  npm10.9: false
+   node_modules/@emnapi/runtime           npm11: true  npm10.9: false
+   node_modules/@typescript-eslint/parser npm11: true  npm10.9: false
+   node_modules/acorn                     npm11: true  npm10.9: false
+   node_modules/browserslist              npm11: true  npm10.9: false
+   node_modules/eslint                    npm11: true  npm10.9: false
+   node_modules/express                   npm11: true  npm10.9: false
+   node_modules/hono                      npm11: true  npm10.9: false
+   node_modules/jest                      npm11: true  npm10.9: false
+   node_modules/typescript                npm11: true  npm10.9: false
+   node_modules/zod                       npm11: true  npm10.9: false
+entries whose version/resolved/integrity differ: 0 []
+```
+
+Metadata only, and "metadata only" is now measured rather than eyeballed: **zero** entries differ in
+`version`, `resolved` or `integrity`. The `@emnapi` entries survive and the check stays green. `task-080` saw the same class from the other direction
 ("flips the `peer: true` flag on 11 unrelated entries") and left it in a `done` task's notes, where
 nothing schedules it. It is unchanged by this task and carried to Proposed elements rather than
 absorbed.
@@ -573,3 +593,105 @@ the state *before* task-104, says what changed and why the file's assertions sti
 at `check-lockfile-pins.test.ts` for the remediation-bearing half. No assertion in that file changed
 (`npx jest test/cli/lockfile-peer-overrides.test.ts` → **7 passed**, unchanged count), and the full
 gate set was re-run afterwards with the same numbers as the table above.
+
+### review round 1 — the two corrections
+
+Nothing in the code was questioned. Two things in the *documents* were, and both are the same
+failure in two places: prose this task made untrue, and a promise this document made and did not
+keep.
+
+**C1 — the "Proposed elements" section was referenced twice and did not exist.** `refactor` said
+"carried to Proposed elements rather than absorbed" and AC3 said "see Proposed elements", and the
+document ended. That is precisely what this task's `green` section convicts `task-080` of —
+"left it in a `done` task's notes, where nothing schedules it" — committed by the document making
+the accusation. The section now exists, below.
+
+**C2 — the sweep for prose this task made untrue stopped at the file being edited.** Two
+`status: active` plans told the releaser never to run a bare `npm install` **because** `bug-063`
+(cited `open`) silently deletes the entries. The instruction is safe either way, and stays; the
+stated reason and the cited status are what this task falsified, in the two documents governing the
+release this branch exists to unblock. Corrected at `8309642c`:
+
+- `release-publishing-rel-v0.2-plan.md` (v1.1 → v1.2): precondition **P12**'s label, **P13** widened
+  to run `npm run check:lockfile` and both lockfile suites, the §4 bump-step block, **§7.5**, and
+  hazard **H3**. §10's 2026-09-22 correction block is left standing — it is a true statement about
+  what `npm version` does — with one clause noting the contrast it drew no longer holds.
+- `release-submit-rel-v0.2-plan.md` (v1.1 → v1.2): §2's "three open bugs the next phase is written
+  around" is now two, and **§6.5**.
+
+Both keep the instruction (`npm ci`, never a bare `npm install`) and replace its reason with the two
+that survive the fix: `npm ci` never rewrites a lockfile at all, and the two npms still disagree
+about lock metadata (the twelve-flag measurement under AC4). Neither plan is told to trust this
+task's report: each carries the command that settles it. Both documents' `version` was bumped per
+the `doc-versioning` directive (first edit after commit).
+
+**A claim of mine that did not survive its own re-check.** Writing C2 meant putting the twelve-entry
+list into a plan document, where it becomes a durable citation, so it was re-derived instead of
+copied — and the original was **wrong**. It had been read off an interleaved `git diff -U6`, which
+misaligned context lines with `-` lines: it listed `zod-to-json-schema`, which is not in the set, and
+omitted `browserslist`, which is. The corrected set and the method are under AC4. The lesson is the
+`claim-evidence` one in the exact shape this release keeps meeting it: the measurement was real, the
+*reading* of it was not, and only re-running it entry-by-entry caught that.
+
+Process note accepted rather than argued: `57d214c1` mixed a Memory-document edit with a test-file
+change in one commit, which nothing in the last 200 commits on `main` does. This pass keeps them
+apart — `8309642c` is plans only, and this notes entry is its own commit.
+
+## Proposed elements
+
+Registered by the orchestrator, not by this task (parallel worktrees would collide on ids). Each is
+outside this task's scope and each is stated with what was measured.
+
+### 1. `bug` (low) — the pinned npm and the developer npm still disagree about lock metadata
+
+On a checkout **containing this task's fix**, `npm install --package-lock-only` under npm **10.9.0**
+(the npm the pipeline's pinned Node 22.12.0 bundles) reports `up to date` and strips `"peer": true`
+from twelve entries relative to the npm-11.6.2-authored lock: `@babel/core`, `@emnapi/core`,
+`@emnapi/runtime`, `@typescript-eslint/parser`, `acorn`, `browserslist`, `eslint`, `express`, `hono`,
+`jest`, `typescript`, `zod`. Comparing the two locks entry by entry, **zero** differ in `version`,
+`resolved` or `integrity` — it is metadata only, `npm ci` does not read `peer`, both `@emnapi`
+entries survive and `npm run check:lockfile` stays green. Command and full output under **AC4** above.
+
+Why it is worth an element rather than a paragraph: it is a twelve-line diff that arrives with no
+explanation and no attribution, on a routine command, and the window where it is most likely — a
+releaser preparing a tag — is the window where an unexplained lockfile change is most expensive.
+`task-080` measured the same class from the other direction ("flips the `peer: true` flag on 11
+unrelated entries") and left it in a `done` task's Execution Notes, where nothing schedules it; this
+task would repeat that exactly by leaving it here. Severity low: nothing breaks, and the two release
+plans now warn about it (§7.5, §6.5).
+
+Not a duplicate of `bug-063`, which was about the `@emnapi` entries being **deleted** and is fixed.
+It is the residue that the fix does not touch, and it is a symptom of the `dl-076` class rather than
+a defect in anything this repository wrote.
+
+### 2. `decision-log` — the lockfile guard still runs nowhere that precedes a commit
+
+`npm run check:lockfile` runs on demand (~1s), inside `npx jest`, and therefore inside
+`prepublishOnly` and the gate job of `.github/workflows/publish.yml`. It does **not** run on
+`git commit` and it does **not** run on push. So the residual window is unchanged in *shape* from
+what `bug-063` described — a lock defect can still be committed and only noticed later — even though
+it is much smaller in practice now that the reversion no longer happens on an ordinary install.
+
+Closing it entirely is not an implementer's call, which is why this is a decision and not a bug:
+
+- a git hook is a developer-environment decision nobody has taken;
+- a push-triggered CI job is `dl-069-lockfile-drift-unguarded` option **(a)**, and `dl-069` is
+  `ready` as option **(b) only** — its own approve commit records that limitation;
+- making every local npm the CI npm (`packageManager` + corepack) is
+  `dl-076-toolchain-divergence-unexercised-until-tag` option **(A)**, and `dl-076` is
+  `in-discussion` (`grep -n '^status:' docs/self/docs/04_memory/design/dls/dl-076-*.md` →
+  `status: in-discussion`). That option would also dissolve element 1 above, which is the argument
+  for taking the two together.
+
+This task deliberately committed to none of them. What is proposed is that the residual be recorded
+where it can be scheduled — most naturally as an amendment to `dl-076`, since element 1 is more
+evidence for the same class — rather than living in a `done` task's notes.
+
+### 3. Not an element, but worth the orchestrator's note: `bug-046` got cheaper
+
+`bug-046` (the lockfile's own `engines` copy that nothing asserts) is **not absorbed**, as the task
+instructed. It is now materially cheaper to fix and it is worth saying exactly where:
+`scripts/check-lockfile-pins.cjs` already parses both files, already carries the `{ ok, message }`
+plus remediation convention, and already runs in three places. The missing assertion is one more
+`problems.push` in `checkLockfilePins` and one synthetic test, with no new wiring. `bug-048` (CI pins
+a Node version two dev dependencies reject) is neither helped nor hindered by anything here.
