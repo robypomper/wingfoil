@@ -74,6 +74,7 @@ import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './dir
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
+import { requireConfinedTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
@@ -128,6 +129,7 @@ export * from './git-identity';
 export * from './approval-authority';
 export * from './require-reason';
 export * from './builtin-asset';
+export * from './confinement';
 export * from './usage-error';
 export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
@@ -1451,7 +1453,7 @@ export interface DirectiveRemoveResult {
  *    resolves to nothing.
  *
  *    This read stays on the **working tree**, deliberately (task-096 AC4). It answers *which file on
- *    disk am I being asked to delete* — the asset itself, not a gate on it — and step 6's write guard
+ *    disk am I being asked to delete* — the asset itself, not a gate on it — and step 7's write guard
  *    (`requireUnmodifiedTarget`, task-092) then decides whether that file may be deleted at all. Resolving it at `HEAD` instead would
  *    answer an **untracked** directive file with `unknown directive: <id>`, which is false to the
  *    user's screen, where the file plainly is; the refusal they need is the write guard's, which
@@ -1463,7 +1465,14 @@ export interface DirectiveRemoveResult {
  *    `built-in directives cannot be removed` fire instead of the primitive's generic refusal; task-042's
  *    reviewer recorded that name→path gap as this task's hand-off. Since `task-057` a fresh project
  *    really does carry six built-ins, so the scenario is exercised against the real scaffold.
- * 5. **REQ-SEC-07 clause (b)** — {@link checkUnreferenced} over the `roles.yaml` committed at `HEAD`:
+ * 5. **REQ-SEC-06** — {@link requireConfinedTarget}, step 4's filesystem-level companion
+ *    (`task-102`, `bug-044`). `requireCustomAsset` judges the path's *shape* and is right to pass
+ *    `directives/custom/<name>.md`; only `realpath` knows that a symlinked `custom/` puts that file
+ *    outside the project entirely. Before this ran, the verb unlinked the outside file for real and
+ *    then failed on `git add` with a raw `Command failed: git …` — a destroyed file, an unmapped
+ *    error, and nothing recorded. The check is here, ahead of every mutation, because the order
+ *    *is* the property: a refusal issued after the deletion is a report, not a guard.
+ * 6. **REQ-SEC-07 clause (b)** — {@link checkUnreferenced} over the `roles.yaml` committed at `HEAD`:
  *    a role (or `global`) that still binds the id refuses the removal, naming the referrer. It
  *    resolves that baseline itself (task-096, `bug-086`, `dl-080` (B)); there is no working-tree
  *    pre-load to pass it, because an **uncommitted** deletion of the reference used to be enough to
@@ -1471,7 +1480,7 @@ export interface DirectiveRemoveResult {
  *    means "no bindings yet" (task-051/053), not a failure. Note the interaction with step 4: a custom
  *    file SHADOWING a built-in is removable, so removing it changes which file wins resolution — that
  *    is dl-037's precedence working as specified, and the built-in is left byte-identical.
- * 6. **Delete + commit** — `removeDocument` then `commitPaths` on the ONE scoped path, producing
+ * 7. **Delete + commit** — `removeDocument` then `commitPaths` on the ONE scoped path, producing
  *    exactly one commit `wf(directive): remove <name>`; the sha rides `CoreResult.commit`, the same
  *    shape every other mutating op returns. `commitPaths` stages with `git add -- <path>`, which
  *    records the deletion, and commits with `git commit --only -- <path>` (bug-027), so nothing else
@@ -1499,13 +1508,21 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
   const custom = requireCustomAsset('directive', target.path);
   if (!custom.ok) return custom;
 
-  const referrer = checkUnreferenced(root, name);
-  if (referrer) return coreErr(referrer);
-
   // `DirectiveFile.path` is built with the PLATFORM separator (`join('directives', …)` in
   // `./loaders.ts`), so re-spell it with `/` for the value we return and the path we stage — git
   // speaks POSIX separators, and the payload must not differ by platform (REQ-SYS-07).
   const relativePath = ['.wingfoil', ...target.path.split(/[\\/]/)].join('/');
+  // REQ-SEC-06 / bug-044: `requireCustomAsset` above judged the SHAPE of that path and passed it,
+  // correctly — every segment is inside the project. Only the filesystem knows that a symlinked
+  // `custom/` puts the file itself outside. This is the companion clause, and it stands here, next
+  // to its string-level sibling and ahead of every mutation, because the bug was order: the shipped
+  // verb unlinked the outside file and reported afterwards.
+  const confined = requireConfinedTarget(root, relativePath, 'remove');
+  if (!confined.ok) return confined;
+
+  const referrer = checkUnreferenced(root, name);
+  if (referrer) return coreErr(referrer);
+
   // dl-080 (B) / bug-078: staging a deletion discards the working-tree blob, so an uncommitted edit
   // to the directive being removed does not ride into the commit — it is DESTROYED, reaching no
   // commit anywhere. Different harm, same rule: the target carries modifications this operation does

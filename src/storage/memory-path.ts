@@ -10,8 +10,9 @@
  * (`src/validation/id.ts`, task-002-validation-id-engine); callers pass the already-generated id in
  * `values` like any other placeholder.
  */
-import { isAbsolute, join, relative, resolve, sep } from 'path';
+import { join, resolve } from 'path';
 
+import { escapesRoot } from './confinement';
 import { E_MISSING_PATH_VALUE, E_PATH_ESCAPES_ROOT, StorageError } from './errors';
 
 /** Exact confinement-violation message required by REQ-SEC-06's fit criterion — do not reword. */
@@ -62,6 +63,19 @@ export function resolveMemoryPath(
  * establishes as project truth — this refuses that **before** returning a path, so no caller ever
  * writes outside the root.
  *
+ * The boundary itself is {@link escapesRoot} (`./confinement.ts`), shared with every other store so
+ * that "inside the project root" has one definition. This entry point is still **textual**, and that
+ * is a known gap rather than a justified choice: a symlinked directory on the way to a Memory
+ * document puts the write outside the root with no traversal anywhere in the string, so this
+ * function returns the path and the caller writes there. A filesystem answer does exist even for a
+ * path not yet created — `resolveRealPathInRoot` (`./confinement.ts`) resolves as far as the
+ * filesystem goes and keeps the missing tail verbatim, which is exactly the "path that does not
+ * exist yet" case — so nothing about rendering a pattern prevents this from being resolved too.
+ * Measured on the Memory store by `task-102`'s review; the repair is owned by the bug filed out of
+ * that review (`memory add` writing outside the project root through a symlinked Memory directory),
+ * not by `task-102`, whose boundary was `directive remove`. Until then, a caller that can reach a
+ * real directory on disk should use `resolveRealPathInRoot` (`bug-044`).
+ *
  * @returns the absolute, confinement-verified target path.
  * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message {@link CONFINEMENT_MESSAGE}) when the
  *   resolved path is the root itself or escapes it.
@@ -73,9 +87,7 @@ export function resolveConfinedMemoryPath(
 ): string {
   const resolvedRoot = resolve(root);
   const target = resolve(resolvedRoot, renderMemoryPath(pattern, values));
-  const rel = relative(resolvedRoot, target);
-  const escapes = rel.length === 0 || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
-  if (escapes) {
+  if (escapesRoot(resolvedRoot, target)) {
     throw new StorageError(E_PATH_ESCAPES_ROOT, CONFINEMENT_MESSAGE);
   }
   return target;

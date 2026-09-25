@@ -12,6 +12,8 @@ export { findGitRoot, resolveProjectRoot } from './git-root';
 export { detectInitState } from './init-state';
 export type { InitState } from './init-state';
 export { renderMemoryPath, resolveMemoryPath } from './memory-path';
+export { escapesRoot, resolveRealPathInRoot } from './confinement';
+export type { RealPathResolution } from './confinement';
 export { extractFrontmatter, splitFrontmatter } from './frontmatter';
 export type { FrontmatterSplit } from './frontmatter';
 export { readDocument, documentExists, removeDocument, writeDocument } from './document';
