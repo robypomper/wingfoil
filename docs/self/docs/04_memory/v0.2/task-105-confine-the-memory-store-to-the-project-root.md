@@ -158,11 +158,10 @@ Two source files, and no new module:
 
 - **`src/storage/memory-path.ts`** — `resolveConfinedMemoryPath` now asks the **same** predicate
   about **two resolutions of the same path**: the rendered string (`task-017`'s textual check, kept
-  verbatim — it is the only one that can catch `../` smuggled through a placeholder value, and a
-  filesystem that happens to link such a path back inside the project must not launder it), and
-  `resolveRealPathInRoot`'s filesystem answer (the only one that can catch a symlinked directory).
-  Either escape throws `StorageError` `E_PATH_ESCAPES_ROOT` **before a path is returned**, so no
-  caller ever holds one to write to.
+  verbatim) and `resolveRealPathInRoot`'s filesystem answer. Either escape throws `StorageError`
+  `E_PATH_ESCAPES_ROOT` **before a path is returned**, so no caller ever holds one to write to.
+  What each check *alone* decides is measured in the review-pass section below — the first draft of
+  this note claimed more for the textual one than the evidence carried.
 - **`src/core/memory-transition.ts`** — `requireConfinedTarget(root, prepared.path, 'write')` as the
   first of `commitMemoryTransition`'s checks (AC7; see below).
 
@@ -333,3 +332,94 @@ its single uncovered statement being line 163 — `prepareMemoryTransition`'s
 one uncovered statement. I did not measure `main`'s own coverage from this worktree, so the
 non-regression claim I can support is the narrow one: no existing line left coverage, and every line
 this branch adds to `src/` is covered.
+
+## Execution Notes — review pass
+
+Two corrections from review. **No implementation change**: the reviewer reproduced both paths
+against this build and judged the code mergeable as it stands, so nothing in `resolveConfinedMemoryPath`
+or `commitMemoryTransition` moved. `main` was merged again first (`684432b1` → `f850e49c`, which
+brought `bug-120`, `task-106` and the extended `bug-117`); it carried no source change, and every
+gate below was re-run after it.
+
+### 1. The asymmetry's justification in `src/storage/confinement.ts` was made false by this task
+
+`resolveRealPathInRoot`'s TSDoc closed with *"Resolving the leaf as well would turn a working removal
+into a refusal without protecting anything."* That was true of the function `task-102` wrote, whose
+only consumer was `unlinkSync`. **This task gave it two write consumers**, and for a write the
+sentence is false in its own terms: `writeFileSync` follows a symlinked leaf, so resolving it would
+protect something, and what it would protect is `bug-120`.
+
+This is exactly the class AC6 exists to catch — a sentence whose scope somebody else's change
+widened — and I applied that standard to `memory-path.ts` while leaving it standing one file away.
+The paragraph now says the asymmetry is **right for the delete path and a known gap on the write
+paths**, names both write consumers, names `bug-120` and its owner `task-106`, and says why the
+remedy is a per-verb refusal of a symlinked target rather than a wider boundary here (a wider
+boundary would red the `bug-044` case the paragraph exists to keep working). `dl-086` is cited for
+the baseline question, as before.
+
+### 2. The textual check was unpinned, and the note claimed more for it than it could show
+
+The reviewer deleted `task-017`'s textual comparison and found the five suites over this path still
+green: the filesystem check answers the ordinary `../`-through-a-placeholder case too. So the
+first-pass sentence — *"it is the only one that can catch `../` smuggled through a placeholder
+value"* — was stronger than the evidence, and is narrowed above.
+
+The class the textual check **alone** decides is real, and it is now pinned. With a symlink *outside*
+the root pointing back *into* it, the filesystem launders the traversal:
+
+```
+<box>/project/            <- the root
+<box>/project/docs/memory/task/
+<box>/link -> <box>/project/docs
+
+rendered:  docs/memory/task/../../../../link/x.md   ->   <box>/link/x.md
+resolveRealPathInRoot(project, rendered).within  ->  true      # the filesystem says "inside"
+resolveConfinedMemoryPath(project, PATTERN, …)   ->  throws E_PATH_ESCAPES_ROOT
+```
+
+`refuses a rendered traversal that the filesystem would launder back inside the root`
+(`test/storage/memory-path-confinement.test.ts`) asserts both halves, so it cannot pass for the
+wrong reason if `resolveRealPathInRoot` ever stops laundering it. **Classification: characterization**
+— the behaviour is `task-017`'s and predates this task; what was missing was the pin.
+
+Verified discriminating by the mutation, not by argument. With the textual block removed from
+`resolveConfinedMemoryPath`:
+
+```
+$ npx jest test/storage/memory-path-confinement.test.ts test/storage/memory-path.test.ts \
+           test/memory/entry.test.ts test/core/memory-add-confinement.test.ts test/core/memory-add.test.ts
+● … › refuses a rendered traversal that the filesystem would launder back inside the root
+Tests: 1 failed, 34 passed, 35 total
+```
+
+One test of thirty-five, and it is the new one — which both reproduces the reviewer's finding and
+shows the pin lands where the claim is. The file was restored from a copy and `git diff` against the
+committed blob is empty; the suite is green again.
+
+Why keep the textual check rather than delete it, now that its scope is measured: the rendered string
+is what the project declared, and the symlink that makes it "inside" sits in the directory *above*
+the root — repointable by anyone who can write there, and not part of the project at all. The
+reasoning is in the TSDoc beside the check, where the next reader meets it.
+
+### 3. Nit — the message quoted in `src/memory/entry.ts`
+
+Its header quoted the `StorageError` as the bare canonical sentence. The message is now that
+sentence plus both spellings of the path, so the header says so, and says which check each clause
+comes from.
+
+### Gates, re-run after the `main` merge (`f850e49c`) with every correction in the tree (now `240b7b92` + `d4417bb6`)
+
+| Gate | Result |
+|------|--------|
+| `npx jest` | **145 suites / 2383 tests passed**, 0 failed (+1: the new pin) |
+| `npx jest --coverage` | **98.58 %** statements / 94.01 % branches / 99.41 % lines |
+| `npx tsc -p tsconfig.build.json --noEmit` | 0 errors |
+| `npx tsc -p tsconfig.build.json` (emitting) | 0 errors |
+| `npx tsc --noEmit -p tsconfig.json` (full) | 0 errors |
+| `npm run lint` | clean, no output |
+| `npm run docs:api` | clean, no output |
+
+`src/storage/memory-path.ts`, `src/memory/entry.ts` and `src/core/confinement.ts` are at **100 %** on
+every axis; `src/core/memory-transition.ts` unchanged at 98.52 % statements / 100 % lines (line 163,
+the pre-existing non-`ValidationError` rethrow); `src/storage/confinement.ts` unchanged at 95 % —
+this pass touched only its TSDoc.
