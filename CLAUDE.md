@@ -26,10 +26,11 @@ Layer (CLI + MCP)**.
 >
 > **What is *not* built yet is a subset of what the specs describe, and the self-configuration is still
 > hand-authored (§3).** The command surface is derived mechanically from `CORE_MODULES`
-> (`src/core/index.ts`) — today `dna set`, `dna show`, `memory add`, `memory submit`, `memory approve`,
-> `memory reject`, `memory deprecate`, `memory history`, `memory search`, `directive create`,
-> `directive assign`, `directive remove`, `directives list`, `paths`, `workflow list`, plus the two
-> bootstrap commands `init` and `mcp`. The **Memory state-transition verbs ship** as of `minor-v0.2`
+> (`src/core/index.ts`) — today `dna show`, `dna set`, `dna add`, `dna update`, `dna remove`,
+> `memory add`, `memory submit`, `memory approve`, `memory reject`, `memory deprecate`,
+> `memory history`, `memory search`, `directive create`, `directive assign`, `directive remove`,
+> `directives list`, `paths`, `workflow list`, plus the two bootstrap commands `init` and `mcp` — 20
+> in all, each with an entry in `docs/cli-reference.md`. The **Memory state-transition verbs ship** as of `minor-v0.2`
 > (P1.6–P1.9, P1.10); what is still missing is the **workflow engine** (§6). Check `CORE_MODULES`, or
 > the release Memory, before assuming a command exists — and where the code and the specs in
 > `docs/01_vision/` / `docs/02_requirements/` disagree about *what should be built*, the specs win (§10.1).
@@ -51,7 +52,9 @@ Layer (CLI + MCP)**.
 | `src/`                                    | **The implementation.** One directory per `dna.yaml` module (§4) — `core, validation, storage, memory, dna, directives, workflow, cli, mcp` — plus `cli.ts`, the `bin` entry point                                                                                                                              |
 | `test/`                                   | Jest suites, mirroring `src/` one directory per module, plus `docs/` (API-doc coverage gate) and `lint/` (the `lint.clean` gate)                                                                                                                                                                                 |
 | `docs/design.md`                          | Index of the **documentary chain** Lean Inception → USM → BDD → SARD → backlog: where each phase lives, what it produces, and its stop-check                                                                                                                                                                     |
-| `README.md`                               | The **user-facing** entry point (problem, pillars, personas) — the human counterpart to this file. Owned by the `user-docs` release gate (dl-013); `CLAUDE.md` is owned by nothing yet (dl-025)                                                                                                                  |
+| `README.md`                               | The **user-facing** entry point (problem, pillars, personas, quick start) — the human counterpart to this file. Owned by the `user-docs` release gate's `align-user-docs` phase (dl-013); `CLAUDE.md` is owned by its `align-agent-docs` phase (dl-025)                                                        |
+| `docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples/`, `CHANGELOG.md` | **User documentation** for projects that *use* WingFoil: step-by-step guide, one entry per command (kept complete by `test/docs/cli-reference.test.ts`), runnable self-checking scripts, release notes. Produced by `align-user-docs` (dl-013) |
+| `docs/agents.md`                          | Guide for AI agents working in a project that **uses** WingFoil — the document counterpart of the MCP server. Not for agents developing WingFoil (that is this file); in no phase's `produces:` (approver decision, `user-docs-rel-v0.2-plan` §10) |
 | `COLLABORATION.md`                        | How external contributors file **intent as Memory artifacts** rather than pull requests (`dl-020-contribution-model`)                                                                                                                                                                                           |
 
 **Feature IDs** are `P<pillar>.<n>` (e.g. `P1.13`). **Requirement IDs** are `REQ-<AREA>-<nn>`.
@@ -79,9 +82,10 @@ this config up to date (Memory transitions, workflow execution) do not exist yet
 | `docs/self/.wingfoil/roles.yaml`                           | Directives (P3.2/P3.7) | Role → directive bindings                                                                                                                                                                            |
 | `docs/self/.wingfoil/workflows.yaml` + `workflows/custom/` | Workflow (P4.1)        | `sw-life-cycle` (main) + sub-workflows + three ingest mains                                                                                                                                          |
 
-> The official P3.8 **built-in** directive templates are not implemented yet (`task-057`, still
-> `backlog`), so they live in `custom/` as stand-ins (`kind: custom`, `ref: [P3.8]`) until the tool
-> ships them. `directives/built-in/` and `workflows/built-in/` hold nothing but a `.gitkeep` — they are
+> The tool now ships the official P3.8 **built-in** directive templates (`task-057`, `done`:
+> `wingfoil init` installs them under `.wingfoil/directives/built-in/`), but this hand-authored config
+> predates them and still keeps the six as stand-ins in `custom/` (`kind: custom`, `ref: [P3.8]`);
+> reconciling the two is `bug-040`. `directives/built-in/` and `workflows/built-in/` hold nothing but a `.gitkeep` — they are
 > reserved for assets shipped by the npm package (spec-011), which is why `built-in/` vs `custom/` is
 > the structural discriminator REQ-SEC-07 keys removability on.
 
