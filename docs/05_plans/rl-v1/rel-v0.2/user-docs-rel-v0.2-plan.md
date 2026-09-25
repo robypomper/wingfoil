@@ -2,7 +2,7 @@
 id: "user-docs-rel-v0.2-plan"
 type: plan
 title: "User-docs — v0.2 (align user-facing documentation to the shipped surface)"
-status: active
+status: done
 version: "1.4"
 workflow: "user-docs"
 phase: "rel-v0.2"
