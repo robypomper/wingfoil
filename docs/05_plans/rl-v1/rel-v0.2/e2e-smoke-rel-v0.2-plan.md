@@ -3,7 +3,7 @@ id: "e2e-smoke-rel-v0.2-plan"
 type: plan
 title: "E2E smoke — v0.2 (fresh-init + CLI black-box release gate, first run)"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "e2e-smoke"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -418,3 +418,80 @@ Given in chat and binding on this phase:
 Still the approver's, and not settled by the above: the flip from warn to hard-reject, where the
 `retro-v0.1` warn-then-reject staging record is finally written, whether `e2e-smoke.yaml` gains a
 `produces:` so the phase's completion can be deduced at all, and the `gate` approval itself.
+
+---
+
+## Execution Notes
+
+Phase started 2026-09-25 by the agent (role `qa`). Everything below was measured on `main` at
+**`ed835f95`** (the `user-docs` merge), with `dist/` rebuilt by `npm run build`.
+
+### Preconditions (§1)
+
+- **P1 — met.** `awk '/^---$/{n++;next} n==1&&/^status:/' docs/05_plans/rl-v1/rel-v0.2/user-docs-rel-v0.2-plan.md`
+  → `status: done`. `README.md`, `docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples`,
+  `CHANGELOG.md` (and `docs/agents.md`) all PRESENT.
+- **P2 — met.** `minor-v0.2` → `status: in-development`.
+- **P3 — met, with a stale count.** The `for f in docs/self/docs/04_memory/v0.2/task-*.md …` loop prints
+  one line, **`73 done`**, not the `54 done` the table expects: tasks 071–106 were added after this plan
+  was written. The condition (every v0.2 task `done`) holds.
+- **P4 — met.** `git status --porcelain` shows only three untracked paths that predate this phase
+  (`TODOs.md`, `docs/self/X_initial-design-plan.md`, `tools/`); nothing tracked is modified.
+  `npm ci` exit 0; `npm run build` exit 0.
+- **P5 — met.** `npx jest test/cli/e2e-smoke.test.ts` → 1 suite, 5 tests passed.
+
+### S1 + S2 — the smoke run
+
+```
+node scripts/e2e-smoke.cjs --expect-version "$(node -p "require('./package.json').version")" -- node "$PWD/dist/cli.js"
+```
+
+Exit **0**, 18 `ok` lines, no `FAIL`: `--help`, `--version = 0.1.0` (H6 — the manifest still says
+0.1.0; the bump is `release-publishing`'s), then for each of `[Scrum]` and `[Kanban]`: `init --template`,
+`dna show --format json`, `dna set project.name --value WingFoil smoke`, `memory add --type task`,
+`paths config --list`, `directives list`, `workflow list`, and `working tree clean after every
+mutation — clean`. `grep -n "export const TEMPLATES" src/storage/templates.ts` → `[SCRUM, KANBAN]`, the
+same set the smoke iterates.
+
+### S2 — the §3.2 delta audit
+
+- **G1 — still MISSING.** No `memory submit` line in the run above; `smokeSteps` is unchanged since
+  this plan was written. Re-probed per the approver's instruction (§4 recipe, both templates, on
+  `ed835f95`): `memory submit task-001-smoke-task --format json` exits **0**, prints
+  `{"id":"task-001-smoke-task","path":"docs/memory/task/task-001-smoke-task.md","from":"draft","to":"pending"}`,
+  and `git status --porcelain` is empty afterwards. The fix remains unblocked.
+  `test/cli/e2e-smoke.test.ts` still asserts with `expect.arrayContaining([...])` (its line 27), so the
+  omission stays invisible to the test. **Carried by `bug-029`, which is still `open` with
+  `release: ""`** — the 2026-09-22 decision put G1 in v0.2, but no triage, no fix task and no
+  `release: v0.2` stamp followed it. See S3 below.
+- **G2 — PARTIAL, unchanged.** The smoke asserts exit 0 only. (Exit codes 1 and 2 *are* exercised by
+  `docs/examples/05-ci-json-exit-codes/run.sh` — see S2b — but that is not the smoke, and H1 keeps
+  the two separate.)
+- **G3 — PARTIAL, unchanged.** Still proxied by next-command loading + the clean-tree check.
+- **G4 — PARTIAL; expected to close with G1, not yet closed.** Nothing in the run loads the
+  scaffolded `memory.yaml` state machine; the probe above shows `memory submit` does.
+- **§3.5 — unchanged.** `grep -n "produces" docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`
+  returns nothing.
+- **Elements carrying G2/G3/§3.5:** `grep -rln "e2e-smoke\|exit-codes match spec-005"` over
+  `bugs/` and `design/dls/` finds `bug-029` (G1) and `dl-023` (the originating DL) — none for G2, G3
+  or the missing `produces:`. They are S4's to file.
+
+### S2b — the user-docs examples
+
+`for e in docs/examples/0*/run.sh; do WINGFOIL="node $PWD/dist/cli.js" bash "$e"; done` — all five exit
+**0**, each ending with its `OK:` line: `01-first-project` (init → add → submit → approve),
+`02-custom-memory-type`, `03-directives-per-role`, `04-mcp-server`, `05-ci-json-exit-codes` (exit
+codes 0/1/2, a pending-approval gate).
+
+### §5 — the six gates
+
+All green on `ed835f95`: `npx jest --coverage` exit 0 — **149 suites / 2412 tests**, All files
+98.58 stmts / 94.03 branches / 98.94 funcs / 99.41 lines; both `tsc --noEmit` invocations exit 0;
+`npm run lint` exit 0; `npm run docs:api` exit 0.
+
+### Status
+
+S1, S2, S2b and §5 done. **Stopped at S3**: G1 is decided in scope, but executing it needs approver
+transitions this agent cannot make — `bug-029` `open → triaged` (a gated `approve`) and a fix task's
+`pending → backlog` — followed by one `dev-loop` pass on the fix task. S4 (file G2/G3/§3.5, which the
+2026-09-22 decision authorises to the next release) and S5 (gate report + approver decisions) follow.
