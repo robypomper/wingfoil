@@ -10,8 +10,12 @@
  *
  * The boundary itself is not re-derived here: `resolveRealPathInRoot` (`src/storage/confinement.ts`,
  * `task-102`) resolves and `escapesRoot` decides, and `test/storage/confinement.test.ts` pins those.
- * What this suite pins is that the Memory entry point **asks** them, and the shape of what it asks —
- * in particular the parent/leaf asymmetry it inherits (see the AC5 case below).
+ * What this suite pins is that the Memory entry point **asks** them, and the shape of what it asks.
+ *
+ * `task-106` (`bug-120`) added one question this entry point asks that the shared boundary does not:
+ * the target's own name may not be a symbolic link, because every caller of this resolver writes and
+ * `writeFileSync` follows one. The case below that used to pin the opposite is inverted there, with
+ * the reasoning beside it.
  *
  * It also pins the **textual** check the filesystem one was added beside, on the one class only it
  * can decide: a traversal the filesystem would launder back inside the root (the last case here).
@@ -20,7 +24,7 @@
  *
  * Nothing here writes through a symlink: every target is resolved, never created.
  */
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -67,21 +71,39 @@ describe('resolveConfinedMemoryPath — confinement decided on the filesystem (R
   });
 
   /**
-   * AC5 — the leaf stays unresolved, and that asymmetry is the contract `task-102` established
-   * (`resolveRealPathInRoot` resolves the target's **parent** and keeps its own name). `bug-044`
-   * verified the case it protects as safe: a symlinked **file** inside a real directory, where the
-   * syscall acts on the link rather than on what it points at. Real-resolving the leaf here would
-   * refuse that case and red two of `task-102`'s tests, so it is pinned on this path too.
+   * **Inverted by `task-106` (`bug-120`), deliberately.** `task-105` pinned here that a target whose
+   * own name is a symlink is *accepted*, mirroring `resolveRealPathInRoot`'s parent/leaf asymmetry
+   * onto this entry point. That asymmetry is `task-102`'s and it is a **deletion's**: `unlinkSync`
+   * acts on the link, which is `bug-044`'s benign case and is still pinned, unchanged, in
+   * `test/storage/confinement.test.ts` ("accepts a symlinked FILE whose target is outside") and in
+   * `test/core/directive-remove-confinement.test.ts`.
+   *
+   * This function has only ever had **write** callers (`writeMemoryEntry`, `memoryAddFn`), and
+   * `writeFileSync` *follows* a symlinked leaf — so accepting one here is what put an element
+   * outside the project root and a `wf(note): add …` subject in history for it (`bug-120` D1). The
+   * boundary is unchanged and the leaf is still never real-resolved; what is refused is writing
+   * *through* a link at all, `lstat`-shaped, which is `dl-086`'s asymmetry read per verb.
    */
-  it('accepts a target whose own name is a symlink, inside a real in-project directory', () => {
+  it('refuses a target whose own name is a symlink, because every caller of this resolver writes', () => {
     mkdirSync(join(root, 'docs/memory/task'), { recursive: true });
     const target = join(outside, 'elsewhere.md');
     writeFileSync(target, '# elsewhere\n', 'utf-8');
     symlinkSync(target, join(root, 'docs/memory/task/task-001-linked.md'));
 
-    expect(resolveConfinedMemoryPath(root, PATTERN, { type: 'task', id: 'task-001-linked' })).toBe(
-      join(root, 'docs/memory/task/task-001-linked.md'),
-    );
+    let thrown: unknown;
+    try {
+      resolveConfinedMemoryPath(root, PATTERN, { type: 'task', id: 'task-001-linked' });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(StorageError);
+    expect((thrown as StorageError).code).toBe('E_TARGET_IS_SYMLINK');
+    expect((thrown as StorageError).message).toContain('docs/memory/task/task-001-linked.md');
+    expect((thrown as StorageError).message).toContain('symbolic link');
+    // What the link points at is untouched: the refusal is a decision about the link, not about
+    // where it leads.
+    expect(readFileSync(target, 'utf-8')).toBe('# elsewhere\n');
   });
 
   // AC8 (characterization): the ordinary path — nothing created yet — still resolves and is returned.
