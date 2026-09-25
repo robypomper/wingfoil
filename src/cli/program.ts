@@ -40,7 +40,7 @@ import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 import type { CoreModule } from '../core/registry';
 // Direct module import, not the `../core` barrel — the same path `./registrar.ts` already uses for the
 // other two exit-code mappings (task-101; keeps this file out of the barrel's merge surface).
-import { exitCodeForParseOutcome } from '../core/exit-code';
+import { classifyParseOutcome } from '../core/exit-code';
 
 import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
 import { runInit, createReadlinePrompt } from './init-command';
@@ -75,18 +75,31 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // detects an unknown command / unknown option / missing option argument before any WingFoil code
   // runs and, left alone, ends the process itself at its suggested exit code — `1` for every error it
   // raises, which is the code spec-005 §1 reserves for a well-formed invocation that failed. The
-  // callback is the whole interception: the *code* is chosen by `exitCodeForParseOutcome`
+  // callback is the whole interception: the *code* is chosen by `classifyParseOutcome`
   // (`src/core/exit-code.ts`, beside the other two mappings — this file adds no second decision site),
   // and the process ends through `exitWith`, the single exit seam of `./exit.ts`, like every other
   // outcome.
   //
-  // MESSAGES ARE UNAFFECTED: Commander has already written its own `error: …` line (or the help text)
-  // before calling this, so `exitWith` is deliberately called with no message of its own.
+  // COMMANDER'S OWN MESSAGES ARE UNAFFECTED: for every error it raises, Commander has already written
+  // its `error: …` line before calling this, so nothing is added on top of it. The ONE outcome where
+  // it writes no error message at all is an invocation it found incomplete — a noun with no verb —
+  // where it prints help to stderr and nothing else; `spec-005` §1 requires a non-zero exit to carry
+  // an error message *always*, so that outcome (and only that one, flagged by `needsErrorLine`) gets
+  // the line composed here by `incompleteInvocationReason`
+  // (task-103-a-missing-verb-exits-2-with-an-error-line, `bug-103`).
   //
   // ORDER MATTERS: `.command()` copies the parent's `_exitCallback` into each subcommand at
   // *registration* time (`Command#copyInheritedSettings`, commander@15.0.0), so this must be installed
   // before the first `.command()` call below or a subcommand's parse errors would still bypass it.
-  program.exitOverride((error) => exitWith(exitCodeForParseOutcome(error)));
+  // The same fact is why the callback reads `program.args` rather than the erroring command: the
+  // *root* program is the one object every copy of this closure shares, and Commander has already put
+  // the invocation's operands there (`Command#_parseCommand`'s `this.args = operands.concat(unknown)`,
+  // set before it dispatches) with the global options removed.
+  program.exitOverride((error) => {
+    const termination = classifyParseOutcome(error);
+    if (termination.needsErrorLine) emitError(incompleteInvocationReason(program.args), { format: 'console' });
+    exitWith(termination.exitCode);
+  });
   // Register `-V, --version` so `wingfoil --version` prints the version and exits 0
   // (spec-008-cli-grammar §1, bug-001-cli-version-flag) — Commander handles it before any command.
   program.version(readPackageVersion());
@@ -174,6 +187,37 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   }
 
   return program;
+}
+
+/**
+ * The `error: <reason>` text (spec-005 §3.1) for an invocation Commander found incomplete —
+ * task-103-a-missing-verb-exits-2-with-an-error-line (`bug-103`). Commander supplies no message on
+ * this path, so the wording is a **ruling**, recorded here rather than left to the reader:
+ *
+ * - `wingfoil dna`, `wingfoil memory`, and `wingfoil` with no arguments at all →
+ *   `missing required argument: wingfoil dna <command>` / `missing required argument: wingfoil
+ *   <command>`. The key is the one `spec-005` §1 already lists among its malformed invocations, and
+ *   the shape is the one WingFoil already emits for a missing positional (`src/core/index.ts`'s
+ *   `missing required argument: wingfoil dna set <path> --value <value>`, task-093): the incomplete
+ *   invocation echoed back with the token that would complete it. `<command>` rather than `<verb>`
+ *   matches Commander's own placeholder in the usage line printed directly above it.
+ * - `wingfoil help nosuchnoun` → `unknown command 'nosuchnoun'`, byte-for-byte what `wingfoil
+ *   nosuchnoun` already emits (Commander's `unknownCommand()`), because asking about an unknown noun
+ *   through `help` is the same mistake and a script should have one shape to grep. The single quotes
+ *   are Commander's; `spec-005` §4's example shows double ones, and reconciling the two spellings
+ *   (along with the missing `hint:` suggestion) is `bug-104`'s, which owns both lines at once. Picking
+ *   a third spelling here would make that reconciliation harder, not easier.
+ *
+ * @param operands - the root program's `args`: the invocation's operands, global options already
+ *   removed by Commander itself. This function never re-parses argv.
+ */
+function incompleteInvocationReason(operands: readonly string[]): string {
+  const [first, second] = operands;
+  // `help <name>` reaches the incomplete-invocation path only when `<name>` matched no command —
+  // `Command#_dispatchHelpCommand` falls through to `_dispatchSubcommand`, whose `if (!subCommand)`
+  // raises it. `help` alone and `help <known-noun>` exit 0 and never arrive here.
+  if (first === 'help' && second !== undefined) return `unknown command '${second}'`;
+  return `missing required argument: ${['wingfoil', ...operands].join(' ')} <command>`;
 }
 
 /**
