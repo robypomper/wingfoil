@@ -2,10 +2,10 @@
 id: "bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store"
 type: bug
 title: "`memory add` writes an element outside the project root when a Memory directory is a symlink — `bug-044`'s crossing, in the store REQ-SEC-06 is actually about"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.6"
 contributor: ""
 credit: ""
@@ -65,9 +65,10 @@ is a stray file rather than a lost one — but it crosses the same boundary, in 
 is the pillar `REQ-SEC-06` was written for, and `memory add` is a far more ordinary command than
 `directive remove`.
 
-**Whether it blocks `v0.2` is the approver's call and has not been made.** Filed without a `release:`
-stamp so the decision is explicit rather than inherited. The argument for blocking is `bug-044`'s
-verbatim: publishing puts it in front of people who did not write it.
+**Scheduled into `v0.2` by the approver on 2026-09-25**, which makes it a release blocker: the
+release-submit gate's C2 check selects bugs by their `release:` field. The argument is `bug-044`'s
+verbatim — publishing puts it in front of people who did not write it — and it applies with more
+force here, because `memory add` is the first mutating command most users run. Fix task: `task-105`.
 
 ## Triage & Execution Notes
 
