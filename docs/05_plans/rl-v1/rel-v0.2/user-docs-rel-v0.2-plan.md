@@ -3,7 +3,7 @@ id: "user-docs-rel-v0.2-plan"
 type: plan
 title: "User-docs — v0.2 (align user-facing documentation to the shipped surface)"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "user-docs"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -683,3 +683,24 @@ or DL (`feedback`: review findings must not stay only in notes).
   (the sweep above is empty) and the sentence moved. Per §4.3 this is reported rather than edited.
 - **Handoff to `e2e-smoke`** (§11.4 decision): `e2e-smoke-rel-v0.2-plan` must gain the step that runs
   `docs/examples/0*/run.sh` against the built CLI.
+
+### Approver decisions of 2026-09-25 (second round) — S8 and the open items
+
+Given in chat: *approve everything, except that `README.md` still saying Node.js 18+ must be
+corrected.* On the branch the README carries no such claim
+(`grep -nE 'Node(\.js)? ?1[0-9]|18\+' README.md` → no output). The sentence that still asserted it
+was `spec-015`'s: three passages stating that `README.md:115` still read "Node.js 18+ required". So
+the correction was applied there:
+
+- **`spec-015` corrected** (`9fec695c`). The three false passages were rewritten in place with a dated
+  *Revision (2026-09-25)* note, following the spec's own revision precedent. The three
+  `README.md:115` offsets now cite the README's *Installation* heading, which is the content of
+  `bug-068`. `bug-068` stays `open`: its lifecycle is `release-planning`'s to move, and its content is
+  now fixed.
+- **Findings filed** as `bug-126` … `bug-131`, all `open`, through
+  `bug-ingest-rel-v0.2-user-docs-findings-plan` (`3ac3491a` add, `29d44e9c` submit).
+- **`e2e-smoke-rel-v0.2-plan` gained step S2b**, which runs `docs/examples/0*/run.sh` against the
+  built CLI (§11.4 decision).
+- **S8 approved**: `align-user-docs` and `align-agent-docs`, including the §11.4 deviation (the
+  examples check themselves instead of shipping expected transcripts). With every completion
+  criterion of §8 met, this plan moves `active → done`.
