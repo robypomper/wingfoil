@@ -71,9 +71,9 @@ export function resolveMemoryPath(
  * path not yet created — `resolveRealPathInRoot` (`./confinement.ts`) resolves as far as the
  * filesystem goes and keeps the missing tail verbatim, which is exactly the "path that does not
  * exist yet" case — so nothing about rendering a pattern prevents this from being resolved too.
- * Measured on the Memory store by `task-102`'s review; the repair is owned by the bug filed out of
- * that review (`memory add` writing outside the project root through a symlinked Memory directory),
- * not by `task-102`, whose boundary was `directive remove`. Until then, a caller that can reach a
+ * Measured on the Memory store by `task-102`'s review; the repair is owned by
+ * `bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store` (a v0.2 blocker,
+ * fix task `task-105`), not by `task-102`, whose boundary was `directive remove`. Until then, a caller that can reach a
  * real directory on disk should use `resolveRealPathInRoot` (`bug-044`).
  *
  * @returns the absolute, confinement-verified target path.
