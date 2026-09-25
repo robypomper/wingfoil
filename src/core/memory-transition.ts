@@ -29,7 +29,7 @@ import type { DocumentScope, MemoryYaml, StateMachine, TransitionOp } from '../m
 import { commitPaths, pathPorcelainStatus, readDocument, readPathAtRev, writeDocument } from '../storage';
 import { ValidationError } from '../validation';
 
-import { requireConfinedTarget } from './confinement';
+import { requireConfinedWriteTarget } from './confinement';
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 import { requireUnmodifiedTarget, undeclaredCommittedPaths, type WriteTargetContract } from './write-guard';
@@ -243,15 +243,18 @@ export function verifyCommittedScope(
  * Four checks bound what reaches the repository, in this order — they are not redundant, they catch
  * different defects:
  *
- * 1. **The document is the project's to write** ({@link requireConfinedTarget}, REQ-SEC-06) — catches
- *    a wrong *place*: a type directory that is a symlink out of the project puts the document outside
- *    the root, where `writeDocument` rewrites a file the repository does not own and `git add` then
- *    fails with its own text. `bug-117` reports this for `memory add`, whose target is resolved by
- *    `resolveConfinedMemoryPath`; these four verbs never ask that resolver anything — they locate an
- *    existing document — so the same boundary is asked here, about the path they are about to write.
- *    It runs **first**, and for every `scope`: the question "is this file ours at all" precedes every
- *    question about its content, and check 2 cannot stand in for it (`git status --porcelain` reports
- *    a path beyond a symbolic link as clean, which is `bug-118`).
+ * 1. **The document is the project's to write** ({@link requireConfinedWriteTarget}, REQ-SEC-06) —
+ *    catches a wrong *place*, in the two shapes a write can meet it. A type directory that is a
+ *    symlink out of the project puts the document outside the root (`bug-117`), where `writeDocument`
+ *    rewrites a file the repository does not own and `git add` then fails with its own text; and a
+ *    **document** that is itself a symlink does the same with no symlinked directory anywhere,
+ *    because `writeFileSync` follows the link that `unlinkSync` would merely remove (`bug-120` D2,
+ *    measured on all four verbs). `bug-117` reports the first for `memory add`, whose target is
+ *    resolved by `resolveConfinedMemoryPath`; these four verbs never ask that resolver anything —
+ *    they locate an existing document — so both questions are asked here, about the path they are
+ *    about to write. It runs **first**, and for every `scope`: the question "is this file ours at
+ *    all" precedes every question about its content, and check 2 cannot stand in for it (`git status
+ *    --porcelain` reports a path beyond a symbolic link as clean, which is `bug-118`).
  * 2. **The working tree is unmodified** ({@link requireUnmodifiedDocument}, `declared-fields-only`
  *    only) — catches a wrong *baseline*: content that was already on disk before the verb ran
  *    (`bug-076`).
@@ -285,7 +288,7 @@ export function commitMemoryTransition(
   scope: DocumentScope = 'declared-fields-only',
 ): CoreResult<string> {
   const owned = { status: prepared.to, ...expected };
-  const confined = requireConfinedTarget(root, prepared.path, 'write');
+  const confined = requireConfinedWriteTarget(root, prepared.path, 'write');
   if (!confined.ok) return confined;
   if (scope === 'declared-fields-only') {
     const unmodified = requireUnmodifiedDocument(root, prepared);

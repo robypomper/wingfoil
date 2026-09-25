@@ -2,7 +2,7 @@
 id: "bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store"
 type: bug
 title: "`memory add` writes an element outside the project root when a Memory directory is a symlink — `bug-044`'s crossing, in the store REQ-SEC-06 is actually about"
-status: in-progress
+status: closed
 rejection_reason: "Reopened on 2026-09-25 rather than resolved, because what task-105 repaired is the crossing this bug reports and not the behaviour it specifies. Its Expected Behavior is REQ-SEC-06's own property - a write whose destination resolves outside the project root is refused before any file is created - and that property does not distinguish a symlinked store directory from a symlinked document. The directory half holds, verified independently on both memory add and the four transition verbs; the document half does not, because writeFileSync follows a symlinked leaf where unlink acts on it. bug-120 carries that half and task-106 repairs it, and this bug closes when it does. The state is in-progress rather than planned because the work genuinely spans two tasks, one landed and one queued behind it. Nothing here is a fault in task-105, which found the remaining hole against its own finished work and was forbidden by its own acceptance criteria from the remedy that would have closed it."
 severity: "high"
 release-origin: "v0.2"

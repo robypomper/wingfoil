@@ -34,3 +34,14 @@ export const E_MISSING_PATH_VALUE = 'E_MISSING_PATH_VALUE';
  * project root — e.g. a crafted `id`/value containing `../` traversal (REQ-SEC-06 storage confinement).
  */
 export const E_PATH_ESCAPES_ROOT = 'E_PATH_ESCAPES_ROOT';
+
+/**
+ * Raised by {@link resolveConfinedMemoryPath} when the target's **own name** is a symbolic link
+ * (task-106, `bug-120-a-symlinked-document-leaf-is-followed-by-the-write`).
+ *
+ * Distinct from {@link E_PATH_ESCAPES_ROOT} because it reports a different finding: that code says
+ * where the path leads, this one says a write would not land on the named path at all. The link is
+ * refused without being resolved, so where it points is deliberately not part of the answer — see
+ * `targetIsSymlink` (`./confinement.ts`).
+ */
+export const E_TARGET_IS_SYMLINK = 'E_TARGET_IS_SYMLINK';

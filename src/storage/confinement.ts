@@ -16,10 +16,16 @@
  * becomes a suggestion. {@link escapesRoot} is the decision; {@link resolveRealPathInRoot} is the
  * filesystem-resolving entry point a caller uses when the path names a real file on disk.
  *
- * Both are deterministic (REQ-SYS-07): no wall clock, no randomness, no unordered iteration — only
- * `path` arithmetic and `realpathSync`, whose answer is a property of the filesystem.
+ * {@link targetIsSymlink} (task-106, `bug-120`) is a **different question** kept in the same module
+ * because it is asked in the same breath: not *where does this path lead* but *would the syscall
+ * land on this path at all*. It is asked only by callers whose syscall follows links — a write —
+ * and never by a delete, which acts on the link and must go on doing so.
+ *
+ * All three are deterministic (REQ-SYS-07): no wall clock, no randomness, no unordered iteration —
+ * only `path` arithmetic, `realpathSync` and `lstatSync`, whose answers are properties of the
+ * filesystem.
  */
-import { realpathSync } from 'node:fs';
+import { lstatSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 /**
@@ -80,18 +86,19 @@ export interface RealPathResolution {
  * project — that is the file git itself refuses to stage ("beyond a symbolic link") and the one
  * whose deletion lands outside the root.
  *
- * **That reasoning is a deletion's, and this function now has write callers too.** For `unlinkSync`
- * it holds entire: resolving the leaf would turn a working removal into a refusal protecting
- * nothing. `task-105` added two **write** consumers — `resolveConfinedMemoryPath`
- * (`./memory-path.ts`) and `requireConfinedTarget` inside `commitMemoryTransition`
- * (`../core/memory-transition.ts`) — and `writeFileSync` **follows** a symlinked leaf where
- * `unlinkSync` acts on it. On those paths an unresolved leaf therefore does leave something
- * unprotected: bytes land outside the root, measured through the built CLI on both of them and filed
- * as `bug-120-a-symlinked-document-leaf-is-followed-by-the-write`, owned by `task-106`. The
- * asymmetry is **right for the delete path and a known gap on the write paths** — and the remedy is
- * a per-verb refusal of a symlinked target (`lstat`/`O_NOFOLLOW`-shaped), not a wider boundary here,
- * which would red exactly the `bug-044` case this paragraph exists to keep working. `dl-086` carries
- * the reasoning about which state a guard over a filesystem effect may read.
+ * **That reasoning is a deletion's, and this function has write callers too.** For `unlinkSync` it
+ * holds entire: resolving the leaf would turn a working removal into a refusal protecting nothing.
+ * `task-105` added two **write** consumers — `resolveConfinedMemoryPath` (`./memory-path.ts`) and
+ * `requireConfinedTarget` inside `commitMemoryTransition` (`../core/memory-transition.ts`) — and
+ * `writeFileSync` **follows** a symlinked leaf where `unlinkSync` acts on it, which put bytes
+ * outside the root on both of them (`bug-120-a-symlinked-document-leaf-is-followed-by-the-write`).
+ *
+ * That is answered **beside** this function rather than inside it, by `task-106`: the write paths
+ * ask {@link targetIsSymlink} as well, and refuse a symlinked target outright. This function is
+ * unchanged, so the delete path is unchanged with it — a wider boundary here would have red exactly
+ * the `bug-044` case the paragraph above exists to keep working. So the asymmetry is read per verb:
+ * resolve the parent everywhere, refuse a symlinked leaf where the syscall would follow it.
+ * `dl-086` carries the argument about which state a guard over a filesystem effect may read.
  *
  * @param root - The project root; need not be real-resolved by the caller.
  * @param relativePath - A root-relative path (an absolute one is honoured as given, and then judged
@@ -102,4 +109,63 @@ export function resolveRealPathInRoot(root: string, relativePath: string): RealP
   const absolute = resolve(realRoot, relativePath);
   const real = join(realpathOfDirectory(dirname(absolute)), basename(absolute));
   return { absolute, real, within: !escapesRoot(realRoot, real) };
+}
+
+/**
+ * True when `target`'s **own name** is a symbolic link — the question a write must ask and a delete
+ * must not (task-106, `bug-120-a-symlinked-document-leaf-is-followed-by-the-write`).
+ *
+ * `writeFileSync` follows a symlinked leaf: the bytes land at the link's destination, not at the
+ * path the operation named, and {@link resolveRealPathInRoot} does not see it because it resolves
+ * the parent and keeps the basename. `unlinkSync` is the opposite — it acts on the link — so the
+ * same input is a defect for one verb and correct behaviour for the other (`bug-044`'s benign case).
+ * Hence a separate predicate, asked only where the syscall follows links, rather than a wider
+ * boundary that would decide both.
+ *
+ * **`lstat`, not `exists`.** `existsSync` follows links and is therefore **false** for a dangling
+ * one, which is how `requireAbsentTarget` (`../core/write-guard.ts`) read an occupied path as free
+ * and let `memory add` write through it and commit (`bug-120` D1). `lstatSync` inspects the link
+ * itself and answers `true`. Its `ENOENT` — nothing at the path at all, the ordinary case for a
+ * document about to be created — is the one failure absorbed here, along with any other `lstat`
+ * error: a path this cannot inspect is not a link it can report, and every caller has already
+ * decided confinement separately.
+ *
+ * **Not an adversarial defence, and the window is real.** Node's `fs` exposes no `O_NOFOLLOW` on a
+ * path-based API, so nothing closes the gap between this check and the write that follows it; only
+ * file-descriptor primitives (`openat`) would. `dl-086` names the same limit for the delete path.
+ * What this converts is a routine, self-inflicted loss — a store aliased into shared space, a
+ * document linked into a folder — into a refusal.
+ *
+ * @param target - An absolute path. Only its own name is inspected; links on the way to it are the
+ *   confinement boundary's business ({@link resolveRealPathInRoot}), not this predicate's.
+ */
+export function targetIsSymlink(target: string): boolean {
+  try {
+    return lstatSync(target).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The refusal a write path returns for a symlinked target — one sentence, one place, so the
+ * `StorageError` `memory add` raises and the `CoreResult` the transition verbs return cannot drift
+ * apart on what the rule is (task-106).
+ *
+ * It names the path and says the target is a link, and it deliberately does **not** name where the
+ * link points: {@link targetIsSymlink} refuses without resolving, and a message quoting a
+ * destination would imply the guard had judged it. No child-process text goes anywhere near it
+ * (`bug-071`/`bug-093`).
+ *
+ * @param action - The verb for the first clause, e.g. `'write'` → `cannot write '<path>'`, the
+ *   message shape `requireConfinedTarget` and `requireCustomAsset` already use.
+ * @param path - The path as the operation named it, root-relative or rendered — never re-spelled,
+ *   so the operator reads back what they typed against.
+ */
+export function symlinkTargetRefusal(action: string, path: string): string {
+  return (
+    `cannot ${action} '${path}': the target is itself a symbolic link. A write follows a link where a delete acts ` +
+    'on it, so the bytes would land wherever the link points — not at the path named here, and outside the project ' +
+    'entirely when the link leaves it. Replace the link with a regular file, then retry.'
+  );
 }

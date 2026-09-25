@@ -47,6 +47,11 @@ export interface MemoryEntryWrite {
  *
  * @throws {@link ../storage/errors.StorageError} `E_PATH_ESCAPES_ROOT` when the resolved path would
  *   escape `root` — refused before any write, so a rejected call writes and commits nothing.
+ * @throws {@link ../storage/errors.StorageError} `E_TARGET_IS_SYMLINK` when the target itself is a
+ *   symbolic link, dangling or live (`task-106`, `bug-120`): `writeDocument`'s `writeFileSync`
+ *   follows one, so the bytes would land at the link's destination rather than at the path this
+ *   function names — and through a *dangling* link the write used to succeed and commit. Refused in
+ *   the same place, before the same write.
  * @throws whatever `commitPaths`/git raises (e.g. no configured git identity) — callers that need a
  *   pre-flight identity check must call `requireGitIdentity` (`../core/git-identity`) themselves
  *   before invoking this primitive, same as every other mutating core operation.

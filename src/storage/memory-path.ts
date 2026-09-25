@@ -12,8 +12,8 @@
  */
 import { join, resolve } from 'path';
 
-import { escapesRoot, resolveRealPathInRoot } from './confinement';
-import { E_MISSING_PATH_VALUE, E_PATH_ESCAPES_ROOT, StorageError } from './errors';
+import { escapesRoot, resolveRealPathInRoot, symlinkTargetRefusal, targetIsSymlink } from './confinement';
+import { E_MISSING_PATH_VALUE, E_PATH_ESCAPES_ROOT, E_TARGET_IS_SYMLINK, StorageError } from './errors';
 
 /** Exact confinement-violation message required by REQ-SEC-06's fit criterion — do not reword. */
 const CONFINEMENT_MESSAGE = 'Memory entries must reside within the project root';
@@ -97,10 +97,23 @@ export function resolveMemoryPath(
  * runs `git -C <root>` and callers take `relative(root, …)`, so re-spelling a legitimate path would
  * take it out of the repository's own vocabulary.
  *
+ * Unresolved is not the same as unexamined, and on this path it could not be (task-106,
+ * `bug-120-a-symlinked-document-leaf-is-followed-by-the-write`). Every caller of this function
+ * writes — `writeMemoryEntry` (`../memory/entry.ts`) and `memoryAddFn` (`../core/index.ts`), which
+ * resolves the same path a second time to guard it — and `writeFileSync` **follows** a symlinked
+ * leaf, so accepting one put an element outside the project root and a `wf(<type>): add <id>`
+ * subject in history for it. A third check therefore refuses a target whose own name is a link
+ * ({@link targetIsSymlink}), without resolving it: where the link points is not judged, so the
+ * `bug-044` case that keeps a symlinked file *removable* is untouched — that is a delete, and this
+ * resolver serves no deletes. `dl-086` carries the baseline argument for both.
+ *
  * @returns the absolute, confinement-verified target path, spelled under `root`.
  * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message: {@link CONFINEMENT_MESSAGE} plus the
  *   two spellings of the path, since the two differing is the finding) when the resolved path is the
  *   root itself, escapes it textually, or lands outside it on the filesystem.
+ * @throws {@link StorageError} `E_TARGET_IS_SYMLINK` (message: `symlinkTargetRefusal`, shared with
+ *   the transition verbs' `CoreResult` refusal) when the target itself is a symbolic link —
+ *   including a **dangling** one, which `existsSync` cannot see.
  */
 export function resolveConfinedMemoryPath(
   root: string,
@@ -123,6 +136,9 @@ export function resolveConfinedMemoryPath(
       `${CONFINEMENT_MESSAGE}: '${rendered}' resolves to '${onDisk.real}', outside the project root — ` +
         'a directory on the way to it is a symlink leaving the project.',
     );
+  }
+  if (targetIsSymlink(target)) {
+    throw new StorageError(E_TARGET_IS_SYMLINK, symlinkTargetRefusal('create', rendered));
   }
   return target;
 }
