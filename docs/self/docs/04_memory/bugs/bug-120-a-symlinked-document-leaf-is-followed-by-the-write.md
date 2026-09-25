@@ -2,7 +2,7 @@
 id: "bug-120-a-symlinked-document-leaf-is-followed-by-the-write"
 type: bug
 title: "A symlinked document *leaf* is followed by `writeFileSync`, so Memory writes still land outside the project root — and through a dangling link `memory add` commits a subject for an element the repository does not contain"
-status: triaged
+status: planned
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
