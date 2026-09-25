@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -72,8 +72,8 @@ Every row is a command. Values in the last column were read at `main` `a2e3586` 
 | P9 | The deployment tag policy is `v*` (`dl-068` Action 6) | `gh api repos/robypomper/wingfoil/environments/npm-publish/deployment-branch-policies` | one policy, `{"name":"v*","type":"tag"}` |
 | P10 | `NPM_TOKEN` exists as an **environment** secret, not a repository secret | `gh api repos/robypomper/wingfoil/environments/npm-publish/secrets`; `gh api repos/robypomper/wingfoil/actions/secrets` | env: `NPM_TOKEN` (updated 2026-09-21); repo: `total_count: 0` |
 | P11 | `node_modules` matches the lockfile | `npm ci` | exit 0 |
-| P12 | The `@emnapi` lockfile entries survive (`bug-063`, §7.5) | `node -e "const l=require('./package-lock.json');for(const k of ['node_modules/@emnapi/core','node_modules/@emnapi/runtime'])console.log(k,l.packages[k]?l.packages[k].version:'ABSENT')"` | both `1.11.3` |
-| P13 | The lockfile peer guard is green | `npx jest test/cli/lockfile-peer-overrides.test.ts` | (run it) |
+| P12 | The `@emnapi` lockfile entries are present (`bug-063`, fixed by `task-104`; §7.5) | `node -e "const l=require('./package-lock.json');for(const k of ['node_modules/@emnapi/core','node_modules/@emnapi/runtime'])console.log(k,l.packages[k]?l.packages[k].version:'ABSENT')"` | both `1.11.3` |
+| P13 | The lockfile guards are green | `npm run check:lockfile`; `npx jest test/cli/lockfile-peer-overrides.test.ts test/cli/check-lockfile-pins.test.ts` | exit 0; (run them) |
 | P14 | The six gates are green (§6) | see §6 | 109 suites / 1754 tests, exit 0; coverage 98.59 / 92.97 / 98.80 / 99.18 |
 | P15 | `publish.yml` triggers on nothing but a version tag (§5.1) | `grep -n -A3 '^on:' .github/workflows/publish.yml; ls -1 .github/workflows/` | `push.tags: ['v[0-9]+.[0-9]+.[0-9]+']`; one workflow file |
 
@@ -255,11 +255,19 @@ node -e "const l=require('./package-lock.json');for(const k of ['node_modules/@e
 npx jest test/cli/lockfile-peer-overrides.test.ts
 ```
 
-**Both `@emnapi` entries must still read `1.11.3` and the guard must be green.** `bug-063` (`open`,
-medium) measured that a plain `npm install` under npm 11.x silently removes those two hoisted
-entries — reporting `up to date` while doing it — and the npm that `publish.yml` pins (10.9.0,
-bundled with the pinned Node 22.12.0) then refuses the lock, which is the failure `bug-056` was and
-`task-080` fixed. Anything that rewrites the lockfile is suspect, **`npm version` included**: it
+**Both `@emnapi` entries must still read `1.11.3` and the guards must be green.**
+
+**Amendment (2026-09-25, `task-104` / `bug-063`).** This block previously said `bug-063` (`open`)
+made a plain `npm install` silently remove those two hoisted entries — reporting `up to date` while
+doing it — after which the npm `publish.yml` pins (10.9.0, bundled with the pinned Node 22.12.0)
+refuses the lock, the failure `bug-056` was and `task-080` fixed. That was true until `task-104`,
+which made the two packages **exact direct `devDependencies`** so npm records their nodes and never
+prunes them; `bug-063` is `in-review` on that task's branch and reaches `closed` through its
+`bug.sync_state` when the task is approved. On a checkout containing the fix, a plain
+`npm install` leaves `package-lock.json` byte-identical (measured). The verification above is kept
+all the same, and `npm run check:lockfile` added to it, because a precondition worth stating is
+worth *measuring* at the moment it matters rather than inherited from a task's report. Anything that
+rewrites the lockfile is still suspect, **`npm version` included**: it
 rewrites `package-lock.json`, and it creates a commit and a tag by default. Do not use it here. If
 you use it anyway (`npm version --no-git-tag-version`), re-run the two commands above immediately and
 treat an `ABSENT` as a stop.
@@ -385,12 +393,31 @@ the gates. A stale `node_modules` fails `test/cli/types-node-floor.test.ts`, whi
 **installed** `@types/node` major equals the major of `engines.node`'s floor — it reads the tree, not
 the manifest.
 
-**Never run a bare `npm install` before tagging.** `bug-063`: under npm 11.x it silently deletes the
+**Never run a bare `npm install` before tagging** — the instruction is unchanged; its reason is not.
+
+Until `task-104`, the reason was `bug-063`: under npm 11.x a bare install silently deleted the
 hoisted `@emnapi/core` and `@emnapi/runtime` lock entries that make `npm ci` work under the npm CI
-uses, and reports `up to date` while doing it. `npm ci` never rewrites a lockfile, which is why it is
-the safe command. Before the tag, verify — with commands, in the report — that both entries are
-present at `1.11.3` **and** that `test/cli/lockfile-peer-overrides.test.ts` is green (§1 P12/P13,
-§4.2).
+uses, and reported `up to date` while doing it. **`task-104` fixed that** by declaring both packages
+as exact direct `devDependencies`, which npm never prunes; `bug-063` rides that task to `closed`.
+Two reasons
+to keep the instruction survive the fix, and both are measured rather than assumed:
+
+- `npm ci` never rewrites a lockfile at all, so it cannot introduce an unreviewed lock change
+  between the last gate run and the tag. That has always been the strongest reason and it is
+  unaffected by anything `task-104` did.
+- **The two npms still disagree about lock metadata.** On a checkout containing `task-104`,
+  `npm install --package-lock-only` under npm **10.9.0** strips `"peer": true` from twelve entries
+  relative to the npm-11-authored file: `@babel/core`, `@emnapi/core`, `@emnapi/runtime`,
+  `@typescript-eslint/parser`, `acorn`, `browserslist`, `eslint`, `express`, `hono`, `jest`,
+  `typescript`, `zod`. Metadata only — comparing the two locks entry by entry, **zero** differ in
+  `version`, `resolved` or `integrity`, and `npm ci` does not read `peer` — but it is
+  a twelve-line diff nobody asked for, arriving in the one window where an unexplained lock change is
+  most expensive.
+
+Before the tag, verify — with commands, in the report — that both entries are present at `1.11.3`,
+that `npm run check:lockfile` exits 0, and that
+`test/cli/lockfile-peer-overrides.test.ts` and `test/cli/check-lockfile-pins.test.ts` are green
+(§1 P12/P13, §4.2).
 
 ### 7.6 The evidence rule (the top rejection cause in this release)
 
@@ -731,9 +758,12 @@ the first release where the two are distinct. The word is the approver's to conf
   re-push a tag CI has already seen.
 - **H2 — the environment gate is untested (§10.2).** `act` ignores `environment:`. The failure mode
   of an ignored gate is a publish, not a halt.
-- **H3 — `bug-063`: a bare `npm install` erases the `@emnapi` lock entries** and reports `up to
-  date`. Never run one before tagging; verify both entries and
-  `test/cli/lockfile-peer-overrides.test.ts` (§7.5, §4.2, §10.1).
+- **H3 — never run a bare `npm install` before tagging.** `bug-063` — a bare install erasing the
+  `@emnapi` lock entries while reporting `up to date` — was **fixed by `task-104`** and rides it to
+  `closed`, so that is no longer the reason. The reason now is that `npm ci` never rewrites a lockfile,
+  while a bare install under the *pinned* npm 10.9.0 still strips `"peer": true` from twelve entries
+  (measured). Verify both entries, `npm run check:lockfile`, and the two lockfile suites
+  (§7.5, §4.2, §10.1).
 - **H4 — `bug-067`: `publish:staging` goes silent for tens of seconds** during a blocking npm step.
   Do not `kill -9`; that leaks a live token, an orphan registry on :4873, and ~268 MB (§9.4).
 - **H5 — `bug-055`: the secret sweep will not return zero.** 24 findings come from the scanner's own
@@ -772,7 +802,8 @@ Given in chat and binding on this phase:
   `npm version 0.2.0 --no-git-tag-version` changes **exactly three lines** — `package.json`'s
   `version`, and the lockfile's root `version` and `packages[""].version` — and **both `@emnapi`
   entries survive at `1.11.3`**. `bug-063` is about a bare `npm install`, which re-resolves the tree;
-  `npm version` does not.
+  `npm version` does not. (Since `task-104` a bare `npm install` no longer drops them either — see
+  §7.5 — which does not change this paragraph's conclusion, only removes the contrast it drew.)
 
   The real hazard is what a **bare** `npm version 0.2.0` does besides the bump, also measured: it
   creates a commit whose entire subject is `0.2.0`, and it creates the tag `v0.2.0` **locally, there
