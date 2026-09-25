@@ -2,7 +2,7 @@
 id: "task-105-confine-the-memory-store-to-the-project-root"
 type: task
 title: "Make `resolveConfinedMemoryPath` resolve before it compares, so a symlinked Memory directory cannot put an element outside the project root"
-status: approved
+status: done
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "storage", "memory", "security"]
