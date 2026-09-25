@@ -255,3 +255,123 @@ stay inside it), both are proposed as elements in the hand-off report.
    raw `ENOENT … stat` at exit 1 — `directives list` (read-only) and `directive remove` alike. It
    comes from `collectFiles`' `statSync(full)` in `src/core/loaders.ts`, untouched by this task and
    present before it.
+
+---
+
+## Execution Notes — review pass (second append)
+
+Three corrections from the review. None changes the implementation; the fix was not reopened.
+
+### 1. `command-baseline`'s read half — a deliberate departure, argued here rather than in a TSDoc
+
+**What I did, stated plainly.** `requireConfinedTarget` calls `resolveRealPathInRoot`, which calls
+`realpathSync` — a read of the **working tree**. Its answer decides whether the command refuses. By
+the `command-baseline` directive's own mechanical test — *"can this read change whether the command
+refuses, or what it writes?"* — that is a **gating read**, and the directive's rule for a gating read
+is that it resolves at `HEAD`. The directive also says, in terms, that *"there is no third category
+of read"* and that a deviation belongs in a decision-log rather than a TSDoc. So this section is the
+argument, and `src/core/confinement.ts` carries a pointer to it and nothing more.
+
+This task's Implementation Notes instructed the opposite — *"The read that decides whether to refuse
+here gates, so it resolves at `HEAD`"*. Following it would have shipped a guard that does not guard.
+
+**Why `HEAD` cannot work here — the mechanism, not a preference.** The harm this guard exists to
+prevent is a single syscall: `unlinkSync(join(root, relativePath))`. `unlink` resolves its path
+through the symlinks **that are on the filesystem at the moment of the call**. It does not consult
+`HEAD`, and no baseline a command chooses can change what it follows. So a `HEAD`-resolved chain
+answers a question adjacent to, but not the same as, the one that decides the outcome:
+
+- Replacing `.wingfoil/directives/custom` with a symlink is a **working-tree act**. It need never be
+  committed. A symlink planted since the last commit — or never committed at all — is invisible at
+  `HEAD`, the `HEAD` chain resolves inside the project, the guard passes, and `unlink` still deletes
+  outside the root. The guard would be decorative in precisely the case it was written for.
+- The converse is no better: a symlink committed at `HEAD` and *replaced by a real directory* in the
+  working tree would be refused for a crossing that cannot happen, with a message describing a
+  filesystem that is not there.
+
+**The general shape of the departure.** The baselines `dl-080` arbitrates are baselines of *content
+and declaration* — what the repository records about `dna.yaml`, `memory.yaml`, `roles.yaml`, an
+element's `status`, the id or path a verb is about to create. For every one of those the question is
+"what does the project say", and `HEAD` is the only answer that a second clone can re-derive, which
+is the whole rationale (`adr-006`, REQ-SEC-02 / REQ-STATE-02). This check asks a different kind of
+question: **what will this syscall touch?** It is a prediction of a physical effect, not a reading of
+a declaration. A guard over a physical filesystem effect must model what the effect will follow, or
+it is not a guard. That is the proposed third case, and it is narrow by construction:
+
+> A read whose purpose is to predict the target of an **imminent filesystem mutation** —
+> `realpath` before an `unlink` or a write — resolves on the filesystem. Every other gating read
+> keeps `HEAD`.
+
+**What this deliberately does not license.**
+
+- It does **not** touch `directiveRemoveFn`'s step 3, the resolution of `<name>` to a directive file
+  via `loadDirectives` on the working tree. That read answers *which element is meant* — a
+  declaration question — and `command-baseline` names it as the shipped code's one open deviation,
+  owned by `bug-108-directive-remove-resolves-its-target-on-the-working-tree` (`open`). It is still
+  owed to `HEAD`. The two reads sit four lines apart in the same function and belong to opposite
+  rules; that proximity is the reason to write this down rather than leave it to be re-derived.
+- It is **not** option (C) under another name. (C) sorted reads by *what the read produces* (durable
+  attestation vs. recoverable commit) and was withdrawn because it left `bug-082` open by design.
+  This sorts by *what the guarded effect touches*, a different axis, and it narrows rather than
+  widens: it applies only where a syscall, not a commit, carries out the decision.
+- It is **not** the "working tree may be read to *explain* a refusal" clause. That clause is about
+  wording. Here the working tree is the **deciding** read, on purpose.
+- It does not weaken `dl-080`'s **write** half, which is untouched and still runs on this verb
+  (`requireUnmodifiedTarget`, after this check).
+
+**Residual risk, stated so it is not mistaken for absent.** This is a TOCTOU window: between
+`realpathSync` and `unlinkSync` the symlink can be swapped. Nothing path-based closes it; only an
+fd-based API (`openat` with `O_NOFOLLOW`, or `unlinkat` relative to a directory fd) would, and Node's
+`fs` exposes no such primitive. The window requires an attacker with write access to `.wingfoil/`,
+who by then can simply edit the directive. The guard converts a *routine, self-inflicted* loss into a
+refusal; it is not an adversarial defence, and should not be cited as one.
+
+**Determinism note.** A working-tree read in a *context-building* path would break REQ-SYS-07. This
+is not a context-building path — it is a pre-flight on a mutation, and its answer is a property of
+the filesystem the mutation is about to act on. Two runs on the same filesystem give the same answer;
+that is the determinism the rule is after.
+
+### 2. The `memory-path.ts` TSDoc sentence was false — corrected
+
+I had justified leaving `resolveConfinedMemoryPath` textual with *"no filesystem answer exists for a
+path that does not exist yet"*. My own change refutes it: `realpathOfDirectory` was written for
+exactly that case, and `test/storage/confinement.test.ts` pins it — *"accepts a path none of whose
+directories exist yet"*. The review also measured the consequence: `memory add` writes **outside the
+project root** through a symlinked Memory directory — the same REQ-SEC-06 crossing, in the store
+REQ-SEC-06 is actually about.
+
+The doc-comment now says what is true: the entry point is still textual, that is a **known gap and
+not a justified choice**, a filesystem answer does exist for a not-yet-created path, and the repair
+is owned by the bug filed out of this task's review — not by `task-102`, whose boundary is
+`directive remove`. The orchestrator files that bug; its id belongs in this sentence once it exists.
+
+### 3. Merge-note correction
+
+My first append called the change to `directiveRemoveFn` a "6-line insert". Measured
+(`git diff --numstat 82b61de6 ad302e84 -- src/core/index.ts` → `23  6` for the whole file; the
+function body itself is **+10 / −3**), and the description was wrong in kind as well as in count:
+the insert also **relocates the `checkUnreferenced` block**, which previously ran before
+`relativePath` was computed and now runs after the new check.
+
+That reorder is a behaviour change a merger must see: a directive that is *both* outside the project
+root *and* still bound to a role used to be refused with `cannot remove '<id>': still assigned to
+role '<role>'`, and is now refused with the confinement message. The new precedence is the right one
+— the confinement refusal names the condition that would have destroyed a file, and the binding is
+beside the point when the file is not the project's to delete — and `directiveRemoveFn`'s renumbered
+TSDoc (steps 5 and 6) records the order. No existing test asserted the old precedence; the full
+suite is green either way.
+
+### Gates re-run after these edits
+
+Source touched in this pass: `src/storage/memory-path.ts` and `src/core/confinement.ts`, doc-comments
+only — no executable line changed.
+
+| Gate | Result |
+|------|--------|
+| `npx jest` | **140 suites / 2313 tests passed**, 0 failed |
+| `npx jest --coverage` | **98.54 %** statements / 93.96 % branches / 99.41 % lines (≥ 80) |
+| `npx tsc -p tsconfig.build.json --noEmit` | 0 errors |
+| `npx tsc -p tsconfig.build.json` (emitting) | 0 errors |
+| `npx tsc --noEmit -p tsconfig.json` | **0 errors, no exception** |
+| `npm run lint` | clean, no output |
+| `npm run docs:api` | clean, no output |
