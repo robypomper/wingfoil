@@ -2,8 +2,8 @@
 id: "user-docs-rel-v0.2-plan"
 type: plan
 title: "User-docs — v0.2 (align user-facing documentation to the shipped surface)"
-status: active
-version: "1.2"
+status: done
+version: "1.4"
 workflow: "user-docs"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -561,3 +561,146 @@ Written for a model more than a person: tables and exact commands, little prose.
 - **Write path** — exact verb syntax, exit codes, how to react to exit 1 and 2.
 - **Workflows without an engine**, setup recipes, known limits, links to the CLI reference and the
   user guide.
+
+---
+
+## Execution Notes
+
+Run on branch `docs/user-docs-v0.2` (worktree `../.wf2-wt/user-docs-v0.2`), cut from `main` at
+`825f7827`. Every measurement below was taken there, with the command that produced it.
+
+### S1 — `check-implementation-complete` (tech-lead) — PASSED
+
+| # | Command | Result |
+|---|---|---|
+| P1 | `awk '/^---$/{n++;next} n==1&&/^status:/' docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md` | `status: in-development` |
+| P2 | the §1 P2 loop | `73 done` — the release grew from 54 to 73 tasks after this plan was written; all are `done` |
+| P3 | the §1 P3 loop | no output — no open v0.2 bug |
+| P4 | `git status --porcelain` · `git rev-parse --abbrev-ref HEAD` | empty · `docs/user-docs-v0.2`; `npm ci` done |
+| P5 | `grep -n "Correction (2026-09-21)" …/dl-001-typescript-over-python.md` | one hit, line 37 |
+
+### S2 — Survey (developer)
+
+- **Surface — 20 commands, not §3's 17.** `npm run build && node dist/cli.js --help` plus each group's
+  `--help`: `init, mcp, paths, workflow list, directives list, dna show|set|add|remove|update,
+  memory add|submit|approve|reject|deprecate|history|search, directive create|assign|remove`.
+  `task-093` added `dna add|remove|update`.
+- **`produces:`** (the §4.1 loop, plus `docs/agents.md`): `README.md` PRESENT; `docs/user-guide.md`,
+  `docs/cli-reference.md`, `docs/examples`, `CHANGELOG.md`, `docs/agents.md` MISSING.
+- **README stale claims** (`grep -nE 'Node(\.js)? ?1[0-9]|18\+'` and `grep -nE 'v0\.1|In Dev|targeting|planned, v0\.'`
+  on `README.md`): the §4.2 table re-measured and still accurate, row for row.
+- **Gates at the base** (§6, all six): 148 suites / 2410 tests green, both `tsc` clean, lint clean,
+  `docs:api` clean.
+- **Hazards re-checked.** H3 still holds: `memory approve` without an approver member → exit 1,
+  `user not authorized to approve type 'task'`. **H4 no longer applies**: `bug-071` is `closed`
+  (`grep -H '^status:' docs/self/docs/04_memory/bugs/bug-071-*.md`), and `memory history` in the probe
+  wrote nothing to stderr. H5 holds: `directive remove` of an assigned directive → exit 1.
+
+The survey probe: a throwaway repository exercising every command (the e2e-smoke §4 recipe, extended).
+Every transcript in the new documents was pasted from it.
+
+### S4–S6 — what was written
+
+| Artifact | Content | Check |
+|---|---|---|
+| `README.md` | §11.1: v0.2 pillar status, Node.js 22.12+, a 5-step Quick Start (init → approver → add/submit → approve → MCP), a documentation table, a rewritten roadmap; the long command block and the exit-code section moved to the reference | the Quick Start sequence re-run verbatim in a fresh repository: every output identical, tree clean; `grep -nE 'Node(\.js)? ?1[0-9]|18\+' README.md` → empty |
+| `docs/cli-reference.md` | §11.3: conventions (root, grammar, global options, exit codes, git side effects, identity) + one entry per command | `test/docs/cli-reference.test.ts` (new, §11.3 decision) — see below |
+| `docs/user-guide.md` | §11.2, sections 0–11 as defined | every command in it was run in the probe |
+| `docs/examples/` | §11.4: `lib.sh`, `README.md`, five `run.sh` scripts | all five exit 0 against `dist/` (`WINGFOIL="node $PWD/dist/cli.js" bash docs/examples/0N-*/run.sh`) |
+| `CHANGELOG.md` | §11.5: `[0.2.0] - Unreleased`, `[0.1.0]` undated (no Memory document records a date) | drafted from the task/bug documents, then reviewed: one false line fixed — 0.1.0's `dna set` took a second positional (`git show 5b16ab61:README.md \| grep -n "dna set"`), so the switch to `--value` is listed as **Breaking** under 0.2.0 |
+| `docs/agents.md` | §11.6 / §10 | the MCP ↔ CLI table was checked against a live `resources/list`, `resources/templates/list`, `prompts/list` |
+
+**Deviation from §11.4, recorded for the approver.** The examples do not ship a separate expected
+transcript per script. Their output carries commit hashes and timestamps, which differ on every run, so
+a transcript cannot be diffed. Instead each script prints the transcript as it runs and **asserts**
+the parts that must hold (exit codes, states, audit-trail operations, approver line), exiting non-zero
+on a mismatch. That is also what makes them runnable by `e2e-smoke`.
+
+**The coverage test was red first.** `npx jest test/docs/cli-reference.test.ts` before the reference
+existed → `ENOENT … docs/cli-reference.md`. After → passing. Checked in reverse too: with the
+`memory history` heading temporarily removed, the test fails and names `"memory history"`.
+
+**Behaviour the documents rely on, measured in the probe rather than assumed:**
+- `memory submit` commits the document's uncommitted edits with the state change; `approve`, `reject`
+  and `deprecate` refuse a document with uncommitted edits (`error: refusing to commit …`).
+- A hand commit that touches a document shows up in `memory history` with `"operation": null`.
+- A missing required frontmatter field stops a submit: `error: missing required field on submit: title`.
+- An uncommitted `memory.yaml` type is refused, with a message naming the cause; an uncommitted
+  `roles.yaml` unassignment is invisible to `directive remove`.
+- `memory search` and the `wingfoil://memory/{type}` Resource both leave out deprecated documents.
+- The built-in `security` directive is bound to no role by `init` (`roles.yaml` of the probe).
+
+### `align-agent-docs` (architect)
+
+- `CLAUDE.md` §1 command list: gained `dna add|update|remove`, now 20 (measured above).
+- `CLAUDE.md` §2: `README.md`'s row no longer says CLAUDE.md "is owned by nothing yet" (dl-025 landed
+  as `align-agent-docs`); rows added for the user docs and for `docs/agents.md`.
+- `CLAUDE.md` §3: the note calling the built-in directives "not implemented yet (`task-057`, still
+  `backlog`)" rewritten — `task-057` is `done`; this repo's config still carries the stand-ins, and
+  reconciling them stays `bug-040` (`open`).
+- `docs/self/.wingfoil/README.md`: dropped "the CLI/MCP tooling is not yet implemented"; the
+  directives note matches §3; the workflow tree gained `release-planning`'s seven phases,
+  `user-docs` and `e2e-smoke`.
+- Post-checks: the §5 element/state table was compared with `memory.yaml` (`sequence`, `gates`,
+  `waiting` per type, read with `python3 -c 'import yaml; …'`): matches. §6 against `workflows.yaml`
+  and `sw-life-cycle` / `release-line-cycle` / `release-cycle` / `release-planning` phases: matches.
+  §7 against `roles.yaml` v1.1: matches.
+
+### S7 — Gates on the branch
+
+149 suites / 2412 tests green (one new suite, `test/docs/cli-reference.test.ts`); both `tsc` clean
+after two fixes to the new test (the `resolution-mode` import the other tests use; a possibly-undefined
+match group); lint clean; `docs:api` clean; the five examples exit 0.
+
+### Findings — not fixed here, to become elements
+
+Found while probing. None is a documentation defect, so none is fixed in this phase; each needs a bug
+or DL (`feedback`: review findings must not stay only in notes).
+
+1. **`dna add` on a collection that does not exist yet rewrites `dna.yaml` without its comments.** In
+   the probe `dna add team.agents --value claude --entry-executes_as developer,reviewer --entry-approval_authority false` dropped all 8 comment
+   lines; every earlier `dna set|add|update|remove` on existing paths kept them. `bug-004`'s fix does
+   not cover the new-key path. (Bisected with
+   `for s in $(git log --reverse --format=%h -- .wingfoil/dna.yaml); do git show $s:.wingfoil/dna.yaml | grep -c '#'; done`.)
+2. **`illegal transition` names the wrong target.** On the custom `story` type, `memory submit` on the
+   gated `ready` state reports `illegal transition ready -> done`, and at the end of the sequence
+   `illegal transition done -> ready`. Neither is the move attempted.
+3. **Subcommand `--help` is uninformative.** Subcommands carry no description; every positional is
+   described generically; options read `type value`, `reason value`. The reference now compensates, but
+   a user reading `--help` cannot learn the surface from it.
+4. **`init`'s "already initialized" error points to a command that does not exist**: *"use a migration
+   command to change config"*.
+5. **No command unassigns a directive**, while `directive remove` requires it to be unassigned. The
+   guide documents the hand edit to `roles.yaml`. This is a gap, not a defect, so it is a DL candidate.
+6. **Extra positionals are silently ignored**: `dna show a b` acts on `a`; `workflow list <name>` and
+   `directives list <role>` ignore the argument and print everything.
+
+### Open for the approver
+
+- **S8** — the `align-user-docs` and `align-agent-docs` approvals.
+- **`bug-068` fallout, now real.** `spec-015` (`approved`) states in its §1 and its *What remains
+  open* paragraph that `README.md:115` still reads "Node.js 18+ required". The README no longer does
+  (the sweep above is empty) and the sentence moved. Per §4.3 this is reported rather than edited.
+- **Handoff to `e2e-smoke`** (§11.4 decision): `e2e-smoke-rel-v0.2-plan` must gain the step that runs
+  `docs/examples/0*/run.sh` against the built CLI.
+
+### Approver decisions of 2026-09-25 (second round) — S8 and the open items
+
+Given in chat: *approve everything, except that `README.md` still saying Node.js 18+ must be
+corrected.* On the branch the README carries no such claim
+(`grep -nE 'Node(\.js)? ?1[0-9]|18\+' README.md` → no output). The sentence that still asserted it
+was `spec-015`'s: three passages stating that `README.md:115` still read "Node.js 18+ required". So
+the correction was applied there:
+
+- **`spec-015` corrected** (`9fec695c`). The three false passages were rewritten in place with a dated
+  *Revision (2026-09-25)* note, following the spec's own revision precedent. The three
+  `README.md:115` offsets now cite the README's *Installation* heading, which is the content of
+  `bug-068`. `bug-068` stays `open`: its lifecycle is `release-planning`'s to move, and its content is
+  now fixed.
+- **Findings filed** as `bug-126` … `bug-131`, all `open`, through
+  `bug-ingest-rel-v0.2-user-docs-findings-plan` (`3ac3491a` add, `29d44e9c` submit).
+- **`e2e-smoke-rel-v0.2-plan` gained step S2b**, which runs `docs/examples/0*/run.sh` against the
+  built CLI (§11.4 decision).
+- **S8 approved**: `align-user-docs` and `align-agent-docs`, including the §11.4 deviation (the
+  examples check themselves instead of shipping expected transcripts). With every completion
+  criterion of §8 met, this plan moves `active → done`.

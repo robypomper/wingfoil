@@ -3,7 +3,7 @@ id: "e2e-smoke-rel-v0.2-plan"
 type: plan
 title: "E2E smoke — v0.2 (fresh-init + CLI black-box release gate, first run)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "e2e-smoke"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -227,6 +227,22 @@ approval itself. Raise it in S5; do not amend a workflow file from inside a gate
   this plan's `## Execution Notes`, each with the command that settles it. A green run is **not** the
   same as a satisfied contract, and reporting the green without the delta is how this gate would
   quietly stop meaning anything.
+
+### S2b — run the user-docs examples · role: qa
+
+Added by the approver's decision of 2026-09-25 (`user-docs-rel-v0.2-plan` §11.4): the runnable
+examples written by the `user-docs` phase are part of this gate, so that a documented scenario which no
+longer matches the tool fails the release instead of going stale.
+
+- **Action:** against the same `dist/` S1 built,
+  ```bash
+  for e in docs/examples/0*/run.sh; do WINGFOIL="node $PWD/dist/cli.js" bash "$e" || exit 1; done
+  ```
+- **Produces:** the five transcripts, each ending `OK: …`; record the verdicts in `## Execution Notes`.
+- **Check:** every script exits 0. A `FAIL:` line names the broken expectation — decide whether the
+  tool or the example is wrong, and file it (S4); never edit an example just to make it pass.
+- **Note:** the scripts are not part of `scripts/e2e-smoke.cjs` (H1: that file is reused verbatim by
+  publishing). Folding them into it is a separate change with its own owner.
 
 ### S3 — **APPROVER DECISION** — close G1 now, or file it · role: approver
 

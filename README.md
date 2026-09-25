@@ -63,48 +63,45 @@ real-time tracking of project state.
 
 ## Key Features
 
-### Five Pillars — v0.1 status
+### Five Pillars — status in 0.2.0
 
-- ✓ **Project Memory** — Git-backed document storage with versioning and audit trail (**shipped, v0.1**)
-- ✓ **Project DNA** — Structured config: modules, tech stack, team & roles, resource paths (**shipped, v0.1**)
-- ✓ **Interaction Layer** — CLI for humans (**shipped, v0.1**); MCP Server for agents, read-only Resources
-  (**shipped, v0.1**)
-- **Project Directives** — role-scoped rules (planned, v0.2)
-- **Workflow State Management** — track and communicate project status/progress/blockers (planned, v0.3)
+- ✓ **Project Memory** — Git-backed documents (tasks, ADRs, decision-logs, bugs, specs…) with per-type
+  state machines, approval gates and an audit trail (**shipped**: create, search, submit, approve,
+  reject, deprecate, history)
+- ✓ **Project DNA** — Structured config: modules, tech stack, team & roles, resource paths
+  (**shipped**: show, set, add, update, remove)
+- ✓ **Project Directives** — Role-scoped rules: six built-in templates installed by `init`, your own
+  custom directives, role assignments (**shipped in 0.2.0**)
+- ✓ **Interaction Layer** — CLI for humans and agents; MCP server for agents with read-only Resources
+  and one Prompt per role (**shipped**)
+- **Workflow State Management** — workflows are declared and listable today; the engine that starts
+  and tracks them is planned for 0.3
 
-### CLI commands (v0.1)
+### CLI at a glance
 
-Every command below is real, implemented, and covered by the walkthrough in
-[Quick Start](#quick-start). `directive`/`workflow` CLI verbs beyond config inspection land in v0.2/v0.3.
+| Area | Commands |
+|---|---|
+| Setup | `wingfoil init [--template Scrum\|Kanban]` · `wingfoil mcp` |
+| DNA | `wingfoil dna show [section]` · `dna set <path> --value <v>` · `dna add` · `dna update` · `dna remove` · `wingfoil paths [category]` |
+| Memory | `wingfoil memory add --type <t> --title <t>` · `submit <id>` · `approve <id> --reason <r>` · `reject <id> --reason <r>` · `deprecate <id>` · `history <id>` · `search [keyword]` |
+| Directives | `wingfoil directive create --name <n>` · `directive assign --directive <n> --role <r>` · `directive remove <n>` · `wingfoil directives list [--role <r>]` |
+| Workflow | `wingfoil workflow list` |
 
-```bash
-wingfoil init [--template <Scrum|Kanban>]   # Bootstrap .wingfoil/ in the current git repo
+Every command accepts `--format console|json|yaml` and ends with exit code `0` (success), `1` (refused)
+or `2` (bad command line). Full details: **[CLI reference](docs/cli-reference.md)**.
 
-wingfoil dna show [section]                 # Query project structure (whole file, or one top-level key)
-wingfoil dna set <path> --value <v>         # Set a single dotted key path (e.g. project.name)
+### For AI Agents
 
-wingfoil memory add --type <t> --title <t> [--tags <t1,t2>]      # Create a Memory document (draft)
-wingfoil memory search [keyword] [--tag <t>] [--type <t>] [--status <s>]  # Find docs by keyword/metadata
-
-wingfoil paths [category]                   # Query resource paths (sources/tests/docs/config/governance)
-
-wingfoil mcp                                # Start the MCP server (read-only Resources) over stdio
-```
-
-Global flags, accepted by every command: `--format <console|json|yaml>` (default `console`), `--verbose`,
-`--no-color`, `--no-interactive`, `-h/--help`, `-V/--version`.
-
-### For AI Agents (MCP Server)
-
-- ✓ **MCP Resources** — Agents fetch DNA and Memory over stdio, read-only (`wingfoil mcp`)
-- ✓ **Keyword Search** — Find relevant docs; filter out noise (`memory search`, keyword-only in v0.1)
-- ✓ **Read-Only Access** — Humans remain the source of truth; the MCP surface exposes no mutating Tool
+- ✓ **MCP server** (`wingfoil mcp`, stdio) — DNA, Memory and workflows as read-only Resources, plus a
+  `<role>-session` Prompt per role that embeds the role's directives
+- ✓ **Read-only by construction** — the MCP surface has no Tools; changes go through the CLI, and
+  approvals belong to a human holding the `approver` role
+- ✓ **[`docs/agents.md`](docs/agents.md)** — the same knowledge as a document an agent can read from a
+  link: what WingFoil is, the rules to follow, the CLI equivalent of every MCP Resource and Prompt
 
 ---
 
 ## Getting Started
-
-> **Note:** WingFoil is in active development (MVP, targeting v0.1 in July 2026). Early feedback welcome.
 
 ### Installation
 
@@ -112,7 +109,7 @@ Global flags, accepted by every command: `--format <console|json|yaml>` (default
 npm install -g wingfoil
 ```
 
-This installs the `wingfoil` binary (Node.js 18+ required). Verify it:
+This installs the `wingfoil` binary (**Node.js 22.12+** required). Verify it:
 
 ```bash
 wingfoil --version
@@ -120,135 +117,83 @@ wingfoil --version
 
 ### Quick Start
 
-A complete, verified walkthrough: bootstrap a project, inspect and edit its DNA, create and find a
-Memory document, and query resource paths. Run this from an empty **git repository** (`wingfoil` reads
-and writes under its git root; `git init` first if you don't have one yet).
+Run this from the root of a **git repository** with a git identity configured
+(`git config user.name` / `user.email`).
 
-**1. Initialize WingFoil**
+**1. Initialize WingFoil** — scaffolds `.wingfoil/` (DNA, Memory schema and templates, directives,
+workflows) and commits it:
 
 ```bash
 $ wingfoil init --template Scrum
 ```
 
-`--template` selects a starter methodology (`Scrum` or `Kanban` — pick whichever fits, or answer the
-interactive prompt if you omit `--template` in a terminal). This scaffolds `.wingfoil/` — DNA, Memory
-schema + templates, directives, and workflow config — and commits it. On success (exit `0`) it prints
-the list of files it created.
+**2. Name the project and register yourself as the approver** — approvals need a team member holding
+the `approver` role, with your git email:
 
-**2. Inspect the project's DNA**
-
-```bash
-$ wingfoil dna show
-```
-
-Prints the whole `dna.yaml` structure (project info, modules, tech/methodology stacks, team & roles,
-resource paths), or narrow it to one top-level section:
-
-```bash
-$ wingfoil dna show project
-{
-  "name": "",
-  "description": "",
-  "methodology": "Scrum"
-}
-```
-
-**3. Edit a DNA field**
-
-```bash
+```console
 $ wingfoil dna set project.name --value "My Project"
 {
   "key": "project.name",
   "value": "My Project"
 }
-```
-
-`dna set <path> --value <v>` writes one dotted key path and commits the change (`wf(dna): set project.name`).
-Confirm it stuck:
-
-```bash
-$ wingfoil dna show project
+$ wingfoil dna add team.members --value "Ada Lovelace" --entry-email ada@example.com --entry-roles approver,developer
 {
-  "name": "My Project",
-  "description": "",
-  "methodology": "Scrum"
+  "key": "team.members",
+  "value": "Ada Lovelace"
 }
 ```
 
-**4. Create a Memory document**
+**3. Create a task, write it, submit it:**
 
-```bash
-$ wingfoil memory add --type task --title "My first task" --tags "demo,quickstart"
+```console
+$ wingfoil memory add --type task --title "My first task"
 {
   "id": "task-001-my-first-task",
   "path": "docs/memory/task/task-001-my-first-task.md"
 }
-```
-
-`memory add` generates a document ID from the type's `id_pattern` (`.wingfoil/memory.yaml`), copies that
-type's scaffold, fills in the frontmatter, and commits it (`draft` status — see `.wingfoil/memory.yaml`
-for each type's states). `--type` must be one already declared in `memory.yaml` (the starter templates
-declare `adr`, `bug`, `decision-log`, `release`, `release-line`, `task`, `tech-spec`).
-
-**5. Find it again**
-
-```bash
-$ wingfoil memory search first
+$ wingfoil memory submit task-001-my-first-task
 {
-  "query": "first",
-  "matches": [
-    {
-      "path": "docs/memory/task/task-001-my-first-task.md",
-      "id": "task-001-my-first-task",
-      "title": "My first task",
-      "type": "task",
-      "status": "draft",
-      "tags": ["demo", "quickstart"]
-    }
-  ]
+  "id": "task-001-my-first-task",
+  "path": "docs/memory/task/task-001-my-first-task.md",
+  "from": "draft",
+  "to": "pending"
 }
 ```
 
-`memory search` also takes `--tag`/`--type`/`--status` filters instead of (or alongside) a keyword; an
-empty/omitted keyword with a filter browses by that metadata alone. A query that matches nothing is
-still a success (exit `0`), with an explicit `message: "no documents matched the query"`.
+(Write the task's body in the file before submitting — the submit commit records it.)
 
-**6. Query resource paths**
+**4. Approve it** — the commit records who approved and why:
 
-```bash
-$ wingfoil paths config
+```console
+$ wingfoil memory approve task-001-my-first-task --reason "Scope is clear."
 {
-  "category": "config",
-  "paths": [".wingfoil"]
+  "id": "task-001-my-first-task",
+  "path": "docs/memory/task/task-001-my-first-task.md",
+  "from": "pending",
+  "to": "approved"
 }
+$ git log -1 --format=%B
+wf(task): approve task-001-my-first-task [pending → approved]
+
+Approver: Ada Lovelace <ada@example.com> (approver)
+Reason: Scope is clear.
 ```
 
-`paths [category]` reads the `dna.yaml` `paths:` map (`sources`/`tests`/`docs`/`config`/`governance`);
-omit `category` to get the whole map.
+**5. Connect your AI agent** — for Claude Code, add `.mcp.json` at the repository root:
 
-### Machine-readable output & the exit-code contract
-
-Every command accepts `--format console|json|yaml` (`console` — human console output — is the default;
-the examples above show the raw JSON payload). `json`/`yaml` write only the structured result to
-stdout — no banners mixed in — so scripts and CI can parse it directly:
-
-```bash
-$ wingfoil dna show project --format yaml
-name: My Project
-description: ''
-methodology: Scrum
+```json
+{ "mcpServers": { "wingfoil": { "command": "wingfoil", "args": ["mcp"] } } }
 ```
 
-Every invocation ends in exactly one of three exit codes:
+### Documentation
 
-| Code | Meaning                | Example                                                                 |
-|------|------------------------|--------------------------------------------------------------------------|
-| `0`  | Success                 | `wingfoil paths config` above                                            |
-| `1`  | User/logic error        | `wingfoil dna show nonexistent_section` → `error: no DNA key named 'nonexistent_section'` |
-| `2`  | Usage/argument error    | `wingfoil memory add --type task` (missing `--title`) → `error: missing required argument: --title` |
-
-A non-zero exit always carries an `error: <reason>` line on stderr (or `{"error": "<reason>"}` under
-`--format json`/`yaml`) — never a bare failure with no message.
+| Document | For |
+|---|---|
+| **[User guide](docs/user-guide.md)** | Step by step: install, configure DNA / Memory / Directives, daily use, agents, CI |
+| **[CLI reference](docs/cli-reference.md)** | Every command: arguments, output, exit codes, the commit it writes |
+| **[Examples](docs/examples/)** | Runnable, self-checking scripts for the main scenarios |
+| **[Guide for AI agents](docs/agents.md)** | What an agent needs to operate in a WingFoil project |
+| **[Changelog](CHANGELOG.md)** | What changed in each release |
 
 ---
 
@@ -268,40 +213,32 @@ state, progress, and alignment.
 
 ## What Comes Later
 
-The following features are **not in v0.1** but planned for subsequent releases based on early adopter feedback:
+**0.3 — Project Workflow:** the workflow engine (`workflow start|next|status|show|end`…), approval
+routing by role, agent execution with directives and Memory context auto-loaded, reference workflow
+templates, notifications when an approval is required.
 
-**v0.2+:**
+**0.4 — Interaction Layer + Polish** · **1.0 — MVP complete**, all five pillars integrated.
 
-- Semantic search (keyword search only for v0.1)
-- Automated validation rules
-- IDE integrations beyond MCP
-- Advanced notification routing (email, Slack)
-- Multi-project management
-
-**v1.0+:**
-
-- Commercial offerings and integrations
-- Advanced analytics and reporting
-- Custom workflow templates
+Later, based on early adopter feedback: semantic search, IDE integrations beyond MCP, notification
+routing (email, Slack), multi-project management.
 
 ---
 
 ## Release Roadmap
 
-WingFoil releases build progressively—one pillar per week until all five pillars are integrated (v1.0 MVP Complete).
+WingFoil is built one pillar per release until all five are integrated in 1.0.
 
-| Phase                            | Timeline       | Status     | Focus                          |
-|----------------------------------|----------------|------------|--------------------------------|
-| Lean Inception                   | June 2026      | ✓ Complete | Product vision & roadmap       |
-| Requirements Spec (Downcast)     | June 2026      | ✓ Complete | USM · BDD · SARD · Backlog     |
-| **v0.1** (Memory + DNA)          | ~July 10, 2026 | 🔄 In Dev  | Core foundations               |
-| **v0.2** (+ Directives)          | ~July 17, 2026 | Planned    | Team governance                |
-| **v0.3** (+ Workflow Management) | ~July 24, 2026 | Planned    | State sync & team coordination |
-| **v0.4** (+ Polish)              | ~July 31, 2026 | Planned    | UX refinement & stability      |
-| **v1.0** (MVP Complete)          | ~Aug 7, 2026   | Planned    | All pillars integrated         |
+| Release | Focus | Status |
+|---|---|---|
+| Lean Inception · Requirements | Product vision, USM · BDD · SARD · backlog | ✓ Complete |
+| **0.1** | Project Memory + DNA | ✓ Released (not published to npm) |
+| **0.2** | + Project Directives, Memory approvals, DNA editing, MCP role Prompts | 🔄 Being released |
+| **0.3** | + Project Workflow | Planned |
+| **0.4** | + Interaction Layer polish | Planned |
+| **1.0** | MVP complete | Planned |
 
-**Dogfooding:** Starting in v0.1, WingFoil development is managed by WingFoil itself—the harness immediately becomes its
-first production user.
+**Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives under
+`docs/self/`.
 
 ---
 
@@ -321,13 +258,13 @@ first production user.
 └─────────────────────────────────────────────────┘
 ```
 
-- **CLI**: Humans use `wingfoil` commands to manage Memory, DNA, Directives, and Workflow state
+- **CLI**: Humans (and agents) use `wingfoil` commands to manage Memory, DNA and Directives, and to read Workflows
 - **MCP Server**: Agents connect via Model Context Protocol to query Memory/DNA, receive Directives, and view Workflow
-  state
+  definitions
 - **Git Backend**: All changes (memory, decisions, workflow state) are versioned and auditable
-- **Read-Only for Agents**: Only humans can modify project state; agents can query and suggest, but humans control
-  writes
-- **Workflow Synchronization**: All team members and agents stay aligned on current progress and blockers
+- **Read-Only MCP**: The MCP surface is read-only; state changes go through the CLI, and approvals belong to a
+  human holding the `approver` role
+- **Workflow Synchronization** *(0.3)*: All team members and agents stay aligned on current progress and blockers
 
 ---
 
@@ -388,7 +325,8 @@ derived from your contribution.
 ## Questions?
 
 - **GitHub Issues:** Bug reports, feature requests
-- **Documentation:** See [`docs/`](docs/) — vision, requirements (USM · BDD · SARD), and the implementation backlog
+- **Documentation:** Start from the [user guide](docs/user-guide.md); WingFoil's own specifications (vision, USM · BDD ·
+  SARD, backlog) are under [`docs/`](docs/)
 - **Community:** Join discussions (links coming soon)
 
 ---
