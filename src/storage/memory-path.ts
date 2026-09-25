@@ -68,10 +68,16 @@ export function resolveMemoryPath(
  * the same path**, because a string and a filesystem answer different questions and a Memory write
  * has to survive both (`task-105`, `bug-117-memory-add-writes-outside-the-project-root-through-a-symlinked-store`):
  *
- * 1. **Textually** (`task-017`) — what the rendered pattern *says*. This is what catches traversal
- *    smuggled through a placeholder value, and it is the only one that can: `../` in an `id` is a
- *    property of the string, and a filesystem that happens to link it back inside the project must
- *    not launder it.
+ * 1. **Textually** (`task-017`) — what the rendered pattern *says*. An ordinary `../` smuggled
+ *    through a placeholder value is caught by **either** check, so that case alone would not justify
+ *    keeping this one. What only this check decides is the **laundered** traversal: with a symlink
+ *    outside the root pointing back into it, `resolveRealPathInRoot(root, '…/../../link/x.md')`
+ *    reports `within: true` for a string that plainly climbs out of the project. The string is what
+ *    the project declared, and a link that whoever owns the directory *above* the root can repoint
+ *    at any moment does not get to ratify it. Pinned by `refuses a rendered traversal that the
+ *    filesystem would launder back inside the root`
+ *    (`test/storage/memory-path-confinement.test.ts`) — deleting this check reds that test and, of
+ *    the 35 tests in the five suites over this path, only that one.
  * 2. **On the filesystem** ({@link resolveRealPathInRoot}) — where the write will actually land. A
  *    symlinked type directory puts the document outside the root with no traversal anywhere in the
  *    string, so the textual answer is "inside" and the write is outside; that is `bug-044`'s
