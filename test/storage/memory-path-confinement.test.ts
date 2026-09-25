@@ -13,13 +13,19 @@
  * What this suite pins is that the Memory entry point **asks** them, and the shape of what it asks —
  * in particular the parent/leaf asymmetry it inherits (see the AC5 case below).
  *
+ * It also pins the **textual** check the filesystem one was added beside, on the one class only it
+ * can decide: a traversal the filesystem would launder back inside the root (the last case here).
+ * Every other case in this file and in `memory-path.test.ts` is answered by either check alone, so
+ * without that case nothing distinguishes keeping both from deleting one.
+ *
  * Nothing here writes through a symlink: every target is resolved, never created.
  */
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { resolveConfinedMemoryPath } from '../../src/storage/memory-path';
+import { resolveRealPathInRoot } from '../../src/storage/confinement';
+import { renderMemoryPath, resolveConfinedMemoryPath } from '../../src/storage/memory-path';
 import { StorageError } from '../../src/storage/errors';
 import { removeTempDir } from './helpers/git-fixture';
 
@@ -92,6 +98,49 @@ describe('resolveConfinedMemoryPath — confinement decided on the filesystem (R
    * `git -C <root>` and callers take `relative(root, path)`, so a path re-spelled under the real
    * root would leave the repository's own vocabulary.
    */
+  /**
+   * The case the **textual** check alone decides, and therefore the one that makes keeping both
+   * checks a testable claim rather than an assertion. A symlink that sits *outside* the root and
+   * points back *into* it launders a traversal: the filesystem resolution of
+   * `…/task/../../../../link/x.md` lands under the root and reports `within: true`, while the string
+   * plainly climbs out of the project. `task-017`'s comparison is what refuses it, and a refusal is
+   * the right answer — the rendered path is not a path this project declared, whatever a symlink
+   * currently makes of it, and the link can be repointed at any moment by anyone who can write to
+   * the directory above the root.
+   */
+  it('refuses a rendered traversal that the filesystem would launder back inside the root', () => {
+    // <box>/project/docs/memory/task/  is the store; <box>/link -> <box>/project/docs.
+    const box = mkdtempSync(join(tmpdir(), 'wf-box-'));
+    try {
+      const project = join(box, 'project');
+      mkdirSync(join(project, 'docs/memory/task'), { recursive: true });
+      symlinkSync(join(project, 'docs'), join(box, 'link'));
+
+      const values = { type: 'task', id: '../../../../link/x' };
+      const rendered = renderMemoryPath(PATTERN, values);
+
+      // The filesystem's own answer: inside. Asserted, not assumed — it is what makes this case the
+      // discriminating one, and if a future `resolveRealPathInRoot` stopped saying it, this test
+      // would be pinning nothing and should fail here rather than pass for the wrong reason.
+      expect(resolveRealPathInRoot(project, rendered).within).toBe(true);
+
+      let thrown: unknown;
+      try {
+        resolveConfinedMemoryPath(project, PATTERN, values);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(StorageError);
+      expect((thrown as StorageError).code).toBe('E_PATH_ESCAPES_ROOT');
+      expect((thrown as StorageError).message).toContain(join(box, 'link', 'x.md'));
+      // The textual branch is the one that fired: no symlink clause, which only the other writes.
+      expect((thrown as StorageError).message).not.toContain('symlink leaving the project');
+    } finally {
+      removeTempDir(box);
+    }
+  });
+
   it('accepts a root reached through a symlink, and returns the path under the spelling it was given', () => {
     const linkParent = mkdtempSync(join(tmpdir(), 'wf-link-'));
     const linkedRoot = join(linkParent, 'project');
