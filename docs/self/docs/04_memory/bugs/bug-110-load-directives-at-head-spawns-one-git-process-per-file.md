@@ -1,45 +1,57 @@
 ---
 id: "bug-110-load-directives-at-head-spawns-one-git-process-per-file"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`loadDirectivesAtHead` spawns one git process per committed directive file — eleven on a fresh scaffold, and the count is the size of the directory rather than of the request"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P3.5"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`loadDirectivesAtHead` (`src/core/loaders.ts`, `task-096`) reads the committed directive inventory as
+one `git ls-tree` followed by **one `git show` per file**. On a fresh `wingfoil init --template Scrum`
+scaffold that is 1 + 10 = **eleven processes**; after `task-094` added two directives to this
+repository's own config it is thirteen here.
+
+The cost scales with the *size of the directory*, not with what was asked for.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Count the committed `.md` files under `.wingfoil/directives/custom/` and call any verb that resolves
+the inventory at `HEAD` — `directive assign` is the shipped one.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Reading an inventory at a revision costs a bounded number of subprocesses, or the cost is a recorded
+decision rather than an accident of implementation.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+It is linear in the file count, and nothing says so at the call site.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Not a defect today, and that is why it is `low`.** `task-096` measured it and said so plainly rather
+than discovering it later: the only shipped caller is `directive assign`, which is rare, interactive,
+and already about to commit — so eleven processes are invisible beside the commit itself. `REQ-PERF-02`
+budgets `memory search`, which never reaches this path, and `test/core/query-latency.test.ts` passes.
+
+**What changes the answer is a second caller.** If any read-heavy path moves onto the committed
+baseline — and `dl-080` pushes reads that way by design — `git cat-file --batch` becomes worth its
+complexity. Filed so that decision is made when a caller arrives, rather than rediscovered by someone
+watching a command be slow.
+
+**Raised by `task-096` as a proposed element and not filed at the time.** It was held for the
+retrospective, which meant it existed only in a conversation; recording it here is what "held for the
+retrospective" should have meant.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. No budget is exceeded and no user can perceive it on the one path that
+  reaches it. Filed for the second caller, not the first.

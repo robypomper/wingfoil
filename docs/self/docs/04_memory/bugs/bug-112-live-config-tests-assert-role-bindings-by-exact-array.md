@@ -1,45 +1,60 @@
 ---
 id: "bug-112-live-config-tests-assert-role-bindings-by-exact-array"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "Two suites assert this repository's live `roles.yaml` bindings by exact array, so every future binding change fails them as though it were a regression"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P3.2"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`test/directives/schema.test.ts` and `test/core/loaders.test.ts` each assert
+`assignments.developer` against the **live** `docs/self/.wingfoil/roles.yaml` with an exact-array
+`toEqual`. Adding a binding therefore fails both suites with `Received +1: "<name>"`, which is
+indistinguishable in the output from a genuine regression.
+
+`task-094` hit exactly this when it bound `command-baseline`, and updated both — correctly, by
+**adding** to the assertions rather than loosening them.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Bind any new directive to `developer` in `docs/self/.wingfoil/roles.yaml` and run
+`npx jest test/directives/schema.test.ts test/core/loaders.test.ts`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A test over live configuration asserts the property it cares about — that the loader reads bindings
+correctly, that a known binding is present — not the exact contents of a file that is expected to
+change.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+It pins the configuration itself, so a legitimate change and a loader regression produce the same
+failure.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**The exact-array assertion is not simply wrong, which is why this is `low` and needs judgement
+rather than a blanket loosening.** It is what catches a loader that drops or duplicates an entry. The
+shape that keeps both properties is one membership assertion for the bindings that matter plus one
+shape assertion — the count, or that every value is a known directive id — rather than an enumeration
+of today's file.
+
+**`task-094`'s reviewer specifically checked that these were strengthened rather than weakened**, and
+they were: the exact `toEqual` stayed and `toContain` assertions were added beside it. So the current
+state is better than before, and this element is about the *next* change, not about undoing that one.
+
+**The cost is a false signal at exactly the wrong moment.** Whoever next edits `roles.yaml` — the
+`reconcile-governance` phase does this by design — sees two red suites and has to decide whether they
+broke something. That decision should not be necessary.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. No shipped behaviour is involved and the failure is loud rather than
+  silent. Filed because the next `roles.yaml` change is a scheduled workflow phase, not a hypothetical.
