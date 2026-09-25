@@ -1,45 +1,48 @@
 ---
 id: "bug-128-subcommand-help-describes-no-command-and-no-argument"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "Subcommand `--help` describes nothing: no command has a description and every argument and option reads as a placeholder"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P5.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`wingfoil <noun> --help` lists its verbs with no description, and `wingfoil <noun> <verb> --help`
+describes every command's positional with the same generic sentence and its options as `type value`,
+`reason value`, `name value`. A user cannot learn the surface from the CLI itself.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. `wingfoil memory --help` → `add [options] [positionals...]`, `approve [options] [positionals...]`, … — no descriptions.
+2. `wingfoil memory approve --help` → `positionals  optional positional arguments (the command target — e.g. a section/category name, a document id, or a dna field path)` and `--reason <value>  reason value`.
+3. Same shape for every verb: `memory add` (`--type <value>  type value`), `directive create` (`--name <value>  name value`), `directives list` (`--role <value>  role value`).
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Each verb has a one-line description; its target is named for what it is (`<id>`, `<path>`, `<name>`)
+and marked required where it is; each option says what it means — the information `docs/cli-reference.md`
+now carries.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The positional is documented as optional even where it is required (`memory approve` without it
+exits `2`), and only `init`, `mcp` and the `dna` value/entry options carry real descriptions.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Help text is derived from `CORE_MODULES` (`src/cli/program.ts` registers every positional generically),
+  so a fix is a registry-level description seam rather than per-command strings.
+- The user guide and `docs/agents.md` list this under their known limitations.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture (bug-ingest, `bug-ingest-rel-v0.2-user-docs-findings-plan`): found during the v0.2
+  `user-docs` phase probe (`user-docs-rel-v0.2-plan`, *Execution Notes → Findings*); proposed severity
+  **low**. `release: ""` — scheduling belongs to `release-planning`.

@@ -1,45 +1,47 @@
 ---
 id: "bug-131-extra-positionals-are-silently-ignored"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "Extra or unsupported positionals are silently ignored — `dna show a b` acts on `a`, `workflow list <name>` prints every workflow"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P5.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+A command given a positional it does not take, or more positionals than it takes, succeeds as if they
+were not there. `dl-082` fixes one positional per command, but nothing enforces it.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. A throwaway repository: `git init`, a git identity, then `wingfoil init --template Scrum`, with
+`wingfoil` = `node dist/cli.js` built from branch `docs/user-docs-v0.2` at `79a76d6e`.
+2. `wingfoil workflow list sw-life-cycle` → exit `0`, the whole manifest and every workflow.
+3. `wingfoil directives list developer` → exit `0`, every directive (the role filter is `--role`).
+4. `wingfoil dna show project team` → exit `0`, the `project` section only; `dna show a b` → `error: no DNA key named 'a'`, nothing about `b`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A usage error, exit `2`: `error: unexpected argument 'sw-life-cycle'` — the same contract task-101/103
+applied to unknown commands and options.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Exit `0` with output that answers a different question than the one asked. The case that misleads is
+`directives list developer`: it looks like a filtered answer and is not.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Every command registers `[positionals...]` generically (`src/cli/program.ts`), which is why the extra
+  arguments reach no check.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture (bug-ingest, `bug-ingest-rel-v0.2-user-docs-findings-plan`): found during the v0.2
+  `user-docs` phase probe (`user-docs-rel-v0.2-plan`, *Execution Notes → Findings*); proposed severity
+  **low**. `release: ""` — scheduling belongs to `release-planning`.

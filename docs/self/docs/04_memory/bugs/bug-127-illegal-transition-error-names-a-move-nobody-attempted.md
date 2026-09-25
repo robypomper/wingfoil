@@ -1,45 +1,56 @@
 ---
 id: "bug-127-illegal-transition-error-names-a-move-nobody-attempted"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`illegal transition <from> -> <to>` names a target the user never asked for — `approved -> pending`, `done -> ready`, `approved -> draft`"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P1.6"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+When a transition verb is refused, the error line names a destination state that is not the move the
+verb attempted and, in two cases, is a state *behind* the current one — so the message reads as if the
+tool tried to move the document backwards.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. A throwaway repository: `git init`, a git identity, then `wingfoil init --template Scrum`, with
+`wingfoil` = `node dist/cli.js` built from branch `docs/user-docs-v0.2` at `79a76d6e`.
+2. `wingfoil dna add team.members --value A --entry-email <your git email> --entry-roles approver`
+3. `wingfoil memory add --type task --title T`, `memory submit task-001-t`, `memory approve task-001-t --reason ok` → `approved`.
+4. `wingfoil memory submit task-001-t` → `error: illegal transition approved -> pending for type 'task'`.
+5. `wingfoil memory reject task-001-t --reason r` → `error: illegal transition approved -> draft for type 'task'`.
+6. On `pending` (a gate), `memory submit` → `error: illegal transition pending -> (none) for type 'task'`.
+7. With a custom type `sequence: [draft, ready, in-progress, done]`, `gates: {ready: {reject: draft}}`:
+   `submit` on `ready` → `illegal transition ready -> done`; `submit` on `done` → `illegal transition done -> ready`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The error says what was refused in the user's terms — e.g. `cannot submit task-001-t: 'approved' is the
+last state of 'task'`, or `'pending' is a gate: use memory approve` — or at least names the verb and no
+invented target.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The target appears to be computed by wrapping around or skipping along the sequence: `approved -> pending`
+at the end of the default chain, `done -> ready` at the end of a custom one, `ready -> done` (skipping
+`in-progress`) on a gate. Exit code `1` is correct in every case.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Related, not the same: `bug-032-spec-004-stale-illegal-transition-example` (`open`) is about
+  `spec-004`'s documented example, not the runtime message.
+- `docs/agents.md` §6 tells agents to read this line; a misleading target is worse for an agent than for
+  a human.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture (bug-ingest, `bug-ingest-rel-v0.2-user-docs-findings-plan`): found during the v0.2
+  `user-docs` phase probe (`user-docs-rel-v0.2-plan`, *Execution Notes → Findings*); proposed severity
+  **low**. `release: ""` — scheduling belongs to `release-planning`.

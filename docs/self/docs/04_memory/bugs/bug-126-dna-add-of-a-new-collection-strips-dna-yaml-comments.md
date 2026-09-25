@@ -1,45 +1,52 @@
 ---
 id: "bug-126-dna-add-of-a-new-collection-strips-dna-yaml-comments"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`dna add` on a collection `dna.yaml` does not declare yet (e.g. the first `team.agents` entry) rewrites the file without a single comment"
+status: open
+severity: "medium"
+release-origin: "v0.2"
+release: ""
+feature: "P2.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`bug-004` made DNA writes comment-preserving, and every `dna set|add|update|remove` on a path that
+already exists in `dna.yaml` keeps the file's comments. Adding the **first** entry of a collection the
+file does not contain yet — `team.agents` in a freshly initialised project — rewrites the whole file
+through a plain dump instead: all comments disappear, the command exits `0`, and nothing warns.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. A throwaway repository: `git init`, a git identity, then `wingfoil init --template Scrum`, with
+`wingfoil` = `node dist/cli.js` built from branch `docs/user-docs-v0.2` at `79a76d6e`.
+2. `grep -c '#' .wingfoil/dna.yaml` → `8`.
+3. `wingfoil dna add team.agents --value claude --entry-executes_as developer,reviewer --entry-approval_authority false` → exit `0`, commit `wf(dna): add team.agents claude`.
+4. `grep -c '#' .wingfoil/dna.yaml` → `0`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The new `team.agents` key is inserted and the file's existing comments survive, as they do for every
+other DNA write.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Every comment is gone. Found while probing for the user-docs phase; bisected over the probe's history
+with `for s in $(git log --reverse --format=%h -- .wingfoil/dna.yaml); do git show $s:.wingfoil/dna.yaml | grep -c '#'; done`
+— 8 on every commit up to and including a `dna remove`, 0 from `wf(dna): add team.agents claude` on.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Probably the same root cause as `bug-019-dna-set-fallback-silently-strips-comments` (`triaged`): the
+  whole-file dump fallback. This is a second, more common way to reach it — any project that declares
+  its agents, as the user guide §4.2 now recommends. Triage may merge the two.
+- The user guide lists this under *Known limitations in 0.2.0*; remove that line when fixed.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture (bug-ingest, `bug-ingest-rel-v0.2-user-docs-findings-plan`): found during the v0.2
+  `user-docs` phase probe (`user-docs-rel-v0.2-plan`, *Execution Notes → Findings*); proposed severity
+  **medium**. `release: ""` — scheduling belongs to `release-planning`.

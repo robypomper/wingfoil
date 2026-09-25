@@ -1,45 +1,51 @@
 ---
 id: "bug-130-no-verb-unassigns-the-directive-that-remove-requires-unassigned"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`directive remove` refuses an assigned directive, but no command unassigns one — the only way out is a hand edit of `roles.yaml`"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P3.2"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`directive remove <name>` correctly refuses a directive still bound to a role (REQ-SEC-07). The CLI
+offers `directive assign` but nothing to undo it, so retiring a custom directive cannot be done with
+WingFoil commands alone.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. A throwaway repository: `git init`, a git identity, then `wingfoil init --template Scrum`, with
+`wingfoil` = `node dist/cli.js` built from branch `docs/user-docs-v0.2` at `79a76d6e`.
+2. `wingfoil directive create --name api-style`, then `wingfoil directive assign --directive api-style --role developer`.
+3. `wingfoil directive remove api-style` → `error: cannot remove 'api-style': still assigned to role 'developer'`, exit `1`.
+4. Delete the line from `.wingfoil/roles.yaml` **without** committing → the same refusal (configuration is read at `HEAD`).
+5. Commit the edit → `directive remove api-style` succeeds.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A verb that removes an assignment — e.g. `directive unassign --directive <n> --role <r>` — committing
+`wf(directive): unassign <n> from <r>`, symmetric with `assign`.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Hand edit plus a hand commit whose message follows no WingFoil convention, which `memory history`-style
+auditing cannot attribute to an operation.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Arguably a missing feature rather than a defect: triage may turn it into a decision-log on the
+  directive command surface (P3.2 / spec-006 §3).
+- Documented as a workaround in `docs/user-guide.md` §6.2, `docs/cli-reference.md` and
+  `docs/examples/03-directives-per-role`.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture (bug-ingest, `bug-ingest-rel-v0.2-user-docs-findings-plan`): found during the v0.2
+  `user-docs` phase probe (`user-docs-rel-v0.2-plan`, *Execution Notes → Findings*); proposed severity
+  **low**. `release: ""` — scheduling belongs to `release-planning`.
