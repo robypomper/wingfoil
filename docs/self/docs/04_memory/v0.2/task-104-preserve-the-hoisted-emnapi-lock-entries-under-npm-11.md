@@ -2,7 +2,7 @@
 id: "task-104-preserve-the-hoisted-emnapi-lock-entries-under-npm-11"
 type: task
 title: "Stop an ordinary `npm install` on npm 11 from reverting the two hoisted `@emnapi` lock entries the release gate needs, and make the reversion fail a check instead of passing silently"
-status: backlog
+status: done
 release: "v0.2"
 priority: "medium"
 tags: ["v0.2", "release", "tooling"]
@@ -60,3 +60,682 @@ them — confirm that rather than assuming it.
   makes either easier to fix, say so in the notes; do not absorb them.
 - This is the one task in the wave that can make `main` uninstallable if it goes wrong. Work in your
   worktree, and re-run `npm ci` from a clean `node_modules` before submitting.
+
+## Execution Notes
+
+### design — role: architect
+
+Branch `task/task-104-preserve-the-hoisted-emnapi-lock-entries-under-npm-11`, worktree
+`/home/robypomper/Workspaces/.wf2-wt/task-104`, created from `main` at `5017555c`
+(`wf(bug): sync bug-044, bug-063, bug-103 [triaged -> planned]`). `main` did not move while this task
+ran (`git merge-base --is-ancestor main HEAD` → true at submit), so no merge of `main` was needed and
+none was made. Host environment for every command below unless stated otherwise: Linux,
+`node v22.21.0`, `npm 11.6.2` (`which npm` → `/usr/local/bin/npm`, a hand-upgrade — Node 22.21.0
+bundles npm 10.9.4, per `dl-076` E1 and re-derived below).
+
+**`agent.read_related` (dl-015).** `depends_on: []`
+(`grep -n '^depends_on:' docs/self/docs/04_memory/v0.2/task-104-*.md` → `depends_on: []`), so the hard
+gate has nothing to acknowledge. Read anyway, because the task names them: `bug-063` in full, and
+`task-080-fix-npm-ci-under-pinned-npm`'s Execution Notes in full. What is taken from `task-080`:
+
+1. Its **D1** is this task. It measured, on its own fixed tree, that
+   `npm install --package-lock-only` under npm 11.6.2 "deletes both hoisted entries again,
+   `overrides` block present and all", and closed with "the durable answer is to make developers run
+   the pinned npm rather than to rely on a test noticing". That prediction is re-measured here at
+   this branch's base rather than copied — see AC1.
+2. Its **control pair** is the finding this task builds on: *lock entries only, no overrides* →
+   `npm ci` exit 0; *overrides only, lock untouched* → exit 1. So the `overrides` block was never
+   what makes the gate install; it binds a version. Nothing in it makes npm **record a node**, which
+   is precisely why npm 11 is free to prune the node. That gap is what AC2 has to close.
+3. Its worktree warning is operative: a worktree whose `node_modules` is symlinked from the primary
+   checkout masks install results. Every `npm install` / `npm ci` recorded as evidence below runs in
+   a **throwaway clone in the scratchpad** with no `node_modules` present, except the two runs
+   explicitly labelled as being in this worktree (which has its own real `node_modules`, never a
+   symlink — `ls -d node_modules` → *No such file or directory* at branch creation).
+
+**`agent.verify_specs`.** No `tech-spec` is needed and none is revised. `spec-015-packaging-publishing`
+§3 stage 1 already makes `npm ci` the gate's first step and `REQ-SYS-09` is the requirement behind it;
+`REQ-SYS-09` declares its own verification route ("distribution requirement with no behavioral BDD
+feature"), so the review BDD gate has no scenario for this task — the same conclusion `task-080`
+reached and recorded, re-checked here rather than inherited:
+
+```
+$ grep -rln "npm\|packag" docs/02_requirements/02_bdd/features/
+(no output)
+```
+
+**`spec-015` §2 is checked, not assumed, because this task adds an npm script.** §2 reads
+"Existing `build`/`prepack`/`test`/`lint` unchanged; `prepack → build` still produces `dist/`", and
+`test/cli/publish-pipeline.test.ts` asserts `prepack: 'npm run build'` literally under the title
+"leaves the existing build/prepack/test/lint scripts unchanged (spec-015 §2)". So **`prepack` is not
+touched** — AC3's "or a `prepack` check" option is declined for that reason, and the check is wired
+as a *new* script (`check:lockfile`) plus a jest suite instead. §2 is a positive list that already
+grew once (`publish:staging`); adding a script alongside it contradicts nothing, so no spec revision
+is required.
+
+**Premises re-verified at execution time rather than read from `task-080` or from this task.**
+
+1. `.github/workflows/publish.yml` still pins the Node version, and all three `setup-node` steps
+   still consume it:
+   ```
+   $ grep -n "NODE_VERSION" .github/workflows/publish.yml
+   45:# Node version: pinned once in `env.NODE_VERSION` to 22.12.0 — the lowest version every PRODUCTION
+   106:  NODE_VERSION: '22.12.0'
+   119:          node-version: ${{ env.NODE_VERSION }}
+   151:          node-version: ${{ env.NODE_VERSION }}
+   169:          node-version: ${{ env.NODE_VERSION }}
+   ```
+2. Node 22.12.0 still bundles npm 10.9.0 — read from Node's own release index, not from a report
+   (AC4 says to read the workflow rather than assume which npm ships with it; this is the second
+   half of that, since the workflow names a Node and not an npm):
+   ```
+   $ curl -sS https://nodejs.org/dist/index.json -o <scratch>/nodeindex.json
+   $ node -e '…select v22.12.0 / v22.21.0…'
+   v22.12.0 npm 10.9.0
+   v22.21.0 npm 10.9.4
+   ```
+   So the npm AC4 is about is **10.9.0**, and it is neither the host's 11.6.2 nor what the host's own
+   Node bundles. It was installed into the scratchpad and invoked by absolute path throughout,
+   written `<npm109>` below:
+   ```
+   $ npm install --prefix <scratch>/npm109 npm@10.9.0 --no-audit --no-fund    # exit 0
+   $ <scratch>/npm109/node_modules/.bin/npm --version
+   10.9.0
+   ```
+3. The hoisted entries are present at this branch's base:
+   ```
+   $ grep -n '"node_modules/@emnapi' package-lock.json
+   565:    "node_modules/@emnapi/core": {
+   578:    "node_modules/@emnapi/runtime": {
+   590:    "node_modules/@emnapi/wasi-threads": {
+   ```
+
+**T1 acceptance-criterion classification (dl-014 / `testing` directive).**
+
+| AC | Class | Evidence |
+|---|---|---|
+| AC1 — reproduce, versions recorded | **red-first**, as an executable reproduction | the transcript below: plain `npm install` under npm 11.6.2 on a clean clone of this branch's base deletes 25 lines of lock and exits 0 |
+| AC2 — the entries survive an ordinary `npm install` | **red-first**, by control pair | AC1 *is* the red (overrides-only → pruned). After the fix, two consecutive `npm install` runs leave `package-lock.json` byte-identical; removing only the new devDependency declarations makes it prune again, which isolates the cause |
+| AC3 — a reversion fails a check | **red-first** | `test/cli/check-lockfile-pins.test.ts` written first: suite failed to run (`Cannot find module '../../scripts/check-lockfile-pins.cjs'`). Then, with the check in place, the two entries were deleted from the committed lock by hand → `npm run check:lockfile` exit **1** with the remediation, jest **5 failed / 15 passed** |
+| AC4 — `npm ci` under the pinned CI npm | characterization-by-execution | full non-dry `npm ci` under `<npm109>` (10.9.0) in a clean clone with no `node_modules` → exit 0, lock untouched |
+| AC5 — what the mechanism costs a consumer | characterization-by-execution | `npm pack --dry-run --json` (contents), the packed manifest's fields, and a **real** install of the tarball into a throwaway consumer project |
+| gates | characterization | the table under `refactor` |
+
+**Why the Jest suite is narrower than AC2, and why that is honest.** `dl-069` E3 is unchanged and
+decisive: offline with a cold cache, `npm ci --dry-run` exits 0 on a lock that does not install, so
+**no deterministic test can detect lockfile drift in general**, and the `determinism` directive
+(REQ-SYS-07) forbids a unit test to reach the registry for the data that would. Nothing here tries.
+The suite asserts local, file-only properties of two committed files and never runs npm; "a package
+manager did something" is proven by recorded transcripts, exactly as the Implementation Notes say.
+
+### red
+
+**R1 — AC1: the reproduction, on the npm installed here.** It **does** still reproduce. A clone of
+this branch at its base, in the scratchpad, outside every worktree, with no `node_modules`:
+
+```
+$ git clone -q --branch task/task-104-… <repo> <scratch>/ac1 && cd <scratch>/ac1
+$ git log --oneline -1
+f44768a8 wf(bug): sync bug-063-npm-11-erases-hoisted-emnapi-lock-entries [planned -> in-progress]
+$ node --version && npm --version
+v22.21.0
+11.6.2
+$ node -e '…read the two entries…'          # BEFORE
+node_modules/@emnapi/core 1.11.3
+node_modules/@emnapi/runtime 1.11.3
+$ node -e 'console.log(JSON.stringify(require("./package.json").overrides))'
+{"@napi-rs/wasm-runtime":{"@emnapi/core":"1.11.3","@emnapi/runtime":"1.11.3"}}
+$ ls -d node_modules
+ls: cannot access 'node_modules': No such file or directory
+
+$ npm install                                # the ordinary command, no flags
+added 500 packages, and audited 501 packages in 7s
+EXIT=0
+
+$ node -e '…read the two entries…'          # AFTER
+node_modules/@emnapi/core ABSENT
+node_modules/@emnapi/runtime ABSENT
+$ git status --porcelain
+ M package-lock.json
+$ git diff --stat
+ package-lock.json | 25 -------------------------
+ 1 file changed, 25 deletions(-)
+```
+
+The diff itself, pasted rather than described:
+
+```diff
+diff --git a/package-lock.json b/package-lock.json
+index 857ac3d4..fb451260 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -562,31 +562,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/@emnapi/core": {
+-      "version": "1.11.3",
+-      "resolved": "https://registry.npmjs.org/@emnapi/core/-/core-1.11.3.tgz",
+-      "integrity": "sha512-zLpS5asjEb7lq8jYLq37N6XKaE41DIexlY1rF/z4/tIl3wo13Sqm28fRyfIsKZD+NZ8mM5RoKkpW/rBcuoSZSg==",
+-      "dev": true,
+-      "license": "MIT",
+-      "optional": true,
+-      "peer": true,
+-      "dependencies": {
+-        "@emnapi/wasi-threads": "1.2.3",
+-        "tslib": "^2.4.0"
+-      }
+-    },
+-    "node_modules/@emnapi/runtime": {
+-      "version": "1.11.3",
+-      "resolved": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.11.3.tgz",
+-      "integrity": "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==",
+-      "dev": true,
+-      "license": "MIT",
+-      "optional": true,
+-      "peer": true,
+-      "dependencies": {
+-        "tslib": "^2.4.0"
+-      }
+-    },
+     "node_modules/@emnapi/wasi-threads": {
+       "version": "1.2.3",
+       "resolved": "https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.3.tgz",
+```
+
+Two things this adds to `bug-063`, which reproduced with `--package-lock-only`. First, it is the
+**plain, full `npm install`** — no flags, the command the bug is about — so the reversion is not an
+artifact of the lock-only mode. Second, npm reports `added 500 packages … EXIT=0`: nothing in its
+output mentions a removal, and the 25 deleted lines are the whole of the diff, with no neighbouring
+change to draw a reviewer's eye. That is the shape of the defect.
+
+**R2 — AC3: the check, written before it existed.** `test/cli/check-lockfile-pins.test.ts` first, run
+in this worktree against the tree as committed at `f44768a8`:
+
+```
+$ npx jest test/cli/check-lockfile-pins.test.ts
+● Test suite failed to run
+    Cannot find module '../../scripts/check-lockfile-pins.cjs' from 'test/cli/check-lockfile-pins.test.ts'
+Test Suites: 1 failed, 1 total
+EXIT=1
+```
+
+Committed as `9af42e11` before any implementation.
+
+### green — the mechanism, and why it is this one
+
+Three changes across 5 non-Memory files (`git diff --stat main...HEAD -- package.json
+package-lock.json scripts test` → `5 files changed, 402 insertions(+), 6 deletions(-)`), `src/` untouched
+(`git diff --stat main...HEAD -- src` → empty output; no `index.ts` barrel is touched either, so this
+branch has no surface for the semantic-merge class the wave brief warns about).
+
+**1. `package.json` — the two peers become exact direct `devDependencies`** (AC2). This is the whole
+of the mechanism:
+
+```json
+"devDependencies": {
+  "@emnapi/core": "1.11.3",
+  "@emnapi/runtime": "1.11.3",
+  …
+}
+```
+
+kept alongside `task-080`'s `overrides` block, and explained in a sibling `"//devDependencies:@emnapi"`
+key (npm ignores `//`-prefixed keys) so the reader who meets two packages nothing imports finds the
+reason in the file rather than in a task document. `task-080`'s own `"//overrides"` note ended
+"`test/cli/lockfile-peer-overrides.test.ts` fails if the lock stops carrying these" — true, but it
+left the impression that the `overrides` block keeps them there, which this task measured to be
+false; a sentence this pass made misleading is this pass's to fix, so that note now carries a closing
+clause pointing at the new one.
+
+**Why a direct declaration and not one of the other candidates.**
+
+- **Why not `packageManager` + corepack.** It would dissolve the bug rather than fix it, and
+  `bug-063`'s own Notes say so — but it is `dl-076-toolchain-divergence-unexercised-until-tag`
+  option (A), and `dl-076` is `in-discussion`
+  (`grep -n '^status:' docs/self/docs/04_memory/design/dls/dl-076-*.md` → `status: in-discussion`).
+  Choosing it is the approver's act, not an implementer's; this branch leaves it entirely open and
+  uncommitted-to, exactly as `task-080` left `dl-069` option (a) open.
+- **Why not a `postinstall`.** It is the one candidate with a real consumer cost — see AC5.
+- **Why not a committed `.npmrc`.** There is no npm config that makes npm 11 record a pruned optional
+  peer node; a repository `.npmrc` would also change resolution behaviour for everyone in ways
+  nothing here needs. (`dl-076` E2 records that no `.npmrc` exists; this task does not add one.)
+- **Why not "a different `overrides` shape".** The flat form pins a package tree-wide and would move
+  the nested `@emnapi/core@1.10.0` under `@unrs/resolver-binding-wasm32-wasi` for no reason connected
+  to this bug; `lockfile-peer-overrides.test.ts` already rejects it. And shape is not the issue:
+  measured below, `overrides` of *any* shape binds a version without recording a node.
+- **Why a direct declaration works.** npm never prunes a node a manifest directly depends on. It is
+  declarative, runs no code at any point in anyone's install, and — being `devDependencies` — is
+  invisible to consumers (AC5).
+
+**The isolation control — the declarations are load-bearing, not decorative.** From the *fixed* tree,
+with the `overrides` block still in place, only the two devDependency lines removed:
+
+```
+$ node -e '…delete the two devDependencies…'
+$ node -e 'console.log("devDeps @emnapi:", …)'
+devDeps @emnapi: []
+$ npm install --no-audit --no-fund            # npm 11.6.2
+removed 2 packages in 2s
+EXIT=0
+$ node -e '…read the two entries…'
+node_modules/@emnapi/core ABSENT
+node_modules/@emnapi/runtime ABSENT
+```
+
+So the pruning returns the moment the declarations go, and `overrides` alone never prevented it. That
+control is why the check in AC3 asserts the **declaration** as well as the lock entry: the lock can be
+correct at the instant someone deletes the mechanism that keeps it correct, and that commit must not
+pass.
+
+**2. `package-lock.json` — regenerated by the ordinary command, not hand-patched.** `npm install` in
+this worktree produced the whole of it:
+
+```
+$ git diff --stat        # after `npm install`, before committing
+ package-lock.json | 8 +++-----
+ package.json      | 6 +++++-
+```
+
+Five insertions, five deletions in the lock: the root `packages[""]` gains the two devDependencies,
+and four entries (`@emnapi/core`, `@emnapi/runtime`, `@emnapi/wasi-threads`, `tslib`) lose
+`"optional": true`, because they are now reached through a non-optional dev path. No version,
+`resolved` or `integrity` changed; `lockfileVersion` is still `3`. Unlike `task-080`, no surgery was
+needed — the point of the change is that the ordinary command now produces the right file.
+
+Committed as `657899ee`.
+
+**3. `scripts/check-lockfile-pins.cjs` + `.d.cts`, exposed as `npm run check:lockfile`** (AC3). Pure,
+offline, dependency-free CommonJS in the shape `scripts/check-release-tag.cjs` established
+(`checkLockfilePins(manifest, lockfile) → { ok, message }`, plus a `readProject(dir)` so the script
+can be pointed at any directory, which is also what makes its exit codes testable). It asserts three
+properties, the third of which is general rather than `@emnapi`-specific:
+
+1. every dependency pinned in `overrides` has a hoisted lock entry at exactly the pinned version;
+2. every such dependency is **also** declared as an exact direct dependency — the `bug-063` property,
+   the one the isolation control above proves is load-bearing;
+3. no hoisted package declares a **required** peer with no hoisted entry to resolve it from — the
+   general form of `bug-056`, so a future dependency repeating the shape is caught without anyone
+   remembering to add a pin. Peers the parent marks `peerDependenciesMeta.<name>.optional` are exempt,
+   and the exemption is itself covered by a test, so the assertion cannot pass vacuously.
+
+Nothing in it runs npm or reads npm's output: `dl-069` S1/E4 measured the same lock producing two
+different npm error messages three days apart, so the message is not a stable signal (`task-080` AC6,
+honoured here).
+
+### AC3 — the reversion now fails, and says what to do
+
+`task-080` restored the entries and nothing noticed when they came undone; the point of this section
+is that that is no longer true. **Measured, not asserted.** The two entries were deleted from the
+committed lock by hand, in this worktree:
+
+```
+$ node -e '…delete node_modules/@emnapi/core and …/runtime from package-lock.json…'
+$ npm run --silent check:lockfile
+package-lock.json / package.json lost a pin the release gate depends on:
+
+  - @napi-rs/wasm-runtime -> @emnapi/core@1.11.3: package-lock.json has NO hoisted entry for @emnapi/core
+  - @napi-rs/wasm-runtime -> @emnapi/runtime@1.11.3: package-lock.json has NO hoisted entry for @emnapi/runtime
+  - @napi-rs/wasm-runtime -> @emnapi/core: required peer with no hoisted lock entry to resolve it from
+  - @napi-rs/wasm-runtime -> @emnapi/runtime: required peer with no hoisted lock entry to resolve it from
+
+How to fix:
+  1. If you have not committed the loss:  git checkout -- package.json package-lock.json
+  2. If package.json changed on purpose:  keep each overridden package ALSO declared as an exact
+     direct devDependency, then run  npm install  and commit both files together.
+  3. Re-check with:  npm run check:lockfile
+
+Why it matters: `npm ci` exits 1 under npm 10.9.x — the npm Node 22.12.0 bundles, and
+.github/workflows/publish.yml pins that Node in env.NODE_VERSION — on a lock missing these
+entries, so the release gate cannot install (bug-056). An `overrides` pin alone does not keep
+them there: npm 11.x prunes them on an ordinary `npm install` and reports `up to date` (bug-063).
+EXIT=1
+
+$ npx jest test/cli/check-lockfile-pins.test.ts test/cli/lockfile-peer-overrides.test.ts
+Test Suites: 2 failed, 2 total
+Tests:       5 failed, 15 passed, 20 total
+
+$ git checkout -- package-lock.json && npm run --silent check:lockfile >/dev/null ; echo EXIT=$?
+EXIT=0
+```
+
+And the same failure as an exit code from the standalone entry point, which is what makes it usable
+outside jest — covered permanently by a test that builds a synthetic broken project in a temp dir and
+spawns the script (`exits 1 and writes the remediation to stderr…`), so the contract is pinned rather
+than only demonstrated here.
+
+**Where this check runs, stated plainly rather than overclaimed.** It runs (i) on demand in about a
+second, `npm run check:lockfile`; (ii) in `npx jest`, hence in `prepublishOnly`, hence in the gate job
+of `.github/workflows/publish.yml`. It does **not** run on `git commit` and it does **not** run on
+push: a git hook is a developer-environment decision nobody has taken, and a push-triggered CI job is
+`dl-069` option (a), which is explicitly *not* ratified (`dl-069` is `ready` as option (b) only). So
+the residual window is unchanged in shape and much smaller in practice: the reversion no longer
+*happens* on an ordinary install, and if it is reintroduced deliberately, the first thing that runs
+the suite says so with a remediation. Closing the window entirely is `dl-076`'s to decide — see
+Proposed elements.
+
+### AC4 — `npm ci` under the npm the pipeline pins
+
+The workflow pins **Node 22.12.0** (`env.NODE_VERSION`, re-read above), and Node 22.12.0 bundles
+**npm 10.9.0** (re-derived from `nodejs.org/dist/index.json` above, not assumed). In a fresh clone of
+this branch, outside every worktree, with **no `node_modules`** — so nothing is masked:
+
+```
+$ git clone -q --branch task/task-104-… <repo> <scratch>/ac4 && cd <scratch>/ac4
+$ git log --oneline -1
+657899ee feat(cli): task-104 — declare the two @emnapi peers as exact devDependencies …
+$ ls -d node_modules
+ls: cannot access 'node_modules': No such file or directory
+$ <npm109> --version
+10.9.0
+$ <npm109> ci --no-audit --no-fund
+added 502 packages in 10s
+EXIT=0
+$ git status --porcelain
+(empty — `npm ci` did not rewrite the lock)
+$ node scripts/check-lockfile-pins.cjs
+package-lock.json carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves from the lock
+EXIT=0
+```
+
+A **full, non-dry** `npm ci`, not a `--dry-run`. 502 packages against the 500 an npm-11 install of the
+pre-fix tree reported — the two `@emnapi` packages are now really installed rather than resolved and
+discarded, which is the point.
+
+**A residual divergence, measured because it would otherwise be assumed away.** `npm ci` is safe, but
+`npm install` under the *pinned* npm still rewrites metadata this repository's npm 11 does not:
+
+```
+$ <npm109> install --package-lock-only --no-audit --no-fund   # fresh clone of this branch
+up to date in 2s
+$ git diff --stat
+ package-lock.json | 12 ------------
+$ git diff -- package-lock.json | grep -E "^[-+]" | grep -v "^[-+][-+]" | sort | uniq -c
+     12 -      "peer": true,
+$ node scripts/check-lockfile-pins.cjs >/dev/null ; echo EXIT=$?
+EXIT=0
+```
+
+Twelve `"peer": true` flags. **The set was re-derived by comparing the two locks entry by entry,
+because reading it off the interleaved diff above got it wrong** — that reading listed
+`zod-to-json-schema`, which is not in the set, and missed `browserslist`, which is:
+
+```
+$ node -e '…compare packages{} of the npm-11 lock and the npm-10.9 lock…'
+entries whose `peer` flag differs: 12
+   node_modules/@babel/core               npm11: true  npm10.9: false
+   node_modules/@emnapi/core              npm11: true  npm10.9: false
+   node_modules/@emnapi/runtime           npm11: true  npm10.9: false
+   node_modules/@typescript-eslint/parser npm11: true  npm10.9: false
+   node_modules/acorn                     npm11: true  npm10.9: false
+   node_modules/browserslist              npm11: true  npm10.9: false
+   node_modules/eslint                    npm11: true  npm10.9: false
+   node_modules/express                   npm11: true  npm10.9: false
+   node_modules/hono                      npm11: true  npm10.9: false
+   node_modules/jest                      npm11: true  npm10.9: false
+   node_modules/typescript                npm11: true  npm10.9: false
+   node_modules/zod                       npm11: true  npm10.9: false
+entries whose version/resolved/integrity differ: 0 []
+```
+
+Metadata only, and "metadata only" is now measured rather than eyeballed: **zero** entries differ in
+`version`, `resolved` or `integrity`. The `@emnapi` entries survive and the check stays green. `task-080` saw the same class from the other direction
+("flips the `peer: true` flag on 11 unrelated entries") and left it in a `done` task's notes, where
+nothing schedules it. It is unchanged by this task and carried to Proposed elements rather than
+absorbed.
+
+### AC5 — what the mechanism costs a consumer
+
+The task says the package ships `dist` and `README.md` only. **Measured rather than taken on trust,
+and the premise is slightly wrong in the package's favour** — `LICENSE` ships too, because npm always
+includes it regardless of `files`:
+
+```
+$ npm pack --dry-run --ignore-scripts --json | node -e '…'
+entryCount 331 unpackedSize 1433059
+scripts/*: []
+package-lock: []
+top-level: [ 'LICENSE', 'README.md', 'dist', 'package.json' ]
+```
+
+So `scripts/check-lockfile-pins.cjs` is **not in the tarball at all**, and neither is the lockfile.
+The published `package.json` does carry the fields, which is the part worth checking rather than
+reasoning about:
+
+```
+$ npm pack --ignore-scripts --pack-destination <scratch>/pack && tar -xzf wingfoil-0.1.0.tgz package/package.json
+$ node -e '…read package/package.json…'
+has devDependencies: true
+emnapi in devDeps: [ '@emnapi/core', '@emnapi/runtime' ]
+scripts keys: [ 'build', 'prepack', 'prepublishOnly', 'publish:staging', 'check:lockfile', 'lint', 'docs:api', 'test', 'test:coverage' ]
+has overrides: true
+install-time lifecycle scripts present: []
+```
+
+Three of those lines matter and each is inert for a consumer: npm installs only the **root** project's
+`devDependencies`, never a dependency's; npm honours `overrides` only from the **root** manifest,
+never from a dependency's; and `check:lockfile` is reachable only through an explicit `npm run`, which
+nothing on an install path issues — and it would fail to resolve its own file anyway, since
+`scripts/` is not shipped. The decisive measurement is the install itself, into a throwaway consumer
+project:
+
+```
+$ mkdir <scratch>/consumer && echo '{"name":"consumer","version":"1.0.0","private":true}' > package.json
+$ npm install <scratch>/pack/wingfoil-0.1.0.tgz --no-audit --no-fund
+added 111 packages in 21s
+EXIT=0
+$ ls node_modules/@emnapi
+ls: cannot access 'node_modules/@emnapi': No such file or directory
+$ ls node_modules/wingfoil
+dist  LICENSE  package.json  README.md
+```
+
+**Zero `@emnapi` packages reach a consumer, and no code of ours runs during their install.** The
+comparison the AC asks for, each answered against that measurement:
+
+| Candidate | Consumer cost | Failure mode if it goes wrong |
+|---|---|---|
+| **Exact direct `devDependencies`** (chosen) | **none** — measured above: not installed, not honoured, not executed | a developer or CI installs two extra small packages (500 → 502). Local only |
+| `postinstall` script | **runs on every consumer install**, and ships in the manifest | breaks or slows an install of `wingfoil` for reasons that have nothing to do with `wingfoil`; `--ignore-scripts` consumers silently skip it, so it is unreliable *and* intrusive |
+| committed `.npmrc` | none (not in `files`) | changes resolution for every developer and for CI, globally, to fix one edge; no npm setting actually preserves a pruned optional peer node, so it would not even work |
+| a different `overrides` shape | none (a dependency's `overrides` is ignored) | measured not to solve the problem: shape does not make npm record a node. A flat pin additionally moves the unrelated nested `@emnapi/core@1.10.0` |
+| the lockfile check alone (`npm run check:lockfile`) | none (`scripts/` is not shipped) | reports the reversion but cannot prevent it — which is the shape `task-080` already had. It is kept **in addition to** the mechanism, not instead of it |
+
+### refactor — gates, run in this worktree
+
+No code refactoring was needed. The worktree's `node_modules` was **deleted and reinstalled with
+`npm ci`** before this table, per the task's Implementation Notes, and `git status --porcelain` is
+empty after it (so `npm ci` rewrote nothing):
+
+```
+$ rm -rf node_modules && npm ci --no-audit --no-fund       # npm 11.6.2, node v22.21.0
+added 502 packages in 6s
+EXIT=0
+$ git status --porcelain
+(empty)
+```
+
+| Gate | Command | Result |
+|---|---|---|
+| unit + BDD suite | `npx jest` | **139 suites / 2306 tests passed**, exit 0 |
+| coverage ≥80, non-regressing | `npx jest --coverage` | **98.56 %** statements / 94 branches / 98.75 functions / 99.4 lines; 139 suites / 2306 tests, exit 0 |
+| build typecheck | `npx tsc -p tsconfig.build.json --noEmit` | exit 0, no output |
+| build **emitting** | `npx tsc -p tsconfig.build.json` | exit 0, no output |
+| full typecheck (`bug-026`) | `npx tsc --noEmit -p tsconfig.json` | exit 0, **no output at all** — no exception carried |
+| lint | `npm run lint` | exit 0 |
+| API docs | `npm run docs:api` | exit 0 |
+| lockfile pins (new) | `npm run check:lockfile` | exit 0 |
+
+Coverage is `main`'s by construction, not by coincidence: `collectCoverageFrom` is `src/**/*.ts` and
+`git diff --stat main...HEAD -- src` returns empty output, so nothing this branch adds is measured by
+it. `git diff --name-only main...HEAD | grep -E 'index\.ts$'` is likewise empty — **no barrel and no
+shared `src/` import line is touched**, so this branch carries none of the semantic-merge risk the
+wave brief describes, and it can be merged in any order relative to `task-102` and `task-103`.
+`main` never moved during the task (`git merge-base --is-ancestor main HEAD` → true), so no merge of
+`main` into this branch was made.
+
+**Adjacent but untouched, as instructed.** `bug-046` (the lockfile's own `engines` copy that nothing
+asserts) and `bug-048` (CI pins a Node version two dev dependencies reject) are **not** absorbed.
+`bug-046` is now materially cheaper to fix and it is worth saying where: `scripts/check-lockfile-pins.cjs`
+already parses both files, already has the `{ ok, message }` + remediation convention, and already
+runs in three places (on demand, in `npx jest`, and in the gate through `prepublishOnly`), so the
+missing `engines` assertion is a fourth `problems.push` in `checkLockfilePins` and one synthetic test,
+with no new wiring. `bug-048` is not made cheaper or harder by anything here.
+
+### post-submit — one sentence this pass made untrue
+
+`test/cli/lockfile-peer-overrides.test.ts`'s header (task-080) asserted, in the present tense, that
+the pinned property "is the one that silently reverts — a plain `npm install` under npm 11.x
+re-resolves the tree and drops both hoisted entries again". That was true when it was written and
+true at this branch's base (AC1 above re-measures it), and **this task is what makes it false**. It
+is therefore this pass's to fix, not a finding to hand on: the paragraph now records the behaviour as
+the state *before* task-104, says what changed and why the file's assertions still matter, and points
+at `check-lockfile-pins.test.ts` for the remediation-bearing half. No assertion in that file changed
+(`npx jest test/cli/lockfile-peer-overrides.test.ts` → **7 passed**, unchanged count), and the full
+gate set was re-run afterwards with the same numbers as the table above.
+
+### review round 1 — the two corrections
+
+Nothing in the code was questioned. Two things in the *documents* were, and both are the same
+failure in two places: prose this task made untrue, and a promise this document made and did not
+keep.
+
+**C1 — the "Proposed elements" section was referenced twice and did not exist.** `refactor` said
+"carried to Proposed elements rather than absorbed" and AC3 said "see Proposed elements", and the
+document ended. That is precisely what this task's `green` section convicts `task-080` of —
+"left it in a `done` task's notes, where nothing schedules it" — committed by the document making
+the accusation. The section now exists, below.
+
+**C2 — the sweep for prose this task made untrue stopped at the file being edited.** Two
+`status: active` plans told the releaser never to run a bare `npm install` **because** `bug-063`
+(cited `open`) silently deletes the entries. The instruction is safe either way, and stays; the
+stated reason and the cited status are what this task falsified, in the two documents governing the
+release this branch exists to unblock. Corrected at `8309642c`:
+
+- `release-publishing-rel-v0.2-plan.md` (v1.1 → v1.2): precondition **P12**'s label, **P13** widened
+  to run `npm run check:lockfile` and both lockfile suites, the §4 bump-step block, **§7.5**, and
+  hazard **H3**. §10's 2026-09-22 correction block is left standing — it is a true statement about
+  what `npm version` does — with one clause noting the contrast it drew no longer holds.
+- `release-submit-rel-v0.2-plan.md` (v1.1 → v1.2): §2's "three open bugs the next phase is written
+  around" is now two, and **§6.5**.
+
+Both keep the instruction (`npm ci`, never a bare `npm install`) and replace its reason with the two
+that survive the fix: `npm ci` never rewrites a lockfile at all, and the two npms still disagree
+about lock metadata (the twelve-flag measurement under AC4). Neither plan is told to trust this
+task's report: each carries the command that settles it. Both documents' `version` was bumped per
+the `doc-versioning` directive (first edit after commit).
+
+**A claim of mine that did not survive its own re-check.** Writing C2 meant putting the twelve-entry
+list into a plan document, where it becomes a durable citation, so it was re-derived instead of
+copied — and the original was **wrong**. It had been read off an interleaved `git diff -U6`, which
+misaligned context lines with `-` lines: it listed `zod-to-json-schema`, which is not in the set, and
+omitted `browserslist`, which is. The corrected set and the method are under AC4. The lesson is the
+`claim-evidence` one in the exact shape this release keeps meeting it: the measurement was real, the
+*reading* of it was not, and only re-running it entry-by-entry caught that.
+
+Process note accepted rather than argued: `57d214c1` mixed a Memory-document edit with a test-file
+change in one commit, which nothing in the last 200 commits on `main` does. This pass keeps them
+apart — `8309642c` is plans only, and this notes entry is its own commit.
+
+### review round 1 — merge and gates
+
+**Where this branch sits.** `main` moved twice while the review corrections were being written —
+`task-102` (`7a67890b`) and then `task-103` plus the `bug-110`…`bug-118` / `dl-085` / `dl-086`
+filings and `task-105`'s scheduling. Per `dl-035` both were **merged**, never rebased, at `539c3611`
+and `86cb1cb7`. `main` at `98871b8d` is now fully contained
+(`git merge-base --is-ancestor main HEAD` → true), and this tree carries `task-102` and `task-103`
+both `done` and `task-105` `backlog`.
+
+**An earlier version of this paragraph claimed `main` had not moved, and that was false when it was
+written.** The `git log --oneline -1 main` in the very command that appended it printed
+`7a67890b Merge branch 'task/task-102-…'`; the sentence was written in the same heredoc and
+contradicted its own output. It is recorded rather than quietly overwritten, because it is the same
+defect class this document convicts itself of over the twelve-entry list: a claim written beside the
+evidence that refutes it.
+
+**Neither merge can invalidate a measurement in this document.** `comm -12` over the two change sets
+shows no file touched by both — `main` brought `src/core/{confinement,exit-code,index}.ts`,
+`src/storage/*`, `src/cli/program.ts` and their suites, and this branch touches no `src/` file at all
+— and neither merge touched the manifest or the lockfile
+(`git diff --stat babd1930 HEAD -- package.json package-lock.json` → empty output). So no AC1–AC5
+package-manager transcript was re-run, and none needed to be.
+
+Gates below were run at `86cb1cb7`, after `rm -rf node_modules && npm ci` (`added 502 packages`,
+exit 0, `git status --porcelain` empty — `npm ci` rewrote nothing). **No figure is carried forward
+from before the merge.**
+
+| Gate | Result at `86cb1cb7` (post-merge) |
+|---|---|
+| `npx jest` | **142 suites / 2358 tests passed**, exit 0 |
+| `npx jest --coverage` | **98.57 / 94 / 98.93 / 99.41**, 142 suites / 2358 passed, exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| **`npx tsc -p tsconfig.build.json` (emitting)** | exit 0 — re-run after the merge, per the wave brief's semantic-conflict warning |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output, no exception carried |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+| `npm run check:lockfile` | exit 0 — *"carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves from the lock"* |
+
+The 139 → 142 suites and 2306 → 2358 tests are `task-102`'s and `task-103`'s, arriving through the
+merges; coverage moves 98.56 → 98.57 statements and 98.75 → 98.93 functions for the same reason.
+Nothing this branch owns changed between the pre- and post-merge runs: the review corrections touched
+three Markdown documents and one comment block, and no assertion anywhere changed.
+
+
+## Proposed elements
+
+Registered by the orchestrator, not by this task (parallel worktrees would collide on ids). Each is
+outside this task's scope and each is stated with what was measured.
+
+### 1. `bug` (low) — the pinned npm and the developer npm still disagree about lock metadata
+
+On a checkout **containing this task's fix**, `npm install --package-lock-only` under npm **10.9.0**
+(the npm the pipeline's pinned Node 22.12.0 bundles) reports `up to date` and strips `"peer": true`
+from twelve entries relative to the npm-11.6.2-authored lock: `@babel/core`, `@emnapi/core`,
+`@emnapi/runtime`, `@typescript-eslint/parser`, `acorn`, `browserslist`, `eslint`, `express`, `hono`,
+`jest`, `typescript`, `zod`. Comparing the two locks entry by entry, **zero** differ in `version`,
+`resolved` or `integrity` — it is metadata only, `npm ci` does not read `peer`, both `@emnapi`
+entries survive and `npm run check:lockfile` stays green. Command and full output under **AC4** above.
+
+Why it is worth an element rather than a paragraph: it is a twelve-line diff that arrives with no
+explanation and no attribution, on a routine command, and the window where it is most likely — a
+releaser preparing a tag — is the window where an unexplained lockfile change is most expensive.
+`task-080` measured the same class from the other direction ("flips the `peer: true` flag on 11
+unrelated entries") and left it in a `done` task's Execution Notes, where nothing schedules it; this
+task would repeat that exactly by leaving it here. Severity low: nothing breaks, and the two release
+plans now warn about it (§7.5, §6.5).
+
+Not a duplicate of `bug-063`, which was about the `@emnapi` entries being **deleted** and is fixed.
+It is the residue that the fix does not touch, and it is a symptom of the `dl-076` class rather than
+a defect in anything this repository wrote.
+
+### 2. `decision-log` — the lockfile guard still runs nowhere that precedes a commit
+
+`npm run check:lockfile` runs on demand (~1s), inside `npx jest`, and therefore inside
+`prepublishOnly` and the gate job of `.github/workflows/publish.yml`. It does **not** run on
+`git commit` and it does **not** run on push. So the residual window is unchanged in *shape* from
+what `bug-063` described — a lock defect can still be committed and only noticed later — even though
+it is much smaller in practice now that the reversion no longer happens on an ordinary install.
+
+Closing it entirely is not an implementer's call, which is why this is a decision and not a bug:
+
+- a git hook is a developer-environment decision nobody has taken;
+- a push-triggered CI job is `dl-069-lockfile-drift-unguarded` option **(a)**, and `dl-069` is
+  `ready` as option **(b) only** — its own approve commit records that limitation;
+- making every local npm the CI npm (`packageManager` + corepack) is
+  `dl-076-toolchain-divergence-unexercised-until-tag` option **(A)**, and `dl-076` is
+  `in-discussion` (`grep -n '^status:' docs/self/docs/04_memory/design/dls/dl-076-*.md` →
+  `status: in-discussion`). That option would also dissolve element 1 above, which is the argument
+  for taking the two together.
+
+This task deliberately committed to none of them. What is proposed is that the residual be recorded
+where it can be scheduled — most naturally as an amendment to `dl-076`, since element 1 is more
+evidence for the same class — rather than living in a `done` task's notes.
+
+### 3. Not an element, but worth the orchestrator's note: `bug-046` got cheaper
+
+`bug-046` (the lockfile's own `engines` copy that nothing asserts) is **not absorbed**, as the task
+instructed. It is now materially cheaper to fix and it is worth saying exactly where:
+`scripts/check-lockfile-pins.cjs` already parses both files, already carries the `{ ok, message }`
+plus remediation convention, and already runs in three places. The missing assertion is one more
+`problems.push` in `checkLockfilePins` and one synthetic test, with no new wiring. `bug-048` (CI pins
+a Node version two dev dependencies reject) is neither helped nor hindered by anything here.

@@ -3,7 +3,7 @@ id: "release-submit-rel-v0.2-plan"
 type: plan
 title: "Release-submit — v0.2 (assemble the release, enter `releasing`, stop at the approver gate)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "release-submit"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -222,11 +222,19 @@ v0.1 phase did exactly this: `release-submit-rel-v0.1-plan.md` §2.1 records a *
 waiver** for `bug-004`/`bug-006`, "satisfied-with-waiver, not silently skipped". Follow that
 precedent: report, do not waive on your own authority.
 
-Three of those open bugs bear directly on the *next* phase and must be named explicitly in the
-report, because the publishing plan's steps are written around them: `bug-063` (a bare
-`npm install` erases the lockfile entries the release gate needs), `bug-067` (an interrupt during a
-blocking npm step is honoured late), `bug-055` (the secret scanner's own fixture trips GitHub push
+Two of those open bugs bear directly on the *next* phase and must be named explicitly in the
+report, because the publishing plan's steps are written around them: `bug-067` (an interrupt during a
+blocking npm step is honoured late) and `bug-055` (the secret scanner's own fixture trips GitHub push
 protection).
+
+**Amendment (2026-09-25, `task-104`).** This list named a third, `bug-063` — a bare `npm install`
+erasing the lockfile entries the release gate needs. `task-104` fixed it (both packages are now exact
+direct `devDependencies`, which npm never prunes); the bug is `in-review` on that task's branch and
+reaches `closed` through its `bug.sync_state` when the task is approved, so it is no longer an open
+bug and no longer belongs in this report. Confirm its status when this phase runs
+(`grep -n '^status:' docs/self/docs/04_memory/bugs/bug-063-*.md`) rather than taking this note's
+word for it. The publishing plan's *instruction* built on it is
+unchanged — see §6.5 and that plan's §7.5 for the reasons that outlive the fix.
 
 ---
 
@@ -455,11 +463,18 @@ running the gates. A stale `node_modules` fails `test/cli/types-node-floor.test.
 that the **installed** `@types/node` major equals the major of `engines.node`'s floor — it reads the
 tree, not the manifest, so it is exactly the test a stale tree breaks.
 
-**Never run a bare `npm install`.** `bug-063` (`open`, medium) measured that under npm 11.x a plain
-install silently deletes the hoisted `@emnapi` lockfile entries that make `npm ci` work under the npm
-CI uses, reporting `up to date` while doing it. `npm ci` never rewrites a lockfile, which is why it
-is the safe command. The full consequence — and the verification owed before a tag — is in the
-`release-publishing` plan, §2's precondition block.
+**Never run a bare `npm install`** — the instruction is unchanged; its reason has been corrected.
+
+Until `task-104`, the reason was `bug-063` (`open`, medium): under npm 11.x a plain install silently
+deleted the hoisted `@emnapi` lockfile entries that make `npm ci` work under the npm CI uses,
+reporting `up to date` while doing it. **`task-104` fixed that** — both packages are now exact direct
+`devDependencies`, which npm never prunes — and `bug-063` rides that task to `closed`. What survives
+the fix is
+that `npm ci` never rewrites a lockfile at all, so it cannot introduce an unreviewed lock change
+before the gates or the tag; and that a bare install under the *pinned* npm 10.9.0 still rewrites
+lock metadata the npm-11-authored file carries (twelve `"peer": true` flags, measured in `task-104`).
+The full consequence — and the verification owed before a tag — is in the `release-publishing` plan,
+§2's precondition block and §7.5.
 
 ### 6.6 The evidence rule (the top rejection cause in this release)
 
