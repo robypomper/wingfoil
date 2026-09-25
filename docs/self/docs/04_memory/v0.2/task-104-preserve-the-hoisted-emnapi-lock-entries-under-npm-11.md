@@ -561,3 +561,15 @@ already parses both files, already has the `{ ok, message }` + remediation conve
 runs in three places (on demand, in `npx jest`, and in the gate through `prepublishOnly`), so the
 missing `engines` assertion is a fourth `problems.push` in `checkLockfilePins` and one synthetic test,
 with no new wiring. `bug-048` is not made cheaper or harder by anything here.
+
+### post-submit — one sentence this pass made untrue
+
+`test/cli/lockfile-peer-overrides.test.ts`'s header (task-080) asserted, in the present tense, that
+the pinned property "is the one that silently reverts — a plain `npm install` under npm 11.x
+re-resolves the tree and drops both hoisted entries again". That was true when it was written and
+true at this branch's base (AC1 above re-measures it), and **this task is what makes it false**. It
+is therefore this pass's to fix, not a finding to hand on: the paragraph now records the behaviour as
+the state *before* task-104, says what changed and why the file's assertions still matter, and points
+at `check-lockfile-pins.test.ts` for the remediation-bearing half. No assertion in that file changed
+(`npx jest test/cli/lockfile-peer-overrides.test.ts` → **7 passed**, unchanged count), and the full
+gate set was re-run afterwards with the same numbers as the table above.
