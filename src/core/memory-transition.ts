@@ -29,6 +29,7 @@ import type { DocumentScope, MemoryYaml, StateMachine, TransitionOp } from '../m
 import { commitPaths, pathPorcelainStatus, readDocument, readPathAtRev, writeDocument } from '../storage';
 import { ValidationError } from '../validation';
 
+import { requireConfinedTarget } from './confinement';
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 import { requireUnmodifiedTarget, undeclaredCommittedPaths, type WriteTargetContract } from './write-guard';
@@ -239,23 +240,38 @@ export function verifyCommittedScope(
  * are staged, bug-027). Callers must have run the git-identity pre-flight (REQ-SEC-01) and every refusal
  * check first; this step is the only write.
  *
- * Three checks bound what reaches the repository, in this order — they are not redundant, they catch
+ * Four checks bound what reaches the repository, in this order — they are not redundant, they catch
  * different defects:
  *
- * 1. **The working tree is unmodified** ({@link requireUnmodifiedDocument}, `declared-fields-only`
+ * 1. **The document is the project's to write** ({@link requireConfinedTarget}, REQ-SEC-06) — catches
+ *    a wrong *place*: a type directory that is a symlink out of the project puts the document outside
+ *    the root, where `writeDocument` rewrites a file the repository does not own and `git add` then
+ *    fails with its own text. `bug-117` reports this for `memory add`, whose target is resolved by
+ *    `resolveConfinedMemoryPath`; these four verbs never ask that resolver anything — they locate an
+ *    existing document — so the same boundary is asked here, about the path they are about to write.
+ *    It runs **first**, and for every `scope`: the question "is this file ours at all" precedes every
+ *    question about its content, and check 2 cannot stand in for it (`git status --porcelain` reports
+ *    a path beyond a symbolic link as clean, which is `bug-118`).
+ * 2. **The working tree is unmodified** ({@link requireUnmodifiedDocument}, `declared-fields-only`
  *    only) — catches a wrong *baseline*: content that was already on disk before the verb ran
  *    (`bug-076`).
- * 2. **The rendering is in scope** ({@link verifyDocumentEdit} against the prepared document) —
+ * 3. **The rendering is in scope** ({@link verifyDocumentEdit} against the prepared document) —
  *    catches a defect in the *editor*: `status` must be the prepared target, every field in `expected`
  *    must have its value (`undefined` = absent), and no other field and no byte of the body may have
  *    moved (the `bug-041` class). Runs under `declared-fields-only` for **every** verb, `submit`
  *    included: `renderSubmitDocument` owns `status` and `rejection_reason` alone, and the content
  *    `submit` carries is already in the prepared document it is compared against.
- * 3. **The commit contains only the declared change** ({@link verifyCommittedScope} against
+ * 4. **The commit contains only the declared change** ({@link verifyCommittedScope} against
  *    `HEAD~1`) — the post-condition proper, and the only one that measures the artefact of record.
  *
- * Checks 1 and 2 report a `VALIDATION` error (exit 1) with nothing written or committed. Check 3 can
+ * Checks 1–3 report a `VALIDATION` error (exit 1) with nothing written or committed. Check 4 can
  * only report; see {@link verifyCommittedScope}.
+ *
+ * Check 1 resolves on the **working tree**, not at `HEAD`, which departs from `command-baseline`'s
+ * rule for a gating read. The argument is `task-102`'s, recorded in
+ * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` (`in-discussion`) and cited
+ * rather than re-made: it predicts where `writeDocument` will land, and that follows the symlinks on
+ * disk rather than the ones a commit records.
  *
  * @param scope - How much of the document this operation owns; defaults to the strict
  *   `declared-fields-only`, so a new verb is guarded unless it opts out deliberately.
@@ -269,6 +285,8 @@ export function commitMemoryTransition(
   scope: DocumentScope = 'declared-fields-only',
 ): CoreResult<string> {
   const owned = { status: prepared.to, ...expected };
+  const confined = requireConfinedTarget(root, prepared.path, 'write');
+  if (!confined.ok) return confined;
   if (scope === 'declared-fields-only') {
     const unmodified = requireUnmodifiedDocument(root, prepared);
     if (!unmodified.ok) return unmodified;

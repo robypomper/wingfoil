@@ -6,12 +6,16 @@
  * This module composes three primitives that already exist and are NOT re-implemented here:
  *   - `resolveConfinedMemoryPath` (task-017-storage-confinement, `../storage/memory-path` — not
  *     re-exported by the `../storage` barrel, imported directly per that module's own convention)
- *     renders a type's `path` pattern against concrete values and refuses — throwing
- *     `StorageError('E_PATH_ESCAPES_ROOT', 'Memory entries must reside within the project root')`
- *     — any resolution that would land outside the project root, BEFORE anything is written. That
- *     confinement message is the corrected, canonical REQ-SEC-06 fit-criterion string; the BDD
- *     `.feature` file's older "must reside under .wingfoil/memory/" wording is stale (see this task's
- *     Execution Notes for the reconciliation).
+ *     renders a type's `path` pattern against concrete values and refuses — throwing `StorageError`
+ *     `E_PATH_ESCAPES_ROOT` — any resolution that would land outside the project root, BEFORE
+ *     anything is written, judging the rendered string **and** its resolution on the filesystem
+ *     (`task-105`, `bug-117`: a symlinked type directory leaves the project with no traversal
+ *     anywhere in the string). Its message opens with the corrected, canonical REQ-SEC-06
+ *     fit-criterion sentence — `'Memory entries must reside within the project root'` — and then
+ *     names both spellings of the path, what the pattern rendered and where it really lands, because
+ *     on the symlink case the two differing is the finding. The BDD `.feature` file's older "must
+ *     reside under .wingfoil/memory/" wording is stale (see this task's Execution Notes for the
+ *     reconciliation).
  *   - `writeDocument` (`../storage`) writes bytes only (mkdir-p).
  *   - `commitPaths` (`../storage`) stages exactly the one resolved path and produces exactly one
  *     commit — so calling {@link writeMemoryEntry} twice against the SAME `pattern`/`values` (i.e.

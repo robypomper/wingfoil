@@ -78,8 +78,20 @@ export interface RealPathResolution {
  * removable and must stay so: `unlink` removes the link, the target survives, and git stages the
  * link as an ordinary blob. It is reaching *through* a symlinked **directory** that leaves the
  * project — that is the file git itself refuses to stage ("beyond a symbolic link") and the one
- * whose deletion lands outside the root. Resolving the leaf as well would turn a working removal
- * into a refusal without protecting anything.
+ * whose deletion lands outside the root.
+ *
+ * **That reasoning is a deletion's, and this function now has write callers too.** For `unlinkSync`
+ * it holds entire: resolving the leaf would turn a working removal into a refusal protecting
+ * nothing. `task-105` added two **write** consumers — `resolveConfinedMemoryPath`
+ * (`./memory-path.ts`) and `requireConfinedTarget` inside `commitMemoryTransition`
+ * (`../core/memory-transition.ts`) — and `writeFileSync` **follows** a symlinked leaf where
+ * `unlinkSync` acts on it. On those paths an unresolved leaf therefore does leave something
+ * unprotected: bytes land outside the root, measured through the built CLI on both of them and filed
+ * as `bug-120-a-symlinked-document-leaf-is-followed-by-the-write`, owned by `task-106`. The
+ * asymmetry is **right for the delete path and a known gap on the write paths** — and the remedy is
+ * a per-verb refusal of a symlinked target (`lstat`/`O_NOFOLLOW`-shaped), not a wider boundary here,
+ * which would red exactly the `bug-044` case this paragraph exists to keep working. `dl-086` carries
+ * the reasoning about which state a guard over a filesystem effect may read.
  *
  * @param root - The project root; need not be real-resolved by the caller.
  * @param relativePath - A root-relative path (an absolute one is honoured as given, and then judged
