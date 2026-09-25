@@ -1,45 +1,67 @@
 ---
 id: "bug-119-the-ci-npm-and-the-developer-npm-disagree-about-lock-metadata"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "npm 10.9.0 strips `\"peer\": true` from twelve lock entries that npm 11 writes, so the lockfile has two authors who disagree and either one produces a diff nobody asked for"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+On a checkout **containing `task-104`'s fix**, `npm install --package-lock-only` under **npm 10.9.0**
+— the version `.github/workflows/publish.yml` pins through Node 22.12.0 — reports `up to date` and
+strips `"peer": true` from twelve entries:
+
+`@babel/core`, `@emnapi/core`, `@emnapi/runtime`, `@typescript-eslint/parser`, `acorn`,
+`browserslist`, `eslint`, `express`, `hono`, `jest`, `typescript`, `zod`.
+
+Comparing the two locks entry by entry, **zero** differ in `version`, `resolved` or `integrity`. It is
+metadata only.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Fresh clone at a revision carrying `task-104`. Run `npm install --package-lock-only` under npm 10.9.0
+and `git diff package-lock.json`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The lockfile has one author, or the difference between its two authors is recorded so that a developer
+who produces it knows it is expected.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+A developer running the CI's npm produces a twelve-line diff that nobody asked for and that carries no
+semantic change, and a developer running npm 11 produces its inverse.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Not a duplicate of `bug-063`, and not made by it.** `bug-063` was the *pruning* of two hoisted
+entries — a semantic change that broke `npm ci` on the pinned npm. `task-104` fixed that and added a
+check that fails if it recurs. This is the residue that fix does not touch, and it exists on both
+sides of it.
+
+**Harmless to `npm ci`**, which is what the release gate runs, and `npm run check:lockfile` stays green
+under either author. So there is nothing to protect — only noise to explain.
+
+**`task-080` saw this from the other direction and left it in a `done` task's notes**, where nothing
+schedules it. That is the second time this specific fact has been measured and not filed, which is why
+it is filed now rather than carried again.
+
+**A caution for whoever measures it next, recorded because it nearly went wrong here.** `task-104`'s
+first version of the twelve-package list was **incorrect** — read off an interleaved `git diff -U6`
+whose context lines misaligned with the deletions, naming `zod-to-json-schema` (not in the set) and
+omitting `browserslist` (in it). It was caught only because writing the list into a plan document made
+it a durable citation and forced an entry-by-entry re-derivation. The measurement was real; the
+reading of it was not. Compare the two locks programmatically, not by eye.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. No behaviour, no install, and no gate is affected; the cost is a
+  spurious diff and the doubt it creates about whether the lockfile is in a good state.
+- Found by `task-104` and confirmed by its reviewer.
