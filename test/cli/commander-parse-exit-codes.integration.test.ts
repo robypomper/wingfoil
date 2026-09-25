@@ -197,15 +197,26 @@ describe('AC5 — `--help` and `--version` still exit 0 (characterization: the t
     expect(runCli('help', 'dna').status).toBe(0);
   });
 
-  it('a noun invoked bare prints its help and keeps its current exit 1 — NOT turned into 2 by the interception', () => {
-    // Commander reaches this through `commander.help` (`this.help({ error: true })`, suggested exit
-    // code 1), a different code from the `commander.unknownCommand` this task remaps. Pinned as-is:
-    // whether a bare noun should be exit 2 with an `error:` line is a separate question from routing
-    // Commander's *errors* through the contract, and changing it here would be an unrequested
-    // behaviour change riding along with this one.
+  it('a noun invoked bare prints its help AND an `error:` line, at exit 2 — since task-103', () => {
+    // This case is why the discriminator has to be finer than "the code alone". Commander reaches it
+    // through `commander.help` (`this.help({ error: true })`, suggested exit code 1) — the SAME code
+    // as the built-in `help` command in the case directly above, which must keep exiting 0.
+    //
+    // `task-101` left it at exit 1 with no message, because promoting it meant separating "help
+    // printed because the user asked" from "help printed because the invocation was incomplete", and
+    // no AC of that task asked for it. `bug-103` recorded the two `spec-005` §1 violations that left
+    // standing — a malformed invocation reporting `1`, and a non-zero exit carrying no error message
+    // at all — and `task-103` closed them by keying on commander's *suggested exit code* within that
+    // one code. So this assertion and the `help` one above must move in opposite directions or not at
+    // all: that is what it is doing here, among the `--help` / `--version` / `help` cases, rather than
+    // with its own task's suite.
+    //
+    // The wording of the line, the sibling `wingfoil help <unknown>` case and the per-noun sweep are
+    // task-103's and live in `test/cli/missing-verb-exit-code.integration.test.ts`.
     const result = runCli('dna');
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toContain('Usage: wingfoil dna');
+    expect(result.stderr).toContain('error: ');
   });
 });
 

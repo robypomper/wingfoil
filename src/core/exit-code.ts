@@ -9,11 +9,17 @@
  * Parse-level usage errors (`2`) are *detected* by a surface before any core call — an unknown
  * command, an unknown option, a missing required argument — but since
  * task-101-route-commander-parse-errors-through-the-exit-code-contract (`bug-098`) their **code** is
- * decided here too, by {@link exitCodeForParseOutcome}. Before that task the CLI's argument parser
+ * decided here too, by {@link classifyParseOutcome}. Before that task the CLI's argument parser
  * terminated through its own `process.exit(1)` and those classes never reached this module at all, so
  * an unknown command reported `1` — the code spec-005 §1 reserves for a *well-formed* invocation that
  * failed. Keeping the parse mapping here is what that task's AC6 protects: one place decides an exit
  * code, not one place per error origin.
+ *
+ * task-103-a-missing-verb-exits-2-with-an-error-line (`bug-103`) added the second half of the same
+ * §1 rule to that one place: the section also states that a non-zero exit is **always** accompanied by
+ * an error message on stderr, and one parse outcome — an invocation the parser found incomplete —
+ * carries no message of its own. So {@link classifyParseOutcome} answers two questions rather than
+ * one, from a single rule: which exit code, and whether the surface still owes the `error:` line.
  */
 import { ValidationError } from '../validation';
 
@@ -94,21 +100,77 @@ const USAGE_ERROR_PARSE_CODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The exit code for a CLI argument parser's own termination (spec-005 §1, REQ-INT-04 — task-101,
- * `bug-098`). The parser reaches this both when it *refuses* an invocation and when it *completes*
- * one without running a command (`--help`, `--version`), so the mapping has two branches:
+ * The parser outcome that reports an **incomplete invocation**: the parser had nothing to run and
+ * printed the command's help to stderr instead of an error (task-103, `bug-103`).
+ *
+ * This is *not* an error code — it is the same identifier Commander uses when the user asks for help
+ * with the built-in `help` command, which must keep exiting `0`. The two are separated by the
+ * **suggested exit code** carried alongside it: `Command#help(contextOptions)`
+ * (`node_modules/commander/lib/command.js`, commander@15.0.0) suggests `1` exactly when it was called
+ * as `help({ error: true })`, which is what its three "there is nothing here to run" call sites do —
+ * the missing-subcommand branch, the nothing-hooked-up branch, and `_dispatchSubcommand`'s
+ * `if (!subCommand)`, where `wingfoil help <unknown>` lands. A user-requested help suggests `0`.
+ *
+ * That one bit is the whole discriminator, and it is read from the parser's own two fields rather
+ * than by re-reading argv — so this module still decides alone, and the surface never re-parses an
+ * invocation the parser has already parsed.
+ */
+const INCOMPLETE_INVOCATION_PARSE_CODE = 'commander.help';
+
+/**
+ * How a parse outcome resolves against spec-005 §1: the exit code, and whether the **surface** still
+ * owes the `error:` line the section requires of every non-zero exit.
+ */
+export interface ParseTermination {
+  /** The contract's answer, overriding the parser's suggestion. */
+  readonly exitCode: ExitCode;
+  /**
+   * `true` when the parser terminated non-zero having written no error message of its own, so the
+   * surface must emit one to satisfy spec-005 §1's "a non-zero exit code is **always** accompanied by
+   * an error message on stderr". `false` when the parser already wrote its own `error: …` line (every
+   * code in {@link USAGE_ERROR_PARSE_CODES}) or when the exit is `0`. The message *text* is the
+   * surface's to compose — only the obligation is decided here.
+   */
+  readonly needsErrorLine: boolean;
+}
+
+/**
+ * Resolve a CLI argument parser's own termination against spec-005 §1 (REQ-INT-04 — task-101 /
+ * `bug-098`, extended by task-103 / `bug-103`). The parser reaches this both when it *refuses* an
+ * invocation and when it *completes* one without running a command (`--help`, `--version`), so the
+ * rule has three branches:
  *
  * - an outcome in {@link USAGE_ERROR_PARSE_CODES} is a malformed invocation → exit **2**, overriding
- *   the parser's suggestion (Commander suggests `1` for every one of them);
+ *   the parser's suggestion (Commander suggests `1` for every one of them). It wrote its own message,
+ *   so the surface owes nothing;
+ * - {@link INCOMPLETE_INVOCATION_PARSE_CODE} with a **non-zero** suggestion is an invocation the
+ *   parser found incomplete — a noun with no verb, `wingfoil` with no arguments, `help <unknown>`.
+ *   §1 lists a "missing required argument" among the malformed invocations, so it is exit **2** as
+ *   well; unlike the codes above it printed only help text, so `needsErrorLine` is `true`;
  * - anything else is a *successful* termination or an outcome this contract does not classify, and
  *   keeps the parser's own suggested code, narrowed to the three-code contract: `0` stays `0` (so
- *   `--help` and `--version` still exit `0`, as spec-005 §1 requires), any non-zero suggestion becomes
- *   `1`. That default is deliberately the status quo rather than `2`: an unrecognised outcome must not
- *   silently acquire a usage-error meaning it was never shown to have.
+ *   `--help`, `--version` and an explicit `help` still exit `0`, as spec-005 §1 requires), any
+ *   non-zero suggestion becomes `1`. That default is deliberately the status quo rather than `2`: an
+ *   unrecognised outcome must not silently acquire a usage-error meaning it was never shown to have —
+ *   and, for the same reason, must not acquire a manufactured error message either. The only code
+ *   that reaches it non-zero today is `commander.executeSubCommandAsync`, and WingFoil registers no
+ *   executable subcommand.
+ */
+export function classifyParseOutcome(outcome: ParseOutcome): ParseTermination {
+  if (USAGE_ERROR_PARSE_CODES.has(outcome.code)) return { exitCode: 2, needsErrorLine: false };
+  if (outcome.code === INCOMPLETE_INVOCATION_PARSE_CODE && outcome.exitCode !== 0) {
+    return { exitCode: 2, needsErrorLine: true };
+  }
+  return { exitCode: outcome.exitCode === 0 ? 0 : 1, needsErrorLine: false };
+}
+
+/**
+ * The exit code alone for a parse outcome — {@link classifyParseOutcome}'s `exitCode`, kept as a named
+ * function for callers (and tests) that care only about the code. It *delegates* rather than repeating
+ * the rule, so the code and the error-line obligation can never be decided from two different tables.
  */
 export function exitCodeForParseOutcome(outcome: ParseOutcome): ExitCode {
-  if (USAGE_ERROR_PARSE_CODES.has(outcome.code)) return 2;
-  return outcome.exitCode === 0 ? 0 : 1;
+  return classifyParseOutcome(outcome).exitCode;
 }
 
 /** A thrown error's surface rendering: the human `reason` (spec-005 §3) and the process exit code. */
