@@ -1,45 +1,65 @@
 ---
 id: "bug-124-an-in-root-symlinked-custom-directory-still-deletes-then-fails"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "A `directives/custom` symlinked to somewhere else *inside* the project still unlinks the file first and fails afterwards — `bug-044`'s order of operations, below its confinement boundary"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P3.5"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`task-102` made `directive remove` refuse when the target resolves **outside** the project root.
+`bug-044` bounds itself to that case in its own title and Summary. When `directives/custom` is a
+symlink to another directory **inside** the root, the old behaviour is unchanged: the file is
+unlinked, and only then does the command fail.
+
+Measured by `task-102` with `custom` → `.wingfoil/elsewhere`:
+
+```
+$ wingfoil directive remove legacy-rule
+error: Command failed: git … add -- …                     exit 1
+$ git status --short
+ D .wingfoil/elsewhere/legacy-rule.md                      # deleted, then reported
+```
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+As above, in a throwaway `wingfoil init --template Scrum` repository.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A command that cannot complete does not leave the working tree changed — the check precedes the
+mutation whether or not the target crosses the confinement boundary.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Inside the root, the unlink still happens first and the failure is git's own raw text.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Milder than `bug-044`, and not the same defect.** The file is tracked, so `git checkout --` recovers
+it, and nothing leaves the project. What survives is the *order* — delete, then discover you could not
+finish — and the unmapped git error, which is `bug-071`/`bug-093`'s family.
+
+**Widening the confinement check would be the wrong mechanism**, and `task-102` said so: this is not a
+boundary crossing, so `requireConfinedTarget` has nothing to refuse. What actually refuses it is git's
+own rule that a path beyond a symlink cannot be staged — which the command discovers only after it has
+acted.
+
+**Filed late, and the reason is worth recording.** `task-102` proposed it, its reviewer confirmed it
+verbatim including the ` D` line afterwards, and it was not registered at the time. The wave brief
+directs proposals into an agent's **final report** rather than into its task document, so an
+unregistered proposal disappears with the session — which is how this one and `bug-122` were both
+nearly lost.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. Recoverable with one git command, inside the project, and reachable
+  only through a deliberate symlink. Filed because the ordering is the same one `task-102`'s reviewer
+  proved is the acceptance criterion rather than the message.
