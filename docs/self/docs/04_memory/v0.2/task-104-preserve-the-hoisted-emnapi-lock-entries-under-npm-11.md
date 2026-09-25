@@ -695,3 +695,26 @@ instructed. It is now materially cheaper to fix and it is worth saying exactly w
 plus remediation convention, and already runs in three places. The missing assertion is one more
 `problems.push` in `checkLockfilePins` and one synthetic test, with no new wiring. `bug-048` (CI pins
 a Node version two dev dependencies reject) is neither helped nor hindered by anything here.
+
+### review round 1 — gates re-run
+
+Run at `d49f2679`, after both corrections landed; this paragraph is the only change made afterwards,
+and it is Markdown. `main` had not moved (`git log --oneline -1 main` → `5017555c`;
+`git merge-base --is-ancestor main HEAD` → true), so there is still no merge on this branch.
+
+| Gate | Result |
+|---|---|
+| `npx jest` | **139 suites / 2306 tests passed**, exit 0 |
+| `npx jest --coverage` | **98.56 / 94 / 98.75 / 99.4**, 2306 passed, exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc -p tsconfig.build.json` (emitting) | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output, no exception carried |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+| `npm run check:lockfile` | exit 0 — *"carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves from the lock"* |
+
+Identical to the pre-review numbers, which is the expected result: the corrections touched three
+Markdown documents and one comment block, and no assertion anywhere changed. No package-manager
+transcript was re-run for the corrections themselves — the one measurement that *was* re-run is the
+twelve-entry `peer`-flag set, because writing it into a plan document turned it into a durable
+citation and the original reading of it proved wrong.
