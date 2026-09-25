@@ -1,45 +1,58 @@
 ---
 id: "bug-115-the-closest-match-suggestion-never-fires-on-the-help-path"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`wingfoil memroy` suggests `memory`; `wingfoil help memroy` suggests nothing — the same typo gets help or no help depending on how it is reached"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P5.1"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`spec-008` §1 requires an unknown command to suggest a near match. It fires on the direct path and not
+through `help`:
+
+```
+$ wingfoil memroy
+error: unknown command 'memroy'                  (Did you mean memory?)     exit 2
+$ wingfoil help memroy
+error: unknown command 'memroy'                                             exit 2
+```
+
+Same typo, same message, same exit code — and a suggestion in one case only.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+The two commands above, on `task-103`'s build.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+A near-match suggestion is a property of "this command does not exist", not of the route that
+discovered it.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The direct path goes through Commander's `unknownCommand` error, which carries `suggestSimilar`; the
+`help <unknown>` path goes through `_dispatchHelpCommand` into `commander.help`, which has no
+suggestion machinery, and the line is WingFoil's own.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**Distinct from `bug-104`, and the two want fixing together.** `bug-104` is about the *format* of a
+suggestion that does fire — Commander's `(Did you mean memory?)` against the `hint:` line
+`spec-005` §3.1 declares. This is about a suggestion that does not fire at all. But the line for
+`help <unknown>` is emitted by WingFoil (`task-103` added it), so it is the natural place to put a
+correctly-formatted suggestion when `bug-104` is decided — one pass, not two.
+
+**Found by `task-103`, which deliberately did not add one**, since inventing a suggestion format while
+`bug-104` is open would have pre-empted that decision.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. The message is correct and the exit code is right; a user loses a
+  convenience on one of two routes to the same mistake. Schedule with `bug-104`.
