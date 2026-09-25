@@ -2,10 +2,10 @@
 id: "bug-120-a-symlinked-document-leaf-is-followed-by-the-write"
 type: bug
 title: "A symlinked document *leaf* is followed by `writeFileSync`, so Memory writes still land outside the project root — and through a dangling link `memory add` commits a subject for an element the repository does not contain"
-status: open
+status: triaged
 severity: "high"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.6"
 contributor: ""
 credit: ""
@@ -96,7 +96,8 @@ general statement on the Memory write paths `task-105` added it to.
 - triage (2026-09-25): **high**, on D1. A refusal that leaves a file outside the root is bad; a
   refusal that also writes a commit claiming an element exists is worse, because the failure is now
   recorded as a success in the log `memory history` reads back.
-- **Whether it blocks `v0.2` has not been decided.** Filed without a `release:` stamp so the choice is
-  explicit. The question it turns on: `bug-117` **as reported** — a symlinked store directory — is
-  closed; `bug-117` **as specified**, its Expected Behavior and REQ-SEC-06's property, is narrowed.
-  Which of the two the release gate is understood to select on is the approver's call.
+- **Scheduled into `v0.2` by the approver on 2026-09-25**, which makes it a release blocker. The
+  question it turned on was put explicitly: `bug-117` **as reported** — a symlinked store directory —
+  is repaired; `bug-117` **as specified**, its Expected Behavior and REQ-SEC-06's property, is not.
+  The ruling is that the gate selects on the requirement, so `bug-117` stays open and extended, and
+  this bug carries the remaining mechanism. `bug-117` closes when this one does.

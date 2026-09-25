@@ -68,7 +68,9 @@ is the pillar `REQ-SEC-06` was written for, and `memory add` is a far more ordin
 **Scheduled into `v0.2` by the approver on 2026-09-25**, which makes it a release blocker: the
 release-submit gate's C2 check selects bugs by their `release:` field. The argument is `bug-044`'s
 verbatim — publishing puts it in front of people who did not write it — and it applies with more
-force here, because `memory add` is the first mutating command most users run. Fix task: `task-105`.
+force here, because `memory add` is the first mutating command most users run. Fix tasks: `task-105` (the store-directory half, complete) and the successor to `bug-120` (the
+document-leaf half, outstanding). **This bug does not close until both land** — see the Extension
+below.
 
 ## Triage & Execution Notes
 
@@ -77,3 +79,37 @@ force here, because `memory add` is the first mutating command most users run. F
   and the outcome is a committed-looking operation that wrote somewhere the user never aimed the tool.
 - Found by `task-102`'s reviewer while checking whether that task's boundary extraction left its other
   entry point safe. It did not.
+
+## Extension (2026-09-25) — this bug is the requirement, not one of its two mechanisms
+
+The approver ruled on 2026-09-25 that this bug is **not closed** by `task-105`, and is extended
+rather than superseded.
+
+**What `task-105` repaired**, verified independently by its reviewer on a build from that branch: a
+symlinked store **directory** no longer lets `memory add` write outside the project root, and the
+same guard now covers the four Memory **transition verbs** — which were not callers of the confined
+resolver at all, and which measurement showed rewriting a planted document in place outside the root
+twice before failing. Post-fix each refuses with a mapped `CoreError` at exit 1 and leaves the outside
+file byte-identical.
+
+**What remains**, and why it is a different mechanism rather than a gap in that work: `unlink` acts on
+a symlink, but `writeFileSync` **follows** it. So the parent-resolved, leaf-unresolved asymmetry that
+is correct for a delete is a hole for a write. `bug-120` carries it, with two reproductions measured
+on the **fixed** build — including one in which `memory add` through a dangling link writes outside
+the root **and commits**, leaving a `wf(task): add` subject in history for an element the repository
+does not contain.
+
+**Why the bug stays open rather than closing and reopening as its successor.** What is written above
+in *Expected Behavior* is REQ-SEC-06's own property: a write whose destination resolves outside the
+project root is refused before any file is created. That property does not distinguish a symlinked
+directory from a symlinked document, and it does not hold yet. Closing this on the strength of the
+reported reproduction would leave `resolved` meaning "the case someone happened to report is fixed"
+in a record that a reader will take to mean "the requirement holds" — which one command falsifies.
+
+**`task-105` is nonetheless complete and is approved on its own terms.** It did what this bug
+described and more, found the remaining hole against its own work, and was forbidden by its own AC5
+from reaching for the wrong remedy — resolving the leaf, which would refuse the case `bug-044`
+verified as safe. The usual `bug.sync_state` close is overridden here deliberately, by the approver,
+and this paragraph is the record of that override.
+
+**This bug closes when `bug-120` closes.**
