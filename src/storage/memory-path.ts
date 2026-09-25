@@ -64,11 +64,17 @@ export function resolveMemoryPath(
  * writes outside the root.
  *
  * The boundary itself is {@link escapesRoot} (`./confinement.ts`), shared with every other store so
- * that "inside the project root" has one definition. This entry point stays **textual**, which is
- * all a rendered pattern needs: it decides where a document will be *created* from placeholder
- * values, and no filesystem answer exists for a path that does not exist yet. A caller holding a
- * real file on disk — where a symlinked directory can put the target outside the root with no
- * traversal in the string at all — wants `resolveRealPathInRoot` instead (`bug-044`).
+ * that "inside the project root" has one definition. This entry point is still **textual**, and that
+ * is a known gap rather than a justified choice: a symlinked directory on the way to a Memory
+ * document puts the write outside the root with no traversal anywhere in the string, so this
+ * function returns the path and the caller writes there. A filesystem answer does exist even for a
+ * path not yet created — `resolveRealPathInRoot` (`./confinement.ts`) resolves as far as the
+ * filesystem goes and keeps the missing tail verbatim, which is exactly the "path that does not
+ * exist yet" case — so nothing about rendering a pattern prevents this from being resolved too.
+ * Measured on the Memory store by `task-102`'s review; the repair is owned by the bug filed out of
+ * that review (`memory add` writing outside the project root through a symlinked Memory directory),
+ * not by `task-102`, whose boundary was `directive remove`. Until then, a caller that can reach a
+ * real directory on disk should use `resolveRealPathInRoot` (`bug-044`).
  *
  * @returns the absolute, confinement-verified target path.
  * @throws {@link StorageError} `E_PATH_ESCAPES_ROOT` (message {@link CONFINEMENT_MESSAGE}) when the

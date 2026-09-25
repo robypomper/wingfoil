@@ -13,6 +13,12 @@
  * `execFileSync` message — so the operator lost a file, got git's text instead of a mapped refusal,
  * and no commit recorded any of it. A check that runs after the deletion reports a loss it could
  * have prevented; the refusal has to land before the filesystem is touched at all.
+ *
+ * **Baseline.** This guard resolves against the **working tree**, not `HEAD`, and that is deliberate
+ * — a departure from the `command-baseline` directive's read half, argued (as that directive
+ * requires) in `task-102`'s Execution Notes and in the decision-log filed from them, never settled
+ * here. The one-line reason: what this predicts is where `unlinkSync` will land, and `unlinkSync`
+ * follows the symlinks that are on disk, not the ones a commit records.
  */
 import { resolveRealPathInRoot } from '../storage/confinement';
 
