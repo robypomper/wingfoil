@@ -452,8 +452,18 @@ being `prepareMemoryTransition`'s non-`ValidationError` rethrow, likewise untouc
 
 ### Findings outside this task
 
-Three, all measured, none fixed here and none filed by me (parallel worktrees collide on ids): the
-unguarded **configuration** write paths — with `dna set` through a symlinked `dna.yaml` reproduced —
-`resolveMemoryPath`'s status as a confinement-free sibling, and the shape of what `bug-118` leaves
-open on this surface. They are written up under **Proposed elements** in the hand-off report for the
-orchestrator to register.
+Two, neither fixed here and neither filed by me (parallel worktrees collide on ids):
+
+1. The **configuration** write paths — `dna set`, `directive create`, `directive assign`,
+   `wingfoil init`'s scaffold — have no confinement pre-flight at all, let alone this one.
+   Reproduced, not inferred: with `.wingfoil/dna.yaml` a committed symlink to a file outside the
+   project, `dna set project.name --value probe` **rewrote the outside file** (md5 `93740c55…` →
+   `d723afcc…`) and failed with `error: Command failed: git -C … commit --only …`, exit 1, no
+   commit. That is `bug-044`'s crossing and `bug-120`'s mechanism, in the DNA store.
+2. `resolveMemoryPath` — the **unconfined** sibling of `resolveConfinedMemoryPath` — is exported
+   from `src/storage/index.ts` and has no caller in `src/`. `task-105` raised it under its own
+   Proposed elements; `grep -rln "resolveMemoryPath" docs/self/docs/04_memory/` returns only task
+   documents, no `bug` and no `decision-log`, so nothing appears to have been registered for it.
+
+Both are written up under **Proposed elements** in the hand-off report for the orchestrator to
+register.
