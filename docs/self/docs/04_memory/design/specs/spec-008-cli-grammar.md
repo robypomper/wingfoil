@@ -165,6 +165,17 @@ not declare** is exit `1` — a validation failure, like an unknown Memory type.
 `bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
 of failure, not its severity.
 
+A second case the table decides once it is read the same way: a **noun invoked without its verb**
+(`wingfoil dna`), `wingfoil` invoked with no command at all, and `wingfoil help <unknown>` are
+**"missing required argument"** in the exit-`2` row — the case already enumerated there, not a fourth
+one. §1's grammar makes the verb a required argument of the noun, so an invocation that stops at the
+noun is malformed, and it exits `2` with an `error: ` line naming what was missing (`spec-005` §1's
+rule that a non-zero exit always carries an error message admits no exception for it). An argument
+parser that answers such an invocation by printing the command's usage has not thereby emitted the
+error message. An **explicit** request for help by name — `wingfoil help`, `wingfoil help <known>` —
+is the opposite case and exits `0` alongside `--help`/`--version`, even though it prints the same
+text.
+
 ### 6. Error format (REQ-INT-08)
 
 Every user-facing error, on stderr, in `--format console` (default):
@@ -455,11 +466,38 @@ Only §9's first unprefixed-option bullet changes text: it recorded the measured
 value is now `2`. §5's table needed no change — it already said what the CLI now does. The second
 bullet is untouched: a name §2 *does* declare is still consumed by the global and still exits `0`,
 because `--version` is a successful termination and not a parse error. A noun invoked with no verb
-(`wingfoil dna`) also keeps its current exit `1` with help on stderr; that is Commander's
-`commander.help`, not one of its errors, and whether §5 and `spec-005` §1 should claim it is a
-separate question this revision does not answer — it is `bug-103`. The closest-match suggestion §1
+(`wingfoil dna`) kept its exit `1` with help on stderr through this revision; that is Commander's
+`commander.help`, not one of its errors, and whether §5 and `spec-005` §1 should claim it was a
+separate question this revision did not answer — it is `bug-103`, answered by the revision below,
+which is what §5 now says. The closest-match suggestion §1
 asks for is likewise untouched: the binary emits Commander's own `(Did you mean memory?)` rather than
 `spec-005` §3.1's `hint: ` line, which is `bug-104`. This revision changes exit codes only.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-25) — §5 settles what a missing verb is, per `bug-103` and
+`task-103-a-missing-verb-exits-2-with-an-error-line`.** §5's exit-`2` row has always read "unknown
+command/flag, missing required argument, invalid `--format` value", and a *missing* verb is arguably
+the second of those and arguably a case of its own. That ambiguity is what made the revision directly
+above leave `wingfoil dna` at exit `1`: a judgement, because the table could be read either way, and
+one that left the shipped CLI breaking `spec-005` §1 twice at once — a malformed invocation reporting
+`1`, and a non-zero exit carrying no error message at all. §5 now names the case in both directions —
+a noun without its verb is a missing required argument (exit `2`, with an `error: ` line), an explicit
+`wingfoil help` is a success (exit `0`) — and `spec-005` §1's Rules carry the same sentence, since the
+two tables state one contract.
+
+The distinction is not one an argument parser draws for free. Measured on commander@15.0.0, both cases
+terminate through the *same* non-error identifier, `commander.help`, and are separated only by the
+exit code it suggests alongside it: `1` where `Command#help({ error: true })` was reached because there
+was nothing to run, `0` where the user asked. `wingfoil dna` → `error: missing required argument:
+wingfoil dna <command>`; `wingfoil help nosuchnoun` → `error: unknown command 'nosuchnoun'`, the line
+`wingfoil nosuchnoun` already emitted. The `hint: ` suggestion §1 asks for is still absent from both,
+and still `bug-104`; this revision changes exit codes and adds error lines, and the wording of that
+suggestion is not its to pick.
+
+§9's unprefixed-option bullets are untouched, and so is the second bullet of the revision above: a
+name §2 *does* declare is still consumed by the global option and still exits `0`.
 
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
 and the same `spec-001` precedent the 2026-09-17 revision cites.
