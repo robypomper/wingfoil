@@ -72,10 +72,9 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   approver-level question this bullet once deferred: `adr-010-node-22-runtime-floor` settled it
   (`accepted`, `0627290`), superseding `adr-005` (`superseded`, `a7d783a`), and its cascade
   (`7bb95d6`) corrected the product brief, `dna.yaml` and `CLAUDE.md`, and added a dated Correction
-  note to `dl-001` instead of rewriting its original sentences.** One occurrence is deliberately left
-  standing: `README.md:115` still reads "Node.js 18+ required" and is owned by the `user-docs` release
-  gate (`dl-013`) per `adr-010` action 5 — settled at the decision level, not yet closed in the
-  user-facing documentation. This bullet still fixes only what the published manifest asserts about
+  note to `dl-001` instead of rewriting its original sentences.** The last occurrence, the
+  README's *Installation* sentence, was owned by the `user-docs` release gate (`dl-013`) per `adr-010`
+  action 5, and that gate has now corrected it to "Node.js 22.12+ required" — the cascade is closed. This bullet still fixes only what the published manifest asserts about
   itself; see the *Revision (2026-09-21) — §1 Node floor* note below.
 
 Unchanged: `name: wingfoil`, `main`, `types`, `license: MIT`. `version` is driven by the release/tag
@@ -186,8 +185,8 @@ without a supersede or a state change, per the `dl-041` / `task-059` precedent a
 (`adr-005`, the vision package, `dna.yaml`, `README.md`, `CLAUDE.md`) was untouched here and left to
 the approver — **and has since been settled**, by `adr-010-node-22-runtime-floor` (`accepted`,
 `0627290`). Of the five documents named in that list, `adr-005`, the vision package, `dna.yaml` and
-`CLAUDE.md` were corrected by `adr-010`'s cascade; only `README.md` still carries the old claim, under
-the `user-docs` gate. See the *Revision (2026-09-21) — §1 Node floor* note below, which is a separate
+`CLAUDE.md` were corrected by `adr-010`'s cascade; `README.md` — the last to carry the old claim — was
+corrected by the `user-docs` gate. See the *Revision (2026-09-21) — §1 Node floor* note below, which is a separate
 revision from this one.
 
 **Revision (2026-09-21) — §3 stage 2: Verdaccio is started by `scripts/publish-staging` in both
@@ -261,11 +260,10 @@ longer open.
   that document says "Node.js 18+" the runtime clause now reads 22.12+ — so the record of what v0.1
   decided stays readable.
 
-**What remains open.** `README.md:115` — "This installs the `wingfoil` binary (Node.js 18+ required)."
-— still asserts the old floor. It is owned by the **`user-docs` release gate** (`dl-013`) per
-`adr-010`'s own action 5, and is out of scope for any tech-spec revision. So the question is settled at
-the decision level and cascaded through the governance and DNA documents, but **not yet closed in the
-user-facing documentation** — do not read this note as saying the cascade is finished.
+**What remained open — since closed.** The README's *Installation* sentence asserted the old floor
+("This installs the `wingfoil` binary (Node.js 18+ required)."). It was owned by the **`user-docs`
+release gate** (`dl-013`) per `adr-010`'s own action 5, and is out of scope for any tech-spec revision.
+That gate has since corrected it; see the *Revision (2026-09-25)* note below.
 
 Both occurrences of the stale framing are corrected in this pass: §1's bullet, and the closing sentence
 of the `engines.node` revision note above, which said the same thing in different words. Same mechanics
@@ -323,9 +321,10 @@ decays silently into one a reader can check in a command.
 
 `dl-075` is applied under its fix-on-touch disposition and **only to the paragraph edited here**: the
 new text names elements, document headings and `runStaging`'s `finally` rather than line offsets. The
-offsets standing elsewhere in this document — `README.md:115` in §1 and in the *§1 Node floor* note,
-and that note's `dl-001` offsets — are deliberately left as they are, because a two-sentence
-correction is not a licence to rewrite an approved spec.
+offsets standing elsewhere in this document — the README's in §1 and in the *§1 Node floor* note,
+and that note's `dl-001` offsets — were deliberately left as they were, because a two-sentence
+correction is not a licence to rewrite an approved spec. (The README ones have since been converted
+by the *Revision (2026-09-25)* note below.)
 
 Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` precedent used by the
@@ -409,3 +408,15 @@ stage 1* note left them, for the reason that note gives.
 Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` / `task-084` precedent used by
 the revisions above. No code changes were made; the diff is this spec and `task-085`'s own Memory file.
+
+**Revision (2026-09-25) — the README Node floor is closed.** The `user-docs` gate for `minor-v0.2`
+rewrote `README.md`; its *Installation* section now reads "This installs the `wingfoil` binary
+(**Node.js 22.12+** required)." (`grep -nE 'Node(\.js)? ?1[0-9]|18\+' README.md` → no output, on
+branch `docs/user-docs-v0.2` at `8e5c14f4`). Every sentence of this spec that asserted the README
+still carried "Node.js 18+" was therefore false, and is corrected in place: §1's `engines.node`
+bullet, the closing sentence of the *§1: `engines.node`* revision, and the *What remains open*
+paragraph of the *§1 Node floor* note. The same edit replaces this spec's three `README.md:115` line
+offsets with the README's *Installation* heading, which is `bug-068`'s complaint; the `dl-001`
+offsets are untouched. Ordered by the approver on 2026-09-25, as the settlement of the §8 item 4
+question the user-docs plan left open. Edited in place — no supersede, no state change, no `version:`
+field (`dl-047`) — per the precedent of the revisions above.
