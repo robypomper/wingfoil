@@ -3,7 +3,7 @@ id: "user-docs-rel-v0.2-plan"
 type: plan
 title: "User-docs — v0.2 (align user-facing documentation to the shipped surface)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "user-docs"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -458,3 +458,106 @@ Given in chat and binding on this phase:
 
 What is still the approver's, and must not be assumed: the `align-user-docs` approval, and whether
 `bug-068`'s `spec-015` citation fallout is handled now.
+
+---
+
+## 10. Approver decisions of 2026-09-25 — `docs/agents.md`
+
+Given in chat and binding on this phase:
+
+- **A new user-facing document for agents, `docs/agents.md`, is written in this phase.** Its reader
+  is an AI agent operating inside a *user's* project that has been handed the GitHub link: it must
+  learn from it what WingFoil is for, how it is configured and how to operate it. It is an
+  alternative, backup and reinforcement to the MCP server shipped with WingFoil.
+- **It is in no phase's `produces:`.** `user-docs.yaml` is **not** amended for it (it stays v1.1),
+  and neither `align-user-docs`' nor `align-agent-docs`' post-checks cover it. It is written here
+  because this is when the surface it describes is final, not because a gate owns it.
+- **Its path is `docs/agents.md`, not a root `AGENTS.md`.** A root `AGENTS.md` is auto-loaded by
+  several coding agents working *on* this repository, which would hand contributor agents
+  user-facing instructions; `CLAUDE.md` remains the contributor-agent entry point.
+- **It is not shipped in the npm package.** `package.json` `files` is left as it is
+  (`dist`, `README.md`).
+- **Future, not scheduled:** including `docs/agents.md` by default in the prompts that start agents.
+  Nothing in this phase acts on it.
+
+---
+
+## 11. Content definition of the documents (agreed 2026-09-25)
+
+What each document contains. S2's survey re-measures the surface these outlines rest on; note that
+the shipped surface is already **20 commands**, not §3's 17 — `task-093` added `dna add`,
+`dna remove` and `dna update` (`node dist/cli.js dna --help`).
+
+### 11.1 `README.md` — align and slim
+
+The entry point, not the manual. Keep: problem, solution, the five pillars with their **v0.2**
+status (Directives shipped), installation with **Node.js 22.12+**. Replace the Quick Start with a
+~5-minute path — `init` → `dna show` → `memory add` / `submit` → `approve` (including the approver
+identity setup, H3) → `mcp` — every step a real transcript (S4's check). Add a pointer table to
+`docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples/`, `docs/agents.md`, `CHANGELOG.md`.
+Update the roadmap (§4.2). Move the full command block and the *Machine-readable output & the
+exit-code contract* section out to the CLI reference.
+
+### 11.2 `docs/user-guide.md` — step by step: configure, then use
+
+0. **Concepts** — element, type, state machine, state derived from frontmatter, one operation = one
+   commit, roles, the approver.
+1. **Prerequisites** — Node.js 22.12+, a git repository, a configured git identity (REQ-SEC-01).
+2. **Install** — `npm install -g` / `npx`.
+3. **`wingfoil init --template …`** — what it creates under `.wingfoil/`, file by file.
+4. **Configure DNA** — modules, stacks, team & roles, paths; `dna show|set|add|remove|update`; the
+   grammar (positional = target, option = attribute; quoted segments for dotted names).
+5. **Configure Memory** — types, `sequence` / `gates` / `waiting`, templates, `id_pattern`;
+   customising a type.
+6. **Configure Directives** — the built-in P3.8 templates installed by `init`, `directive create`,
+   `assign`, `remove` (unassign first, H5), `roles.yaml`.
+7. **Workflows** — `workflow list`; state plainly that no workflow engine ships, and how to follow a
+   workflow by hand.
+8. **Daily use** — `add → submit → approve / reject → deprecate`, `history`, `search`; the commit
+   format and the `Reason:` block rules; approver authorisation setup.
+9. **Connecting an AI agent** — registering the MCP server (`.mcp.json` for Claude Code and other
+   clients), what its Resources and role Prompts expose, `docs/agents.md` as the alternative; agents
+   never approve.
+10. **CI and scripting** — `--format json`, exit codes 0 / 1 / 2.
+11. **Known limitations** — whatever is still open at release time (e.g. H4 / `bug-071`), measured,
+    not remembered.
+
+### 11.3 `docs/cli-reference.md` — one entry per command
+
+For each of the 20 commands: synopsis, positionals, options, output (text and `--format json`),
+exit codes, the git commit it produces (subject shape), one example, the typical errors. A common
+preamble covers grammar, `--format` and the exit-code contract. Sources of truth: `CORE_MODULES`
+(`src/core/index.ts`), `spec-008-cli-grammar`, `spec-005-cli-command-contract`.
+**Decided (approver, 2026-09-25):** a test fails when a `CORE_MODULES` command is missing from the
+reference — the same mechanism as the API-docs gate. It lives under `test/docs/` and runs in the
+`npx jest` gate (§6).
+
+### 11.4 `docs/examples/` — runnable, each a script plus its expected transcript
+
+`01-first-project` (init → first approved task) · `02-custom-memory-type` ·
+`03-directives-per-role` · `04-mcp-with-claude-code` · `05-ci-json-exit-codes`.
+**Decided (approver, 2026-09-25):** `e2e-smoke` runs them, so they cannot go stale. The
+`e2e-smoke-rel-v0.2-plan` must gain that step when this phase hands off to it.
+
+### 11.5 `CHANGELOG.md` — Keep a Changelog
+
+`[0.2.0]` (dated by `release-publishing`, else `Unreleased` — never a wall clock) with
+Added / Changed / Fixed grouped by pillar, each entry citing its `done` task or `closed` bug id;
+then `[0.1.0]`.
+
+### 11.6 `docs/agents.md` — for an agent working in a user's project
+
+Written for a model more than a person: tables and exact commands, little prose.
+
+- **Opening lines** — who the file is for; agents developing WingFoil itself read `CLAUDE.md`; it
+  describes `main`, so compare with `wingfoil --version` and follow the tag link for that version.
+- **What WingFoil is** in ~10 lines; how to recognise a WingFoil project (`.wingfoil/` at the root)
+  and the map of its files.
+- **Mental model** — elements, state in frontmatter, one operation = one commit.
+- **Operating rules** — use the verbs, never hand-edit `status`; never approve; load the directives
+  of your role; obey the `Reason:` rules; read before writing.
+- **MCP ↔ CLI equivalence table** — every `wingfoil://…` Resource and role Prompt with its
+  `--format json` CLI equivalent; this is what makes the file a backup to the MCP server.
+- **Write path** — exact verb syntax, exit codes, how to react to exit 1 and 2.
+- **Workflows without an engine**, setup recipes, known limits, links to the CLI reference and the
+  user guide.
