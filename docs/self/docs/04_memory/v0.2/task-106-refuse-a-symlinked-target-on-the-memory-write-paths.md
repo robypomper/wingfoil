@@ -2,7 +2,7 @@
 id: "task-106-refuse-a-symlinked-target-on-the-memory-write-paths"
 type: task
 title: "Refuse a symlinked target on the Memory write paths, so `writeFileSync` cannot follow a link the confinement check deliberately does not resolve — and so nothing commits for an element that was never written"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "memory", "storage", "security"]
