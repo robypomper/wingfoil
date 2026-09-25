@@ -1,45 +1,66 @@
 ---
 id: "bug-122-the-unconfined-memory-path-resolver-is-exported-with-no-caller"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`resolveMemoryPath` — the unconfined sibling of `resolveConfinedMemoryPath` — is exported from the storage barrel, has no caller in `src/`, and is the shorter name of the two"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: ""
+feature: "P1.6"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`src/storage/index.ts` exports `resolveMemoryPath`. Nothing in `src/` calls it:
+
+```
+$ grep -rln "resolveMemoryPath" src/ test/
+src/storage/memory-path.ts
+src/storage/index.ts
+test/storage/memory-path.test.ts
+```
+
+Its confined counterpart, `resolveConfinedMemoryPath`, is **not** exported from that barrel — it is
+imported directly by its two callers. So the public surface offers the unguarded function and hides
+the guarded one, and the unguarded one has the shorter, more obvious name.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+The grep above.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Either the unconfined resolver is not part of the public surface, or the difference between the two is
+impossible to miss at the call site.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+A future caller reaching for the shorter name gets an unguarded path next to a guarded one, with
+nothing at the import to tell them apart.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+**It is a ready-made bypass of everything `task-102`, `task-105` and `task-106` built.** Those three
+tasks established one containment boundary, extended it to the Memory store, and added the symlinked
+target refusal. All of it sits behind `resolveConfinedMemoryPath`. `resolveMemoryPath` renders the
+path and stops.
+
+**Raised by `task-105` and filed late.** Its reviewer confirmed it, `task-106`'s reviewer confirmed it
+again independently, and `grep -rln "resolveMemoryPath" docs/self/docs/04_memory/` returned only task
+documents — no bug, no decision-log. It was proposed twice and registered neither time; this filing is
+the correction, and the delay is recorded because it is the same orchestration failure `bug-108`
+carries.
+
+**Three shapes, and the choice is not obvious.** Stop exporting it, so the barrel offers only the
+guarded path. Rename it to something that cannot be reached for absentmindedly. Or keep it and make
+the guarded one the exported default. The first is cheapest and the third is the one that survives a
+careless reader.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- triage (2026-09-25): **low**. Nothing is wrong today — the function is correct at what it does and
+  nobody calls it. It is filed for the caller who has not arrived yet, which is the only moment at
+  which it is cheap.
