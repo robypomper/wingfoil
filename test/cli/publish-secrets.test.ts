@@ -245,7 +245,7 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
     chmodSync(join(work, 'bin', 'git'), 0o755);
     writeFileSync(join(work, 'npmrc'), '');
     writeFileSync(join(work, 'fixture', 'package.json'), JSON.stringify({ name: 'wf-fixture', version: '1.0.0' }));
-    const pack = spawnSync('npm', ['pack', '--pack-destination', join(work, 'dist-pack')], {
+    const pack = spawnSync('npm', ['pack', '--ignore-scripts', '--pack-destination', join(work, 'dist-pack')], {
       cwd: join(work, 'fixture'),
       encoding: 'utf-8',
       env: npmEnv(),
