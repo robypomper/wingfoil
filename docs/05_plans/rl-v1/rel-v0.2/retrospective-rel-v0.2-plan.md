@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.12"
+version: "1.13"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -115,6 +115,8 @@ decisions and design are restated, not cited, and its decision-logs are filed in
 **Revision 1.12 (2026-09-28).** The implementation order across v0.2.2 and v0.3 is decided (§6.8).
 The root move and the released-build rule go into v0.2.2, the identity question is un-parked, the
 v0.2.2 scope is widened, and `dl-087` targets v0.2.2.
+
+**Revision 1.13 (2026-09-28).** Schedule re-baseline against active development days (§6.9).
 
 ---
 
@@ -1320,6 +1322,60 @@ parked state now, because it blocks that move. And the v0.2.2 scope is widened a
 
 **Kept in v0.3 on purpose.** `bug-118`, `bug-126` and `bug-072` are medium defects needing real code.
 `bug-131` and the dirty-tree `submit` question change command behaviour, which a patch must not do.
+
+## 6.9 Schedule re-baseline — planned dates against active development days
+
+The approver asked on 2026-09-28 whether the roadmap still holds. The dates in the vision
+(`docs/01_vision/07_sequencer.md`, dated 2026-06-24; `01_product-brief.md` "5 weeks"; `08_mvp-canvas.md`)
+predate a pause in development and v0.2's scope growth. Memory's release elements carry no dates at
+all (`awk` over `planning/rl-v1/*.md` frontmatter shows none).
+
+**Measured at `a20b346c`.**
+- *Commit dates:* `git log --format=%cd --date=short | sort -u`.
+- *Gaps:* differences between consecutive active dates.
+- *Tasks:* `ls docs/self/docs/04_memory/v0.{1,2}/ | wc -l`.
+
+| | Planned (sequencer) | Actual | Active days | Tasks planned → shipped | Features |
+|---|---|---|---|---|---|
+| Inception + spec | — | 2026-06-14 → 07-03 | 9 | — | — |
+| v0.1 | Jul 10 | released 2026-07-08 | 5 (07-04 → 07-08) | 33 → 33 | 13 |
+| v0.2 | Jul 17 | released 2026-09-28 | ~12 (07-08 afternoon, 07-09, then 11 days 09-14 → 09-28) | 32 → 75 | 14 |
+| Pause | — | 2026-07-09 → 09-14 | **0 (67 calendar days)** | — | — |
+
+**What the numbers say.**
+- **Velocity held.** v0.1 shipped 33 tasks in 5 active days, about 6.6 a day. v0.2 shipped 75 in about
+  12, about 6.3 a day.
+- **v0.2's slip is not a velocity problem.** Its calendar delay is the pause (67 days), and its
+  active-day overrun (about 12 days against a planned 5) is scope. The task count grew 2.3× after
+  planning, and 129 bugs were filed in the release, against 7 in v0.1.
+- **The sequencer's weekly-release model assumed no pause and no scope growth.** Neither held.
+- **Sustained cadence.** When work resumed, 11 of 15 calendar days were active, about 5 active days
+  a week.
+
+**Projection** (active days; a proxy, to be replaced by v0.3's release-planning). v0.3 carries 26
+features against v0.2's 14 (`minor-v0.3` frontmatter), so about 1.9× v0.2's ~12 days, **≈ 22 active
+days** if growth behaves as in v0.2.
+
+| Release | Estimate |
+|---|---|
+| v0.2.2 | ≈ 4 days; the root move dominates (32 test files, 164 Memory documents) |
+| v0.3 | ≈ 22 days |
+| v0.4 | ≈ 7 days (8 features) |
+| v1.0 | ≈ 5 days, plus a retrospective per release |
+
+The total is ≈ 40 active days, about 8 weeks at the observed cadence. The MVP planned for 2026-08-07
+lands **around late November 2026** if work runs continuously from October. That date is a
+projection, not a commitment.
+
+**Dispositions (§3.2).**
+- *F4* — re-baseline the vision's calendar: `07_sequencer.md`, the brief's timeline, and the
+  canvas's week-relative milestones. Record actuals, and replace fixed dates with active-day budgets
+  plus a calendar forecast that states its cadence assumption.
+- *F5* — a scope-growth rule per release. v0.2 grew 2.3× after planning, and nothing flagged it
+  (A7, A9). v0.3's `release-planning` sets a growth threshold that triggers a re-plan checkpoint.
+- *F6* — v0.3 is the largest release by feature count. Its `release-planning` considers a split, for
+  example the workflow engine and agent execution first, with templates and remaining P4 features in
+  a follow-up minor. The decision belongs to that phase, not here.
 
 ## Handoff
 
