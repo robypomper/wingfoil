@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -943,3 +943,20 @@ The merge is recorded by the commit that follows these notes.
   and https://www.infoq.com/news/2026/08/npm-stage-available/, read 2026-09-28. The agent did not read
   the token itself.
 - **§14.6, `dl-068` Action 5:** the approver asked for more detail before deciding. It is still open.
+
+### Approver decision — 2026-09-28: the token for v0.2.0 (H11, option A)
+
+- **Option A: a direct-publish token for the first publish.** The approver created a granular
+  "Read and write" token (not stage-only) and stored it as the `npm-publish` environment secret. It
+  has all-packages scope because `wingfoil` does not exist yet, the shortest practical expiry, and
+  2FA bypass because CI is non-interactive. `publish.yml` stays unchanged, so `promote` publishes with
+  provenance (`adr-009`). Verified without reading the value:
+  - `gh api repos/robypomper/wingfoil/environments/npm-publish/secrets` → `NPM_TOKEN`, `updated_at`
+    `2026-09-28T08:34:54Z` (it was 2026-09-21);
+  - `gh api repos/robypomper/wingfoil/actions/secrets` → `total_count` 0.
+- **After the publish (owner: approver):** revoke this token on npmjs.com. Per `dl-068` H11 it is
+  replaced by a `wingfoil`-scoped token, which under `dl-087` becomes stage-only.
+- **The migration to `npm stage publish` is captured as `dl-087`,** through
+  `decision-log-ingest-rel-v0.2-stage-publish-migration-plan`. npm plans to remove token direct-publish
+  in January 2027.
+- **`dl-068` Action 5 is still open:** who watches the run, and what happens if `promote` does not wait.
