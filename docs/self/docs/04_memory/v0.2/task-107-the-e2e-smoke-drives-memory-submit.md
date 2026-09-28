@@ -141,3 +141,72 @@ Reasons for this shape over the alternative, an `args` function over prior outpu
    `memory submit {task.id} --format json` among them, and a function would make that list opaque.
 3. The step list stays data rather than code, which keeps the module doc's determinism claim ("fixed
    step list") true.
+
+### red — `92d49587`
+
+`test/cli/e2e-smoke.test.ts` goes from 5 to 10 tests. Observed with `npx jest test/cli/e2e-smoke.test.ts`:
+**7 failed, 3 passed**, each red for the intended reason:
+- the exact list lacks `memory submit {task.id} --format json`;
+- the `capture`/`expect` fields are absent;
+- the real run has no `[<T>] wingfoil memory submit task-001-smoke-task --format json` label;
+- all four stub cases report no submit line.
+
+The stub itself is valid. On the unchanged runner, its `ok` mode runs every other step to a green
+`working tree clean` check.
+
+Before touching the runner, the characterization baseline for AC3/AC5 was:
+`npx jest test/cli/publish-staging.test.ts test/cli/publish-pipeline.test.ts test/cli/e2e-smoke.test.ts`
+→ 3 suites, 52 tests passed.
+
+### green — `a6634397`
+
+Implemented the shape recorded in *design*, in `scripts/e2e-smoke.cjs`:
+- `commandCheck` gains the `expect` comparison and returns `parsed`;
+- a new `resolveArgs` handles the placeholders;
+- `smokeTemplate` keeps a `captured` map.
+
+`scripts/e2e-smoke.d.cts` gains `capture?` and `expect?` on `SmokeStep`. `smokeSteps` and `runSmoke`
+keep their signatures. The module doc now lists `memory submit` and says what its edge assertion
+proves (AC6).
+
+`npx jest test/cli/e2e-smoke.test.ts` → 10/10.
+
+**Mutation check.** Each mutation was run by hand and then reverted, and each reds exactly its own test:
+- Disabling the `mismatches` return reds only *"fails a submit that exits 0 on the wrong edge"*.
+- Disabling the unresolved-placeholder return reds only *"fails, without spawning, when the
+  placeholder cannot be resolved"*.
+
+**AC8, the real run**, on this branch after `npm run build`:
+`node scripts/e2e-smoke.cjs --expect-version "$(node -p "require('./package.json').version")" -- node "$PWD/dist/cli.js"`
+→ exit **0** with 20 `ok` lines. Relative to the phase run on `ed835f95`, two lines are new:
+
+```
+ok   [Scrum] wingfoil memory submit task-001-smoke-task --format json — exit 0
+ok   [Kanban] wingfoil memory submit task-001-smoke-task --format json — exit 0
+```
+
+Each is followed, in its template's run, by `working tree clean after every mutation — clean` (AC3).
+
+**AC5.** The same three publish suites now report 3 suites, **57** tests passed: the 52 of the
+baseline plus the 5 new ones. `git diff qa/e2e-smoke-v0.2 --stat -- .github scripts/publish-staging.cjs`
+is empty, so neither the publish workflow nor the staging orchestrator changed.
+
+**G4 of `e2e-smoke-rel-v0.2-plan`: closed as a consequence, as expected.** The submit step asserts
+`from: draft` and `to: pending`. A scaffolded `memory.yaml` whose `task` machine failed to load, or
+failed to apply, could not produce that edge at exit 0. The wrong-edge stub test pins that the smoke
+would notice.
+
+### refactor — the six gates
+
+On this branch, after the green commit:
+- `npx jest --coverage` exit 0: **149 suites / 2417 tests** (+5 on `ed835f95`'s 2412). All files
+  98.58 / 94.03 / 98.94 / 99.41, unchanged, because `scripts/` is outside `collectCoverageFrom`.
+- `npx tsc -p tsconfig.build.json --noEmit` exit 0.
+- `npx tsc --noEmit -p tsconfig.json` exit 0. This covers the test's use of the new `.d.cts` fields.
+- `npm run lint` exit 0.
+- `npm run docs:api` exit 0.
+
+No refactor was needed beyond the green change.
+
+**Out of scope, left alone as the ACs require:** G2 (exit-1/2 coverage), G3 (explicit schema
+re-validation) and the `package.json` version, which is still `0.1.0`.
