@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.10"
+version: "1.11"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -108,6 +108,9 @@ collision with a parallel session's pushed `dl-088`.
 **Revision 1.10 (2026-09-28).** Handoff item 5, the Determinism Index, is decided. v0.2.2 and v0.3 run
 in parallel on `main`, which stays trunk-based (`dl-002`): until the `v0.2.2` tag, v0.3 merges only
 Memory and process documents. DL-P owns the rule (option (a), confirmed by the approver).
+
+**Revision 1.11 (2026-09-28).** The visibility planning is withdrawn and absorbed here (§6.7). Its
+decisions and design are restated, not cited, and its decision-logs are filed in `capture`.
 
 ---
 
@@ -1163,9 +1166,9 @@ self-contained: the draft's content is integrated into it, not referenced.
 **Done on this branch, at `in-discussion`, not ratified:**
 - `wf(decision-log): add dl-089-release-health-analyses-before-retrospective` (`1c586896`);
 - `wf(decision-log): submit dl-089-release-health-analyses-before-retrospective` (`d4c8f220`).
-- **renumbered from `dl-088`** (`5e6703e5`), because a parallel session pushed another `dl-088` first
-  (`abd8a98f`, the external-state Memory type). This is the §2.4 collision rule applied: the
-  unpushed element yields.
+- **renumbered from `dl-088`** (`5e6703e5`), because a parallel session pushed another `dl-088` first,
+  for the external-state Memory type, on a branch since withdrawn (§6.7). This is the §2.4 collision
+  rule applied: the unpushed element yields. §6.7 re-files that decision here as `dl-088`.
 
 **It is not a finding of this retrospective.** Like §6.1, it would exist whatever the mining
 concluded. Two things tie it to this phase:
@@ -1187,6 +1190,90 @@ The Dispositions table records it as *work performed*.
 - **The agent-docs action** is routed to `align-agent-docs` (`dl-025`) instead of an edit of the
   agent entry point.
 - **The identity condition** is kept as a metric (G07) only. No cause and no remedy are decided.
+
+## 6.7 The project-visibility work is absorbed into this retrospective
+
+The approver decided on 2026-09-28 that a parallel session's visibility planning, together with its
+branch, is **withdrawn in favour of this retrospective**. That covers its ingest plan and its
+external-state decision-log. The branch is deleted at close-out, after the approver confirms the
+deletion in the session. Nothing here cites it. Its substance is restated below, because §2.2
+forbids pointing at something that will stop resolving.
+
+**The approver's rules for the visibility work (2026-09-28).**
+
+1. **Repository first.** Anything expressible as a file in the repository is ingested as a Memory
+   element and delivered through the normal flow.
+2. **What lives outside the repository is still recorded in it.** Accounts, registrations, settings
+   and credentials held by third-party services are set up from a session with the approver. Each one
+   is then recorded as a Memory element saying what it is, how it works and how to manage it.
+3. **External state gets its own Memory type**, rather than a tech-spec register or a `dna.yaml`
+   section.
+4. **A v0.2.2 patch, metadata only, is wanted** as a rehearsal of the new publishing steps before
+   v0.3.0. It has three gates: a name check, the MCP namespace choice, and a decision on how a patch
+   is tracked after its minor is `released`.
+5. **v0.2.2 and v0.3 run in parallel on `main`**, trunk-based (`dl-002`), as §H4 of the
+   Dispositions records. The `publish-through-npm-staged-publishing` decision (`dl-087`) blocks the
+   v0.2.2 publish as well (§6.5).
+
+**What this retrospective files in `capture`**, each as its own `add` + `submit` commit, stopping at
+`in-discussion`. The letters are labels only, and ids are allocated by §2.4's all-refs rule.
+
+| Label | Decision-log | Content to carry | Target |
+|---|---|---|---|
+| DL-A | `dl-088-a-memory-type-for-state-that-lives-outside-the-repository` | See below | v0.2.2 |
+| DL-N | Name and namespace | Keep or rename `wingfoil`, checked against npm, GitHub, crates.io, PyPI and trademarks, each fact with its source and the date read. The MCP namespace: `io.github.robypomper/…` or a domain-verified one | v0.2.2 |
+| DL-P | Patch tracking after `released` | Options: a new element, a record against the released minor, or a hotfix workflow. It also carries §H4's parallel-release rule, options (a)/(b)/(c), with (a) confirmed | v0.2.2 |
+| DL-B | Package metadata | Keywords, description, `mcpName`, `server.json`, a version-sync check. It cites DL-N | v0.2.2 |
+| DL-C | Community health files | CONTRIBUTING pointing at `COLLABORATION.md` / `dl-020`, CODE_OF_CONDUCT, SECURITY, issue and PR templates shaped on `bug-ingest` / `decision-log-ingest` | v0.3 |
+| DL-D | User-facing presentation | README badges, a reproducible demo (a versioned VHS tape), a comparison page, a dogfooding case study; delivered through `user-docs` (`dl-013`) | v0.3 |
+| DL-E | Trust signals | OpenSSF Scorecard workflow, a docs site on GitHub Pages, `llms.txt` | v0.3 |
+| DL-F | Visibility steps in the release flow | GitHub Release from CHANGELOG, MCP Registry publish, a metrics snapshot in `release-publishing` / `retrospective`, and the `service` verify sweep | v0.3 |
+
+**DL-A's design, restated.**
+
+- **The type.** A Memory type `service`: one unit of state outside the git repository that the project
+  owns, depends on or presents itself through. That covers an account or identity, a credential (by
+  reference only), a registry or directory listing, a platform setting, a domain, or a handle. It
+  does not cover technology choices (`dna.yaml`), libraries (`package.json`) or intentions (DLs and
+  tasks).
+- **Path and id.** Path `docs/04_memory/services/{id}.md`, id pattern `svc-{n}-{slug}`.
+- **Frontmatter.** Required: `title`, `provider`, `kind` (account · credential · listing · setting ·
+  domain · handle), `owner_role` (a role, never a person), and `verify` (the command or URL that
+  establishes its current state). Optional: `url`, `account` (public identifier only), `renews`,
+  `repo_refs`, `decision`, `release`.
+- **Machine.** `draft → pending → active`, with `pending: { reject: draft }`. Retirement is
+  `deprecate`.
+- **Body.** Purpose, Configuration, Verification, Management (renew, rotate, recover, retire).
+- **Security rule.** Never a secret value. Name where the secret is held, its type, its expiry and
+  how it is rotated (REQ-SEC-08, `security-secrets`). A spec-007 scan is a mandatory `checks.post`.
+- **Why a type and not the alternatives.** State is per element. A single register document would
+  give one status for everything, and `dna.yaml` would mix what the project *is* with what it
+  *operates*.
+- **Open options for the approver.**
+  - The machine: (a) as above, recommended, or (b) with a `planned` state.
+  - Edits to an `active` service: body edits with a version bump under `docs(self)`, pending `dl-079`.
+  - The implementation route: (a) out of flow now, as `dl-019` did for `plan`, recommended because
+    v0.2.2 needs the type; or (b) through v0.3's `build-backlog`.
+- **Actions.**
+  - The `memory.yaml` block, a template, a `service-ingest` main workflow, and doc updates.
+  - Backfill four `service` elements: the npm package `wingfoil`, the `NPM_TOKEN` secret (stage-only
+    type, direct-publish token revoked on 2026-09-28, §6.5), the `npm-publish` environment, and the
+    GitHub repository with its public visibility (`dl-068`).
+  - After that, register the benchmark repository (Dispositions A22) and each external step below.
+
+**External steps, run with the approver**, each recorded as a `service` element once done. Order:
+1. identities (domain, npm scope, GitHub org if any, social handles);
+2. GitHub repository settings (About, topics, website, social preview, Discussions, retroactive
+   Releases for v0.1 and v0.2.1);
+3. directory claims needing no package change (Glama, PulseMCP, mcp.so, Smithery, AlternativeTo);
+4. a read-only metrics baseline (npm downloads, stars, GitHub traffic), recorded in DL-F's Context.
+
+Deferred to the publication itself, at v0.2.2 or v0.3.0: the official MCP Registry, awesome-list
+PRs, the OpenSSF badge, and Product Hunt "upcoming". The agent holds no credentials and never acts
+inside a third-party account.
+
+**Checks per captured element.** Required frontmatter is filled; the frontmatter parses with
+`js-yaml`; the spec-007 scan (`scanText`) is clean; a `service` carries no secret value.
 
 ## Handoff
 
