@@ -184,7 +184,7 @@ enters.
 | 16 | T7 decay; T8 versioning | Directive extension; lint | + `dl-120`, + `bug-143` | v0.3 |
 | 17 | Governance enforced outside the agent; approval policy for unattended runs | One decision-log | + `dl-103` | v0.3 |
 | 18 | Determinism Index: where and how it is measured | Benchmark registered as a service; metric D01; criterion inside `dl-089`; major and minor releases only; after publishing | `dl-089` (amended), a service after `dl-088` | v0.3 |
-| 19 | External defects without an element | Bugs and decision-logs | + `bug-139`, `bug-140` (v0.2.2); + `bug-144`–`bug-152`, `dl-106`–`dl-110` (v0.3) | v0.2.2 / v0.3 |
+| 19 | External defects without an element | Bugs and decision-logs | + `bug-139`, `bug-140` (v0.2.2); + `bug-144`–`bug-152`, `dl-106`, `dl-108`–`dl-110` (v0.3); + `dl-107` (**v0.2.2**, approver 2026-09-28: version dots in ids break the moved config) | v0.2.2 / v0.3 |
 | 20 | Template includes its sub-workflow by path | Bug | + `bug-144` | v0.3 |
 | 21 | Tool signature (version and build commit) in commits | Decision-log | + `dl-111` | v0.3 |
 | 22 | Workflow token bindings (six questions) | Promoted to Memory in this phase | + `dl-090` | v0.3 |
@@ -192,7 +192,7 @@ enters.
 | 24 | Configuration at the root, released build, MCP registered | First structural steps of v0.2.2 | `bug-075`, `dl-026`, + `dl-095` | v0.2.2 |
 | 25 | Unused runtime dependency | Bug | + `bug-138` | v0.2.2 |
 | 26 | First-use fixes | Existing bugs, pulled into v0.2.2 | `bug-128`, `bug-129`, `bug-136` | v0.2.2 |
-| 27 | Closures with no code | `bug-021` downgraded; `bug-092` closed once `dl-123` gives a legal exit | existing | v0.2.2 / v0.3 |
+| 27 | Closures with no code | `bug-021` downgraded; `bug-092` closed once `dl-123` gives a legal exit, both in v0.2.2 | existing | v0.2.2 |
 | 28 | External state has no Memory type | Decision-log (re-filed) | + `dl-088` | v0.2.2 |
 | 29 | Name, namespace, patch tracking, package metadata | Decision-logs | + `dl-091`, `dl-092`, `dl-093` | v0.2.2 |
 | 30 | Community files, presentation, trust signals, visibility steps | Decision-logs | + `dl-127`–`dl-130` | v0.3 |
@@ -203,7 +203,7 @@ enters.
 | 35 | Token consumption; retrospective notes during the release; parity tests; AI attribution; N/A for required fields | Decision-logs | + `dl-114`–`dl-117`, + `dl-124` | v0.3 |
 | 36 | Approving non-Memory documents; Memory volume | Decision-logs | + `dl-125`, `dl-126` | v0.4 |
 | 37 | Filing rule; git conventions; testing and secrets directives | Decision-logs toward directives | + `dl-118`, `dl-119`, `dl-121`, `dl-122` | v0.3 |
-| 38 | Won't-fix exit for bugs | Decision-log retyping `bug-094` | + `dl-123` | v0.3 |
+| 38 | Won't-fix exit for bugs | Decision-log retyping `bug-094`; a configuration-only edge, pulled into v0.2.2 so `bug-092` can close there (approver 2026-09-28) | + `dl-123` | **v0.2.2** |
 | 39 | Authority vs author identity; reserved-domain authors; directive scope declared twice; unknown types accepted; MCP tools/list; JSON default; empty list as missing; templates promise `submit` fills | Bugs | + `bug-149`, `bug-153`, `bug-148`, `bug-150`, `bug-151`, `bug-152`, `bug-147`, `bug-146` | v0.3 |
 | 40 | Release-health analyses | Existing | `dl-089` | v0.3 |
 | 41 | Clean-up of the unscheduled population | Plan output, `bug-094`/`dl-123` first | v0.3 start | v0.3 |
