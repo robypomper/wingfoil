@@ -4,6 +4,10 @@ export interface SmokeStep {
   readonly args: readonly string[];
   /** When `true`, stdout must parse as JSON. */
   readonly json?: boolean;
+  /** Keep this step's parsed JSON stdout under this name, for a later `'{<name>.<field>}'` arg. */
+  readonly capture?: string;
+  /** Fields this step's parsed JSON stdout must carry, with exactly these values. */
+  readonly expect?: Readonly<Record<string, string>>;
 }
 
 /** One observed smoke check. */

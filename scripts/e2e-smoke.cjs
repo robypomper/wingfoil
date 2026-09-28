@@ -5,10 +5,12 @@
  *
  * Black-box: it only spawns a `wingfoil` command and reads exit codes/stdout. For each supported template
  * it creates a throwaway git repository, runs `wingfoil init --template <T>`, drives the scaffolded project
- * through the CLI surface that ships today (`dna show`, `dna set`, `memory add`, `paths`, `directives list`,
- * `workflow list` — each loads and schema-validates the scaffolded artefact it reads), and finally requires
- * a clean working tree (every mutation is its own commit). dl-023 also lists `memory submit`; that verb does
- * not exist yet (task-045) and is added here when it ships.
+ * through the CLI surface `e2e-smoke.yaml`'s `drive-cli` phase names (`dna show`, `dna set`, `memory add`,
+ * `memory submit`, `paths`, `directives list`, `workflow list` — each loads and schema-validates the
+ * scaffolded artefact it reads), and finally requires a clean working tree (every mutation is its own
+ * commit). `memory submit` acts on the task `memory add` just created and must report the
+ * `draft -> pending` edge, which is what proves the scaffolded `memory.yaml` state machine is loaded and
+ * applied (task-107, bug-029).
  *
  * Deterministic: fixed step list and template order, fixed throwaway git identity, no clock or randomness
  * in what is asserted (the temp directory name is never compared).
@@ -30,15 +32,24 @@ const SMOKE_TEMPLATES = Object.freeze(['Scrum', 'Kanban']);
 
 /**
  * The per-template CLI steps, `init` first. `json: true` means stdout must parse as JSON.
+ * A step can depend on an earlier one without the list becoming code: `capture: '<name>'` keeps that
+ * step's parsed JSON stdout under `<name>`, a later arg `'{<name>.<field>}'` is replaced by that field
+ * before spawning, and `expect: { field: value }` must match the step's own parsed JSON stdout.
  * @param {string} template
- * @returns {ReadonlyArray<{ args: readonly string[], json?: boolean }>}
+ * @returns {ReadonlyArray<{ args: readonly string[], json?: boolean, capture?: string,
+ *                           expect?: Readonly<Record<string, string>> }>}
  */
 function smokeSteps(template) {
   return [
     { args: ['init', '--template', template] },
     { args: ['dna', 'show', '--format', 'json'], json: true },
     { args: ['dna', 'set', 'project.name', '--value', 'WingFoil smoke'] },
-    { args: ['memory', 'add', '--type', 'task', '--title', 'Smoke task', '--format', 'json'], json: true },
+    { args: ['memory', 'add', '--type', 'task', '--title', 'Smoke task', '--format', 'json'], json: true, capture: 'task' },
+    {
+      args: ['memory', 'submit', '{task.id}', '--format', 'json'],
+      json: true,
+      expect: { from: 'draft', to: 'pending' },
+    },
     { args: ['paths', 'config', '--list', '--format', 'json'], json: true },
     { args: ['directives', 'list', '--format', 'json'], json: true },
     { args: ['workflow', 'list', '--format', 'json'], json: true },
@@ -55,20 +66,47 @@ function spawn(command, args, cwd, env) {
   };
 }
 
-/** A check for one spawned `wingfoil` invocation: exit 0, and parseable JSON when asked. */
-function commandCheck(label, run, json) {
+/**
+ * A check for one spawned `wingfoil` invocation: exit 0, parseable JSON when asked, and every `expect`
+ * field equal in that JSON. `parsed` carries the JSON for a later `capture`.
+ */
+function commandCheck(label, run, json, expect) {
   if (run.status !== 0) {
     const firstLine = run.stderr.trim().split('\n')[0] ?? '';
     return { label, ok: false, detail: `exit ${run.status ?? 'spawn-error'}: ${firstLine}` };
   }
+  let parsed;
   if (json) {
     try {
-      JSON.parse(run.stdout);
+      parsed = JSON.parse(run.stdout);
     } catch {
       return { label, ok: false, detail: 'stdout is not valid JSON' };
     }
   }
-  return { label, ok: true, detail: 'exit 0' };
+  const mismatches = Object.entries(expect ?? {})
+    .filter(([field, value]) => parsed?.[field] !== value)
+    .map(([field, value]) => `expected ${field}=${value}, got ${field}=${String(parsed?.[field])}`);
+  if (mismatches.length > 0) return { label, ok: false, detail: mismatches.join('; ') };
+  return { label, ok: true, detail: 'exit 0', parsed };
+}
+
+/**
+ * Replace every `'{<name>.<field>}'` arg with that field of the JSON captured under `<name>`.
+ * Returns the unresolvable placeholder instead when a capture or field is missing.
+ */
+function resolveArgs(args, captured) {
+  const resolved = [];
+  for (const arg of args) {
+    const ref = /^\{(\w+)\.(\w+)\}$/.exec(arg);
+    if (!ref) {
+      resolved.push(arg);
+      continue;
+    }
+    const value = captured.get(ref[1])?.[ref[2]];
+    if (typeof value !== 'string' || value === '') return { unresolved: arg };
+    resolved.push(value);
+  }
+  return { args: resolved };
 }
 
 /** Run the steps of one template in a fresh throwaway git repository; returns its checks. */
@@ -86,10 +124,19 @@ function smokeTemplate(template, invoke, env) {
       const check = commandCheck(`[${template}] git ${args[0]}`, git(args), false);
       if (!check.ok) return [check];
     }
+    const captured = new Map();
     for (const step of smokeSteps(template)) {
-      const check = commandCheck(`[${template}] wingfoil ${step.args.join(' ')}`, invoke(step.args, repo), step.json);
+      const resolved = resolveArgs(step.args, captured);
+      if (resolved.unresolved !== undefined) {
+        const detail = `${resolved.unresolved} not found in an earlier step's JSON output`;
+        checks.push({ label: `[${template}] wingfoil ${step.args.join(' ')}`, ok: false, detail });
+        return checks;
+      }
+      const label = `[${template}] wingfoil ${resolved.args.join(' ')}`;
+      const { parsed, ...check } = commandCheck(label, invoke(resolved.args, repo), step.json, step.expect);
       checks.push(check);
       if (!check.ok) return checks;
+      if (step.capture !== undefined) captured.set(step.capture, parsed);
     }
     const status = git(['status', '--porcelain']);
     const clean = status.status === 0 && status.stdout.trim() === '';
