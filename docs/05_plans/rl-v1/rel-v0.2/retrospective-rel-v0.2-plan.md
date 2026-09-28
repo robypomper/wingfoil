@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.15"
+version: "1.16"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -132,6 +132,27 @@ approved. The approver's rulings at and after the gate:
 - **Repository.** It is renamed inside v0.2.2, before publish, in §6.8 step 5.
 
 `capture` is running.
+
+**Revision 1.16 (2026-09-28).** `capture` is done, on this branch.
+
+- **`retro-v0.2`:** `add` `95067a1b`, `submit` `a853992f`, now `in-discussion`.
+- **Filed as spun-off elements**, one `add` and one `submit` commit per group, each carrying the
+  target release the gate fixed:
+  - 42 decision-logs: `dl-088`, `dl-090`…`dl-130`;
+  - 17 bugs: `bug-137`…`bug-153`.
+- **Scheduled items done:**
+  - §6.1: the bindings DL is `dl-090`;
+  - §6.2: `06_features.md` v1.4 (`346b31a2`);
+  - §6.5: `dl-087` amended (`a76ad229`) and scheduled into v0.2.2 (`a6e4a36f`);
+  - `dl-089` scheduled into v0.3 (`9999b7b9`).
+- **Drafts were checked before committing:**
+  - the frontmatter parses;
+  - no reference points outside the repository;
+  - every cited id and sha resolves;
+  - there is no bare `path:line`;
+  - the spec-007 scan has 0 blocking findings, and the scan was positive-controlled.
+
+Next: the approver's `approve` gate.
 
 ---
 
