@@ -63,7 +63,7 @@ real-time tracking of project state.
 
 ## Key Features
 
-### Five Pillars — status in 0.2.0
+### Five Pillars — status in 0.2.1
 
 - ✓ **Project Memory** — Git-backed documents (tasks, ADRs, decision-logs, bugs, specs…) with per-type
   state machines, approval gates and an audit trail (**shipped**: create, search, submit, approve,
@@ -71,7 +71,7 @@ real-time tracking of project state.
 - ✓ **Project DNA** — Structured config: modules, tech stack, team & roles, resource paths
   (**shipped**: show, set, add, update, remove)
 - ✓ **Project Directives** — Role-scoped rules: six built-in templates installed by `init`, your own
-  custom directives, role assignments (**shipped in 0.2.0**)
+  custom directives, role assignments (**shipped in 0.2.1**)
 - ✓ **Interaction Layer** — CLI for humans and agents; MCP server for agents with read-only Resources
   and one Prompt per role (**shipped**)
 - **Workflow State Management** — workflows are declared and listable today; the engine that starts

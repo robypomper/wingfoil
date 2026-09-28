@@ -1,6 +1,6 @@
 # WingFoil CLI reference
 
-Every `wingfoil` command in release **0.2.0**, one entry each. For a guided, step-by-step introduction
+Every `wingfoil` command in release **0.2.1**, one entry each. For a guided, step-by-step introduction
 read the [user guide](user-guide.md); for runnable scenarios see [`examples/`](examples/).
 
 > This reference is checked against the CLI by `test/docs/cli-reference.test.ts`: every shipped command
@@ -590,7 +590,7 @@ wingfoil directive remove <name>
 
 A directive still assigned to a role is refused
 (`error: cannot remove 'api-style': still assigned to role 'developer'`). There is no unassign command
-in 0.2.0: delete the name from `roles.yaml`, **commit** that change, then run `directive remove`.
+in 0.2.1: delete the name from `roles.yaml`, **commit** that change, then run `directive remove`.
 Built-in directives are refused (`error: built-in directives cannot be removed`).
 
 - **Commit:** `wf(directive): remove <name>`
@@ -608,7 +608,7 @@ Print the workflow manifest (`workflows.yaml`) and every workflow it includes, w
 wingfoil workflow list
 ```
 
-Read-only. WingFoil 0.2.0 has **no workflow engine**: workflows describe the process, and you (or your
+Read-only. WingFoil 0.2.1 has **no workflow engine**: workflows describe the process, and you (or your
 agent) follow them by hand — see the [user guide §7](user-guide.md#7-workflows).
 
 - **Commit:** none.

@@ -1,6 +1,6 @@
 {
   "name": "wingfoil",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Open-source harness for AI-assisted software development that makes the process deterministic — Project Memory, Project DNA, Project Directives, Project Workflow, and a CLI + MCP interaction layer.",
   "license": "MIT",
   "author": "Roberto Pompermaier <robypomper@gmail.com>",

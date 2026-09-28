@@ -1,6 +1,6 @@
 # WingFoil user guide
 
-A step-by-step guide to configuring and using WingFoil **0.2.0** in your own project. It starts from an
+A step-by-step guide to configuring and using WingFoil **0.2.1** in your own project. It starts from an
 empty git repository and ends with an AI agent reading your project through MCP.
 
 - Every command is documented in full in the [CLI reference](cli-reference.md).
@@ -22,7 +22,7 @@ empty git repository and ends with an AI agent reading your project through MCP.
 8. [Daily use: the life of a Memory document](#8-daily-use-the-life-of-a-memory-document)
 9. [Connect an AI agent](#9-connect-an-ai-agent)
 10. [CI and scripting](#10-ci-and-scripting)
-11. [Known limitations in 0.2.0](#11-known-limitations-in-020)
+11. [Known limitations in 0.2.1](#11-known-limitations-in-021)
 
 ---
 
@@ -291,7 +291,7 @@ wingfoil directive assign --directive api-style --role developer
 `--directive` accepts several names: `--directive api-style,security`.
 
 To retire a directive, first remove it from `roles.yaml` by hand (there is no unassign command in
-0.2.0), commit, then:
+0.2.1), commit, then:
 
 ```bash
 wingfoil directive remove api-style
@@ -313,7 +313,7 @@ Full script: [`examples/03-directives-per-role`](examples/03-directives-per-role
 wingfoil workflow list
 ```
 
-**WingFoil 0.2.0 has no workflow engine**: nothing starts a workflow, tracks its phase or runs its
+**WingFoil 0.2.1 has no workflow engine**: nothing starts a workflow, tracks its phase or runs its
 checks. The workflow files describe your process so that people and agents read the same one, and you
 follow it by hand. In practice:
 
@@ -459,7 +459,7 @@ PENDING=$(wingfoil memory search --type task --status pending --format json \
 
 Full script: [`examples/05-ci-json-exit-codes`](examples/05-ci-json-exit-codes/run.sh).
 
-## 11. Known limitations in 0.2.0
+## 11. Known limitations in 0.2.1
 
 - **No workflow engine** — workflows are followed by hand (§7).
 - **No unassign command for directives** — edit `roles.yaml` and commit (§6.2).
