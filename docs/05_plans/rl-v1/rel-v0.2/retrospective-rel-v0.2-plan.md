@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.13"
+version: "1.14"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -117,6 +117,10 @@ The root move and the released-build rule go into v0.2.2, the identity question 
 v0.2.2 scope is widened, and `dl-087` targets v0.2.2.
 
 **Revision 1.13 (2026-09-28).** Schedule re-baseline against active development days (§6.9).
+
+**Revision 1.14 (2026-09-28).** The §4.8 completeness pass, done in full after the approver found it
+partial (§4.10). Also: the approver's additions on the Determinism Index options and on recurring
+phases (Dispositions A22, J1).
 
 ---
 
@@ -864,6 +868,56 @@ reproduction** or the **re-measurement**, never the source.
   from (4). An answer is **testimony**. It is cited with the session that gave it and verified
   against the repository under `claim-evidence`, because a session also remembers superseded
   versions of a file.
+
+## 4.10 The §4.8 completeness pass, as run (added 2026-09-28, v1.14)
+
+**What went wrong first.** The first run of `explore` did the §4.8 comparison for only part of the
+notes: the external usage feedback, the templates, and the release-health data. It then brought the
+gate. It also treated the notes' **proposals for later releases** as "findings" to be read after
+mining. A proposal cannot emerge from mining the repository, least of all one whose source is
+outside it, so many proposals were never examined. The approver caught the gap, and the pass was
+redone in full.
+
+**Scope of the pass.** Four sets of material:
+- the notes' suggestion table: 94 numbered rows, one lettered row and 7 positives, kept outside the
+  repository;
+- its DL/bug/directive triage of 106 elements, made on titles only;
+- the eight decision-logs of the withdrawn visibility planning (§6.7).
+
+Three read-only agents ran the pass. Every row received exactly one of four outcomes:
+- covered by a theme T1–T8 or an existing disposition;
+- covered by an existing element, with its id, and a status read from frontmatter by command;
+- a new proposal, restated from versioned ground;
+- superseded, with the command that proves it.
+
+The per-row mapping stays outside the repository with the notes, because it is keyed to their row
+numbers. What enters the repository is the outcome, restated.
+
+**Outcome.**
+
+| Set | Theme / disposition | Existing element | New | Superseded | Other |
+|---|---|---|---|---|---|
+| Rows 1–47 + lettered + positives | 17 | 22 | 5 | 4 | 7 positives held |
+| Rows 48–94 | 22 | 22 | 3 | 1 (mostly) | 1 out of scope |
+| Visibility decision-logs | 8 (G1–G5) | — | — | — | nothing missing from §6.7 |
+| Triage of 106 elements | — | — | 2 scope notes | — | see below |
+
+- **Of the 24 retypes the triage proposed**, each opened: 8 confirmed and already carried by
+  E2/E3/E5, 2 partial (closed bugs, added as precedents), and 13 rejected. The 12 "mistyped"
+  elements stay as history under E1's rule, and `dl-060` is correctly a DL. Five of the 86
+  "genuine" elements were spot-checked, and all five hold.
+- **The new proposals** are dispositions K1–K9 and J1 (recurring phases).
+- **The superseded items** are dispositions S1–S6.
+- **One correction.** Disposition C10 had cited `dl-085` for directive-scope reconciliation. Opened,
+  `dl-085` is about role-bound rules not reaching outside contributors, so C10 becomes a new element.
+- **One row was out of scope.** It described the external project's own type configuration, not
+  WingFoil's.
+- **Four of the seven positives rest on the earlier analysis without a fresh re-run.** Those are the
+  commit-size distribution, body presence, complexity and duplication, and review-found bugs. The
+  artefact marks them as carried over, not re-measured.
+
+**Rule for next time**, folded into D12. Before a gate, every item in any secondary source that is a
+*proposal* is dispositioned explicitly, not only the items that look like findings.
 
 ## 5. Questions to put to the material
 
