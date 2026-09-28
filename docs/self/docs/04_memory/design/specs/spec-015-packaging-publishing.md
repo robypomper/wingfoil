@@ -119,8 +119,10 @@ the workflow is not debugged through throwaway commits (`adr-009`).
 
 - `package.json` `version` is semver (`MAJOR.MINOR.PATCH`); v0.2 publishes `0.2.z`.
 - The publish trigger is an annotated git tag `vX.Y.Z` created **on `main`** after the release branch
-  merges (`dl-024`; never on a `design/*` branch). Tag ↔ `package.json` `version` must match (CI
-  asserts this before promote).
+  merges (`dl-024`; never on a `design/*` branch). **`main` must be pushed to `origin` before the tag
+  is pushed:** CI asserts that the tagged commit is an ancestor of `origin/main`, not of anyone's
+  local `main` (`dl-074`). Tag ↔ `package.json` `version` must match (CI asserts this before
+  promote). See the *Revision (2026-09-28) — §4* note below.
 
 ### 5. Config locations, secrets & rollback
 
@@ -420,3 +422,30 @@ offsets with the README's *Installation* heading, which is `bug-068`'s complaint
 offsets are untouched. Ordered by the approver on 2026-09-25, as the settlement of the §8 item 4
 question the user-docs plan left open. Edited in place — no supersede, no state change, no `version:`
 field (`dl-047`) — per the precedent of the revisions above.
+
+**Revision (2026-09-28) — §4: the tag bullet now states that `main` must be pushed to `origin` before
+the tag is pushed, because the publish gate checks ancestry of the pushed `main` rather than of the
+local one, per `dl-074-tag-must-be-on-pushed-main`.** The bullet previously read, in full:
+
+> - The publish trigger is an annotated git tag `vX.Y.Z` created **on `main`** after the release branch
+>   merges (`dl-024`; never on a `design/*` branch). Tag ↔ `package.json` `version` must match (CI
+>   asserts this before promote).
+
+That wording is true and incomplete. `.github/workflows/publish.yml`'s `gate` job, in its step "Tag
+commit is on main (dl-024)", runs, quoted verbatim (read at `main` `999b95d5`, where the file was last
+changed in `d9753fd5`):
+
+```
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+```
+
+A tag created on a local `main` that has not been pushed therefore fails the gate. It fails with a
+bare exit 1 and no output, so the remedy cannot be seen from the error. `dl-074` (`ready`) was
+ratified as (a) + (b). This note discharges (a); (b), the executable push step, lives in
+`release-publishing-rel-v0.2-plan`. `dl-074` Action 3 is still the approver's to rule on: whether the
+sentence is mirrored into `dl-024` decision 2 or owned by this spec alone. Nothing has been mirrored.
+
+Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
+`version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` / `task-084` / `task-085`
+precedent.
