@@ -183,4 +183,4 @@ jobs:
           fi
           trap 'rm -f .npmrc' EXIT
           printf '%s\n' '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
-          npm publish dist-pack/*.tgz --provenance --access public --userconfig "$PWD/.npmrc"
+          npm publish ./dist-pack/*.tgz --provenance --access public --userconfig "$PWD/.npmrc"
