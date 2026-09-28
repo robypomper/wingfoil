@@ -75,9 +75,9 @@ Two structural facts make a one-off analysis insufficient:
   A scripted, repeatable measurement is the only reliable reading of the history until the
   configuration moves to the repository root.
 
-This decision is also the first measurement the project applies to its own north-star claim. The
-Determinism Index of `docs/01_vision/01_product-brief.md` is not measured today. A release-health
-run does not measure it either. It does measure whether governance holds from one release to the
+This decision does not measure the project's north star, the Determinism Index defined in
+`docs/01_vision/01_product-brief.md`, and it asserts nothing about whether that index has been
+measured. What a release-health run measures is whether governance holds from one release to the
 next, on the project that builds it.
 
 ## Decision
