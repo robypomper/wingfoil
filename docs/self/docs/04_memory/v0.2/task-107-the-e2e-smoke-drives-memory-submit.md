@@ -2,7 +2,7 @@
 id: "task-107-the-e2e-smoke-drives-memory-submit"
 type: task
 title: "The dl-023 e2e smoke drives `memory submit` on the task it just added, and its test pins the exact step list so a future omission is visible"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "e2e-smoke", "memory", "testing"]
