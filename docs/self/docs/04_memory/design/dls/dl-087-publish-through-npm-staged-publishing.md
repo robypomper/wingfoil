@@ -4,7 +4,7 @@ type: decision-log
 title: "Migrate the publish pipeline from token `npm publish` to npm staged publishing before npm removes token direct-publish (January 2027)"
 status: in-discussion
 context: "release-publishing"
-release: ""
+release: "v0.2.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
