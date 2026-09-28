@@ -168,7 +168,9 @@ describe('promote publish step (task-061) — the transient .npmrc, executed wit
     expect(readFileSync(join(work, 'record', 'npmrc-seen'), 'utf-8')).toBe(`${NPMRC_LINE}\n`);
     expect(existsSync(join(work, 'record', 'token-in-env'))).toBe(true);
     const args = readFileSync(join(work, 'record', 'args'), 'utf-8');
-    expect(args).toContain('publish dist-pack/wingfoil-0.2.0.tgz');
+    // task-108 (bug-135): the explicit `./` is what keeps npm from reading `dist-pack/<file>` as a
+    // GitHub `user/repo` shorthand — this assertion used to pin the form that failed the v0.2.0 run.
+    expect(args).toContain('publish ./dist-pack/wingfoil-0.2.0.tgz');
     expect(args).toContain('--provenance');
   });
 
@@ -222,3 +224,60 @@ describe('release authorization and rollback (task-061) — spec-015 §5, adr-00
     expect(raw).toMatch(/failed stage.*blocks promote|stage fails.*promote never runs/i);
   });
 });
+
+/**
+ * task-108 (bug-135) — the fake npm above records argv but cannot parse a package spec, which is how
+ * `npm publish dist-pack/*.tgz` passed every test and then failed the first real run (exit 128: npm
+ * read the path as a GitHub shorthand and ran `git ls-remote`). Here a REAL npm parses the step's own
+ * tarball argument, offline and as a dry run, against a packed fixture. `--offline` does not stop npm
+ * from trying git on a git-shaped spec, so a stub `git` sits first on PATH: it records any call and
+ * fails at once, keeping the test off the network and making "npm never reached for git" assertable.
+ */
+describe('promote publish step (task-108) — a real npm reads the tarball argument as a file', () => {
+  let work: string;
+
+  beforeEach(() => {
+    work = mkdtempSync(join(tmpdir(), 'wf-promote-npm-'));
+    mkdirSync(join(work, 'bin'));
+    mkdirSync(join(work, 'fixture'));
+    mkdirSync(join(work, 'dist-pack'));
+    writeFileSync(join(work, 'bin', 'git'), '#!/usr/bin/env bash\ntouch "$(dirname "$0")/git-called"\nexit 128\n');
+    chmodSync(join(work, 'bin', 'git'), 0o755);
+    writeFileSync(join(work, 'npmrc'), '');
+    writeFileSync(join(work, 'fixture', 'package.json'), JSON.stringify({ name: 'wf-fixture', version: '1.0.0' }));
+    const pack = spawnSync('npm', ['pack', '--ignore-scripts', '--pack-destination', join(work, 'dist-pack')], {
+      cwd: join(work, 'fixture'),
+      encoding: 'utf-8',
+      env: npmEnv(),
+    });
+    if (pack.status !== 0) throw new Error(`fixture npm pack failed: ${pack.stderr}`);
+  });
+
+  afterEach(() => rmSync(work, { recursive: true, force: true }));
+
+  /** npm with an empty user config and a throwaway cache, and the stub git first on PATH. */
+  function npmEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      PATH: `${join(work, 'bin')}:${process.env.PATH ?? ''}`,
+      npm_config_userconfig: join(work, 'npmrc'),
+      npm_config_cache: join(work, 'cache'),
+    };
+  }
+
+  it('publishes (dry run) the tarball the step names, without npm ever invoking git', () => {
+    const arg = /npm publish (\S+)/.exec(publishStep?.run ?? '')?.[1];
+    expect(arg).toBeDefined();
+    // The argument is spliced unquoted, exactly as the step's shell sees it, so its glob expands the same way.
+    const result = spawnSync(
+      'bash',
+      ['-c', `npm publish ${arg ?? ''} --dry-run --ignore-scripts --offline --registry http://localhost:9/ --provenance=false`],
+      { cwd: work, encoding: 'utf-8', env: npmEnv() },
+    );
+    expect(existsSync(join(work, 'bin', 'git-called'))).toBe(false);
+    expect(result.stderr).not.toContain('ls-remote');
+    expect(result.status).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('+ wf-fixture@1.0.0');
+  }, 60_000);
+});
+
