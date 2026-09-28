@@ -88,9 +88,49 @@ the local reproduction: `npx -y npm@10.9.0 publish dist-pack/<tgz> --dry-run` �
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+### design — 2026-09-28 (role architect)
+
+Branch `task/task-108-promote-publishes-an-explicit-tarball-path`, worktree `.wf2-wt/task-108`, cut
+from `main` at `115fcb63`.
+
+**Governance read (`dl-015`).**
+- **`task-060`** wrote the step: `npm publish dist-pack/*.tgz`.
+- **`task-061`** kept that argv "unchanged" around the transient `.npmrc`, and introduced the fake-npm
+  cases. Its AC1 table lists the four *"promote publish step … executed with a fake npm"* cases. One of
+  them asserts `publish dist-pack/wingfoil-0.2.0.tgz`, and none can parse a spec.
+- **`task-078`** added `set +x` as the step's first line, the tracing-form assertions, and
+  `--userconfig`. Its AC6 established the mutation-proof discipline this task reuses.
+- **No tech-spec pins the argv form.** `spec-015` §3 stage 4 says "publish the same tarball"; this
+  task changes nothing it states. No spec is missing.
+
+**Measured before red.** A fixture package `wf-fixture@1.0.0` was packed into `dist-pack/`, then
+published with `publish <arg> --dry-run --ignore-scripts --offline --registry http://localhost:9/`:
+
+| npm | `dist-pack/wf-fixture-1.0.0.tgz` | `./dist-pack/wf-fixture-1.0.0.tgz` |
+|---|---|---|
+| installed **11.6.2** | exit **128**, `ls-remote ssh://git@github.com/dist-pack/…` | exit 0, `+ wf-fixture@1.0.0` |
+| CI **10.9.0** (`npx -y npm@10.9.0`) | exit **128**, same | exit 0, same |
+
+So **the installed npm reproduces the bug**, and AC3 does not need `npm@10.9.0` (a network fetch in the
+test). **`--offline` does not stop the git attempt:** on the old form npm really runs `git ls-remote`
+against github.com. A red run of a naive test would therefore touch the network.
+
+**Test shape for AC3.** A stub `git` goes first on `PATH`; it records that it was called and exits 128.
+The test:
+1. extracts the tarball argument from the workflow step's own `npm publish` line (so the test cannot
+   drift from the workflow);
+2. expands its glob with bash in a work directory holding a packed fixture;
+3. runs the real installed npm offline with `--provenance=false`;
+4. asserts exit 0, `+ wf-fixture@1.0.0`, and that the stub `git` was **never** invoked. That last
+   assertion is the one that says "npm treated it as a file".
+
+**AC classification (`dl-014`/T1).**
+
+| AC | Class |
+|---|---|
+| AC1 explicit path in the step | red-first, driven by AC2/AC3 |
+| AC2 fake-npm assertion expects the explicit path | red-first |
+| AC3 real npm parses the step's argv as a file | red-first; must go red on the old argv, proven at `red` |
+| AC4 pipeline suites and step invariants unchanged | characterization |
+| AC5 six gates and the reproduction record | measurement; the table above is the reproduction |
+
