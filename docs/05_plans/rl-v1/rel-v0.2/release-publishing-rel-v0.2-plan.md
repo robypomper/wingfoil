@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
