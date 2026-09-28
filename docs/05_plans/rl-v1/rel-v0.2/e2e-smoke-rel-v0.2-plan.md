@@ -3,7 +3,7 @@ id: "e2e-smoke-rel-v0.2-plan"
 type: plan
 title: "E2E smoke — v0.2 (fresh-init + CLI black-box release gate, first run)"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "e2e-smoke"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -547,3 +547,15 @@ are pending.
   3. **S5.3:** does `e2e-smoke.yaml` gain a `produces:`? This decides `bug-134`.
   4. Triage of `bug-132..134`.
   5. The `gate` approval itself.
+
+### S5 — approver decisions (2026-09-28)
+
+- **`gate` — approved.** v0.2's smoke gate passes, in warn.
+- **S5.2 — on `dl-023`.** The staging record is written as `dl-023`, section *"Staging record —
+  2026-09-28"* (`a92d78c9`). `retro-v0.1`'s B-DECISION action is ticked, with a pointer to it.
+- **S5.3 — yes, `e2e-smoke.yaml` gains a `produces:`.** This is carried by `bug-134`, which is
+  `triaged`. The workflow file is not edited from this gate run (H8).
+- **Triage.** `bug-132`, `bug-133` and `bug-134` are `open → triaged` (`f3803588`), with `release: ""`
+  (next release).
+- **S5.1 — not ruled.** The approver's reply did not cover the flip to hard-reject. The gate stays in
+  **warn**, and the open question is recorded on `dl-023`'s staging record rather than only here.

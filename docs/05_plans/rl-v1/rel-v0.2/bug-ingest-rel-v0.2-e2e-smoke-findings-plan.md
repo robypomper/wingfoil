@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2-e2e-smoke-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 e2e-smoke delta-audit findings (G2, G3, missing produces:)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-e2e-smoke-findings"
 element: ""
@@ -84,4 +84,4 @@ None carries these three.
   - `scanText` (from `dist/validation/secret-scan.js`) gives `{"b":0,"w":0,"i":0}` for all three.
 - The commands cited in the bodies were re-run before commit. `smokeSteps('Scrum')` lists 8 steps, and
   `grep -n produces` on `e2e-smoke.yaml` returns nothing.
-- `triage` is pending with the approver.
+- `triage` → `f3803588`: the approver took all three `open → triaged` on 2026-09-28. They remain `low` with `release: ""`; release-planning schedules them. bug-134 was accepted on the S5.3 ruling (`produces:` — yes).
