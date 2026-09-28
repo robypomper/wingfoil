@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -75,6 +75,9 @@ The v1.0 text is otherwise kept. Where its figures moved, they are re-measured a
 - The duplicate `dl-080` branch is not merged and is removed at close-out (§6.4).
 - The error inventory's entries stay outside the repository, and only the summary enters (§6).
 
+**Revision 1.3 (2026-09-28).** The release-health document behind *Note 13* and *Note 15* has been
+supplied, and §4.9 (c) now states how each of its sections is admitted.
+
 ---
 
 ## 1. Preconditions the session verifies first
@@ -91,7 +94,7 @@ that governs exactly this.
 | P4 | No bug scheduled into v0.2 is still open | see §4.1 command B — filter `release: "v0.2"` | all `closed` |
 | P5 | The suite is green on `main` and the tree is clean | `npm ci && npm test` ; `git status --short` | 0 failures; empty status |
 | P6 | You are on the phase branch `design/retrospective_v0.2`, current with `main` (§2.4) | `git rev-parse --abbrev-ref HEAD` ; `git log --oneline main -1` ; `git merge-base --is-ancestor main HEAD && echo current` | branch name; `current` |
-| P7 | The v0.3 notes' own **preliminary operations** have been run and dated (§4.8) | the notes `README.md`, section *"Operazioni preliminari della retrospective"* — ten numbered steps | each step carries a date and the HEAD it measured at |
+| P7 | The v0.3 notes' own **preliminary operations** have been run and dated (§4.8) | the notes `README.md`, section *"Operazioni preliminari della retrospective"* — ten numbered steps | each step carries a date and the HEAD it measured at; also check that `~/Downloads/release-health-v0.2-provisional.md` still exists (§4.9 c) |
 | P8 | The WingFoil build used for every reproduction is **pinned and declared** | `npm view wingfoil version` ; `wingfoil --version` from the scratch project (§4.9) — never the `wingfoil` found first on `PATH` without checking | the same version from both; write it into the inventory header |
 | P9 | A scratch project exists for reproductions, **outside** this repository, with a throw-away identity passed per command | `mktemp -d` + `git init` + `wingfoil init --template <t>`; identity via `git -c user.email=… -c user.name=…` or `GIT_AUTHOR_*` env, **never** `git config` inside a worktree of this repo (§7.9) | `git -C <scratch> log -1` shows the throw-away identity; `git config user.email` here is unchanged |
 | P10 | The sessions this plan queries are reachable (§4.9 d) | `ListAgents` — the notes session, and the sessions that executed v0.2 | listed; a stopped session is resumed from the app before it is relied on |
@@ -663,8 +666,8 @@ unverified assertions — which would be a notably poor way to write *this* retr
 >
 > The completeness limit below applies to that wider set, unchanged: agreement still proves only
 > that you covered what they covered. Two of those sources, the git-tree analysis and the quality
-> analysis, reached the notes as chat text with no document behind them. The notes session
-> confirmed this on 2026-09-28. Their figures are therefore **re-measured here or not used**.
+> analysis, reached the notes as chat text. Their underlying document has since been supplied: see
+> §4.9 (c). Their figures are still **re-measured here or not used**.
 >
 > **The notes are dated, and some are already superseded.** Their full re-check is dated
 > 2026-09-25, with additions on 2026-09-28. Since then `wingfoil@0.2.1` has been published and
@@ -749,13 +752,49 @@ reproduction** or the **re-measurement**, never the source.
   This analysis runs **outside** this repository. What enters is only the list of template defects,
   each reproduced by `init` on the scratch project. It measures the entry cost on files rather than
   by impression. Its natural target is P4.18, already in `minor-v0.3`'s `features:`.
-- **(c) The quality analysis by area**, supplied by the approver on 2026-09-28. Its areas are
-  implementation, testing, architecture, specifications, user documentation and process. Every
-  figure used is **re-measured**, with the command. Its author declared three caveats, and they
-  travel with any figure that is not re-measured:
-  - tests were run on Node 22.22, not the pinned 22.12;
-  - the complexity threshold was 15;
-  - the clone threshold was 8 lines.
+- **(c) The release-health data — git-tree and quality analysis.** This is
+  `release-health-v0.2-provisional.md`, supplied by the approver on 2026-09-28. It was delivered to
+  the approver's `~/Downloads/`, outside version control and outside the notes folder, so it is
+  fragile. P7 checks that it is still there. It is the document behind the notes' *Nota 13* and
+  *Nota 15*.
+  - **How it was measured.** The measurement was taken on a public clone at `main` `5269223d`,
+    which is before `release-submit` and `release-publishing`, with Node 22.22.2 rather than the
+    pinned 22.12.0. The complexity threshold was 15, the clone threshold 8 lines, and the phase
+    boundaries were taken from Memory transitions.
+  - **Its sections are admitted differently**, like the notes (§4.8):
+    - **§§0–4, measurements.** They are a calibration target for slice 6, not figures to copy.
+      Run slice 6's commands at `5269223d` first and compare. A difference is either a
+      definition difference or an error, and each is named before any figure is used. One
+      difference is already known. For approvals signed by the out-of-team identity, three
+      figures exist:
+      - the file gives 131, counting every commit whose body names the approver;
+      - the notes give 112;
+      - at `5269223d`, counting `approve` commits whose `Approver:` line names the approver, the
+        count is 112 (§4.7 slice 6's loop with `'^Approver:.*Roberto'`).
+
+      The artefact states which definition it uses.
+    - **§2, the phase windows A–E, and §7, its corrections.** These are **method** and are
+      imported now. Slice 6 uses these windows as its starting partition. The two corrections
+      bind slice 6's interpretation:
+      - back-merges are `dl-035` taking effect, not a regression;
+      - an ASCII arrow on this repository is format drift in hand-written commits, not proof the
+        tool was bypassed (`bug-075`).
+    - **§5–§6, the "already tracked" map and the derived suggestion rows.** These are
+      **findings**, read only after mining (§4.8). From the file's row 82 onward, its row numbers
+      are one lower than the notes' table, because the notes renumbered them. Cite neither.
+  - **Already superseded at `a20b346c`:** `package.json` 0.1.0, "`npm view wingfoil` not found",
+    and "no tags on `origin`". `wingfoil@0.2.1` is published and tagged. This is P7's reason for
+    existing, demonstrated.
+  - **It names a decision-log that does not exist, under an id that is taken.** The file calls
+    itself the baseline of `dl-087-release-health-analyses-before-retrospective`. No such file
+    exists on any branch: the §2.4 all-refs loop, with `grep release-health`, returns nothing.
+    Meanwhile `dl-087` on `main` is `dl-087-publish-through-npm-staged-publishing`. This is the
+    §6.4 collision mechanism again, this time between a proposal and the repository. If the
+    proposal is filed, it takes the next free id by the §2.4 rule. Its substance, *release-health
+    measurements as a standing input to every retrospective*, is Q11's question, and the §3.2
+    gate disposes of it.
+  - **The scripted run it announces does not exist yet.** The file says a script will replace it,
+    but no script came with it. Until one does, slice 6's commands are the executable form.
 - **(d) Chat-only corrections and session testimony.** Many approver corrections happened in
   conversation and left neither a commit nor an element, so the repository cannot show them. The
   sessions that executed v0.2 can be asked, and the transcripts can be searched. The most useful
