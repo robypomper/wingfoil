@@ -443,8 +443,8 @@ changed in `d9753fd5`):
 A tag created on a local `main` that has not been pushed therefore fails the gate. It fails with a
 bare exit 1 and no output, so the remedy cannot be seen from the error. `dl-074` (`ready`) was
 ratified as (a) + (b). This note discharges (a); (b), the executable push step, lives in
-`release-publishing-rel-v0.2-plan`. `dl-074` Action 3 is still the approver's to rule on: whether the
-sentence is mirrored into `dl-024` decision 2 or owned by this spec alone. Nothing has been mirrored.
+`release-publishing-rel-v0.2-plan`. On `dl-074` Action 3, the approver ruled on 2026-09-28 that the
+sentence is mirrored: `dl-024` decision 2 carries it too, as a dated amendment.
 
 Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` / `task-084` / `task-085`

@@ -199,3 +199,8 @@ branches merged, and 5 by the time this note was written — which is the argume
 actually rested on: not that the number is large, but that it is never reliably zero at the moment it
 matters. That is why option (b) was adopted alongside (a), and why the phase plan carries the
 `git rev-list` command rather than any number.
+
+**Action 3 ruled — 2026-09-28.** The approver chose to mirror the sentence: it now stands both in
+`spec-015` §4 (*Revision (2026-09-28) — §4*) and in `dl-024` decision 2 (dated amendment). Action 2,
+option (a), is discharged by that same `spec-015` revision. Action 4's re-measurement is performed in
+`release-publishing-rel-v0.2-plan` immediately before the tag.

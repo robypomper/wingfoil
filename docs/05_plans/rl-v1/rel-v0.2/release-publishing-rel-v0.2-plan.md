@@ -918,3 +918,15 @@ The merge is recorded by the commit that follows these notes.
 
 `dl-057` (d) is still open: CI does not enforce an annotated tag. §10's command uses `-a` as `spec-015`
 §4 requires, so it complies either way.
+
+### Approver decisions — 2026-09-28 (before Step 5)
+
+- **§14.4, the secret sweep: accepted.** All 25 findings are accounted for: the 24 `bug-055` fixtures,
+  plus the header-only PEM fixture in `test/storage/builtin-directives.test.ts`, which is already
+  public.
+- **§14.3, `dl-074` Action 3: mirrored.** The pushed-`main` sentence is now in `dl-024` decision 2 as
+  well as in `spec-015` §4. `dl-074` records the ruling, and `spec-015`'s Revision note is corrected
+  to say so.
+- **H11, the token: confirmed** by the approver as suitable for the first publish (all-packages write,
+  not expired). The agent did not read it.
+- **§14.6, `dl-068` Action 5:** the approver asked for more detail before deciding. It is still open.
