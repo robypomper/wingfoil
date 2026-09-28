@@ -134,3 +134,68 @@ The test:
 | AC4 pipeline suites and step invariants unchanged | characterization |
 | AC5 six gates and the reproduction record | measurement; the table above is the reproduction |
 
+### red — `b53fe30f`
+
+`test/cli/publish-secrets.test.ts`:
+- **AC2:** the fake-npm case now expects `publish ./dist-pack/wingfoil-0.2.0.tgz`.
+- **AC3:** a new `describe` block, *"a real npm reads the tarball argument as a file"*, with the shape
+  recorded under *design*.
+
+Result: `npx jest test/cli/publish-secrets.test.ts` → **2 failed, 20 passed**, each for the intended
+reason:
+- AC2: `Received string: "publish dist-pack/wingfoil-0.2.0.tgz …"`;
+- AC3: the stub `git` **was called** (`Expected: false / Received: true`). npm reached for git on the
+  old argv, and the stub stopped it before any network.
+
+**AC4 baseline, before any change:** the five pipeline suites (`publish-secrets`, `publish-pipeline`,
+`publish-staging`, `check-release-tag`, `e2e-smoke`) → 5 suites, **85** tests passed.
+
+### green — `03f4f8a1`
+
+One line of `.github/workflows/publish.yml`, in the `promote` step *"Publish the staged tarball to npm
+with provenance"*: `npm publish dist-pack/*.tgz` → `npm publish ./dist-pack/*.tgz`. The other flags are
+unchanged. `git diff` shows one line.
+
+After it, the five pipeline suites give **86/86**: 85 plus the new case.
+
+The `promote` job's invariants are held by their existing tests, all green:
+- checkout-free;
+- `environment: npm-publish`;
+- `set +x` first;
+- the literal `${NPM_TOKEN}` `.npmrc`, removed on success and on failure;
+- `--userconfig` by absolute path.
+
+No `uses:` line changed (`bug-136`).
+
+**Other occurrences of the old argv:** `grep -rn "publish dist-pack"` finds only historical records
+(`dl-068` Context, `task-061` Execution Notes, the v0.2 plans) and this task's own comments. Those
+describe what the file said at the time. No spec pins the argv.
+
+### refactor — `6e7b6e43`
+
+The first full run found one failure: `test/lint/pack-ignore-scripts.test.ts` (`bug-022`'s guard)
+flagged the fixture's `npm pack` without `--ignore-scripts`. The fixture has no scripts, but the rule is
+uniform, so the flag was added.
+
+**Mutation check after that change.** The old argv was restored in `publish.yml`: both the AC2 and AC3
+cases go red (**2 failed, 20 passed**). Then `git checkout .github/workflows/publish.yml` restores the
+fixed line, and the file is back at **22/22**.
+
+**Six gates**, on this branch after `6e7b6e43`:
+- `npx jest --coverage` exit 0: **149 suites / 2418 tests**, 98.58 / 94.03 / 98.94 / 99.41, the same
+  as `main`;
+- `tsc -p tsconfig.build.json --noEmit` exit 0;
+- `tsc --noEmit -p tsconfig.json` exit 0;
+- `npm run lint` exit 0;
+- `npm run docs:api` exit 0.
+
+**AC5, the reproduction:** see the table under *design*. With `wf-fixture@1.0.0`, both npm 11.6.2 and
+`npx -y npm@10.9.0` give exit 128 with `ls-remote ssh://git@github.com/dist-pack/…` on the old argv, and
+`+ wf-fixture@1.0.0` with `./`.
+
+**Not done here, by the ACs:** the `package.json` bump, `CHANGELOG.md` and any tag. They belong to
+`release-publishing` (v0.2.1) and to the approver.
+
+**What remains unproven until the next real run:** the dry-run proves npm parses the argument as a
+file. The actual registry publish with provenance can only be exercised by the `v0.2.1` tag, because
+`promote` does not run under `act`.
