@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -77,6 +77,13 @@ The v1.0 text is otherwise kept. Where its figures moved, they are re-measured a
 
 **Revision 1.3 (2026-09-28).** The release-health document behind *Note 13* and *Note 15* has been
 supplied, and §4.9 (c) now states how each of its sections is admitted.
+
+**Revision 1.4 (2026-09-28).**
+- Figures are written with their definition and measurement commit.
+- The two id collisions are kept apart, because their remedies differ.
+- The tool signature with version and build commit is added to the v0.3 start conditions (§6.3 b).
+- The git identity question stays as it is (*Handoff* 5): the approver wants it analysed as a
+  note before anything is decided.
 
 ---
 
@@ -767,12 +774,17 @@ reproduction** or the **re-measurement**, never the source.
       definition difference or an error, and each is named before any figure is used. One
       difference is already known. For approvals signed by the out-of-team identity, three
       figures exist:
-      - the file gives 131, counting every commit whose body names the approver;
-      - the notes give 112;
-      - at `5269223d`, counting `approve` commits whose `Approver:` line names the approver, the
-        count is 112 (§4.7 slice 6's loop with `'^Approver:.*Roberto'`).
+      - the file gives 131 at `5269223d`, counting every `wf()` commit whose body names the
+        approver on an `Approver:` line;
+      - the notes session re-ran that definition later on 2026-09-28 and got 138, because the
+        figure grows with history;
+      - at `5269223d`, counting only `approve` commits whose `Approver:` line names the approver,
+        the count is 112 (§4.7 slice 6's loop with `'^Approver:.*Roberto'`), which matches the
+        notes.
 
-      The artefact states which definition it uses.
+      These are two definitions, not an error. **Every figure in the artefact is written with its
+      definition and the commit it was measured at**, or the next re-check will read growth as a
+      discrepancy.
     - **§2, the phase windows A–E, and §7, its corrections.** These are **method** and are
       imported now. Slice 6 uses these windows as its starting partition. The two corrections
       bind slice 6's interpretation:
@@ -788,9 +800,15 @@ reproduction** or the **re-measurement**, never the source.
   - **It names a decision-log that does not exist, under an id that is taken.** The file calls
     itself the baseline of `dl-087-release-health-analyses-before-retrospective`. No such file
     exists on any branch: the §2.4 all-refs loop, with `grep release-health`, returns nothing.
-    Meanwhile `dl-087` on `main` is `dl-087-publish-through-npm-staged-publishing`. This is the
-    §6.4 collision mechanism again, this time between a proposal and the repository. If the
-    proposal is filed, it takes the next free id by the §2.4 rule. Its substance, *release-health
+    The positive case holds: the same loop finds `dl-087-publish-through-npm-staged-publishing`.
+    This is a **second collision with a different cause** from §6.4:
+    - §6.4 is two *elements* created in parallel on different branches;
+    - this is an id *cited by a document* whose element was never created.
+
+    The remedies differ, so the mining keeps them as two items. The all-refs allocation of §2.4
+    prevents the first. The second needs an id to be allocated only by creating the element, and a
+    proposal to cite no id until then. If the proposal is filed, it takes the next free id by the
+    §2.4 rule. Its substance, *release-health
     measurements as a standing input to every retrospective*, is Q11's question, and the §3.2
     gate disposes of it.
   - **The scripted run it announces does not exist yet.** The file says a script will replace it,
@@ -931,7 +949,18 @@ release, and nothing about them is decided here:
   end. It needs a declared marker, a `checks.post` that requires it, and a home for phases that
   have no task.
 
-The last two share their natural carrier with Q10's missing context loader, `agent execute`
+- **A tool signature on every commit WingFoil writes, carrying the WingFoil version *and* the git
+  commit of the build.** The approver requested it on 2026-09-28; it is the notes' *Nota 16*.
+  Today the verbs write no tool trailer: `grep -n "RESERVED_TRAILER_LINE_RE ="
+  src/memory/commit-message.ts` shows only `Approver`/`Reason`. The binary does not know its own
+  commit either: `--version` reads `package.json` only. This is the same datum as "the commit in
+  `--version`" and as the version field of the consumption record above. It is what makes the
+  error inventory's replay (§3.1a) state which build each attempt used, and it makes a hand-written
+  `wf()` commit distinguishable from a tool-written one (slice 6). Two constraints are for the DL:
+  the commit is stamped at build or pack time, never read from the user's working directory
+  (REQ-SYS-07), and whether the trailer key is reserved like `Approver:` under `dl-067`.
+
+The consumption record and the retrospective-notes record share their natural carrier with Q10's missing context loader, `agent execute`
 (P5.3.1). That feature is in `minor-v0.3`'s `features:`, which makes it *proposed* for v0.3, not
 delivered.
 
