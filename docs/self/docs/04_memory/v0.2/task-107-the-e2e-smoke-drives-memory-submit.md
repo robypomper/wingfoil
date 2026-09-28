@@ -93,9 +93,51 @@ It exits 0 with a submit line on both templates. Paste that log into the Executi
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+### design — 2026-09-28 (role architect)
+
+Branch `task/task-107-the-e2e-smoke-drives-memory-submit`, worktree `.wf2-wt/task-107`, cut from
+`qa/e2e-smoke-v0.2` at `7a4e4e89`, because that is the only branch that carries this task's file.
+
+**Governance read, per the `dl-015` gate.**
+- **`task-060-publish-pipeline` (Execution Notes).** It wrote `scripts/e2e-smoke.cjs` with its `.d.cts`
+  and `test/cli/e2e-smoke.test.ts`. Its deliverables list records the gap this task closes: *"Gap vs
+  dl-023: `memory submit` is listed there but has no CLI verb yet (task-045)"*. Its design decision 1
+  explains why the script is plain CommonJS with no build step, and why the `.d.cts` exists: the Jest
+  suites type-check under `tsc --noEmit`. The step-shape change therefore has to land in the `.d.cts` as
+  well. It also records that a relative `dist/cli.js` fails, because steps run in a temp dir.
+- **`task-045-memory-submit` (Execution Notes).** `memory submit` emits `{id, path, from, to}` with
+  `--format json`, and an illegal edge exits 1 under the `dl-032` contract. The AC2 assertion is built
+  on those two keys.
+- **Tech-specs.** `grep -rln "e2e-smoke\|smokeSteps" docs/self/docs/04_memory/design/specs/` finds
+  nothing. `spec-015` mentions the smoke only as *reused verbatim* at §3 stage 3, and its line reads
+  *"a change to that smoke propagates here"*. No spec pins the step list or the script's API; the
+  contract is `e2e-smoke.yaml` plus `dl-023`. The script is outside `package.json` `files`, so it is not
+  a shipped module API. **No tech-spec is missing, and none is scaffolded.**
+
+**AC classification (`dl-014`/T1).**
+
+| AC | Class | Why |
+|---|---|---|
+| AC1 submit step on both templates, id from `memory add`'s JSON | red-first | no such step: `grep -n "'submit'" scripts/e2e-smoke.cjs` finds nothing |
+| AC2 `from: draft` / `to: pending` asserted, and a mismatch named | red-first | `commandCheck` checks only exit code and JSON parse |
+| AC3 clean-tree check stays last per template | characterization | already true in `smokeTemplate`; pinned before the change |
+| AC4 exact ordered step list in the test | red-first | the tightened assertion goes red on today's list, which has no submit |
+| AC5 callers unchanged, publish suites green | characterization | `runSmoke`'s signature and `publish-staging.cjs`'s import do not change |
+| AC6 module doc corrected | documentation | — |
+| AC7 a failing submit is reported, and the runner does not crash | red-first | the dependency between steps is new |
+| AC8 the real run | measurement | — |
+
+**Shape chosen: a named capture plus a placeholder argument.** A step may declare `capture: '<name>'`,
+and its parsed JSON stdout is then kept under that name. A later step's args may contain
+`'{<name>.<field>}'`, which is substituted before spawning. The report label shows the resolved argv,
+for example `memory submit task-001-smoke-task --format json`. A step may also declare
+`expect: {field: value}`, which is compared against its parsed JSON; the detail names each mismatch as
+`got <field>=<value>`. If a placeholder is unresolvable (no capture, or a missing field), the step fails
+**before** spawning, with a detail that says so.
+
+Reasons for this shape over the alternative, an `args` function over prior output:
+1. `SmokeStep.args` stays `readonly string[]`, so the `.d.cts` only gains two optional fields.
+2. `smokeSteps()` stays a static, frozen, printable list. The AC4 test asserts on literal strings,
+   `memory submit {task.id} --format json` among them, and a function would make that list opaque.
+3. The step list stays data rather than code, which keeps the module doc's determinism claim ("fixed
+   step list") true.
