@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -68,6 +68,12 @@ keeps v1.0's rule for findings. The changes are:
 - §7 gains four hazards.
 
 The v1.0 text is otherwise kept. Where its figures moved, they are re-measured at `a20b346c`.
+
+**Revision 1.2 (2026-09-28) — the approver's first rulings on v1.1.**
+- All of this phase's repository changes stay on the phase branch until close-out, with ids
+  allocated across all branches (§2.4).
+- The duplicate `dl-080` branch is not merged and is removed at close-out (§6.4).
+- The error inventory's entries stay outside the repository, and only the summary enters (§6).
 
 ---
 
@@ -155,6 +161,38 @@ A phase branch that has fallen behind `main` is brought current with `git merge 
 branch whose commits are Memory state transitions rewrites the audit trail the whole model rests on.
 Per `dl-024` the phase runs on its own branch (`design/<phase>_<version>` shape) and merges to `main`
 with `--no-ff`. After any merge that moves `package-lock.json`, re-run `npm ci` (§1 P5).
+
+**Everything this phase changes in the repository lives on `design/retrospective_v0.2` until the
+single `--no-ff` merge at close-out.** The approver decided this on 2026-09-28. It covers:
+
+- this plan's own revisions;
+- `retro-v0.2` itself;
+- the §6.1 and §6.2 scheduled items;
+- the §6.5 `dl-087` amendment and its release stamp;
+- every element spun off at §3.2.
+
+Nothing is committed to `main` directly. There are two consequences:
+
+- **Allocate ids across all branches, not from `main`.** A DL or bug filed here is invisible to
+  every other branch until the merge, which is exactly how §6.4's duplicate `dl-080` arose.
+  Before every `memory.add`, compute the next free number over every ref:
+
+  ```sh
+  for r in $(git branch -a --format='%(refname:short)'); do
+    git ls-tree -r --name-only "$r" -- docs/self/docs/04_memory/design/dls/; done \
+    | sed -nE 's#.*/dl-([0-9]+)-.*#\1#p' | sort -n | tail -1
+  ```
+
+  Use the same command with `bugs/` and `bug-` for bugs. This lowers the risk but does not remove
+  it: a session that has not pushed is invisible. So re-run it immediately before the merge, and
+  renumber on this branch if anything collided.
+- **Other sessions see the changes only after the merge.** That is acceptable here. The
+  retrospective is `release-cycle`'s last phase, and its consumer, v0.3 `release-planning`, starts
+  after it. If something must reach another session sooner, `dl-087`'s release stamp being the only
+  candidate, merge `main` into the branch as usual and ask the approver about an early partial
+  merge. Do not cherry-pick onto `main`.
+
+The one thing that does not go on this branch is the error inventory's entries (§6).
 
 ### 2.5 The evidence rule: never assert a file's state without running the command that settles it
 
@@ -795,8 +833,10 @@ same workflow version. Sections, in the decision-log template's order:
     one, with the reason **and** the release.
   - **Agent errors** — a summary of the error inventory (§3.1a) that survived the adversarial
     review: the counts per attribution class, and which entries are experiments (checkout-able)
-    rather than observations. Whether the entries themselves enter this repository is an approver
-    decision (*Handoff*). They contain no material about the external project, but they are long.
+    rather than observations. **Only this summary enters the repository.** The approver decided on
+    2026-09-28 that the entries themselves stay in the notes folder, outside version control. So
+    the summary must be self-sufficient: counts, classes and the review's drop rate. It cannot
+    point at a file that no reader of this repository can open (`dl-075`).
 - **`## Rationale`** — why the dispositions are what they are, and what was deliberately left out of
   scope. v0.1 used this section to bound the work; do the same.
 - **`## Actions`** — checkbox list with owners. Include the audit of v0.1's own actions (Q8) and
@@ -867,11 +907,12 @@ Ids are allocated per branch, so two parallel sessions took the same number.
 This is two things:
 
 - **A finding** about id allocation. It belongs in the mining, like any other.
-- **A pending approver decision** about the branch. It has two options: merge the decision-log
-  under a new id, or delete the branch.
-
-Until the approver decides, every decision-log count in the artefact states whether it includes
-that branch, and by default it does not.
+- **A branch disposition, decided by the approver on 2026-09-28: the proposal is not merged, and the
+  branch is to be removed as part of this retrospective's close-out.**
+  - The branch's content is not counted in any decision-log figure in the artefact.
+  - `retro-v0.2` records its two commit shas, so the content stays identifiable.
+  - The removal itself is a remote, irreversible operation. It is carried out at close-out only
+    after the approver confirms it in the session.
 
 ## 6.5 A publishing fact to record — the direct-publish token is gone, and `dl-087` is now blocking
 
@@ -1023,10 +1064,7 @@ than importing an unresolvable citation to fill the gap.
 4. Which of this retrospective's findings become new elements versus fold into existing ones, and
    **the target release of each** (§3.2). Also whether any need to reach v0.3 `release-planning` as
    scope rather than as a note, including the v0.3 start conditions of §6.3 b.
-5. The `dl-080` duplicate on the unmerged branch: merge under a new id, or delete (§6.4).
-6. Whether the agent-error inventory's entries enter this repository, and where, or stay outside it
-   with only their summary in `retro-v0.2` (§6).
-7. Whether an approval signed by an identity outside `team.members` needs remediation for the past,
+5. Whether an approval signed by an identity outside `team.members` needs remediation for the past,
    such as a `.mailmap`, which does not rewrite history, or only a rule for the future. The
    question stands only if slice 6 confirms that such approvals exist at the measured HEAD.
 
