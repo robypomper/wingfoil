@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -828,3 +828,93 @@ Given in chat and binding on this phase:
 Unchanged and still the approver's, to be performed personally and never by an agent: pushing `main`,
 creating and pushing the tag, approving the `npm-publish` deployment, supplying or rotating
 `NPM_TOKEN`, and instructing both `enter-releasing` and `mark-released`.
+
+---
+
+## Execution Notes
+
+Phase started 2026-09-28 by the agent, on branch `design/release_publishing_v0.2` (worktree
+`.wf2-wt/release-publishing-v0.2`, §7.3). It was cut from `main` at `999b95d5`, the release-submit
+merge. The approver authorised the start in chat after `release-submit` completed.
+
+### §1 — preconditions
+
+| # | Result |
+|---|---|
+| P1 | `minor-v0.2` → `releasing` |
+| P2 | `approve-release` was given by the approver, recorded in `0b08e0d7` (`wf(plan): finalize release-submit-rel-v0.2-plan`, with an `Approver:` line) |
+| P3 | `main`; no tracked changes. Only the three pre-existing untracked paths remain |
+| P4 | **7 ahead**, 0 behind: `80e83c64`..`999b95d5`, the dl-023 ruling and release-submit. This is expected, as §8 foresees ("non-zero again as soon as any of v0.2's remaining phase plans merge"). Step 5 discharges it |
+| P5 | `git tag -l` empty; `git ls-remote --tags origin` empty |
+| P6 | `npm view wingfoil version` → `npm error code E404` |
+| P7 | `{"private":false,"visibility":"public"}` |
+| P8 | `npm-publish`: `required_reviewers` [robypomper], `prevent_self_review: false`; `branch_policy` (custom); `can_admins_bypass: true` |
+| P9 | `[{"name":"v*","type":"tag"}]` |
+| P10 | env secret `NPM_TOKEN`, `updated_at` 2026-09-21T08:15:26Z; repo secrets `total_count` 0 |
+| P11 | `npm ci` exit 0 |
+| P12 | `@emnapi/core` 1.11.3, `@emnapi/runtime` 1.11.3 |
+| P13 | `npm run check:lockfile` exit 0 ("carries every pinned entry (2 overrides pin(s)) and every required peer edge resolves"); `lockfile-peer-overrides` + `check-lockfile-pins` → 20/20 |
+| P14 | see *§6 gates* below |
+| P15 | `on: push: tags: ['v[0-9]+.[0-9]+.[0-9]+']`; `ls -1 .github/workflows/` → `publish.yml` only |
+
+### Step 1 — secret sweep (`dl-068`)
+
+§2's scan over `git ls-files` scanned 809 of 809 files and found **25 blocking findings, not the 24 §2
+expects**:
+- **`test/validation/secret-scan.test.ts` (24):** the `bug-055` fixtures, as expected.
+- **`test/storage/builtin-directives.test.ts` (1):** `private-key-pem@100`. Accounted for by name. It is
+  the test *"the same scan DOES flag a planted private-key header under that path"*, a bare
+  `-----BEGIN RSA PRIVATE KEY-----` header line with no key material, used as a non-vacuity fixture. It
+  was added by `81cb63dc` (`task-057`, 2026-09-17), and `git merge-base --is-ancestor 81cb63dc
+  origin/main` → true, so **it is already public**. §2's expectation of 24 simply predates the count;
+  `bug-055` measured one file only.
+
+Everything the push would add was also scanned: the lines added by `git log -p origin/main..main`
+(106 lines, intermediate commits included) → `{"blocking":0,"warnings":0}`.
+
+This is a one-shot manual run, and no gate enforces it (`dl-073`, open).
+
+### Step 2 — `spec-015` §4 amended (`dl-074` (a)) — `63f8c505`
+
+The tag bullet now requires `main` to be pushed before the tag. A dated *Revision (2026-09-28) — §4*
+note quotes the superseded bullet in full and quotes the two gate lines from `publish.yml`'s step "Tag
+commit is on main (dl-024)". `status:` is still `approved`. **Nothing was mirrored into `dl-024`**,
+because Action 3 is the approver's.
+
+### Step 3 — version bump — `c62a7009`
+
+Made with `npm version 0.2.0 --no-git-tag-version`. `git diff` shows exactly three lines: the
+`package.json` `version`, and the lock's root `version` and `packages[""].version`. `git tag -l` is
+still empty. After the bump:
+- `npm ci` exit 0;
+- both `@emnapi` entries at 1.11.3;
+- `check:lockfile` exit 0;
+- `node scripts/check-release-tag.cjs v0.2.0` → `tag v0.2.0 matches package.json version 0.2.0`.
+
+### §6 gates, after the bump
+
+All green:
+- `npx jest --coverage` exit 0: 149 suites / 2417 tests, 98.58 / 94.03 / 98.94 / 99.41;
+- both `tsc --noEmit` exit 0;
+- `npm run lint` exit 0;
+- `npm run docs:api` exit 0.
+
+### Step 6 — staging rehearsal, run *before* the merge and the push
+
+Run early on purpose: it touches only a localhost registry, and a failure here should stop the phase
+before anything becomes public.
+
+`npm run publish:staging` → `REAL_EXIT=0`, 68 s wall-clock. `wingfoil@0.2.0`, installed from staging,
+gives 20/20 `ok`: `--version = 0.2.0` and both templates, `memory submit` included, since `task-107`
+merged. The run closes with `[publish:staging] staged wingfoil@0.2.0 and smoke passed`. The 114
+Verdaccio password-timing warnings are `bug-061` noise. Port 4873 is free before and after
+(`ss -ltn | grep -c ':4873 '` → 0).
+
+### Step 4 — merge into `main`
+
+The merge is recorded by the commit that follows these notes.
+
+### Handed to the approver
+
+`dl-057` (d) is still open: CI does not enforce an annotated tag. §10's command uses `-a` as `spec-015`
+§4 requires, so it complies either way.
