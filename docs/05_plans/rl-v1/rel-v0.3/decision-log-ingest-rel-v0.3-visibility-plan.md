@@ -145,4 +145,14 @@ this plan.
 
 ## Execution Notes
 
-<!-- Filled as the stages run. -->
+### Stage 1 — DL-A (2026-09-28)
+
+- `memory.add` → `abd8a98`; `memory.submit` → `09447e5` (`draft → in-discussion`). The element is
+  `dl-088-a-memory-type-for-state-that-lives-outside-the-repository`.
+- Checks: the `js-yaml` load returns `in-discussion` with a non-empty `title`, and `scanText` returns
+  `{"b":0,"w":0,"i":0}`. `scanText` was run from `dist/` after `npm ci --ignore-scripts && npm run build`.
+- Extra check: DL-A's proposed `service` block parses under `MemoryTypeEntry`. Merged into the current
+  `docs/self/.wingfoil/memory.yaml`, it also parses under `MemoryYaml`
+  (`dist/memory/schema.js`, `safeParse` → `success: true` for both).
+- `approve` is pending with the approver, together with the three open options (state machine, edits
+  to an `active` service, implementation route).
