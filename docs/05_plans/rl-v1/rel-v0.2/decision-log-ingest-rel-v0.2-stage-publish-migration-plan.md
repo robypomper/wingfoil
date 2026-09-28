@@ -3,7 +3,7 @@ id: "decision-log-ingest-rel-v0.2-stage-publish-migration-plan"
 type: plan
 title: "Decision-log ingest — v0.2: migrate the publish pipeline to npm staged publishing"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "decision-log-ingest"
 phase: "rel-v0.2-stage-publish-migration"
 element: ""
@@ -64,3 +64,11 @@ source and the date it was read. Facts not yet verified are marked as such.
   has run.
 
 ## Execution Notes
+
+- `memory.add` → `a567a987`; `memory.submit` → `38d77a2a` (`draft → in-discussion`).
+- Checks: the `js-yaml` load returns `in-discussion` with a non-empty `title`; `scanText` returns
+  `{"b":0,"w":0,"i":0}`.
+- The first check run failed because the worktree has no `node_modules`, and the submit commit went
+  ahead anyway. The check was then re-run with `NODE_PATH` set to the main checkout's modules, with the
+  result above.
+- `approve` is pending with the approver.
