@@ -4,7 +4,7 @@ type: decision-log
 title: "`memory add` cannot produce a version-shaped id: the slug drops dots, and an `id_pattern` token other than `{n}` and `{slug}` has no source, so this repository's own `release`, `release-line` and `plan` patterns cannot be filled"
 status: in-discussion
 context: "retrospective"
-release: "v0.3"
+release: "v0.2.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
