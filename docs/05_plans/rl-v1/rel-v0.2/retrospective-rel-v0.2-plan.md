@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.7"
+version: "1.8"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -98,6 +98,9 @@ reference must resolve from the repository. It makes three changes:
 
 **Revision 1.7 (2026-09-28).** A new approver decision, Handoff item 5: nothing in Memory records
 the Determinism Index's measurement status, so any statement about it needs an element first.
+
+**Revision 1.8 (2026-09-28).** A correction from the `explore` run: the brief count of §3.1a
+confused briefs with drafted commit messages (19 briefs, not 55).
 
 ---
 
@@ -302,8 +305,10 @@ tree before the error, redo that piece with a newer WingFoil, and see whether th
 - **A system-level entry, not anyone's mistake.** The hand-assembled wave briefs are the per-task
   cost of the missing context loader (`agent execute`, P5.3.1 — `grep -c agentExecute
   src/core/index.ts`). They are recorded as one class-(3) row. They are kept outside the repository
-  by the orchestrating session. There were 55 on 2026-09-28, against 54 in a 2026-09-25 snapshot,
-  so the count must be re-taken and dated (A.1).
+  by the orchestrating session. On 2026-09-28 that folder held 55 files, against 54 in a 2026-09-25
+  snapshot. Only 19 of the 55 are agent briefs (`.md`); the other 36 are drafted commit messages
+  (`.txt`), as the adversarial review found and the executor confirmed by extension count. The unit
+  of that cost is therefore 19 briefs, not 55. Re-take the count, dated (A.1), and split it by kind.
 
 #### 3.1b Adversarial review of the attributions — a dedicated agent
 
