@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.14"
+version: "1.15"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -121,6 +121,17 @@ v0.2.2 scope is widened, and `dl-087` targets v0.2.2.
 **Revision 1.14 (2026-09-28).** The §4.8 completeness pass, done in full after the approver found it
 partial (§4.10). Also: the approver's additions on the Determinism Index options and on recurring
 phases (Dispositions A22, J1).
+
+**Revision 1.15 (2026-09-28).** The `additional-points` gate is closed, with the Dispositions
+approved. The approver's rulings at and after the gate:
+- **D01 (`dl-089`).** The equivalence criterion lives in `dl-089`. D01 runs on major and minor
+  releases only, after publishing.
+- **J1** goes to v0.3.
+- **Identity.** The shared git identity was cleared by the approver. `git config --show-origin`
+  now shows only the global value.
+- **Repository.** It is renamed inside v0.2.2, before publish, in §6.8 step 5.
+
+`capture` is running.
 
 ---
 
@@ -1369,7 +1380,7 @@ parked state now, because it blocks that move. And the v0.2.2 scope is widened a
 | 2 | **Configuration at the root** (closes `bug-075`); `wingfoil@0.2.1` from npm pinned and installed locally; MCP registered (`dl-026`) | v0.2.2 | 1 |
 | 3 | `dl-087` staged publishing, with `bug-136` | v0.2.2 | 1 |
 | 4 | `dl-088` implemented: the `service` type and the backfilled services | v0.2.2 | 2 |
-| 5 | DL-N name and namespace → DL-B metadata. The first-use fixes: remove the unused `@anthropic-ai/sdk`; the DNA scaffold `category` example; `init` names its templates; `bug-128`, `bug-129`. Closures with no code: `bug-021` downgraded, `bug-092` closed with a pointer to its ruling | v0.2.2 | 2, 4 |
+| 5 | DL-N (`dl-091`) public identity; **repository renamed** (approver, on GitHub) and `package.json` `repository.url`, `homepage` and `bugs.url` swept before publish, because provenance checks them → DL-B metadata. The first-use fixes: remove the unused `@anthropic-ai/sdk`; the DNA scaffold `category` example; `init` names its templates; `bug-128`, `bug-129`. Closures with no code: `bug-021` downgraded, `bug-092` closed with a pointer to its ruling | v0.2.2 | 2, 4 |
 | 6 | Staging → tag `v0.2.2` on the pushed `main` → publish | v0.2.2 | 3, 5 |
 | ∥ | From step 2: v0.3 `release-planning`, the clean-up of the unscheduled population (`bug-094` first), v0.3 decision-logs. Memory and process documents only reach `main` | v0.3 | 2 |
 | 7 | After the tag: v0.3 code; `git merge main` into v0.3 branches; the build switch per the build rule | v0.3 | 6 |
