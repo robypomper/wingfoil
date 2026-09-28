@@ -8,7 +8,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Every entry ends with the WingFoil Memory element(s) it comes from: a `done` task (`task-NNN`) or a
 `closed` bug (`bug-NNN`).
 
-## [0.2.0] - Unreleased
+## [0.2.1] - 2026-09-28
+
+The Project Directives release: the Memory state-transition verbs, the full Directives pillar, a
+mutation surface for Project DNA, and role Prompts on the MCP server.
+
+**0.2.1 is the first published 0.2 version.** The `v0.2.0` tag exists, but 0.2.0 was never published
+to npm: the release pipeline's final publish step failed before uploading anything (bug-135). 0.2.1
+carries everything listed below for 0.2.0, plus that fix.
+
+### Fixed
+
+- The release pipeline publishes the package tarball by an explicit `./dist-pack/…` path. npm read
+  the previous relative path as a GitHub repository, so the 0.2.0 publish failed. (bug-135)
+
+## [0.2.0] - never published
 
 The Project Directives release: the Memory state-transition verbs, the full Directives pillar, a
 mutation surface for Project DNA, and role Prompts on the MCP server.
