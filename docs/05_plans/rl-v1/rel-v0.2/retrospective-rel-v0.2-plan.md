@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -95,6 +95,9 @@ reference must resolve from the repository. It makes three changes:
 - It integrates what the plan needs from those sources: Appendix A, and the six binding questions
   in §6.1.
 - It removes session names used as sources.
+
+**Revision 1.7 (2026-09-28).** A new approver decision, Handoff item 5: nothing in Memory records
+the Determinism Index's measurement status, so any statement about it needs an element first.
 
 ---
 
@@ -1197,7 +1200,13 @@ The Dispositions table records it as *work performed*.
 4. Which of this retrospective's findings become new elements versus fold into existing ones, and
    **the target release of each** (§3.2). Also whether any need to reach v0.3 `release-planning` as
    scope rather than as a note, including the v0.3 start conditions of §6.3 b.
-5. Whether an approval signed by an identity outside `team.members` needs remediation for the past,
+5. Whether to file an element recording the Determinism Index's measurement status. The index is
+   the project's north star (`docs/01_vision/01_product-brief.md`), yet no Memory element states
+   whether it has ever been measured: `grep -rn -iE "(never|not yet) measured"
+   docs/self/docs/04_memory/` returns nothing at `a20b346c`. Whether any element positively
+   records a measurement has not been checked; the executor settles that first. If `retro-v0.2` wants to say anything about determinism, that
+   element comes first. The artefact never cites a claim no element makes.
+6. Whether an approval signed by an identity outside `team.members` needs remediation for the past,
    such as a `.mailmap`, which does not rewrite history, or only a rule for the future. The
    question stands only if slice 6 confirms that such approvals exist at the measured HEAD.
 
