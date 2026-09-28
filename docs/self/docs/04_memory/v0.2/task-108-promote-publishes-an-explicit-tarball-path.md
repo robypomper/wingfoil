@@ -2,7 +2,7 @@
 id: "task-108-promote-publishes-an-explicit-tarball-path"
 type: task
 title: "`promote` publishes `./dist-pack/*.tgz`, an explicit path npm cannot mistake for a git repository, and a test runs the real CI npm on that argv shape before any tag"
-status: in-progress
+status: in-review
 release: "v0.2"
 priority: "high"
 tags: ["v0.2", "publishing", "ci", "hotfix"]
