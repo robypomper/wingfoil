@@ -2,7 +2,7 @@
 id: "bug-ingest-rel-v0.2-publish-run-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 first real publish run (promote's relative tarball path; actions targeting Node 20)"
-status: active
+status: done
 version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-publish-run-findings"
