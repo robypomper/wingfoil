@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -927,6 +927,19 @@ The merge is recorded by the commit that follows these notes.
 - **§14.3, `dl-074` Action 3: mirrored.** The pushed-`main` sentence is now in `dl-024` decision 2 as
   well as in `spec-015` §4. `dl-074` records the ruling, and `spec-015`'s Revision note is corrected
   to say so.
-- **H11, the token: confirmed** by the approver as suitable for the first publish (all-packages write,
-  not expired). The agent did not read it.
+- **H11, the token: first confirmed, then withdrawn — the current `NPM_TOKEN` cannot publish v0.2.0.**
+  The approver then read the token's own label on npmjs.com: *"read and write (stage only) access to
+  all the packages"*. Per npm's 2026-09-18 changelog, npm rejects a direct `npm publish` made with a
+  stage-only token, and `promote` runs exactly that command (`npm publish dist-pack/*.tgz --provenance
+  --access public`). Two further constraints block staging as the alternative:
+  - staged publishing requires npm CLI ≥ 11.15.0 and Node ≥ 22.14.0, while `publish.yml` pins
+    `NODE_VERSION: '22.12.0'`;
+  - by InfoQ's account, staged publishing requires the package to *already exist*, and `wingfoil` does
+    not (P6 → E404).
+
+  So a tag pushed today would pass `gate` and `stage` and then **fail at `promote`**. That failure is
+  closed (nothing published), but it burns `v0.2.0`. **The tag waits until the token question is
+  settled.** Sources: https://github.blog/changelog/2026-09-18-stage-only-npm-tokens-for-safer-automation/
+  and https://www.infoq.com/news/2026/08/npm-stage-available/, read 2026-09-28. The agent did not read
+  the token itself.
 - **§14.6, `dl-068` Action 5:** the approver asked for more detail before deciding. It is still open.
