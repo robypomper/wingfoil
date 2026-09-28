@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -75,8 +75,8 @@ The v1.0 text is otherwise kept. Where its figures moved, they are re-measured a
 - The duplicate `dl-080` branch is not merged and is removed at close-out (§6.4).
 - The error inventory's entries stay outside the repository, and only the summary enters (§6).
 
-**Revision 1.3 (2026-09-28).** The release-health document behind *Note 13* and *Note 15* has been
-supplied, and §4.9 (c) now states how each of its sections is admitted.
+**Revision 1.3 (2026-09-28).** The release-health data behind the notes' git-tree and quality analyses
+has been supplied. §4.9 (c) now states how each of its sections is admitted.
 
 **Revision 1.4 (2026-09-28).**
 - Figures are written with their definition and measurement commit.
@@ -87,6 +87,14 @@ supplied, and §4.9 (c) now states how each of its sections is admitted.
 
 **Revision 1.5 (2026-09-28).** `dl-088` (release-health analyses) was created in this phase from the
 approver's draft (§6.6).
+
+**Revision 1.6 (2026-09-28).** This revision applies the approver's resolvability rule (§2.2): every
+reference must resolve from the repository. It makes three changes:
+- It removes every pointer to a file outside the repository. That covers the notes' folder and
+  files, a downloaded document, the briefs folder and the unversioned experiment directory.
+- It integrates what the plan needs from those sources: Appendix A, and the six binding questions
+  in §6.1.
+- It removes session names used as sources.
 
 ---
 
@@ -104,7 +112,7 @@ that governs exactly this.
 | P4 | No bug scheduled into v0.2 is still open | see §4.1 command B — filter `release: "v0.2"` | all `closed` |
 | P5 | The suite is green on `main` and the tree is clean | `npm ci && npm test` ; `git status --short` | 0 failures; empty status |
 | P6 | You are on the phase branch `design/retrospective_v0.2`, current with `main` (§2.4) | `git rev-parse --abbrev-ref HEAD` ; `git log --oneline main -1` ; `git merge-base --is-ancestor main HEAD && echo current` | branch name; `current` |
-| P7 | The v0.3 notes' own **preliminary operations** have been run and dated (§4.8) | the notes `README.md`, section *"Operazioni preliminari della retrospective"* — ten numbered steps | each step carries a date and the HEAD it measured at; also check that `~/Downloads/release-health-v0.2-provisional.md` still exists (§4.9 c) |
+| P7 | The **preliminary re-measurements** of Appendix A.1 have been run and dated (§4.8) | the commands listed in A.1 | each step carries a date and the HEAD it measured at |
 | P8 | The WingFoil build used for every reproduction is **pinned and declared** | `npm view wingfoil version` ; `wingfoil --version` from the scratch project (§4.9) — never the `wingfoil` found first on `PATH` without checking | the same version from both; write it into the inventory header |
 | P9 | A scratch project exists for reproductions, **outside** this repository, with a throw-away identity passed per command | `mktemp -d` + `git init` + `wingfoil init --template <t>`; identity via `git -c user.email=… -c user.name=…` or `GIT_AUTHOR_*` env, **never** `git config` inside a worktree of this repo (§7.9) | `git -C <scratch> log -1` shows the throw-away identity; `git config user.email` here is unchanged |
 | P10 | The sessions this plan queries are reachable (§4.9 d) | `ListAgents` — the notes session, and the sessions that executed v0.2 | listed; a stopped session is resumed from the app before it is relied on |
@@ -161,6 +169,18 @@ read rather than an instruction to a later reader.
 This bites this phase directly: a retrospective is almost entirely durable citation. Cite
 `retrospective.yaml`'s `capture` phase `produces:` key, not a line of it. Pin every count to the
 commit you measured at.
+
+**Every reference must resolve from the repository.** The approver ruled this on 2026-09-28. A
+repository document may reference only what a reader of the repository can open:
+- a versioned file, element, commit or ref;
+- a command that runs against them.
+
+When a document depends on something outside, it **integrates the needed content** and drops the
+reference. Examples of outside sources are a file in someone's downloads, a folder outside the
+repository, another repository, a session or a transcript. This applies to this plan, to
+`retro-v0.2`, and to every element the phase files. What this plan needs from outside sources is in
+Appendix A. Where the content cannot enter, because it concerns the external project (§7.7),
+describe the WingFoil defect as reproduced here, and leave the source unnamed.
 
 ### 2.3 Agents hold no approval authority
 
@@ -224,8 +244,9 @@ recorded in the v0.3 notes, and they are cheap enough to adopt for this phase al
   result, show the pattern hitting something.
 - **A declared write is followed by a presence check that can fail.** After editing an inventory,
   the plan, or the artefact, grep for the specific text you meant to add, and treat "not found" as
-  an error. Counting lines is not such a check, because the count moves for other reasons. That is
-  the notes' own first error-inventory entry, E-001.
+  an error. Counting lines is not such a check, because the count moves for other reasons. It is
+  also the first entry of the error inventory (§3.1a): a replacement whose anchor text did not
+  exist was reported as applied, and the only check run counted lines.
 
 ---
 
@@ -237,8 +258,8 @@ Four steps, in the order the workflow declares them. Two are the approver's.
 
 - **Action (`retrospective.yaml`):** `agent.mine_execution_notes`.
 - **Produces:** *"retrospective friction inventory (source-cited, grouped by theme)"* — a working
-  artefact, **not** a Memory element. Write it to the scratchpad (v0.1's lived at
-  `scratchpad/friction-inventory-v0.1.md`, cited from `retro-v0.1.md` §Context). It is read-only work:
+  artefact, **not** a Memory element. Write it to the session's scratchpad; v0.1's lived in one too,
+  as `retro-v0.1.md` §Context records. It is read-only work:
   **no commit, no state change**.
 - **How:** §4 is the evidence map. The phase description says "Parallelizable (cheap-model miners +
   synthesis)" and v0.1 did exactly that — five parallel read-only miners plus a synthesis pass. v0.2
@@ -257,11 +278,11 @@ made** in v0.2: planning errors, development errors, and violations of directive
 entry is **anchored to a point in git history**. The purpose is a later experiment: check out the
 tree before the error, redo that piece with a newer WingFoil, and see whether the error recurs.
 
-- **Who compiles it.** The notes session ("DEV v0.2 - retro + planningv 0.3"), by the approver's
-  assignment. This plan's executor **receives** it as input to §3.2 and does not author entries.
-  The file is `inventario-errori.md` in the notes folder (§4.8). Its field shape, the five
-  attribution classes and the tie-break rules are in the notes `README.md`, *Nota 6*, and not in
-  the file itself. Changing who compiles it is the approver's call.
+- **Who compiles it.** By the approver's assignment, the session that kept the v0.3 notes compiles
+  it, outside the repository. This plan's executor **receives** it as input to §3.2 and does not
+  author entries. Changing who compiles it is the approver's call. The shape every entry must have,
+  the attribution classes, the tie-break rule and the error classes to look for are restated in
+  **Appendix A.2**. That appendix, not the external file, is what the executor holds entries to.
 - **What the executor does with it.** The executor cross-checks it against the slices (§4.7):
   - every reject classified in slice 1 as an agent error either has an entry or has a stated
     reason for having none;
@@ -277,9 +298,9 @@ tree before the error, redo that piece with a newer WingFoil, and see whether th
     defaults to (4).
 - **A system-level entry, not anyone's mistake.** The hand-assembled wave briefs are the per-task
   cost of the missing context loader (`agent execute`, P5.3.1 — `grep -c agentExecute
-  src/core/index.ts`). They are recorded as one class-(3) row. Count them: `ls
-  ~/Workspaces/.wf2-briefs/ | wc -l` gave 55 on 2026-09-28, against 54 in the notes' 2026-09-25
-  snapshot.
+  src/core/index.ts`). They are recorded as one class-(3) row. They are kept outside the repository
+  by the orchestrating session. There were 55 on 2026-09-28, against 54 in a 2026-09-25 snapshot,
+  so the count must be re-taken and dated (A.1).
 
 #### 3.1b Adversarial review of the attributions — a dedicated agent
 
@@ -570,9 +591,9 @@ what the process actually does?"**
 ### 4.7 Suggested mining slices (disjoint, parallelizable)
 
 Eight read-only miners, each writing a flat list of source-cited items to its own scratchpad file,
-then one synthesis pass. Slices 1–5 are v1.0's. Slices 6–8 are the methods imported from the v0.3
-notes (§4.8), where they are recorded as proposals for this plan: *Nota 6b* points 4–6, and
-*Nota 13*.
+then one synthesis pass. Slices 1–5 are v1.0's. Slices 6–8 are methods the v0.3 notes proposed for
+this plan (§4.8): directive compliance, rework, bug provenance, and per-phase git metrics. They are
+fully specified here.
 
 1. **Rejects + rework** — every `wf(task): reject` body (§4.2). Classify each by what it was
    rejected on. Add the rework metrics:
@@ -684,8 +705,7 @@ unverified assertions — which would be a notably poor way to write *this* retr
 > `minor-v0.2` has reached `released` (`d2ad1f3f`). That closes their rows about the package
 > version and about npm availability. P7 exists for this reason.
 
-A separate session, **"Note e riferimenti v0.3"** — later **"DEV v0.2 - retro + planningv 0.3"**,
-which is the name to message — was running throughout v0.2 collecting notes and
+A separate session was running throughout v0.2 collecting notes and
 references intended for v0.3 planning. It is a **secondary** source: someone's account of what
 happened, formed while it happened. Everything in §4.1–§4.7 is **primary** — commit bodies, frontmatter,
 diffs, the artefacts themselves.
@@ -701,7 +721,7 @@ material first, and only then read the notes, for two purposes and no others:
   with respect to *those* and says nothing about anything else. Agreement between it and your own
   findings is therefore **not** evidence that you have covered the release — it is evidence that you
   covered the same five documents. Elements filed late in v0.2 in particular are outside it, and the
-  notes' own README says so.
+  notes say so themselves.
 - **Divergence.** Where the notes and your findings disagree, that disagreement is itself material
   worth recording: it is a measurement of how much of this release's account depended on being
   present for it.
@@ -716,12 +736,12 @@ content lives in its own transcript, not in this repository — a later session 
 sessions do not persist indefinitely. So one of the following must be true before `explore` starts,
 and verifying which is part of P-checks:
 
-- the notes have been **landed somewhere durable**, in which case cite that location and treat them
-  as above. **As of 2026-09-22 this is the case:** they are at
-  `/home/robypomper/Workspaces/WingFoil2-v0.3-notes/` — a `README.md` with an index and a
-  classification table, `notes-full.md`, and one further note — outside this repository and outside
-  `/tmp`. Verify the path still exists before relying on it; it is outside version control and
-  nothing here guarantees it. **Nothing from it may be copied into this repository**: it contains
+- the notes have been **landed somewhere durable**, outside this repository, and treated as above.
+  **As of 2026-09-28 this is the case.** This repository never cites their location or their files:
+  a reference a reader of this repository cannot open is not a citation. What this plan relies on
+  from them is **restated in Appendix A**. Everything else in them enters only as a finding that has
+  been re-derived from primary material. **Nothing else from them may be copied into this
+  repository**: they contain
   material about a separate benchmark project, and by the approver's standing rule that material does
   not enter WingFoil2. A defect learned from it is described as a WingFoil defect and **reproduced on
   this repository** before it becomes an element — which is how `bug-076` and `bug-077` were filed;
@@ -743,9 +763,9 @@ Four sources are not commits, frontmatter or diffs, and each has its own admissi
 them is cited from `retro-v0.2` by path. What enters the artefact is the **WingFoil-side
 reproduction** or the **re-measurement**, never the source.
 
-- **(a) External usage feedback.** This is a numbered list of defects met while using WingFoil to
-  govern another project. The notes' index gives its location, and it is an open list that grows
-  (34 items at 2026-09-25). It is a different kind of evidence: it holds defects that v0.2's own
+- **(a) External usage feedback.** This is a numbered list, kept outside this repository, of
+  defects met while using WingFoil to govern another project. It is an open list that grows: 34
+  items at 2026-09-25. It is a different kind of evidence: it holds defects that v0.2's own
   gates did not catch. Two of them were release blockers, `bug-076` and `bug-077`.
   - **Admission:** each item is reproduced on the scratch project (P9), with the pinned build (P8),
     before it counts.
@@ -762,11 +782,9 @@ reproduction** or the **re-measurement**, never the source.
   This analysis runs **outside** this repository. What enters is only the list of template defects,
   each reproduced by `init` on the scratch project. It measures the entry cost on files rather than
   by impression. Its natural target is P4.18, already in `minor-v0.3`'s `features:`.
-- **(c) The release-health data — git-tree and quality analysis.** This is
-  `release-health-v0.2-provisional.md`, supplied by the approver on 2026-09-28. It was delivered to
-  the approver's `~/Downloads/`, outside version control and outside the notes folder, so it is
-  fragile. P7 checks that it is still there. It is the document behind the notes' *Nota 13* and
-  *Nota 15*.
+- **(c) The release-health data — git-tree and quality analysis.** This is a document the approver
+  supplied on 2026-09-28, outside version control. The parts this plan uses are restated in
+  **Appendix A.3**. The same analysis is carried, revised, by `dl-088` (§6.6), which is versioned.
   - **How it was measured.** The measurement was taken on a public clone at `main` `5269223d`,
     which is before `release-submit` and `release-publishing`, with Node 22.22.2 rather than the
     pinned 22.12.0. The complexity threshold was 15, the clone threshold 8 lines, and the phase
@@ -795,8 +813,8 @@ reproduction** or the **re-measurement**, never the source.
       - an ASCII arrow on this repository is format drift in hand-written commits, not proof the
         tool was bypassed (`bug-075`).
     - **§5–§6, the "already tracked" map and the derived suggestion rows.** These are
-      **findings**, read only after mining (§4.8). From the file's row 82 onward, its row numbers
-      are one lower than the notes' table, because the notes renumbered them. Cite neither.
+      **findings**, read only after mining (§4.8). Cite neither: their row numbers refer to an
+      external table, and they disagree with each other.
   - **Already superseded at `a20b346c`:** `package.json` 0.1.0, "`npm view wingfoil` not found",
     and "no tags on `origin`". `wingfoil@0.2.1` is published and tagged. This is P7's reason for
     existing, demonstrated.
@@ -893,7 +911,7 @@ same workflow version. Sections, in the decision-log template's order:
   - **Agent errors** — a summary of the error inventory (§3.1a) that survived the adversarial
     review: the counts per attribution class, and which entries are experiments (checkout-able)
     rather than observations. **Only this summary enters the repository.** The approver decided on
-    2026-09-28 that the entries themselves stay in the notes folder, outside version control. So
+    2026-09-28 that the entries themselves stay outside version control. So
     the summary must be self-sufficient: counts, classes and the review's drop rate. It cannot
     point at a file that no reader of this repository can open (`dl-075`).
 - **`## Rationale`** — why the dispositions are what they are, and what was deliberately left out of
@@ -952,7 +970,7 @@ release, and nothing about them is decided here:
   have no task.
 
 - **A tool signature on every commit WingFoil writes, carrying the WingFoil version *and* the git
-  commit of the build.** The approver requested it on 2026-09-28; it is the notes' *Nota 16*.
+  commit of the build.** The approver requested it on 2026-09-28.
   Today the verbs write no tool trailer: `grep -n "RESERVED_TRAILER_LINE_RE ="
   src/memory/commit-message.ts` shows only `Approver`/`Reason`. The binary does not know its own
   commit either: `--version` reads `package.json` only. This is the same datum as "the commit in
@@ -1090,12 +1108,23 @@ would exist whatever this retrospective concluded. It is here because this phase
 someone is authoring decision-logs, which is scheduling convenience. Keep it out of `retro-v0.2.md`'s
 findings entirely; if `retro-v0.2` mentions it at all, it is as an action taken, not a lesson learned.
 
-**The constraint that decides whether it is written correctly.** Its source document lives under
-`tools/roadmap/`, which the approver has ruled stays an **experiment**: not committed, not declared in
-`dna.yaml`'s `paths:`. Verified — `git ls-files tools/` is empty and `dna.yaml` mentions no such path.
-So the new decision-log **may not cite any file under `tools/` as a source**: those paths are not
-versioned, a reader cannot resolve them, and citing one would create exactly the dangling reference
-`dl-075` was ratified to stop.
+**The constraint that decides whether it is written correctly.** Its source document belongs to an
+unversioned experiment. The approver has ruled that the experiment stays that way: not committed,
+and not declared in `dna.yaml`'s `paths:`. So the new decision-log **may not cite that document**. A
+reader cannot resolve it, and citing it would create exactly the dangling reference `dl-075` was
+ratified to stop. The six questions it poses are restated here, so this plan does not depend on it
+either:
+
+1. Are token → command bindings declared in a file of their own, or as a section of `dna.yaml`?
+2. Is binding **strict**, where an unbound token is an error, or **optional**, where it is skipped
+   with a note?
+3. How are a token's arguments passed to its command? That is a new input surface under the
+   REQ-SEC requirements.
+4. What do a bound command's exit codes mean to the phase? That is the REQ-INT-04 exit-code
+   contract applied to `checks`.
+5. Who may declare or change a binding, and through which approval?
+6. Do `agent.*` tokens bind to a command at all, or to a role prompt, the MCP server's role Prompts,
+   and a future `wingfoil agent prompt`?
 
 What that means in practice is that the substance must be **restated from versioned ground**. The six
 questions are about `actions:` and `checks:` tokens, and those live in
@@ -1113,7 +1142,8 @@ than importing an unresolvable citation to fill the gap.
 The approver supplied it on 2026-09-28 as a draft outside the repository, named
 `dl-087-release-health-analyses-before-retrospective`. It is the decision-log the release-health
 data of §4.9 (c) calls itself the baseline of. The approver asked for it to follow the notes flow:
-a note in the notes folder (*Nota 17*), then creation during this retrospective.
+a note in the v0.3 notes, then creation during this retrospective. `dl-088` itself is
+self-contained: the draft's content is integrated into it, not referenced.
 
 **Done on this branch, at `in-discussion`, not ratified:**
 - `wf(decision-log): add dl-088-release-health-analyses-before-retrospective` (`1c586896`);
@@ -1233,7 +1263,7 @@ blocker.
 
 ### 7.8 The notes are live, unversioned and dated
 
-The notes folder is not a git repository, so it has no history to consult. The notes session edits
+The v0.3 notes are not kept under version control, so they have no history to consult. The notes session edits
 it concurrently, the brief folder grows with every task, and the external feedback list grows with
 every use. Pin every figure you take from any of them to the date you read it. Treat a figure
 dated before 2026-09-28 as a hypothesis until P7 has re-measured it.
@@ -1254,3 +1284,96 @@ The session that executes this plan, and the ones that executed v0.2, are the au
 share of the errors being inventoried. This is why §3.1b's reviewer is a separate agent with a
 mandate to reject. It is also why an attribution to classes (1)–(3), the classes that count *for*
 WingFoil, needs that reviewer's survival and not the author's conviction.
+
+---
+
+## Appendix A — Content integrated from sources outside the repository
+
+This appendix exists because of §2.2's resolvability rule. It holds everything this plan relies on
+from sources a reader of this repository cannot open. It is restated here, not referenced.
+Everything below is dated. Nothing below is a finding: the appendix holds methods, definitions and
+calibration values.
+
+### A.1 Preliminary re-measurements (P7)
+
+The v0.3 notes were last fully re-checked on 2026-09-25, with additions on 2026-09-28. Before any
+figure or state derived from them is used, run these and date each result with the HEAD it was
+measured at. The other preliminary steps already have their own precondition or rule: the
+historical anchor (§4, §7.2), the scratch project (P9), the build pin (P8), reachable sessions (P10),
+and re-reading this plan at its current version.
+
+1. **States.** Re-read, from frontmatter, the status and `release` of every element the external
+   material names before relying on any of them. Use the `awk` guard of §7.4.
+2. **Unscheduled population.** Recount it with slice 5's command (§4.7), writing the command next
+   to the number.
+3. **External usage feedback.** Re-read the open list (§4.9 a), including dated addenda to items
+   already seen. Record the item count and the date.
+4. **Unversioned experiment documents.** Check whether new ones appeared since 2026-09-25. Four
+   appeared between the 22nd and the 25th. They enter only as restated, versioned-ground questions
+   (§6.1 shows the pattern).
+5. **Briefs.** Re-count the hand-assembled wave briefs and date the count (§3.1a). The source
+   folder grows with every task and review.
+
+### A.2 The agent-error inventory — shape and rules (§3.1a, §3.1b)
+
+These were agreed on 2026-09-25 between the notes session and the session that wrote this plan,
+and approved by the approver. Every entry has these fields:
+
+| Field | Content |
+|---|---|
+| Error | What was done wrong, and which rule or specification it broke |
+| Date | A field of its own, separate from the anchor. The attribution test is played on the error's date, and the anchor is often a range |
+| Anchor | A tree someone can actually check out: the good commit before the error, its subject and date, and the element involved. If none exists, the entry is an **observation**, not an experiment |
+| How it surfaced | Gate · review · normal use · self-report. Free to record at writing time, and unrecoverable later |
+| Indicated / not indicated | Whether the agent was pointed at the rule, for example by name and folder in its brief. Being pointed at a rule is not having it in context, but it is not nothing |
+| Attribution | (1) the rule did not exist · (2) it existed but was not bound to the role the agent executed · (3) it was bound but never reached the agent's context · (4) it was in context and ignored · (5) not preventable by WingFoil |
+| Capability and version | For (1), the new rule. For (2), the role binding. For (3), automatic context loading (P3.6 / P5.4.2, `agent execute`). For (4), an **enforcement point** that blocks, not one more rule. Plus the release that brings it, as *proposed*, until v0.3 release-planning has run |
+| Expected replay outcome | What must happen in the replay for the error to count as avoided, and what would refute it |
+
+Rules:
+
+- **Class (3) is the starting condition of every v0.2 agent, not an exception.** Nothing loaded
+  role directives automatically: `grep -c agentExecute src/core/index.ts` gives `0`, and
+  `directives list` is read-only. An entry is (4) only where something overcame that condition.
+- **Tie-break between (3) and (4).** It needs a transcript showing that the agent opened the file.
+  Where that is not established, the entry is *undetermined*. A forced choice defaults to (4),
+  because only (1)–(3) count *for* WingFoil.
+- **An error class to look for on purpose: evidence unable to falsify.** An absence claim can rest
+  on a real, cited command that cannot see the thing: `grep -n "release:"` cannot match
+  `element.set_release("…")`. This class survives discipline rather than bypassing it (§2.5).
+- **Evidence that lives in a throw-away project is not replayable.** Such an entry carries the
+  commands to rebuild the project, or it is an observation.
+- **The adversarial reviewer's criterion** is as §3.1b states it, including the `approved`
+  tech-spec clause.
+
+### A.3 Release-health data used by this plan (§4.9 c)
+
+Supplied by the approver on 2026-09-28. It was measured on a public clone at `main` `5269223d`
+(`Merge branch 'qa/e2e-smoke-v0.2'`) with Node 22.22.2, not the pinned 22.12.0. The complexity
+threshold was 15 and the clone threshold 8 lines. Its catalogue and provisional values are carried,
+revised, by `dl-088`, which is versioned. This plan uses two further things from it.
+
+**Phase windows**, as slice 6's starting partition, by committer date:
+
+| Window | From | To | Boundary evidence |
+|---|---|---|---|
+| A · Inception | 2026-06-14 | 2026-07-03 | before the first `wf(release): add minor-v0.1` |
+| B · v0.1 development | 2026-07-04 | 2026-07-08 11:42 | `5b16ab61` `wf(release): approve minor-v0.1 [releasing → released]` |
+| C · v0.1 retrospective + v0.2 set-up | 2026-07-08 11:43 | 2026-09-13 | `retro-v0.1`; `minor-v0.2` to `in-development` |
+| D · v0.2, first half | 2026-09-14 | 2026-09-20 | |
+| E · v0.2, second half | 2026-09-21 | 2026-09-28 | extended by this retrospective to the `v0.2.1` tag |
+
+**Two interpretation corrections** bind slice 6:
+
+- **Back-merges are not a regression.** Their rise from 0% to about half of all merges is
+  `dl-035-task-branch-sync-with-main` taking effect.
+- **ASCII arrows do not prove the tool was bypassed.** On this repository every `wf()` commit is
+  hand-written (`bug-075`), so the drift is a format drift in hand-written commits.
+
+**Calibration values** at `5269223d`, to check slice 6's commands against before trusting them. The
+calibration counts approvals signed by the out-of-team identity whose `Approver:` line names the
+approver:
+
+- **131**, counting every `wf()` commit (the document's definition);
+- **112**, counting only `approve` commits (this plan's definition).
+
