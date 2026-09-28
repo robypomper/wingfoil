@@ -4,7 +4,7 @@ type: decision-log
 title: "Two standing release-health analyses — git history and project quality — run before every retrospective, each compared against the previous run and ending in improvement proposals"
 status: in-discussion
 context: "process"
-release: ""
+release: "v0.3"
 contributor: "Roberto Pompermaier <robypomper@gmail.com>"
 credit: "Drafted outside the repository from the approver's 2026-09-28 release-health analysis; revised and filed during the v0.2 retrospective"
 tmpl_version: 260703
