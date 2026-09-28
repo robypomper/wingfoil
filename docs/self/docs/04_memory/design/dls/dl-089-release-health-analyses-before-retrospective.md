@@ -223,6 +223,22 @@ Initial catalogue, version 1:
 | Q15 | Share of bugs opened in the window that are document divergences | window | trend ↓ | |
 | Q16 | Memory volume (words, median per type); comment-line ratio in `src/` | snapshot | info | |
 | Q17 | The documented install command resolves to the documented version | snapshot | floor pass | `dl-013` (user documentation) |
+| D01 | Determinism Index: equivalence of two independent runs of the benchmark project, same specs + WingFoil config, different agents | snapshot | trend ↑ | product brief (north star) |
+
+**D01 and the benchmark (added 2026-09-28, approver ruling).** D01 measures the north star defined
+in `docs/01_vision/01_product-brief.md`, the Determinism Index. It is measured in the project's
+benchmark repository. That repository is recorded in this repository as an external-state element of
+the type `dl-088-a-memory-type-for-state-that-lives-outside-the-repository` proposes (`svc-…`), with
+its name and URL. The approver ruled that the rule keeping benchmark material out of this repository
+concerns the benchmark's **content**, not its existence.
+
+- **In `measure`**, every release-health run also runs the benchmark with the WingFoil build just
+  published for the release being measured, and records D01's result.
+- **In the report**, D01 carries its value, the definition of "equivalent" used, the WingFoil build,
+  and the benchmark's own commit. They are written as data, not as a link, so the value is readable
+  from this repository.
+- D01 is compared with the previous run like every other metric. Its first value is expected from
+  v0.3's release-health run, once the `service` type exists and the benchmark is registered.
 
 Adding, removing or redefining a metric bumps the catalogue version and requires a decision-log.
 Metrics are never dropped silently: a retired metric stays in the catalogue, marked `retired` with
