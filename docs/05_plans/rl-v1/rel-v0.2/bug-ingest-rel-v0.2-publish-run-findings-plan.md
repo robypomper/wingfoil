@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2-publish-run-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 first real publish run (promote's relative tarball path; actions targeting Node 20)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-publish-run-findings"
 element: ""
@@ -72,4 +72,4 @@ docs/self/docs/04_memory/design/dls`. The results are in Execution Notes.
 - `memory.add` → the commit before `04461e02`; `memory.submit` → `04461e02`.
 - Checks: `js-yaml` load gives `open`/`high` and `open`/`low`, each with a title; `scanText` →
   `{"b":0,"w":0}` for both.
-- `triage` is pending with the approver.
+- `triage` (2026-09-28): `bug-135` → `triaged`, `release: v0.2`, on `task-108`'s branch; fixed by `task-108` and now `closed` (merge `e712a887`). `bug-136` → `triaged`, `release: v0.3` (`b543b09a`).
