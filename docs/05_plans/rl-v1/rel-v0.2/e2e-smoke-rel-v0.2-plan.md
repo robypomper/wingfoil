@@ -3,7 +3,7 @@ id: "e2e-smoke-rel-v0.2-plan"
 type: plan
 title: "E2E smoke — v0.2 (fresh-init + CLI black-box release gate, first run)"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "e2e-smoke"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -489,9 +489,61 @@ All green on `ed835f95`: `npx jest --coverage` exit 0 — **149 suites / 2412 te
 98.58 stmts / 94.03 branches / 98.94 funcs / 99.41 lines; both `tsc --noEmit` invocations exit 0;
 `npm run lint` exit 0; `npm run docs:api` exit 0.
 
+### S3 — G1 closed in v0.2 (2026-09-28)
+
+The approver's 2026-09-22 decision was executed as follows:
+- `bug-029` was approved `open → triaged`, with `release: v0.2`.
+- The fix task `task-107-the-e2e-smoke-drives-memory-submit` was filed and approved into backlog.
+- `task-107` went through dev-loop on its own branch, which was re-parented onto `main` at the
+  approver's request so that it stays separate from this qa branch.
+- It was approved `in-review → approved` and merged `--no-ff` into `main` as **`77263fa1`**.
+- `bug-029` is **`closed`**.
+
+This branch then merged `main` (`9ca7211d`, per `dl-035`).
+
+- **G1 — closed.** Re-run on this branch after `npm ci && npm run build`: `node scripts/e2e-smoke.cjs
+  --expect-version 0.1.0 -- node "$PWD/dist/cli.js"` exits **0** with **20** `ok` lines. The two new
+  lines are `[Scrum]`/`[Kanban] wingfoil memory submit task-001-smoke-task --format json`.
+  `test/cli/e2e-smoke.test.ts` now asserts the exact ordered step list.
+- **G4 — closed as a consequence, as the approver expected.** The submit step asserts
+  `from: draft, to: pending`, which only a loaded and applied scaffolded state machine can produce at
+  exit 0. A stub test pins that a wrong edge fails the smoke. The evidence is in `task-107`'s Execution
+  Notes.
+- With `task-107`, v0.2 has **74/74** tasks `done`.
+
+### S4 — the remaining gaps filed (2026-09-28)
+
+Through `bug-ingest-rel-v0.2-e2e-smoke-findings-plan`, under the 2026-09-22 authorisation to the
+next release, all three were filed with `release: ""` and are `open`, awaiting the approver's triage:
+- **G2 →** `bug-132-e2e-smoke-asserts-only-exit-0`.
+- **G3 →** `bug-133-e2e-smoke-never-revalidates-what-a-command-wrote`.
+- **§3.5 →** `bug-134-e2e-smoke-yaml-declares-no-produces`. Its triage depends on the S5.3 ruling.
+
+Every gap in §3.2 is now fixed (G1, G4) or filed (G2, G3), and the §3.5 omission is filed. None is
+left only in these notes.
+
 ### Status
 
-S1, S2, S2b and §5 done. **Stopped at S3**: G1 is decided in scope, but executing it needs approver
-transitions this agent cannot make — `bug-029` `open → triaged` (a gated `approve`) and a fix task's
-`pending → backlog` — followed by one `dev-loop` pass on the fix task. S4 (file G2/G3/§3.5, which the
-2026-09-22 decision authorises to the next release) and S5 (gate report + approver decisions) follow.
+S1, S2, S2b, S3, S4 and §5 done. **Next: S5 (`gate`).** The report is below. The approver's decisions
+are pending.
+
+### S5 — gate report (role qa)
+
+- **Result: PASS.** On `qa/e2e-smoke-v0.2` at `9ca7211d`, which carries `main` `77263fa1`:
+  - the smoke exits 0 with 20/20 `ok`, both templates, clean tree after every mutation;
+  - the five `docs/examples` exit 0, as run on `ed835f95`;
+  - the six gates are green on `task-107`'s branch and again on `main` after the merge
+    (`npx jest` → 149 suites / 2417 tests).
+- **Posture: WARN.** This is the first release in which the phase runs, so a failure would not have
+  blocked `release-submit`. None occurred.
+- **Contract coverage:** `drive-cli`'s required actions are now all driven. Its two post-checks are
+  still proxied (`bug-132`, `bug-133`), and the phase still produces nothing deducible (`bug-134`).
+- **For the approver:**
+  1. **S5.1:** does this run count as "green for a release", flipping the gate to **hard-reject** from
+     v0.3? The S3 caveat no longer applies, because G1 is closed. The run is green against every
+     required *action*, but only against proxies of two *post-checks*.
+  2. **S5.2:** where should the `retro-v0.1` warn→reject staging record be written: `dl-013`,
+     `dl-023` or `retro-v0.1`?
+  3. **S5.3:** does `e2e-smoke.yaml` gain a `produces:`? This decides `bug-134`.
+  4. Triage of `bug-132..134`.
+  5. The `gate` approval itself.

@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2-e2e-smoke-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 e2e-smoke delta-audit findings (G2, G3, missing produces:)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2-e2e-smoke-findings"
 element: ""
@@ -77,3 +77,11 @@ None carries these three.
   triage has run.
 
 ## Execution Notes
+
+- `memory.add` → `7695e4e0`; `memory.submit` → `872747dc`.
+- Checks:
+  - a `js-yaml` load of the three frontmatters gives `open`, `low` and a non-empty `title` for each;
+  - `scanText` (from `dist/validation/secret-scan.js`) gives `{"b":0,"w":0,"i":0}` for all three.
+- The commands cited in the bodies were re-run before commit. `smokeSteps('Scrum')` lists 8 steps, and
+  `grep -n produces` on `e2e-smoke.yaml` returns nothing.
+- `triage` is pending with the approver.
