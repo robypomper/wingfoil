@@ -2,7 +2,7 @@
 id: "bug-135-promote-publishes-a-relative-tarball-path-npm-reads-as-a-git-repo"
 type: bug
 title: "`promote` runs `npm publish dist-pack/*.tgz`, which npm 10.9 parses as a GitHub repository, so the first real publish failed and nothing was published"
-status: in-review
+status: closed
 severity: "high"
 release-origin: "v0.2"
 release: "v0.2"
