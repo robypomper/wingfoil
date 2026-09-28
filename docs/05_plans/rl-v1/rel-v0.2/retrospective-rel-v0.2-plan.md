@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -84,6 +84,9 @@ supplied, and §4.9 (c) now states how each of its sections is admitted.
 - The tool signature with version and build commit is added to the v0.3 start conditions (§6.3 b).
 - The git identity question stays as it is (*Handoff* 5): the approver wants it analysed as a
   note before anything is decided.
+
+**Revision 1.5 (2026-09-28).** `dl-088` (release-health analyses) was created in this phase from the
+approver's draft (§6.6).
 
 ---
 
@@ -807,8 +810,7 @@ reproduction** or the **re-measurement**, never the source.
 
     The remedies differ, so the mining keeps them as two items. The all-refs allocation of §2.4
     prevents the first. The second needs an id to be allocated only by creating the element, and a
-    proposal to cite no id until then. If the proposal is filed, it takes the next free id by the
-    §2.4 rule. Its substance, *release-health
+    proposal to cite no id until then. The proposal was filed as `dl-088` (§6.6). Its substance, *release-health
     measurements as a standing input to every retrospective*, is Q11's question, and the §3.2
     gate disposes of it.
   - **The scripted run it announces does not exist yet.** The file says a script will replace it,
@@ -1106,6 +1108,38 @@ went through: learn it anywhere, ground it here.
 If you cannot restate a question from versioned ground, that is a finding in itself — say so rather
 than importing an unresolvable citation to fill the gap.
 
+## 6.6 A third decision-log created in this phase — `dl-088`, release-health analyses
+
+The approver supplied it on 2026-09-28 as a draft outside the repository, named
+`dl-087-release-health-analyses-before-retrospective`. It is the decision-log the release-health
+data of §4.9 (c) calls itself the baseline of. The approver asked for it to follow the notes flow:
+a note in the notes folder (*Nota 17*), then creation during this retrospective.
+
+**Done on this branch, at `in-discussion`, not ratified:**
+- `wf(decision-log): add dl-088-release-health-analyses-before-retrospective` (`1c586896`);
+- `wf(decision-log): submit dl-088-release-health-analyses-before-retrospective` (`d4c8f220`).
+
+**It is not a finding of this retrospective.** Like §6.1, it would exist whatever the mining
+concluded. Two things tie it to this phase:
+- its catalogue (G01–G15, Q01–Q17) overlaps slice 6 and §4.9 (c), and serves as the checklist for
+  the by-hand v0.2 measurement at `v0.2.1`;
+- its ratification is on the §3.2 gate's list, with a proposed target release of v0.3.
+
+The Dispositions table records it as *work performed*.
+
+**What the revision changed from the draft, so the next reader need not diff them:**
+- **Id.** `dl-087` was taken at `a567a987`, so the next number free across every ref is used (§2.4).
+- **Citations.** Citations of the notes' table rows are replaced by versioned elements or by
+  restated substance (`dl-075`, §4.8). Two wrong links are corrected: `dl-068` and `dl-020`.
+- **Measurement point.** It is the tag of the version actually published (`v0.2.1`), not the
+  unpublished `v0.2.0`.
+- **Report directory.** It is left as an option, with `docs/06_health/` at the root recommended over
+  the draft's `05_` path.
+- **The `script.run` token** is declared unbound, pending the §6.1 decision-log.
+- **The agent-docs action** is routed to `align-agent-docs` (`dl-025`) instead of an edit of the
+  agent entry point.
+- **The identity condition** is kept as a metric (G07) only. No cause and no remedy are decided.
+
 ## Handoff
 
 | Step | Who | Gate | Completion criterion |
@@ -1117,6 +1151,7 @@ than importing an unresolvable citation to fill the gap.
 | §3.2 `additional-points` | **approver** | **GATE** | Roberto has added his points and assigned a disposition to every finding |
 | §3.3 `capture` | agent (facilitator) | — | `retro-v0.2.md` exists at `in-discussion`; two commits (`add`, then `submit`) in §5.1 format |
 | §3.4 `approve` | **approver** | **GATE** | `retro-v0.2` at `ready`; approve commit carries `Approver:` + `Reason:` |
+| §6.6 `dl-088` | agent | — | **done**: `add` `1c586896`, `submit` `d4c8f220`, `in-discussion`; ratification at the approver's discretion |
 | §6.1 / §6.2 / §6.5 scheduled items | agent | — | bindings DL at `in-discussion`; `06_features.md` corrected; `dl-087` amended with the token change and scheduled `release: "v0.3"` — each its own commit |
 | close-out | agent | — | spun-off elements filed as their own commits; this plan `active → done` |
 
