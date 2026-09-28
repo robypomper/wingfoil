@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.11"
+version: "1.12"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -111,6 +111,10 @@ Memory and process documents. DL-P owns the rule (option (a), confirmed by the a
 
 **Revision 1.11 (2026-09-28).** The visibility planning is withdrawn and absorbed here (§6.7). Its
 decisions and design are restated, not cited, and its decision-logs are filed in `capture`.
+
+**Revision 1.12 (2026-09-28).** The implementation order across v0.2.2 and v0.3 is decided (§6.8).
+The root move and the released-build rule go into v0.2.2, the identity question is un-parked, the
+v0.2.2 scope is widened, and `dl-087` targets v0.2.2.
 
 ---
 
@@ -970,8 +974,11 @@ and 14 `approved` tech-specs, all with no `release`. The retrospective defines f
   it to §6.1.
 
 **(b) The preconditions for starting v0.3.** Several points are v0.3 *start conditions* rather than
-retrospective findings. They are carried to v0.3 `release-planning` as scope proposals with a target
-release, and nothing about them is decided here:
+retrospective findings. They are carried as scope proposals with a target release.
+
+> **Revised 2026-09-28 (approver).** The first three, configuration at the root, the released build
+> with its MCP, and the build rule, move **into v0.2.2** as its first structural steps. So v0.3
+> inherits them rather than starting with them (§6.8). The rest below stays v0.3.
 
 - **Configuration at the root.** Move `docs/self/.wingfoil/` to `.wingfoil/` at the repository
   root, together with the Memory path patterns that resolve against it. This closes `bug-075`, and
@@ -1055,15 +1062,16 @@ is now earlier: **it must be ratified and implemented before the next `release-p
    - the consequence above.
 
    Do not touch `status`. Ratification is the approver's `approve`.
-2. **`dl-087` — `release: "v0.3"`**, the next minor. This carries out the approver's statement that
-   it is mandatory before the next publish. It is a frontmatter edit, since no declared verb stamps
+2. **`dl-087` — `release: "v0.2.2"`**, the next publish. *(Revised 2026-09-28: first proposed as
+   `v0.3`; the approver's v0.2.2 patch is now the next publish, §6.7–§6.8.)* This carries out the
+   approver's statement that it is mandatory before the next publish. It is a frontmatter edit, since no declared verb stamps
    a release (§6.3 a). Its subject and commit follow whatever the §3.2 gate decides for release
    stamping. Absent that, use a `docs(self)` commit naming the approver's 2026-09-28 statement.
 3. **In `retro-v0.2`:**
    - the Dispositions table carries this as *work performed*, with vehicle `dl-087` and target
-     release `v0.3`;
-   - `## Actions` carries **"`dl-087` ratified and implemented before v0.3 `release-publishing`"**
-     as a precondition for v0.3's publishing phase, next to the v0.3 start conditions of §6.3 b.
+     release `v0.2.2`;
+   - `## Actions` carries **"`dl-087` ratified and implemented before the v0.2.2 publish"**, as step
+     3 of §6.8.
 
 Keep the retrospective's framing honest. The *event* is operational and not a lesson. The lesson,
 if any, belongs to the mining. For example, Q12's question is whether a vendor-side change could
@@ -1208,9 +1216,11 @@ forbids pointing at something that will stop resolving.
    is then recorded as a Memory element saying what it is, how it works and how to manage it.
 3. **External state gets its own Memory type**, rather than a tech-spec register or a `dna.yaml`
    section.
-4. **A v0.2.2 patch, metadata only, is wanted** as a rehearsal of the new publishing steps before
-   v0.3.0. It has three gates: a name check, the MCP namespace choice, and a decision on how a patch
-   is tracked after its minor is `released`.
+4. **A v0.2.2 patch is wanted** as a rehearsal of the new publishing steps before v0.3.0. It has
+   three gates: a name check, the MCP namespace choice, and a decision on how a patch is tracked
+   after its minor is `released`. *Scope widened by the approver later on 2026-09-28.* It is now
+   metadata **plus** repository preparation (configuration at the root) **plus** first-use fixes,
+   with no change to how any command behaves (§6.8).
 5. **v0.2.2 and v0.3 run in parallel on `main`**, trunk-based (`dl-002`), as §H4 of the
    Dispositions records. The `publish-through-npm-staged-publishing` decision (`dl-087`) blocks the
    v0.2.2 publish as well (§6.5).
@@ -1274,6 +1284,42 @@ inside a third-party account.
 
 **Checks per captured element.** Required frontmatter is filled; the frontmatter parses with
 `js-yaml`; the spec-007 scan (`scanText`) is clean; a `service` carries no secret value.
+
+## 6.8 Implementation order across v0.2.2 and v0.3 — decided by the approver, 2026-09-28
+
+The approver answered three questions on 2026-09-28, and all three answers were yes. The configuration
+moves to the root inside v0.2.2, as its first structural step. The git-identity question leaves its
+parked state now, because it blocks that move. And the v0.2.2 scope is widened as below.
+
+**Why the root move goes first, and why a patch can carry it.**
+- **It removes a conflict.** Moved first, both v0.2.2 and v0.3 write Memory directly at the new
+  location. Moved later, it would have to migrate every file v0.2.2 creates under `docs/self/`.
+- **The shipped artefact does not change.** `node -p "require('./package.json').files"` gives
+  `["dist","README.md"]`.
+- **Its scale at `a20b346c`.** 32 test files load the real configuration from `docs/self/`
+  (`grep -rl "docs/self" test/ | wc -l`). 164 Memory documents cite `docs/self/…`, and their durable
+  citations must be updated under §2.2's resolvability rule. Add 8 configuration files and 20 plans
+  and documents.
+- **Its prerequisites.**
+  - `BRACKET_RE` normalization. Otherwise, once readable, `memory history` skips the ASCII-arrow
+    transitions.
+  - The identity remedy. The shared `.git/config` sets an address outside `team.members`, so the
+    tool's authority check would refuse every approval.
+
+| Step | Work | Release | Depends on |
+|---|---|---|---|
+| 0 | This retrospective closed: `capture`, `approve`, close-out | v0.2 | — |
+| 1 | Identity remedy (the approver acts on the shared `.git/config`; reproductions pass identity per command); `BRACKET_RE` fix; DL-P ratified | v0.2.2 | 0 |
+| 2 | **Configuration at the root** (closes `bug-075`); `wingfoil@0.2.1` from npm pinned and installed locally; MCP registered (`dl-026`) | v0.2.2 | 1 |
+| 3 | `dl-087` staged publishing, with `bug-136` | v0.2.2 | 1 |
+| 4 | `dl-088` implemented: the `service` type and the backfilled services | v0.2.2 | 2 |
+| 5 | DL-N name and namespace → DL-B metadata. The first-use fixes: remove the unused `@anthropic-ai/sdk`; the DNA scaffold `category` example; `init` names its templates; `bug-128`, `bug-129`. Closures with no code: `bug-021` downgraded, `bug-092` closed with a pointer to its ruling | v0.2.2 | 2, 4 |
+| 6 | Staging → tag `v0.2.2` on the pushed `main` → publish | v0.2.2 | 3, 5 |
+| ∥ | From step 2: v0.3 `release-planning`, the clean-up of the unscheduled population (`bug-094` first), v0.3 decision-logs. Memory and process documents only reach `main` | v0.3 | 2 |
+| 7 | After the tag: v0.3 code; `git merge main` into v0.3 branches; the build switch per the build rule | v0.3 | 6 |
+
+**Kept in v0.3 on purpose.** `bug-118`, `bug-126` and `bug-072` are medium defects needing real code.
+`bug-131` and the dirty-tree `submit` question change command behaviour, which a patch must not do.
 
 ## Handoff
 
