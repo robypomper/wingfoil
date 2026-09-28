@@ -3,7 +3,7 @@ id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -960,3 +960,55 @@ The merge is recorded by the commit that follows these notes.
   `decision-log-ingest-rel-v0.2-stage-publish-migration-plan`. npm plans to remove token direct-publish
   in January 2027.
 - **`dl-068` Action 5 is still open:** who watches the run, and what happens if `promote` does not wait.
+
+### The first real run — `v0.2.0`, run `36399049170` (2026-09-28)
+
+- **`dl-068` Action 5, ruled as option B (fail-closed):** the approver removed `NPM_TOKEN` from the
+  environment before the tag. `gh api …/environments/npm-publish/secrets` → `[]`. Push of `main`:
+  `git ls-remote origin refs/heads/main` → `a66f0e0c`, 0 ahead. Pre-tag checks per §10.1: all passed.
+- **Tag:** the approver pushed `v0.2.0`, annotated (tag object `26eae80b`, peeled `a66f0e0c`).
+- **`gate`** 08:43:21→08:44:53Z, success. **`stage`** 08:44:56→08:45:46Z, success.
+- **`promote` WAITED.** `gh api …/actions/runs/36399049170/pending_deployments` → `npm-publish`. **The
+  environment's required-reviewer gate fired on its first real exercise** (§10.2 / `dl-068` E6
+  answered). The approver re-added `NPM_TOKEN`, then approved.
+- **`promote` failed** at 08:47:33Z with exit 128, after approval and with the token present
+  (`NPM_TOKEN: ***` in the log). npm 10.9.0 read `dist-pack/wingfoil-0.2.0.tgz` as a GitHub shorthand
+  and ran `git ls-remote ssh://git@github.com/dist-pack/wingfoil-0.2.0.tgz.git`. `npm view wingfoil
+  version` → `E404`: **nothing was published**.
+- **Every job carried a Node 20 deprecation annotation** for the pinned `actions/*` v4 SHAs.
+- **Rulings:**
+  - ship **v0.2.1**; `v0.2.0` stays on the remote, tagged and never published (H1: never move or
+    re-push a tag CI has seen);
+  - `bug-135` fixed in v0.2 by `task-108` (merged `e712a887`, bug `closed`);
+  - `bug-136` (Node 20 actions) scheduled for v0.3;
+  - CHANGELOG: a `[0.2.1]` entry stating that 0.2.0 was never published, with the 0.2.0 section kept
+    and marked "never published".
+
+  Both bugs were captured by `bug-ingest-rel-v0.2-publish-run-findings-plan` (`done`).
+
+### Step 3 again — 0.2.1 — `579af389`
+
+- `npm version 0.2.1 --no-git-tag-version`: exactly three lines, and no new tag (`git tag -l` →
+  `v0.2.0` only).
+- `CHANGELOG.md` gains a `[0.2.1] - 2026-09-28` entry with a *Fixed* line for `bug-135`, and 0.2.0
+  becomes `[0.2.0] - never published`.
+- The user docs that named the running release as 0.2.0 now name 0.2.1: `README.md`,
+  `docs/user-guide.md` (including its §11 anchor), `docs/agents.md`, `docs/cli-reference.md` and
+  `docs/examples/README.md`. `grep -rn "0\.2\.0"` over those files → 0.
+- Checks:
+  - `npm ci` exit 0;
+  - both `@emnapi` at 1.11.3;
+  - `check:lockfile` exit 0;
+  - `node scripts/check-release-tag.cjs v0.2.1` → match.
+
+### §6 gates and Step 6, for 0.2.1
+
+- **Six gates:** green. `npx jest --coverage`: 149 suites / 2418 tests, 98.58 / 94.03 / 98.94 / 99.41.
+  Both `tsc` exit 0, lint exit 0, `docs:api` exit 0.
+- **`npm run publish:staging`:** `REAL_EXIT=0`, 34 s, 20/20 `ok` with `--version = 0.2.1`, and `staged
+  wingfoil@0.2.1 and smoke passed`. Port 4873 is free afterwards.
+- **Extra check (not in the plan), the bug's own shape:** in a directory holding
+  `dist-pack/wingfoil-0.2.1.tgz` packed from this branch,
+  `npx -y npm@10.9.0 publish ./dist-pack/*.tgz --dry-run --ignore-scripts --access public
+  --provenance=false` → `+ wingfoil@0.2.1`, exit 0. That is `promote`'s argv under CI's npm, less the
+  credentials and provenance.
