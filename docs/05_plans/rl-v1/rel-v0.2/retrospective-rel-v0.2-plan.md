@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.9"
+version: "1.10"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -104,6 +104,10 @@ confused briefs with drafted commit messages (19 briefs, not 55).
 
 **Revision 1.9 (2026-09-28).** `dl-088` (release-health) was renumbered to `dl-089` after an id
 collision with a parallel session's pushed `dl-088`.
+
+**Revision 1.10 (2026-09-28).** Handoff item 5, the Determinism Index, is decided. v0.2.2 and v0.3 run
+in parallel on `main`, which stays trunk-based (`dl-002`): until the `v0.2.2` tag, v0.3 merges only
+Memory and process documents. DL-P owns the rule (option (a), confirmed by the approver).
 
 ---
 
@@ -1211,12 +1215,14 @@ The Dispositions table records it as *work performed*.
 4. Which of this retrospective's findings become new elements versus fold into existing ones, and
    **the target release of each** (§3.2). Also whether any need to reach v0.3 `release-planning` as
    scope rather than as a note, including the v0.3 start conditions of §6.3 b.
-5. Whether to file an element recording the Determinism Index's measurement status. The index is
-   the project's north star (`docs/01_vision/01_product-brief.md`), yet no Memory element states
-   whether it has ever been measured: `grep -rn -iE "(never|not yet) measured"
-   docs/self/docs/04_memory/` returns nothing at `a20b346c`. Whether any element positively
-   records a measurement has not been checked; the executor settles that first. If `retro-v0.2` wants to say anything about determinism, that
-   element comes first. The artefact never cites a claim no element makes.
+5. **Decided by the approver on 2026-09-28: the Determinism Index.** The index is the project's
+   north star (`docs/01_vision/01_product-brief.md`), and no Memory element said where or how it is
+   measured. It is measured in the benchmark repository, which is registered here as an
+   external-state element once `dl-088-a-memory-type-for-state-that-lives-outside-the-repository` is
+   ratified and implemented. It runs in every release-health `measure` as metric D01 (`dl-089`,
+   amended at `7308e484`). The first value is expected from v0.3's release-health run. The approver
+   ruled that the rule keeping benchmark material out of this repository covers its content, not its
+   existence.
 6. Whether an approval signed by an identity outside `team.members` needs remediation for the past,
    such as a `.mailmap`, which does not rewrite history, or only a rule for the future. The
    question stands only if slice 6 confirms that such approvals exist at the measured HEAD.
