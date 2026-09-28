@@ -1,45 +1,62 @@
 ---
 id: "bug-141-coverage-omits-unrequired-source-files"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "A source file no test requires never appears in the coverage report, not even at 0%, because `roots` limits coverage discovery to what the tests load"
+status: open
+severity: "low"
+release-origin: "v0.2"
+release: "v0.3"
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`jest.config.js` sets `roots: ['<rootDir>/test']`, together with
+`collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`. Because of `roots`, Jest reports coverage
+only for the `src/` files that the executed tests actually load. A source file that no test requires
+is **absent** from the report instead of appearing at 0%. So the global coverage figure, and the
+`coverageThreshold` of 80%, are computed over a denominator that silently excludes it.
+
+The defect is latent today. With the full suite, all 75 non-`index.ts` files under `src/` appear in
+the report. The first file added without a test that loads it will be invisible to the coverage gate.
+Two v0.2 tasks met the mechanism independently: `task-049` for `src/core/index.ts`, and `task-065`
+for `src/cli/program.ts` and `src/cli.ts` before its own fix made them required.
+
+This is distinct from `bug-021`. That bug covers the explicit `!src/**/index.ts` exclusion.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Run at `a20b346c` plus the retrospective branch, from the repository root:
+
+1. `npx jest test/memory/schema.test.ts --coverage --coverageReporters=json-summary --coverageDirectory=<tmp> --coverageThreshold='{}'`
+2. `node -e "const s=require('<tmp>/coverage-summary.json');const k=Object.keys(s).filter(x=>x!=='total');console.log(k.length, k.some(x=>x.endsWith('src/cli/program.ts')))"`
+   → `1 false`. One file is reported, and `src/cli/program.ts` is not listed at all, not even at 0%.
+3. **Positive control.** With the full suite (`npx jest --coverage`), all 75 files listed by
+   `find src -name '*.ts' ! -name 'index.ts'` appear in `coverage/coverage-summary.json`. Compared
+   with `comm -23` on the two sorted lists (`LC_ALL=C`), nothing is missing.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Every file matched by `collectCoverageFrom` appears in the report. A file no test loads shows 0%, so
+the threshold counts it and a reviewer sees it.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Only files loaded by the executed tests are reported. An unrequired file does not exist as far as the
+report and the threshold are concerned.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- **Candidate fixes.** Set `roots` to include `<rootDir>/src`, keeping `testMatch` restricted to
+  `test/`, so coverage discovery walks `src/`. Or add a lint-gate test asserting that every
+  `src/**/*.ts` file outside the declared exclusions appears in `coverage-summary.json`.
+- **Surfaced by** the v0.2 retrospective's mining, from `task-049`'s and `task-065`'s Execution
+  Notes (theme T3, gate blind spots), and reproduced as above.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture: filed by the v0.2 retrospective (`retro-v0.2`). Severity is `low`, because the defect is
+  latent at `a20b346c`: no source file is currently missing from the full-suite report.
