@@ -1,5 +1,5 @@
 ---
-id: "dl-088-release-health-analyses-before-retrospective"
+id: "dl-089-release-health-analyses-before-retrospective"
 type: decision-log
 title: "Two standing release-health analyses — git history and project quality — run before every retrospective, each compared against the previous run and ending in improvement proposals"
 status: in-discussion
@@ -403,4 +403,8 @@ Alternatives considered:
   measurement point `5269223d`, where `git ls-tree -r --name-only 5269223d --
   docs/self/docs/04_memory/design/dls/ | grep -c dl-087` gives `0`. By the time the draft was filed,
   `main` had assigned `dl-087` to `dl-087-publish-through-npm-staged-publishing`, added at
-  `a567a987`. It is filed as `dl-088`, the next number free across every branch.
+  `a567a987`. It was first filed as `dl-088` (`1c586896`, `d4c8f220`). The next free number
+  across every ref, checked by the all-refs loop, was `dl-088` at that moment. A parallel session then
+  pushed `dl-088-a-memory-type-for-state-that-lives-outside-the-repository` (`abd8a98f`) to
+  `origin/claude/project-visibility-planning-it89ww`. Because this element was the unpushed one, it
+  was renumbered to `dl-089` on the retrospective branch before any merge.
