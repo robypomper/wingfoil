@@ -3,7 +3,7 @@ id: "release-submit-rel-v0.2-plan"
 type: plan
 title: "Release-submit — v0.2 (assemble the release, enter `releasing`, stop at the approver gate)"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "release-submit"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -537,3 +537,82 @@ proceed. The next document is
 `docs/05_plans/rl-v1/rel-v0.2/release-publishing-rel-v0.2-plan.md` — **read its §1 before doing
 anything at all**, because the first thing it asks for is a secret sweep, and the phase after this
 one is the one that cannot be undone.
+
+---
+
+## Execution Notes
+
+Phase started 2026-09-28 by the agent (role `qa`), on branch `design/release_submit_v0.2` (worktree
+`.wf2-wt/release-submit-v0.2`, per §6.3). Everything below was measured at `main` **`4da27cd8`**.
+Statuses were read with a frontmatter-scoped `awk` (H4), not a bare grep.
+
+### §1 — preconditions: all met
+
+| # | Command (see §1) | Result |
+|---|---|---|
+| P1 | `status:` of `minor-v0.2.md` | `in-development` |
+| P2 | `git fetch origin; git rev-list --count origin/main..main` | `2`, behind `0`. `git log origin/main..main` shows the two commits: `80e83c64` (the dl-023 v0.3 flip ruling) and its merge `4da27cd8`. Nothing unpushed hides work: `origin/main` is at `5269223d`, the e2e-smoke merge |
+| P3 | `git status --porcelain` on the main checkout | only the three pre-existing untracked paths (`TODOs.md`, `docs/self/X_initial-design-plan.md`, `tools/`); nothing tracked is modified |
+| P4 | `npm ci` (in the worktree) | exit 0 |
+| P5 | `ls -1d README.md CHANGELOG.md docs/user-guide.md docs/cli-reference.md docs/examples/` | all five present; `user-docs-rel-v0.2-plan` is `done` (`ed835f95`) |
+| P6 | `status:` of `e2e-smoke-rel-v0.2-plan.md` | `done` (`5269223d`): gate approved, PASS in warn; hard-reject from v0.3 per `dl-023` |
+| P7 | the `bug-076`/`bug-077` loop | both `closed` |
+| P7 | `status:` of this plan | `active` |
+
+**H1 and H2 no longer apply.** `user-docs` and `e2e-smoke` are complete, so P5 and P6, which were
+open when this plan was written, are now met.
+
+### §2 — `pre-release-checks`: C1–C4 pass
+
+- **C1:** the §2.1 loop prints no `NOT DONE:` line; `task files: 74`. This includes `task-107`,
+  added during `e2e-smoke`.
+- **C2:** the §2.1 loop prints no `NOT RESOLVED:` line and **no `RETIRED:` line**. 49 bugs carry
+  `release: v0.2`, all `closed` or `resolved`. §2.3's two blockers are among them: `bug-076` and
+  `bug-077` are `closed`.
+- **C3 + C4**, one `npx jest --coverage` run: exit 0, **149 suites / 2417 tests**, All files 98.58
+  stmts / 94.03 branches / 98.94 funcs / 99.41 lines.
+
+### §2.2 — the bugs C2 does not see (for the approver; not waived by the agent)
+
+The §2.2 loop prints **80** bugs that are not `closed`; at `a2e3586` it printed 43. None carries
+`release: v0.2`. By status and `release:` (`awk '{print $2, $3}' | sort | uniq -c`):
+
+| Count | Status | `release:` |
+|---|---|---|
+| 70 | open | empty |
+| 5 | triaged | empty: `bug-019`, `bug-092`, `bug-132`, `bug-133`, `bug-134` |
+| 3 | triaged | `v0.3`: `bug-012`, `bug-013`, `bug-014` |
+| 2 | open | `v0.3`: `bug-087`, `bug-088` |
+
+The 70 `open` bugs with an empty `release:` are: bug-021, bug-024, bug-025, bug-028, bug-031, bug-032, bug-033, bug-034, bug-035, bug-036, bug-037, bug-038, bug-039, bug-040, bug-045, bug-046, bug-047, bug-048, bug-051, bug-052, bug-053, bug-054, bug-055, bug-060, bug-061, bug-064, bug-065, bug-066, bug-067, bug-068, bug-069, bug-070, bug-072, bug-073, bug-075, bug-093, bug-094, bug-095, bug-096, bug-097, bug-099, bug-100, bug-101, bug-102, bug-104, bug-105, bug-106, bug-107, bug-108, bug-109, bug-110, bug-111, bug-112, bug-113, bug-114, bug-115, bug-116, bug-118, bug-119, bug-121, bug-122, bug-123, bug-124, bug-125, bug-126, bug-127, bug-128, bug-129, bug-130, bug-131.
+
+Named explicitly, as §2.2 requires, because the publishing plan is written around them:
+- **`bug-055`** (`open`): the secret scanner's own fixture trips GitHub push protection.
+- **`bug-067`** (`open`): an interrupt during a blocking npm step is honoured late.
+- **`bug-063`** is `closed`, as §2.2's amendment expected (`task-104`).
+
+Also worth the approver's eye:
+- **`bug-092`** (`triaged`, no release). An earlier session recorded it as blocking v0.2 pending a
+  ruling. It carries no `release: v0.2`, so by the C2 rule it is not in this release.
+- **`bug-075`** (`open`). The Memory verbs cannot be pointed at this repository's own Memory, which
+  is why every transition in this phase is written by hand.
+
+### §5 — the six gates: all green at `4da27cd8`
+
+| # | Command | Result |
+|---|---|---|
+| G1+G2 | `npx jest --coverage` | exit 0, 149 suites / 2417 tests, 98.58 / 94.03 / 98.94 / 99.41 |
+| G3 | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| G4 | `npx tsc --noEmit -p tsconfig.json` | exit 0, no output |
+| G5 | `npm run lint` | exit 0 |
+| G6 | `npm run docs:api` | exit 0; the tree stays clean |
+
+### Step 2 — prepared, not performed
+
+- `dl-079` is `in-discussion`: `status:` of `dl-079-*.md` → `in-discussion`. It is not ratified
+  as (B), so §3.2's recommended subject stands:
+  `wf(release): enter-releasing minor-v0.2 [in-development → releasing]`.
+- **H5:** `node -p "require('./package.json').version"` → `0.1.0`. The bump belongs to
+  `release-publishing`.
+- **Stopped at the §8 handoff.** Step 2 has role `tech-lead`, which is outside the agent role set, and
+  runs only on the approver's explicit instruction. Step 3 is the approver's.
