@@ -89,3 +89,27 @@ run every release, before `release-submit`:
   fix can use the gate to verify it.
 
 > **Implemented out-of-flow in the v0.1→v0.2 config-bootstrap** (branch `design/config_bootstrap_v0.2`; see `docs/05_plans/rl-v1/rel-v0.1/retrospective-and-config-bootstrap-plan.md`). `release: v0.2` — already delivered; no further task derivation by v0.2 `build-backlog`.
+
+## Staging record — 2026-09-28
+
+The approver placed this record here, as the `retro-v0.1` B-DECISION action allowed: *"Record the
+B-DECISION … choice here or on `dl-013`/`dl-023`"*. The ruling was made at S5.2 of
+`e2e-smoke-rel-v0.2-plan`.
+
+- **The B-DECISION chosen is Option 2, staged.** Each new gate warns on failure until it runs green for
+  a release, and then it hard-rejects. `e2e-smoke.yaml` states this in its own description and in its
+  `gate` phase.
+- **The docs-gate half is already closed.** `dev-loop.yaml` `refactor` `checks.post` has enforced
+  `docs.api.*` as a hard reject since `task-062-typedoc-tsdoc-backfill` closed its ramp, as the inline
+  comment on that key records. Nothing is left to stage there.
+- **Smoke gate, v0.2.** v0.2 is the first release in which the `e2e-smoke` phase runs, so it ran in
+  **warn**. The gate report was **PASS**: the smoke exited 0 with 20/20 `ok` on both templates, after
+  `task-107` closed `bug-029`. The approver approved the `gate` phase on 2026-09-28.
+- **The flip to hard-reject is not yet ruled.** Whether v0.2's run counts as "green for a release" is
+  still the approver's decision (S5.1). The run drove every required action of `drive-cli`, but two of
+  its post-checks are still proxied (`bug-132`, `bug-133`). Until the ruling is made, the gate stays in
+  **warn**.
+- **`produces:` — yes.** At S5.3 the approver ruled that `e2e-smoke.yaml` gains the smoke-test report
+  that Actions item (1) asked for. The change is carried by `bug-134-e2e-smoke-yaml-declares-no-produces`
+  (`triaged`), and it is made behind a task, not inline.
+
