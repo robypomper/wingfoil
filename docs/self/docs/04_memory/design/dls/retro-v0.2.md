@@ -2,7 +2,7 @@
 id: "retro-v0.2"
 type: decision-log
 title: "Retrospective v0.2"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2"
 contributor: ""
