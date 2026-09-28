@@ -53,6 +53,11 @@ practice), two rules:
    `design/release_publishing_v0.2`) has merged — never on the phase branch itself. This guarantees
    the tag always points at a commit reachable from `main`'s permanent history, independent of
    whether the source branch is later deleted.
+   *Amended 2026-09-28 (`dl-074` Action 3, approver ruling):* **`main` must be pushed to `origin`
+   before the tag is pushed.** "Reachable from `main`" means the *pushed* `main`: `publish.yml`'s gate
+   checks that the tagged commit is an ancestor of `origin/main`, not of a local branch. The same
+   sentence is in `spec-015` §4 (*Revision (2026-09-28) — §4*). Both documents carry it, by the
+   approver's choice.
 
 Concretely:
 - Add a `git:` conventions note to `docs/self/.wingfoil/workflows/custom/sw-life-cycle.yaml` and
