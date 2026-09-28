@@ -2,10 +2,10 @@
 id: "bug-029-e2e-smoke-omits-memory-submit"
 type: bug
 title: "The dl-023 e2e smoke omits `memory submit`, and nothing adds it back when the verb ships"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2"
 feature: "P1.6"
 contributor: ""
 credit: ""
