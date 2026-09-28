@@ -95,8 +95,12 @@ It exits 0 with a submit line on both templates. Paste that log into the Executi
 
 ### design — 2026-09-28 (role architect)
 
-Branch `task/task-107-the-e2e-smoke-drives-memory-submit`, worktree `.wf2-wt/task-107`, cut from
-`qa/e2e-smoke-v0.2` at `7a4e4e89`, because that is the only branch that carries this task's file.
+Branch `task/task-107-the-e2e-smoke-drives-memory-submit`, worktree `.wf2-wt/task-107`, based on `main`
+at `ed835f95`, separate from the e2e-smoke phase branch `qa/e2e-smoke-v0.2`. It was first cut from the
+qa branch, because that branch carried the task's `add`/`submit`/`approve` commits. At the approver's
+request (2026-09-28) it was re-parented onto `main` before review: the task's own Memory commits
+moved with it and the qa branch's plan commit was dropped from it. The hashes below are the
+re-parented ones.
 
 **Governance read, per the `dl-015` gate.**
 - **`task-060-publish-pipeline` (Execution Notes).** It wrote `scripts/e2e-smoke.cjs` with its `.d.cts`
@@ -142,7 +146,7 @@ Reasons for this shape over the alternative, an `args` function over prior outpu
 3. The step list stays data rather than code, which keeps the module doc's determinism claim ("fixed
    step list") true.
 
-### red — `92d49587`
+### red — `b55976ac`
 
 `test/cli/e2e-smoke.test.ts` goes from 5 to 10 tests. Observed with `npx jest test/cli/e2e-smoke.test.ts`:
 **7 failed, 3 passed**, each red for the intended reason:
@@ -158,7 +162,7 @@ Before touching the runner, the characterization baseline for AC3/AC5 was:
 `npx jest test/cli/publish-staging.test.ts test/cli/publish-pipeline.test.ts test/cli/e2e-smoke.test.ts`
 → 3 suites, 52 tests passed.
 
-### green — `a6634397`
+### green — `f3d30cda`
 
 Implemented the shape recorded in *design*, in `scripts/e2e-smoke.cjs`:
 - `commandCheck` gains the `expect` comparison and returns `parsed`;
@@ -188,7 +192,7 @@ ok   [Kanban] wingfoil memory submit task-001-smoke-task --format json — exit 
 Each is followed, in its template's run, by `working tree clean after every mutation — clean` (AC3).
 
 **AC5.** The same three publish suites now report 3 suites, **57** tests passed: the 52 of the
-baseline plus the 5 new ones. `git diff qa/e2e-smoke-v0.2 --stat -- .github scripts/publish-staging.cjs`
+baseline plus the 5 new ones. `git diff main --stat -- .github scripts/publish-staging.cjs`
 is empty, so neither the publish workflow nor the staging orchestrator changed.
 
 **G4 of `e2e-smoke-rel-v0.2-plan`: closed as a consequence, as expected.** The submit step asserts
