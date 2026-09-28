@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.8"
+version: "1.9"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -85,7 +85,7 @@ has been supplied. §4.9 (c) now states how each of its sections is admitted.
 - The git identity question stays as it is (*Handoff* 5): the approver wants it analysed as a
   note before anything is decided.
 
-**Revision 1.5 (2026-09-28).** `dl-088` (release-health analyses) was created in this phase from the
+**Revision 1.5 (2026-09-28).** `dl-089` (release-health analyses) was created in this phase from the
 approver's draft (§6.6).
 
 **Revision 1.6 (2026-09-28).** This revision applies the approver's resolvability rule (§2.2): every
@@ -101,6 +101,9 @@ the Determinism Index's measurement status, so any statement about it needs an e
 
 **Revision 1.8 (2026-09-28).** A correction from the `explore` run: the brief count of §3.1a
 confused briefs with drafted commit messages (19 briefs, not 55).
+
+**Revision 1.9 (2026-09-28).** `dl-088` (release-health) was renumbered to `dl-089` after an id
+collision with a parallel session's pushed `dl-088`.
 
 ---
 
@@ -792,7 +795,7 @@ reproduction** or the **re-measurement**, never the source.
   by impression. Its natural target is P4.18, already in `minor-v0.3`'s `features:`.
 - **(c) The release-health data — git-tree and quality analysis.** This is a document the approver
   supplied on 2026-09-28, outside version control. The parts this plan uses are restated in
-  **Appendix A.3**. The same analysis is carried, revised, by `dl-088` (§6.6), which is versioned.
+  **Appendix A.3**. The same analysis is carried, revised, by `dl-089` (§6.6), which is versioned.
   - **How it was measured.** The measurement was taken on a public clone at `main` `5269223d`,
     which is before `release-submit` and `release-publishing`, with Node 22.22.2 rather than the
     pinned 22.12.0. The complexity threshold was 15, the clone threshold 8 lines, and the phase
@@ -836,7 +839,7 @@ reproduction** or the **re-measurement**, never the source.
 
     The remedies differ, so the mining keeps them as two items. The all-refs allocation of §2.4
     prevents the first. The second needs an id to be allocated only by creating the element, and a
-    proposal to cite no id until then. The proposal was filed as `dl-088` (§6.6). Its substance, *release-health
+    proposal to cite no id until then. The proposal was filed as `dl-089` (§6.6). Its substance, *release-health
     measurements as a standing input to every retrospective*, is Q11's question, and the §3.2
     gate disposes of it.
   - **The scripted run it announces does not exist yet.** The file says a script will replace it,
@@ -1145,17 +1148,20 @@ went through: learn it anywhere, ground it here.
 If you cannot restate a question from versioned ground, that is a finding in itself — say so rather
 than importing an unresolvable citation to fill the gap.
 
-## 6.6 A third decision-log created in this phase — `dl-088`, release-health analyses
+## 6.6 A third decision-log created in this phase — `dl-089`, release-health analyses
 
 The approver supplied it on 2026-09-28 as a draft outside the repository, named
 `dl-087-release-health-analyses-before-retrospective`. It is the decision-log the release-health
 data of §4.9 (c) calls itself the baseline of. The approver asked for it to follow the notes flow:
-a note in the v0.3 notes, then creation during this retrospective. `dl-088` itself is
+a note in the v0.3 notes, then creation during this retrospective. `dl-089` itself is
 self-contained: the draft's content is integrated into it, not referenced.
 
 **Done on this branch, at `in-discussion`, not ratified:**
-- `wf(decision-log): add dl-088-release-health-analyses-before-retrospective` (`1c586896`);
-- `wf(decision-log): submit dl-088-release-health-analyses-before-retrospective` (`d4c8f220`).
+- `wf(decision-log): add dl-089-release-health-analyses-before-retrospective` (`1c586896`);
+- `wf(decision-log): submit dl-089-release-health-analyses-before-retrospective` (`d4c8f220`).
+- **renumbered from `dl-088`** (`5e6703e5`), because a parallel session pushed another `dl-088` first
+  (`abd8a98f`, the external-state Memory type). This is the §2.4 collision rule applied: the
+  unpushed element yields.
 
 **It is not a finding of this retrospective.** Like §6.1, it would exist whatever the mining
 concluded. Two things tie it to this phase:
@@ -1189,7 +1195,7 @@ The Dispositions table records it as *work performed*.
 | §3.2 `additional-points` | **approver** | **GATE** | Roberto has added his points and assigned a disposition to every finding |
 | §3.3 `capture` | agent (facilitator) | — | `retro-v0.2.md` exists at `in-discussion`; two commits (`add`, then `submit`) in §5.1 format |
 | §3.4 `approve` | **approver** | **GATE** | `retro-v0.2` at `ready`; approve commit carries `Approver:` + `Reason:` |
-| §6.6 `dl-088` | agent | — | **done**: `add` `1c586896`, `submit` `d4c8f220`, `in-discussion`; ratification at the approver's discretion |
+| §6.6 `dl-089` | agent | — | **done**: `add` `1c586896`, `submit` `d4c8f220`, `in-discussion`; ratification at the approver's discretion |
 | §6.1 / §6.2 / §6.5 scheduled items | agent | — | bindings DL at `in-discussion`; `06_features.md` corrected; `dl-087` amended with the token change and scheduled `release: "v0.3"` — each its own commit |
 | close-out | agent | — | spun-off elements filed as their own commits; this plan `active → done` |
 
@@ -1365,7 +1371,7 @@ Rules:
 Supplied by the approver on 2026-09-28. It was measured on a public clone at `main` `5269223d`
 (`Merge branch 'qa/e2e-smoke-v0.2'`) with Node 22.22.2, not the pinned 22.12.0. The complexity
 threshold was 15 and the clone threshold 8 lines. Its catalogue and provisional values are carried,
-revised, by `dl-088`, which is versioned. This plan uses two further things from it.
+revised, by `dl-089`, which is versioned. This plan uses two further things from it.
 
 **Phase windows**, as slice 6's starting partition, by committer date:
 
