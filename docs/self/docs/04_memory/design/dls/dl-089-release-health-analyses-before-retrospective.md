@@ -235,10 +235,24 @@ concerns the benchmark's **content**, not its existence.
 - **In `measure`**, every release-health run also runs the benchmark with the WingFoil build just
   published for the release being measured, and records D01's result.
 - **In the report**, D01 carries its value, the definition of "equivalent" used, the WingFoil build,
-  and the benchmark's own commit. They are written as data, not as a link, so the value is readable
-  from this repository.
+  the benchmark's own commit, and the date of the run. They are written as data, not as a link, so
+  the value is readable from this repository.
 - D01 is compared with the previous run like every other metric. Its first value is expected from
   v0.3's release-health run, once the `service` type exists and the benchmark is registered.
+
+**Open options for D01**, for the approver:
+
+- **The measurable criterion.** The product brief states the goal: two independent runs "produce
+  substantially equivalent software". It gives no measurable criterion for "substantially
+  equivalent". That criterion must be fixed before the first D01 run, or the first value has nothing
+  to be compared against. Candidates include the same acceptance suite passing on both outputs, a
+  threshold on behavioural diffs, and structural similarity. Choosing among them is part of
+  ratifying this decision.
+- **Cost.** A benchmark run is far heavier than the rest of the catalogue. The options are D01 on
+  every release, patches included, or D01 on minor releases only, with patches reporting it as
+  `not-comparable`.
+- **Sequence.** D01 runs after `release-publishing`, because it needs the published build. It still
+  runs before `retrospective`, like the rest of `release-health`.
 
 Adding, removing or redefining a metric bumps the catalogue version and requires a decision-log.
 Metrics are never dropped silently: a retired metric stays in the catalogue, marked `retired` with
