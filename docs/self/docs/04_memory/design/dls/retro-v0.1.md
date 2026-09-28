@@ -94,7 +94,7 @@ Close v0.1 with this retrospective and, in the same window, **exceptionally appr
 - [ ] Implement the batch in Phase B on `design/config_bootstrap_v0.2` (see plan B1–B12).
 - [ ] Codify the `explore` phase + `additional-points` gate into `retrospective.yaml` (B11) so future
   retrospectives carry them (owned by this DL, no separate DL).
-- [ ] Record the B-DECISION (docs-gate / smoke-gate staging: warn→hard-reject) choice here or on
-  `dl-013`/`dl-023` (owner: approver).
+- [x] Record the B-DECISION (docs-gate / smoke-gate staging: warn→hard-reject) choice here or on
+  `dl-013`/`dl-023` (owner: approver). *Recorded on `dl-023`, section "Staging record — 2026-09-28".*
 - [ ] Defer to v0.2: `dl-018` publishing, `bug-004`, `bug-006`, `bug-007`, and the T12 "submit adds
   content" idea.
