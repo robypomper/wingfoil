@@ -240,19 +240,30 @@ concerns the benchmark's **content**, not its existence.
 - D01 is compared with the previous run like every other metric. Its first value is expected from
   v0.3's release-health run, once the `service` type exists and the benchmark is registered.
 
-**Open options for D01**, for the approver:
+**D01's rules, as set by the approver at the v0.2 retrospective gate (2026-09-28).**
 
-- **The measurable criterion.** The product brief states the goal: two independent runs "produce
-  substantially equivalent software". It gives no measurable criterion for "substantially
-  equivalent". That criterion must be fixed before the first D01 run, or the first value has nothing
-  to be compared against. Candidates include the same acceptance suite passing on both outputs, a
-  threshold on behavioural diffs, and structural similarity. Choosing among them is part of
-  ratifying this decision.
-- **Cost.** A benchmark run is far heavier than the rest of the catalogue. The options are D01 on
-  every release, patches included, or D01 on minor releases only, with patches reporting it as
-  `not-comparable`.
-- **Sequence.** D01 runs after `release-publishing`, because it needs the published build. It still
-  runs before `retrospective`, like the rest of `release-health`.
+- **Where the criterion lives.** The measurable criterion for "substantially equivalent" is defined
+  **in this decision-log**, before D01's first run. The product brief states the goal: two
+  independent runs "produce substantially equivalent software". It gives no criterion.
+- **Which releases.** D01 runs on **major and minor releases only**. A patch release reports D01 as
+  `not-comparable`, and the next minor compares with the previous minor.
+- **When.** D01 runs **after `release-publishing`**, because it needs the published build, and before
+  `retrospective`.
+
+**The equivalence criterion (proposed; ratified with this decision).** Two runs are compared on the
+benchmark's own versioned acceptance scenarios. Those scenarios are held by the benchmark and pinned
+by its commit in the report.
+
+- **The value.** D01 is the share of scenarios whose verdict (pass or fail) is the **same** on both
+  runs' outputs, reported as `agreeing / total`.
+- **The threshold.** "Substantially equivalent" holds when D01 is at or above **90%** and **both runs
+  pass every scenario marked critical**.
+- **The comparison.** The trend is compared minor to minor. A drop of more than the catalogue's
+  default tolerance is a finding, like any other trend metric.
+- **Alternatives for the approver**, if the proposal is not taken:
+  - a stricter threshold (95% or 100%);
+  - adding structural similarity of the outputs, which measures form rather than behaviour;
+  - reporting the value without a threshold for the first two runs, to calibrate before judging.
 
 Adding, removing or redefining a metric bumps the catalogue version and requires a decision-log.
 Metrics are never dropped silently: a retired metric stays in the catalogue, marked `retired` with
