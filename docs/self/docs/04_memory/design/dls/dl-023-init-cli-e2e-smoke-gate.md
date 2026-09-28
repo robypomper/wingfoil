@@ -105,10 +105,12 @@ B-DECISION … choice here or on `dl-013`/`dl-023`"*. The ruling was made at S5.
 - **Smoke gate, v0.2.** v0.2 is the first release in which the `e2e-smoke` phase runs, so it ran in
   **warn**. The gate report was **PASS**: the smoke exited 0 with 20/20 `ok` on both templates, after
   `task-107` closed `bug-029`. The approver approved the `gate` phase on 2026-09-28.
-- **The flip to hard-reject is not yet ruled.** Whether v0.2's run counts as "green for a release" is
-  still the approver's decision (S5.1). The run drove every required action of `drive-cli`, but two of
-  its post-checks are still proxied (`bug-132`, `bug-133`). Until the ruling is made, the gate stays in
-  **warn**.
+- **The flip to hard-reject happens in v0.3.** The approver ruled on 2026-09-28 (S5.1): from v0.3 on, a
+  failing `e2e-smoke` gate **blocks** `release-submit`. v0.2 stays in warn, having passed.
+  `e2e-smoke.yaml` still describes the staged posture ("warn … until green for a release, then flip").
+  Its `gate` text must be amended to state hard-reject **before v0.3's `e2e-smoke` phase runs**. That
+  amendment edits the same file as `bug-134`'s `produces:` fix and rides with it, behind a task
+  (plan H8), so `bug-134` carries it.
 - **`produces:` — yes.** At S5.3 the approver ruled that `e2e-smoke.yaml` gains the smoke-test report
   that Actions item (1) asked for. The change is carried by `bug-134-e2e-smoke-yaml-declares-no-produces`
   (`triaged`), and it is made behind a task, not inline.

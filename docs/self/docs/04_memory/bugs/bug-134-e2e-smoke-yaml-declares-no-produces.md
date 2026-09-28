@@ -57,3 +57,8 @@ delta audit live only in the phase plan's Execution Notes.
   2026-09-28. Proposed severity is `low`, because the gate is staged (`warn` until a release runs it
   green) and the gap is measured and recorded. `release` is left empty: the approver's decision of
   2026-09-22 authorises the gaps other than G1 to the next release.
+- triage follow-up (2026-09-28): the approver ruled that the gate flips to **hard-reject in v0.3**
+  (`dl-023`, "Staging record — 2026-09-28"). The fix task for this bug edits `e2e-smoke.yaml` anyway, so
+  it must also restate the `gate` phase's staging text (its description and its `checks.post` string)
+  as hard-reject. The fix has to land before v0.3's `e2e-smoke` phase runs, which makes this bug a
+  v0.3 blocker for release-planning to schedule.
