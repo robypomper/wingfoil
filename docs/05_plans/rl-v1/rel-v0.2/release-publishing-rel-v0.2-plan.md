@@ -2,8 +2,8 @@
 id: "release-publishing-rel-v0.2-plan"
 type: plan
 title: "Release-publishing — v0.2 (the first real publish: sweep, amend, bump, push, rehearse, tag, promote, mark released)"
-status: active
-version: "1.7"
+status: done
+version: "1.8"
 workflow: "release-publishing"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -1012,3 +1012,33 @@ The merge is recorded by the commit that follows these notes.
   `npx -y npm@10.9.0 publish ./dist-pack/*.tgz --dry-run --ignore-scripts --access public
   --provenance=false` → `+ wingfoil@0.2.1`, exit 0. That is `promote`'s argv under CI's npm, less the
   credentials and provenance.
+
+### Steps 7–9 — `v0.2.1` published (2026-09-28)
+
+- **Step 5 + Step 7 (approver):**
+  - `main` pushed: `git rev-list --count origin/main..main` → 0;
+  - annotated tag `v0.2.1`: tag object `7008bd58`, peeled to `9833e00a`.
+- **Step 8, run `36402219753`:** conclusion **success**.
+  - `gate` 09:14:29→09:16:15Z;
+  - `stage` 09:16:17→09:16:54Z;
+  - `promote` waited on `npm-publish` (`pending_deployments` → `npm-publish`), was approved by the
+    approver, and ran 09:18:32→09:18:49Z. `NPM_TOKEN` had been restored at 08:46:51Z, during the
+    v0.2.0 run.
+- **Step 9, verification:**
+
+  | Command | Result |
+  |---|---|
+  | `npm view wingfoil version` | `0.2.1` |
+  | `npm view wingfoil dist-tags` | `{"latest":"0.2.1"}` |
+  | `npm view wingfoil repository homepage bin engines` | `git+https://github.com/robypomper/wingfoil.git`, `…#readme`, `bin.wingfoil = dist/cli.js`, `engines.node >=22.12.0` |
+  | `npm view wingfoil@0.2.1 dist` | tarball `https://registry.npmjs.org/wingfoil/-/wingfoil-0.2.1.tgz`; `attestations.provenance.predicateType` = `https://slsa.dev/provenance/v1`: **provenance present** |
+  | `npm view wingfoil@0.2.0 version` | `E404`: never published, as recorded |
+
+- **REQ-SYS-09 fit criterion**, in a throwaway directory with an isolated `--prefix`, `--cache` and an
+  empty user config: `npm install -g wingfoil` exit 0; `wingfoil --version` → `0.2.1`; `wingfoil
+  --help` exit 0. In a fresh git repository: `init --template Scrum` exit 0; `memory add` then
+  `memory submit task-001-probe` → `"from":"draft","to":"pending"`; `git status --porcelain` empty.
+- **Completion criteria (§14):** met, except `mark-released`, which is Step 10 and waits for the
+  approver's instruction. The published version is `0.2.1`, not `0.2.0`, by the rulings above.
+- **Owed by the approver:** revoke the all-packages direct-publish token (`dl-087` Action 2). Until
+  `dl-087` is ratified and implemented, the next publish needs a direct-publish token again.
