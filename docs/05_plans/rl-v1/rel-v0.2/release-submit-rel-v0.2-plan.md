@@ -3,7 +3,7 @@ id: "release-submit-rel-v0.2-plan"
 type: plan
 title: "Release-submit — v0.2 (assemble the release, enter `releasing`, stop at the approver gate)"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "release-submit"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -616,3 +616,15 @@ Also worth the approver's eye:
   `release-publishing`.
 - **Stopped at the §8 handoff.** Step 2 has role `tech-lead`, which is outside the agent role set, and
   runs only on the approver's explicit instruction. Step 3 is the approver's.
+
+### Approver decisions — 2026-09-28
+
+- **§8.1, open bugs: accepted outside v0.2.** This is a documented waiver, following the v0.1 precedent
+  (`release-submit-rel-v0.1-plan.md` §2.1): the 80 bugs in the §2.2 list above ship with v0.2 unfixed.
+  None carries `release: v0.2`; release-planning schedules them.
+- **§8.3, the Step 2 subject: confirmed** as
+  `wf(release): enter-releasing minor-v0.2 [in-development → releasing]`.
+- **§8.4 and §8.5, Steps 2 and 3: performed by the approver personally.** The approver asked for the
+  commands and ran them. Step 2 is one commit that touches only `minor-v0.2.md`. Step 3 changes no
+  state (§4) and is recorded as this plan's `finalize [active → done]`, which carries the approver's
+  `Approver:` line.
