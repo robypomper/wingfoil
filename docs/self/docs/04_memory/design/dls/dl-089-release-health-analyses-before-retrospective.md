@@ -421,6 +421,8 @@ Alternatives considered:
   `main` had assigned `dl-087` to `dl-087-publish-through-npm-staged-publishing`, added at
   `a567a987`. It was first filed as `dl-088` (`1c586896`, `d4c8f220`). The next free number
   across every ref, checked by the all-refs loop, was `dl-088` at that moment. A parallel session then
-  pushed `dl-088-a-memory-type-for-state-that-lives-outside-the-repository` (`abd8a98f`) to
-  `origin/claude/project-visibility-planning-it89ww`. Because this element was the unpushed one, it
-  was renumbered to `dl-089` on the retrospective branch before any merge.
+  pushed its own `dl-088`, for the external-state Memory type, on a branch that was later withdrawn.
+  This element was the unpushed one, so it was renumbered to `dl-089` before any merge. The
+  external-state decision was re-filed by the v0.2 retrospective as
+  `dl-088-a-memory-type-for-state-that-lives-outside-the-repository`, which is the id this document
+  cites.
