@@ -2,7 +2,7 @@
 id: "bug-ingest-rel-v0.2-e2e-smoke-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 e2e-smoke delta-audit findings (G2, G3, missing produces:)"
-status: active
+status: done
 version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-e2e-smoke-findings"
