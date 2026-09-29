@@ -2,7 +2,7 @@
 id: "dl-088-a-memory-type-for-state-that-lives-outside-the-repository"
 type: decision-log
 title: "State that lives outside the repository has no Memory type, so nothing records what WingFoil depends on outside git or how to manage it"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
