@@ -191,3 +191,24 @@ test/cli/publish-pipeline.test.ts` → 97 passed. `node scripts/check-release-ta
 **For the release.** `server.json`'s two versions must be bumped with `package.json` at the v0.2.2
 version bump; the gate refuses the tag otherwise. That is the intended behaviour, and the first
 place it will fire.
+
+### review (reviewer)
+
+`main` was merged before the checks above (`43aa0e25`); `git log --oneline HEAD..main` → empty at
+submit time, so the checks ran on the tree being submitted. BDD: no `.feature` covers publishing or
+package metadata (`grep -rlni "publish\|server.json\|keywords\|mcpName"
+docs/02_requirements/02_bdd/features/` → no match, exit 1); the acceptance tests are the
+`publish-metadata.test.ts` and `check-release-tag.test.ts` cases, green above.
+
+Checklist against the ACs: 1 ✔ (red → green; the keyword list is the approver's to settle);
+2 ✔ (structural pins red → green; schema validation recorded under *green*); 3 ✔ (red → green,
+9 rejection cases + accept + the real-file gate run); 4 ✔ (manifest identical, 339 paths); 5 ✔.
+
+**For the approver.**
+- Settle `keywords` (15, listed under *green*) and the `description` text: `WingFoil — the
+  repo-native intent layer for AI-native software engineering`. Both files share it; the registry caps
+  it at 100 characters.
+- `server.json` names `robypomper/wingfoil`; `task-116` (which lists `server.json` already) switches it
+  with the other three URLs.
+- The v0.2.2 version bump must update `server.json`'s two versions with `package.json`, or the gate
+  refuses the tag.
