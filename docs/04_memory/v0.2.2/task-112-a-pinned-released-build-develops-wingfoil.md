@@ -155,3 +155,89 @@ node_modules/wingfoil-released/dist/cli.js …`):
 | 4 — release-planning precondition; plan preconditions | configuration / documentation | no engine executes either |
 | 5 — `npm test` green | verification | gates in refactor |
 
+### red (developer) — `0727faad`
+
+- `test/cli/check-lockfile-pins.test.ts`: six cases for the alias property (exact, locked under the
+  alias path, same `name`, same `version`, runtime dependencies too) and one asserting this
+  repository's `package.json` declares `wingfoil-released` exactly.
+- `test/cli/mcp-registration.test.ts` (new): the committed `.mcp.json` entry, the `wingfoil` and
+  `check:mcp` scripts, the alias binary's `--version` equal to the pin, `node_modules/.bin/wingfoil`
+  resolving to the alias (the AC 1 behaviour, pinned so it is not relied on unchecked), the pure parts
+  of `scripts/check-mcp-registration.cjs`, and the script against the real pinned build (in process,
+  as `node scripts/check-mcp-registration.cjs`, and exit 1 on a temp git repo pinning `9.9.9`).
+- `LockfilePackage` in `scripts/check-lockfile-pins.d.cts` gains the optional `name` field in the same
+  commit, a type only, so the red is behavioural and not a compile error.
+- `npx jest test/cli/mcp-registration.test.ts test/cli/check-lockfile-pins.test.ts` → the new suite
+  fails to load (`Cannot find module '../../scripts/check-mcp-registration.cjs'`), and
+  `Tests: 6 failed, 14 passed` in the lockfile suite: the five refusal cases (the check passed
+  every alias) and the `package.json` declaration.
+
+### green (developer)
+
+- `1a598102` — `npm install --save-dev --save-exact wingfoil-released@npm:wingfoil@0.2.1`;
+  `npm pkg set` of the scripts `wingfoil` = `node node_modules/wingfoil-released/dist/cli.js` and
+  `check:mcp`; property 4 in `scripts/check-lockfile-pins.cjs` (and a remediation line for a pin
+  switch); `scripts/check-mcp-registration.cjs` + `.d.cts`; root `.mcp.json`. The lock diff is one
+  `packages[""].devDependencies` line and the `node_modules/wingfoil-released` entry (`git show
+  1a598102 --stat -- package-lock.json` → `25 ++++++++++++++++++++++++-`). The three real-build cases
+  got an explicit 60 s timeout: the first three-suite run failed the in-process case on jest's
+  default 5 s, and passed alone in 4.5 s.
+- `19b89547` — `e2e-smoke.yaml` v1.2 (phase `mcp-registration`, before `gate`, running
+  `npm run check:mcp`) and `release-planning.yaml` v1.3 (first phase `advance-pinned-build`, Q3 (B)'s
+  rule as its checks). Guard tests on both files added to `mcp-registration.test.ts` after the
+  change — they passed on first run; they pin the configuration, they are not a red.
+  `npm run -s build && node dist/cli.js workflow list` → exit 0, both phase names present.
+- `953453b8` — `COLLABORATION.md` 1.1 → 1.2: contributor setup (`npm ci`, `npm run -s wingfoil`),
+  the `.mcp.json` registration, the equivalent for other MCP clients (command, arguments, working
+  directory), and the pin rule.
+- `8501d1e0` — AC 4's plan preconditions (design interpretation): one bullet in
+  `dev-loop-rel-v0.2.2-plan`, one sentence in `bug-ingest-rel-v0.2.2-review-findings-plan`, and the
+  `plan` template's Context guidance. Neither plan's `version:` was bumped, to keep each edit a
+  one-hunk merge against `main`, where both plans are edited by the orchestrating session (a
+  deviation from `doc-versioning`, left to the merge: review, open item).
+
+**AC 2 — fresh clone, `npm ci`, no build.** `git clone` of this branch at `1a598102` into
+`mktemp -d` under the session scratchpad (deleted after):
+`npm ci` → `added 503 packages`; `ls dist` → `No such file or directory`; `npm run check:mcp` →
+`.mcp.json "wingfoil" runs the pinned wingfoil 0.2.1, advertising [prompts, resources] (prompts: 8,
+resources: 2)`, exit 0; `npm run -s wingfoil -- --version` → `0.2.1`; `npm run -s check:lockfile` →
+`… (2 overrides pin(s), 1 npm alias(es)) …`. The check spawns exactly the `.mcp.json` command
+(`node node_modules/wingfoil-released/dist/cli.js mcp`) from the clone root and completes the MCP
+`initialize` handshake plus `prompts/list` and `resources/list` over stdio. **Not verified here:**
+that Claude Code itself starts the project-scoped server — that needs an interactive session to
+approve a project `.mcp.json`, which this run did not do; nor what working directory another MCP
+client uses (the setup text says to use an absolute path when it is not the repository root).
+
+### refactor (developer) — checks, after `git merge main` (`3bbd66ef`, clean)
+
+- `npx jest` → `Test Suites: 153 passed`, `Tests: 2501 passed` (2472 at `c3df9df3`).
+- Coverage, `npx jest --coverage --coverageReporters=text-summary`: before (`c3df9df3`) and after
+  (`8501d1e0`) identical — Statements 98.66 % (3392/3438), Branches 94.25 % (1789/1898), Functions
+  98.98 % (584/590), Lines 99.46 % (3000/3016). The new code is under `scripts/`, which jest does not
+  instrument (the counts are unchanged); it is tested by the suites above, not counted.
+- `npm run lint` → exit 0 (one `preserve-caught-error` fixed in green: the timeout error now carries
+  `cause`). `npx tsc --noEmit` → exit 0. `npm run docs:api` → exit 0.
+- `npm run check:lockfile` → exit 0; `npm run check:mcp` → exit 0.
+- `npm pack --dry-run --json` file list: 339 paths at `c3df9df3` and at the branch head, `diff` →
+  identical. `.mcp.json` and `scripts/` are not packed; the alias is a devDependency, so a consumer
+  of the published package never installs it.
+
+### review (reviewer)
+
+Unit and BDD suites green (`npx jest` above; the P5.2.1/P5.2.2 BDD suites under `test/mcp/` pass).
+Open items for the approver, none fixed here:
+- **`task-117` (W4) inherits a dependency edge.** `wingfoil@0.2.1` depends on
+  `@anthropic-ai/sdk ^0.110.0` (lock entry `node_modules/wingfoil-released` → `dependencies`), so
+  removing the SDK from this package's `dependencies` leaves it in the lock as a dev-only transitive
+  of the alias until the pin moves to a build without it. Expected, not a defect; `task-117`'s ACs
+  should not assert the SDK is gone from `package-lock.json`.
+- **`directives list` on the pinned build warns** `unknown field(s) ignored: scope` for three
+  directives: `0.2.1` predates the `scope:` field. Harmless (exit 0), but it is noise every agent
+  will see until the pin moves.
+- **`memory add` on the pinned build** fails as on `main` (`bug-156`, `task-123`), measured in design.
+- **`CLAUDE.md`** says nothing about `npm run -s wingfoil` or `.mcp.json`; it is owned by
+  `align-agent-docs` (`dl-025`), as `task-111`'s AC 5 left it. `COLLABORATION.md`'s "How to contribute
+  (today)" still says the CLI "is still being built", a pre-existing stale sentence this task did not
+  write (user-docs).
+- **Plan `version:` not bumped** on the two active plans (green, `8501d1e0`); bump at merge if the
+  approver wants `doc-versioning` applied.
