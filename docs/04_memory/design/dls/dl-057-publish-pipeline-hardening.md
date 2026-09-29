@@ -90,6 +90,16 @@ directory ancestry was not verified).
   npm version constraint, whether a trusted publisher can then be configured on the existing package,
   and whether the Node pin can move; 2. switch now (needs an npm upgrade step in `promote` and a
   verified first-publish path); 3. keep `NPM_TOKEN` indefinitely.
+  - *Closed (2026-09-29, `task-113`).* Option 1 ran its course: the first publishes (`wingfoil@0.2.1`)
+    used a token, and the revisit it asked for is `dl-087-publish-through-npm-staged-publishing`
+    (`ready`, Q1 (B)), decided by `adr-011-npm-staged-publishing-with-oidc` (`accepted`). `promote`
+    now stages with `npm stage publish` through a stage-only trusted publisher over GitHub OIDC; no
+    `NPM_TOKEN` and no `.npmrc` exist. The facts this item left unverified are settled there:
+    Node 22.12.0 bundles npm 10.9.0, below trusted publishing's 11.5.1 and staged publishing's
+    11.15.0, and no Node 22 release bundles npm 11 (`https://nodejs.org/dist/index.json`, read
+    2026-09-29), so `promote` alone runs Node 24.21.0 (npm 11.19.0) while `gate` and `stage` keep the
+    22.12.0 floor; the trusted publisher is configured on the package that now exists, so no
+    first-publish path is needed.
 - **(f)** 1. Add a test that the promote publish step contains no `set -x` / `xtrace` / `bash -x`, and run
   the step's shell with tracing explicitly off (recommended); 2. rely on GitHub masking.
 - **(g)** 1. Pass the file explicitly — `npm publish … --userconfig "$PWD/.npmrc"` or
