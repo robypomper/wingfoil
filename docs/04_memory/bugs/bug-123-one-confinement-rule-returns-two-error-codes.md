@@ -2,7 +2,7 @@
 id: "bug-123-one-confinement-rule-returns-two-error-codes"
 type: bug
 title: "The same confinement refusal returns `IO` from `memory add` and `VALIDATION` from the four transition verbs, so a machine-readable consumer sees two codes for one rule"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
 release: ""
