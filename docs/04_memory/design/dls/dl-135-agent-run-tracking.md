@@ -2,7 +2,7 @@
 id: dl-135-agent-run-tracking
 type: decision-log
 title: "`agent execute` can launch an agent run but nothing can list active, waiting or past runs, or hand an earlier session to a new agent — three sources for three states, the session id in `dl-114`'s run record, and a declared execution mode per phase"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
