@@ -2,7 +2,7 @@
 id: "bug-156-repository-memory-yaml-template-paths-carry-the-config-root"
 type: bug
 title: "This repository's `memory.yaml` gives every `template.file` with a `.wingfoil/` prefix, so `memory add` looks for `.wingfoil/.wingfoil/memory/templates/…` and fails for every type"
-status: in-progress
+status: in-review
 severity: "medium"
 release-origin: "v0.2.2"
 release: "v0.2.2"            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
