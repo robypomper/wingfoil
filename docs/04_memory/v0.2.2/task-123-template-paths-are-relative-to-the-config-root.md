@@ -203,7 +203,12 @@ which scans every test file (`npx jest test/core/latency-budget-placement.test.t
 - **Acceptance (P1.3 `memory add`, P1.13 scaffolds):**
   `npx jest $(ls test/core/memory-add*.test.ts test/cli/memory-add*.test.ts test/memory/add.test.ts test/storage/templates.test.ts | sort)`
   → 11 suites, 128 tests passed.
-- `main` did not move during the task (`git rev-list --count HEAD..main` → `0`, `main` at `c3df9df3`).
+- **`main` moved during the task** (`git log --oneline 748593a5..main` → 17 commits, to `7ac792de`:
+  `task-121` merged, `bug-160` added and submitted, `patch-v0.2.2` notes, a plan update — none touches
+  `.wingfoil/` or `test/`: `git diff --stat 748593a5...main`). Merged with `git merge --no-ff main`
+  (`a2d33554`, no rebase, no conflict). Re-run after the merge: `npx jest` → 153 suites / 2476 tests
+  passed. (The `bug-160` id the AC 4 probe produced in the throwaway clone is now taken on `main` by
+  `bug-160-vision-index-document-map-and-line-ranges-are-stale`; the probe was never committed here.)
 - **For the approver.**
   1. The green commit's subject is `fix(config): …` rather than the plan's `feat({module})`: the
      change is configuration, and `config` is the scope `task-111` used for the same file.
