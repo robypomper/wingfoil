@@ -2,7 +2,7 @@
 id: "dl-100-governance-debt-resweep-and-capacity"
 type: decision-log
 title: "The unscheduled population grew from 14 to 144 after release-planning ran; unscheduled work is re-swept during the release, with a re-plan checkpoint, a scope-growth threshold, a bug capacity rule and a WIP limit on open decision-logs"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
