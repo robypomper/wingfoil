@@ -2,7 +2,7 @@
 id: "bug-129-init-error-names-a-migration-command-that-does-not-exist"
 type: bug
 title: "`wingfoil init` on an initialised project says \"use a migration command\" — no such command exists"
-status: in-progress
+status: in-review
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"
