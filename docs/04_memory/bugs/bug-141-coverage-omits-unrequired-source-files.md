@@ -14,8 +14,11 @@ tmpl_version: 260703
 
 ## Summary
 
-`jest.config.js` sets `roots: ['<rootDir>/test']`, together with
-`collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']`. Because of `roots`, Jest reports coverage
+`jest.config.js` sets `roots: ['<rootDir>/test']`, together with a `collectCoverageFrom` that, when
+this bug was filed, read `['src/**/*.ts', '!src/**/index.ts']`. **Updated 2026-09-29:** since
+`task-122` (`bug-021`) it reads `src/**/*.ts` minus seven literal barrel paths, and
+`src/core/index.ts` and `src/mcp/index.ts` are measured. The mechanism below is unchanged. Because
+of `roots`, Jest reports coverage
 only for the `src/` files that the executed tests actually load. A source file that no test requires
 is **absent** from the report instead of appearing at 0%. So the global coverage figure, and the
 `coverageThreshold` of 80%, are computed over a denominator that silently excludes it.
@@ -25,7 +28,10 @@ the report. The first file added without a test that loads it will be invisible 
 Two v0.2 tasks met the mechanism independently: `task-049` for `src/core/index.ts`, and `task-065`
 for `src/cli/program.ts` and `src/cli.ts` before its own fix made them required.
 
-This is distinct from `bug-021`. That bug covers the explicit `!src/**/index.ts` exclusion.
+This is distinct from `bug-021`. That bug covered the explicit `!src/**/index.ts` exclusion, and
+`task-122` fixed it. After that fix, three of the seven excluded barrels (`src/cli/index.ts`,
+`src/directives/index.ts`, `src/workflow/index.ts`) are loaded by no test, so this bug's mechanism is
+what keeps them out of the report (`task-122` Execution Notes).
 
 ## Steps to Reproduce
 
