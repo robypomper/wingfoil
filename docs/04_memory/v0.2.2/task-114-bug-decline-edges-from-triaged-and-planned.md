@@ -220,6 +220,12 @@ Control, a second clone checked out at `5209b4b3` (red, before the edit): the sa
   `.wingfoil/memory.yaml` (`git diff --stat a15ab388 main -- .wingfoil/memory.yaml` → nothing).
   The gates table ran after the merge; the stale-prose sweep was re-run over the merged content and
   found only the v0.2.2 plan's version sentence (fixed, `2e04b587`).
+- **`main` moved again before submit** (to `f0c87536`: `bug-159…164` `open → triaged`, `task-124`
+  (`dl-088`) filed to `backlog`, the v0.2.2 plan at `1.4`). Merged the same way (`d9f7d81d`, no
+  conflict: git took the identical `version: "1.4"` line from both sides). Both sides had bumped the
+  plan `1.3 → 1.4` for different edits, so it goes to `1.5` (`f1c0f27d`). No merged commit touches
+  `.wingfoil/`, `src/` or `test/` (`git diff --stat 569a0c31 d9f7d81d` → Memory files and the plan
+  only). Re-run: `npx jest` → 156 suites / 2549 tests passed.
 - **For the approver.**
   1. `bug-092` (`triaged`) can now close by `wf(bug): reject bug-092-… [triaged → closed]` once this
      merges — the e2e above is that command on a clone.
