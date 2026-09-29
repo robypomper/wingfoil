@@ -2,7 +2,7 @@
 id: "bug-095-concurrent-jest-runs-in-one-worktree-corrupt-dist"
 type: bug
 title: "Two `npx jest` runs in one worktree delete and rebuild each other's `dist/`, producing a convincing false failure that vanishes on re-run"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
