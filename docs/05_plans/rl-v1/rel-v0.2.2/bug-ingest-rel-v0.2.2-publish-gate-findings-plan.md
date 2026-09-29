@@ -2,27 +2,53 @@
 id: bug-ingest-rel-v0.2.2-publish-gate-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 publish-gate findings"
-status: draft
-version: ""            # optional — plan version
+status: active
+version: "1.0"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-publish-gate-findings"
-element: ""            # optional — the Memory element this phase iterates (e.g. a release id)
-release: ""            # optional — target release, e.g. "v0.1"
-tmpl_version: 260703   # Orignal template version
+element: "patch-v0.2.2"
+release: "v0.2.2"
+tmpl_version: 260703
 ---
 
 ## Context
 
-<!-- Why this phase runs now, its preconditions, and what it produces. Keep coherent with the
-     workflow definition's phases / roles / actions / produces / checks (dl-019).
-     Every plan's preconditions include that the build in use is the pinned one (dl-095):
-     `npm run -s wingfoil -- --version` prints the version package.json pins for
-     `wingfoil-released`. -->
+`release-publishing-rel-v0.2.2-plan` S6: the first `v0.2.2` tag push (run `36621412441`, tag
+object `70f79f06` on `a1a2850b`) failed in `publish.yml`'s `gate` job, at the `prepublishOnly` test
+step: 5 of 2624 tests failed in `test/cli/help-positional-required.integration.test.ts`. `stage`
+and `promote` were skipped; nothing was staged or published (`npm view wingfoil@0.2.2 version` →
+`E404`). The same suite passes locally (160/2624 at `b1cd5db2`).
+
+The approver ruled on 2026-09-29: fix it in the product (option 1a — argument validation before the
+environment pre-flight), reuse the version `0.2.2` (the tag is deleted and re-created after the fix;
+npm never saw the version), and file the bug. This `plan` element is the ingest's plan
+(`.wingfoil/workflows/custom/bug-ingest.yaml` v1.0, `dl-019`). It runs on the phase branch
+`design/release_publishing_v0.2.2`. Ids come from the pinned build's `memory add` at commit time.
 
 ## Phases / Steps
 
-<!-- The ordered steps to execute against the workflow phase — actions, roles, gates, models. -->
+### `capture` — role: developer
+
+- `memory.add(type: bug)`, then `memory.submit` (`draft → open`), each its own commit.
+- **Checks (post):** `frontmatter.required: [title, severity]`; the reproduction and a duplicate
+  search recorded in the bug.
+
+| Finding | Verdict |
+|---|---|
+| `memory submit|approve|reject|deprecate` and `directive remove`, run with their required positional missing and no git identity configured, exit `1` ("git identity not configured") instead of the usage exit `2`; the `gate` job has no git identity, so task-120's test fails there only | **bug** `bug-172` (high: it blocks the v0.2.2 publish) |
+
+### `triage` — role: tech-lead, approver gate
+
+`memory.approve [open → triaged]` with `release: "v0.2.2"` stamped first in its own commit (the
+`bug-076` guard), or `memory.reject [open → closed]`. The approver's alone. The fix itself is a
+`task` for dev-loop, not work of this plan.
 
 ## Handoff
 
-<!-- What requires the approver vs. the agent; the checkpoint(s) and the completion criteria. -->
+- **Agent:** `capture`, and the `release` stamp once the approver rules.
+- **Approver:** `triage`.
+- **Completion:** `bug-172` `triaged` (or `closed`); this plan then moves `active → done`.
+
+## Execution Notes
+
+<!-- Filled during the run. -->
