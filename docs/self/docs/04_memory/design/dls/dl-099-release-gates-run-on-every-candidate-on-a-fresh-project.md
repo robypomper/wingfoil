@@ -2,7 +2,7 @@
 id: "dl-099-release-gates-run-on-every-candidate-on-a-fresh-project"
 type: decision-log
 title: "Once-per-release gates found real defects only when they ran; the staging rehearsal and e2e-smoke become declared checks on every release candidate, driving a freshly initialised project through every verb"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
