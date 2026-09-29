@@ -87,3 +87,35 @@ answers.
     `repository.url` that the **published** `wingfoil@0.2.1` carries, still true on the registry.
 
 
+
+### red / green (developer)
+
+- **Red**: `REPO_SLUG` in `test/cli/publish-metadata.test.ts` set to
+  `wingfoil/wingfoil`. Then `npx jest test/cli/publish-metadata.test.ts` → 5 failed, 63 passed: the
+  four `package.json` attribution cases and the `server.json` repository case.
+- **Green:** `package.json` (`repository.url`, `homepage`, `bugs.url`) and `server.json`
+  (`repository.url`) name `github.com/wingfoil/wingfoil`. Then `npx jest
+  test/cli/publish-metadata.test.ts test/cli/check-release-tag.test.ts` → 75 passed. `npm pack
+  --dry-run --json` → 339 files, unchanged.
+- **Services:** `svc-003`, `svc-004`, `svc-006`, `svc-007` updated (`verify`, `url`, `account`, and a
+  post-transfer reading in each Verification). `scanText` on each → 0 blocking, 0 warnings. They stay
+  `pending`.
+- **Full checks:** `npx tsc --noEmit` clean; `npx jest` → 160 suites, 2624 tests passed; `npm run
+  lint` exit 0.
+
+### post-transfer verification (AC 3, 2026-09-29)
+
+| Check | Command | Result |
+|---|---|---|
+| repository | `gh api repos/wingfoil/wingfoil --jq '{full_name,visibility,license:.license.spdx_id}'` | `wingfoil/wingfoil`, public, MIT; `robypomper/wingfoil` redirects |
+| tags | `git ls-remote --tags origin` | `v0.2.0`, `v0.2.1` carried over |
+| `npm-publish` environment | `gh api repos/wingfoil/wingfoil/environments --jq …` | present; `branch_policy` (`v*` tags) and `required_reviewers` (`robypomper`) carried over |
+| secrets | `gh api …/environments/npm-publish/secrets`; `gh api …/actions/secrets` | environment `NPM_TOKEN` still present (updated 2026-09-28T09:25:34Z); no repository-level secret. `adr-011` removes it after the trusted publisher exists |
+| Claude GitHub App | `gh api orgs/wingfoil/installations --jq '.installations[]…'` | **no installation listed**: the approver installs it on the organisation |
+| local remote | `git remote set-url origin git@github.com:wingfoil/wingfoil.git`; `git fetch origin` | done; `main` equals `origin/main` after the fetch, except the one local commit `fb715a93` |
+| repository settings (§B.3) | `gh api repos/wingfoil/wingfoil --jq '{description,homepage,topics,…}'`; GraphQL `discussionCategories` | description, homepage, 14 topics, Discussions on (Announcements, Ideas, Q&A, Show and tell), Issues on, Wiki and Projects off: all carried over |
+| organisation | `gh api orgs/wingfoil --jq '{name,two_factor_requirement_enabled,default_repository_permission}'` | 2FA required, base permission `none`; profile name still `wingFoil` (§B.1 recommends "WingFoil") |
+
+**Open, the approver's (AC 3–4):** install the Claude GitHub App on `wingfoil`; configure the npm
+trusted publisher (`wingfoil`/`wingfoil`/`publish.yml`/`npm-publish`, stage only) with the rest of
+the `publish.yml` runbook; then confirm, and the task goes to review.
