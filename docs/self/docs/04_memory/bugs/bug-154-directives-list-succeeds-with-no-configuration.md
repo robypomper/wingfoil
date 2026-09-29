@@ -1,45 +1,81 @@
 ---
 id: "bug-154-directives-list-succeeds-with-no-configuration"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft          # auto-set by wingfoil; memory.submit → open
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`directives list` answers an empty listing with exit 0 in a project that has no configuration, and `--role` adds a false \"no directives assigned\" warning"
+status: open
+severity: "medium"
+release-origin: "v0.2"
+release: ""
+feature: "P3.4"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+Where the CLI finds no `.wingfoil/` at the root it resolves, every read command fails with the
+missing file named — except `directives list`, which succeeds with `{"entries":[],"warnings":[]}`
+and exit 0. With `--role <role>` it also warns `no directives assigned to role '<role>'`, which states
+something about the project's bindings that nothing was read to establish. "The project has no
+configuration here" becomes "this role has no rules".
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+Reproduced against `wingfoil@0.2.1` (`wingfoil --version` → `0.2.1`), in an empty repository:
+
+1. `mkdir nocfg && cd nocfg && git init`
+2. `wingfoil --format json directives list; echo "exit $?"` →
+   `{"entries":[],"warnings":[]}` · `exit 0`
+3. `wingfoil --format json directives list --role developer; echo "exit $?"` →
+   `{"entries":[],"warnings":["no directives assigned to role 'developer'"]}` · `exit 0`
+4. For contrast, the other reads in the same directory, each `exit 1`:
+   - `wingfoil --format json paths` / `dna show` → `{"error":"ENOENT: … .wingfoil/dna.yaml"}`
+   - `wingfoil --format json workflow list` → `{"error":"ENOENT: … .wingfoil/workflows.yaml"}`
+   - `wingfoil --format json memory search` → `{"error":"ENOENT: … .wingfoil/memory.yaml"}`
+
+The same happens in this repository today, whose configuration sits under `docs/self/` (`bug-075`):
+`wingfoil --format json directives list` run at the root answers `{"entries":[],"warnings":[]}`,
+exit 0, while `dna show` fails.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Like its sibling reads: when the project has no `.wingfoil/` at the resolved root, `directives list`
+fails (exit 1, the missing path named), and never reports a role's bindings it did not read. An
+existing configuration that simply declares no directives, or no `roles.yaml`, keeps today's
+answer — that case is legitimate and already covered.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+An empty listing and exit 0, indistinguishable from a configured project that declares no directives;
+with `--role`, a warning that asserts the role has no directives assigned.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- **Root cause.** `listMarkdownFilesSorted` returns `[]` when the directory is absent
+  (`sed -n 28,29p src/core/loaders.ts` → `if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];`),
+  so `loadDirectives` (`src/core/loaders.ts:287`) cannot tell "no directives" from "no
+  configuration"; and `loadDirectiveListing` reads `roles.yaml` only when it exists
+  (`sed -n 191p src/core/directives-list.ts`), by design — its doc-comment tolerates "a genuinely
+  absent file". Each tolerance is reasonable alone; together they leave no case that fails.
+- **Why it matters more than a missing error message.** `docs/agents.md` tells agents to take the
+  rules of their role from this command (`grep -n "directives list" docs/agents.md` → lines 41, 69,
+  92). In a project the CLI cannot read, an agent following it is told its role has no directives
+  and proceeds without them, with exit 0 and nothing on stderr.
+- **Unchanged on `main`:** `git diff --stat v0.2.1 main -- src/core/loaders.ts src/core/directives-list.ts`
+  prints nothing.
+- **Other callers of the same loader**, not checked here: `grep -rn "loadDirectives(" src/` →
+  `src/core/index.ts:1501` and `src/mcp/prompt.ts:135` (the role Prompts). Whether they can also
+  turn a missing configuration into "no directives" is for the fix to establish.
+- **Suggested direction, for triage:** have the listing require the project's configuration root the
+  way the other pillar reads do (a missing `.wingfoil/` → the same `ENOENT`-style error), keeping
+  "directory present but empty" and "no `roles.yaml`" as they are.
+- **Found by** the roadmap viewer (`tools/roadmap/`, branch `design/dashboards`) while moving its reads
+  onto the CLI: it had to probe with `dna show`, because this command cannot tell it whether the CLI
+  can read the project at all.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+- capture: reproduced on `wingfoil@0.2.1` in an empty repository and in this one (steps above);
+  `release` left empty for the approver's triage. Found after `release-planning-rel-v0.2.2` had
+  passed `triage-bugs` and `build-backlog`, so it is not in that plan's selection.
