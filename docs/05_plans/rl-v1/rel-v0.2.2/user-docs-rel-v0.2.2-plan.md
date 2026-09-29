@@ -2,7 +2,7 @@
 id: user-docs-rel-v0.2.2-plan
 type: plan
 title: "User-docs — v0.2.2 (align user and agent docs to the shipped surface, add the project logo)"
-status: active
+status: done
 version: "1.0"
 workflow: "user-docs"
 phase: "rel-v0.2.2"
