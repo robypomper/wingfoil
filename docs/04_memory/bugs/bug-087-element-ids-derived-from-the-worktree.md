@@ -48,6 +48,14 @@ The id is a function of the working tree's current contents, and a gap makes it 
 
 ## Notes
 
+- **Reproduced on this repository (2026-09-29).** Since `task-111` and `task-123` put the
+  configuration at the root with working template paths, `memory add` runs here. In `task-123`'s AC 4
+  run on a throwaway clone, `memory add --type decision-log` issued `dl-130-ac4-probe-decision-log`,
+  although `dl-130-visibility-steps-in-the-release-flow` exists: the `dl` sequence has a gap (no
+  `dl-021`, `ls docs/04_memory/design/dls | grep -oE '^dl-[0-9]+'`). The slugs differed, so no file
+  was overwritten, but the number was reused. Recorded in `task-123`'s Execution Notes. A per-release
+  variant of the same counter is `bug-162`.
+
 **Severity is contingent on `task-092` staying landed, and that is stated deliberately.** Before it,
 this was CLI-reachable data loss and would have been `critical`. After it, the destructive face is
 gone — the command refuses and tells the user to choose a different title — so what remains is a

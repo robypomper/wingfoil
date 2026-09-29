@@ -43,6 +43,10 @@ Observed in `task-123`'s AC 4 run (2026-09-29):
 ## Notes
 
 - Found at `task-123`'s review (2026-09-29). The approver ruled it a bug.
+- Origin: the v0.1 retrospective's T11 (`retro-v0.1`, "path/naming inconsistencies") moved the
+  release folder from `planning/v1/` to `planning/rl-v1/`, after the release-line's id, and left the
+  field at the version. `bug-080` is about reading states across that same rename, a different
+  defect.
 - Which of the two is right, the field's meaning (version or id) or the path pattern, is a
   `memory.yaml` / `spec-001` question. The fix may need a decision first.
 - `dl-090` (arguments of workflow tokens, e.g. `{release.version}`) may be where a path such as
