@@ -35,7 +35,8 @@ agent implements it under the `dev-loop` (TDD + BDD, `code-review`/`code-quality
 
 ## How to contribute (today)
 
-The `wingfoil` CLI is still being built, so the current path is:
+The `wingfoil` CLI ships (npm `wingfoil`), but it cannot run a workflow yet, so the ingest workflows
+are still run by a maintainer or an agent. The current path is:
 
 1. **Open a GitHub issue** describing the bug / decision / spec you have in mind (see the README’s
    *Contributing* section).
@@ -43,7 +44,7 @@ The `wingfoil` CLI is still being built, so the current path is:
    recording you as its `contributor` (below).
 3. You are kept in the loop as it is ratified and delivered.
 
-Once the CLI ships, you (or an agent on your behalf) will run the ingest workflow directly.
+Once workflow execution ships, you (or an agent on your behalf) will run the ingest workflow directly.
 
 ## Contributor setup — the WingFoil build that manages this repository
 

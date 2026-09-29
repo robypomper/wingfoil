@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""

@@ -255,3 +255,21 @@ Open items for the approver, none fixed here:
   write (user-docs).
 - **Plan `version:` not bumped** on the two active plans (green, `8501d1e0`); bump at merge if the
   approver wants `doc-versioning` applied.
+
+**Approver's ruling at the review gate (2026-09-29): approve, after four same-class corrections made
+on this branch before approval.**
+1. `CLAUDE.md` §3 names the pinned build as the one that manages the repository
+   (`npm run -s wingfoil -- …`, not `npx wingfoil`), `.mcp.json` and `check:mcp`, and what 0.2.1 can
+   and cannot do. §5 and §5.1 no longer say that `memory add` fails, which stopped being true with
+   `task-123`. `README.md`'s dogfooding paragraph matches. Probe behind the limits, on a throwaway
+   clone of `main` at `2f0bb682` with `node_modules/wingfoil-released/dist/cli.js`: `memory add
+   --type bug` and `--type decision-log` exit 0. `--type task` fails with
+   `E_MISSING_PATH_VALUE … {release}`, `--type release` with "missing value for token {kind}", and
+   `--type plan` with "missing value for token {workflow}". The decision-log probe issued `dl-130`
+   again (`bug-087`).
+2. `COLLABORATION.md`'s "How to contribute (today)" no longer says the CLI is being built. It says
+   that what is missing is workflow execution.
+3. The two active plans this task edited are version-bumped: `dev-loop-rel-v0.2.2-plan` 1.2 → 1.3
+   and `bug-ingest-rel-v0.2.2-review-findings-plan` 1.4 → 1.5 (`doc-versioning`).
+4. `task-117` gains an Implementation Note: the SDK stays in the lock as a transitive dependency of
+   the pinned alias, so its AC 2 is about the direct dependency.
