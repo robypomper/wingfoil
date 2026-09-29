@@ -2,7 +2,7 @@
 id: "dl-120-documentation-directive-extensions"
 type: decision-log
 title: "Five documentation rules live only in decision-logs, bugs and one plan: citation form, version-bump scope, transient facts, resolvable references, and premises that carry their measurement conditions"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
