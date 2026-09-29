@@ -390,10 +390,17 @@ a defect. The probe was re-run without it.
 - `npm run -s wingfoil -- memory history patch-v0.2.2`: the last entry is `34a74bd2`,
   `releasing → released`.
 
-### Still open at the end of the phase
+### Closing — approver rulings, 2026-09-29
 
-- `bug-173`: awaits the approver's triage; the MCP Registry listing and its `service` element wait
-  on it.
-- The runbook gap: the `publish.yml` header says nothing about the Staged Packages tab or the
-  automated review. It was proposed as its own element and has not been ruled on.
-- This plan's `finalize`: needs the approver's approval (`Approver:`/`Reason:`).
+- **The runbook gap** is `bug-174`. It was filed after a misunderstanding had first produced `bug-173`
+  for the registry 403. The approver placed the Staged Packages tab in the npmjs.com **account menu**.
+- **Both bugs triaged into v0.3** (`e4859473`, `78b941cb`); `bug-173` kept.
+  `bug-ingest-rel-v0.2.2-mcp-registry-findings-plan` is `done`.
+- **Carried forward, not delivered in v0.2.2:**
+  - the MCP Registry listing of `io.github.wingfoil/wingfoil` and its `service` element (`dl-093`
+    Actions), behind `bug-173`;
+  - the runbook text, behind `bug-174`.
+- **The approver approved closing this plan and pushing `main`.** The `finalize` commit carries the
+  `Approver:` line.
+- **Next:** v0.3's `release-planning` starts with `advance-pinned-build`: the pin `wingfoil-released`
+  moves to `npm:wingfoil@0.2.2` (`dl-095`).
