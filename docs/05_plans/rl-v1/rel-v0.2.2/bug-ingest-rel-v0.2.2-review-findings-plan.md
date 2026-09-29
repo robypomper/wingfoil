@@ -85,6 +85,7 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
   the new layout (`31623e1c`), with no state change.
 - **Batch 4, `task-121` review (2026-09-29).** Next free number `bug-160` (`ls docs/04_memory/bugs |
   sort -V | tail -1` → `bug-159`; `git log --all --oneline | grep -c bug-160` → 0). Duplicate search:
-  `grep -rli "00_index" docs/04_memory/bugs` → no other bug. Added in `cd8f9d69`, submitted in the
+  `grep -rli "00_index" docs/04_memory/bugs` → `bug-052` only, which cites
+  `docs/02_requirements/03_sard/00_index.md`, a different index; not a duplicate. Added in `cd8f9d69`, submitted in the
   commit after this revision. The approver noted that the index belonged in `task-121`'s own fix,
   like the canvas table, and was not to be left for after the merge.
