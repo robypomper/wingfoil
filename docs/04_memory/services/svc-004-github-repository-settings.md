@@ -2,44 +2,58 @@
 id: svc-004-github-repository-settings
 type: service
 title: "GitHub repository settings"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "GitHub"
+kind: "setting"
+owner_role: "approver"
+verify: "gh api repos/robypomper/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'"
+url: "https://github.com/robypomper/wingfoil"
+account: "robypomper/wingfoil"
+renews: ""
+repo_refs: []
+decision: "dl-091-package-name-and-mcp-namespace"
+release: "v0.2.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+How the repository presents itself to people who find it: its description, homepage, topics and
+enabled features. The approver ruled on 2026-09-29 that these settings are **not** declared as code in
+the project (no `.github/repository.yml`), so this element is the only record of them
+(`release-planning-rel-v0.2.2-plan` §A, §B.3).
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+Applied by hand in the web interface by the approver, 2026-09-29 (§B.3):
+
+- **description:** "The repo-native intent layer for AI-native software engineering — keeps intent and
+  engineering state in git, turns them into workflows, verifies what agents deliver. CLI + MCP."
+- **homepage:** `https://www.npmjs.com/package/wingfoil`, until a domain exists (domains wait until
+  after v0.3, `dl-091` addendum D7).
+- **topics (14):** `ai-agents`, `ai-assisted-development`, `claude-code`, `cli`, `context-engineering`,
+  `determinism`, `developer-tools`, `git`, `intent-engineering`, `mcp`, `mcp-server`,
+  `model-context-protocol`, `spec-driven-development`, `typescript`.
+- **features:** Discussions on, Issues on, Wiki off, Projects off.
+- **Discussions categories:** Announcements, Q&A, Ideas, Show and tell (General and Polls deleted) — the
+  approver's report (§B.3); the `verify` command does not read them.
+- **social preview:** none (`dl-128`).
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+`gh api repos/robypomper/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'`
+→ `homepage` `https://www.npmjs.com/package/wingfoil`, the 14 topics above, `has_discussions: true`,
+`has_issues: true`, `has_wiki: false`, `has_projects: false`, and the description above verbatim
+(run read-only by `task-124` on 2026-09-29). The visibility session read every value
+above through the GitHub MCP on 2026-09-29 and all matched (§B.3). The Discussions categories and the
+social preview are checked by eye on the repository page.
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Owner:** the `approver` role.
+- **Change:** edit the setting on GitHub, then this element's Configuration in a `docs(self)` commit
+  (`dl-088` option 2), so the two never disagree. The topic list and the package `keywords` are
+  settled together at `dl-093`'s metadata task (`release-planning-rel-v0.2.2-plan` §D).
+- **After the transfer to `wingfoil/wingfoil`:** re-check every value (§C) and update `url`, `account`
+  and `verify`.
+- **Retire:** `memory deprecate` if the settings move to code or to another element.
