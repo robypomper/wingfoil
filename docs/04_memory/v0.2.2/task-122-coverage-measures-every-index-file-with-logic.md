@@ -184,8 +184,11 @@ above 80, so this task does not chase them.
 - AC 2 (characterization): met. Method and list above; the test re-checks the list at every run.
 - AC 3 (characterization): met on the global thresholds, numbers above. The per-file `functions`
   figure is an open question for the approver, not a hidden gap.
-- AC 4 (characterization): met. `npx jest --coverage` → 2487/2487 passed, 153 suites. This runs the
-  BDD acceptance suites as well; `jest.config.js` has a single project.
+- AC 4 (characterization): met. `npx jest --coverage` → 2487/2487 passed, 153 suites.
+- BDD: there is no separate BDD runner (`package.json` `"test": "jest"`), and no `.feature` scenario
+  covers the coverage file set. `grep -rli coverage docs/02_requirements/02_bdd/features/` returns
+  only `P4.12-workflow-checks.feature`, which is about the workflow engine's `tests.coverage` check
+  (not built). The full Jest run above is the acceptance evidence.
 - Stale quote, not fixed here: `bug-141` (open, v0.3) quotes the old
   `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']` in its Summary. Closed v0.1/v0.2 task
   notes quote it too, and are historical records.
