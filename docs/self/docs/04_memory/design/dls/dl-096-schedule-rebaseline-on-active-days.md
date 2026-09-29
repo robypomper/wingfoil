@@ -2,7 +2,7 @@
 id: "dl-096-schedule-rebaseline-on-active-days"
 type: decision-log
 title: "The vision's calendar predates a 67-day pause and 2.3x scope growth; release budgets move to active days with a forecast that states its cadence"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
