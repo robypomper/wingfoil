@@ -2,7 +2,7 @@
 id: svc-011-alternativeto-listing-wingfoil
 type: service
 title: "AlternativeTo listing WingFoil"
-status: pending
+status: active
 provider: "alternativeto.net"
 kind: "listing"
 owner_role: "approver"
