@@ -35,8 +35,9 @@ fixed on 2026-09-28 (`retrospective-rel-v0.2-plan` §6.8):
 5. **Public identity and first use.** The name and MCP namespace (`dl-091`), the repository renamed
    and its URLs swept before publish, the package's discovery metadata (`dl-093`); the unused
    `@anthropic-ai/sdk` removed (`bug-138`); `init` and its scaffold name what they need
-   (`bug-139`, `bug-140`, `bug-129`); subcommand help describes its commands (`bug-128`); closures
-   with no code (`bug-021`, and `bug-092` through `dl-123`'s won't-fix exit); the vision's calendar
+   (`bug-139`, `bug-140`, `bug-129`); subcommand help describes its commands (`bug-128`); the coverage
+   gate measures every `index.ts` that holds logic (`bug-021`); a closure with no code (`bug-092`,
+   through `dl-123`'s won't-fix exit); the vision's calendar
    re-based on active days (`dl-096`).
 6. **Publish.** Staging, then the `v0.2.2` tag on the pushed `main`, then the npm publish.
 
@@ -75,20 +76,22 @@ through its own verbs, and every later publish goes through staging.
 - **identify-specs (2026-09-29).** No new spec. Amended in place: `spec-015`, `spec-001`, `spec-010`.
   Recorded: `adr-011`, which replaces `adr-009` points 4–5. Found late: no Node 22 release bundles
   npm 11, so `promote` needs Node ≥ 24.18.0.
-- **build-backlog (2026-09-29): 13 tasks, `task-109` … `task-121`**, grouped by §6.8 step:
+- **build-backlog (2026-09-29): 14 tasks, `task-109` … `task-122`**, grouped by §6.8 step:
   - step 1: `task-109` (`bug-137`);
   - step 2: `task-110` (`dl-107`), `task-111` (`bug-075`), `task-112` (`dl-095` with `dl-026`);
   - step 3: `task-113` (`adr-011`/`dl-087`, `bug-136`);
   - step 5: `task-114` (`dl-123`), `task-115` (`dl-093`/`dl-091`), `task-116` (the slug after the
     transfer), `task-117` (`bug-138`), `task-118` (`bug-139`), `task-119` (`bug-140`, `bug-129`),
-    `task-120` (`bug-128`), `task-121` (`dl-096`).
+    `task-120` (`bug-128`), `task-121` (`dl-096`), `task-122` (`bug-021`, added after a re-read on
+    the approver's request: its Expected Behavior needs a configuration change, so it is not a
+    closure with no code as the retrospective's row 27 had it).
 - **In scope, with no task:**
   - `dl-088` is implemented out of flow as a configuration change in step 4, the route ratified as
     (a);
   - `dl-092` is already in configuration;
   - `dl-094` needs no `.mailmap` (b), and its remedy (ii) goes to `dl-119`'s directive in v0.3;
-  - `bug-021` and `bug-092` close with no code, by the approver's reject once `task-114` lands.
-- **Budget (`dl-096`, measured velocity).** 13 tasks ÷ 6.5 per active day ≈ **2 active days**,
+  - `bug-092` closes with no code, by the approver's reject once `task-114` lands.
+- **Budget (`dl-096`, measured velocity).** 14 tasks ÷ 6.5 per active day ≈ **2.2 active days**,
   against `dl-096`'s proxy of ≈ 4. The difference is the size of `task-111`: one task, but the
   largest single change of the patch (32 test files, 206 Memory documents). The task count
   underweights it. Expect nearer the proxy than the count.

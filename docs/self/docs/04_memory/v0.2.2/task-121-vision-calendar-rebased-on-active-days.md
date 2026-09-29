@@ -30,8 +30,8 @@ documents only. The forecast is refreshed at every retrospective.
    - a calendar forecast that states its cadence assumption.
 
    The original plan is kept for comparison, and is not rewritten.
-2. The v0.2.2 budget uses the figure this release's `build-backlog` measured (13 tasks ÷ 6.5 per
-   active day ≈ 2 active days), next to `dl-096`'s proxy of ≈ 4. `patch-v0.2.2`'s Planning notes
+2. The v0.2.2 budget uses the figure this release's `build-backlog` measured (14 tasks ÷ 6.5 per
+   active day ≈ 2.2 active days), next to `dl-096`'s proxy of ≈ 4. `patch-v0.2.2`'s Planning notes
    explain the difference.
 3. `01_product-brief.md` and `08_mvp-canvas.md` point at the sequencer instead of carrying their own
    dates.

@@ -37,7 +37,7 @@ change. Scheduled into v0.2.2 so that `bug-092` can close there (retrospective r
 
 ## Implementation Notes
 
-- Closing `bug-092`, and `bug-021` if the approver rules the same way, is the approver's
+- Closing `bug-092` is the approver's
   `wf(bug): reject … [triaged → closed]` **after** this task merges. It is not part of this task.
 
 ## Execution Notes
