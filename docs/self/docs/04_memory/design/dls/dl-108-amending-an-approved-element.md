@@ -2,7 +2,7 @@
 id: "dl-108-amending-an-approved-element"
 type: decision-log
 title: "No verb amends an approved or terminal Memory element, so every correction is a hand-written commit that `memory history` reports as `operation: null`"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
