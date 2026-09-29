@@ -5,7 +5,7 @@ title: "Transition verbs and read commands silently ignore every operand after t
 status: open
 severity: "medium"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: "P1.7"
 contributor: ""
 credit: ""
