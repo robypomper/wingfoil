@@ -2,7 +2,7 @@
 id: "dl-110-parking-a-started-task"
 type: decision-log
 title: "No verb steps a started task back to the backlog, so a stalled task holds its work-in-progress slot until someone retires or hand-edits it; and no state declares a WIP limit at all"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
