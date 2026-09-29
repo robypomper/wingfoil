@@ -274,3 +274,23 @@ development (`dist/`, built by jest's `globalSetup` or `npm pack`'s `prepack`).
      `test/memory/history-rename-path.test.ts` avoided on purpose; it asserts subjects and states,
      not shas, and degrades to a non-empty check in a shallow clone. A history rewrite that changes
      `bug-077`'s subjects would break it.
+
+**Approver's ruling at the review gate (2026-09-29).**
+- 1: the four spec revisions are signed off with the approval.
+- 2: `spec-011`'s incomplete tree is filed as a bug.
+- 3: `bug-154` and `bug-035` are updated to the new layout, in a commit on `main` after the merge.
+- 4: the `align-agent-docs` items stay with that step, except for `CLAUDE.md` and `README.md`. Those
+  two got the new paths and the commands that now run on this repository before approval, in the
+  commit after this note: `CLAUDE.md` §1, §3, §5, §5.1 and the `README.md` CLI table, release table
+  and dogfooding paragraph. Before writing them, the verbs were checked on a throwaway clone of this
+  branch with `node dist/cli.js`:
+  - `dna show`, `paths`, `directives list`, `workflow list`, `memory search`, `memory history` all
+    exit 0;
+  - `memory approve dl-047-… --reason probe` wrote `wf(decision-log): approve … [in-discussion →
+    ready]`, and `memory deprecate` wrote `… [ready → deprecated]`;
+  - `memory add --type bug` failed on `.wingfoil/.wingfoil/…` (`bug-156`).
+- 5: the empty history entry for the move commit is accepted as is.
+- 6: **kept as a standing note.** `test/cli/own-memory.integration.test.ts` depends on the real
+  history of `bug-077`. A history rewrite that changes those subjects must update the test in the
+  same change.
+- 7: no version bump for path-only edits, accepted.
