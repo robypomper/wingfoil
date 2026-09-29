@@ -3,7 +3,7 @@ id: e2e-smoke-rel-v0.2.2-plan
 type: plan
 title: "E2E smoke — v0.2.2 (fresh-init + CLI black-box gate, mcp-registration, examples)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "e2e-smoke"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -232,3 +232,13 @@ lint` exit 0; `npm run docs:api` exit 0; `npm run check:lockfile` exit 0; `npm p
 `bug-132..134` (`triaged`, unscheduled). Posture: pending the approver's D1 ruling — under either
 option the run passes, so the posture decides only what a future v0.2.x run would do. Awaiting the
 approver's `gate` approval.
+
+### 2026-09-29 — D1 ruled, gate approved (approver, in chat)
+
+- **D1 → (b) hard-reject.** The approver ruled that v0.2.2's gate already runs in hard-reject, so a
+  failing `e2e-smoke` gate blocks `release-submit`. The run passed, so the ruling blocked nothing.
+  It is written into `dl-023`'s "Staging record" as its own `docs(self)` commit. The `e2e-smoke.yaml`
+  text amendment still rides with `bug-134`.
+- **`gate` approved** by Roberto Pompermaier (approver) on 2026-09-29, on the S6 report above: PASS.
+- **S7:** merge `qa/e2e-smoke-v0.2.2` into `main` with `--no-ff`, finalize this plan by hand, and
+  remove the worktree. Push is left to the approver. Next phase: `release-submit`.
