@@ -2,7 +2,7 @@
 id: "dl-130-visibility-steps-in-the-release-flow"
 type: decision-log
 title: "A release reaches npm and nowhere else: no GitHub Release, no MCP Registry entry, no metrics snapshot and no check of the external state it depends on — four steps for the release flow"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
