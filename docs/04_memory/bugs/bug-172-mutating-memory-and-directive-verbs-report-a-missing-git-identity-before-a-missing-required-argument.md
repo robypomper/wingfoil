@@ -5,7 +5,7 @@ title: "Mutating memory and directive verbs report a missing git identity before
 status: open
 severity: "high"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.2.2"
 feature: "P5.1.4"
 contributor: ""
 credit: ""
