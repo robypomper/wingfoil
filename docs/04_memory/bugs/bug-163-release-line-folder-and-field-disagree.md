@@ -1,45 +1,53 @@
 ---
 id: bug-163-release-line-folder-and-field-disagree
 type: bug
-title: "release-line folder and field disagree"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "A release's `release-line` field holds `v1` while its folder is `planning/rl-v1/`, so `memory add --type release` files a new release under a folder no other release uses, or with a field value no other release has"
+status: open
+severity: "medium"
+release-origin: "v0.2.2"
+release: ""
+feature: "P1.13"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`memory.yaml` gives `release` the path `docs/04_memory/planning/{release-line}/{id}.md`, filled from
+the release's `release-line` field (`task-110`'s `--set`). Every committed release sits under
+`planning/rl-v1/`, the release-line's **id**, but carries `release-line: "v1"`, the release-line's
+**version** (`grep -h "^release-line" docs/04_memory/planning/rl-v1/*.md` → 6 × `"v1"`). No value of
+the field puts a new release in the same folder as the existing ones with the same field value.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. On a clone of this repository at `68f64091` or later, build it.
+2. Run `memory add --type release --title x --set kind=patch --set version=v0.2.3 --set
+   release-line=v1`.
+3. Run the same with `--set release-line=rl-v1`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+One value that is both the folder and the field the other releases carry: either the path is
+resolved from the release-line's id while the field keeps its declared meaning, or the field holds
+the release-line's id everywhere.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+Observed in `task-123`'s AC 4 run (2026-09-29):
+- Step 2 creates `docs/04_memory/planning/v1/patch-v0.2.3.md`, in a new `planning/v1/` folder beside
+  `planning/rl-v1/`.
+- Step 3 lands in `planning/rl-v1/`, with `release-line: "rl-v1"`, a value no other release has.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Found at `task-123`'s review (2026-09-29). The approver ruled it a bug.
+- Which of the two is right, the field's meaning (version or id) or the path pattern, is a
+  `memory.yaml` / `spec-001` question. The fix may need a decision first.
+- `dl-090` (arguments of workflow tokens, e.g. `{release.version}`) may be where a path such as
+  `planning/rl-{release-line}/` or a lookup of the release-line's id belongs.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->
