@@ -63,9 +63,12 @@ the absolute path, for every DNA read. The CLI prints the same raw message.
   `E_NO_GIT_ROOT` / `E_NOT_AT_GIT_ROOT`. `wingfoil init` shares the same resolver legitimately (it must
   run in an uninitialised git root); `mcp` needs an additional `.wingfoil/` existence check.
 - **Bears on `dl-026`** (a repo-versioned `.mcp.json` registering `wingfoil mcp` at this repository's
-  root): this repository has **no** `.wingfoil/` at its root (`ls .wingfoil` → "No such file or
-  directory"; the dogfooded config lives under `docs/self/.wingfoil/`), so every agent session opened
-  in a clone would hit exactly this failure.
+  root): when this was filed, this repository had **no** `.wingfoil/` at its root (the dogfooded
+  config lived under `docs/self/.wingfoil/`), so every agent session opened in a clone would have hit
+  exactly this failure. **Updated 2026-09-29:** `task-111` moved the configuration to the root (merge
+  `582ec08a`), so a clone of this repository no longer hits it, and `dl-026`'s registration
+  (`task-112`) is no longer blocked by it. The bug itself stands for any git root without a
+  `.wingfoil/`.
 - **Bears on `dl-049`**: under `task-058`'s per-request DNA read, a construction/start-time check is the
   only place this can be refused cleanly; option (b) there routes that failure through `runMcp`'s
   format-aware pre-flight.

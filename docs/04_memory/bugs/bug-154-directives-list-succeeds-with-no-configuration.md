@@ -34,9 +34,12 @@ Reproduced against `wingfoil@0.2.1` (`wingfoil --version` → `0.2.1`), in an em
    - `wingfoil --format json workflow list` → `{"error":"ENOENT: … .wingfoil/workflows.yaml"}`
    - `wingfoil --format json memory search` → `{"error":"ENOENT: … .wingfoil/memory.yaml"}`
 
-The same happens in this repository today, whose configuration sits under `docs/self/` (`bug-075`):
-`wingfoil --format json directives list` run at the root answers `{"entries":[],"warnings":[]}`,
-exit 0, while `dna show` fails.
+Until 2026-09-29 the same happened in this repository, whose configuration sat under `docs/self/`
+(`bug-075`): `wingfoil --format json directives list` run at the root answered
+`{"entries":[],"warnings":[]}`, exit 0, while `dna show` failed. **Updated 2026-09-29:** `task-111`
+moved the configuration to the root (merge `582ec08a`), so this repository no longer reproduces the
+bug. There `directives list` now reads the real configuration and exits 0 with its entries. The
+reproduction above, in a git repository with no `.wingfoil/`, still stands.
 
 ## Expected Behavior
 
