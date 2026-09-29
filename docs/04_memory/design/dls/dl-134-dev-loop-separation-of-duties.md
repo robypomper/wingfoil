@@ -2,7 +2,7 @@
 id: dl-134-dev-loop-separation-of-duties
 type: decision-log
 title: "In `dev-loop` the same role writes the tests and the code that must pass them, and nothing keeps two phases in distinct agents; `red` moves to `qa`, `red`'s tests are frozen in `green`, and each phase declares its independence"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
