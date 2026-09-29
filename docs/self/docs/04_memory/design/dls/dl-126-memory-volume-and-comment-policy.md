@@ -2,7 +2,7 @@
 id: "dl-126-memory-volume-and-comment-policy"
 type: decision-log
 title: "Memory grew seven-fold in one release while the code grew two-and-a-half-fold, and nearly half of `src/` lines are comments — a volume and comment policy"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.4"
 contributor: ""
