@@ -2,7 +2,7 @@
 id: "dl-078-should-reason-refuse-c0-control-characters"
 type: decision-log
 title: "Should `--reason` refuse C0 control characters as content? The tool now parses them correctly, but a human reading `git log` can still be misled by what renders invisibly"
-status: in-discussion
+status: ready
 context: "audit-trail"
 release: ""
 contributor: ""
