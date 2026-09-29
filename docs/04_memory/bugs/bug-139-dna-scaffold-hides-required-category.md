@@ -2,7 +2,7 @@
 id: "bug-139-dna-scaffold-hides-required-category"
 type: bug
 title: "The `init`-scaffolded `dna.yaml` gives `technologies: []` with no example of the required `{name, category}` shape"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"
