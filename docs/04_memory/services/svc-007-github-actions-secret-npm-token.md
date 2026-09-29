@@ -53,6 +53,12 @@ type and expiry are checked on npmjs.com (Access Tokens) by the approver.
 
 ## Management
 
+- **Retired on 2026-09-29** (`memory deprecate`, `9ad827ad`). The approver revoked the stage-only
+  token on npmjs.com, and `task-116` deleted the secret (`gh secret delete NPM_TOKEN --env
+  npm-publish -R wingfoil/wingfoil`; then `…/environments/npm-publish/secrets` → `total_count: 0`).
+  Its replacement is `svc-009-npm-trusted-publisher-for-wingfoil`, `adr-011` decision point 2. The
+  deprecate `Reason:` cites point 5, the approver's registry-side setup that carried it out.
+
 - **Owner:** the `approver` role.
 - **Rotate:** not planned: the secret is being retired, not renewed.
 - **Retire (`adr-011` point 2):** once the stage-only trusted publisher is configured on npmjs.com,

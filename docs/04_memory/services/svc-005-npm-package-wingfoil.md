@@ -32,15 +32,14 @@ it (`wingfoil-released`, `dl-095`), so an unavailable package breaks both users 
   `git+https://github.com/robypomper/wingfoil.git`.
 - Publishing: `.github/workflows/publish.yml` on a `vX.Y.Z` tag; since `task-113` its `promote` job
   runs `npm stage publish` as a stage-only **trusted publisher over GitHub OIDC**, and a maintainer
-  approves the staged version with 2FA (`adr-011`). The trusted publisher itself is **not configured
-  yet**: the approver configures it on npmjs.com against `wingfoil/wingfoil` after the transfer
-  (`adr-011` point 2; `release-planning-rel-v0.2.2-plan` §C). Until then the `NPM_TOKEN` secret
-  holding a stage-only token still exists (`svc-007-github-actions-secret-npm-token`).
-- Account 2FA was **disabled** when the approver reported it on 2026-09-29, and staged publishing
-  needs it to approve anything (`release-planning-rel-v0.2.2-plan` §"Approver inputs received").
-  Whether it has been enabled since is not recorded in any document this registration read.
-- `adr-011` adds, once the trusted publisher exists, the package setting "require two-factor
-  authentication and disallow tokens".
+  approves the staged version with 2FA (`adr-011`). The trusted publisher was configured by the
+  approver on 2026-09-29, after the transfer (`svc-009-npm-trusted-publisher-for-wingfoil`), and the
+  stage-only token and its `NPM_TOKEN` secret are gone (`svc-007`, `deprecated`).
+- Account 2FA: enabled by the approver on 2026-09-29, the approver's report at `task-116`. It had been
+  **disabled** at the earlier report of the same day (`release-planning-rel-v0.2.2-plan` §"Approver
+  inputs received").
+- Publishing access: "require two-factor authentication and disallow tokens", set by the approver on
+  2026-09-29 (`adr-011`).
 
 ## Verification
 
@@ -55,6 +54,6 @@ access, which no read-only public command shows.
 - **Owner:** the `approver` role (maintainer account `robypomper`).
 - **Publish:** only through `release-publishing` and `publish.yml`; never by hand.
 - **Before the v0.2.2 publish:** account 2FA on, trusted publisher configured, stage-only token
-  revoked (`adr-011`); record each change here in a `docs(self)` commit.
+  revoked (`adr-011`). All three were done on 2026-09-29 (`task-116`).
 - **Deprecate a version** with `npm deprecate` through the release flow; retiring the package itself
   is an `end-of-life` decision, recorded with `memory deprecate`.
