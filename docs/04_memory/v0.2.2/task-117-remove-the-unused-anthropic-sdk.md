@@ -194,3 +194,27 @@ Open items for the approver, none fixed here:
   `spec-006` §Context. Needs a bug if it should be scheduled.
 - The SDK stays in `package-lock.json` (dev-only, under `wingfoil-released`) until the pin moves
   past a build that depends on it; the next published build no longer will.
+
+**Approver's ruling at the review gate (2026-09-29).**
+- **`chalk` is removed in this task**, as the same class of defect (a runtime dependency `src/` does
+  not import). `4adc4e56`: `npm uninstall chalk` (npm 11.6.2); `package.json` loses one line, the lock
+  loses the root `dependencies` line and gains `"dev": true` on `chalk`, `ansi-styles`,
+  `color-convert`, `color-name`, `has-flag`, `supports-color` (now reachable only through the jest
+  toolchain); no entry added or removed. A second `npm install` leaves the lock byte-identical (`cmp`).
+  `npm ls chalk --depth=0` → `└── (empty)`. The guard's `KNOWN_UNIMPORTED` is now `[]`, the mechanism
+  kept. In a scratch clone at `b44a58a2`: npm 10.9.0 `ci` → exit 0, tree clean; `check:mcp` → exit 0;
+  `npm ci --omit=dev` → `added 96 packages`, neither `node_modules/chalk` nor
+  `node_modules/@anthropic-ai` present.
+- Descriptions fixed (`b44a58a2`): `.wingfoil/dna.yaml` (the `chalk` technology entry and the `cli`
+  module description; no second bump, already 1.2 here), `CLAUDE.md` §4, Product Brief §Technical
+  Stack (already 1.5 here), `src/cli/index.ts` TSDoc, `spec-006` §Context (folded into its 2026-09-29
+  revision note), `spec-008` §Context with its own 2026-09-29 revision note (**not yet signed off**).
+  Left as historical records: `adr-002`, `adr-005`, `adr-010`, `dl-001`, `dl-010`, `spec-008` Process
+  Notes' cross-check sentence, `initial-design-rl-v1-plan`, and the v0.1/v0.2 task files
+  (`task-001`, `task-006`, `task-031`, `task-063`, `task-073`).
+  `grep -rn chalk src/` → nothing.
+- **`spec-006`'s 2026-09-29 revision is signed off.**
+- Checks after the change, `main` unchanged (`git log HEAD..main` → empty): `npx jest --coverage` →
+  156 suites / 2540 tests passed, coverage unchanged (98.62 / 94.18 / 93.79 / 99.47 %); `npm run lint`,
+  `npx tsc --noEmit`, `npm run docs:api`, `check:lockfile`, `check:mcp` → exit 0; `npm pack --dry-run`
+  file list 339 paths, `diff` against the baseline → identical.
