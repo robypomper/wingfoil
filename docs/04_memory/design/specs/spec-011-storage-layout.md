@@ -3,7 +3,7 @@ id: spec-011-storage-layout
 type: tech-spec
 title: ".wingfoil/ directory layout and initialization detection"
 status: approved
-scope: "docs/self/.wingfoil/"
+scope: ".wingfoil/"
 supersedes: ""
 tmpl_version: 260703
 ---
@@ -21,20 +21,22 @@ re-implement path resolution and init-detection with subtly different (and diver
 REQ-SYS-01's fit criterion that a fresh `git clone` reconstructs 100% of pillar state with no external
 source.
 
-This spec is scoped to `docs/self/.wingfoil/` — the actual, current, hand-authored dogfooding
-directory (see `docs/self/.wingfoil/README.md`) — not a hypothetical repo-root layout. It documents the
+This spec is scoped to this repository's `.wingfoil/` — the actual, current, hand-authored dogfooding
+directory (see `.wingfoil/README.md`), at the repository root since `task-111` moved it there from
+`docs/self/.wingfoil/`. It documents the
 layout **as it exists today** on the `design/initial-design` branch and defines the root-detection /
 init-marker algorithm the (not-yet-built) `wingfoil` tool must use once this directory moves to the
 repository root.
 
 ## Specification
 
-### Directory layout (ground truth: `docs/self/.wingfoil/`, verified via `find docs/self/.wingfoil -maxdepth 4`)
+### Directory layout (ground truth: `.wingfoil/`, verified via `find .wingfoil -maxdepth 4`)
 
 ```
-docs/self/.wingfoil/                  ← WingFoil root for the dogfooding setup (temporary location;
-│                                        moves to repo-root .wingfoil/ once the tool exists — see README.md)
+.wingfoil/                            ← WingFoil root for the dogfooding setup, at the repository root
+│                                        (moved from docs/self/.wingfoil/ by task-111 — see README.md)
 ├── README.md                         ← human-facing layout doc + rationale (this spec formalizes it)
+├── WORKFLOW.md                       ← human-facing workflow reference (diagrams, phase by phase)
 ├── dna.yaml                          ← Project DNA (P2.4): modules, stack, team & roles, conventions
 ├── memory.yaml                       ← Memory element registry (P1.13): per-type path/state machine/template
 ├── roles.yaml                        ← Directive role assignments (P3.2/P3.7): role → directive list
@@ -90,13 +92,12 @@ docs/self/.wingfoil/                  ← WingFoil root for the dogfooding setup
         └── end-of-life.yaml           (kind: sub, all remaining files)
 ```
 
-Note: `docs/self/.wingfoil/` does **not** currently contain an `agents.yaml` file, an
+Note: `.wingfoil/` does **not** currently contain an `agents.yaml` file, an
 `.assignments.yaml` file, or a flat `memory/<type>/` content subtree — these appeared in an earlier
 draft pass and are superseded by the files actually present: role→directive
 bindings live in top-level `roles.yaml`, and Memory element **content** (as opposed to templates)
-resolves via the per-type `path` pattern declared in `memory.yaml` against the `docs/self/` root (e.g.
-`docs/04_memory/planning/{id}.md` → `docs/self/docs/04_memory/planning/{id}.md`), landing under
-`docs/self/docs/04_memory/`, not inside `.wingfoil/`.
+resolves via the per-type `path` pattern declared in `memory.yaml` against the repository root (e.g.
+`docs/04_memory/planning/{id}.md`), landing under `docs/04_memory/`, not inside `.wingfoil/`.
 
 ### Top-level config files
 
@@ -202,7 +203,7 @@ within `.wingfoil/` is excluded.
   guessing. Changing a top-level file name (e.g. `roles.yaml`) or the `built-in`/`custom` split
   requires revising this spec first, then the dependent code.
 - `wingfoil init` (not yet implemented) is the eventual producer of this layout at the repository
-  root; until then, this directory under `docs/self/` is the hand-authored reference implementation
+  root; until then, this repository's hand-authored `.wingfoil/` is the reference implementation
   agents must keep in sync with any change to this spec.
 - The MCP server's read-only Resources layer and the CLI's config-inspection commands both resolve
   paths through the algorithms defined here, keeping the dual CLI/MCP interface (REQ-SYS-05)
@@ -224,3 +225,15 @@ two files to `docs/self/.wingfoil/directives/custom/` made both listings false; 
 measured with `ls docs/self/.wingfoil/directives/custom/*.md | wc -l`. Nothing about the layout,
 the `built-in/`-versus-`custom/` split or the `roles.yaml` binding rule changes. Edited in place
 without a supersede or a state change, per the `spec-001` precedent this spec's siblings cite.
+
+**Revision (2026-09-29) — the dogfooding root moves to the repository root, per
+`task-111-configuration-moves-to-the-repository-root` (`bug-075`).** `git mv` moved
+`docs/self/.wingfoil/` to `.wingfoil/` and `docs/self/docs/04_memory/` to `docs/04_memory/`; the
+scope, the tree's root line, the Memory-content note and the reference-implementation consequence
+now name the root paths. The tree gains `WORKFLOW.md`, moved into `.wingfoil/` by the same task from
+`docs/self/`. Measured against the tree after the move (`find .wingfoil -maxdepth 4 -type f`), three
+files exist that the tree does not list — `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`
+and `workflows/custom/e2e-smoke.yaml` — a gap older than this revision, which it records rather than
+closes. Nothing about the `built-in/`-versus-`custom/` split, the file names or the
+root-detection algorithm changes. The cross-check paragraph and the 2026-09-24 revision above keep
+the paths they were measured at. Edited in place without a supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's sign-off at that task's review.

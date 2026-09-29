@@ -3,14 +3,14 @@ id: spec-007-secret-hygiene-patterns
 type: tech-spec
 title: "Secret-hygiene scan patterns and procedure"
 status: approved
-scope: "docs/self/.wingfoil/directives/custom/security-secrets.md"
+scope: ".wingfoil/directives/custom/security-secrets.md"
 supersedes: ""
 tmpl_version: 260703
 ---
 
 ## Context
 
-The `security-secrets` directive (`docs/self/.wingfoil/directives/custom/security-secrets.md`) states
+The `security-secrets` directive (`.wingfoil/directives/custom/security-secrets.md`) states
 the rule — "never commit credentials, tokens, or secrets to git" — but a directive is prose, not a
 checkable artefact. REQ-SEC-08 requires that "a scan of committed `.wingfoil/` content matches 0 known
 secret patterns"; REQ-SEC-10 requires built-in templates be integrity/schema-checked before installation
@@ -31,8 +31,8 @@ REQ-SEC-08/REQ-SEC-10 already prescribe.
 The secret-hygiene scan (hereafter "the scan") walks every **text file** tracked or staged under:
 
 - `.wingfoil/` (repo-root, once `init` exists) — DNA, directives, workflows, memory documents.
-- `docs/self/.wingfoil/` and `docs/self/docs/04_memory/` — the current self-hosted config, same rule
-  applied by analogy until the tool-managed root exists.
+- `docs/04_memory/` — this repository's own Memory documents, which live outside `.wingfoil/`
+  under the `path` patterns of its `memory.yaml`: same rule, applied by analogy.
 
 Binary files (detected via a null-byte sniff on the first 8KB, consistent with `git diff --numstat`
 binary detection) are skipped — they are out of scope for this spec.
@@ -194,8 +194,18 @@ Finding = { pattern_id, severity, file, line, column, excerpt }
 Authored proactively during `initial-design` (rl-v1) to give the `security-secrets` directive and
 REQ-SEC-08/REQ-SEC-10 a concrete, checkable backing, since neither the directive nor the SARD requirement
 itself specifies pattern content. Grounded directly in
-`docs/self/.wingfoil/directives/custom/security-secrets.md` and
+`.wingfoil/directives/custom/security-secrets.md` and
 `docs/02_requirements/03_sard/05_security-compliance.md` (REQ-SEC-08, REQ-SEC-10); no prior-art source
 was available, so the pattern set and scan procedure were authored fresh, favoring well-known,
 low-false-positive secret shapes (vendor-prefixed tokens, PEM headers) as `block` severity and
 entropy-adjacent heuristics as `warn` severity to keep the design deterministic and dependency-free.
+
+**Revision (2026-09-29) — §1's self-hosted analog follows the configuration to the repository root,
+per `task-111-configuration-moves-to-the-repository-root` (`bug-075`).** The second bullet named the
+nested dogfooding copies, `docs/self/.wingfoil/` and `docs/self/docs/04_memory/`, "until the
+tool-managed root exists". That task moved both to the root with `git mv`: the first is now the
+`.wingfoil/` of the first bullet, and the analog that remains is the Memory folder, `docs/04_memory/`.
+`SCAN_SURFACE_ROOTS` (`src/validation/secret-scan.ts`) changed with it, to `.wingfoil` and
+`docs/04_memory`. The scanned content is the same files at their new paths. Edited in place without a
+supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's
+sign-off at that task's review.

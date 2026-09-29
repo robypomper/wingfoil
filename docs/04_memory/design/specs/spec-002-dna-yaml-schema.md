@@ -3,7 +3,7 @@ id: spec-002-dna-yaml-schema
 type: tech-spec
 title: "dna.yaml schema (DnaYaml)"
 status: approved
-scope: "docs/self/.wingfoil/dna.yaml"
+scope: ".wingfoil/dna.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version
 ---
@@ -14,8 +14,8 @@ tmpl_version: 260703   # Orignal template version
 `project` identity, `modules`, `stacks` (technologies + methodologies), `team` (members / agents /
 roles), and `paths` — that lets humans and agents navigate the project without full codebase scans.
 WingFoil manages its own development, so the authoritative live instance is
-`docs/self/.wingfoil/dna.yaml` (it will move to the repository-root `.wingfoil/dna.yaml` once the tool
-can manage it).
+`.wingfoil/dna.yaml` at the repository root (moved there from `docs/self/.wingfoil/dna.yaml` by
+`task-111`).
 
 Without a single shared schema definition, the CLI and the MCP server would each re-implement parsing
 and validation of this file, and they could drift — a divergence forbidden by **REQ-SYS-05** (one
@@ -346,3 +346,9 @@ silently.
 
 Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
 `spec-006`'s 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — the live instance's path, per
+`task-111-configuration-moves-to-the-repository-root` (`bug-075`).** The Context named
+`docs/self/.wingfoil/dna.yaml` and said it "will move to the repository-root `.wingfoil/dna.yaml`";
+that task moved it. The illustrative example under Specification is not the live file and keeps its
+values. Edited in place without a supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's sign-off at that task's review.

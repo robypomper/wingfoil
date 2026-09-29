@@ -3,7 +3,7 @@ id: spec-003-workflows-yaml-schema
 type: tech-spec
 title: "workflows.yaml manifest + Workflow DSL schema"
 status: approved
-scope: "docs/self/.wingfoil/workflows.yaml + docs/self/.wingfoil/workflows/**/*.yaml"
+scope: ".wingfoil/workflows.yaml + .wingfoil/workflows/**/*.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version
 ---
@@ -13,12 +13,12 @@ tmpl_version: 260703   # Orignal template version
 The Project Workflow pillar (P4.1) is configured by two kinds of YAML file that today have
 **no shared, validated definition**:
 
-1. **The main manifest** — `docs/self/.wingfoil/workflows.yaml`. It carries a format `version` and
+1. **The main manifest** — `.wingfoil/workflows.yaml`. It carries a format `version` and
    a single ordered list of workflow-file paths to load (P4.1: *"main file `.wingfoil/workflows.yaml`
    includes built-in/custom workflows"*). Every WingFoil command reads it at startup to build the
    workflow registry; a divergent or unvalidated shape breaks `workflow list/start/next/status`
    (P4.2–P4.6) and the `wingfoil://workflows` MCP resource.
-2. **The per-workflow definition files** — `docs/self/.wingfoil/workflows/**/*.yaml` (currently all
+2. **The per-workflow definition files** — `.wingfoil/workflows/**/*.yaml` (currently all
    under `custom/`). Each declares a workflow's `kind`, its bound `element`, and its ordered `phases`
    with roles, atomic actions, composition (`include`/`iterate_over`/`where` — P4.16), deliverables
    (`produces`), gates (`checks`, `approval`), and routing (`fallback`). These are loaded and executed
@@ -39,7 +39,7 @@ structurally validated: layer 1 for `workflows.yaml`, layer 2 for every file it 
 
 ### Layer 1 — `WorkflowsYaml` (the main manifest)
 
-Resolved against `.wingfoil/workflows.yaml` under the project (or `docs/self/`) root. Fields:
+Resolved against `.wingfoil/workflows.yaml` under the project root. Fields:
 
 | Field     | Type                 | Required | Description                                                                                                                            |
 |-----------|----------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------|
@@ -72,7 +72,7 @@ Resolution semantics for each `include` path:
 3. Parse and validate the referenced file against **Layer 2** (below). At least one loaded workflow
    must be `kind: main` for the registry to be startable (REQ-STATE-03 allows several open mains).
 
-> **Required rename (`includes` → `include`).** The current `docs/self/.wingfoil/workflows.yaml`
+> **Required rename (`includes` → `include`).** The current `.wingfoil/workflows.yaml`
 > uses the key `includes:` (plural). This spec makes `include:` (singular) canonical — matching the
 > P4.1 prose and the `include:` phase field of Layer 2 — so the manifest key and the phase-composition
 > key read the same. Renaming the key in `workflows.yaml` is a **required follow-up config change**
@@ -214,7 +214,7 @@ And the review gate with state-resetting fallback (grounded in `dev-loop.yaml`):
 ## Consequences
 
 - **Required config change:** rename the manifest key `includes:` → `include:` in
-  `docs/self/.wingfoil/workflows.yaml`. Until done, the manifest fails Layer-1 validation (missing
+  `.wingfoil/workflows.yaml`. Until done, the manifest fails Layer-1 validation (missing
   required `include`). This is the single follow-up file change this spec mandates.
 - The workflow engine, `wingfoil workflow list/start/next/status/show` (P4.2–P4.7), and the
   `wingfoil://workflows` MCP resource all consume these two schemas; changing a field name here is a
@@ -230,8 +230,13 @@ And the review gate with state-resetting fallback (grounded in `dev-loop.yaml`):
 
 ## Process Notes
 
-Grounded in the actual repo files: `docs/self/.wingfoil/workflows.yaml` (confirmed the current key is
+Grounded in the actual repo files: `.wingfoil/workflows.yaml` (confirmed the current key is
 `includes:`, plural — the rename target), `workflows/custom/release-line-cycle.yaml` and
 `workflows/custom/dev-loop.yaml` (every Layer-2 field — `include`, `iterate_over`, `where`, `produces`,
 `checks.pre/post`, `approval.by_role`, `fallback.step/set_state`, and the `actions`/checks expression
 families — is drawn from these), plus P4.1/P4.16 in `docs/01_vision/06_features.md`.
+
+**Revision (2026-09-29) — Layer 1's resolution root, per
+`task-111-configuration-moves-to-the-repository-root` (`bug-075`).** Layer 1 said the manifest
+resolves "under the project (or `docs/self/`) root"; the `docs/self/` alternative was this
+repository's nested dogfooding root, which that task moved to the repository root. Edited in place without a supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's sign-off at that task's review.
