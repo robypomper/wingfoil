@@ -2,7 +2,7 @@
 id: "dl-072-init-scaffold-per-type-state-machines"
 type: decision-log
 title: "Should the `init` scaffold ship one shared `defaults` state machine, or a per-type `states:` block for each of the seven types?"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
