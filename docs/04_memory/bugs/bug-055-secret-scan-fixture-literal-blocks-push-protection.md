@@ -181,6 +181,15 @@ commits), `task-057-builtin-directive-templates` (`f0076f9`), `dl-035-task-branc
 
 ## Triage & Execution Notes
 
+- **Recurred on 2026-09-29.** The push of v0.2.2's dev-loop (`4770a52c..071705dd`, 313 commits) was
+  rejected by push protection (GH013, "Amazon AWS Secret Access Key") at commit `3513ecc5` (`task-111`),
+  `test/validation/secret-scan.test.ts:68`, the same fixture literal. `task-111` changed only paths in
+  that file, not the literal, but the new blob was a new detection. The approver cleared it again
+  through the allow-secret URL ("used in tests"), and the push went through. So a **second** allowlist
+  exception now exists. Any commit that touches this test file will be blocked again until the
+  fixture stops being a secret-shaped literal.
+
+
 Raised during the round-6 governance ingest (2026-09-21), from a real push attempt reported by the
 approver. Filed unfixed — the agent stops at `open`.
 
