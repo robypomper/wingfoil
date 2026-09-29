@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.7"
+version: "1.8"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -53,6 +53,8 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
 | `bug-163-release-line-folder-and-field-disagree` | `task-123` review (2026-09-29, approver: bug) | releases sit under `planning/rl-v1/` but carry `release-line: "v1"`; no `--set` value matches both | medium |
 | `bug-165-illegal-approve-names-a-wrong-target` | `task-114` review (2026-09-29, approver: bug) | the illegal-transition error prints the verb's canonical edge (`planned -> triaged` for `approve` on a `planned` bug), a backward or unreachable move | low |
 | `bug-166-release-field-means-two-things-on-a-service` | `task-124` review (2026-09-29, approver: bug) | a `service`'s `release` means "set up in", while `traceability` gives `release` the uniform meaning "assigned to" | low |
+| `bug-167-publish-secrets-dry-run-fails-under-coverage` | `task-120` review (2026-09-29, approver: bug) | a real `npm publish --dry-run` case fails under full `jest --coverage`, passes alone | low |
+| `bug-168-missing-positional-messages-disagree` | `task-120` review (2026-09-29, approver: bug) | missing-operand errors have two shapes (`memory submit <id>` vs `wingfoil dna update <path> --value <value>`) | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -126,3 +128,10 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
   benchmark as a service) and `dl-105` (a service verify sweep). All three mention "release" and
   "service" on the same line, and none is about the field's meaning. `dl-088`, which introduced the
   field, is cited in the bug.
+- **Triage (2026-09-29):** `bug-166` → `triaged`, v0.3 (`e796697a`).
+- **Batch 8, `task-120` review (2026-09-29).** `bug-167` and `bug-168`, as returned by the pinned
+  build's `memory add` (`1b129469`, `3bb7b6e1`) and `submit` (`37b4f09e`, `486c57b3`). `bug-168`'s
+  messages were reproduced on a scratch repository with `dist/cli.js` built from `b9458ffe`.
+  Duplicate search: `bug-058` and `bug-003` are the same family as `bug-167` (process-spawning tests
+  under load), not the same test. `bug-035` covers the `ENOENT` part of `task-120`'s finding and is
+  excluded from `bug-168`.
