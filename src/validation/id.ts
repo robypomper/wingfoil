@@ -100,6 +100,64 @@ function offendingChars(literal: string): string[] {
   return out;
 }
 
+/** A non-numeric token name: a frontmatter field or context name (`version`, `release-line`, `tmpl_version`). */
+const FIELD_TOKEN_RE = /^[a-z][a-z0-9_-]*$/;
+
+/**
+ * Whether `value` is a legal ID piece — non-empty and wholly inside the shared ID character class
+ * `[a-z0-9-.]` (spec-009 §1). The same test {@link generateId} applies to every rendered token value,
+ * exported so a caller that materializes a token itself (`memory add`'s field tokens,
+ * task-110) refuses exactly what `generateId` would.
+ */
+export function isIdPiece(value: string): boolean {
+  return ID_PIECE_RE.test(value);
+}
+
+/**
+ * The `{token}` names of an `id_pattern` (or a `path` pattern — same brace syntax), in order of
+ * appearance, duplicates kept. `{n}` family tokens are returned as written (`n`, `nnn`).
+ */
+export function patternTokens(pattern: string): string[] {
+  return parsePattern(pattern)
+    .filter((segment) => segment.kind === 'token')
+    .map((segment) => segment.value);
+}
+
+/**
+ * Validate an `id_pattern` on its own, without rendering it — the check a pattern declared somewhere
+ * other than `memory.yaml` gets, e.g. a workflow `memory.add` action's per-action override
+ * (`spec-001` "Per-action override", `dl-107` S3 (a), task-110). Returns one message per problem, in
+ * pattern order; an empty array means the pattern is well-formed:
+ *
+ * - an empty pattern;
+ * - literal characters outside `[a-z0-9-.]` — the same rule and wording as {@link generateId}'s
+ *   Pass A;
+ * - a token that is neither a `{n}`-family token nor a field name `[a-z][a-z0-9_-]*`. A **dotted**
+ *   token (`{release.version}`) is named as such: it would read a field of an element in the
+ *   workflow's `element:` chain, which is `dl-090`'s resolution and undefined until that lands.
+ */
+export function idPatternIssues(pattern: string): string[] {
+  if (pattern.length === 0) return ['pattern is empty'];
+  const issues: string[] = [];
+  const segments = parsePattern(pattern);
+  const badChars: string[] = [];
+  for (const segment of segments) {
+    if (segment.kind !== 'literal') continue;
+    for (const ch of offendingChars(segment.value)) if (!badChars.includes(ch)) badChars.push(ch);
+  }
+  if (badChars.length > 0) {
+    issues.push(`pattern contains character(s) outside [${ID_CHAR_CLASS}]: ${badChars.join(', ')}`);
+  }
+  for (const segment of segments) {
+    if (segment.kind !== 'token') continue;
+    const token = segment.value;
+    if (isNumericToken(token) || FIELD_TOKEN_RE.test(token)) continue;
+    const dotted = token.includes('.') && token.split('.').every((part) => FIELD_TOKEN_RE.test(part));
+    issues.push(dotted ? `dotted token {${token}} is not defined until dl-090` : `malformed token {${token}}`);
+  }
+  return issues;
+}
+
 /**
  * Generate a concrete ID from `pattern` and `values`.
  *

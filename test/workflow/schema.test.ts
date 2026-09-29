@@ -139,3 +139,52 @@ describe('WorkflowsYaml/Workflow — validates the real, live docs/self/.wingfoi
     }
   });
 });
+
+/**
+ * task-110 AC 5 — `dl-107` S3 (a), `spec-001` "Per-action override": a `memory.add` action may carry
+ * its own `id_pattern` argument, validated like any other pattern. A dotted token such as
+ * `{release.version}` reads a field of an element in the workflow's `element:` chain — `dl-090`'s
+ * resolution, not yet implemented — so until it lands the schema refuses it.
+ */
+describe('Workflow — a memory.add action\'s id_pattern argument (task-110, dl-107 S3 (a))', () => {
+  const withAction = (action: string) => ({
+    name: 'retrospective',
+    kind: 'sub',
+    phases: [{ name: 'capture', role: 'facilitator', actions: ['agent.execute', action] }],
+  });
+  const messages = (action: string): string[] => {
+    const result = Workflow.safeParse(withAction(action));
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  };
+
+  it('accepts a well-formed undotted override', () => {
+    expect(Workflow.safeParse(withAction('memory.add(type: decision-log, id_pattern: "retro-{version}")')).success).toBe(true);
+    expect(Workflow.safeParse(withAction("memory.add(type: task, id_pattern: 'task-{n}-{slug}')")).success).toBe(true);
+  });
+
+  it('leaves a memory.add action without an id_pattern argument untouched, dotted tokens elsewhere included', () => {
+    expect(Workflow.safeParse(withAction('memory.add(type: decision-log, title: "Retrospective {release.version}")')).success).toBe(true);
+    expect(Workflow.safeParse(withAction('memory.add(type: task, tags: ["{release.version}"])')).success).toBe(true);
+  });
+
+  it('refuses a dotted token, naming it and dl-090, at the action\'s path', () => {
+    const result = Workflow.safeParse(withAction('memory.add(type: decision-log, id_pattern: "retro-{release.version}")'));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues).toHaveLength(1);
+    expect(result.error.issues[0]?.path).toEqual(['phases', 0, 'actions', 1]);
+    expect(result.error.issues[0]?.message).toBe(
+      'memory.add id_pattern "retro-{release.version}": dotted token {release.version} is not defined until dl-090',
+    );
+  });
+
+  it('refuses literal characters outside [a-z0-9-.] and malformed tokens, as a pattern check does', () => {
+    expect(messages('memory.add(type: adr, id_pattern: "ADR_{n}")')).toEqual([
+      'memory.add id_pattern "ADR_{n}": pattern contains character(s) outside [a-z0-9-.]: A, D, R, _',
+    ]);
+    expect(messages('memory.add(type: adr, id_pattern: "adr-{Slug}")')).toEqual([
+      'memory.add id_pattern "adr-{Slug}": malformed token {Slug}',
+    ]);
+    expect(messages('memory.add(type: adr, id_pattern: "")')).toEqual(['memory.add id_pattern "": pattern is empty']);
+  });
+});

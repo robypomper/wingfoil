@@ -173,7 +173,15 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     // --type/--title/--tags`): Commander rejects an unknown option, so each declared option must be
     // registered explicitly with a `<value>` operand (distinguishing it from a boolean `--flag`).
     for (const option of command.options ?? []) {
-      target.option(`--${option.name} <value>`, option.description ?? `${option.name} value`);
+      const flags = `--${option.name} <${option.valueName ?? 'value'}>`;
+      const description = option.description ?? `${option.name} value`;
+      // A repeatable option (task-110, `memory add --set`) collects every occurrence in order;
+      // Commander's default for a value option is last-one-wins, which would drop all but one.
+      if (option.repeatable === true) {
+        target.option(flags, description, (value: string, previous: string[] | undefined) => [...(previous ?? []), value]);
+      } else {
+        target.option(flags, description);
+      }
     }
 
     // Commander's action callback for a `[positionals...]` variadic + options command is
@@ -263,19 +271,21 @@ function buildFlagValues(
  * into a `{ name: value }` record read from Commander's parsed options object (task-020), so
  * `command.run` never has to know Commander's option-object shape. An option the invocation omitted is
  * simply absent from the record (not present-as-`undefined`), so a core op can distinguish "not given"
- * from an empty string. Returns `undefined` when the command declares no value options (every command
+ * from an empty string; a repeatable option (task-110) is the array of its occurrences. Returns
+ * `undefined` when the command declares no value options (every command
  * before task-020-implement-memory-add), matching `CliCommand.run`'s already-optional `options` param.
  */
 function buildOptionValues(
   command: CliCommand,
   options: Record<string, unknown>,
-): Readonly<Record<string, string>> | undefined {
+): Readonly<Record<string, string | readonly string[]>> | undefined {
   const declared = command.options ?? [];
   if (declared.length === 0) return undefined;
-  const optionValues: Record<string, string> = {};
+  const optionValues: Record<string, string | readonly string[]> = {};
   for (const { name } of declared) {
     const value = options[commanderKey(name)];
     if (typeof value === 'string') optionValues[name] = value;
+    else if (Array.isArray(value)) optionValues[name] = value.filter((item): item is string => typeof item === 'string');
   }
   return optionValues;
 }

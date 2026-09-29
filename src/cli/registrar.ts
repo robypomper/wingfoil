@@ -56,7 +56,8 @@ export interface CliCommand {
    * `wingfoil dna set project.license --value MIT` -> `['project.license']`, one positional per
    * command since `dl-082-cli-parameter-shape`), this command's own parsed `--{flag}`
    * values (task-028, e.g. `{ list: true }`), and its parsed value-bearing `--{name} <value>` OPTIONS
-   * (task-020, e.g. `{ type: 'decision', title: 'Use PostgreSQL' }`). All are additive/optional — a
+   * (task-020, e.g. `{ type: 'decision', title: 'Use PostgreSQL' }`; a repeatable option's value is
+   * the array of its occurrences, task-110). All are additive/optional — a
    * command that reads no positional and declares no flags/options is still called exactly as before:
    * `run(format)`. The single-positional read ops (`dna show`, `paths`) read `positionals[0]` via
    * `ParamsContext.positional`.
@@ -65,7 +66,7 @@ export interface CliCommand {
     formatValue: string,
     positionals?: readonly string[],
     flags?: Readonly<Record<string, boolean>>,
-    options?: Readonly<Record<string, string>>,
+    options?: Readonly<Record<string, string | readonly string[]>>,
   ) => Promise<void>;
 }
 
@@ -86,7 +87,7 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
         formatValue: string,
         positionals?: readonly string[],
         flags?: Readonly<Record<string, boolean>>,
-        optionValues?: Readonly<Record<string, string>>,
+        optionValues?: Readonly<Record<string, string | readonly string[]>>,
       ) => {
         if (!isValidFormat(formatValue)) {
           exitWith(2, `error: invalid --format value "${formatValue}", expected one of: console, json, yaml`);

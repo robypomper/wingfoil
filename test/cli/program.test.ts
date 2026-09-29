@@ -76,7 +76,11 @@ const FIXTURE_MODULES: CoreModule[] = [
       memoryAdd: {
         name: 'memoryAdd',
         mutates: true,
-        options: [{ name: 'type', required: true }, { name: 'title' }],
+        options: [
+          { name: 'type', required: true },
+          { name: 'title' },
+          { name: 'set', repeatable: true, valueName: 'name=value' },
+        ],
         fn: async () => coreOk({ id: 'task-001' }),
       },
     },
@@ -253,7 +257,7 @@ describe('buildProgram — command tree derivation (spec-006 §4, spec-008 §1)'
     const paths = program.commands.find((command) => command.name() === 'paths');
     expect(paths?.options.map((option) => option.flags)).toEqual(['--list']);
     const memoryAdd = program.commands.find((c) => c.name() === 'memory')?.commands.find((c) => c.name() === 'add');
-    expect(memoryAdd?.options.map((option) => option.flags)).toEqual(['--type <value>', '--title <value>']);
+    expect(memoryAdd?.options.map((option) => option.flags)).toEqual(['--type <value>', '--title <value>', '--set <name=value>']);
   });
 
   it("an unknown noun terminates through commander's own `unknownCommand`, whose SUGGESTED exit code is 1", async () => {
@@ -321,6 +325,20 @@ describe('buildProgram — action forwarding into `registrar.run` (the wiring bu
     await program.parseAsync(['node', 'wingfoil', 'memory', 'add', '--type', 'task']);
     expect(seenContexts[0]?.options).toEqual({ type: 'task' });
     expect(seenContexts[0]?.flags).toBeUndefined();
+  });
+
+  it('collects EVERY occurrence of a repeatable option, in order, as an array (task-110, spec-008 §10)', async () => {
+    const program = await buildFixtureProgram();
+    await program.parseAsync([
+      'node', 'wingfoil', 'memory', 'add', '--type', 'release', '--set', 'kind=patch', '--set', 'version=v0.2.3',
+    ]);
+    expect(seenContexts[0]?.options).toEqual({ type: 'release', set: ['kind=patch', 'version=v0.2.3'] });
+  });
+
+  it('keeps last-one-wins for a NON-repeatable option given twice (Commander default, unchanged)', async () => {
+    const program = await buildFixtureProgram();
+    await program.parseAsync(['node', 'wingfoil', 'memory', 'add', '--type', 'a', '--type', 'b']);
+    expect(seenContexts[0]?.options).toEqual({ type: 'b' });
   });
 
   it('leaves `ctx.options`/`ctx.flags` undefined for a command declaring neither', async () => {

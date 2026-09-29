@@ -32,6 +32,24 @@ describe('slugifyTitle — deterministic, valid ID piece from a human title', ()
     expect(slugifyTitle('--Hello--World--')).toBe('hello-world');
     expect(slugifyTitle('a & b')).toBe('a-b');
   });
+
+  // task-110 AC 1 — dl-107 S1 (a), spec-001 `{slug}` row: a `.` between two alphanumerics is kept,
+  // so the slugifier and the id validator (`[a-z0-9.]+(?:-[a-z0-9.]+)*`) share one character rule.
+  it('keeps a dot that sits between two alphanumerics (version-shaped titles)', () => {
+    expect(slugifyTitle('v0.2')).toBe('v0.2');
+    expect(slugifyTitle('Retrospective v0.2')).toBe('retrospective-v0.2');
+    expect(slugifyTitle('WingFoil v0.2.3 — patch')).toBe('wingfoil-v0.2.3-patch');
+    expect(slugifyTitle('Node.js 22.12+')).toBe('node.js-22.12');
+  });
+
+  it('collapses a dot that does not sit between two alphanumerics like any other separator', () => {
+    expect(slugifyTitle('a . b')).toBe('a-b');
+    expect(slugifyTitle('end.')).toBe('end');
+    expect(slugifyTitle('.start')).toBe('start');
+    expect(slugifyTitle('a..b')).toBe('a-b');
+    expect(slugifyTitle('a.-b')).toBe('a-b');
+    expect(slugifyTitle('x. y')).toBe('x-y');
+  });
 });
 
 describe('parseTags — comma-separated CLI value to a trimmed string array', () => {

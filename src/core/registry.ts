@@ -38,6 +38,18 @@ export interface CoreOption {
    * gets discovered rather than documented.
    */
   readonly description?: string;
+  /**
+   * Whether the option may be given more than once (task-110 — `memory add --set <name>=<value>`,
+   * `spec-008-cli-grammar` §10). A repeatable option reaches {@link ParamsContext.options} as the
+   * array of every occurrence, in the order given; a non-repeatable one as a single string (the last
+   * occurrence, Commander's default). Absent means not repeatable.
+   */
+  readonly repeatable?: boolean;
+  /**
+   * The placeholder `--help` shows for the option's value (`--{name} <{valueName}>`). Absent means
+   * `value`, the placeholder every option declared before task-110 renders.
+   */
+  readonly valueName?: string;
 }
 
 /**
@@ -200,9 +212,10 @@ export interface ParamsContext {
    * operation declaring no value options never has this set, and the MCP surface never populates it
    * (a zero-argument Tool template carries none — same rationale as `positional`/`flags`; task-030
    * wires the MCP Tool input schema separately). An absent optional option is simply omitted from the
-   * record rather than present-as-`undefined`.
+   * record rather than present-as-`undefined`. A {@link CoreOption.repeatable} option's value is the
+   * array of its occurrences (task-110).
    */
-  readonly options?: Readonly<Record<string, string>>;
+  readonly options?: Readonly<Record<string, string | readonly string[]>>;
 }
 
 /**

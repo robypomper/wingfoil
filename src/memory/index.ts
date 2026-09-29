@@ -74,14 +74,18 @@ export type { MemoryHistoryEntry } from './history';
 export { writeMemoryEntry } from './entry';
 export type { MemoryEntryWrite } from './entry';
 export {
+  expandFieldTokens,
   hasNumericToken,
   nextSequenceNumber,
+  parseSetOptions,
   parseTags,
   renderAddDocument,
   resolveTypeDirectory,
   slugifyTitle,
+  unknownSetNames,
+  writtenFields,
 } from './add';
-export type { AddDocumentFields } from './add';
+export type { AddDocumentFields, ParsedSetOptions } from './add';
 export {
   formatMemoryCommitMessage,
   normalizeReason,

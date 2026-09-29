@@ -13,20 +13,27 @@ import { existsSync, readdirSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 
 import { renderMemoryPath, splitFrontmatter } from '../storage';
-import { patternToRegExp } from '../validation';
+import { isIdPiece, patternTokens, patternToRegExp, ValidationError } from '../validation';
+import type { ValidationIssue } from '../validation';
 
 const TOKEN_RE = /\{([^{}]+)\}/g;
 
 /**
  * Turn a human `--title` into a single, valid `[a-z0-9-.]` ID slug piece (spec-009-validation-strategy
  * §1's ID character class, the same one `generateId` enforces): lowercase, every run of characters
- * outside `[a-z0-9]` collapsed to one `-`, and no leading/trailing/doubled `-`. Deterministic and
- * idempotent-shaped so `generateId`'s Pass-B slug check (`[a-z0-9.]+(?:-[a-z0-9.]+)*`) accepts it.
+ * outside `[a-z0-9]` collapsed to one `-`, and no leading/trailing/doubled `-` — except that a run
+ * consisting of exactly one `.` between two alphanumerics is **kept** (`v0.2` → `v0.2`,
+ * `dl-107` S1 (a), task-110). That is the character rule `generateId`'s Pass-B slug check
+ * (`[a-z0-9.]+(?:-[a-z0-9.]+)*`) already accepts, so the slugifier and the validator share one rule
+ * instead of the slug being stricter than the id it feeds. Ids added before this rule are untouched:
+ * an id is immutable once added.
  */
 export function slugifyTitle(title: string): string {
   return title
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^a-z0-9]+/g, (run: string, offset: number, text: string) =>
+      run === '.' && offset > 0 && offset + run.length < text.length ? '.' : '-',
+    )
     .replace(/^-+|-+$/g, '');
 }
 
@@ -58,10 +65,15 @@ export function hasNumericToken(idPattern: string): boolean {
  * (spec-001-memory-yaml-schema `MemoryTypeEntry.path`, e.g. `docs/memory/decision/{id}.md`) rendered
  * with a dummy `{id}` and reduced to its containing directory. The directory portion never depends on
  * the concrete id value, so this is well-defined before the id is generated (used by
- * {@link nextSequenceNumber} to count existing siblings).
+ * {@link nextSequenceNumber} to count existing siblings). `values` fills any other path token —
+ * `{release-line}`, `{scope}` — from `memory add --set` (task-110); `id` is always the dummy.
  */
-export function resolveTypeDirectory(root: string, pathPattern: string): string {
-  return dirname(join(root, renderMemoryPath(pathPattern, { id: '__id__' })));
+export function resolveTypeDirectory(
+  root: string,
+  pathPattern: string,
+  values: Readonly<Record<string, string>> = {},
+): string {
+  return dirname(join(root, renderMemoryPath(pathPattern, { ...values, id: '__id__' })));
 }
 
 /**
@@ -85,6 +97,13 @@ export interface AddDocumentFields {
   readonly id: string;
   readonly title: string;
   readonly tags?: readonly string[];
+  /**
+   * Frontmatter fields `memory add --set` fills (task-110, `dl-107` S2 (a)), as `[name, value]` pairs
+   * in the order they are written — {@link writtenFields} produces them sorted by name
+   * (REQ-SYS-07). Each is written as a JSON-quoted string, replacing the scaffold's line for that key
+   * or appended when the scaffold has none.
+   */
+  readonly fields?: readonly (readonly [string, string])[];
 }
 
 /**
@@ -110,7 +129,8 @@ function setFrontmatterField(frontmatter: string, key: string, valueYaml: string
 /**
  * Copy a type's `template.file` scaffold verbatim and fill only the frontmatter skeleton `memory.add`
  * pins (P1.3; spec-010-memory-frontmatter-schema): the generated `id`, the `--title`, the
- * initial `status: draft`, and — when `--tags` was supplied — the `tags` flow sequence. Every other
+ * initial `status: draft`, when `--tags` was supplied the `tags` flow sequence, and the `--set` fields
+ * {@link AddDocumentFields.fields} carries (task-110). Every other
  * field (notably `type` and `tmpl_version`, spec-010: not touched by add) and the whole body are left
  * exactly as the scaffold had them. `title`/`tags` are JSON-quoted (valid YAML double-quoted scalars /
  * flow sequences), so an arbitrary title with spaces or colons is written safely.
@@ -131,5 +151,134 @@ export function renderAddDocument(scaffold: string, fields: AddDocumentFields): 
     const flow = `[${fields.tags.map((tag) => JSON.stringify(tag)).join(',')}]`;
     fm = setFrontmatterField(fm, 'tags', flow);
   }
+  for (const [name, value] of fields.fields ?? []) {
+    fm = setFrontmatterField(fm, name, JSON.stringify(value));
+  }
   return `---\n${fm}\n---\n${body}`;
+}
+
+/**
+ * Names `memory add --set` refuses (`spec-008-cli-grammar` §10): the fields `memory add` fills itself
+ * or through its own option (`id`, `type`, `status`, `title`, `tags`), and the tokens with a source of
+ * their own (`n`, `slug`, `date`, `author` — `spec-001`'s placeholder table).
+ */
+const RESERVED_SET_NAMES: ReadonlySet<string> = new Set(['id', 'type', 'status', 'title', 'tags', 'n', 'slug', 'date', 'author']);
+
+/** A `--set` field name: `[a-z][a-z0-9_-]*` — the same shape `idPatternIssues` accepts for a token. */
+const SET_NAME_RE = /^[a-z][a-z0-9_-]*$/;
+
+/**
+ * Tokens that are workflow **context** rather than a frontmatter field (`spec-001`, `dl-107` S2 (c)):
+ * written into the document only where its template declares a field of that name.
+ */
+const CONTEXT_TOKENS: ReadonlySet<string> = new Set(['workflow', 'phase', 'scope']);
+
+/** The outcome of {@link parseSetOptions}: the parsed values, or the one usage-error message. */
+export type ParsedSetOptions =
+  | { readonly ok: true; readonly values: Readonly<Record<string, string>> }
+  | { readonly ok: false; readonly message: string };
+
+/**
+ * Parse `memory add`'s repeatable `--set <name>=<value>` occurrences (`spec-008-cli-grammar` §10,
+ * task-110). The CLI hands every occurrence as a string array; a single string is one occurrence;
+ * `undefined` is none. `<name>` is split from `<value>` at the FIRST `=`.
+ *
+ * Every refusal here is a property of how the argument is spelled, decided before anything is read,
+ * so the caller raises it as a usage error (exit 2) — the first failing occurrence, in the order
+ * given, with §10's exact message. Pure and order-preserving (REQ-SYS-07).
+ */
+export function parseSetOptions(raw: string | readonly string[] | undefined): ParsedSetOptions {
+  const occurrences = raw === undefined ? [] : typeof raw === 'string' ? [raw] : raw;
+  const values: Record<string, string> = {};
+  for (const occurrence of occurrences) {
+    const eq = occurrence.indexOf('=');
+    if (eq <= 0) {
+      return { ok: false, message: `invalid flag value: --set expects <name>=<value>, got "${occurrence}"` };
+    }
+    const name = occurrence.slice(0, eq);
+    const value = occurrence.slice(eq + 1);
+    if (!SET_NAME_RE.test(name)) {
+      return { ok: false, message: `invalid flag value: --set name "${name}" is not a field name ([a-z][a-z0-9_-]*)` };
+    }
+    if (RESERVED_SET_NAMES.has(name)) {
+      return {
+        ok: false,
+        message: `invalid flag value: --set cannot set "${name}": memory add fills it itself or through its own option`,
+      };
+    }
+    if (value.trim().length === 0) {
+      return { ok: false, message: `invalid flag value: --set ${name} must not be blank` };
+    }
+    if (Object.prototype.hasOwnProperty.call(values, name)) {
+      return { ok: false, message: `invalid flag value: --set ${name} given more than once` };
+    }
+    values[name] = value;
+  }
+  return { ok: true, values };
+}
+
+/**
+ * The `--set` names a type's committed patterns cannot use: every name that is not a token of its
+ * `id_pattern` or of its `path` (other than `{id}`), in the order given. `memory add` refuses them
+ * (exit 1, `spec-008` §10) rather than writing a field no token reads.
+ */
+export function unknownSetNames(
+  values: Readonly<Record<string, string>>,
+  idPattern: string,
+  pathPattern: string,
+): string[] {
+  const tokens = new Set([...patternTokens(idPattern), ...patternTokens(pathPattern)]);
+  tokens.delete('id');
+  return Object.keys(values).filter((name) => !tokens.has(name));
+}
+
+/**
+ * Materialize an `id_pattern`'s frontmatter and context tokens (`{kind}`, `{version}`, `{workflow}`,
+ * …) from the `--set` values, leaving `{slug}`, the `{n}` family and the not-yet-implemented
+ * `{date}`/`{author}` in place — `spec-001`'s fixed expansion order (`{date}` → `{author}` → field and
+ * context tokens → `{slug}` → `{n}`), so the `{n}` counter regexp built from the result sees a
+ * fully-materialized prefix (task-110).
+ *
+ * @throws {@link ValidationError} naming every field token with no value
+ *   (`missing value for token {<name>}: give it with --set <name>=<value>`) and every value outside
+ *   the ID character class, in pattern order — the same `E_INVALID_ID` code `generateId` raises.
+ */
+export function expandFieldTokens(idPattern: string, values: Readonly<Record<string, string>>): string {
+  const issues: ValidationIssue[] = [];
+  const expanded = idPattern.replace(TOKEN_RE, (whole: string, token: string) => {
+    if (/^n+$/.test(token) || RESERVED_SET_NAMES.has(token)) return whole;
+    const value = values[token];
+    if (value === undefined) {
+      issues.push(fieldIssue(idPattern, `missing value for token {${token}}: give it with --set ${token}=<value>`));
+      return whole;
+    }
+    if (!isIdPiece(value)) {
+      issues.push(fieldIssue(idPattern, `value for token {${token}} is not a valid [a-z0-9-.] piece: "${value}"`));
+      return whole;
+    }
+    return value;
+  });
+  if (issues.length > 0) throw new ValidationError(issues);
+  return expanded;
+}
+
+function fieldIssue(pattern: string, message: string): ValidationIssue {
+  return { code: 'E_INVALID_ID', path: 'id', file: pattern, message };
+}
+
+/**
+ * The `--set` values `memory add` writes into the new document's frontmatter, as `[name, value]`
+ * pairs sorted by name (REQ-SYS-07). A field token is always written, so the id and the field cannot
+ * disagree (`dl-107` S2 (a)); a context token (`workflow`, `phase`, `scope`) only where the committed
+ * scaffold's frontmatter declares that key (`dl-107` S2 (c) — `plan` declares `workflow` and `phase`,
+ * not `scope`).
+ */
+export function writtenFields(scaffold: string, values: Readonly<Record<string, string>>): [string, string][] {
+  const { frontmatter } = splitFrontmatter(scaffold);
+  const declared = (key: string): boolean =>
+    frontmatter !== null && new RegExp(`^[ \\t]*${escapeRegExp(key)}:`, 'm').test(frontmatter);
+  return Object.keys(values)
+    .sort()
+    .filter((name) => !CONTEXT_TOKENS.has(name) || declared(name))
+    .map((name) => [name, values[name] as string]);
 }

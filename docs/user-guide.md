@@ -184,7 +184,7 @@ The fields each collection accepts are listed in the
 | Key | Meaning |
 |---|---|
 | `path` | Where its documents live, e.g. `docs/memory/task/{id}.md` |
-| `id_pattern` | How ids are built: `{n}` is a per-type counter (`001`, `002`, …), `{slug}` comes from the title |
+| `id_pattern` | How ids are built: `{n}` is a per-type counter (`001`, `002`, …), `{slug}` comes from the title, and any other `{name}` is a frontmatter field you give with `memory add --set name=value` |
 | `template.file` | The scaffold `memory add` copies, under `.wingfoil/` |
 | `template.frontmatter.required` | Fields that must be filled |
 | `states` | Optional: the type's own state machine. Without it, the type uses `defaults.states` |
