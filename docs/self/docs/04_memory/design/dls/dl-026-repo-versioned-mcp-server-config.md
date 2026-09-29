@@ -4,7 +4,7 @@ type: decision-log
 title: "Version an .mcp.json in the repository so agents consume WingFoil's own MCP server (dogfood P5.2)"
 status: ready
 context: "process"
-release: ""
+release: "v0.2.2"
 tmpl_version: 260703
 ---
 
