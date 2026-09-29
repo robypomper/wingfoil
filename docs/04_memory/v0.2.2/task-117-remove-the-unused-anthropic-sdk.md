@@ -2,7 +2,7 @@
 id: "task-117-remove-the-unused-anthropic-sdk"
 type: task
 title: "`@anthropic-ai/sdk` leaves the runtime dependencies, because nothing in `src/` imports it"
-status: backlog
+status: in-progress
 release: "v0.2.2"
 priority: "low"
 tags: ["v0.2.2", "dependencies", "first-use"]
