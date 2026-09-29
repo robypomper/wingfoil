@@ -258,3 +258,26 @@ not).
 longer be executed — there is no task left to hand it to. The outcome needs **its own task** out of
 `build-backlog`. This addendum exists because nothing else would have said so: `dl-015`'s `read_related`
 covers `depends_on` tasks and not decision-logs, and nothing re-opens a `done` task's notes.
+
+## Code addendum (2026-09-29) — the pre-flight order in Context (i) changed under `task-125`
+
+The order listed in Context (i), steps 1–3, is no longer what the code does. `task-125` (fixing
+`bug-172`, v0.2.2) moved every usage check of the mutating `memory` and `directive` verbs ahead of
+`requireGitIdentity`. A malformed invocation now exits `2` whether or not git has an identity. Before,
+it exited `1` on a machine without one, which is what stopped the first `v0.2.2` publish in the CI
+`gate` job. `memory approve` and `memory reject` now run:
+
+1. `<id>` absent or blank → `UsageError`, exit `2`
+2. `requireReason` (REQ-SEC-04) → `UsageError`, exit `2`
+3. `requireGitIdentity` (REQ-SEC-01) → exit `1`
+4. **`prepareMemoryTransition`** (it loads the committed `memory.yaml` itself) → exit `1`
+5. `requireApprovalAuthority` (REQ-SEC-03) → exit `1`
+
+`spec-008-cli-grammar` already points this way: its `--reason` and `--set` refusals happen "before
+anything is read or written", and reading the git config is a read.
+
+**For whoever ratifies clause A.1:** "ratify today's order" now means the order above, not the one in
+Context (i). Question A, legality before authority, is unaffected: steps 4 and 5 keep their relative
+order. Clause B is unaffected too: `task-125` moved the pre-flight but did not change how often the identity
+is read. `requireGitIdentity` still discards it, and approve/reject still read it again for the
+`Approver:` line (`readGitIdentity`, `src/core/index.ts`).
