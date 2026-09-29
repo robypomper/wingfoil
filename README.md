@@ -237,8 +237,8 @@ WingFoil is built one pillar per release until all five are integrated in 1.0.
 | **0.4** | + Interaction Layer polish | Planned |
 | **1.0** | MVP complete | Planned |
 
-**Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives under
-`docs/self/`.
+**Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives in
+`.wingfoil/` and its Memory in `docs/04_memory/`, at the repository root.
 
 ---
 
