@@ -3,7 +3,7 @@ id: bug-ingest-rel-v0.2.2-publish-gate-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 publish-gate findings"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-publish-gate-findings"
 element: "patch-v0.2.2"
@@ -51,4 +51,8 @@ npm never saw the version), and file the bug. This `plan` element is the ingest'
 
 ## Execution Notes
 
-<!-- Filled during the run. -->
+- Plan added `e9a747a2` (dev build) and submitted `889e235f` (pinned, `draft → active`).
+- `bug-172` added through the pinned build (`78f4d7dc`). No local branch or `origin/main` held a higher
+  bug number (`git ls-tree` over every local branch: `bug-171` highest). It was submitted `draft → open`
+  (`fec5665a`) with the reproduction table measured on `a1a2850b` and the duplicate search.
+- Awaiting the approver's triage.
