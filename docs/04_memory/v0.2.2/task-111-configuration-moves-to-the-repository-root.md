@@ -2,7 +2,7 @@
 id: "task-111-configuration-moves-to-the-repository-root"
 type: task
 title: "The configuration moves to the repository root, so the Memory verbs run on this repository's own Memory"
-status: approved
+status: done
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "config", "dogfooding", "memory"]
