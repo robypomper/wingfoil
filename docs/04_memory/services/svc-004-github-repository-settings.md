@@ -37,7 +37,10 @@ Applied by hand in the web interface by the approver, 2026-09-29 (§B.3):
 - **features:** Discussions on, Issues on, Wiki off, Projects off.
 - **Discussions categories:** Announcements, Q&A, Ideas, Show and tell (General and Polls deleted) — the
   approver's report (§B.3); the `verify` command does not read them.
-- **social preview:** none (`dl-128`).
+- **social preview:** `docs/assets/wingfoil-social-preview-dark.png` at `424f4c93` (1280×640, the
+  dark banner), uploaded by the approver on 2026-09-29 (`user-docs-rel-v0.2.2-plan` S7). Until then
+  there was none; `dl-128` decides the README's badges and demo, not this image. The light variant
+  and both SVG sources sit beside it in `docs/assets/`, and `docs/assets/README.md` regenerates them.
 
 ## Verification
 
@@ -49,8 +52,11 @@ Applied by hand in the web interface by the approver, 2026-09-29 (§B.3):
 categories were also read after the transfer through the GraphQL API:
 `gh api graphql -f query='{repository(owner:"wingfoil",name:"wingfoil"){discussionCategories(first:10){nodes{name}}}}'`
 → Announcements, Ideas, Q&A, Show and tell. The visibility session read every value
-above through the GitHub MCP on 2026-09-29 and all matched (§B.3). The social preview is checked by eye
-on the repository page.
+above through the GitHub MCP on 2026-09-29 and all matched (§B.3). The social preview is read with
+`gh api graphql -f query='{repository(owner:"wingfoil",name:"wingfoil"){usesCustomOpenGraphImage openGraphImageUrl}}'`
+→ `usesCustomOpenGraphImage: true`. The image at `openGraphImageUrl`, downloaded on 2026-09-29, is
+identical to `docs/assets/wingfoil-social-preview-dark.png`
+(`compare -metric RMSE <downloaded> docs/assets/wingfoil-social-preview-dark.png null:` → `0 (0)`).
 
 ## Management
 
