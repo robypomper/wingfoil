@@ -2,7 +2,7 @@
 id: "dl-121-testing-directive-extensions"
 type: decision-log
 title: "Guards whose documentation promises more than they assert, and an environment-dependent fix that regressed with nothing to notice — two rules for the `testing` directive"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
