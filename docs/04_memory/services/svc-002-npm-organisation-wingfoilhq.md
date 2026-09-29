@@ -2,44 +2,44 @@
 id: svc-002-npm-organisation-wingfoilhq
 type: service
 title: "npm organisation wingfoilhq"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "npmjs.com"
+kind: "account"
+owner_role: "approver"
+verify: "curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/-/org/wingfoilhq/package"
+url: "https://www.npmjs.com/org/wingfoilhq"
+account: "wingfoilhq (owner: robypomper)"
+renews: ""
+repo_refs: []
+decision: "dl-091-package-name-and-mcp-namespace"
+release: "v0.2.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+The npm scope `@wingfoilhq` for future auxiliary packages; `@wingfoil` belongs to another project,
+wingfoil-io (`dl-091` addendum D6; `release-planning-rel-v0.2.2-plan` §A). The main package stays the
+unscoped `wingfoil` (`svc-005-npm-package-wingfoil`), so nothing depends on this organisation today:
+it is a reservation.
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+- Created by the approver from the npm account `robypomper`, 2026-09-29
+  (`release-planning-rel-v0.2.2-plan` §"External identities registered", §B.2).
+- Free organisation, unlimited public packages, so nothing renews (§B.2).
+- It holds no package (`https://registry.npmjs.org/-/org/wingfoilhq/package` → `{}`, below).
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+`curl -s -o /dev/null -w '%{http_code}' https://registry.npmjs.org/-/org/wingfoilhq/package` → `200`
+(run read-only by `task-124` on 2026-09-29). The body is `{}`: the organisation exists and holds no
+package, as read by the visibility session and by the release-planning session on 2026-09-29 (§B.2).
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Owner:** the `approver` role; the only owner account recorded is `robypomper`.
+- **Renew:** nothing (free).
+- **Use:** when an auxiliary package is published under `@wingfoilhq`, record it as its own `service`
+  (`kind: listing`) and list it here.
+- **Retire:** `memory deprecate`; the `Reason:` says whether the scope was released or replaced.
