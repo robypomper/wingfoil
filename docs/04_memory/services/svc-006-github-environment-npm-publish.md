@@ -2,44 +2,55 @@
 id: svc-006-github-environment-npm-publish
 type: service
 title: "GitHub environment npm-publish"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "GitHub"
+kind: "setting"
+owner_role: "approver"
+verify: "gh api repos/robypomper/wingfoil/environments/npm-publish --jq '{name,protection_rules:[.protection_rules[]|{type,reviewers:[.reviewers[]?|.reviewer.login]}],deployment_branch_policy}'"
+url: "https://github.com/robypomper/wingfoil/settings/environments"
+account: "robypomper/wingfoil"
+renews: ""
+repo_refs: [".github/workflows/publish.yml"]
+decision: "adr-011-npm-staged-publishing-with-oidc"
+release: "v0.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+The human gate on publishing: `publish.yml`'s `promote` job runs in the GitHub environment
+`npm-publish`, so it waits until the environment's required reviewer approves the deployment
+(`task-061-publish-secrets`, `adr-006`). `adr-011` point 3 keeps this gate, next to npm's own 2FA
+approval of the staged version, for at least the first staged release; a decision-log after the
+v0.2.2 publish keeps or drops it. The trusted publisher `adr-011` configures is keyed on this
+environment's name.
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+- Created for v0.2 by `task-061`; the approver configured it per the runbook in the header of
+  `.github/workflows/publish.yml` (step A): the approver is its required reviewer and deployments are
+  restricted to tags `v*`.
+- Protection rules, as read below: `required_reviewers` = `robypomper`; a `branch_policy` with
+  `custom_branch_policies: true`, `protected_branches: false`, and one deployment policy of type `tag`,
+  name `v*`.
+- Environment secret: `NPM_TOKEN` (`svc-007-github-actions-secret-npm-token`), which `adr-011` removes
+  once the trusted publisher exists. No other environment secret is listed (`gh secret list --env
+  npm-publish`).
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+`gh api repos/robypomper/wingfoil/environments/npm-publish --jq '{name,protection_rules:[…],deployment_branch_policy}'`
+→ `name: npm-publish`; rules `branch_policy` and `required_reviewers` (`robypomper`, type `User`);
+`deployment_branch_policy: {custom_branch_policies: true, protected_branches: false}`; and
+`gh api repos/robypomper/wingfoil/environments/npm-publish/deployment-branch-policies --jq '[.branch_policies[]|{name,type}]'`
+→ `[{"name":"v*","type":"tag"}]` (both run read-only by `task-124` on 2026-09-29).
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Owner:** the `approver` role, who is also its required reviewer.
+- **After the transfer to `wingfoil/wingfoil`:** re-check the environment and its reviewer
+  (`release-planning-rel-v0.2.2-plan` §C) and update `url`, `account` and `verify`.
+- **When the trusted publisher exists:** delete the `NPM_TOKEN` environment secret (`adr-011` point 2)
+  and update Configuration here.
+- **Retire:** `memory deprecate` only if the gate is dropped by the decision-log `adr-011` point 3
+  calls for, or the publish pipeline changes.
