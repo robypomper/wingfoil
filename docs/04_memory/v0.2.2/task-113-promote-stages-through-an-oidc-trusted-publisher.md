@@ -2,7 +2,7 @@
 id: "task-113-promote-stages-through-an-oidc-trusted-publisher"
 type: task
 title: "`promote` stages the tarball through a stage-only OIDC trusted publisher, with no npm token, and every action runs on a supported runtime"
-status: in-progress
+status: in-review
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "publishing", "ci", "security"]
