@@ -2,7 +2,7 @@
 id: "dl-091-package-name-and-mcp-namespace"
 type: decision-log
 title: "The project's public identity — display name, npm scope, repository and MCP namespace — is undecided, and the MCP namespace is permanent once published"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
