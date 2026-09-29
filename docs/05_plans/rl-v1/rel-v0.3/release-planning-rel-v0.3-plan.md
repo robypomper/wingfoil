@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -145,6 +145,18 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
    `triaged` unscheduled bugs are carried into build-backlog's selection.
    Housekeeping found while counting: two v0.3 bugs keep the template comment after the value on
    their `release:` line; fixed in the build-backlog stamping commit.
+   **Done 2026-09-29**, approver ruling: **option A**, the whole Appendix A proposal.
+   - 48 `memory approve [open → triaged]`, one commit each (the pinned build takes one id per call,
+     `bug-171`), from `61b2c1db` (`bug-028`) to `b0dc6ce8` (`bug-154`); each `Reason:` names the gate, the ruling and the
+     bug's own line from Appendix A. Afterwards all 52 selected bugs read `triaged`
+     (`awk '/^status:/'` on each). The four already-`triaged` ones (`bug-019`, `bug-132`, `bug-133`,
+     `bug-134`) get `release: v0.3` at build-backlog with the rest.
+   - 5 `memory reject [open → closed]` with `rejection_reason` set: `bug-024`, `bug-032`, `bug-048`,
+     `bug-068`, `bug-127`. Before `bug-127` was closed, its reproduction cases were folded into
+     `bug-165` (`66cf5920`).
+   - The 15 bugs proposed for v0.4 are untouched (`open`, no `release`).
+   - New finding captured through `bug-ingest-rel-v0.3-planning-findings-plan`: `bug-175` (the
+     define-scope `kind` check), `open`, awaiting its triage gate.
 
 3. **reconcile-governance** (product-owner, ⛔). In scope and not `ready`: `dl-039`, `dl-040` (v0.3),
    and the 26 unscheduled `in-discussion` decision-logs, for which the agent proposes select /
@@ -217,7 +229,7 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
 
 - `release-planning.yaml`'s define-scope check requires `kind` on the release, while `memory.yaml`
   declares the `minor-*` ids added before `dl-092` immutable and without `kind:` (`memory.yaml:94`).
-  The check cannot pass on `minor-v0.3`. Candidate bug for `bug-ingest` at the gate.
+  The check cannot pass on `minor-v0.3`. Filed as `bug-175`.
 - `CLAUDE.md` §1, §3, §5 and §5.1 still describe the configuration under `docs/self/` and the verbs as
   unable to act on this repository (`bug-075`, now `closed` in v0.2.2). This planning runs them on the
   repository. `CLAUDE.md` is owned by `user-docs`' `align-agent-docs` phase (`dl-025`); recorded here
@@ -229,10 +241,10 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
 
 Recorded as they occur, per the rule that every command's real effect is checked against its
 contract. Each becomes a bug through `bug-ingest` at step 2 if it reproduces.
-- `memory add --type plan … --set element=minor-v0.3 --set release=v0.3` → exit **1**, "memory type
-  'plan' has no token {element} in its id_pattern or path". A rejected option value is a command-line
-  error, which the exit-code contract maps to **2**. `--set` also cannot fill a template field that is
-  not a path token, so `element:` and `release:` are written at submit.
+- `memory add --type plan … --set element=minor-v0.3 --set release=v0.3` → exit 1, "memory type
+  'plan' has no token {element} in its id_pattern or path". **Not a defect**, corrected in v1.2: exit 1
+  is the declared contract (`spec-008` §10; `src/memory/add.ts:220-223`). `--set` fills path tokens
+  only, so `element:` and `release:` are written before submit.
 
 ## Appendix A — triage-bugs proposal (for gate 2)
 
