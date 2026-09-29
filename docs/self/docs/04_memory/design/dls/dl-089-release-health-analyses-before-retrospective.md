@@ -2,7 +2,7 @@
 id: "dl-089-release-health-analyses-before-retrospective"
 type: decision-log
 title: "Two standing release-health analyses — git history and project quality — run before every retrospective, each compared against the previous run and ending in improvement proposals"
-status: in-discussion
+status: ready
 context: "process"
 release: "v0.3"
 contributor: "Roberto Pompermaier <robypomper@gmail.com>"
