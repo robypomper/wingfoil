@@ -47,11 +47,13 @@ const NOT_A_GIT_REPO = "not a git repository: run 'git init' first";
 
 /**
  * Exact message required by P5.1.1-init.feature scenario "Error - initializing an already-initialized
- * project" — do not reword. Rendered by the CLI as `error: <message>` (spec-005 §3) and mapped to exit
- * 1 (a well-formed invocation that failed on business logic, spec-005 §1) by `exitCodeForError`.
+ * project" — do not reword without that scenario. Rendered by the CLI as `error: <message>` (spec-005
+ * §3) and mapped to exit 1 (a well-formed invocation that failed on business logic, spec-005 §1) by
+ * `exitCodeForError`. The hint names what exists (task-119, bug-129): hand edits under `.wingfoil/`,
+ * which the user commits, or the `dna` / `directive` commands, which commit themselves.
  */
 export const WINGFOIL_ALREADY_INITIALIZED =
-  'WingFoil already initialized (use a migration command to change config)';
+  'WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)';
 
 /** What a successful init reports: the resolved root and the root-relative paths it created. */
 export interface InitStorageValue {

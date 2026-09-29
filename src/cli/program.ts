@@ -41,6 +41,7 @@ import type { CoreModule } from '../core/registry';
 // Direct module import, not the `../core` barrel — the same path `./registrar.ts` already uses for the
 // other two exit-code mappings (task-101; keeps this file out of the barrel's merge surface).
 import { classifyParseOutcome } from '../core/exit-code';
+import { TEMPLATE_NAMES } from '../storage';
 
 import { buildCliCommands, type BuildCommandsOptions, type CliCommand } from './registrar';
 import { runInit, createReadlinePrompt } from './init-command';
@@ -117,7 +118,12 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   program
     .command('init')
     .description('initialize WingFoil in the current git repository')
-    .option('--template <name>', 'methodology template to initialize with (non-interactive)')
+    // bug-140: the legal values come from the template registry, the same list `--template` resolves
+    // against and the missing-argument error names (./init-command.ts).
+    .option(
+      '--template <name>',
+      `methodology template, one of: ${TEMPLATE_NAMES.join(', ')} (required without a terminal or with --no-interactive)`,
+    )
     .action(async (localOpts: { template?: string }) => {
       const globalOpts = program.opts<{ format: string; interactive: boolean }>();
       let root: string;
