@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.7"
+version: "1.8"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -136,8 +136,11 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
 
    Mapping, budget and the in-scope elements with no task are in `patch-v0.2.2`'s Planning notes.
    The `spec-008` amendment is inside `task-110`, and the `release-publishing.yaml` step is inside
-   `task-113`. Interpretation for the approver: the retrospective's "`bug-021` downgraded" is read
-   as a closure with no code, like `bug-092`; if it meant something else, `bug-021` needs a task.
+   `task-113`. **`bug-021` re-read on the approver's request (2026-09-29).** The retrospective's
+   "downgraded, closure with no code" does not hold, because its Expected Behavior needs a change to
+   `jest.config.js`. The re-read also found a second `index.ts` holding logic, `src/mcp/index.ts`.
+   So `task-122` was added (`25b32681` add, `a02efdc6` submit), and `bug-021` went
+   `[triaged → planned]` (`f225f5b6`). The backlog is **14 tasks**, `task-109` … `task-122`.
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`;
    `patch-v0.2.2` `[planning → in-development]`.
 
