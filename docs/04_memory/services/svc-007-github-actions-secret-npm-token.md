@@ -2,7 +2,7 @@
 id: svc-007-github-actions-secret-npm-token
 type: service
 title: "GitHub Actions secret NPM_TOKEN"
-status: pending
+status: deprecated
 provider: "GitHub"
 kind: "credential"
 owner_role: "approver"
