@@ -2,7 +2,7 @@
 id: svc-005-npm-package-wingfoil
 type: service
 title: "npm package wingfoil"
-status: pending
+status: active
 provider: "npmjs.com"
 kind: "listing"
 owner_role: "approver"
