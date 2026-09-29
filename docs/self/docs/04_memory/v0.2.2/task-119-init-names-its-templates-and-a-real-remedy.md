@@ -2,7 +2,7 @@
 id: "task-119-init-names-its-templates-and-a-real-remedy"
 type: task
 title: "`init` names its available templates, and its already-initialised error names a remedy that exists"
-status: pending
+status: backlog
 release: "v0.2.2"
 priority: "low"
 tags: ["v0.2.2", "init", "cli", "first-use"]

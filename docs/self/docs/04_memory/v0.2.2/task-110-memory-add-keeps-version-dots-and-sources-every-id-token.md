@@ -2,7 +2,7 @@
 id: "task-110-memory-add-keeps-version-dots-and-sources-every-id-token"
 type: task
 title: "`memory add` keeps version dots in the slug and gives every `id_pattern` token a declared source"
-status: pending
+status: backlog
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "memory", "id", "cli"]

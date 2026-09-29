@@ -2,7 +2,7 @@
 id: "task-109-transition-brackets-accept-the-ascii-arrow"
 type: task
 title: "A transition bracket is parsed in either arrow form, and one that parses in neither is reported instead of skipped"
-status: pending
+status: backlog
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "memory", "history", "audit"]
