@@ -12,7 +12,9 @@ None of them ships in the npm package: `package.json` `files` is `["dist", "READ
 | File | What | Source | Used by |
 |---|---|---|---|
 | `wingfoil-logo.svg` | Full logo: mark plus the "WingFoil" wordmark, transparent background, 163×167 | source | reference |
+| `wingfoil-logo.png` | the full logo, 512 px wide, transparent background | generated | wherever an SVG is not accepted |
 | `wingfoil-mark.svg` | The mark alone, transparent background | source | `README.md` header |
+| `wingfoil-mark.png` | the mark, 512 px wide, transparent background | generated | wherever an SVG is not accepted |
 | `wingfoil-social-preview.svg` | 1280×640 banner, light background | source | — |
 | `wingfoil-social-preview.png` | the light banner, rendered | generated | repository social preview (`svc-004-github-repository-settings`) |
 | `wingfoil-social-preview-dark.svg` | 1280×640 banner, dark background | source | — |
@@ -29,6 +31,12 @@ Run from the repository root. [Inkscape](https://inkscape.org/) 1.x renders the 
 them on the machine that regenerates the assets.
 
 ```bash
+# Logo and mark, 512 px wide, transparent background (height follows the aspect ratio)
+inkscape docs/assets/wingfoil-logo.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-logo.png -w 512
+inkscape docs/assets/wingfoil-mark.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-mark.png -w 512
+
 # Social preview banners, 1280×640
 inkscape docs/assets/wingfoil-social-preview.svg \
   --export-type=png --export-filename=docs/assets/wingfoil-social-preview.png -w 1280 -h 640
@@ -46,7 +54,7 @@ convert /tmp/wingfoil-mark-380.png -background white -gravity center -extent 500
 Check the result:
 
 ```bash
-file docs/assets/*.png   # 1280 x 640 for the banners, 500 x 500 for the avatar
+file docs/assets/*.png   # 1280 x 640 banners, 500 x 500 avatar, 512 x 525 logo, 512 x 364 mark
 ls -l docs/assets/*.png  # each banner must stay under 1 MB (GitHub's limit)
 ```
 
