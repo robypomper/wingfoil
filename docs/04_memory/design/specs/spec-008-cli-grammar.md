@@ -10,7 +10,7 @@ tmpl_version: 260703
 
 ## Context
 
-`src/cli` (Commander.js + chalk, `dna.yaml` `tech_stack.cli`) is one of two surfaces that must expose
+`src/cli` (Commander.js, `dna.yaml` `tech_stack.cli`) is one of two surfaces that must expose
 **identical behaviour** for every WingFoil operation (REQ-SYS-05 — single behaviour behind CLI and MCP).
 Every `CLI-*`/`memory.*` command, every workflow step that shells out to `wingfoil`, and every BDD
 scenario under `docs/02_requirements/02_bdd/features/p1-memory/` and `p5-interaction/` assumes a single,
@@ -567,3 +567,10 @@ the implementing task ahead of the approver's sign-off at its review gate; until
 proposal carried in the task branch, not a ratified revision. Edited in place without a supersede or a
 state change, per `dl-047-tech-specs-carry-no-version-field` (tech-specs carry no `version:` field, so
 there is nothing to bump) and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — §Context no longer names `chalk`, per
+`task-117-remove-the-unused-anthropic-sdk` (`bug-138`, approver's ruling at its review).** Nothing in
+`src/` imports `chalk` (`grep -rn chalk src/` → only a TSDoc line), and `task-117` removes it from
+`package.json`. One word in §Context changes; the Process Notes' cross-check sentence is left as the
+record of what was checked then. Edited in place without a supersede or a state change, per the same
+`spec-001` precedent the 2026-09-17 revision cites.

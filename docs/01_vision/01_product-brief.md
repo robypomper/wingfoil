@@ -264,7 +264,7 @@ development and v0.2's scope growth; it is kept in the sequencer, next to the ac
 
 **Language & Runtime:** TypeScript, Node.js 22.12+ (npm)  
 **Storage:** Git (local file-backed, YAML + Markdown)  
-**CLI:** Commander.js, chalk for formatting  
+**CLI:** Commander.js  
 **MCP Server:** Model Context Protocol (stdio transport, `@modelcontextprotocol/sdk`)  
 **Validation:** Zod (JSON Schema)  
 **Testing:** Jest (>80% coverage target)  

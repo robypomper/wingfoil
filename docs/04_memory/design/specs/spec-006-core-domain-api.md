@@ -10,8 +10,8 @@ tmpl_version: 260703
 
 ## Context
 
-REQ-SYS-05 ("Dual interface over a shared core") requires that humans (via the `wingfoil` CLI, Commander.js
-+ chalk) and agents (via the MCP server, stdio transport, `@modelcontextprotocol/sdk`) get a single, non-divergent
+REQ-SYS-05 ("Dual interface over a shared core") requires that humans (via the `wingfoil` CLI,
+Commander.js) and agents (via the MCP server, stdio transport, `@modelcontextprotocol/sdk`) get a single, non-divergent
 behavior: *"Every state-mutating operation available in the CLI is reachable via an MCP Tool and vice
 versa; an automated parity test enumerates both surfaces and reports 0 unmatched operations."*
 
@@ -407,10 +407,12 @@ precisely the audience that re-derived this rule four times (`task-091`, `task-0
 `task-096`). Edited in place without a supersede or a state change, per the same `spec-001`
 precedent the 2026-09-17 revision cites.
 
-**Revision (2026-09-29) — §Context names the MCP library the server is built on, per
+**Revision (2026-09-29) — §Context names the libraries the two surfaces are built on, per
 `task-117-remove-the-unused-anthropic-sdk` (`bug-138`).** The parenthetical describing the agent
 surface said "Anthropic SDK", following `adr-004`'s framing; `src/mcp` imports
 `@modelcontextprotocol/sdk` and nothing imports `@anthropic-ai/sdk` (`grep -rn "@anthropic-ai" src/`
-→ nothing), which `task-117` removes from `package.json`. One word in §Context changes; nothing in
-§Specification does. Edited in place without a supersede or a state change, per the same `spec-001`
+→ nothing). The one describing the human surface said "Commander.js + chalk"; nothing imports `chalk`
+(`grep -rn chalk src/` → only a TSDoc line). `task-117` removes both from `package.json`, on the
+approver's ruling at its review. Two parentheticals in §Context change; nothing in §Specification
+does. Edited in place without a supersede or a state change, per the same `spec-001`
 precedent the 2026-09-17 revision cites.
