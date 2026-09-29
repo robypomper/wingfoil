@@ -312,7 +312,7 @@ export interface DnaSetParams {
  *    quote; a `"` no delimiter can account for), is a usage error: `throw new UsageError(...)` → exit
  *    **2** (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1, whatever the git
  *    identity (task-125, `bug-172`). A path that is well-formed but names nothing the schema declares
- *    is a different failure and exits **1** — see step 4.
+ *    is a different failure and exits **1** — see step 5.
  * 2. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
  *    `user.name`/`user.email` are unset, returning its `CoreResult.error` unchanged (exit 1).
  * 3. **`requireUnmodifiedTarget` pre-flight** (`dl-080`(B) / `bug-078`, task-092) — refuse, before
