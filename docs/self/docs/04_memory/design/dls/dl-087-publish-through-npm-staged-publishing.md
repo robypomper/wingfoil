@@ -2,7 +2,7 @@
 id: "dl-087-publish-through-npm-staged-publishing"
 type: decision-log
 title: "Migrate the publish pipeline from token `npm publish` to npm staged publishing before npm removes token direct-publish (January 2027)"
-status: in-discussion
+status: ready
 context: "release-publishing"
 release: "v0.2.2"
 contributor: ""
