@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -129,6 +129,15 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    2026-09-29) and `dl-026`, and on every ADR, spec and task this phase creates. The build-backlog also carries
    the two follow-ups identify-specs deferred (the `spec-008` token option, `dl-107` Action 2; the
    npm approval step in `release-publishing.yaml`, `dl-087` Action 3).
+   **Done 2026-09-29**:
+   - `wf(task): add` (`80849b18`) and `submit` (`a9ed8e1a`) of `task-109` … `task-121`, all `pending`;
+   - eight bugs `[triaged → planned]` with `release: v0.2.2` (`8da0abfb`);
+   - `bug-021`, `bug-092` (`2715b7bc`) and `dl-026` (`dfc09f9d`) stamped `v0.2.2`.
+
+   Mapping, budget and the in-scope elements with no task are in `patch-v0.2.2`'s Planning notes.
+   The `spec-008` amendment is inside `task-110`, and the `release-publishing.yaml` step is inside
+   `task-113`. Interpretation for the approver: the retrospective's "`bug-021` downgraded" is read
+   as a closure with no code, like `bug-092`; if it meant something else, `bug-021` needs a task.
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`;
    `patch-v0.2.2` `[planning → in-development]`.
 
