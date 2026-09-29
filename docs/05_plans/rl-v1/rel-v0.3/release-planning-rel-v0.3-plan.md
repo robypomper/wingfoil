@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -193,6 +193,19 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
      full titles are sentences, and `{slug}` derives from the title given to `add`.
    - The proposal for the 28 `in-discussion` decision-logs in the selection filter, and the options
      each new one leaves open, are in Appendix B.
+   **Gate passed 2026-09-29**, approver ruling: every recommendation of Appendix B.
+   - 29 `memory approve [in-discussion → ready]`, one commit each, from `dl-039` to `dl-136`
+     (`3262ad92` is `dl-079`'s); each `Reason:` names the options chosen and restates the stale text
+     Appendix B lists. A cosmetic slip: some reasons end in a doubled full stop, where the option text
+     already ended in one.
+   - Not selected: `dl-040`, `dl-043`, `dl-058`, `dl-071`, `dl-077` stay `in-discussion`; `dl-040` is
+     re-stamped `release: "v0.4"` (`82fc2f8a`).
+   - `82fc2f8a` also adds the dated *Amended by* lines to `dl-089`, `dl-099`, `dl-100` (by `dl-133`),
+     `dl-114` (by `dl-135`) and a *Refined by* line to `dl-112` (by `dl-131`); their status is
+     unchanged.
+   - The ingest plans are closed: `decision-log-ingest-rel-v0.3-planning-decisions-plan` (`51c7ac94`)
+     and `bug-ingest-rel-v0.3-planning-findings-plan` (`d9e40fcf`). `service-ingest-rel-v0.3-listings-plan`
+     stays `active` until `svc-012` is approved.
 
 4. **record-adrs** (architect, `dl-022` spec-review, ⛔). `adr-012` — agent execution launches the
    agent's own CLI through a declared adapter (R2). Context via MCP stays as `adr-004` decided. The
