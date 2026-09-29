@@ -2,7 +2,7 @@
 id: svc-009-npm-trusted-publisher-for-wingfoil
 type: service
 title: "npm trusted publisher for wingfoil"
-status: pending
+status: active
 provider: "npmjs.com"
 kind: "setting"
 owner_role: "approver"
