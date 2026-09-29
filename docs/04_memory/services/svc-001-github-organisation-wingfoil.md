@@ -18,7 +18,7 @@ tmpl_version: 260929
 
 ## Purpose
 
-The organisation that will own the canonical repository after the transfer
+The organisation that owns the canonical repository since the transfer
 `robypomper/wingfoil → wingfoil/wingfoil` (`dl-091` addendum D5; `release-planning-rel-v0.2.2-plan`
 §C), the MCP Registry namespace `io.github.wingfoil` (`dl-093`) and GitHub Pages. Without it the
 namespace `io.github.wingfoil/wingfoil` cannot be claimed and `adr-011`'s trusted publisher, keyed on
@@ -37,8 +37,10 @@ organisation `wingfoil`, has no owner to point at.
     on 2026-09-29, first read as `"wingFoil"`), and `description: "The repo-native intent layer for
     AI-native software engineering"`, the category line (`gh api orgs/wingfoil --jq
     '{name,description}'`, 2026-09-29).
-- No repository lives under it yet: the transfer is the approver's last identity step, before the
-  v0.2.2 publish (`task-116-repository-slug-follows-the-transfer`).
+- It owns `wingfoil/wingfoil` since the approver's transfer on 2026-09-29
+  (`task-116-repository-slug-follows-the-transfer`; `gh api orgs/wingfoil/repos --jq '.[].full_name'`
+  → `wingfoil/wingfoil`), and the Claude GitHub App is installed on it
+  (`svc-008-claude-github-app-on-the-wingfoil-organisation`).
 
 ## Verification
 
