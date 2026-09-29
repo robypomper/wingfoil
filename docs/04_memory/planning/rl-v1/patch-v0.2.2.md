@@ -95,6 +95,17 @@ through its own verbs, and every later publish goes through staging.
   against `dl-096`'s proxy of ≈ 4. The difference is the size of `task-111`: one task, but the
   largest single change of the patch (32 test files, 206 Memory documents). The task count
   underweights it. Expect nearer the proxy than the count.
+  - *Why the two figures differ.* The proxy scales v0.2's ≈ 12 active days by feature count, which a
+    patch does not have, so `dl-096` estimated it from the configuration move instead; the count
+    measures tasks at the velocity v0.1 and v0.2 showed (33 ÷ 5 = 6.6 and 75 ÷ 12 ≈ 6.25 a day; the
+    6.5 used here is a rounding upward, and the pooled 108 ÷ 17 ≈ 6.35 gives the same 2.2), and weighs
+    every task alike.
+  - *Recalculated for 15 tasks (dev-loop, 2026-09-29).* `task-123` was added after build-backlog
+    (`50c64846`, from `task-110`'s review), so the backlog is 15 tasks (`ls docs/04_memory/v0.2.2/ | wc -l`
+    → 15 at `c3df9df3`): 15 ÷ 6.5 ≈ **2.3 active days** (≈ 2.4 at 6.35). The figure above stays as build-backlog
+    measured it.
+  - The budgets, the actuals they come from and the calendar forecast are in
+    `docs/01_vision/07_sequencer.md` v1.4 (*Re-baseline on active days*, `task-121`).
 
 ### Implementation (dev-loop, per task)
 
