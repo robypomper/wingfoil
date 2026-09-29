@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -120,8 +120,9 @@ deleted.
 | `task-120` | `bug-128` |
 | `task-122` | `bug-021` |
 
-Each bug has exactly one task, so the aggregate rule is 1:1. The bug's `status` changes in the same
-commit as the task's transition, on the task branch.
+Each bug has exactly one task, so the aggregate rule is 1:1. The bug's `status` changes in its own
+commit, right after the task's transition and on the task branch:
+`wf(bug): sync {bug.id} [{from} → {to}]`, as v0.2 did (e.g. `bug-135` with `task-108`).
 
 ### 5. Known pitfalls, handed over by the release-planning session
 
