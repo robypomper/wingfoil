@@ -365,7 +365,7 @@ a defect. The probe was re-run without it.
 
 ### S8 — after the version is live
 
-- README roadmap row 0.2.2 → `✓ Released (\`wingfoil@0.2.2\` on npm)` (`39a44f7d`).
+- README roadmap row 0.2.2 → "✓ Released (`wingfoil@0.2.2` on npm)" (`39a44f7d`).
 - **MCP Registry listing:** the approver's (pending). Its `service` element follows once it exists.
 - **Runbook gap:** the `publish.yml` header does not say where the Staged Packages tab is, nor that an
   automated review precedes Approve. Changing that header is a change to a pipeline file, so it is
