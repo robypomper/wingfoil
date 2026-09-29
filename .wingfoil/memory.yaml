@@ -46,7 +46,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.4                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.5                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -182,10 +182,14 @@ types:
       sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
       gates:
         open:      { reject: closed }        # approve: open->triaged · reject: ->closed (wontfix/dup)
+        triaged:   { reject: closed }        # [AUTHORING] dl-123 (A): reject ->closed (wontfix after triage) · no approve: forward edge stays `waiting`
+        planned:   { reject: closed }        # [AUTHORING] dl-123 (A): reject ->closed (wontfix before the fix starts) · no approve: forward edge stays `waiting`
         in-review: { reject: in-progress }   # approve: in-review->resolved · reject: reopen ->in-progress
         resolved:  { reject: in-progress }   # approve: resolved->closed · reject: reopen ->in-progress
       waiting: [ triaged, planned ]          # triaged->planned (release-planning schedules it);
-                                             # planned->in-progress (dev-loop starts the fix)
+                                             # planned->in-progress (dev-loop starts the fix).
+                                             # Both are also `gates` keys (dl-123): waiting AND gated =
+                                             # verb-less forward edge + a manual reject (spec-001).
 
   plan:
     path: "docs/05_plans/{scope}/{id}.md"       # [AUTHORING] dl-019 — phase plans live OUTSIDE docs/04_memory/ (execution scaffolds); {scope} = the release-line/release nesting (e.g. rl-v1/rel-v0.1); X_* ad-hoc plans grandfathered
