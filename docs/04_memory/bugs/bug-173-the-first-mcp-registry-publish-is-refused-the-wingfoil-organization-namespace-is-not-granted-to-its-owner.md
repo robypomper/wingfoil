@@ -5,7 +5,7 @@ title: "The first MCP Registry publish is refused: the wingfoil organization nam
 status: open
 severity: "medium"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: "P5.2.1"
 contributor: ""
 credit: ""

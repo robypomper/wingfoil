@@ -5,7 +5,7 @@ title: "The publish runbook does not say where npm's Staged Packages tab is, nor
 status: open
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""
