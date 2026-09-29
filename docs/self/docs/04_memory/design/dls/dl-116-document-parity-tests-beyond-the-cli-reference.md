@@ -2,7 +2,7 @@
 id: "dl-116-document-parity-tests-beyond-the-cli-reference"
 type: decision-log
 title: "About one bug in six is a document that disagrees with the code or with another document, and only the CLI reference has a parity test — extend mechanical parity checks to specs, requirements and agent docs"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
