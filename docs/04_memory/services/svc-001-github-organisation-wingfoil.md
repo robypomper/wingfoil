@@ -2,7 +2,7 @@
 id: svc-001-github-organisation-wingfoil
 type: service
 title: "GitHub organisation wingfoil"
-status: pending
+status: active
 provider: "GitHub"
 kind: "account"
 owner_role: "approver"
