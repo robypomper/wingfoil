@@ -46,7 +46,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.2                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.3                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -87,7 +87,7 @@ types:
 
   release:
     path: "docs/04_memory/planning/{release-line}/{id}.md"     # [SPEC] path pattern (P1.13)
-    id_pattern: "{kind}-{version}"              # [AUTHORING] dl-092 Q1 (A)(a) — id derives from kind + version, e.g. minor-v0.1, patch-v0.2.2; ids added before dl-092 (minor-v0.1..minor-v1.0) are immutable and carry no `kind:` field
+    id_pattern: "{kind}-{version}"              # [AUTHORING] dl-092 Q1 (A); `kind` is the implementation chosen 2026-09-29 — id derives from kind + version, e.g. minor-v0.1, patch-v0.2.2; ids added before dl-092 (minor-v0.1..minor-v1.0) are immutable and carry no `kind:` field
     name: Release               # [AUTHORING]
     description: A WingFoil release wave centered on a pillar (v0.1 .. v1.0), belonging to a release-line — a `minor`, or a `patch` of a minor already `released` (dl-092). Workflow — a minor is produced by release-line-cycle's `initial-design` (`seed-releases`, per release-line); a patch is registered on the ruling of the patched minor's retrospective (dl-092 — no workflow action seeds it yet); both are iterated by release-line-cycle / release-cycle (iterate_over release). A patch runs every release-cycle phase except `retrospective` (dl-092 Q2 (ii)), declared in its release-planning plan.   # [AUTHORING]
     tags: [ release, roadmap ]    # [AUTHORING]

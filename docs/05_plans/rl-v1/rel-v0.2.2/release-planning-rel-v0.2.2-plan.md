@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -68,7 +68,9 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
 (§5.1). Approver gates (⛔) run only on the approver's explicit instruction, with `Approver:` and
 `Reason:` in the commit body.
 
-0. **Configuration for the patch** (done). `dl-092` Q1 (A)(a) in `92908e8c`; `wf(plan): add` this
+0. **Configuration for the patch** (done). `dl-092` Q1 (A) in `92908e8c`, implemented with a `kind`
+   field and `{kind}-{version}` (the approver's choice on 2026-09-29; `dl-092` itself proposed
+   `patch-{version}`); `wf(plan): add` this
    plan (`639aea4a`); `wf(release): add patch-v0.2.2` (`75550694`).
 1. **define-scope** (product-owner, no gate). Fill `patch-v0.2.2`: `title`, `kind: patch`,
    `patch-of: minor-v0.2`, `version: v0.2.2`, `release-line: v1`, and
@@ -92,15 +94,24 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    name; `memory.approve dl-091 [in-discussion → ready]`. The other 25 unscheduled `in-discussion`
    decision-logs are not selected.
    **Done 2026-09-29**: the facts in `4283ca65` and `f5927f93`, the approval in `a4e80e11`.
-4. **record-adrs** (architect, optional, `dl-022` spec-review + ⛔). Candidate: `dl-087` replaces the
-   staging design `adr-009` accepted (ephemeral Verdaccio). If the spec-review finds it changes that
-   decision rather than its implementation, `adr-011` is recorded and `adr-009` retired with
-   `deprecate`, naming `adr-011` in the `Reason:` (no element is moved to `superseded` by hand).
+4. **record-adrs** (architect, optional, `dl-022` spec-review + ⛔). `dl-087` changes `adr-009`'s
+   decision points 4 (promotion) and 5 (credential), not its trigger, gate or Verdaccio staging
+   (points 1–3). The approver asked for a new ADR on 2026-09-29. `adr-011` is scoped to points 4–5
+   (option (c) in its Context): `adr-009` stays `accepted`, and on `adr-011`'s acceptance gains a
+   dated revision note sending points 4–5 there. Nothing is deprecated or moved to `superseded`.
+   *Superseded wording (v1.0–v1.3): "`adr-009` retired with `deprecate`", written before `dl-087`
+   was read against `adr-009` point by point.*
 5. **identify-specs** (architect, `dl-022` spec-review + ⛔). Survey the artefacts the scope changes:
    `spec-015-packaging-publishing` §1/§4 (`dl-093`, `dl-087`, `bug-136`) and
    `spec-001-memory-yaml-schema` (`dl-088` `service` type, `dl-092` `kind`/`patch-of`, `dl-123` edge).
    Each is either amended under the approver's gate or scaffolded as `spec-016…` if the change is a new
-   artefact.
+   artefact. The survey also found `spec-010` (type enumeration stale since `dl-019`). No new spec is
+   needed. Drafted 2026-09-29: `adr-011` (`df6512fe`, `pending`), `spec-015` (`0a4f7a9c`), `spec-001`
+   (`0f68c739`), `spec-010` (`289300a5`); the `dl-022` spec-review returned PASS-with-fixes (14
+   findings, no blocker), applied in the commit after this revision. Carried to build-backlog, not
+   done here: the `spec-008` amendment for `memory add`'s token option (`dl-107` Action 2), and the
+   `release-publishing.yaml` `publish` phase gaining the npm approval step (`dl-087` Action 3). The
+   npm facts were copied into `dl-068` Action 4 as `dl-087` Action 5 asks.
 6. **build-backlog** (product-owner, no gate). Tasks `task-109…`, tagged `v0.2.2`, `add → submit`
    `[draft → pending]`, grouped by §6.8 step so the dev-loop respects its order (`depends_on`,
    `dl-015`): step 1 (`bug-137`; `dl-094`'s `.mailmap` if the ruling needs one), step 2 (`bug-075`,

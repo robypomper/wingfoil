@@ -48,7 +48,8 @@ revision or by a superseding ADR". The alternatives weighed were:
   ephemeral Verdaccio staging) and its alternatives analysis are untouched by `dl-087`. Restating them
   would duplicate an accepted decision to change two of its five points.
 - **(c) A new ADR scoped to promotion and its credential, with a dated revision note on `adr-009`
-  pointing here.** This is the choice. `adr-009` stays `accepted` for points 1–3, and this ADR is the
+  pointing here.** This is the choice: the approver asked for a new ADR on 2026-09-29, and its
+  scope, points 4–5 only, is this ADR's proposal for the gate. `adr-009` stays `accepted` for points 1–3, and this ADR is the
   record for points 4–5.
 
 Without this decision, v0.2.2's `release-publishing` phase has no working promotion step, and the
@@ -72,9 +73,10 @@ limited to staging**, and **no long-lived npm token exists anywhere**.
    - environment `npm-publish`;
    - permission limited to staging.
 
-   After it is configured, the package's publishing access is set to *require two-factor
-   authentication and disallow tokens*, the stage-only token is revoked, and the `NPM_TOKEN` secret is
-   removed. `promote` keeps `id-token: write` and writes no `.npmrc`.
+   After it is configured, the stage-only token is revoked and the `NPM_TOKEN` secret is removed.
+   **Added by this ADR, beyond `dl-087` Q1 (B):** the package's publishing access is set to *require
+   two-factor authentication and disallow tokens*, as `docs.npmjs.com/trusted-publishers` recommends
+   after a trusted publisher is set up (read 2026-09-29), so no token of any kind can publish. `promote` keeps `id-token: write` and writes no `.npmrc`.
 3. **Two human gates for the first staged release, then a decision.** Both gates remain:
    - the GitHub `npm-publish` environment's required reviewer, which approves the *deployment*
      (`adr-006`, `task-061`);
@@ -83,9 +85,14 @@ limited to staging**, and **no long-lived npm token exists anywhere**.
    After v0.2.2's publish, `release-publishing`'s record states which gate caught what, and a
    decision-log keeps or drops the environment reviewer (`dl-087` Q2 (iii)).
 4. **Only the promote job leaves the CI Node floor.** Staged publishing requires npm ≥ 11.15.0 and Node
-   ≥ 22.14.0. Trusted publishing requires npm ≥ 11.5.1. `promote` alone runs a Node that bundles a
-   sufficient npm. `gate` and `stage` stay on `env.NODE_VERSION` (22.12.0, `adr-010`), so CI keeps
-   testing the declared floor (`dl-087` Q3 (a)).
+   ≥ 22.14.0; trusted publishing requires npm ≥ 11.5.1. **No Node 22 release bundles npm 11**: the
+   latest 22.x, `v22.23.3`, bundles npm 10.9.9, and the oldest Node bundling npm ≥ 11.15 is
+   `v24.18.0` (npm 11.16.0, 2026-06-23), per `https://nodejs.org/dist/index.json` read 2026-09-29.
+   `dl-087` Q3 (a) assumed "a Node ≥ 22.14 (bundling npm ≥ 11.15)", which does not exist. Its intent
+   still holds: `promote` alone runs **Node ≥ 24.18.0**, pinned exactly in the workflow, while `gate`
+   and `stage` stay on `env.NODE_VERSION` (22.12.0, `adr-010`), so CI keeps testing the declared
+   floor. The alternative, Q3 (b) — Node 22 plus a separately installed npm in `promote` — is not
+   taken; the approver confirms this reading at the gate.
 5. **The approver owns the registry-side setup.** It is outside the repository and needs credentials no
    agent holds: 2FA on the account, the trusted publisher, publishing access, and revoking the token.
    Each is recorded as a `service` element once `dl-088`'s type exists.
@@ -118,8 +125,8 @@ and §5.
   - `promote` runs a different Node from the other two jobs. That is a deliberate asymmetry the
     workflow header must explain.
 - **Neutral:**
-  - `adr-009` stays `accepted` for decision points 1–3, and carries a dated revision note that sends
-    points 4–5 here. Neither ADR moves to `superseded` (no engine trigger exists for it, and the
+  - `adr-009` stays `accepted` for decision points 1–3. When this ADR is accepted, `adr-009` gains a
+    dated revision note that sends points 4–5 here (not written before then). Neither ADR moves to `superseded` (no engine trigger exists for it, and the
     replacement is partial).
   - The `security-secrets` boundary is unchanged in shape: nothing that authenticates is in git.
     There is simply less that authenticates.
@@ -134,4 +141,4 @@ configuration the approver reported on 2026-09-29 had a stage-only granular toke
 disabled. That is Q1 (A), not the ratified (B), and without 2FA no staged version can be approved.
 It is recorded in the plan's *Approver inputs received*, and decision point 2 is the path from it.
 Filed `pending` for the `dl-022` spec-review and approver sign-off before `accepted`. Companion
-artefact: the `spec-015` amendment of the same date.
+artefacts: the `spec-015` amendment of the same date; the `adr-009` revision note follows acceptance.

@@ -13,7 +13,8 @@ tmpl_version: 260703   # Orignal template version
 `memory.yaml` is the **Project Memory type registry** (feature **P1.13**). It declares every Memory
 element type — `release-line, release, task, adr, decision-log, tech-spec, bug, plan, service` (the
 eighth, `plan`, added by `dl-019-plans-as-memory-element`; the ninth, `service`, by
-`dl-088-a-memory-type-for-state-that-lives-outside-the-repository`) — giving each a path
+`dl-088-a-memory-type-for-state-that-lives-outside-the-repository`, specified here ahead of the
+configuration change that adds it to `memory.yaml`) — giving each a path
 pattern, an id pattern, human metadata, a template scaffold, and a state machine. It is consumed by
 every `wingfoil memory *` command (add/submit/approve/reject/deprecate/show/search/history), by the
 Workflow pillar (to resolve `element:` type declarations), by the ID-generation engine (reads
@@ -138,9 +139,9 @@ An `id_pattern` is a string template: literal characters (which must respect the
 | `{n:N}`     | Next available integer, zero-padded to a **minimum** of N digits (`{n:3}` → `001`; overflow past N digits uses natural width) | counter algorithm (below) |
 | `{slug}`    | Normalized kebab-case slug from `--slug` or `--title`. A `.` between two alphanumerics is **kept** (`v0.2` → `v0.2`); every other run of characters outside `[a-z0-9]` collapses to `-`. The slugifier and the id validator share this one character rule (`dl-107` S1 (a)) | user input |
 | `{version}` | The release-line / release version string (e.g. `v1`, `v0.1`, `v0.2.2`) — used by `release-line` (`rl-{version}`) and `release` (`{kind}-{version}`) | a frontmatter field (below) |
-| `{kind}`    | The release kind, `minor` or `patch` — used by `release` (`{kind}-{version}` → `minor-v0.3`, `patch-v0.2.2`; `dl-092` Q1 (A)(a)) | a frontmatter field (below) |
-| `{<field>}` | Any other token names a **frontmatter field of the same name**, given to `memory add` on the command line (e.g. `--field version=v0.3`) or pinned by the workflow action. `memory add` also writes the value into that field, so the id and the field cannot disagree (`dl-107` S2 (a)) | a frontmatter field |
-| `{workflow}`, `{phase}`, `{scope}` | Execution **context** of the workflow that runs the add. The workflow engine fills them; from the CLI they must be given explicitly, as any other `{<field>}` (`dl-107` S2 (c)) | workflow engine / user input |
+| `{kind}`    | The release kind, `minor` or `patch` — used by `release` (`{kind}-{version}` → `minor-v0.3`, `patch-v0.2.2`; `dl-092` Q1 (A), implemented as `{kind}-{version}` in `92908e8c`; the optional `patch-of` field names the released minor a patch belongs to) | a frontmatter field (below) |
+| `{<field>}` | Any other token names a **frontmatter field of the same name**, given to `memory add` on the command line — through an option `spec-008-cli-grammar` defines, in the amendment `dl-107` Action 2 requires (not `--field`, which `spec-008` retired for DNA paths under `dl-082`) — or pinned by the workflow action. `memory add` also writes the value into that field, so the id and the field cannot disagree (`dl-107` S2 (a)) | a frontmatter field |
+| `{workflow}`, `{phase}`, `{scope}` | Execution **context** of the workflow that runs the add. The workflow engine fills them; from the CLI they must be given explicitly, as any other `{<field>}` (`dl-107` S2 (c)). Where the type also has a frontmatter field of that name (`plan` requires `workflow` and `phase`), there is one value, not two: the context value is written into the field, as S2 (a) does for any token | workflow engine / user input |
 | `{date}`    | Current date `YYYYMMDD` (UTC) | system clock |
 | `{author}`  | Slug-normalized git `user.name` | git identity |
 
@@ -152,7 +153,9 @@ expands to an empty string.
 **Per-action override (`dl-107` S3 (a)).** A workflow action may give one add its own pattern, e.g.
 `memory.add(type: decision-log, id_pattern: "retro-{release.version}")`, for an id its type's pattern
 cannot express. The override is declared in the workflow file, where it is used, and is validated
-like any other `id_pattern`. There is no free-form `--id`.
+like any other `id_pattern`. A dotted token such as `{release.version}` reads a field of an element
+in the workflow's `element:` chain; that resolution is `dl-090`'s, which `dl-107` names as S3's
+prerequisite, and until it lands only undotted tokens are defined. There is no free-form `--id`.
 
 **Counter algorithm (no central ID registry — the filesystem is the source of truth, consistent with
 "state deduced from Memory", REQ-STATE-01/REQ-STATE-02):**
@@ -167,8 +170,9 @@ like any other `id_pattern`. There is no free-form `--id`.
 
 ### Worked examples — every current type in the new format
 
-The `defaults` machine and the types below reproduce **exactly** the legal transition set of the
-current `memory.yaml`; only the encoding changes (except the deliberate default-machine collapse called
+The `defaults` machine and the types below reproduce **exactly** the legal transition set of
+`memory.yaml` once the `dl-088` and `dl-123` configuration changes land (until then the file has no
+`service` type and no `triaged`/`planned` reject edges); only the encoding changes (except the deliberate default-machine collapse called
 out in Consequences). The first seven were written with this spec; `plan`, `service`, the `release`
 id pattern and the two `bug` decline edges were added later (see the *Revision (2026-09-29)* note
 below).
@@ -275,7 +279,7 @@ forward edge stays verb-less, and `reject` is a manual decline to `closed`, behi
 authority check as every other gate. The ruling lives in the `Reason:` block and in
 `rejection_reason`, as for `open → closed`.
 
-Every one of these preserves the current file's legal-transition set. Verification for the two
+Every one of these preserves the file's legal-transition set (with the `dl-088`/`dl-123` caveat above). Verification for the two
 multi-target cases the old graph left ambiguous: old `task in-review: [ approved, in-progress ]` →
 `approve`=approved, `reject`=in-progress; old `bug in-review: [ resolved, in-progress ]` →
 `approve`=resolved, `reject`=in-progress; old `bug resolved: [ closed, in-progress ]` →
@@ -323,9 +327,11 @@ dots, the per-action override, two `bug` decline edges, and the `plan` and `serv
 in v0.2.2 `release-planning/identify-specs` (`release-planning-rel-v0.2.2-plan` step 5), ahead of the
 tasks and configuration changes that implement it:
 
-- **`release`: `id_pattern: "{kind}-{version}"`** and the `{kind}` token (`dl-092` Q1 (A)(a), approve
-  commit `864d8bdf`). `memory.yaml` already carries it (`92908e8c`). The five `minor-*` ids predate
-  it and are immutable.
+- **`release`: `id_pattern: "{kind}-{version}"`**, the `{kind}` token and the optional `patch-of`
+  field (`dl-092` Q1 (A), approve commit `864d8bdf`). `dl-092` proposed a `patch-{version}` form;
+  the `kind` field that lets one pattern serve both is the implementation the approver chose on
+  2026-09-29, and `memory.yaml` already carries it (`92908e8c`). The five `minor-*` ids predate it
+  and are immutable.
 - **Token sources** (`dl-107`, ratified S1 (a), S2 (a)+(c), S3 (a)). The `{version}` row previously
   read "supplied by the workflow or `--version`". No such option existed (`wingfoil memory add --help`
   on `wingfoil@0.2.1` lists `--type`, `--title`, `--tags`), so any token other than `{n}` and `{slug}`

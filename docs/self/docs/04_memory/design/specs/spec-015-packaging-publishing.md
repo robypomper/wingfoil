@@ -46,8 +46,8 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   registry URL is non-secret and lives here in git; omitting it falls back to the npm default. The
   **staging** registry is never stored here — it is passed transiently as `--registry
   http://localhost:4873` by the `publish:staging` script (§3). See §5 for the full config-location map.
-- `description`: one line a registry listing shows whole, carrying the display name `WingFoil` and
-  its category line (`dl-091` Q1, `dl-093` point 2).
+- `description`: one line a registry listing shows whole, carrying the display name `WingFoil`
+  (`dl-091` Q1, `dl-093` point 2); it may carry the category line, which `dl-091` keeps a proposal.
 - `keywords`: the discovery terms of `dl-093` point 1 — at least `mcp`, `model-context-protocol`,
   `mcp-server`, `ai-agents`, `cli`, `workflow`, `governance`, `spec-driven-development`,
   `claude-code`; the exact list is fixed by the implementing task.
@@ -94,8 +94,8 @@ A `server.json` at the repository root describes the MCP server for the registry
 `package.json` `mcpName`, the description, the repository URL, and one `packages[]` entry for the npm
 package `wingfoil` over `stdio` with the argument `mcp` (the command `wingfoil mcp` starts). Its
 `version` and every `packages[].version` equal `package.json` `version`, checked by §4. It is not in
-`files`: the registry reads it from the repository at listing time, and publishing to the registry is
-not part of this pipeline (`dl-093` point 6, `dl-130`).
+`files`: it is the input of the MCP Registry listing, and publishing to the registry is not part of
+this pipeline — it happens with the approver at publication time (`dl-093` point 6, `dl-130`).
 
 Unchanged: `name: wingfoil`, `main`, `types`, `license: MIT`. `version` is driven by the release/tag
 scheme (§4), not hand-edited at publish time.
@@ -134,9 +134,10 @@ Stages, in order (the CI job invokes the same `scripts/publish-staging` a develo
    over GitHub OIDC (`id-token: write`; no token, no `.npmrc`; §5). The version is **not live** until
    the maintainer approves it with 2FA (`npm stage approve <stage-id>`, or **Approve** under *Staged
    Packages* on npmjs.com), after inspecting it with `npm stage view` / `npm stage download`
-   (`adr-011` points 1–3). `promote` alone runs a Node ≥ 22.14.0 bundling npm ≥ 11.15.0, which
-   staged publishing requires; `gate` and `stage` stay on `env.NODE_VERSION`, the `adr-010` floor
-   (`adr-011` point 4). Whether `--access public` is passed as a flag or only through
+   (`adr-011` points 1–3). `promote` alone runs **Node ≥ 24.18.0**, the oldest release
+   bundling an npm (11.16.0) at or above the 11.15.0 staged publishing requires — no Node 22 release
+   bundles npm 11 (`adr-011` point 4, Node dist index read 2026-09-29); `gate` and `stage` stay on
+   `env.NODE_VERSION`, the `adr-010` floor. Whether `--access public` is passed as a flag or only through
    `publishConfig` is settled by the implementing task (`adr-011`, *Consequences*). Triggered on a
    `vX.Y.Z` tag on `main`.
 
@@ -175,7 +176,8 @@ that authenticates never in git (`security-secrets` / `spec-007`):
   repository `wingfoil`, workflow `publish.yml`, environment `npm-publish`, and permission limited
   to staging (`adr-011` point 2). The same OIDC identity signs provenance. No `NPM_TOKEN` secret
   exists, and no `.npmrc` is written. The package's publishing access is *require two-factor
-  authentication and disallow tokens*, so a leaked token of any kind could not publish.
+  authentication and disallow tokens* (`adr-011` point 2, npm's recommendation for trusted
+  publishers), so a leaked token of any kind could not publish.
 - **No username/password is stored anywhere**, and no developer machine needs an npm credential for a
   release: the only human npm act is the 2FA approval of a staged version.
 
