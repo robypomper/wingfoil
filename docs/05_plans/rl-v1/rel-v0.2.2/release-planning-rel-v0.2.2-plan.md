@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -124,7 +124,20 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
   - Q2 (iii) keeps two human gates, the second being npm 2FA on `npm stage approve`. With 2FA
     disabled that gate does not exist; only the GitHub environment reviewer remains.
   The token's expiry precedes npm's January 2027 removal of direct publish, so it covers v0.2.2 either
-  way. It is recorded here and not in the repository: no token value was given or stored.
+  way.
+  **npm documentation, read 2026-09-29** (settles part of `dl-087` Action 5; to be copied into
+  `dl-068` Action 4 at identify-specs):
+  - `https://docs.npmjs.com/trusted-publishers`: a GitHub Actions trusted publisher is keyed on
+    organisation or user, repository, workflow filename and optional environment; it can be limited to
+    staged publishing ("stage-only"), so Q1 (B) exists as `dl-087` describes it. It needs npm ≥ 11.5.1
+    and Node ≥ 22.14.0, `id-token: write`, and generates provenance automatically. After setup npm
+    recommends "Require two-factor authentication and disallow tokens". The page says nothing about a
+    repository transfer, so the publisher is configured against `wingfoil/wingfoil` after the transfer.
+  - `https://docs.npmjs.com/staged-publishing`: 2FA on the account is a **prerequisite**; `npm stage
+    publish` does not prompt for it, but approving does, in the CLI or on npmjs.com. So with 2FA off no
+    staged release can be approved at all, under Q1 (A) or (B). It needs npm ≥ 11.15.0 and Node ≥
+    22.14.0 (`dl-087` Q3 (a)). Whether `npm stage publish` accepts `--access public` and
+    `--provenance` is not documented there, and stays open. It is recorded here and not in the repository: no token value was given or stored.
 - **Budget (for `dl-096`).** Derived from the measured velocity, not set by hand. `dl-096` Q1 (a)
   keeps budgets in the vision documents only, so no field is added to `patch-v0.2.2`. At
   build-backlog the budget is computed as *tasks ÷ 6.5 per active day* (v0.1 6.6, v0.2 6.3,
