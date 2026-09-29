@@ -2,7 +2,7 @@
 id: "bug-128-subcommand-help-describes-no-command-and-no-argument"
 type: bug
 title: "Subcommand `--help` describes nothing: no command has a description and every argument and option reads as a placeholder"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"
