@@ -110,8 +110,18 @@ through its own verbs, and every later publish goes through staging.
 
 ### Implementation (dev-loop, per task)
 
-<!-- Recurring blockers across tasks, tech-specs revised mid-release, review rejections and why,
-     anything that deviated from the plan in Scope/Pillar Focus above. -->
+- **Done 2026-09-29** (`dev-loop-rel-v0.2.2-plan`): 16 tasks, `task-109` … `task-124`, in five waves,
+  none rejected at review. The backlog grew from 14 to 16: `task-123` (`bug-156`, from `task-110`'s
+  review) and `task-124` (`dl-088`, which the approver turned from out-of-flow into a task).
+- **Specs revised in flight** (dated revision notes, each signed at its task's review): `spec-001`,
+  `spec-002`, `spec-003`, `spec-004`, `spec-006`, `spec-007`, `spec-008`, `spec-010`, `spec-011`.
+- **Recurring pattern:** findings of the same class as a task's fix were first left in notes
+  (`bug-160`). From `task-122` on, they were fixed in-task before approval.
+- **External state:** the repository moved to `wingfoil/wingfoil`. The npm trusted publisher, 2FA
+  and "disallow tokens" were configured, and the `NPM_TOKEN` secret was deleted. `svc-001` …
+  `svc-009` record it.
+- **Next phase:** `user-docs` (CHANGELOG 0.2.2 section, `align-agent-docs` items listed in `task-111`'s
+  notes).
 
 ### Submit & Publishing
 

@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -159,3 +159,28 @@ commit, right after the task's transition and on the task branch:
   cleanup, bug sync) once the approver has ruled. It never approves.
 - **Completion criteria:** the 16 tasks `done` and merged into `main`; their eleven linked bugs
   `closed`; `npm test` green with coverage > 80%; this plan `active → done`. Next phase: `user-docs`.
+
+## Execution Notes (close-out, 2026-09-29)
+
+- **All 16 tasks `done`** and merged into `main` with `--no-ff`: W1 `task-109` (`293a8d17`) and
+  `task-110` (`1087c166`); W2 `task-111` (`582ec08a`); W3 `task-121` (`3cc8fd77`), `task-122`
+  (`696c6ecd`), `task-123` (`68f64091`), `task-113` (`83f6fd1b`), `task-118` (`2f0bb682`), `task-112`
+  (`74eaec15`); W4 `task-114` (`b0bc0a7b`), `task-115` (`ebfccee5`), `task-119` (`4898bfbc`),
+  `task-117` (`ccb933e0`), W4b `task-124` (`a9523820`); W5 `task-120` (`b9458ffe`), `task-116`
+  (`d1b4393e`, after the approver's transfer to `wingfoil/wingfoil`).
+- **Linked bugs:** `bug-021`, `bug-075`, `bug-128`, `bug-129`, `bug-136`, `bug-137`, `bug-138`,
+  `bug-139`, `bug-140`, `bug-156` and `bug-159` (absorbed) are `closed`, and `bug-092` is closed by the
+  approver's `reject` after `task-114`. Every bug with `release: v0.2.2` is `closed`.
+- **Review findings** became `bug-155`, `bug-157`, `bug-158`, `bug-160` … `bug-168` (all `triaged`,
+  v0.3), per `bug-ingest-rel-v0.2.2-review-findings-plan`.
+- **Out of the plan's first shape:** `task-123` added from `task-110`'s review; `dl-088` turned into
+  `task-124` on the approver's instruction; `chalk` removed inside `task-117`. The repository was
+  pushed (`4770a52c..071705dd`, after the approver cleared a `bug-055` push-protection hit) and
+  transferred to `wingfoil/wingfoil`. Nine services are registered (`svc-001` … `svc-009`; `svc-007`
+  retired, the rest `pending` for the approver's `verify`).
+- **Dogfooding:** after `task-111`/`task-123` the verbs ran on this repository. The pinned 0.2.1 was
+  used for `bug` and `service` add/submit, `reject bug-092`, `deprecate svc-007`, and `task-124`'s
+  submit/approve. Hand commits were used for `task` adds (0.2.1 has no `--set`; the dev build's
+  counter restarts per release, `bug-162`) and for transitions that also set `release`.
+- **Standing rule learned:** a same-class stale description found at review is fixed in-task before
+  approval (after `task-121`/`bug-160`).
