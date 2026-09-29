@@ -4,7 +4,7 @@
  * assert `package-lock.json` still carries the hoisted entries the release gate needs, and that the
  * mechanism keeping them there is still declared.
  *
- * Three properties, all read out of two committed files:
+ * Four properties, all read out of two committed files:
  *
  *   1. every dependency pinned in `package.json`'s nested `overrides` has a **hoisted** lock entry at
  *      exactly the pinned version — its absence is `bug-056`: `npm ci` exits 1 under npm 10.9.x (the
@@ -18,7 +18,12 @@
  *   3. no hoisted package declares a **required** peer with no hoisted entry to resolve it from —
  *      the general form of (1), so a future dependency that repeats the shape is caught without
  *      anyone remembering to add a pin. Peers the parent marks `peerDependenciesMeta.<name>.optional`
- *      are exempt; npm may legitimately leave those out of the tree.
+ *      are exempt; npm may legitimately leave those out of the tree;
+ *   4. every `npm:` **alias** among the direct dependencies is exact (`npm:<name>@X.Y.Z`) and the lock
+ *      records it under the alias's own install path with that `name` and `version` —
+ *      `task-112` / `dl-095` Q1 (a): the pinned WingFoil build that manages this repository is the
+ *      alias `"wingfoil-released": "npm:wingfoil@<version>"`, and a switch of the pin that moved one
+ *      of the two files and not the other is caught here.
  *
  * Pure and offline: it reads `package.json` and `package-lock.json` and never runs npm. Nothing keys
  * on npm's output — `dl-069` S1/E4 measured the same lock producing two different npm error messages
@@ -34,13 +39,18 @@ const { join } = require('node:path');
 /** An exact semver release. A range would be re-resolved from the registry on every install. */
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
 
+/** An exact `npm:` alias spec: `npm:<name>@X.Y.Z`, the name possibly scoped. */
+const EXACT_ALIAS = /^npm:((?:@[^/@\s]+\/)?[^/@\s]+)@(\d+\.\d+\.\d+)$/;
+
 /** What to do about a failure — the half `npm install` itself never printed (`bug-063`). */
 const REMEDIATION = [
   'How to fix:',
   '  1. If you have not committed the loss:  git checkout -- package.json package-lock.json',
   '  2. If package.json changed on purpose:  keep each overridden package ALSO declared as an exact',
   '     direct devDependency, then run  npm install  and commit both files together.',
-  '  3. Re-check with:  npm run check:lockfile',
+  '  3. If an npm alias failed (the pinned WingFoil build, dl-095):  move it with',
+  '     npm install --save-dev --save-exact <alias>@npm:<name>@X.Y.Z  and commit both files together.',
+  '  4. Re-check with:  npm run check:lockfile',
   '',
   'Why it matters: `npm ci` exits 1 under npm 10.9.x — the npm Node 22.12.0 bundles, and',
   '.github/workflows/publish.yml pins that Node in env.NODE_VERSION — on a lock missing these',
@@ -95,6 +105,19 @@ function directDeclaration(manifest, name) {
 }
 
 /**
+ * Every direct dependency declared as an `npm:` alias, as `[alias, spec]`, runtime ones first, each
+ * block in declaration order.
+ *
+ * @param {import('./check-lockfile-pins.cjs').LockfilePinsManifest} manifest
+ * @returns {[string, string][]}
+ */
+function aliasDeclarations(manifest) {
+  return [manifest.dependencies || {}, manifest.devDependencies || {}]
+    .flatMap((block) => Object.entries(block))
+    .filter(([, spec]) => typeof spec === 'string' && spec.startsWith('npm:'));
+}
+
+/**
  * @param {import('./check-lockfile-pins.cjs').LockfilePinsManifest} manifest
  * @param {import('./check-lockfile-pins.cjs').LockfilePinsLockfile} lockfile
  * @returns {{ ok: boolean, message: string }}
@@ -140,10 +163,31 @@ function checkLockfilePins(manifest, lockfile) {
     }
   }
 
+  const aliases = aliasDeclarations(manifest);
+  for (const [alias, spec] of aliases) {
+    const match = EXACT_ALIAS.exec(spec);
+    if (match === null) {
+      problems.push(`${alias} -> "${spec}": an npm alias must name an exact version (npm:<name>@X.Y.Z), or npm re-resolves it on every install`);
+      continue;
+    }
+    const [, name, version] = match;
+    const entry = packages[`node_modules/${alias}`];
+    if (entry === undefined) {
+      problems.push(`${alias} -> ${name}@${version}: package-lock.json has NO entry at node_modules/${alias}`);
+      continue;
+    }
+    if (entry.name !== name) {
+      problems.push(`${alias} -> ${name}@${version}: package-lock.json records ${entry.name} under node_modules/${alias}`);
+    }
+    if (entry.version !== version) {
+      problems.push(`${alias} -> ${name}@${version}: package-lock.json records node_modules/${alias} at ${entry.version} instead`);
+    }
+  }
+
   if (problems.length === 0) {
     return {
       ok: true,
-      message: `package-lock.json carries every pinned entry (${pins.length} overrides pin(s)) and every required peer edge resolves from the lock`,
+      message: `package-lock.json carries every pinned entry (${pins.length} overrides pin(s), ${aliases.length} npm alias(es)) and every required peer edge resolves from the lock`,
     };
   }
   return {

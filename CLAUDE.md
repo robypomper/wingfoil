@@ -71,16 +71,25 @@ root, and Memory **content** lives under `docs/04_memory/` (the `docs/04_memory/
 with `git mv` (`bug-075`), so `wingfoil memory history --follow` keeps each element's history across
 the move. Start from `.wingfoil/README.md`.
 
-**Commands that run on this repository.** Run from the repository root:
+**Which build manages this repository.** A published, pinned build (`dl-095`, `task-112`): the
+devDependency `"wingfoil-released": "npm:wingfoil@0.2.1"`, installed by `npm ci` with no build step.
+Run it from the repository root as `npm run -s wingfoil -- <command>` (`-s` keeps npm's banner out of
+JSON output). Do **not** use `npx wingfoil`: once `dist/` is built it runs this repository's own CLI.
+The pin moves forward only, to published builds, through `release-planning`'s `advance-pinned-build`
+phase. The same build's MCP server is registered in `.mcp.json`, and `npm run check:mcp` verifies it.
+
+**Commands that run on this repository**, with the pinned build:
 - the read commands answer on WingFoil's own configuration: `dna show`, `paths`, `directives list`,
   `workflow list`, `memory search`, `memory history`;
 - `memory submit`, `approve`, `reject` and `deprecate` write their `wf()` commits here;
-- `memory add` still fails for every type until `task-123` fixes `bug-156`: the `template.file`
-  entries carry a `.wingfoil/` prefix.
+- `memory add` works since `task-123` (`bug-156`), but 0.2.1 has no `--set` (`task-110`), so it
+  adds only types whose id and path need no field token: `bug`, `adr`, `decision-log`, `tech-spec`.
+  A `task`, `release`, `release-line` or `plan` is added with the build under development
+  (`npm run build`, then `node dist/cli.js memory add … --set <name>=<value>`), or by hand, until the
+  pin advances past 0.2.1;
+- 0.2.1 also predates `task-109`, so its audit reads only `→` transition brackets.
 
-Use the build under development (`npm run build`, then `node dist/cli.js <command>`). The globally
-installed `wingfoil` is `0.2.1`, which predates `task-109` and `task-110`. The pinned released build
-that will manage the project is `task-112` (`dl-095`). Workflow execution does not exist yet (§6).
+Workflow execution does not exist yet (§6).
 
 | File                                                       | Pillar                 | What it holds                                                                                                                                                                                        |
 |------------------------------------------------------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -125,8 +134,8 @@ State is **derived from each document's frontmatter** — there is **no `.wingfo
 (REQ-SYS-03). Every transition is validated against the type's state machine (REQ-STATE-01): the engine
 is real and tested (`resolveTransitionTarget` / `validateFrontmatterState`, `src/memory/state-machine.ts`),
 and the CLI verbs that drive it ship (§5.1). Since `task-111` moved the configuration to the
-repository root, the verbs run on *this* repository's own Memory (`bug-075`); `memory add` still
-fails here (`bug-156`, fixed by `task-123`). Whenever you edit WingFoil's own frontmatter by hand, the validation is
+repository root, the verbs run on *this* repository's own Memory (`bug-075`), `memory add` included since
+`task-123` (`bug-156`), with the limits of the pinned build given in §3. Whenever you edit WingFoil's own frontmatter by hand, the validation is
 your responsibility.
 
 Each type's machine is encoded in `memory.yaml` as `sequence` (the ordered forward chain) + `gates`
@@ -173,9 +182,10 @@ Worked example (two separate commits): `wf(release-line): add rl-v1` then `wf(re
 > Until `task-111`, every operation on *WingFoil's own* Memory was done **by hand**, for a structural
 > reason: the configuration lived under `docs/self/.wingfoil/` while the CLI resolves it from the git
 > root, so no verb could be aimed at the documents (`bug-075`). The configuration and the Memory are
-> now at the root (`.wingfoil/`, `docs/04_memory/`). `memory submit`, `approve`, `reject` and
-> `deprecate` work on this repository's documents and write the commit format below; `memory add`
-> still fails here on `bug-156` until `task-123` lands, so an `add` is still done by hand. The
+> now at the root (`.wingfoil/`, `docs/04_memory/`). `memory add`, `submit`, `approve`, `reject`
+> and `deprecate` work on this repository's documents and write the commit format below, through
+> the pinned build `npm run -s wingfoil -- memory <verb>` (§3, which also gives the types 0.2.1
+> cannot add). The
 > practised verbs the CLI does not have (`start`, `finalize`, `sync`) are still written by hand in the
 > same format. Approvals and rejections run only on the approver's instruction, whether by verb or by
 > hand (§8).

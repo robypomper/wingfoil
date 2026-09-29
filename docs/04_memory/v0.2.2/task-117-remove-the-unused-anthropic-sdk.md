@@ -29,6 +29,15 @@ from ADR-004's original framing (the `Anthropic SDK` entry under `stacks.technol
    listed in Execution Notes for it.
 4. `npm pack --dry-run` shows no change in the file list; `npm test` green.
 
+## Implementation Notes
+
+- **Added 2026-09-29 at `task-112`'s review.** `task-112` pinned `wingfoil-released`
+  (`npm:wingfoil@0.2.1`) as a devDependency, and 0.2.1 depends on `@anthropic-ai/sdk`. After this task
+  the SDK leaves `package.json`'s `dependencies`, but it stays in `package-lock.json` as a dev-only
+  transitive dependency of the alias until the pin advances past a build that still needs it. AC 2
+  is about the direct dependency. Check the lock with `npm ls @anthropic-ai/sdk`, expecting it only
+  under `wingfoil-released`, not with a "not in the lock" assertion.
+
 ## Execution Notes
 
 <!-- Running log of what actually happened while working this task through dev-loop — filled in

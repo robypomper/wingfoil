@@ -166,3 +166,69 @@ describe('package.json (task-104 AC2) — the mechanism that makes the entries s
     },
   );
 });
+
+/**
+ * task-112 (`dl-095` Q1 (a)) — an `npm:` alias among the direct dependencies is the pinned WingFoil
+ * build (`"wingfoil-released": "npm:wingfoil@0.2.1"`). The lockfile check covers it the way it covers
+ * an overrides pin: exact in `package.json`, and recorded in the lock under the alias's own install
+ * path with the aliased package's name and that version.
+ */
+describe('scripts/check-lockfile-pins.cjs (task-112) — npm aliases are exact and locked', () => {
+  function aliased(): { manifest: LockfilePinsManifest; lockfile: LockfilePinsLockfile } {
+    return {
+      manifest: { devDependencies: { 'wingfoil-released': 'npm:wingfoil@0.2.1' } },
+      lockfile: { packages: { 'node_modules/wingfoil-released': { name: 'wingfoil', version: '0.2.1' } } },
+    };
+  }
+
+  it('passes when the alias is exact and the lock records it under the alias path', () => {
+    const { manifest, lockfile } = aliased();
+    expect(checkLockfilePins(manifest, lockfile).ok).toBe(true);
+  });
+
+  it('fails when the alias names a range, which npm re-resolves on every install', () => {
+    const { lockfile } = aliased();
+    const result = checkLockfilePins({ devDependencies: { 'wingfoil-released': 'npm:wingfoil@^0.2.1' } }, lockfile);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('wingfoil-released');
+    expect(result.message).toContain('^0.2.1');
+  });
+
+  it('fails when the lock has no entry for the alias', () => {
+    const result = checkLockfilePins(aliased().manifest, { packages: {} });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('node_modules/wingfoil-released');
+  });
+
+  it('fails when the lock records the alias at another version — a switch that moved one file only', () => {
+    const drifted: LockfilePinsLockfile = {
+      packages: { 'node_modules/wingfoil-released': { name: 'wingfoil', version: '0.2.2' } },
+    };
+    const result = checkLockfilePins(aliased().manifest, drifted);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('0.2.2');
+  });
+
+  it('fails when the lock records another package under the alias path', () => {
+    const other: LockfilePinsLockfile = {
+      packages: { 'node_modules/wingfoil-released': { name: 'not-wingfoil', version: '0.2.1' } },
+    };
+    const result = checkLockfilePins(aliased().manifest, other);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('not-wingfoil');
+  });
+
+  it('applies to runtime dependencies too, not only devDependencies', () => {
+    const result = checkLockfilePins({ dependencies: { x: 'npm:y@1' } }, { packages: {} });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('npm:y@1');
+  });
+});
+
+describe('package.json (task-112 AC 1) — the pinned build is declared', () => {
+  const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as LockfilePinsManifest;
+
+  it('declares wingfoil-released as an exact npm alias of a published wingfoil', () => {
+    expect(pkg.devDependencies?.['wingfoil-released']).toMatch(/^npm:wingfoil@\d+\.\d+\.\d+$/);
+  });
+});

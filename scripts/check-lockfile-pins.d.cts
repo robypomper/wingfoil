@@ -1,5 +1,7 @@
 /** One `package-lock.json` entry, reduced to the fields {@link checkLockfilePins} reasons about. */
 export interface LockfilePackage {
+  /** The package's real name, recorded when it differs from its install path (an `npm:` alias). */
+  readonly name?: string;
   /** The resolved version of this node. */
   readonly version?: string;
   /** Peers this package requires, by name, as declared ranges. */
@@ -29,7 +31,10 @@ export interface LockfilePinsManifest {
 
 /** Outcome of {@link checkLockfilePins}. */
 export interface LockfilePinsCheck {
-  /** `true` only when every pin is hoisted, declared and exact, and every required peer resolves. */
+  /**
+   * `true` only when every pin is hoisted, declared and exact, every required peer resolves, and every
+   * `npm:` alias is exact and locked.
+   */
   readonly ok: boolean;
   /** The verdict, and on failure the defects plus what to do about them. */
   readonly message: string;
@@ -37,7 +42,8 @@ export interface LockfilePinsCheck {
 
 /**
  * task-104 / `bug-063`: assert `package-lock.json` still carries the hoisted entries the release gate
- * needs and that the direct declarations keeping them there are still present.
+ * needs and that the direct declarations keeping them there are still present. task-112 / `dl-095`:
+ * every `npm:` alias among the direct dependencies is exact and recorded in the lock at that version.
  */
 export function checkLockfilePins(
   manifest: LockfilePinsManifest,

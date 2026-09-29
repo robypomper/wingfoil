@@ -50,6 +50,6 @@ NPM_TOKEN=npm_example_value_not_a_real_token
   `#` comments) for a file that must hold a known-fake credential, e.g. a scanner fixture. Adding a
   line there is a versioned hygiene exception: justify it in the commit message.
 
-None of these makes a real credential safe to commit. A real token goes in a secret store — for
-WingFoil's own npm publish, the GitHub Actions `npm-publish` environment secret documented in
-`.github/workflows/publish.yml` — never in a file.
+None of these makes a real credential safe to commit. A real token goes in a secret store, never in
+a file. WingFoil's own npm publish holds none: since `adr-011` it stages through a stage-only npm
+trusted publisher over GitHub OIDC, documented in `.github/workflows/publish.yml`.
