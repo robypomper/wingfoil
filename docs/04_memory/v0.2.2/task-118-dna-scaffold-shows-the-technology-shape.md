@@ -2,7 +2,7 @@
 id: "task-118-dna-scaffold-shows-the-technology-shape"
 type: task
 title: "The `init`-scaffolded `dna.yaml` shows the `{name, category}` shape of a technology"
-status: in-progress
+status: in-review
 release: "v0.2.2"
 priority: "low"
 tags: ["v0.2.2", "init", "dna", "first-use"]
