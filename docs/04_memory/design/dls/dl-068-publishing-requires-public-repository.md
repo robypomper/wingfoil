@@ -242,6 +242,24 @@ cost, and still forces the `adr-009`/`spec-015` provenance amendment.
      needs a public repository, whether required reviewers need a paid plan on a private one, or
      whether a granular token can select a package that does not yet exist. With `adr-011` (no
      token) the third no longer matters.
+   - *Outcome, `--access` (2026-09-29, `task-113`), the one `adr-011` left open.* **`npm stage
+     publish` accepts `--access public` as a flag, and also takes `access` from `publishConfig`**; the
+     flag wins when both are given. Settled with the npm `promote` runs (Node 24.21.0 bundles npm
+     11.19.0, `https://nodejs.org/dist/index.json`), fetched as `npm@11.19.0`:
+     - `npm stage publish --help` lists `[--access <restricted|public|private>]` beside `--tag`,
+       `--dry-run`, `--otp` and `--provenance|--provenance-file <file>` (the same output from
+       `npx -y -p npm@latest npm stage publish --help`, npm 12.1.0);
+     - its source, `lib/commands/stage/publish.js`, is `class StagePublish extends Publish` with
+       `static params = Publish.params` and `static stage = true`: the flags and the `publishConfig`
+       handling are `npm publish`'s own, where `#getManifest` flattens `manifest.publishConfig` minus
+       the keys set on the command line;
+     - an offline dry run on a fixture tarball whose `publishConfig` is `{access: public}`
+       (`npm stage publish ./x.tgz --dry-run --offline --registry http://localhost:9/`) prints
+       `Staging to http://localhost:9/ with tag latest and public access (dry-run)` with no flag,
+       the same with `--access public`, and `... and restricted access` with `--access restricted`.
+
+     `promote` passes `--provenance --access public` explicitly, so the command states its own
+     contract instead of depending on the manifest.
 5. **Plan the first tag push as the approval gate's first exercise** (E6). `act` cannot test
    `environment:`, so the required-reviewer prompt has never fired. Decide beforehand who watches the
    run, and what happens if `promote` proceeds without prompting — the failure mode of an ignored

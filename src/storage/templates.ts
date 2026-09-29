@@ -210,6 +210,10 @@ function dnaYaml(def: TemplateDefinition): string {
   // array too; an empty list is schema-valid (the `Team` schema's role cross-check is vacuous over no
   // members) and is the right default for a fresh, person-less scaffold — the user adds real members
   // via `dna set` once the project has a team.
+  // `stacks.technologies` stays an empty list — dropping the key would make the first `dna add` rewrite
+  // the file without its comments — but carries the `{name, category}` shape and a commented-out
+  // example above it, because `category` is required and a bare `- name: X` fails validation
+  // (bug-139-dna-scaffold-hides-required-category, task-118).
   const methodologies = def.methodologies.map((m) => `    - name: ${m}`).join('\n');
   return `# Project DNA (P2.4) — scaffolded by \`wingfoil init\` (${def.name} template).
 # Structural map of the project: modules, stacks, team + roles, resource paths. Customize freely.
@@ -225,6 +229,13 @@ modules: []
 
 # Stacks — technologies + methodologies in use. The methodologies come from the ${def.name} template.
 stacks:
+  # Each technology is a {name, category} entry: \`category\` is required (free text: language,
+  # runtime, framework, database, ...); \`version\` and \`notes\` are optional. To declare one, replace
+  # \`technologies: []\` with a list like this example, uncommented:
+  # technologies:
+  #   - name: TypeScript
+  #     category: language
+  # or run: wingfoil dna add stacks.technologies --value TypeScript --entry-category language
   technologies: []
   methodologies:
 ${methodologies}

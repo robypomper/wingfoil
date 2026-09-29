@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -48,6 +48,9 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
 | `bug-158-date-and-author-id-tokens-are-declared-but-not-implemented` | `task-110` review (2026-09-29, approver: bug) | `{date}`/`{author}` are in `spec-001`'s token table but not implemented; `--set` refuses them claiming the command fills them | low |
 | `bug-159-storage-layout-spec-tree-omits-three-configuration-files` | `task-111` review (2026-09-29, approver: bug) | `spec-011`'s "ground truth" tree omits `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`, `workflows/custom/e2e-smoke.yaml` | low |
 | `bug-160-vision-index-document-map-and-line-ranges-are-stale` | `task-121` review, after approval (2026-09-29, approver: should have been fixed in-task; file a bug) | `docs/01_vision/00_index.md`'s map gives stale version/date/lines for 5 documents; its `L<n>` ranges no longer match | low |
+| `bug-161-core-index-uncovered-paths` | `task-122` review (2026-09-29, approver: bug) | `src/core/index.ts`, now measured, has 8 statements and 14 branch arms no test reaches | low |
+| `bug-162-task-counter-restarts-per-release` | `task-123` review (2026-09-29, approver: bug) | the `{n}` counter only counts the type's folder; a task's folder is per release, so each release restarts at `task-001` | medium |
+| `bug-163-release-line-folder-and-field-disagree` | `task-123` review (2026-09-29, approver: bug) | releases sit under `planning/rl-v1/` but carry `release-line: "v1"`; no `--set` value matches both | medium |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -92,3 +95,16 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
   `docs/02_requirements/03_sard/00_index.md`, a different index; not a duplicate. Added in `cd8f9d69`, submitted in the
   commit after this revision. The approver noted that the index belonged in `task-121`'s own fix,
   like the canvas table, and was not to be left for after the merge.
+- **Batch 5, `task-122` and `task-123` reviews (2026-09-29).** The first batch captured **with the
+  verbs themselves**, on `main` at `68f64091` with the build under development: `node dist/cli.js
+  memory add --type bug --title …` issued `bug-161`, `bug-162`, `bug-163` (the `bug` sequence has no
+  gap: 160 files numbered 1–160), one commit and one file each, author Roberto Pompermaier
+  (`d0d42949`, `d1fc7ee0`, `134f4998`). The bodies and titles were then filled, and `memory submit`
+  moved each `draft → open` in its own commit (`ff6386a2`, `c204f834`, `e7e27e3f`). Checked after each
+  command: `git log`, `git show --stat`, a clean `git status`. The verb-made commits carry no
+  `Co-Authored-By` trailer. Duplicate search: `bug-087` (`open`, v0.3) is the gapped-sequence form
+  of the counter and got a note that it now reproduces here (`dl-130` reused); `dl-101` keeps the scan
+  inside the type's directory, so neither covers `bug-162`. `grep -rlE 'release-line: "v1"|release-line.*rl-v1|planning/v1/'`
+  over `bugs/` and `dls/` → `bug-080` (reading states across the `planning/v1/` → `planning/rl-v1/`
+  rename, a different defect) and `dl-018` (no relevant hit). `retro-v0.1` T11 is where the folder
+  was renamed, and `bug-163` names it as the origin.
