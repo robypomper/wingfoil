@@ -306,13 +306,15 @@ export interface DnaSetParams {
  * task-093-dna-mutation-surface-add-remove-update) — the mutating-op template `dna set` established
  * (P2.1, task-025), now with one structure-aware traversal underneath all four verbs:
  *
- * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ * 1. **Argument validation** — done by the callers before this body runs (`dnaPathPositional`,
+ *    `dnaMutationRequest`, `dnaSetFn`'s `--value` check): a missing required argument, or a dotted
+ *    path `splitDnaPath` cannot parse (an empty segment, the BDD's `..language`; an unterminated
+ *    quote; a `"` no delimiter can account for), is a usage error: `throw new UsageError(...)` → exit
+ *    **2** (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1, whatever the git
+ *    identity (task-125, `bug-172`). A path that is well-formed but names nothing the schema declares
+ *    is a different failure and exits **1** — see step 4.
+ * 2. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
  *    `user.name`/`user.email` are unset, returning its `CoreResult.error` unchanged (exit 1).
- * 2. **Argument validation** — a missing required argument, or a dotted path `splitDnaPath` cannot
- *    parse (an empty segment, the BDD's `..language`; an unterminated quote; a `"` no delimiter can
- *    account for), is a usage error: `throw new UsageError(...)` → exit **2**
- *    (mapped by `exitCodeForThrow`), per spec-005-cli-command-contract §1. A path that is well-formed
- *    but names nothing the schema declares is a different failure and exits **1** — see step 4.
  * 3. **`requireUnmodifiedTarget` pre-flight** (`dl-080`(B) / `bug-078`, task-092) — refuse, before
  *    anything is read or written, while `dna.yaml` carries modifications this operation does not own.
  *    The plain "refuse a dirty target" rule applies here unaltered: all four verbs **edit an existing
@@ -605,13 +607,14 @@ function singleOption(options: MemoryAddParams['options'], name: string): string
  * pattern for all Memory CRUD; spec-006-core-domain-api §3 memory table). Follows `dna set`'s
  * mutating-op template (task-025) exactly, over the Memory store instead of `dna.yaml`:
  *
- * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
- *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
- * 2. **Argument validation** — a missing `--type`/`--title` is a usage error: `throw new UsageError`
+ * 1. **Argument validation** — a missing `--type`/`--title` is a usage error: `throw new UsageError`
  *    → exit **2** with the exact `missing required argument: --<name>` message
  *    (spec-008-cli-grammar §5, mapped by `exitCodeForThrow`), same classification as `dna set`'s
  *    missing positional. So is every spelling fault of `--set` (`spec-008` §10: no `=`, a name that
- *    is not a field name, a reserved name, a blank value, a name given twice — task-110).
+ *    is not a field name, a reserved name, a blank value, a name given twice — task-110). It runs
+ *    first, so a malformed invocation exits 2 whatever the git identity (task-125, `bug-172`).
+ * 2. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
  * 3. **Resolve `--type` against the `memory.yaml` committed at `HEAD`** (spec-001-memory-yaml-schema)
  *    via {@link resolveAddType} — the type registry, the type's `path` and its `template` scaffold
  *    all resolve against the repository as committed, never against the working tree (task-095,
@@ -642,9 +645,6 @@ function singleOption(options: MemoryAddParams['options'], name: string): string
 const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params) => {
   const { root, options } = params as MemoryAddParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
   const type = singleOption(options, 'type');
   if (type === undefined) throw new UsageError('missing required argument: --type');
   const title = singleOption(options, 'title');
@@ -652,6 +652,9 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
   const tags = parseTags(singleOption(options, 'tags'));
   const set = parseSetOptions(options?.set);
   if (!set.ok) throw new UsageError(set.message);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   // task-095 / `bug-085`: the registry, the `path` and the scaffold all resolve at HEAD, inside a
   // function that accepts no parsed `MemoryYaml` — so this verb cannot decide any of the three from
@@ -969,8 +972,9 @@ export interface MemorySubmitResult {
  * "the content is written — move it forward": it commits the document as the author left it, with
  * `status` advanced. Order, every refusal before the single write:
  *
- * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit 1.
- * 2. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory history`.
+ * 1. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory history` — before the identity
+ *    check, so the exit code does not depend on the machine (task-125, `bug-172`).
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit 1.
  * 3. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
  *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
@@ -987,11 +991,12 @@ export interface MemorySubmitResult {
 const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
   const { root, positional: id } = params as MemorySubmitParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
   if (id === undefined || id.trim().length === 0) {
     throw new UsageError('missing required argument: memory submit <id>');
   }
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const prepared = prepareMemoryTransition(root, id, 'submit');
   if (!prepared.ok) return prepared;
@@ -1041,11 +1046,12 @@ export interface MemoryApproveResult {
  * (P1.2/P1.10), never written into the message. Order, every refusal before the single write, so
  * "the state is unchanged" (P1.7 sc.2/sc.3) holds by construction:
  *
- * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. It is also the identity the `Approver:` line and
+ * 1. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory submit`/`memory history`.
+ * 2. **`requireReason`** (REQ-SEC-04, task-041) → `UsageError` `missing required argument: --reason`
+ *    (exit 2, P1.7 sc.2). Placed before any file is read, so an omitted reason touches nothing. Both
+ *    usage checks precede the identity check (task-125, `bug-172`).
+ * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. It is also the identity the `Approver:` line and
  *    the commit's own author record, so the two can never name different principals.
- * 2. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory submit`/`memory history`.
- * 3. **`requireReason`** (REQ-SEC-04, task-041) → `UsageError` `missing required argument: --reason`
- *    (exit 2, P1.7 sc.2). Placed before any file is read, so an omitted reason touches nothing.
  * 4. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
  *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
@@ -1073,12 +1079,13 @@ export interface MemoryApproveResult {
 const memoryApproveFn: CoreFn<unknown, MemoryApproveResult> = async (params) => {
   const { root, positional: id, options } = params as MemoryApproveParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
   if (id === undefined || id.trim().length === 0) {
     throw new UsageError('missing required argument: memory approve <id>');
   }
   const reason = requireReason(options);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const prepared = prepareMemoryTransition(root, id, 'approve');
   if (!prepared.ok) return prepared;
@@ -1133,10 +1140,11 @@ export interface MemoryRejectResult {
  * `Approver:`/`Reason:` body (`dl-054-submit-commit-subject-bracket`, CLAUDE.md §5.1). Order, every
  * refusal before the single write:
  *
- * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
- * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`.
- * 3. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
- *    `missing required argument: --reason` (exit `2`, P1.8 sc.3).
+ * 1. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`.
+ * 2. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
+ *    `missing required argument: --reason` (exit `2`, P1.8 sc.3). Both usage checks precede the
+ *    identity check (task-125, `bug-172`).
+ * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
  * 4. **{@link prepareMemoryTransition}** with op `reject`, against the `memory.yaml` committed at
  *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
  *    unknown type, invalid state, or an illegal transition (the document is in no `gates`
@@ -1163,12 +1171,13 @@ export interface MemoryRejectResult {
 const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
   const { root, positional: id, options } = params as MemoryRejectParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
   if (id === undefined || id.trim().length === 0) {
     throw new UsageError('missing required argument: memory reject <id>');
   }
   const reason = requireReason(options);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const prepared = prepareMemoryTransition(root, id, 'reject');
   if (!prepared.ok) return prepared;
@@ -1232,8 +1241,10 @@ export interface MemoryDeprecateResult {
  *
  * Order, every refusal before the single write:
  *
- * 1. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
- * 2. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`.
+ * 1. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`; so is a
+ *    `--reason` that is given but blank or trailer-shaped (`optionalReason`). Both precede the
+ *    identity check (task-125, `bug-172`).
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
  * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` committed at
  *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
  *    unknown type, or a `status` that is not a state of the type, each a
@@ -1260,8 +1271,6 @@ export interface MemoryDeprecateResult {
 const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params) => {
   const { root, positional: id, options } = params as MemoryDeprecateParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
   if (id === undefined || id.trim().length === 0) {
     throw new UsageError('missing required argument: memory deprecate <id>');
   }
@@ -1269,6 +1278,9 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
   // trailer — blank or trailer-shaped is a usage error at exit 2, before anything is read or written
   // (`dl-067` clauses 1 and 4; `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
   const reason = optionalReason(options);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const prepared = prepareMemoryTransition(root, id, 'deprecate');
   if (!prepared.ok) return prepared;
@@ -1314,14 +1326,16 @@ export interface DirectivesListParams {
  * and the pillar's first CLI verb; spec-006-core-domain-api §3 directives table). Follows `dna set`'s
  * mutating-op template (task-025) exactly, over the Directives pillar instead of `dna.yaml`:
  *
- * 1. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
- *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
- * 2. **Argument validation** — both failures are usage errors (`throw new UsageError` → exit **2**,
+ * 1. **Argument validation** — both failures are usage errors (`throw new UsageError` → exit **2**,
  *    mapped by `exitCodeForThrow`): an absent `--name` uses spec-008-cli-grammar §4's exact
  *    `missing required argument: --<name>` wording (same as `memoryAdd`), and a non-kebab-case name
  *    uses P3.1's exact `invalid directive name (use kebab-case)` message
  *    ({@link INVALID_DIRECTIVE_NAME_MESSAGE}). Because {@link isValidDirectiveName} runs before any
  *    path is built, a traversal-shaped name (`../x`, `a/b`, `/etc/passwd`) can never reach the write.
+ *    It runs before the identity check, so the exit code does not depend on the machine (task-125,
+ *    `bug-172`).
+ * 2. **`requireGitIdentity` pre-flight** (REQ-SEC-01, task-014) — refuse before any read/write when
+ *    the git identity is unset, returning its `CoreResult.error` unchanged (exit 1).
  * 3. **Already-exists check** — a file at `.wingfoil/directives/custom/<name>.md` makes this a domain
  *    `CONFLICT` (the input is well-formed; the target is taken), returned NOT thrown, with P3.1's exact
  *    `directive already exists: <name>` message → exit 1 via `exitCodeForError`. Nothing is written, so
@@ -1338,12 +1352,12 @@ export interface DirectivesListParams {
 const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async (params) => {
   const { root, options } = params as DirectiveCreateParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
   const name = options?.name;
   if (name === undefined) throw new UsageError('missing required argument: --name');
   if (!isValidDirectiveName(name)) throw new UsageError(INVALID_DIRECTIVE_NAME_MESSAGE);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   // One spelling of the location, reused for the existence check, the write and the commit scope, so
   // the three can never drift apart. `join` normalizes the separators, so the POSIX form is also the
@@ -1404,11 +1418,11 @@ export interface DirectiveAssignResult {
  * it, and `spec-008` §1 / `X_cli-cmds.md` list no fourth directive verb — so it is this operation
  * with a list-valued `--directive`. Same mutating-op order as {@link directiveCreateFn}:
  *
- * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
- * 2. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2. A `--directive`
+ * 1. `--directive` then `--role` presence — `UsageError`, spec-008 §4 wording, exit 2. A `--directive`
  *    value that parses to **no ids** (`""`, `"  "`, `","`) counts as absent, the same reading
  *    `parseTags` takes of an empty `--tags` (`[AUTHORING]`, task-056 D3: before P3.7 such a value
  *    reached step 3 and failed with an empty id in the message, `unknown directive: `).
+ * 2. `requireGitIdentity` pre-flight (REQ-SEC-01), after the usage checks (task-125, `bug-172`).
  * 3. `checkAssignable` — which resolves **both** of its baselines from the repository as committed at
  *    `HEAD` itself, the role catalogue (task-091, `bug-082`) and the directive inventory (task-096,
  *    `bug-086`), per `dl-080` (B) — returns P3.2's exact
@@ -1427,15 +1441,15 @@ export interface DirectiveAssignResult {
 const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params) => {
   const { root, options } = params as DirectiveAssignParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
   const directive = options?.directive;
   if (directive === undefined) throw new UsageError('missing required argument: --directive');
   const directives = parseDirectiveIds(directive);
   if (directives.length === 0) throw new UsageError('missing required argument: --directive');
   const role = options?.role;
   if (role === undefined) throw new UsageError('missing required argument: --role');
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const invalid = checkAssignable(root, role, directives);
   if (invalid) return coreErr(invalid);
@@ -1472,9 +1486,9 @@ export interface DirectiveRemoveResult {
  * option (b)) assigns clause (b)'s directive half here. Both are enforced, in this order, and both
  * strictly **before** anything on disk changes:
  *
- * 1. `requireGitIdentity` pre-flight (REQ-SEC-01).
- * 2. `<name>` presence — a missing or blank positional is a `UsageError` → exit **2**
+ * 1. `<name>` presence — a missing or blank positional is a `UsageError` → exit **2**
  *    (`missing required argument: directive remove <name>`, the `memory submit <id>` precedent).
+ * 2. `requireGitIdentity` pre-flight (REQ-SEC-01), after the usage check (task-125, `bug-172`).
  * 3. **Resolve the name to a real file**, never to a constructed path. `loadDirectives` reads every
  *    installed directive and {@link selectDirectivesById} picks the winner for that id under
  *    `dl-037`'s custom-wins precedence (`src/core/context.ts` — the same primitive `directives list`
@@ -1523,11 +1537,12 @@ export interface DirectiveRemoveResult {
 const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params) => {
   const { root, positional: name } = params as DirectiveRemoveParams;
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
   if (name === undefined || name.trim().length === 0) {
     throw new UsageError('missing required argument: directive remove <name>');
   }
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
 
   const directiveFiles = loadOrError(() => loadDirectives(root));
   if (!directiveFiles.ok) return directiveFiles;
