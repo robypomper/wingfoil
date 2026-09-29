@@ -318,3 +318,55 @@ exit 0, `npm view wingfoil@0.2.2 version` → `E404`. Handed the tag to the appr
 
 - The old tag `v0.2.2` still points at `a1a2850b`. The approver deletes it and re-creates it on the
   new `main`.
+
+### S5/S6 — second tag run: published
+
+- **Tag.** The approver pushed `main` (`origin/main...main` → `0 0`), deleted the old tag, and pushed a
+  new annotated `v0.2.2`: tag object `3b628557`, peeled to `12537b62` = `main`
+  (`git ls-remote --tags origin v0.2.2 'v0.2.2^{}'`).
+- **Run `36627583940`, conclusion success** (`gh run view 36627583940 --json jobs`):
+  - `gate` 20:36:59→20:38:21Z. It is the first `gate` to pass without a git identity.
+  - `stage` 20:38:24→20:39:06Z.
+  - `promote` waited on `npm-publish`. `pending_deployments` → env `npm-publish`, reviewers
+    `[robypomper]`: the environment protection held on its first real use. The approver approved it,
+    and `promote` finished at 20:41Z.
+- **Promote log** (`gh run view … --log --job <promote>`), the first OIDC staged publish:
+  - "Staging to https://registry.npmjs.org/ with tag latest and public access";
+  - "Signed provenance statement … Provenance statement published to transparency log" (sigstore
+    `logIndex=3005657935`);
+  - `+ wingfoil@0.2.2 (staged with id 800ec0cc-4f8f-482b-b73c-4f902a927d61)`;
+  - tarball `wingfoil-0.2.2.tgz`: 339 files, 442.1 kB, shasum `5ba4a7c2215a3bae8c0e9ee10e64c5df75bac095`.
+
+  Right after it, `npm view wingfoil@0.2.2 version` → `E404` and `dist-tags` → `latest: 0.2.1`: staged
+  but not live, as `adr-011` intends.
+- **Where the approval is on npmjs.com.** The runbook did not say, and the npm docs do not either
+  (docs.npmjs.com/staged-publishing names only a "Staged Packages" tab). The approver found the tab. It
+  first showed the version in an **"automated review"** state, which neither the docs nor the
+  `publish.yml` runbook mention. Approve became available afterwards.
+- **The approver approved the staged version on npmjs.com with 2FA.** It went live at
+  `2026-09-29T20:47:50.934Z` (`npm view wingfoil@0.2.2 time`).
+
+### S7 — verify the publish: all as expected
+
+| Command | Result |
+|---|---|
+| `npm view wingfoil version` / `dist-tags` | `0.2.2` / `{"latest":"0.2.2"}` |
+| `npm view wingfoil@0.2.2 mcpName repository.url homepage bugs.url` | `io.github.wingfoil/wingfoil`; `git+https://github.com/wingfoil/wingfoil.git`; `…#readme`; `…/issues` |
+| `npm view wingfoil@0.2.2 dist` | shasum `5ba4a7c2…`, the same as the staged tarball; 339 files; `attestations.provenance.predicateType` = `https://slsa.dev/provenance/v1` |
+| `npm view wingfoil@0.2.2 dependencies` | `zod`, `js-yaml`, `commander`, `@modelcontextprotocol/sdk`. No `@anthropic-ai/sdk`, no `chalk` (`task-117`) |
+| isolated `npm install -g --prefix <p> --cache <c> wingfoil@0.2.2`, empty user config | exit 0; `wingfoil --version` → `0.2.2`; `--help` exit 0 |
+| fresh git repo: `init --template Scrum`; `memory add --type task --title Probe`; `memory submit task-001-probe` | exit 0 each; `from draft to pending`; `git status --porcelain` empty; 3 commits |
+| the same binary, fresh repo, no git identity: `memory submit`, `directive remove` | exit 2, `missing required argument: …` (the `bug-172` fix ships) |
+| README on `https://www.npmjs.com/package/wingfoil` (browser) | the mark renders: npm rewrites the relative path to `raw.githubusercontent.com/wingfoil/wingfoil/HEAD/docs/assets/wingfoil-mark.svg` (`naturalWidth` 163). No bug to file |
+
+A first probe used `memory add --set release=v0.1`, which the Scrum template's `task` type refuses
+("has no token {release} in its id_pattern or path"). That is correct behaviour for that scaffold, not
+a defect. The probe was re-run without it.
+
+### S8 — after the version is live
+
+- README roadmap row 0.2.2 → `✓ Released (\`wingfoil@0.2.2\` on npm)` (`39a44f7d`).
+- **MCP Registry listing:** the approver's (pending). Its `service` element follows once it exists.
+- **Runbook gap:** the `publish.yml` header does not say where the Staged Packages tab is, nor that an
+  automated review precedes Approve. Changing that header is a change to a pipeline file, so it is
+  proposed to the approver as its own element rather than made here.
