@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -24,7 +24,7 @@ Each bug is raised during a `dev-loop`, so it inherits the active `task` as its 
 named in the bug's Notes. `release-origin` is `v0.2.2`, the release under development. `release`
 stays `""`: scheduling is the approver's, at triage.
 
-**Preconditions (2026-09-29).** The next free bug number is `bug-155`: the highest existing file is
+**Preconditions (2026-09-29).** At the first batch, the next free bug number was `bug-155`: the highest existing file is
 `bug-154-directives-list-succeeds-with-no-configuration.md` (`ls docs/self/docs/04_memory/bugs |
 sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 
@@ -40,6 +40,9 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 | Bug | Found at | Defect | Severity |
 |---|---|---|---|
 | `bug-155-multi-hop-bracket-always-reads-as-drift` | `task-109` review (2026-09-29, approver ruling "apri un bug") | a multi-hop bracket `[a → b → c]` is split at the first arrow, so `to` is `b → c`, which no frontmatter can hold, and every such commit reads as a mismatch | low |
+| `bug-156-repository-memory-yaml-template-paths-carry-the-config-root` | `task-110` review (2026-09-29, approver: separate bug, to triage) | this repository's 8 `template.file` entries carry a `.wingfoil/` prefix, so `memory add` resolves `.wingfoil/.wingfoil/…` and fails for every type; `task-111` does not fix it | medium |
+| `bug-157-dl-107-action-1-names-a-slug-rule-spec-009-does-not-hold` | `task-110` review (2026-09-29, approver: bug) | `dl-107` Action 1 targets a slug rule `spec-009` §1 does not hold; its `spec-009` half is neither done nor void | low |
+| `bug-158-date-and-author-id-tokens-are-declared-but-not-implemented` | `task-110` review (2026-09-29, approver: bug) | `{date}`/`{author}` are in `spec-001`'s token table but not implemented; `--set` refuses them claiming the command fills them | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -58,3 +61,13 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
   docs/self/docs/04_memory/design/dls` → no hit. `dl-079` (the `wf()` grammar, `in-discussion`) does
   not mention chained brackets (`grep -n -i "hop\|chain" dl-079-*.md` → nothing). Added in
   `5b280ec2`; submitted in the commit after this plan's submit.
+- **bug-155 triage (2026-09-29):** `[open → triaged]`, `release: v0.3` (`2f16dfac`).
+- **Batch 2, `task-110` review (2026-09-29).** Next free number `bug-156` (`ls … | sort -V | tail -1`
+  → `bug-155`; `git log --all --oneline | grep -cE "bug-15[6-8]"` → 0). Duplicate search:
+  `grep -rli '.wingfoil/.wingfoil\|{date}\|{author}'` over `bugs/` and `dls/` → no hit. `bug-156`
+  and `bug-158` were each reproduced with `dist/cli.js` built from `1087c166`, in a scratch repository
+  (commands and output in each bug). Added in `31d79bdd`, submitted in the commit after this revision.
+- The `task-110` approve commit's `Reason:` says "The four review findings are filed as separate
+  bugs". There were four findings, but the first was the `spec-008` sign-off, given in that same
+  approval; three became bugs (`bug-156`, `bug-157`, `bug-158`). The commit is merged and is left as
+  written.
