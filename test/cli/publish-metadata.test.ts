@@ -49,7 +49,7 @@ const REPO_ROOT = join(__dirname, '..', '..');
 const PKG_PATH = join(REPO_ROOT, 'package.json');
 
 /** The single GitHub `owner/repo` all three attribution URLs must agree on (`spec-015` §1). */
-const REPO_SLUG = 'robypomper/wingfoil';
+const REPO_SLUG = 'wingfoil/wingfoil';
 
 /** The `spec-015` §1 publish surface, as far as this task's assertions reach into it. */
 interface PublishManifest {
