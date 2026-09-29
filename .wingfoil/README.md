@@ -4,9 +4,9 @@ This directory is the **WingFoil configuration for the WingFoil project itself**
 commits WingFoil to being its own first production user — *"WingFoil development is managed by
 WingFoil"*. This is that configuration.
 
-## Why it lives here and is hand-authored
+## Why it lives here, and how it was written
 
-This config predates the `wingfoil` CLI and was written **manually**, following the specifications in:
+This config predates the `wingfoil` CLI and was first written **by hand**, following the specifications in:
 
 - `docs/01_vision/` — vision, personas, journeys, features, CLI commands, Lean Inception plan
 - `docs/02_requirements/` — user story map, BDD suite, SARD (Volere), and the downcast plan
@@ -16,10 +16,18 @@ It was first placed under a nested `docs/self/.wingfoil/`, with the Memory under
 configuration from the git root, so from there no `wingfoil` command could be aimed at this config or
 at its Memory (`bug-075`). `task-111-configuration-moves-to-the-repository-root` moved both to the
 repository root with `git mv` — this directory to `.wingfoil/`, the Memory to `docs/04_memory/` — so
-`wingfoil memory history` keeps each element's trail across the move, and the read verbs
-(`memory history`, `memory search`) answer on this repository's own Memory. `memory add` works here
+`wingfoil memory history` keeps each element's trail across the move. Every read command (`dna show`,
+`paths`, `directives list`, `workflow list`, `memory search`, `memory history`) and every Memory
+verb (`submit`, `approve`, `reject`, `deprecate`) now runs on this repository. `memory add` works here
 too since `task-123-template-paths-are-relative-to-the-config-root` made every `template.file` value
 relative to this directory (`bug-156`).
+
+They run through a pinned, published build (`dl-095`, `task-112`): `npm run -s wingfoil -- <command>`
+from the repository root. That build is `wingfoil@0.2.1`, which has no `memory add --set`, so a type
+whose id needs a field token (`task`, `release`, `release-line`, `plan`) is added with the build
+under development (`node dist/cli.js memory add … --set <name>=<value>`) until the pin advances.
+There is still no workflow engine: a workflow phase is carried out by hand against its `plan`
+(`dl-019`), and its Memory operations use the verbs above.
 
 ## Layout
 
@@ -73,13 +81,13 @@ sw-life-cycle (main)
 │                              │                        scoped to this release-line — reusable per major version)
 │                              ├── delivery            → release-cycle  (iterate_over: release,
 │                              │                        scoped where release-line = this one)
-│                              │     ├── release-planning  (define-scope → triage-bugs → reconcile-governance
-│                              │     │                      → record-adrs → identify-specs → build-backlog
-│                              │     │                      → commit-backlog)
+│                              │     ├── release-planning  (advance-pinned-build → define-scope → triage-bugs
+│                              │     │                      → reconcile-governance → record-adrs → identify-specs
+│                              │     │                      → build-backlog → commit-backlog)
 │                              │     ├── dev-loop  (design gate + TDD, iterate_over: task; gate runs BDD;
 │                              │     │              fix tasks keep their source bug in sync via bug.sync_state)
 │                              │     ├── user-docs  (align-user-docs + align-agent-docs — dl-013, dl-025)
-│                              │     ├── e2e-smoke  (fresh-init + CLI end-to-end smoke gate — dl-023)
+│                              │     ├── e2e-smoke  (fresh-init + CLI end-to-end smoke gate + mcp-registration — dl-023)
 │                              │     ├── release-submit
 │                              │     ├── release-publishing
 │                              │     └── retrospective  (→ decision-log)
@@ -131,5 +139,6 @@ first.
 - Removing or renaming a `[SPEC]` field requires a corresponding change in the referenced specification.
 
 > Scope: sourced from `docs/01_vision/` and `docs/02_requirements/`, plus `docs/03_backlog/` for the
-> per-release requirement assignment (release frontmatter `requirements:`). Other `docs/` subdirs
-> (`design_`, `simulation`, `specs_`) are intentionally not used here.
+> per-release requirement assignment (release frontmatter `requirements:`). The other `docs/` entries
+> (`04_memory/` is the Memory this config governs; `05_plans/`, `examples/`, `assets/` and the
+> user-facing guides) are not sources of this configuration.
