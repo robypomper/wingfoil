@@ -2,7 +2,7 @@
 id: "dl-095-which-wingfoil-build-develops-wingfoil"
 type: decision-log
 title: "Which WingFoil build develops WingFoil, how it is pinned, and when it is replaced"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
