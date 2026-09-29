@@ -2,7 +2,7 @@
 id: "task-112-a-pinned-released-build-develops-wingfoil"
 type: task
 title: "A pinned, published WingFoil build manages the project, and `.mcp.json` registers its MCP server"
-status: in-progress
+status: in-review
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "dogfooding", "mcp", "tooling"]
