@@ -2,7 +2,7 @@
 id: "dl-119-a-git-conventions-directive"
 type: decision-log
 title: "Three ratified decision-logs are permanent git conventions that no directive carries — a `git-conventions` directive states them, with the rule that no one writes a git identity into the repository"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
