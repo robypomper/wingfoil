@@ -82,9 +82,87 @@ sections and the security rule.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened during this task's dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Branch `task/task-124-the-service-memory-type`, worktree `../.wf2-wt/task-124`, cut from `main` at
+`fa3e80b6`. Start: `c311391f` (task `[backlog → in-progress]`). `bug:` is empty, so there is no
+`bug.sync_state`. Build for Memory operations: the pinned one (`npm run -s wingfoil -- --version` →
+`0.2.1`, after `npm ci`).
+
+### design (architect)
+
+**`depends_on` read (dl-015).** All three are `done` (`grep -m1 '^status:'` on each file →
+`status: done`). What this task takes from their Execution Notes:
+- `task-111`: the configuration is `.wingfoil/` at the repository root and Memory is
+  `docs/04_memory/`, so `memory add --type service` run at the root files the element under
+  `docs/04_memory/services/`. Its ruling (item 7) bumps no config `version:` for path-only comment
+  edits; this task changes values in `memory.yaml`, so it bumps. Its note on `spec-011` records a
+  pre-existing gap (the tree omits `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`,
+  `workflows/custom/e2e-smoke.yaml`); this task edits that same tree for its two new files, so it
+  closes the gap in the same pass (same class: the tree enumerates the files).
+- `task-123`: `template.file` is relative to the configuration root (`resolveAddType` joins it to
+  `.wingfoil/`), so `service`'s is `memory/templates/service.md` (AC 1's deviation from `dl-088`'s
+  text). Its `test/core/memory-add-scaffold-paths.test.ts` reads the type list from the committed
+  `memory.yaml` (`committedTypes`), so it covers `service` without an edit once the type is
+  committed; the red test below pins `service` by name, because the generic one cannot go red for a
+  type that is not there yet. Its AC 4 finding 1 (`nextSequenceNumber` = count + 1, `bug-087`) does
+  not bite here: `docs/04_memory/services/` does not exist (`ls docs/04_memory` → `bugs design
+  planning v0.1 v0.2 v0.2.2`), so the counter starts clean and stays gap-free as long as ids are
+  taken in order.
+- `task-114`: it took `memory.yaml` `1.4 → 1.5` in `f0ba189a` (`git log --format='%h %s' -2 --
+  .wingfoil/memory.yaml`), so this task takes it `1.5 → 1.6`. Its test pattern (the committed
+  machine read at `HEAD` through `loadMemoryYamlAtHead` / `resolveTypeTransition`, never a copy) is
+  reused for the `service` edge table.
+
+**Governing decision and specs.** `dl-088` is `ready` (`grep -m1 '^status:'` → `status: ready`),
+ratified in `e6074c94` ("state machine (a) draft, pending, active; edits to an active service as
+docs(self) until dl-079 settles; implementation route (a)"); route (a) was replaced by this task on
+2026-09-29 (`dev-loop-rel-v0.2.2-plan` §2). `spec-001-memory-yaml-schema` is `approved`, and its
+*Revision (2026-09-29)* already specifies `service` (Context type list; worked example `service:`
+with `path`, `id_pattern`, `sequence: [ draft, pending, active ]`, `gates.pending.reject: draft`,
+`waiting: [ ]`). `spec-007-secret-hygiene-patterns` is `approved`; `spec-011-storage-layout` is
+`approved`. No spec is missing, so none is scaffolded. **`spec-001` needs a revision note** (AC 5),
+because two of its sentences become false when the type lands: the worked-examples caveat "until
+then the file has no `service` type" and "with the `dl-088` caveat above", and the Revision bullet
+names route (a) out of flow, which the approver replaced with this task. Written as a dated
+revision note in place — **pending the approver's sign-off at this task's review**.
+
+**Design.**
+- `memory.yaml`: a `service:` block after `plan:`, `dl-088` §Decision verbatim except `template.file`
+  (`memory/templates/service.md`), each field annotated `[AUTHORING] dl-088`; the header's
+  provenance-policy list gains `service`; `version: 1.5 → 1.6`. No `src/` change is expected: the
+  schema already accepts any type key and any `sequence`/`gates`/`waiting` machine.
+- Template `.wingfoil/memory/templates/service.md`: required `title, provider, kind, owner_role,
+  verify`; optional `url, account, renews, repo_refs, decision, release`; body Purpose,
+  Configuration, Verification, Management; the security rule stated in the frontmatter comment and
+  in each body section where a secret could slip in. The scaffold itself must pass `scanText` clean.
+- `service-ingest` (`kind: main`): `capture` (role `developer`, as `bug-ingest`: whoever records it;
+  `memory.add(type: service)` + `memory.submit`; `checks.post` = the P4.12 `frontmatter.required`
+  list + a spec-007 scan check) → `approve` (role `approver`, `memory.approve`, `pending → active`,
+  `fallback: capture`). Check expressions are free-form strings (`spec-003` *Check expressions*), so
+  the scan check is written as one.
+
+**AC classification (T1).**
+
+| AC | Class | Why |
+|---|---|---|
+| 1 — `service` in `memory.yaml`, `[AUTHORING]` `dl-088`, `version` bump | configuration | the green change, proven by AC 4's tests |
+| 2 — `service.md` template: fields, four sections, security rule | **red-first** | the file does not exist (`ls .wingfoil/memory/templates` → 8 files, no `service.md`); a test pins its required/optional fields, sections and a clean scan |
+| 3 — `service-ingest` main, registered, `workflow list` shows it | **red-first** | the file does not exist; a test loads the committed Workflow pillar and asserts the main, its phases and checks |
+| 4 — scaffold resolves; machine `draft → pending → active`, reject → `draft`, approve from `active` illegal; e2e `memory add` on a clone | **red-first** (unit) + characterization (manual e2e) | `resolveAddType(root, 'service')` refuses today (unknown type); the e2e runs the pinned build after green |
+| 5 — type lists updated | documentation | no behaviour; list re-derived by grep below |
+| 6 — first services registered | operations (Memory) | `memory add` → `memory submit` with the pinned build, each command's effect verified |
+| 7 — `npm test`, coverage, `workflow list`, `check:mcp` | verification | gates below |
+
+**Baseline** (this worktree at `c311391f`, before any change):
+`npx jest --coverage --coverageReporters=text-summary --coverageReporters=json-summary` →
+157 suites / 2577 tests passed; stmts 98.62 (3875/3929), branches 94.18 (1993/2116),
+funcs 93.79 (650/693), lines 99.47 (3399/3417).
+
+### red (developer)
+
+### green (developer)
+
+### refactor (developer)
+
+### services (AC 6)
+
+### review (reviewer)
