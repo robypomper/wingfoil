@@ -2,7 +2,7 @@
 id: "task-120-subcommand-help-describes-every-command"
 type: task
 title: "Every command's `--help` describes the command, names its arguments and explains its options"
-status: backlog
+status: in-progress
 release: "v0.2.2"
 priority: "medium"
 tags: ["v0.2.2", "cli", "help", "first-use"]
