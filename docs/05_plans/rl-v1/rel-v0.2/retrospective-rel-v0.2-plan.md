@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.17"
+version: "1.18"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -164,6 +164,19 @@ Next: the approver's `approve` gate.
 - **17 bugs** moved `open → triaged` in two commits (`3c0e9ba2`, `a8ed2d32`).
 
 Next: close-out.
+
+**Revision 1.18 (2026-09-29) — close-out.**
+- **Plans closed.** The eight v0.2 plans left `active` are finalized `active → done` (`1c184ce6`).
+  This plan follows in its own commit.
+- **Withdrawn branches.** The approver ruled on 2026-09-29 that they are **not deleted here**: the
+  approver deletes them after close-out. `retro-v0.2` records the perennial-agents branch's two
+  shas (`008a378a`).
+- **The renumbering commit's message.** No repository file references the withdrawn visibility
+  branch (`git grep` for its name, its plan id and its five shas: nothing found). One commit
+  message, `5e6703e5`, names it, and it is left as the day's record: history is not rewritten
+  (`dl-035`).
+- **Remaining steps.** Re-check ids across every ref, run `npm test`, merge `--no-ff` into `main`,
+  and push once the approver gives the go-ahead.
 
 ---
 
