@@ -2,7 +2,7 @@
 id: "task-125-mutating-verbs-check-their-required-arguments-before-the-git-identity-pre-flight"
 type: task
 title: "Mutating memory and directive verbs check their required arguments before the git identity pre-flight"
-status: in-progress
+status: in-review
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "cli", "exit-codes", "publish-blocker"]
