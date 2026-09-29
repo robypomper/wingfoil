@@ -7,7 +7,9 @@
  * entry point runs, bootstrap commands (`init`, `mcp`) included — and requires the two sets to be
  * equal: a shipped command with no reference entry fails, and so does an entry for a command that
  * does not ship. It is the documentation twin of the API-docs gate (`api-docs.test.ts`): the
- * reference cannot silently fall behind the surface. Deterministic: both sides are sorted lists
+ * reference cannot silently fall behind the surface. Since task-120 it also holds the TEXT together:
+ * each command's `--help` description is its entry's first sentence, and each declared positional
+ * appears in its entry under the name `--help` shows. Deterministic: both sides are sorted lists
  * derived from fixed inputs.
  */
 import { readFileSync } from 'node:fs';

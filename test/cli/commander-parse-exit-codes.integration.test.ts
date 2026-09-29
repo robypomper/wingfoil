@@ -118,6 +118,18 @@ describe('AC3 — an unknown option exits 2 on every registered command (AC8: th
     },
   );
 
+  // `commander.excessArguments` is reachable in production through these two only: a derived command
+  // accepts any number of operands and leaves refusing an extra one to core (task-120 kept that
+  // unchanged). Pinned because `src/core/exit-code.ts` states it.
+  it.each(BOOTSTRAP_COMMAND_PATHS.map((path) => [path.join(' '), path] as const))(
+    '`wingfoil %s extra` exits 2 — Commander refuses the extra operand (commander.excessArguments)',
+    (_label, path) => {
+      const result = runCli(...path, 'extra');
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('error: too many arguments');
+    },
+  );
+
   it('an unknown option on a command that carries derived `--entry-<field>` options exits 2', () => {
     // `dna add` is the command whose option set is derived per-field (task-093's `--entry-` namespace),
     // so its unknown-option path runs with a large registered option list rather than an empty one.

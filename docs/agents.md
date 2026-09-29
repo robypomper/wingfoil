@@ -151,4 +151,5 @@ Only register a human as `approver`, and only when that human asks you to. Never
 - No command to unassign a directive: edit `.wingfoil/roles.yaml` and commit.
 - `dna show` accepts only a top-level section.
 - `memory search` excludes `deprecated` documents unless you pass `--status deprecated`.
-- Subcommand `--help` text is generic; trust the [CLI reference](cli-reference.md).
+- Subcommand `--help` text is generic in 0.2.1 (from 0.2.2 it describes each command, its argument
+  and its options); for anything more than a reminder, trust the [CLI reference](cli-reference.md).

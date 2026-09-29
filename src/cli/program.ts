@@ -28,8 +28,10 @@
  * `tsconfig.test.json` and transforms `commander`'s ESM on the way in, see `jest.config.js` — and
  * black-box by `test/cli/program.integration.test.ts`, which spawns the compiled `dist/` and so
  * exercises the real ESM `import()` this file actually ships with.
- * `buildCliCommands`/`listRegisteredCliCommands` (`./registrar.ts`) still carry 100% of the
- * AC-relevant behavior; this file adds no logic of its own beyond Commander's own API calls.
+ * `buildCliCommands`/`listRegisteredCliCommands` (`./registrar.ts`) still carry the dispatch
+ * behaviour. What this file adds of its own is presentation: how `--help` renders the declaration each
+ * command carries (task-120 — the positional's name and required-ness, `(required)` on an option, the
+ * example and exit-code footer), covered by `test/cli/help-describes-every-command.test.ts`.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

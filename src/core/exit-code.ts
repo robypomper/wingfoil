@@ -80,12 +80,13 @@ export interface ParseOutcome {
  * version surface: a Commander upgrade that renames or adds one must revisit this set, which is why
  * the codes are listed explicitly here rather than inferred from the suggested exit code.
  *
- * One of them, `commander.excessArguments`, is mapped but **unreachable in production today**: every
- * derived command registers a variadic `[positionals...]` (`src/cli/program.ts`), so Commander never
- * has an excess argument to refuse — `wingfoil dna show project extra` is accepted and an extra
- * positional on a write verb is refused by WingFoil's own check instead, already at exit `2`. It is
- * listed because the mapping must stay correct for the code rather than for today's registration
- * shape; a reader finding it never fires is not looking at a mistake.
+ * One of them, `commander.excessArguments`, is reached in production only by the two hand-wired
+ * bootstrap commands (`wingfoil init extra` → `error: too many arguments for 'init'…`, exit `2`,
+ * pinned by `test/cli/commander-parse-exit-codes.integration.test.ts`). A command derived from
+ * `CORE_MODULES` never raises it: `src/cli/program.ts` registers a declared positional as an optional
+ * variadic list and lets a command without one accept excess operands (task-120), so
+ * `wingfoil dna show project extra` is accepted and an extra positional on a write verb is refused by
+ * WingFoil's own check instead, already at exit `2`.
  */
 const USAGE_ERROR_PARSE_CODES: ReadonlySet<string> = new Set([
   'commander.unknownCommand',
