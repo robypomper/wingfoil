@@ -2,7 +2,7 @@
 id: "dl-114-recording-agent-token-consumption"
 type: decision-log
 title: "Agent runs record no token consumption, so the cost of a task, a phase or a release cannot be derived — `agent execute` records it per run"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
