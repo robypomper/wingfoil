@@ -2,7 +2,7 @@
 id: "bug-046-lock-root-engines-never-asserted"
 type: bug
 title: "Nothing asserts that package-lock.json's root `engines` matches package.json's, and `npm ci` does not detect the drift"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
