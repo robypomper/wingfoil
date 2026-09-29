@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -76,7 +76,7 @@ the files the tasks share, so that two open tasks never rewrite the same file:
 | `package.json` / `package-lock.json` | `task-112`, `task-115`, `task-116`, `task-117` (112 and 117 both regenerate the lock) |
 | `docs/cli-reference.md` | `task-110`, `task-119`, `task-120` |
 | `init` scaffold and messages | `task-118`, `task-119` |
-| `memory.yaml` | `task-123`, `task-114`, and the out-of-flow `dl-088` change, in that order |
+| `memory.yaml` | `task-123`, `task-114`, `task-124` (`dl-088`), in that order |
 
 | Wave | Tasks | Starts when |
 |---|---|---|
@@ -84,6 +84,7 @@ the files the tasks share, so that two open tasks never rewrite the same file:
 | **W2** | `task-111` (`bug-075`), **alone** | W1 merged into `main` |
 | **W3** | `task-123` (`bug-156`), `task-112` (`dl-095`, `dl-026`), `task-113` (`adr-011`, `bug-136`), `task-118` (`bug-139`), `task-121` (`dl-096`), `task-122` (`bug-021`) | W2 merged |
 | **W4** | `task-114` (`dl-123`), `task-115` (`dl-093`), `task-117` (`bug-138`), `task-119` (`bug-140`, `bug-129`) | the W3 task that holds the same file is merged (`123` for `114`, `112` for `117`, `118` for `119`) |
+| **W4b** | `task-124` (`dl-088`, the `service` type) | `task-114` merged (`memory.yaml`) |
 | **W5** | `task-120` (`bug-128`); `task-116` (the slug) | `119` merged for `120`; `113`, `115` and the approver's repository transfer for `116` |
 
 - **W1 is narrow on purpose.** The approver chose `109 + 110` alone, over a wider W1 that also
@@ -101,10 +102,13 @@ the files the tasks share, so that two open tasks never rewrite the same file:
 first in W3, because `memory add` on this repository fails for every type until it lands. It takes
 `memory.yaml` before `task-114`, which moves to W4. The backlog is now **15 tasks**.
 
+**`dl-088` became a task (2026-09-29).** The approver replaced `dl-088`'s out-of-flow route (a) with
+a task in this dev-loop: `task-124-the-service-memory-type`, `add` `93111662`, `submit` `71a7206f`,
+`approve [pending → backlog]` `fd1b833b`. The last two were run with the pinned build
+(`npm run -s wingfoil -- memory …`), the first transitions of this repository made by its own verbs.
+It runs after `task-114`. The backlog is now **16 tasks**.
+
 **In scope, with no task, and not run by this plan:**
-- `dl-088` (the `service` type) is a configuration change after W2 (§6.8 step 4, route (a)). It is
-  run by another session, after `task-123` and `task-114`, because all three edit `memory.yaml` and
-  its `version`.
 - `bug-092` closes by the approver's `reject [triaged → closed]` after `task-114` merges.
 
 ### 3. Paths before and after `task-111`
@@ -148,8 +152,8 @@ commit, right after the task's transition and on the task branch:
 
 - **Approver:** the review gate of every task, and the `approve`/`reject` that follows it. The
   repository transfer to `wingfoil/wingfoil` and the trusted publisher on npmjs.com, before
-  `task-116`. The reject of `bug-092` after `task-114`. `dl-088`, through another session.
+  `task-116`. The reject of `bug-092` after `task-114`. 
 - **Agent:** start → review for each task in wave order, and the `done` mechanics (merge, worktree
   cleanup, bug sync) once the approver has ruled. It never approves.
-- **Completion criteria:** the 15 tasks `done` and merged into `main`; their ten linked bugs
+- **Completion criteria:** the 16 tasks `done` and merged into `main`; their ten linked bugs
   `closed`; `npm test` green with coverage > 80%; this plan `active → done`. Next phase: `user-docs`.
