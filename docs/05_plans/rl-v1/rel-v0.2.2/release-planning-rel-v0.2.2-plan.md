@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.8"
+version: "1.9"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -143,6 +143,10 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    `[triaged → planned]` (`f225f5b6`). The backlog is **14 tasks**, `task-109` … `task-122`.
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`;
    `patch-v0.2.2` `[planning → in-development]`.
+   **Done 2026-09-29** on the approver's instruction: 14 tasks `[pending → backlog]` (`def4e0cc`),
+   `patch-v0.2.2` `[planning → in-development]` (`16e12769`). The branch merges into `main` with
+   `--no-ff`. It is not pushed: pushing is the approver's call. Next phase: `dev-loop`, starting with
+   §6.8 step 1 (`task-109`, `task-110`). v0.3 may start once `task-111` is on `main`.
 
 ## Approver inputs received (2026-09-29)
 
