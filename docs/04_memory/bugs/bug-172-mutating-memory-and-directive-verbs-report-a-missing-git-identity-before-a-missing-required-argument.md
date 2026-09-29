@@ -2,7 +2,7 @@
 id: bug-172-mutating-memory-and-directive-verbs-report-a-missing-git-identity-before-a-missing-required-argument
 type: bug
 title: "Mutating memory and directive verbs report a missing git identity before a missing required argument"
-status: in-review
+status: closed
 severity: "high"
 release-origin: "v0.2.2"
 release: "v0.2.2"
