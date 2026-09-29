@@ -2,7 +2,7 @@
 id: "dl-128-user-facing-presentation"
 type: decision-log
 title: "The README carries no badge, and no demo, comparison or case study shows what WingFoil does — four presentation artefacts, delivered and kept current through `user-docs`"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
