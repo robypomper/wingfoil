@@ -2,10 +2,10 @@
 id: "bug-021-core-index-excluded-from-coverage"
 type: bug
 title: "collectCoverageFrom hides src/core/index.ts, which holds real core-operation logic"
-status: open
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2.2"
 feature: ""
 contributor: ""
 credit: ""

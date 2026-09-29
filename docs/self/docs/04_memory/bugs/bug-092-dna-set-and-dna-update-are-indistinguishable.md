@@ -5,7 +5,7 @@ title: "`dna set` and `dna update` agree on success, on refusal, on message and 
 status: triaged
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2.2"
 feature: "P2.1"
 contributor: ""
 credit: ""

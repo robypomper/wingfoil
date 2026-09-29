@@ -19,11 +19,12 @@ file matching a type's `path` pattern under `docs/self/docs/04_memory/` carries 
 Without a single shared base-field definition, every consumer that reads Memory frontmatter
 (the state-derivation logic behind REQ-STATE-01/REQ-STATE-02, `wingfoil memory show`/`search`,
 the context loader in `spec-012-context-loader-relevance-filtering`, and any future Zod validator
-per `spec-009-validation-strategy`) would have to re-derive which fields are common to all seven
-types (`release-line, release, task, adr, decision-log, tech-spec, bug`) versus which are
+per `spec-009-validation-strategy`) would have to re-derive which fields are common to every
+type (`release-line, release, task, adr, decision-log, tech-spec, bug`, then `plan` and `service`)
+versus which are
 type-specific, and would disagree on where audit history and version bookkeeping live.
 
-**Ground truth, not aspiration.** The seven scaffold files under
+**Ground truth, not aspiration.** The scaffold files (seven when this spec was written) under
 `docs/self/.wingfoil/memory/templates/*.md` are the actual current definition of what a freshly
 created document of each type looks like — this spec transcribes their common structure. It
 deliberately does **not** invent a `wingfoil:` namespace block, a `state_history[]`/`review[]`
@@ -45,18 +46,18 @@ namespace block. Two zones, both flat:
 A `.md` file under a Memory `path` pattern without a `type` key matching a registered
 `memory.yaml` type key is not a Memory document for state-derivation purposes.
 
-### Base fields (all seven types)
+### Base fields (every type)
 
 | Field          | Type    | Required | Set by                                    | Description / constraints                                                                                                                                                   |
 |----------------|---------|----------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `id`           | string  | yes      | `memory.add` (from the type's `id_pattern`) | Placeholder `"{auto}"` in the raw scaffold before `memory.add` resolves it; thereafter the generated id (e.g. `task-042-implement-cli-grammar`, `adr-004-...`, `rl-v1`). Must match the file stem (`{id}.md`) and the type's `id_pattern` in `memory.yaml`. |
-| `type`         | string  | yes      | `memory.add` (fixed by the scaffold used)  | Must be a key registered in `memory.yaml` `types:` (one of `release-line, release, task, adr, decision-log, tech-spec, bug`).                                                |
-| `title`        | string  | yes      | `memory.add` (if the add action sets it) or `memory.submit` | Human-readable title. Empty in the freshly added `draft` scaffold; **must** be filled before `memory.submit` moves the document past `draft` — every type lists `title` in its `template.frontmatter.required` (verified against all seven templates). |
+| `type`         | string  | yes      | `memory.add` (fixed by the scaffold used)  | Must be a key registered in `memory.yaml` `types:` (`release-line, release, task, adr, decision-log, tech-spec, bug, plan`, and `service` once `dl-088`'s configuration change lands; `spec-001`).                                                |
+| `title`        | string  | yes      | `memory.add` (if the add action sets it) or `memory.submit` | Human-readable title. Empty in the freshly added `draft` scaffold; **must** be filled before `memory.submit` moves the document past `draft` — every type lists `title` in its `template.frontmatter.required` (verified against all seven templates when written; `plan` and `service` list it too). |
 | `status`       | string  | yes      | every state transition (`memory.add`/`submit`/`approve`/`reject`/`deprecate`) | Current lifecycle state. Set to the type's `states.initial` (`draft` for every type currently declared) at `memory.add`; thereafter must be a value in that type's `states.values` list. This is the **only** state carrier — REQ-STATE-01/02: no separate `.wingfoil/state/` index; state is recomputed by reading `status` at a given git commit. |
 | `tmpl_version` | integer | yes      | `memory.add` (copied from the scaffold)    | The originating template scaffold's build stamp, `YYMMDD` as an integer (e.g. `260703`). Fixed at creation and **not** touched again by WingFoil — it identifies which revision of `.wingfoil/memory/templates/{type}.md` produced this file, for detecting documents scaffolded from a stale template. It is not a per-write counter (see "No document-version counter" below). |
 | `rejection_reason` | string | no (optional) | `memory.reject` (set); `memory.submit` (cleared) | Absent until the document's first `memory.reject`. Set to the exact `--reason` text passed to `wingfoil memory reject` at the same time `status` moves to the type's `gates.<state>.reject` target (`spec-001`). The next `memory.submit` on this document clears it (removes the key from frontmatter) as part of moving `status` forward again — it reflects only the **most recent** reject, not a history. Its presence is therefore itself a signal: a document carrying `rejection_reason` was submitted at least once (had real content) and sent back, distinguishing it from a document still in its first, never-submitted `draft`. This is a convenience mirror of the `Reason:` trailer that `memory.reject`'s commit body already carries (P1.7/REQ-SEC-04) — the commit body remains the authoritative audit-trail record; see "No document-version counter" below for why this does not reopen the door to a fuller in-frontmatter audit trail. |
 
-All type-specific required fields (e.g. `adr.sard_ref`, `task.release`, `release.version` /
+All type-specific required fields (e.g. `adr.sard_ref`, `task.release`, `release.kind` / `version` /
 `pillar` / `features` / `requirements` / `release-line`, `release-line.version`, `bug.severity`)
 are out of scope here — they belong to each type's own template and, at the schema-registry level,
 to `spec-001`'s `template.frontmatter.required` list per type. This spec guarantees the five required
@@ -101,7 +102,7 @@ This is a deliberate departure from prior-art draft `F-04-frontmatter-schema.md`
 proposed a nested `wingfoil:` block with exactly those three fields as the audit trail. Two
 grounds for the departure:
 
-1. **It does not match the real templates.** None of the seven `.wingfoil/memory/templates/*.md`
+1. **It does not match the real templates.** None of the `.wingfoil/memory/templates/*.md`
    scaffolds declare `version`, `state_history`, or `review`; every one uses the flat five-field
    shape above plus `tmpl_version`.
 2. **It is redundant with git, and the git-based design is already normative.** REQ-STATE-02
@@ -164,3 +165,11 @@ which uses a flat schema and a static `tmpl_version` build stamp — not a neste
 `state_history[]`/`review[]` audit arrays, or a per-write incrementing `version` counter. This spec has
 no per-write counter or audit array to get wrong, since the audit trail is git commits (REQ-SEC-02,
 REQ-SEC-04), not a frontmatter log.
+
+**Revision (2026-09-29) — the type enumeration.** This spec named the seven types of its time in five
+places. `plan` (`dl-019`) had already made those lists stale, and `service` (`dl-088`) adds a ninth.
+The lists now defer to `spec-001` / `memory.yaml`, and `release.kind` (`dl-092`; its companion `patch-of` is optional)
+joins the example of type-specific fields. The five base fields and `rejection_reason` are unchanged: the `plan` template
+carries all five (`.wingfoil/memory/templates/plan.md`), and the `service` template that implements
+`dl-088` must carry them too. Written in v0.2.2 `release-planning/identify-specs`. Edited in place — no
+supersede, no state change, no `version:` field (`dl-047`) — per the precedent `spec-015` set.

@@ -2,7 +2,7 @@
 id: "bug-137-bracket-regex-skips-ascii-arrow-transitions"
 type: bug
 title: "`BRACKET_RE` matches only the Unicode `→` arrow, so an ASCII `->` transition bracket is silently skipped by `verifyTransitionConsistency`"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2.2"

@@ -2,7 +2,8 @@
 id: "bug-094-a-bug-ruled-wontfix-after-triage-has-no-legal-exit"
 type: bug
 title: "A bug ruled `wontfix` after it is triaged has no legal transition to `closed`, and the release gate does not recognise `deprecated` — so retiring one leaves it blocking the release forever"
-status: open
+status: closed
+rejection_reason: "Retyped to dl-123-a-bug-ruled-wontfix-has-a-legal-exit, which is ready and scheduled into v0.2.2 and carries this bug's content: the missing approver-gated exit for a bug ruled not-to-be-fixed after triage (retro-v0.2 row 38). Nothing is left to fix under the bug itself, so it is closed at v0.2.2 triage rather than left among the unscheduled bugs."
 severity: "low"
 release-origin: "v0.2"
 release: ""

@@ -227,6 +227,21 @@ cost, and still forces the `adr-009`/`spec-015` provenance amendment.
 4. **Verify E5's three vendor-policy claims** against npm and GitHub documentation before the first
    publish, and record the outcome here. If the provenance/public-repo premise turns out to be wrong,
    option (b)'s cost drops sharply and this decision is worth re-opening.
+   - *Outcome, partial (2026-09-29), recorded here as `dl-087` Action 5 asks.* Read on 2026-09-29
+     from `docs.npmjs.com/trusted-publishers` and `docs.npmjs.com/staged-publishing`:
+     - a GitHub Actions trusted publisher exists in a **stage-only** form, keyed on organisation or
+       user, repository, workflow file and optional environment; it needs npm ≥ 11.5.1 and Node ≥
+       22.14.0, `id-token: write`, and generates provenance automatically;
+     - staged publishing needs npm ≥ 11.15.0 and Node ≥ 22.14.0, and **2FA on the account is a
+       prerequisite** — approval prompts for it in the CLI and on npmjs.com;
+     - neither page says whether `npm stage publish` accepts `--access public`;
+     - no Node 22 release bundles npm 11: the oldest Node bundling npm ≥ 11.15 is `v24.18.0`
+       (`https://nodejs.org/dist/index.json`, same date).
+
+     E5's three claims themselves are **still unverified**: neither page states whether provenance
+     needs a public repository, whether required reviewers need a paid plan on a private one, or
+     whether a granular token can select a package that does not yet exist. With `adr-011` (no
+     token) the third no longer matters.
 5. **Plan the first tag push as the approval gate's first exercise** (E6). `act` cannot test
    `environment:`, so the required-reviewer prompt has never fired. Decide beforehand who watches the
    run, and what happens if `promote` proceeds without prompting — the failure mode of an ignored

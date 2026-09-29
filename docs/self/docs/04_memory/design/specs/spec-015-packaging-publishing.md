@@ -3,7 +3,7 @@ id: spec-015-packaging-publishing
 type: tech-spec
 title: "npm packaging & publishing pipeline (package.json publish surface + CI publish flow)"
 status: approved
-scope: "package.json (publish metadata + scripts) and .github/workflows/publish.yml + scripts/publish-staging"
+scope: "package.json (publish metadata + scripts), server.json, .github/workflows/publish.yml + scripts/publish-staging"
 supersedes: ""
 release: "v0.2"
 contributor: ""
@@ -34,7 +34,10 @@ smoke gate could not be reused as the staging smoke.
 
 Required additions (values are the contract; exact URLs confirmed at implementation):
 
-- `repository`: `{ "type": "git", "url": "git+https://github.com/<owner>/wingfoil.git" }`
+- `repository`: `{ "type": "git", "url": "git+https://github.com/<owner>/wingfoil.git" }`, where
+  `<owner>` is **`wingfoil`** from the v0.2.2 publish on (`dl-091` Q3, the transfer to
+  `wingfoil/wingfoil`). npm provenance checks this URL against the repository that built the package,
+  so `repository`, `homepage` and `bugs` change with the transfer, before the first publish after it.
 - `author`: `"Roberto Pompermaier <robypomper@gmail.com>"`
 - `homepage`: the repo README/pages URL
 - `bugs`: `{ "url": "https://github.com/<owner>/wingfoil/issues" }`
@@ -43,6 +46,14 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   registry URL is non-secret and lives here in git; omitting it falls back to the npm default. The
   **staging** registry is never stored here — it is passed transiently as `--registry
   http://localhost:4873` by the `publish:staging` script (§3). See §5 for the full config-location map.
+- `description`: one line a registry listing shows whole, carrying the display name `WingFoil`
+  (`dl-091` Q1, `dl-093` point 2); it may carry the category line, which `dl-091` keeps a proposal.
+- `keywords`: the discovery terms of `dl-093` point 1 — at least `mcp`, `model-context-protocol`,
+  `mcp-server`, `ai-agents`, `cli`, `workflow`, `governance`, `spec-driven-development`,
+  `claude-code`; the exact list is fixed by the implementing task.
+- `mcpName`: **`io.github.wingfoil/wingfoil`** (`dl-091` Q2 (iii), `dl-093` point 3). The MCP
+  Registry verifies npm ownership by reading this field in the published manifest, and it must equal
+  `server.json` `name` (§1a). It is permanent once published: the registry documents no rename.
 - `files` review: stays `["dist", "README.md"]`; add `LICENSE` and (if present) `COLLABORATION.md`
   only if intended in the tarball. **No `.npmignore`** — `files` is the allowlist (single source;
   avoids the `files`/`.npmignore` double-negative).
@@ -77,6 +88,15 @@ Required additions (values are the contract; exact URLs confirmed at implementat
   action 5, and that gate has now corrected it to "Node.js 22.12+ required" — the cascade is closed. This bullet still fixes only what the published manifest asserts about
   itself; see the *Revision (2026-09-21) — §1 Node floor* note below.
 
+### 1a. `server.json` (MCP Registry listing, `dl-093` point 4)
+
+A `server.json` at the repository root describes the MCP server for the registry: `name` equal to
+`package.json` `mcpName`, the description, the repository URL, and one `packages[]` entry for the npm
+package `wingfoil` over `stdio` with the argument `mcp` (the command `wingfoil mcp` starts). Its
+`version` and every `packages[].version` equal `package.json` `version`, checked by §4. It is not in
+`files`: it is the input of the MCP Registry listing, and publishing to the registry is not part of
+this pipeline — it happens with the approver at publication time (`dl-093` point 6, `dl-130`).
+
 Unchanged: `name: wingfoil`, `main`, `types`, `license: MIT`. `version` is driven by the release/tag
 scheme (§4), not hand-edited at publish time.
 
@@ -109,8 +129,22 @@ Stages, in order (the CI job invokes the same `scripts/publish-staging` a develo
 3. **smoke** — in a clean environment, `npm install -g wingfoil --registry http://localhost:4873`,
    then run the `dl-023` init+CLI e2e smoke (assert `wingfoil --help` on PATH exits 0, and the
    fresh-init CLI surface is schema-valid). Verdaccio is torn down after.
-4. **promote** — only if smoke passes, publish the **same** tarball to the public npm registry with
-   **provenance** (GitHub OIDC; `id-token: write` permission). Triggered on a `vX.Y.Z` tag on `main`.
+4. **promote** — only if smoke passes, **stage** the **same** tarball on the public npm registry:
+   `npm stage publish` with **provenance**, authenticated by the stage-only **trusted publisher**
+   over GitHub OIDC (`id-token: write`; no token, no `.npmrc`; §5). The version is **not live** until
+   the maintainer approves it with 2FA (`npm stage approve <stage-id>`, or **Approve** under *Staged
+   Packages* on npmjs.com), after inspecting it with `npm stage view` / `npm stage download`
+   (`adr-011` points 1–3). `promote` alone runs **Node ≥ 24.18.0**, the oldest release
+   bundling an npm (11.16.0) at or above the 11.15.0 staged publishing requires — no Node 22 release
+   bundles npm 11 (`adr-011` point 4, Node dist index read 2026-09-29); `gate` and `stage` stay on
+   `env.NODE_VERSION`, the `adr-010` floor. Whether `--access public` is passed as a flag or only through
+   `publishConfig` is settled by the implementing task (`adr-011`, *Consequences*). Triggered on a
+   `vX.Y.Z` tag on `main`.
+
+Every third-party action the workflow uses is pinned by commit SHA to a release whose `runs.using`
+is a Node runtime the GitHub-hosted runners still ship, so no job runs an action on a runtime it was
+not released for (`bug-136`: the `actions/*` v4 releases target Node 20, which the runners removed
+on 2026-09-23).
 
 `act` (nektos/act) SHOULD be documented as the local way to exercise `publish.yml` before pushing, so
 the workflow is not debugged through throwaway commits (`adr-009`).
@@ -123,6 +157,10 @@ the workflow is not debugged through throwaway commits (`adr-009`).
   is pushed:** CI asserts that the tagged commit is an ancestor of `origin/main`, not of anyone's
   local `main` (`dl-074`). Tag ↔ `package.json` `version` must match (CI asserts this before
   promote). See the *Revision (2026-09-28) — §4* note below.
+- The same gate step (`checkReleaseTag`) asserts that `server.json` `version` and every
+  `packages[].version` equal `package.json` `version`, so the MCP listing can never name a version
+  other than the one published (`dl-093` point 5, ratified option (a)). The cases are pinned in
+  `test/cli/publish-metadata.test.ts`.
 
 ### 5. Config locations, secrets & rollback
 
@@ -133,14 +171,20 @@ that authenticates never in git (`security-secrets` / `spec-007`):
   (`publishConfig.registry`), `access`, `provenance`, and `repository`/`author`/`homepage`/`bugs`.
 - **Staging registry URL:** transient only — the `http://localhost:4873` Verdaccio address passed as
   `--registry` by `publish:staging`; not persisted anywhere.
-- **Auth token (the publish secret):** the GitHub Actions **secret store** as `NPM_TOKEN`; at publish
-  time the job writes a **transient `.npmrc`** in the runner workspace
-  (`//registry.npmjs.org/:_authToken=${NPM_TOKEN}`) that is never committed. Locally, a developer's
-  token lives in their own `~/.npmrc`, outside the repo.
-- **No username/password is stored:** npm authenticates by token, and provenance is signed via GitHub
-  **OIDC** — an ephemeral identity, no long-lived credential for the provenance claim.
+- **Publish credential: none stored.** `promote` authenticates to npm as a **trusted publisher**
+  over GitHub **OIDC**, configured on npmjs.com for package `wingfoil` with organisation `wingfoil`,
+  repository `wingfoil`, workflow `publish.yml`, environment `npm-publish`, and permission limited
+  to staging (`adr-011` point 2). The same OIDC identity signs provenance. No `NPM_TOKEN` secret
+  exists, and no `.npmrc` is written. The package's publishing access is *require two-factor
+  authentication and disallow tokens* (`adr-011` point 2, npm's recommendation for trusted
+  publishers), so a leaked token of any kind could not publish.
+- **No username/password is stored anywhere**, and no developer machine needs an npm credential for a
+  release: the only human npm act is the 2FA approval of a staged version.
 
-The human `approver` role provides/rotates `NPM_TOKEN` and authorizes the tagged release (`adr-006`).
+The human `approver` role owns the registry-side configuration (account 2FA, the trusted publisher,
+publishing access), approves the `npm-publish` environment deployment, and approves the staged
+version on npm (`adr-006`, `adr-011` points 3 and 5). Both approvals are kept for the first staged
+release, and then a decision-log keeps or drops the environment reviewer (`dl-087` Q2 (iii)).
 
 Rollback posture: prefer `npm deprecate` + a follow-up patch over `npm unpublish` (restricted); a
 failed staging smoke blocks promotion, so a bad build never reaches the public registry.
@@ -148,7 +192,8 @@ failed staging smoke blocks promotion, so a bad build never reaches the public r
 ## Consequences
 
 - The three publishing tasks (metadata, flow, secrets) implement against these exact names
-  (`prepublishOnly`, `publish:staging`, `.github/workflows/publish.yml`, `NPM_TOKEN`) and the §1 field
+  (`prepublishOnly`, `publish:staging`, `.github/workflows/publish.yml`, and — until the
+  2026-09-29 revision — `NPM_TOKEN`) and the §1 field
   set — no per-task divergence.
 - The `dl-023` init+CLI e2e smoke sub-workflow is reused verbatim as the §3 staging smoke; a change to
   that smoke propagates here.
@@ -449,3 +494,27 @@ sentence is mirrored: `dl-024` decision 2 carries it too, as a dated amendment.
 Edited in place — no supersede, no state change, and no `version:` bump because tech-specs carry no
 `version:` field (`dl-047`) — per the `dl-041` / `task-059` / `task-074` / `task-084` / `task-085`
 precedent.
+
+**Revision (2026-09-29) — §1, §1a, §3 stage 4, §4 and §5: promotion through npm staged publishing
+with a stage-only OIDC trusted publisher and no token (`adr-011`, from `dl-087`); the public identity
+and the discovery metadata (`dl-091`, `dl-093`); action runtimes (`bug-136`).** Written in v0.2.2
+`release-planning/identify-specs` (`release-planning-rel-v0.2.2-plan` step 5), ahead of the tasks that
+implement it: this is the contract they build to, and until they land, `publish.yml` and
+`package.json` still show the previous text's behaviour. What changed:
+
+- **§3 stage 4** previously read: "only if smoke passes, publish the **same** tarball to the public
+  npm registry with **provenance** (GitHub OIDC; `id-token: write` permission)". It now stages, and a
+  maintainer's 2FA approval makes the version live (`adr-011` point 1). The job's Node leaves the
+  floor for that one job only (`adr-011` point 4).
+- **§5** previously kept the publish secret in the Actions secret store as `NPM_TOKEN`, written to a
+  transient `.npmrc`, with the approver providing and rotating it. There is now no stored credential
+  (`adr-011` point 2). The approver's role moves from rotating a token to owning the registry-side
+  configuration.
+- **§1** fixes `<owner>` as `wingfoil` and adds `description`, `keywords` and `mcpName`. **§1a** is
+  new: `server.json`. **§4** gains the version-sync assertion `dl-093` ratified as option (a).
+- **§3** gains the rule on action runtimes that `bug-136` showed was missing.
+
+The pattern gate → stage → smoke → promote is unchanged, and so are §2 and §3 stages 1–3. So this
+is a revision, not a new spec, as *Consequences* anticipated for a change that leaves the
+architecture's shape intact. Edited in place — no supersede, no state change, and no `version:` bump
+(`dl-047`) — per the precedent of the revisions above.

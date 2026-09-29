@@ -47,6 +47,18 @@ version tag with `permissions: contents: read` at the top level. Only `promote` 
     `{"error":"package wingfoil not found"}`, while `npm view wingfoil version` returns `0.2.1`. The
     same URL for `commander` returns a count, so the endpoint works: download statistics for the
     new package are not available yet.
+  - *Second reading, 2026-09-29*, from the visibility session's hand-back
+    (`release-planning-rel-v0.2.2-plan`, *Visibility session outcome*):
+    - stars 0, forks 0, watchers 0, open issues 0 (GitHub MCP);
+    - npm downloads 0, GitHub views 0, clones 0 (the approver, on npmjs.com and in *Insights →
+      Traffic*);
+    - one published version, `0.2.1` (2026-09-28).
+
+    The views disagree with the first reading's 15. The first came from the `traffic/views` API and
+    the second from the web page, and the hand-back does not say which window the page showed. So
+    the two numbers are recorded side by side, not reconciled. This is the baseline this
+    decision-log's metrics snapshot starts from, the one the visibility planning (Stage 6) meant for
+    this Context.
 - **No check of external state.** The publish depends on state outside git: the npm package and its
   owner, the `NPM_TOKEN` secret, the `npm-publish` environment and its reviewer, and the public
   repository. `dl-088` records each as a `service` element with a `verify:` command. Nothing in the
