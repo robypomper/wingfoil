@@ -443,3 +443,10 @@ Also:
   limit. The scope note named three `docs/` subdirectories that do not exist (`ls -d docs/*/`); it
   now names the ones that do.
 - `CLAUDE.md` §2 gains the `docs/assets/` row.
+
+**S11 — `align-agent-docs` APPROVED** by the approver (Roberto Pompermaier, `approver`) in chat on
+2026-09-29, at `8bbeb32a`, recorded here as S9 was. At the same time `bug-169` and `bug-170` were
+triaged into v0.3. `bug-171`, found while doing so, is `open` (see
+`bug-ingest-rel-v0.2.2-user-docs-findings-plan`). The phase's two approvals are given, so this plan
+moves `active → done`, and the branch merges into `main` with `--no-ff`. The push is the approver's.
+Next phase: `e2e-smoke`.

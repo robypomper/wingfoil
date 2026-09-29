@@ -35,6 +35,7 @@ phase branch `docs/user_docs_v0.2.2`.
 |---|---|
 | `initial-design.yaml` and `wingfoil-init.yaml` header comments: "WingFoil's CLI/MCP is not yet usable" | **bug** `bug-169-two-workflow-files-still-say-wingfoil-s-cli-and-mcp-are-not-yet-usable` (low) |
 | `.wingfoil/WORKFLOW.md` release-cycle / release-planning diagrams predate dl-013, dl-016, dl-023, dl-095 (found at S10) | **bug** `bug-170-workflow-md-draws-a-release-cycle-without-user-docs-e2e-smoke-and-three-release-planning-phases` (low) |
+| `memory approve <id1> <id2>` approved only `<id1>`, exit 0 (found while triaging bug-169/170) | **bug** `bug-171-transition-verbs-and-read-commands-silently-ignore-every-operand-after-the-first` (medium) |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -55,3 +56,11 @@ phase branch `docs/user_docs_v0.2.2`.
   `git ls-tree --name-only main docs/04_memory/bugs/ | grep bug-169`.
 - `bug-169` submitted `draft → open` (`1250e905`).
 - `bug-170` added (`b01432d9`) and submitted `draft → open` (`32cba723`) through the pinned build; each verb commit contains only the bug file (`git show --stat`), with the S10 edits still uncommitted in the tree.
+- **Triage, 2026-09-29, the approver's ruling in chat:** `bug-169` and `bug-170` go into v0.3.
+  - `release: "v0.3"` was stamped in its own commit (`ae994094`). The pinned `memory approve` refuses
+    to commit a field the transition does not own (the `bug-076` guard).
+  - `bug-169` → `triaged` (`4fa3cee0`) and `bug-170` → `triaged` (`266a5f43`), each by the pinned
+    `memory approve`.
+  - The first call named both ids, approved only `bug-169`, and exited `0`. That is `bug-171`, added
+    (`49001ddc`) and submitted `draft → open` (`8ea13a58`). It awaits triage, so this plan stays
+    `active`.
