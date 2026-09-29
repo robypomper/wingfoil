@@ -2,7 +2,7 @@
 id: "bug-118-the-dirty-target-guard-is-blind-to-a-path-beyond-a-symlink"
 type: bug
 title: "`requireUnmodifiedTarget` passes any path beyond a symlink, modified or not, because `git status --porcelain` reports nothing for it and the guard treats empty as clean"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
