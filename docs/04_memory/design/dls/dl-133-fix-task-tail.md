@@ -2,7 +2,7 @@
 id: dl-133-fix-task-tail
 type: decision-log
 title: "v0.2 ended with 37 of its 43 post-planning tasks being fixes and no rule that saw the tail forming; the release-health catalogue measures the fix share, the smoke and user-doc checks run at every wave, and open fixes above a threshold stop new feature work"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
