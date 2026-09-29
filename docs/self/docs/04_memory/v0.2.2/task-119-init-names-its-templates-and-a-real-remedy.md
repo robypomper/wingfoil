@@ -1,30 +1,38 @@
 ---
 id: "task-119-init-names-its-templates-and-a-real-remedy"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
+title: "`init` names its available templates, and its already-initialised error names a remedy that exists"
+status: pending
+release: "v0.2.2"
+priority: "low"
+tags: ["v0.2.2", "init", "cli", "first-use"]
+ref: "bug-140-init-never-names-its-templates"
 bug: ["bug-140-init-never-names-its-templates", "bug-129-init-error-names-a-migration-command-that-does-not-exist"]
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: []
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Two `init` messages mislead a first user. The task fixes both and closes `bug-140` and `bug-129`.
+
+- **`bug-140`.** Without a TTY, `init` demands `--template`, but neither the error
+  (`src/cli/init-command.ts:74`) nor the option's help (`src/cli/program.ts:120`) names the legal
+  values.
+- **`bug-129`.** On an initialised project, `init` says "use a migration command to change config"
+  (`src/core/init.ts:54`), and no such command exists.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
-
-## Implementation Notes
-
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+1. The missing-argument error names the available templates, for example
+   `missing required argument: --template (one of: Scrum, Kanban)`. The list is read from the
+   template registry, not hard-coded, so a new template appears without editing the message.
+   *Red-first.*
+2. `init --help` names the same values in the `--template` description. *Red-first.*
+3. The already-initialised error names what actually works: edit the files under `.wingfoil/`, or use
+   the `dna` and `directive` commands, then commit. *Red-first.*
+4. The exit codes are unchanged (the `spec-005` / REQ-INT-04 contract). *Characterization.*
+5. `docs/cli-reference.md` matches, and `test/docs/cli-reference.test.ts` is green. `npm test` green.
 
 ## Execution Notes
 

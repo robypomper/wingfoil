@@ -1,34 +1,56 @@
 ---
 id: "task-115-package-discovery-metadata-and-server-json"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
-bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
+title: "The package carries its discovery metadata and a `server.json`, and the tag gate keeps every copy of the version equal"
+status: pending
+release: "v0.2.2"
+priority: "high"
+tags: ["v0.2.2", "publishing", "metadata", "mcp"]
+ref: "dl-093-package-metadata-for-discovery"
+bug: []
                        # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
                        # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
                        # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: []
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+The published package carries no discovery metadata (`dl-093`, ratified (a)). `dl-091` fixed the
+identity it needs:
+- display name WingFoil;
+- MCP namespace `io.github.wingfoil/wingfoil`;
+- category line "The repo-native intent layer for AI-native software engineering".
+
+The file-level contract is `spec-015` §1, §1a and §4 as amended on 2026-09-29.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+1. `package.json` gets three fields:
+   - `description`: one line that a registry listing shows whole, with the display name. It may carry
+     the category line.
+   - `keywords`: at least `spec-015` §1's list, starting from the union with the visibility session's
+     list (`release-planning-rel-v0.2.2-plan`, *Visibility session outcome* §D). The approver settles
+     the final list at review.
+   - `mcpName`: `"io.github.wingfoil/wingfoil"`.
+2. `server.json` at the root: `name` equal to `mcpName`, the description, the repository URL, and one
+   `packages[]` entry for npm `wingfoil` over `stdio` with the argument `mcp`. It is not in `files`.
+   The shape is checked against the MCP Registry's published schema, with its source and the date
+   read recorded in Execution Notes.
+3. `checkReleaseTag` (`scripts/check-release-tag.cjs`) also asserts that `server.json` `version` and
+   every `packages[].version` equal `package.json` `version`. The cases are pinned in
+   `test/cli/publish-metadata.test.ts`. *Red-first.*
+4. `npm publish --dry-run` shows the same file manifest as before.
+5. `npm test` green.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+- The repository URL is the one current when the task runs. The switch to `wingfoil/wingfoil` is
+  `task-116`, including `server.json` if it names the repository.
+- Publishing to the MCP Registry is not in this task: it happens with the approver at publication
+  time (`dl-093` point 6, `dl-130`).
 
 ## Execution Notes
 

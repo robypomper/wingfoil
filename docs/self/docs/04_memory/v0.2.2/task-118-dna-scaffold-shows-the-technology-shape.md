@@ -1,30 +1,31 @@
 ---
 id: "task-118-dna-scaffold-shows-the-technology-shape"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
+title: "The `init`-scaffolded `dna.yaml` shows the `{name, category}` shape of a technology"
+status: pending
+release: "v0.2.2"
+priority: "low"
+tags: ["v0.2.2", "init", "dna", "first-use"]
+ref: "bug-139-dna-scaffold-hides-required-category"
 bug: ["bug-139-dna-scaffold-hides-required-category"]
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: []
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+`wingfoil init` scaffolds `stacks.technologies: []` with no example of the required
+`{name, category}` shape. A first edit therefore fails schema validation on a field the author never
+knew about (`bug-139`). The scaffold is generated in `src/storage/templates.ts`. This closes
+`bug-139`.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
-
-## Implementation Notes
-
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+1. The scaffolded `dna.yaml` shows the shape, as a comment or a commented-out example entry, with
+   `category` visible. *Red-first:* a test asserts it on the scaffold's text.
+2. Uncommenting the example as written gives a `dna.yaml` that validates. *Red-first.*
+3. A freshly scaffolded project still validates unedited. *Characterization.*
+4. `npm test` green.
 
 ## Execution Notes
 

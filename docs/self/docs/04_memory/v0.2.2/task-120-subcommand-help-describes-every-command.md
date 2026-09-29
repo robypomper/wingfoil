@@ -1,30 +1,35 @@
 ---
 id: "task-120-subcommand-help-describes-every-command"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
+title: "Every command's `--help` describes the command, names its arguments and explains its options"
+status: pending
+release: "v0.2.2"
+priority: "medium"
+tags: ["v0.2.2", "cli", "help", "first-use"]
+ref: "bug-128-subcommand-help-describes-no-command-and-no-argument"
 bug: ["bug-128-subcommand-help-describes-no-command-and-no-argument"]
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: []
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+Subcommand `--help` describes nothing (`bug-128`): no command has a description, and every argument
+and option reads as a placeholder. The information exists, because `docs/cli-reference.md` carries
+it, but the CLI does not show it. The command surface is derived mechanically from `CORE_MODULES`
+(`src/core/index.ts`). This closes `bug-128`.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
-
-## Implementation Notes
-
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+1. Every registered command has a one-line description, taken from the same declaration the command
+   surface derives from. *Red-first:* a test walks the whole registered command tree and fails on an
+   empty description.
+2. Every positional argument is named for what it is (`<id>`, `<path>`, `<name>`) and marked required
+   where it is. Every option has a description. The same test covers both. *Red-first.*
+3. The descriptions agree with `docs/cli-reference.md`. Where they differ, one of the two is
+   corrected, and `test/docs/cli-reference.test.ts` stays green.
+4. No behaviour changes: parsing and exit codes are identical. *Characterization.*
+5. `npm test` green.
 
 ## Execution Notes
 

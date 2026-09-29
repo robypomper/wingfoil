@@ -1,34 +1,44 @@
 ---
 id: "task-114-bug-decline-edges-from-triaged-and-planned"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
-bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
+title: "A bug ruled not-to-be-fixed after triage has an approver-gated exit to `closed`"
+status: pending
+release: "v0.2.2"
+priority: "medium"
+tags: ["v0.2.2", "memory", "config", "bug-machine"]
+ref: "dl-123-a-bug-ruled-wontfix-has-a-legal-exit"
+bug: []
                        # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
                        # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
                        # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: ["task-111-configuration-moves-to-the-repository-root"]
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+`dl-123`, ratified as (A)(i), gives the bug machine a legal wontfix exit after triage. It adds
+`triaged: { reject: closed }` and `planned: { reject: closed }` to `memory.yaml`'s `bug.gates`. This
+is a configuration change only. The engine already accepts a state that is both `waiting` and gated
+(`src/memory/state-machine.ts`, `spec-001` as amended `0f68c739`), and the release gate needs no
+change. Scheduled into v0.2.2 so that `bug-092` can close there (retrospective row 27).
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
+1. `memory.yaml`'s `bug.gates` gains the two edges, each annotated `[AUTHORING]` with `dl-123`, and
+   the file's `version` is bumped (`doc-versioning`).
+2. The two new edges are pinned by a test. On the real configuration, `reject` from `triaged` and
+   from `planned` lands on `closed` and sets `rejection_reason`. `approve` from either state is still
+   illegal, because both are `waiting`. *Red-first.*
+3. Every edge the machine already had is unchanged, pinned by the existing tests or new ones.
+   *Characterization.*
+4. `npm test` green.
 
 ## Implementation Notes
 
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+- Closing `bug-092`, and `bug-021` if the approver rules the same way, is the approver's
+  `wf(bug): reject … [triaged → closed]` **after** this task merges. It is not part of this task.
 
 ## Execution Notes
 

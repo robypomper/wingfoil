@@ -1,30 +1,33 @@
 ---
 id: "task-117-remove-the-unused-anthropic-sdk"
 type: task
-title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
-status: draft
-release: ""            # REQUIRED — target release version, e.g. "v0.1"
-priority: ""           # optional — high | medium | low
-tags: ["v0.2.2"]
-ref: ""                # optional — backlog item ID, e.g. "TASK-001"
+title: "`@anthropic-ai/sdk` leaves the runtime dependencies, because nothing in `src/` imports it"
+status: pending
+release: "v0.2.2"
+priority: "low"
+tags: ["v0.2.2", "dependencies", "first-use"]
+ref: "bug-138-unused-anthropic-sdk-runtime-dependency"
 bug: ["bug-138-unused-anthropic-sdk-runtime-dependency"]
-depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
-tmpl_version: 260703   # Orignal template version
+depends_on: ["task-111-configuration-moves-to-the-repository-root"]
+tmpl_version: 260703
 ---
 
 ## Description
 
-<!-- What needs to be built and why. Reference the user story if applicable:
-     "As <persona>, I want <action> so that <benefit>." -->
+`package.json` declares `"@anthropic-ai/sdk": "^0.110.0"` in `dependencies`, but no module in `src/`
+imports it (`bug-138`). Every install downloads it for nothing. `dna.yaml` already flags the drift
+from ADR-004's original framing (the `Anthropic SDK` entry under `stacks.technologies`). This closes
+`bug-138`.
 
 ## Acceptance Criteria
 
-<!-- Reference the Gherkin feature file, or inline the key scenarios.
-     e.g. "See docs/02_requirements/02_bdd/features/p1-memory/P1.1-git-backed-storage.feature" -->
-
-## Implementation Notes
-
-<!-- Optional: known constraints, design hints, or links to relevant ADRs. -->
+1. `grep -rn "@anthropic-ai/sdk" src/` returns nothing, checked again when the task runs.
+2. The dependency is removed from `package.json`, and `package-lock.json` is regenerated.
+   `scripts/check-lockfile-pins.cjs` passes.
+3. `dna.yaml`'s `Anthropic SDK` technology entry and its drift note are removed or corrected, with a
+   version bump. `CLAUDE.md` §4's sentence on the SDK is left for `align-agent-docs` (`dl-025`) and
+   listed in Execution Notes for it.
+4. `npm pack --dry-run` shows no change in the file list; `npm test` green.
 
 ## Execution Notes
 
