@@ -16,9 +16,9 @@ release: ""            # optional — the release in which it was set up, e.g. "
 tmpl_version: 260929   # Original template version
 ---
 
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets): a service element NEVER holds a
-     secret value — no token, password, recovery code or key, and no fragment of one. Name where the
-     secret is held (e.g. "GitHub Actions secret <NAME>, environment <env>"), its type, its expiry and
+<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
+     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
+     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment <env>"), its type, its expiry and
      how it is rotated. The spec-007 scan (`scanText`, src/validation/secret-scan.ts) runs on this
      file in service-ingest's `capture` phase. -->
 
