@@ -2,7 +2,7 @@
 id: svc-010-github-release-v0.2.1
 type: service
 title: "GitHub Release v0.2.1"
-status: pending
+status: active
 provider: "GitHub"
 kind: "listing"
 owner_role: "approver"
