@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2-plan"
 type: plan
 title: "Dev-loop — v0.2 (Project Directives + role-based context + publishing pipeline)"
 status: done
-version: "1.2"
+version: "1.3"
 workflow: "dev-loop"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -128,9 +128,10 @@ regime — but that is a sequencing preference, not a dependency.
 `bug.sync_state(for_each: task.bug)` is a no-op unless the task's `bug:` field names at least one
 bug. Since **`dl-045-absorbed-bug-back-reference`** that field is a **list**, and it covers two cases:
 a fix task derived from a bug by release-planning, and a bug **absorbed** into an existing task's
-Acceptance Criteria because that task already owns the ground. A bug no task names there can never
-leave `triaged` — `triaged`/`planned` are `waiting` states and the only reject edge to `closed`
-starts from `open`.
+Acceptance Criteria because that task already owns the ground. A bug no task names there never
+advances past `triaged` — `triaged`/`planned` are `waiting` states. In v0.2 it could not leave
+`triaged` at all, since the only reject edge to `closed` started from `open`; since v0.2.2
+(`dl-123`, `task-114`) `triaged` and `planned` also reject to `closed`.
 
 Derived fix tasks, all three now `done` and merged:
 
