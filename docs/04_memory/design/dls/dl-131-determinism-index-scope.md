@@ -2,7 +2,7 @@
 id: dl-131-determinism-index-scope
 type: decision-log
 title: "The vision uses \"determinism\" both for the context WingFoil assembles and for the code an agent writes, and only the first is under WingFoil's control; the Determinism Index becomes composite (Input, Process conformance, Outcome equivalence), each component names who controls it, and outcome equivalence is reported, never promised"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
