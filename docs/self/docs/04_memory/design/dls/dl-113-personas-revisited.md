@@ -2,7 +2,7 @@
 id: "dl-113-personas-revisited"
 type: decision-log
 title: "The personas were written before any use and never revisited: make Morgan the primary persona, serve Casey through read-only views, and add a maintainer receiving AI-generated contributions"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
