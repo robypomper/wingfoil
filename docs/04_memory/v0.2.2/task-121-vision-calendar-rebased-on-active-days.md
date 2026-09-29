@@ -2,7 +2,7 @@
 id: "task-121-vision-calendar-rebased-on-active-days"
 type: task
 title: "The vision's calendar is re-based on active days, with actuals next to the original plan and a forecast that states its cadence"
-status: in-review
+status: approved
 release: "v0.2.2"
 priority: "low"
 tags: ["v0.2.2", "vision", "planning", "docs"]
