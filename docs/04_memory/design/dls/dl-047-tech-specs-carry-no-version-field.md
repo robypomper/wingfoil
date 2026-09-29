@@ -2,7 +2,7 @@
 id: "dl-047-tech-specs-carry-no-version-field"
 type: decision-log
 title: "The doc-versioning directive assumes a `version:` field that no tech-spec (and no ADR, DL or task) carries"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
