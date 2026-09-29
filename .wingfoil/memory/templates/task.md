@@ -10,7 +10,7 @@ ref: ""                # optional — backlog item ID, e.g. "TASK-001"
 bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
                        # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
                        # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
-                       # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
+                       # here never advances past `triaged` (only a reject to `closed`, dl-123). A single string is still accepted for documents predating dl-045.
                        # dev-loop keeps the source bug's state in sync with this task via bug.sync_state
 depends_on: []         # optional — ids of tasks whose Execution Notes constrain this one (dl-015); authored at planning time, may be appended during design
 tmpl_version: 260703   # Orignal template version

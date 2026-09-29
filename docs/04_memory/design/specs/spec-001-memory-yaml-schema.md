@@ -171,8 +171,8 @@ prerequisite, and until it lands only undotted tokens are defined. There is no f
 ### Worked examples — every current type in the new format
 
 The `defaults` machine and the types below reproduce **exactly** the legal transition set of
-`memory.yaml` once the `dl-088` and `dl-123` configuration changes land (until then the file has no
-`service` type and no `triaged`/`planned` reject edges); only the encoding changes (except the deliberate default-machine collapse called
+`memory.yaml` once the `dl-088` configuration change lands (until then the file has no `service`
+type; the `dl-123` `triaged`/`planned` reject edges landed with `task-114`); only the encoding changes (except the deliberate default-machine collapse called
 out in Consequences). The first seven were written with this spec; `plan`, `service`, the `release`
 id pattern and the two `bug` decline edges were added later (see the *Revision (2026-09-29)* note
 below).
@@ -279,7 +279,7 @@ forward edge stays verb-less, and `reject` is a manual decline to `closed`, behi
 authority check as every other gate. The ruling lives in the `Reason:` block and in
 `rejection_reason`, as for `open → closed`.
 
-Every one of these preserves the file's legal-transition set (with the `dl-088`/`dl-123` caveat above). Verification for the two
+Every one of these preserves the file's legal-transition set (with the `dl-088` caveat above). Verification for the two
 multi-target cases the old graph left ambiguous: old `task in-review: [ approved, in-progress ]` →
 `approve`=approved, `reject`=in-progress; old `bug in-review: [ resolved, in-progress ]` →
 `approve`=resolved, `reject`=in-progress; old `bug resolved: [ closed, in-progress ]` →
@@ -340,7 +340,8 @@ tasks and configuration changes that implement it:
   decision-log's reproduction shows.
 - **`bug`: `triaged` and `planned` gain `reject: closed`** (`dl-123` (A)(i), approve commit
   `34fb30c9`). This is a configuration change to `memory.yaml`, and no engine change is needed,
-  because the schema already allowed a state to be both `waiting` and gated.
+  because the schema already allowed a state to be both `waiting` and gated. Landed in
+  `memory.yaml` 1.5 by `task-114-bug-decline-edges-from-triaged-and-planned`.
 - **`plan`** (`dl-019`) was missing from the worked examples. Since `dl-019` the Context listed eight
   types while this block showed seven. **`service`** (`dl-088`, route (a) out of flow, state machine
   (a)) is added with it. Its frontmatter fields belong to its template, not to this spec.

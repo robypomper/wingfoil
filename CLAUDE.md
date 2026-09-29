@@ -156,7 +156,7 @@ as a status value). `task` already worked this way; `decision-log` now has its o
 | `adr`          | `docs/04_memory/design/adrs/{id}.md`               | draft→pending(→draft)→accepted→superseded                                                |
 | `decision-log` | `docs/04_memory/design/dls/{id}.md`                | draft→in-discussion(→draft)→ready (·→deprecated)  [in-develop/done removed per dl-017]   |
 | `tech-spec`    | `docs/04_memory/design/specs/{id}.md`              | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
-| `bug`          | `docs/04_memory/bugs/{id}.md`                      | draft→open(→closed)→triaged→planned→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
+| `bug`          | `docs/04_memory/bugs/{id}.md`                      | draft→open(→closed)→triaged(→closed)→planned(→closed)→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
 | `plan`         | `docs/05_plans/{scope}/{id}.md`                    | draft→active→done (·→deprecated)  [dl-019 — phase-plan execution scaffold; `X_*` grandfathered]        |
 
 ---
@@ -298,7 +298,7 @@ the commit message (the timestamp comes from the git commit itself).
 1. Change the `status` field to the type's reject target, per `memory.yaml`'s `gates` block for
    that state — e.g. `pending → draft` for the default machine, `task`, `adr`, and `tech-spec` alike
    (none of them has a separate `rejected` status); `in-discussion → draft` for `decision-log`;
-   `open → closed` or `in-review/resolved → in-progress` for `bug` (§5 table). At the same time, set
+   `open/triaged/planned → closed` or `in-review/resolved → in-progress` for `bug` (§5 table). At the same time, set
    the document's `rejection_reason` frontmatter field to the `--reason` text given to the reject
    command — this is in addition to the reason already recorded in the commit body below; the
    frontmatter copy is a convenience so the reason is visible without walking git history, and it

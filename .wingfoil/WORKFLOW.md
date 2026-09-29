@@ -409,6 +409,8 @@ stateDiagram-v2
     open --> triaged : memory.approve
     open --> closed : memory.reject (wontfix / duplicate)
     triaged --> planned : bug.set_state (release-planning/build-backlog, fix task(s) created)
+    triaged --> closed : memory.reject (wontfix after triage, dl-123)
+    planned --> closed : memory.reject (wontfix before the fix starts, dl-123)
     planned --> in_progress : bug.sync_state (dev-loop, first fix task starts)
     in_progress --> in_review : bug.sync_state (dev-loop, ALL fix tasks in review)
     in_review --> resolved : bug.sync_state (dev-loop, ALL fix tasks done)

@@ -744,10 +744,12 @@ types:
   });
 
   it('dl-053: `bug` has three approve gates — from `triaged` (the first target) the next approve target is named, not the `waiting` successor `planned`', () => {
+    // Since dl-123 `triaged` is gated (reject -> closed) AND waiting, so the engine's reason is the
+    // verb-less forward edge; `triaged`/`planned` expose no approve target, so the message is unchanged.
     expectContract(
       () => resolveTypeTransition(memoryYaml, 'bug', 'triaged', 'approve'),
       "illegal transition triaged -> resolved for type 'bug'",
-      /not a `gates` state/,
+      /both a `gates` and `waiting` state/,
     );
   });
 
