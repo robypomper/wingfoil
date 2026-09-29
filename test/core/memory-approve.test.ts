@@ -17,7 +17,8 @@
  * `defaults.states`, where `approve` lands on the literally-named `approved` state of P1.7's wording.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CORE_MODULES } from '../../src/core';
@@ -326,5 +327,43 @@ describe('CORE_MODULES memory.memoryApprove — P1.7 fit criteria', () => {
     expect(result.error.message).toBe("invalid state 'shipped' for type 'task'");
     expect(exitCodeForResult(result)).toBe(1);
     expect(head(repo)).toBe(before);
+  });
+});
+
+describe('CORE_MODULES memory.memoryApprove — REQ-SEC-01 git-identity pre-flight (no configured identity)', () => {
+  // task-125 (review finding 2): the seven other mutating verbs pin this case; approve did not.
+  const ISOLATION_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_NOSYSTEM'] as const;
+  const saved: Record<string, string | undefined> = {};
+  let repo: string;
+
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), 'wf-memapprove-noid-'));
+    execFileSync('git', ['-C', repo, 'init', '-q', '--initial-branch=main'], { encoding: 'utf-8' });
+    const emptyConfig = join(repo, 'empty.gitconfig');
+    writeFileSync(emptyConfig, '');
+    for (const key of ISOLATION_KEYS) saved[key] = process.env[key];
+    process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+    process.env.GIT_CONFIG_SYSTEM = emptyConfig;
+    process.env.GIT_CONFIG_NOSYSTEM = '1';
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', APPROVER_DNA);
+    writeFixtureFile(repo, 'docs/memory/v0.2/task-101.md', taskDoc({ id: 'task-101', status: 'pending' }));
+  });
+
+  afterEach(() => {
+    for (const key of ISOLATION_KEYS) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('with valid arguments, refuses with the exact REQ-SEC-01 message (exit 1) before any authority check, writing nothing', async () => {
+    const result = await memoryApproveFn()({ root: repo, positional: 'task-101', options: { reason: 'x' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('git identity not configured (user.name/user.email)');
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(readFileSync(join(repo, 'docs/memory/v0.2/task-101.md'), 'utf-8')).toContain('status: pending');
   });
 });
