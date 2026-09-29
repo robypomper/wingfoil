@@ -32,6 +32,12 @@
  * `task-074-fix-engines-node-floor` (`bug-023`) later added the `engines.node` guard at the bottom of
  * this file — the same "metadata only" boundary, one field over. Its own header explains why it is
  * computed from the installed tree rather than pinned to a value.
+ *
+ * `task-115-package-discovery-metadata-and-server-json` (`dl-093`, `dl-091`) added the discovery
+ * metadata (`description`, `keywords`, `mcpName`), the root `server.json` of the MCP Registry listing
+ * (`spec-015` §1a), and — the one exception to "nothing here asserts a script" — the version-sync
+ * cases of `checkReleaseTag` (`spec-015` §4), which `spec-015` pins in this file because they keep
+ * metadata copies equal. That block sits just before the task-074 one.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';

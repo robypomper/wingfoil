@@ -25,7 +25,7 @@ const RELEASE_TAG = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
  * @returns {string | undefined}
  */
 function serverJsonMismatch(server, version) {
-  if (server === undefined || server === null) return 'no server.json was read';
+  if (server === undefined || server === null) return 'no server.json was read (missing, or not valid JSON)';
   if (server.version !== version) {
     return `server.json version ${JSON.stringify(server.version)} does not match package.json version ${version}`;
   }
@@ -57,21 +57,26 @@ function checkReleaseTag(tag, version, server) {
   return { ok: true, message: `tag ${tag} matches package.json version ${version}, and so do server.json and its packages` };
 }
 
+/**
+ * The parsed `server.json` next to `package.json`, or `undefined` when it is missing or not JSON —
+ * which `checkReleaseTag` then refuses, so the gate fails closed.
+ *
+ * @param {string} root
+ */
+function readServerJson(root) {
+  try {
+    return JSON.parse(readFileSync(join(root, 'server.json'), 'utf-8'));
+  } catch {
+    return undefined;
+  }
+}
+
 if (require.main === module) {
   const root = join(__dirname, '..');
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
-  let server;
-  try {
-    server = JSON.parse(readFileSync(join(root, 'server.json'), 'utf-8'));
-  } catch (error) {
-    process.stderr.write(`cannot read server.json: ${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 1;
-  }
-  if (process.exitCode !== 1) {
-    const result = checkReleaseTag(process.argv[2], version, server);
-    (result.ok ? process.stdout : process.stderr).write(`${result.message}\n`);
-    process.exitCode = result.ok ? 0 : 1;
-  }
+  const result = checkReleaseTag(process.argv[2], version, readServerJson(root));
+  (result.ok ? process.stdout : process.stderr).write(`${result.message}\n`);
+  process.exitCode = result.ok ? 0 : 1;
 }
 
 module.exports = { checkReleaseTag };
