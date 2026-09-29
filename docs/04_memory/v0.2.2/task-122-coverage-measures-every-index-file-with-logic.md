@@ -59,9 +59,31 @@ fix only as optional.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+### design (architect)
+
+**`depends_on`: none.** The frontmatter carries `depends_on: []`, so the `dl-015` read-related gate
+has nothing to load.
+
+**Specs.** No tech-spec states the coverage configuration. `grep -rn -i coverage
+docs/04_memory/design/specs/*.md` returns only `spec-003` (the `tests.coverage(min: 80)` check name),
+`spec-002` (a `coverage_target` example) and two unrelated uses in `spec-007`/`spec-015`; none names
+`collectCoverageFrom` or `index.ts`. The `testing` directive (`.wingfoil/directives/custom/testing.md`
+line 25) says only "Maintain >80% coverage (Jest); coverage must not regress on merge". So no spec
+needs a revision and none is scaffolded; `design` passes through. `dl-089` Q03 ("`index.ts`
+included") is the only governance text that assumes the new scope, and this task makes it true.
+
+**Configuration shape chosen.** Keep `src/**/*.ts` as the include and replace the
+`!src/**/index.ts` glob with one literal `!src/<module>/index.ts` entry per barrel. A new `index.ts`
+that is not listed is measured, which is the direction the Implementation Notes ask for. The rule
+that decides "barrel" is written as an AST check in the test (see red), so the review can re-run it
+instead of reading the list by eye.
+
+**AC classification (T1, `dl-014`).**
+
+| AC | Class | Why |
+|---|---|---|
+| 1 | red-first | The behaviour is new: today `!src/**/index.ts` excludes both files. A test reading `jest.config.js` fails before the change. |
+| 2 | characterization | Deriving the barrel list is an investigation. It is pinned by the same test (every exclusion must pass the barrel rule; core and mcp must fail it), which passes against the current sources. |
+| 3 | characterization | Coverage numbers are measured, not built. Missing tests are red-first only if a threshold fails. |
+| 4 | characterization | `npm test` green is a check on the whole suite. |
+
