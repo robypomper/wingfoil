@@ -1,10 +1,110 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.3
-**Date:** 2026-06-24
+**Version:** 1.4
+**Date:** 2026-09-29
 **Status:** Approved
 
 ---
+
+## Re-baseline on active days (v1.4, 2026-09-29)
+
+The calendar below this section is the **original plan** (v1.3, 2026-06-24). It is kept as written, for
+comparison, and is **no longer the schedule**: it assumed one release per calendar week, with no pause and
+no scope growth, and neither held. Per `dl-096-schedule-rebaseline-on-active-days` (ratified as Q1 (a),
+Q2 (i)), release budgets are now stated in **active days**, and the calendar is a **forecast that states
+its cadence assumption**. The forecast is refreshed at every release's retrospective.
+
+**Definitions.**
+
+- An **active day** is a calendar date on which at least one commit has its committer date.
+- A **gap** is the number of days between two consecutive active dates.
+- **Tasks** are the `task` elements of a release (the files under `docs/04_memory/{release}/`).
+- **Features** are the entries of the `release` element's `features` list
+  (`docs/04_memory/planning/rl-v1/{id}.md`).
+
+### Actuals — v0.1 and v0.2
+
+Measured at `a20b346c` (the merge of v0.2's `release-publishing`), from the commands in
+`retrospective-rel-v0.2-plan` §6.9, re-run for this revision:
+
+| Phase / release           | Planned (original) | Actual                                       | Active days                                      | Tasks planned → shipped | Features |
+|---------------------------|--------------------|----------------------------------------------|--------------------------------------------------|-------------------------|----------|
+| Inception + specification | —                  | 2026-06-14 → 07-03                           | 9                                                | —                       | —        |
+| v0.1                      | Jul 10             | released 2026-07-08 (`5b16ab61`)             | 5 (07-04 → 07-08)                                | 33 → 33                 | 13       |
+| v0.2                      | Jul 17             | released 2026-09-28 (`d2ad1f3f`)             | ≈ 12 (07-08 after v0.1's release, 07-09, then 11 dates 09-14 → 09-28) | 32 → 75                 | 14       |
+| Pause                     | —                  | 2026-07-09 → 09-14                           | **0 (a 67-day gap)**                             | —                       | —        |
+
+Source commands (all at `a20b346c`):
+
+- Active dates: `git log a20b346c --format=%cd --date=short | sort -u` → 26 dates; 06-14 … 07-03 are 9,
+  07-04 … 07-08 are 5, 09-14 … 09-28 are 11.
+- Gaps longer than two days: the same list, differenced → 06-14 → 06-21 (7), 06-26 → 06-29 (3),
+  06-29 → 07-02 (3), **07-09 → 09-14 (67)**, 09-18 → 09-21 (3), 09-25 → 09-28 (3).
+- Release dates: `git log a20b346c --format='%h %cd %s' --date=iso --grep=minor-v0.1 --grep=minor-v0.2 | grep released`
+  → `5b16ab61 2026-07-08 11:42` (v0.1 `releasing → released`) and `d2ad1f3f 2026-09-28 11:24` (v0.2).
+  2026-07-08 is shared: v0.1 was released that morning and v0.2 work followed, which is why v0.2's count
+  is approximate.
+- Tasks shipped: `git ls-tree --name-only a20b346c docs/self/docs/04_memory/v0.1/ | wc -l` → 33, and the
+  same for `v0.2/` → 75 (the Memory lived under `docs/self/` at that commit).
+- v0.2 tasks planned: `task-034` … `task-065` at the end of v0.2's `release-planning`
+  (`release-planning-rel-v0.2-plan`); counted with the same `ls-tree`, filtered to ids 34–65 → 32.
+- Features: the `features:` list of `minor-v0.1.md` and `minor-v0.2.md` → 13 and 14.
+
+**What the actuals say.**
+
+- **Velocity held**: v0.1 shipped 33 tasks in 5 active days (6.6 a day), v0.2 75 in ≈ 12 (≈ 6.25 a day);
+  pooled, 108 ÷ 17 ≈ 6.35. The planning figure used below is **6.5 tasks per active day**, the one
+  v0.2.2's `build-backlog` used, ratified by the approver on 2026-09-29 as the rate that stands; at
+  6.35 the v0.2.2 budgets below would change by at most 0.1 day.
+- **v0.2's calendar slip is the pause**, and its active-day overrun (≈ 12 against the plan's 5) is scope:
+  32 tasks planned, 75 shipped (2.3×).
+- **Cadence when working**: 11 of the 15 calendar days from 09-14 to 09-28 were active, **about 5 active
+  days a week**.
+
+### Active-day budgets per release
+
+A budget is set by each release's own `release-planning`. Until a release has one, it carries
+`dl-096`'s proxy: v0.2's ≈ 12 active days for 14 features, scaled by the release's feature count.
+
+| Release | Features | Budget (active days)                                             | Source                                                                         |
+|---------|----------|------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| v0.2.2  | —        | **≈ 2.2** by task count; ≈ 4 by `dl-096`'s proxy; expect nearer 4 | v0.2.2 `build-backlog`: 14 tasks ÷ 6.5 per active day; see the note below       |
+| v0.3    | 26       | ≈ 22                                                             | proxy, 26 ÷ 14 × 12; replaced by v0.3's `release-planning`                      |
+| v0.4    | 8        | ≈ 7                                                              | proxy, 8 ÷ 14 × 12                                                              |
+| v1.0    | 3        | ≈ 5                                                              | the plan's own estimate; the proportional figure is ≈ 3                        |
+
+- **v0.2.2 is a patch with no feature scope of its own**, so the feature proxy does not apply to it. Its
+  `build-backlog` (2026-09-29, merged at `4770a52c`) measured **14 tasks**
+  (`git ls-tree --name-only 4770a52c docs/self/docs/04_memory/v0.2.2/ | wc -l` → 14), hence
+  14 ÷ 6.5 ≈ **2.2 active days**. `dl-096`'s proxy of ≈ 4 weighs the configuration move to the root
+  (`task-111`), one task but the largest change of the patch; the task count underweights it.
+- **Recalculated after build-backlog**: `task-123` was added on 2026-09-29 from a review finding
+  (`50c64846`, `wf(task): add task-123-…`), so the backlog is now **15 tasks**
+  (`ls docs/04_memory/v0.2.2/ | wc -l` → 15 at `c3df9df3`): 15 ÷ 6.5 ≈ **2.3 active days**. The
+  budget recorded by `build-backlog` stays 14 tasks / 2.2 days; this is the update, not a rewrite.
+- Features per release: the `features:` list of `minor-v0.3.md`, `minor-v0.4.md`, `minor-v1.0.md`
+  → 26, 8, 3.
+
+### Calendar forecast
+
+**Cadence assumption: about 5 active days a week (the rate observed 09-14 → 09-28), with work running
+continuously from October 2026 and no pause.**
+
+- The budgets sum to ≈ 38 active days (4 + 22 + 7 + 5, taking v0.2.2 at the proxy), **≈ 40 with a
+  retrospective per release**.
+- At 5 active days a week that is **about 8 weeks**: **v1.0 (the MVP) around late November 2026**,
+  against the original plan's 2026-08-07.
+- This is a **projection, not a commitment**. If the cadence changes, recompute: weeks = 40 ÷ active
+  days per week. If a release's own `release-planning` sets a different budget, it replaces the proxy
+  above.
+- **Refresh rule** (`dl-096` Q2 (i)): each release's retrospective records the release's actual active
+  days in the table above and refreshes this forecast.
+
+---
+
+> **Original plan (v1.3, 2026-06-24), kept for comparison.** The *Timeline Overview*, the
+> *Week-by-Week Breakdown* and the *Critical Path* below are the weekly schedule as first approved,
+> unchanged; their dates are superseded by the re-baseline above.
 
 ## Timeline Overview
 
