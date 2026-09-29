@@ -77,9 +77,13 @@ describe('initWingfoilProject — already initialized (P5.1.1 AC (c))', () => {
       ok: false,
       error: { code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED },
     });
+    // task-119 AC 3 (bug-129): the hint names what exists — hand edits under .wingfoil/ (committed
+    // by the user) or the `dna` / `directive` commands (which commit themselves) — and no
+    // "migration command", which WingFoil has never had.
     expect(WINGFOIL_ALREADY_INITIALIZED).toBe(
-      'WingFoil already initialized (use a migration command to change config)',
+      'WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)',
     );
+    expect(WINGFOIL_ALREADY_INITIALIZED).not.toMatch(/migration/);
     expect(exitCodeForResult(result)).toBe(1);
     // Nothing overwritten: the Scrum dna.yaml and HEAD are untouched.
     expect(readFileSync(dnaPath, 'utf-8')).toBe(dnaBefore);

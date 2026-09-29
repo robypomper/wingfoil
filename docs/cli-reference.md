@@ -86,7 +86,7 @@ wingfoil init [--template <Scrum|Kanban>]
 
 | Option | Description |
 |---|---|
-| `--template <name>` | Methodology template: `Scrum` or `Kanban`. Omit it in a terminal to be prompted; required with `--no-interactive`. |
+| `--template <name>` | Methodology template: `Scrum` or `Kanban` (`init --help` lists them). Omit it in a terminal to be prompted; required without a terminal or with `--no-interactive`. |
 
 Creates `.wingfoil/dna.yaml`, `memory.yaml` (+ `memory/templates/`), `roles.yaml`, the six built-in
 directives in `directives/built-in/` plus four starter custom directives in `directives/custom/`,
@@ -95,7 +95,10 @@ directives in `directives/built-in/` plus four starter custom directives in `dir
 
 - **Output:** `{ root, template, files: [...] }` — the files it created.
 - **Commit:** `chore(wingfoil): initialize .wingfoil/ with the <Template> template (P5.1.1)`
-- **Errors:** already initialized → exit `1`; unknown template → exit `2`
+- **Errors:** already initialized → exit `1` (`error: WingFoil already initialized (to change its
+  configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil
+  directive commands)`); `--template` omitted without a terminal or with `--no-interactive` → exit `2`
+  (`error: missing required argument: --template (one of: Scrum, Kanban)`); unknown template → exit `2`
   (`error: unknown template "Foo", expected one of: Scrum, Kanban`); not a git repository → exit `1`.
 
 ### `wingfoil mcp`

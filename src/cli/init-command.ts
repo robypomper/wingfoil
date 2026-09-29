@@ -71,7 +71,8 @@ async function selectTemplate(options: InitCliOptions, deps: InitCliDeps, format
 
   // 2. --template absent + (non-interactive OR not a TTY): fail immediately (spec-008 §4).
   if (!options.interactive || !deps.isTTY) {
-    emitError('missing required argument: --template', { format });
+    // bug-140: name the legal values, read from the registry so a new template needs no edit here.
+    emitError(`missing required argument: --template (one of: ${TEMPLATE_NAMES.join(', ')})`, { format });
     exitWith(2);
     return null;
   }

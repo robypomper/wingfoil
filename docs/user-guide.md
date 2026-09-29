@@ -93,7 +93,10 @@ $ wingfoil init --template Scrum
 }
 ```
 
-`--template` is `Scrum` or `Kanban`; omit it to be asked. `init` creates and commits:
+`--template` is `Scrum` or `Kanban` (`wingfoil init --help` lists them); omit it in a terminal to be
+asked. Without a terminal, or with `--no-interactive`, it is required, and leaving it out fails with
+`error: missing required argument: --template (one of: Scrum, Kanban)`, exit `2`. `init` creates and
+commits:
 
 ```
 .wingfoil/
@@ -109,7 +112,9 @@ $ wingfoil init --template Scrum
 ```
 
 The commit is `chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)`. Running `init`
-again fails: the project is already initialized.
+again fails with exit `1`: the project is already initialized. From then on, change the configuration
+by editing the files under `.wingfoil/` and committing them, or with the `dna` and `directive`
+commands, which commit for you (sections 4 and 6).
 
 ## 4. Configure the DNA
 
