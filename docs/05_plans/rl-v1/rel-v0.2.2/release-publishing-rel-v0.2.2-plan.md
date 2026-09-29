@@ -3,7 +3,7 @@ id: release-publishing-rel-v0.2.2-plan
 type: plan
 title: "Release-publishing — v0.2.2 (bump, rehearse, tag, stage on npm, approve, mark released)"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "release-publishing"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -366,7 +366,34 @@ a defect. The probe was re-run without it.
 ### S8 — after the version is live
 
 - README roadmap row 0.2.2 → "✓ Released (`wingfoil@0.2.2` on npm)" (`39a44f7d`).
-- **MCP Registry listing:** the approver's (pending). Its `service` element follows once it exists.
+- **MCP Registry listing: refused, paused.**
+  - The approver ran `mcp-publisher login github` and `mcp-publisher publish`. The registry answered
+    403, "You have permission to publish: io.github.robypomper/*", and did so again after
+    `logout`/`login`.
+  - The membership is public (`gh api orgs/wingfoil/public_members` → `["robypomper"]`), and the
+    approver is an active owner (`gh api user/memberships/orgs/wingfoil` → `admin`, `active`).
+  - Suspected cause: the registry's OAuth app has no access to the organization.
+  - Approver ruling, 2026-09-29: pause the listing, file the bug, go on with `mark-released`.
+  - Filed through `bug-ingest-rel-v0.2.2-mcp-registry-findings-plan` as `bug-173` (`open`, medium,
+    `release: ""`).
+  - The listing's `service` element waits for the listing itself.
 - **Runbook gap:** the `publish.yml` header does not say where the Staged Packages tab is, nor that an
   automated review precedes Approve. Changing that header is a change to a pipeline file, so it is
   proposed to the approver as its own element rather than made here.
+
+### S9 — `mark-released`: performed on the approver's instruction
+
+- `dl-079` is still `in-discussion` (`awk '/^status:/{print $2;exit}' docs/04_memory/design/dls/dl-079-*.md`).
+  The subject therefore follows v0.2's precedent (`d2ad1f3f`).
+- `34a74bd2` `wf(release): mark-released patch-v0.2.2 [releasing → released]`: `git show --stat` →
+  only `docs/04_memory/planning/rl-v1/patch-v0.2.2.md`, 1+/1−.
+- `npm run -s wingfoil -- memory history patch-v0.2.2`: the last entry is `34a74bd2`,
+  `releasing → released`.
+
+### Still open at the end of the phase
+
+- `bug-173`: awaits the approver's triage; the MCP Registry listing and its `service` element wait
+  on it.
+- The runbook gap: the `publish.yml` header says nothing about the Staged Packages tab or the
+  automated review. It was proposed as its own element and has not been ruled on.
+- This plan's `finalize`: needs the approver's approval (`Approver:`/`Reason:`).
