@@ -2,7 +2,7 @@
 id: "dl-065-how-superseded-is-ever-reached"
 type: decision-log
 title: "`superseded` is reachable by nothing at all, and spec-010:125 still says `deprecate` writes it"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
