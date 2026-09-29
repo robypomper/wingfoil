@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.2.2-user-docs-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 user-docs findings"
-status: active
+status: done
 version: "1.0"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-user-docs-findings"
