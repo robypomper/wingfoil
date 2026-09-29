@@ -9,6 +9,7 @@ import { runInit, type InitCliDeps } from '../../src/cli/init-command';
 import { WINGFOIL_ALREADY_INITIALIZED } from '../../src/core/init';
 import { coreErr, coreOk } from '../../src/core/types';
 import type { InitProjectValue } from '../../src/core/init';
+import { TEMPLATE_NAMES } from '../../src/storage';
 
 describe('runInit — wizard + --template (P5.1.1)', () => {
   let exitSpy: jest.SpyInstance;
@@ -86,7 +87,11 @@ describe('runInit — wizard + --template (P5.1.1)', () => {
 
   it('spec-008 §4: no --template + not a TTY fails with exit 2, missing-arg message, never calls core', async () => {
     await runInit({ template: undefined, interactive: true, format: 'console' }, deps({ isTTY: false }));
-    expect(stderrSpy).toHaveBeenCalledWith('error: missing required argument: --template\n');
+    // task-119 AC 1 (bug-140): the error names the legal values, read from the template registry.
+    expect(stderrSpy).toHaveBeenCalledWith(
+      `error: missing required argument: --template (one of: ${TEMPLATE_NAMES.join(', ')})\n`,
+    );
+    expect(TEMPLATE_NAMES).toEqual(['Scrum', 'Kanban']);
     expect(exitSpy).toHaveBeenCalledWith(2);
     expect(initCalls).toHaveLength(0);
   });
@@ -120,9 +125,7 @@ describe('runInit — wizard + --template (P5.1.1)', () => {
     const init: InitCliDeps['init'] = () =>
       coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
     await runInit({ template: 'Scrum', interactive: true, format: 'console' }, deps({ init }));
-    expect(stderrSpy).toHaveBeenCalledWith(
-      'error: WingFoil already initialized (use a migration command to change config)\n',
-    );
+    expect(stderrSpy).toHaveBeenCalledWith(`error: ${WINGFOIL_ALREADY_INITIALIZED}\n`);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -131,5 +134,40 @@ describe('runInit — wizard + --template (P5.1.1)', () => {
     const written = stdoutSpy.mock.calls.map((c) => c[0]).join('');
     expect(written).toContain('"template":"Kanban"');
     expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+});
+
+describe('runInit — the missing-template error reads the registry (task-119 AC 1, bug-140)', () => {
+  afterEach(() => {
+    jest.resetModules();
+    jest.dontMock('../../src/storage');
+  });
+
+  it('a template added to the registry appears in the message without editing it', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      let isolatedRunInit: typeof runInit | undefined;
+      jest.isolateModules(() => {
+        jest.doMock('../../src/storage', () => ({
+          ...jest.requireActual<Record<string, unknown>>('../../src/storage'),
+          TEMPLATE_NAMES: ['Scrum', 'Kanban', 'Shape Up'],
+        }));
+        ({ runInit: isolatedRunInit } = jest.requireActual<typeof import('../../src/cli/init-command')>(
+          '../../src/cli/init-command',
+        ));
+      });
+      await isolatedRunInit!(
+        { template: undefined, interactive: false, format: 'console' },
+        { root: '/repo', isTTY: false, prompt: async () => '' },
+      );
+      expect(stderrSpy).toHaveBeenCalledWith(
+        'error: missing required argument: --template (one of: Scrum, Kanban, Shape Up)\n',
+      );
+      expect(exitSpy).toHaveBeenCalledWith(2);
+    } finally {
+      exitSpy.mockRestore();
+      stderrSpy.mockRestore();
+    }
   });
 });

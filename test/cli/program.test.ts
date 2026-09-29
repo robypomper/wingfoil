@@ -39,6 +39,7 @@ import { buildProgram } from '../../src/cli/program';
 import { exitCodeForParseOutcome } from '../../src/core/exit-code';
 import type { CoreModule, ParamsContext } from '../../src/core/registry';
 import { coreOk } from '../../src/core/types';
+import { TEMPLATE_NAMES } from '../../src/storage';
 
 jest.mock('../../src/cli/init-command', () => ({
   runInit: jest.fn(async () => undefined),
@@ -364,6 +365,16 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     const init = program.commands.find((command) => command.name() === 'init');
     expect(init?.options.map((option) => option.flags)).toEqual(['--template <name>']);
     expect(init?.description()).toBe('initialize WingFoil in the current git repository');
+  });
+
+  it('`init --help` names every registered template in the `--template` description (task-119 AC 2, bug-140)', async () => {
+    const program = await buildFixtureProgram();
+    const init = program.commands.find((command) => command.name() === 'init');
+    const template = init?.options.find((option) => option.flags === '--template <name>');
+    expect(template?.description).toBe(
+      `methodology template, one of: ${TEMPLATE_NAMES.join(', ')} (required without a terminal or with --no-interactive)`,
+    );
+    expect(init?.helpInformation()).toContain(TEMPLATE_NAMES.join(', '));
   });
 
   it('`init --template <name>` drives `runInit` with the resolved root and the ambient global options', async () => {
