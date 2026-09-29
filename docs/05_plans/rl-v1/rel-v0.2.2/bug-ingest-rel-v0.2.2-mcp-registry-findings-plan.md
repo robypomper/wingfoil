@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.2.2-mcp-registry-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 MCP Registry publish findings"
-status: active
+status: done
 version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-mcp-registry-findings"
