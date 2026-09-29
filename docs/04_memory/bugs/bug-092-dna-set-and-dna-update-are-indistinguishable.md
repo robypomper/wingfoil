@@ -2,7 +2,7 @@
 id: "bug-092-dna-set-and-dna-update-are-indistinguishable"
 type: bug
 title: "`dna set` and `dna update` agree on success, on refusal, on message and on exit code — the only behaviour that separated them was `bug-084`, which has been removed"
-status: triaged
+status: closed
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.2.2"
@@ -10,6 +10,7 @@ feature: "P2.1"
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed as won't-fix on 2026-09-29 through the triaged → closed edge that dl-123 added and task-114 implemented. On 2026-09-24 the approver ruled that dna set and dna update both stay, so there is nothing to fix (480b3233, dl-123 Action 4)."
 ---
 
 ## Summary
