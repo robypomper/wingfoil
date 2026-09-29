@@ -223,6 +223,15 @@ client uses (the setup text says to use an absolute path when it is not the repo
   identical. `.mcp.json` and `scripts/` are not packed; the alias is a devDependency, so a consumer
   of the published package never installs it.
 
+**Second merge of `main`** (`d926b152`, clean; brings `task-122`, `task-123`), after the submit
+commit, re-checked: `npx jest --coverage --coverageReporters=text-summary` → `Test Suites: 155
+passed`, `Tests: 2520 passed`; Statements 98.62 % (3874/3928), Branches 94.18 % (1993/2116),
+Functions 93.79 % (650/693), Lines 99.47 % (3398/3416). The totals moved because `task-122` widened
+`collectCoverageFrom` on `main` (it no longer excludes every `index.ts`, so the quote above is
+superseded); this task changes no file under `src/` (`git diff main...HEAD --stat -- src` →
+nothing). `npm run lint`, `npx tsc --noEmit`, `npm run docs:api`, `npm run check:lockfile`,
+`npm run check:mcp` → exit 0.
+
 ### review (reviewer)
 
 Unit and BDD suites green (`npx jest` above; the P5.2.1/P5.2.2 BDD suites under `test/mcp/` pass).
@@ -235,7 +244,11 @@ Open items for the approver, none fixed here:
 - **`directives list` on the pinned build warns** `unknown field(s) ignored: scope` for three
   directives: `0.2.1` predates the `scope:` field. Harmless (exit 0), but it is noise every agent
   will see until the pin moves.
-- **`memory add` on the pinned build** fails as on `main` (`bug-156`, `task-123`), measured in design.
+- **`memory add` on the pinned build now works.** Measured in design, before `task-123`, it failed
+  (`bug-156`). After merging `main` with `task-123` (`d926b152`), in a throwaway clone of this branch
+  (deleted after): `npm ci`, then `npm run -s wingfoil -- memory add --type bug --title "scratch probe"`
+  → exit 0, `{"id": "bug-161-scratch-probe", …}`, commit `wf(bug): add bug-161-scratch-probe`. The
+  fix was configuration-only, so `0.2.1` needs no pin move for it.
 - **`CLAUDE.md`** says nothing about `npm run -s wingfoil` or `.mcp.json`; it is owned by
   `align-agent-docs` (`dl-025`), as `task-111`'s AC 5 left it. `COLLABORATION.md`'s "How to contribute
   (today)" still says the CLI "is still being built", a pre-existing stale sentence this task did not
