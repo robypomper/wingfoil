@@ -2,10 +2,10 @@
 id: "bug-075-memory-verbs-cannot-read-this-repos-own-memory"
 type: bug
 title: "The Memory verbs shipped in v0.2 cannot be pointed at this repository's own Memory: the repo root has no `.wingfoil/`, and running from `docs/self/` is refused as not-at-git-root"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.2.2"
 feature: "P1.10"
 contributor: ""
 credit: ""
