@@ -38,7 +38,8 @@ it (`wingfoil-released`, `dl-095`), so an unavailable package breaks both users 
 - Account 2FA: enabled by the approver on 2026-09-29, the approver's report at `task-116`. It had been
   **disabled** at the earlier report of the same day (`release-planning-rel-v0.2.2-plan` §"Approver
   inputs received").
-- Publishing access: "require two-factor authentication and disallow tokens", set by the approver on
+- Publishing access: "Require two-factor authentication and disallow bypass 2fa tokens
+  (recommended)", set by the approver on
   2026-09-29 (`adr-011`).
 
 ## Verification

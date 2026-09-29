@@ -37,7 +37,8 @@ repository or on GitHub. A staged version goes live only when a maintainer appro
   `wingfoil`, repository `wingfoil`, workflow filename `publish.yml`, environment `npm-publish`,
   limited to staged publishing.
 - Also done by the approver the same day, with this setup: account 2FA enabled; the package's
-  publishing access set to "Require two-factor authentication and disallow tokens"; the stage-only
+  publishing access set to "Require two-factor authentication and disallow bypass 2fa tokens
+  (recommended)", the exact label on npmjs.com; the stage-only
   granular token revoked. The GitHub side of the old credential, the environment secret `NPM_TOKEN`,
   was deleted, and `svc-007-github-actions-secret-npm-token` is `deprecated`.
 - The package stays the unscoped `wingfoil` owned by the maintainer account `robypomper`
@@ -54,6 +55,17 @@ tag run: `promote` stages the tarball without a token, and `npm stage view` list
 (`release-publishing`). Repository side, run by `task-116` on 2026-09-29:
 `gh api repos/wingfoil/wingfoil/environments/npm-publish/secrets --jq '{total_count}'` →
 `total_count: 0`.
+
+**Read by the approver, 2026-09-29 17:56** (screenshot of `npmjs.com/package/wingfoil/access`,
+shared in the `task-116` session):
+- Publisher GitHub Actions; organization or user `wingfoil`, repository `wingfoil`; workflow filename
+  `publish.yml`; environment `npm-publish`.
+- Allowed actions: `npm stage publish` always allowed, and "Allow npm publish" **unchecked**, so the
+  trusted publisher can stage only (`adr-011` point 2).
+- Publishing access: "Require two-factor authentication and disallow bypass 2fa tokens
+  (recommended)".
+- The sidebar's repository link still reads `github.com/robypomper/wingfoil`, from the published
+  0.2.1 metadata. It changes with 0.2.2 (`svc-005`).
 
 ## Management
 
