@@ -34,6 +34,7 @@ phase branch `docs/user_docs_v0.2.2`.
 | Finding | Verdict |
 |---|---|
 | `initial-design.yaml` and `wingfoil-init.yaml` header comments: "WingFoil's CLI/MCP is not yet usable" | **bug** `bug-169-two-workflow-files-still-say-wingfoil-s-cli-and-mcp-are-not-yet-usable` (low) |
+| `.wingfoil/WORKFLOW.md` release-cycle / release-planning diagrams predate dl-013, dl-016, dl-023, dl-095 (found at S10) | **bug** `bug-170-workflow-md-draws-a-release-cycle-without-user-docs-e2e-smoke-and-three-release-planning-phases` (low) |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -52,3 +53,5 @@ phase branch `docs/user_docs_v0.2.2`.
   highest. The number is only safe once this branch merges, because another session may allocate
   `bug-169` on `main` first. At merge, check with
   `git ls-tree --name-only main docs/04_memory/bugs/ | grep bug-169`.
+- `bug-169` submitted `draft → open` (`1250e905`).
+- `bug-170` added (`b01432d9`) and submitted `draft → open` (`32cba723`) through the pinned build; each verb commit contains only the bug file (`git show --stat`), with the S10 edits still uncommitted in the tree.

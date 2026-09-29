@@ -415,3 +415,31 @@ this repository records a phase approval in its plan, as `user-docs-rel-v0.2-pla
 `dl-125` gives documents an approval verb. The findings outside `produces:` were filed first:
 `bug-169` `open` (`59fb0e06`, `1250e905`), via `bug-ingest-rel-v0.2.2-user-docs-findings-plan`
 (`active`, `d3f566f7`). It awaits the approver's triage.
+
+**S10 — `align-agent-docs`**, on `docs/user_docs_v0.2.2`. The four `checks.post`, each run as a
+command:
+1. **Status and command surface vs `CORE_MODULES`.** `node dist/cli.js --help` plus the five group
+   helps → 20 commands. `CLAUDE.md` §1 lists the same 20 ("20 in all"), and its status line
+   (`minor-v0.1`/`minor-v0.2` `released`, `patch-v0.2.2` `in-development`) matches the release
+   files. **Aligned, no change.**
+2. **Element/state tables vs `memory.yaml`** (v1.6). A `js-yaml` dump of every type's
+   `path`/`sequence`/`gates`/`waiting`, compared row by row with `CLAUDE.md` §5 for the nine types,
+   `service` included. **Aligned, no change.**
+3. **Workflow list vs `workflows.yaml`** (v1.2). `grep -E '^  - name:'` on every included file.
+   - `CLAUDE.md` §6 omitted `release-planning`'s `advance-pinned-build`, `user-docs`'
+     `align-agent-docs` and `e2e-smoke`'s `mcp-registration`. **Fixed.**
+   - `.wingfoil/README.md`'s tree had the same gaps. **Fixed.**
+   - `.wingfoil/WORKFLOW.md` has them too, plus `triage-bugs`, `reconcile-governance`, `user-docs`
+     and `e2e-smoke`. It is outside `produces:`, so it is filed as `bug-170`.
+4. **Role bindings vs `roles.yaml`** (v1.1). The file's `assignments`/`global` compared with
+   `CLAUDE.md` §7; the eight `dna.yaml` roles, the nine modules and the stacks with §4.
+   **Aligned, no change.**
+
+Also:
+- The `task-111` AC 5 items: §3 and §5.1 already said the verbs run here, and §1 was already current.
+- `.wingfoil/README.md`: the "hand-authored" heading is retitled. The section now names every
+  command that runs here, each checked through the pinned build (exit 0 for `dna show`, `paths`,
+  `directives list`, `workflow list`, `memory search`, `memory history`), plus the build's `--set`
+  limit. The scope note named three `docs/` subdirectories that do not exist (`ls -d docs/*/`); it
+  now names the ones that do.
+- `CLAUDE.md` §2 gains the `docs/assets/` row.
