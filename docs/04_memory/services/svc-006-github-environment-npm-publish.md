@@ -2,7 +2,7 @@
 id: svc-006-github-environment-npm-publish
 type: service
 title: "GitHub environment npm-publish"
-status: pending
+status: active
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
