@@ -44,7 +44,8 @@ inkscape docs/assets/wingfoil-social-preview-dark.svg \
   --export-type=png --export-filename=docs/assets/wingfoil-social-preview-dark.png -w 1280 -h 640
 
 # Organisation avatar, 500×500: the mark 380 px wide, centred on white, no transparency.
-# GitHub crops avatars to a circle, and at 380 px the mark stays inside it.
+# Organisation avatars are shown as rounded squares, user avatars as circles; at 380 px the
+# mark stays inside either crop.
 inkscape docs/assets/wingfoil-mark.svg \
   --export-type=png --export-filename=/tmp/wingfoil-mark-380.png -w 380
 convert /tmp/wingfoil-mark-380.png -background white -gravity center -extent 500x500 \
