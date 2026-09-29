@@ -109,3 +109,85 @@ parallel, and the lock is not regenerated. The repository URL stays `robypomper/
 over the previously published versions: 0.2.1`, as expected for a released version; the manifest is
 printed before that check. `npx jest --coverage` → 155 suites / 2535 tests passed; statements
 98.62 %, branches 94.18 %, functions 93.79 %, lines 99.47 %.
+
+### red (developer) — `1b8e4f5b`
+
+`test/cli/publish-metadata.test.ts` gains three blocks (discovery metadata, `server.json`, version
+sync); `test/cli/check-release-tag.test.ts` now passes an in-sync `server.json` so the tag stays its
+only variable; `scripts/check-release-tag.d.cts` declares the third argument (type only, so the red
+is behavioural, not a compile error). `npx jest test/cli/publish-metadata.test.ts
+test/cli/check-release-tag.test.ts` → **19 failed, 56 passed** (75). Every failure is an assertion on
+missing behaviour: `mcpName` undefined, `description` without `WingFoil` and longer than 100, the
+keyword subsets missing, `server.json` absent (`ENOENT`), and `checkReleaseTag` returning `ok: true`
+for every mismatched `server.json` because it ignored the argument. Two new cases passed on first run
+and are guards, not reds: *tag mismatch still rejected with `server.json` in sync* (existing
+behaviour) and *`server.json` not in the tarball* (true of any file outside `files`). `npx tsc
+--noEmit` and `eslint` on the three files → clean.
+
+### green (developer) — `9ed25d51`
+
+- `package.json`: `description` = `WingFoil — the repo-native intent layer for AI-native software
+  engineering` (74 characters, `node -p "require('./package.json').description.length"`);
+  `keywords` = the 15 below; `mcpName` = `io.github.wingfoil/wingfoil`. No other field, and
+  `package-lock.json` untouched (`git diff main --stat -- package-lock.json` → empty).
+- **Keyword list for the approver to settle** — the union of `spec-015` §1 / `dl-093` point 1, the
+  visibility list (§D) and the three already present: `wingfoil`, `mcp`, `model-context-protocol`,
+  `mcp-server`, `ai-agents`, `ai-assisted-development`, `claude-code`, `cli`, `workflow`,
+  `governance`, `spec-driven-development`, `intent-engineering`, `context-engineering`,
+  `developer-tools`, `determinism`. The visibility session omitted `workflow` and `governance`; they
+  stay because `spec-015` §1 makes them a minimum, and the test pins that minimum. The repository
+  topics (§B.3) also carry `git` and `typescript`; they are not added, since no decision names them.
+- `server.json` at the root, `version` and `packages[0].version` `0.2.1` (the current
+  `package.json` `version`), `repository.url` `https://github.com/robypomper/wingfoil` (task-116
+  switches it).
+- `scripts/check-release-tag.cjs`: `checkReleaseTag(tag, version, server)` checks the tag first, then
+  `server.version`, then that `packages` is a non-empty array whose every `version` equals `version`.
+- **Schema check (AC 2).** Source: `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`,
+  read 2026-09-29 (`curl` → HTTP 200; sha256 of the file as fetched
+  `3fba09590c99f61735d234822279f4223fab9e300c0a81e81c91ab62a4114de0`). It is the registry's current
+  schema: `pkg/model/constants.go` on `modelcontextprotocol/registry` `main` (`bf4e88cb`, read the
+  same day with `gh api`) sets `CurrentSchemaVersion = "2025-12-11"`. Validated with ajv 8.20.0 +
+  ajv-formats (both already in `node_modules`, transitively; not added as dependencies), draft-07,
+  `allErrors`: `server.json` → **valid**; a negative control (101-character `description`, a package
+  without `registryType`/`transport`) → invalid, 3 errors. What the schema fixed in the design:
+  `description.maxLength: 100` (why the description is one short line shared by both files) and
+  `name` pattern `^[a-zA-Z0-9.-]+/[a-zA-Z0-9._-]+$`. `title` is optional and set to the display name.
+
+`npx jest test/cli/publish-metadata.test.ts test/cli/check-release-tag.test.ts
+test/cli/publish-pipeline.test.ts` → 97 passed. `node scripts/check-release-tag.cjs v0.2.1` → exit 0.
+
+### refactor (developer) — `cb30a596`
+
+- The CLI entry reads `server.json` through `readServerJson`, which returns `undefined` when the file
+  is missing or not JSON, so the gate fails closed through the same `checkReleaseTag` path the unit
+  case *no server.json was read* pins (no separate error branch).
+- Descriptions made stale by this change, fixed here: `.github/workflows/publish.yml` header (the
+  `gate` line and the `act` tag-event hint) and the gate step's name, now *Tag, package.json and
+  server.json versions match*; `test/cli/publish-pipeline.test.ts` header (where the tag-check cases
+  live); `test/cli/publish-metadata.test.ts` header (its "nothing here asserts a script" scope now
+  names the exception). The step's `run:` line is unchanged, so `publish-pipeline.test.ts`'s order
+  assertion still holds.
+- Not stale, left alone: `spec-015` §1/§1a/§4 already describe exactly this change (amended
+  `0a4f7a9c`); `dl-093` Context and `dl-057`/`dl-074` describe the check as it was at a dated commit.
+  README, `COLLABORATION.md`, `CLAUDE.md`, `docs/*.md` carry no package description, keyword list or
+  MCP namespace (`grep -rn -i "mcpName\|io\.github\.\|server\.json\|keywords\|mcp registry" README.md
+  COLLABORATION.md CLAUDE.md CHANGELOG.md docs/*.md` → no match, exit 1). The long product sentence
+  in `docs/01_vision/00_index.md` and `.wingfoil/dna.yaml` `description` is the product statement,
+  not the package metadata; re-baselining the vision is `task-121` (`dl-096`).
+
+### Checks (after merging `main` at `f0c87536` into the branch, `43aa0e25`)
+
+- `npx jest --coverage` → **155 suites / 2556 tests passed** (+21). Coverage unchanged: statements
+  98.62 %, branches 94.18 %, functions 93.79 %, lines 99.47 % (no `src/` change; `scripts/` is outside
+  `collectCoverageFrom`).
+- `npm run lint` → exit 0; `npx tsc --noEmit` → exit 0; `npm run docs:api` → exit 0.
+- **AC 4.** `npm pack --dry-run --json --ignore-scripts` and the file lines of `npm publish --dry-run
+  --ignore-scripts` → 339 paths each, `cmp` against the baseline → **identical**; `server.json` is not
+  among them. The publish dry run again stops at `You cannot publish over the previously published
+  versions: 0.2.1`, as on the baseline. The packed `package/package.json` (`npm pack` into the
+  scratchpad, `tar -xzOf`) carries `mcpName` `io.github.wingfoil/wingfoil`, the new description and
+  15 keywords — the field the registry reads from the published manifest.
+
+**For the release.** `server.json`'s two versions must be bumped with `package.json` at the v0.2.2
+version bump; the gate refuses the tag otherwise. That is the intended behaviour, and the first
+place it will fire.
