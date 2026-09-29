@@ -2,44 +2,57 @@
 id: svc-001-github-organisation-wingfoil
 type: service
 title: "GitHub organisation wingfoil"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "GitHub"
+kind: "account"
+owner_role: "approver"
+verify: "gh api orgs/wingfoil --jq .login"
+url: "https://github.com/wingfoil"
+account: "wingfoil (owner: robypomper)"
+renews: ""
+repo_refs: []
+decision: "dl-091-package-name-and-mcp-namespace"
+release: "v0.2.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+The organisation that will own the canonical repository after the transfer
+`robypomper/wingfoil → wingfoil/wingfoil` (`dl-091` addendum D5; `release-planning-rel-v0.2.2-plan`
+§C), the MCP Registry namespace `io.github.wingfoil` (`dl-093`) and GitHub Pages. Without it the
+namespace `io.github.wingfoil/wingfoil` cannot be claimed and `adr-011`'s trusted publisher, keyed on
+organisation `wingfoil`, has no owner to point at.
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+- Created by the approver from the GitHub account `robypomper`, 2026-09-29 11:05 UTC
+  (`release-planning-rel-v0.2.2-plan` §"External identities registered"; `created_at:
+  2026-09-29T11:05:14Z` there). Free plan, so nothing renews (`renews: ""`, §B.1).
+- Settings the visibility session recommended (§B.1), and what `gh api orgs/wingfoil` returns for
+  them (read-only, `task-124`, 2026-09-29):
+  - require 2FA → `two_factor_requirement_enabled: true` (applied);
+  - base permission "No permission" → `default_repository_permission: "none"` (applied);
+  - profile name "WingFoil" with the category line → `name: "wingFoil"`: **the capitalisation differs
+    from the recommendation**, for the approver to confirm or correct. The category line was not read.
+- No repository lives under it yet: the transfer is the approver's last identity step, before the
+  v0.2.2 publish (`task-116-repository-slug-follows-the-transfer`).
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+`gh api orgs/wingfoil --jq .login` → `wingfoil` (run read-only by `task-124` on 2026-09-29, exit 0).
+The settings above are read with
+`gh api orgs/wingfoil --jq '{login,name,created_at,two_factor_requirement_enabled,default_repository_permission}'`
+→ `created_at: 2026-09-29T11:05:14Z`, `name: wingFoil`, `two_factor_requirement_enabled: true`,
+`default_repository_permission: none` (same run).
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Owner:** the `approver` role; the only owner account recorded is `robypomper`.
+- **Renew:** nothing (free plan).
+- **Recover:** through the owner account; if more owners are added, record them here (public logins
+  only).
+- **After the transfer:** add `wingfoil/wingfoil` to Configuration and the Claude GitHub App
+  installation on the organisation, which `release-planning-rel-v0.2.2-plan` §C lists among the
+  post-transfer re-checks.
+- **Retire:** `memory deprecate` with a `Reason:` naming what replaced it.
