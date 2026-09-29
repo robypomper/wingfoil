@@ -251,9 +251,27 @@ during a blocking npm step is honoured late).
 | CHANGELOG heading | `grep -n '^## \[0.2.2\]' CHANGELOG.md` | line 11: `## [0.2.2] - Unreleased` |
 | README roadmap row | `grep -n '0\.2\.2' README.md` | line 238: `🔄 Being released` |
 
-### S2 — prepared, not performed
+### Approver decisions — 2026-09-29
 
-- `dl-079` is `in-discussion` (`awk '/^status:/{print $2; exit}' docs/04_memory/design/dls/dl-079-*.md`),
-  so the proposed subject stands: `wf(release): enter-releasing patch-v0.2.2 [in-development → releasing]`.
-- **Stopped at the Handoff.** S2's role is `tech-lead`, outside the agent role set; S3 is the
-  approver's.
+- **Handoff 1, open bugs: accepted outside v0.2.2.** This is a documented waiver, following the v0.1
+  and v0.2 precedent: the 103 bugs in the C2′ list ship with v0.2.2 unfixed. None carries
+  `release: "v0.2.2"`; release-planning schedules them.
+- **Handoff 2, the S2 subject: confirmed** as
+  `wf(release): enter-releasing patch-v0.2.2 [in-development → releasing]`.
+- **Handoff 3, S2: the approver instructed the agent to perform it.**
+
+### S2 — `enter-releasing`: performed on the approver's instruction
+
+- Re-checked immediately before: `git fetch origin`; `main` and `origin/main` both `227fbad5`, so
+  nothing moved since S1 and the gates stand. `dl-079` still `in-discussion`.
+- Commit `65923465` `wf(release): enter-releasing patch-v0.2.2 [in-development → releasing]`:
+  `git show --stat 65923465` → only `docs/04_memory/planning/rl-v1/patch-v0.2.2.md`, 1 insertion,
+  1 deletion; `awk '/^status:/{print $2; exit}'` on that file → `releasing`.
+- Read back through the pinned build: `npm run -s wingfoil -- memory history patch-v0.2.2` lists
+  `65923465` as `from: in-development`, `to: releasing`, `operation: null`. The null is expected:
+  `enter-releasing` is not one of the declared verbs (`dl-079`), and the bracket carries the edge.
+
+### S3 — `approve-release`: pending
+
+The approver's gate. It will be recorded as this plan's `finalize [active → done]` commit with the
+approver's `Approver:` line.
