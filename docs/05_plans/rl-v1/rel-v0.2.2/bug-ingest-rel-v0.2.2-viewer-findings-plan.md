@@ -43,7 +43,7 @@ For each warning group: reproduce with `node dist/cli.js` built from `main`, fin
 
 | Warning group (viewer snapshot) | Count | Verdict |
 |---|---|---|
-| `listed by wingfoil memory search outside the directories memory.yaml declares` + `type "undefined" is not declared` | 14 × 2 | **bug** — `memory search` returns files with no frontmatter as matches with no `id`, `type` or `status` |
+| `listed by wingfoil memory search outside the directories memory.yaml declares` + `type "undefined" is not declared` | 14 × 2 | **bug** `bug-164-memory-search-returns-non-element-files` (low) — `memory search` returns files with no frontmatter as matches with no `id`, `type` or `status` |
 | `adr-005-…: on disk with type "adr", but wingfoil memory search does not list it` | 1 | **not a bug** — `memory search` excludes archived statuses (`deprecated`, `superseded`) by default, as REQ-STATE-06 and `dl-028` require; the viewer read an unfiltered search as the list of documents that exist, and is fixed there |
 | `documentation.md: listed as global in roles.yaml but its frontmatter has no scope: global` | 1 | **duplicate** — `bug-148` (which of the two declarations is authoritative, `triaged`, v0.3) and `bug-113` (the `scope` field warned as unknown, `open`); the viewer check takes a side `bug-148` has not settled, and is removed there |
 
@@ -70,3 +70,9 @@ For each warning group: reproduce with `node dist/cli.js` built from `main`, fin
   grandfathered without frontmatter.
 - **Duplicate search:** `grep -rl "memory search" docs/04_memory/bugs | xargs grep -l -i "05_plans\|without frontmatter\|no frontmatter\|grandfather"`
   → only `bug-052`, unrelated (REQ-STATE-08's default machine).
+- **bug-164** added by `memory add --type bug` (`a6e4e9f4`, number allocated by the CLI), body written,
+  submitted `draft → open` (`ac39ccb4`). Awaits the approver's triage.
+- **Viewer side** (branch `design/dashboards`): the archived documents are read with
+  `memory search --status deprecated` / `--status superseded` besides the unfiltered search; the
+  `scope: global` check is dropped (`bug-148` has not ruled); the 14 id-less matches become one
+  warning naming `bug-164`.
