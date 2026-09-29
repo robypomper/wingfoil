@@ -122,4 +122,7 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
   `spec-011` revision rewrote the tree.
 - **Batch 7, `task-124` review (2026-09-29).** `bug-166`, as returned by the pinned build's
   `memory add` (`0c5395a3`), then `memory submit` (`c3074e88`). Duplicate search: `grep -rln
-  "set_up_in\|release.*service"` over `bugs/` and `dls/` → only `dl-088`, which introduced the field.
+  "set_up_in\|release.*service"` over `bugs/` and `dls/` → `dl-130` (a release-publishing check over services), `retro-v0.2` (the
+  benchmark as a service) and `dl-105` (a service verify sweep). All three mention "release" and
+  "service" on the same line, and none is about the field's meaning. `dl-088`, which introduced the
+  field, is cited in the bug.
