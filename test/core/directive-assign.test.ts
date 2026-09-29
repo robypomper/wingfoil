@@ -99,9 +99,10 @@ describe('CORE_MODULES directive.directiveAssign — registration (spec-006 §3,
 
   it('declares `--directive` and `--role` as required value-bearing options', () => {
     const operation = CORE_MODULES.find((m) => m.name === 'directive')?.operations.directiveAssign;
+    // The `--help` text each option also declares (task-120) is `test/cli/help-describes-every-command.test.ts`'s.
     expect(operation?.options).toEqual([
-      { name: 'directive', required: true },
-      { name: 'role', required: true },
+      expect.objectContaining({ name: 'directive', required: true }),
+      expect.objectContaining({ name: 'role', required: true }),
     ]);
   });
 });

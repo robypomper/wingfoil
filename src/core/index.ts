@@ -574,7 +574,7 @@ const DNA_VALUE_OPTION: CoreOption = {
 const DNA_SET_VALUE_OPTION: CoreOption = {
   name: 'value',
   required: true,
-  description: 'the new value for <path> (scalar fields only — use `dna update` for collections and lists)',
+  description: 'the new value for <path> (scalar fields only — use dna update for collections and lists)',
 };
 const DNA_ENTRY_OPTIONS: readonly CoreOption[] = dnaEntryOptionNames().map((field) => ({
   name: dnaEntryOptionName(field),
@@ -1615,28 +1615,69 @@ const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
 export const CORE_MODULES: readonly CoreModule[] = [
   {
     name: 'dna',
+    description: "read and change dna.yaml, the project's structural map",
     operations: {
       // The DNA mutation surface (task-093, `dl-081-dna-mutation-surface-shape` option (E)): three
       // verbs carrying the collection in their argument rather than in the verb name, so the verb
       // count stays constant as `spec-002`'s schema grows and spec-006 §3's one-Tool-per-function rule
       // costs three Tools (`dna.add`, `dna.remove`, `dna.update`) instead of the dozen a
       // per-collection verb set would need. The path itself is the POSITIONAL `<path>` every command
-      // in this CLI uses for its target (`dl-082-cli-parameter-shape`), registered generically by
-      // `src/cli/program.ts`, which is why no option declares it here.
-      dnaAdd: { name: 'dnaAdd', mutates: true, options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaAddFn },
+      // in this CLI uses for its target (`dl-082-cli-parameter-shape`): each verb declares it as its
+      // `positional` (task-120, what `--help` names), which is why no option declares it here.
+      dnaAdd: {
+        name: 'dnaAdd',
+        mutates: true,
+        description: 'add an entry to a collection, or values to a list',
+        positional: { name: 'path', required: true, description: 'the collection (e.g. team.members) or list (e.g. paths.sources) to add to' },
+        options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS],
+        example: 'wingfoil dna add team.members --value "Ada Lovelace" --entry-email ada@example.com --entry-roles approver',
+        fn: dnaAddFn,
+      },
       // `remove` declares no entry-field options: it takes what to drop, never what to write.
-      dnaRemove: { name: 'dnaRemove', mutates: true, options: [DNA_VALUE_OPTION], fn: dnaRemoveFn },
+      dnaRemove: {
+        name: 'dnaRemove',
+        mutates: true,
+        description: 'remove a collection entry, or values from a list',
+        positional: { name: 'path', required: true, description: 'the entry to remove (<collection>.<name>), or the list to remove the --value values from' },
+        options: [DNA_VALUE_OPTION],
+        example: 'wingfoil dna remove paths.docs --value README.md',
+        fn: dnaRemoveFn,
+      },
       // The FIRST `mutates: true` operation in production (spec-006 §3 dna table) — by construction an
       // MCP Tool (`dna.set`) + CLI command (`wingfoil dna set`), and the op the REQ-SYS-05 parity test
       // now actually guards (task-025-implement-dna-set). Its second positional became `--value` in
       // task-093 (`dl-082`) — a breaking change to a shipped command, made before `minor-v0.2` ships.
-      dnaSet: { name: 'dnaSet', mutates: true, options: [DNA_SET_VALUE_OPTION], fn: dnaSetFn },
-      dnaShow: { name: 'dnaShow', mutates: false, fn: dnaShowFn },
-      dnaUpdate: { name: 'dnaUpdate', mutates: true, options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS], fn: dnaUpdateFn },
+      dnaSet: {
+        name: 'dnaSet',
+        mutates: true,
+        description: 'set one scalar field',
+        positional: { name: 'path', required: true, description: 'the dotted path of the scalar field, e.g. project.name (double-quote a segment that contains a dot)' },
+        options: [DNA_SET_VALUE_OPTION],
+        example: 'wingfoil dna set project.name --value "My Project"',
+        fn: dnaSetFn,
+      },
+      dnaShow: {
+        name: 'dnaShow',
+        mutates: false,
+        description: 'print dna.yaml, or one top-level section of it',
+        positional: { name: 'section', description: 'a top-level key: project, modules, stacks, team or paths (omit it for the whole file)' },
+        example: 'wingfoil dna show project',
+        fn: dnaShowFn,
+      },
+      dnaUpdate: {
+        name: 'dnaUpdate',
+        mutates: true,
+        description: 'change fields of an existing collection entry',
+        positional: { name: 'path', required: true, description: 'the entry (<collection>.<name>), or one of its fields (<collection>.<name>.<field>) with --value' },
+        options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS],
+        example: 'wingfoil dna update modules.api --entry-description "Public HTTP API"',
+        fn: dnaUpdateFn,
+      },
     },
   },
   {
     name: 'memory',
+    description: 'create Memory documents, move them through their state machine, and read them back',
     operations: {
       // The FIRST Memory-document mutation (P1.3, spec-006 §3 memory table) — `mutates: true`, so by
       // construction an MCP Tool (`memory.add`) + CLI command (`wingfoil memory add`), and the second
@@ -1647,10 +1688,11 @@ export const CORE_MODULES: readonly CoreModule[] = [
       memoryAdd: {
         name: 'memoryAdd',
         mutates: true,
+        description: "create a document in its type's initial state (draft) from the type's template",
         options: [
-          { name: 'type', required: true },
-          { name: 'title', required: true },
-          { name: 'tags' },
+          { name: 'type', required: true, valueName: 'type', description: 'the Memory type, as the committed memory.yaml declares it' },
+          { name: 'title', required: true, valueName: 'title', description: 'the document title; also the source of the {slug} token' },
+          { name: 'tags', valueName: 't1,t2', description: 'comma-separated tags, written as the tags list' },
           // task-110, `spec-008-cli-grammar` §10 (`dl-107` S2): the value of an id_pattern/path token,
           // written into the frontmatter field of that name. One declared option — not one derived
           // option per field, whose first member, `--version`, is a global action flag.
@@ -1662,13 +1704,21 @@ export const CORE_MODULES: readonly CoreModule[] = [
               'fill the id_pattern/path token {name} and write the frontmatter field of that name (repeatable)',
           },
         ],
+        example: 'wingfoil memory add --type task --title "My first task" --tags demo,quickstart',
         fn: memoryAddFn,
       },
       // P1.10 (task-049-memory-history) — `mutates: false`, so by construction an MCP Resource +
       // CLI command (`wingfoil memory history <id>`). It declares no flags and no value options: the
       // document id rides the generic bare `positional` seam (task-026), per spec-008-cli-grammar §7's
       // bare-`<id>` rule for a command whose noun already scopes the type.
-      memoryHistory: { name: 'memoryHistory', mutates: false, fn: memoryHistoryFn },
+      memoryHistory: {
+        name: 'memoryHistory',
+        mutates: false,
+        description: "print a document's audit trail, reconstructed from git",
+        positional: { name: 'id', required: true, description: 'the document id, e.g. task-001-my-first-task' },
+        example: 'wingfoil memory history task-001-my-first-task',
+        fn: memoryHistoryFn,
+      },
       // The FIRST Memory-document READ operation (P1.5, spec-006 §3 memory table) — `mutates: false`,
       // so by construction an MCP Resource (`wingfoil://memory/search`, the mechanical zero-argument
       // form spec-006 §3 pins verbatim) + CLI command (`wingfoil memory search`). Its keyword rides the
@@ -1678,12 +1728,26 @@ export const CORE_MODULES: readonly CoreModule[] = [
       memorySearch: {
         name: 'memorySearch',
         mutates: false,
-        options: [{ name: 'tag' }, { name: 'status' }, { name: 'type' }],
+        description: 'find documents by keyword and/or metadata',
+        positional: { name: 'keyword', description: 'a case-insensitive substring matched against title, id, tags and body (omit it to filter by metadata alone)' },
+        options: [
+          { name: 'tag', valueName: 'tag', description: 'keep documents carrying this tag' },
+          { name: 'status', valueName: 'status', description: 'keep documents in this state' },
+          { name: 'type', valueName: 'type', description: 'keep documents of this Memory type' },
+        ],
+        example: 'wingfoil memory search --status approved --type task',
         fn: memorySearchFn,
       },
       // P1.6 (task-045-memory-submit) — `mutates: true`: CLI `wingfoil memory submit <id>` + MCP Tool
       // `memory.submit`. The id rides the bare `positional` seam (spec-008 §7); no flags, no options.
-      memorySubmit: { name: 'memorySubmit', mutates: true, fn: memorySubmitFn },
+      memorySubmit: {
+        name: 'memorySubmit',
+        mutates: true,
+        description: "move a document one step forward along its type's sequence — for the default machine, draft → pending",
+        positional: { name: 'id', required: true, description: 'the document id, e.g. task-001-my-first-task' },
+        example: 'wingfoil memory submit task-001-my-first-task',
+        fn: memorySubmitFn,
+      },
       // P1.7 (task-046-memory-approve) — `mutates: true`: CLI `wingfoil memory approve <id> --reason
       // <text>` + MCP Tool `memory.approve`. The id rides the bare `positional` seam (spec-008 §7);
       // `--reason` is the one declared value option, `required` per spec-008 §2 / REQ-SEC-04 (the
@@ -1691,7 +1755,10 @@ export const CORE_MODULES: readonly CoreModule[] = [
       memoryApprove: {
         name: 'memoryApprove',
         mutates: true,
-        options: [{ name: 'reason', required: true }],
+        description: 'pass a gate: move a document forward from a gated state (default machine: pending → approved)',
+        positional: { name: 'id', required: true, description: 'the document id, e.g. task-001-my-first-task' },
+        options: [{ name: 'reason', required: true, valueName: 'text', description: "why you approve it, recorded as the commit's Reason:; needs the approver role" }],
+        example: 'wingfoil memory approve task-001-my-first-task --reason "Scope and acceptance criteria are clear."',
         fn: memoryApproveFn,
       },
       // P1.8 (task-047-memory-reject) — `mutates: true`: CLI `wingfoil memory reject <id> --reason
@@ -1702,7 +1769,10 @@ export const CORE_MODULES: readonly CoreModule[] = [
       memoryReject: {
         name: 'memoryReject',
         mutates: true,
-        options: [{ name: 'reason', required: true }],
+        description: "send a gated document back to its gate's reject target (default machine: pending → draft)",
+        positional: { name: 'id', required: true, description: 'the document id, e.g. task-001-my-first-task' },
+        options: [{ name: 'reason', required: true, valueName: 'text', description: "what must change before resubmitting, recorded as the commit's Reason: and as rejection_reason; needs the approver role" }],
+        example: 'wingfoil memory reject task-001-my-first-task --reason "Add acceptance criteria before resubmitting."',
         fn: memoryRejectFn,
       },
       // P1.9 (task-048-memory-deprecate) — `mutates: true`: CLI `wingfoil memory deprecate <id>
@@ -1713,18 +1783,24 @@ export const CORE_MODULES: readonly CoreModule[] = [
       memoryDeprecate: {
         name: 'memoryDeprecate',
         mutates: true,
-        options: [{ name: 'reason' }],
+        description: 'retire a document, from any state, to deprecated',
+        positional: { name: 'id', required: true, description: 'the document id, e.g. task-001-my-first-task' },
+        options: [{ name: 'reason', valueName: 'text', description: "why the document is retired, recorded as the commit's Reason: (not blank when given)" }],
+        example: 'wingfoil memory deprecate dl-001-use-postgresql --reason "Superseded by the hosted-DB decision."',
         fn: memoryDeprecateFn,
       },
     },
   },
   {
     name: 'directives',
+    description: 'list the directives and the roles they apply to',
     operations: {
       directivesList: {
         name: 'directivesList',
         mutates: false,
-        options: [{ name: 'role' }],
+        description: 'list directives with the roles each is assigned to',
+        options: [{ name: 'role', valueName: 'role', description: 'keep only the directives that apply to this role, globals included' }],
+        example: 'wingfoil directives list --role developer',
         fn: directivesListFn,
       },
     },
@@ -1734,16 +1810,27 @@ export const CORE_MODULES: readonly CoreModule[] = [
     operations: {
       // Self-named (operation name === module name) — the flat/no-verb `wingfoil paths [category]`
       // form (see `deriveVerb`, `./registry.ts`), not `wingfoil paths paths`. `category` rides the
-      // generic bare positional (task-026's seam); only `--list` is declared here.
-      paths: { name: 'paths', mutates: false, flags: ['list'], fn: pathsFn },
+      // generic bare positional (task-026's seam), declared as `positional` so `--help` names it.
+      paths: {
+        name: 'paths',
+        mutates: false,
+        description: 'print the resource paths declared in dna.yaml paths:',
+        positional: { name: 'category', description: 'sources, tests, docs, config or governance (omit it for the whole map)' },
+        flags: [{ name: 'list', description: 'accepted for the planned drill-down view; it does not change the output yet' }],
+        example: 'wingfoil paths sources',
+        fn: pathsFn,
+      },
     },
   },
   {
     name: 'workflow',
+    description: 'read the workflows the project declares (there is no workflow engine yet)',
     operations: {
       workflowList: {
         name: 'workflowList',
         mutates: false,
+        description: 'print the workflow manifest (workflows.yaml) and every workflow it includes, with their phases',
+        example: 'wingfoil workflow list',
         fn: wrapReadOnly<WorkflowsLoadResult>(loadWorkflowsYaml),
       },
     },
@@ -1763,6 +1850,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
   // the concurrently-edited `directives` block; `enumerateOperations` sorts, so position is inert.
   {
     name: 'directive',
+    description: 'create, assign and remove custom directives',
     operations: {
       // The FIRST Directives-pillar mutation (P3.1) — `mutates: true`, so by construction an MCP Tool
       // (`directive.create`) + CLI command (`wingfoil directive create`), and the third op the
@@ -1772,7 +1860,9 @@ export const CORE_MODULES: readonly CoreModule[] = [
       directiveCreate: {
         name: 'directiveCreate',
         mutates: true,
-        options: [{ name: 'name', required: true }],
+        description: 'create a custom directive from a scaffold',
+        options: [{ name: 'name', required: true, valueName: 'name', description: 'the new directive, written to .wingfoil/directives/custom/<name>.md' }],
+        example: 'wingfoil directive create --name api-style',
         fn: directiveCreateFn,
       },
       // P3.2 (task-051-directive-assign) — on this SINGULAR module per dl-041 B, so `deriveVerb` yields
@@ -1780,10 +1870,12 @@ export const CORE_MODULES: readonly CoreModule[] = [
       directiveAssign: {
         name: 'directiveAssign',
         mutates: true,
+        description: 'assign one or more directives to a role in roles.yaml',
         options: [
-          { name: 'directive', required: true },
-          { name: 'role', required: true },
+          { name: 'directive', required: true, valueName: 'name[,name...]', description: 'the directive(s) to assign, comma-separated' },
+          { name: 'role', required: true, valueName: 'role', description: 'the role to assign them to, as the committed dna.yaml declares it' },
         ],
+        example: 'wingfoil directive assign --directive api-style --role developer',
         fn: directiveAssignFn,
       },
       // P3.3 (task-052-directive-remove) — on this SINGULAR module per dl-041 B, so `deriveVerb`
@@ -1791,7 +1883,14 @@ export const CORE_MODULES: readonly CoreModule[] = [
       // no flags and no value options: the name rides the bare `positional` seam (spec-008 §7), like
       // `memory submit <id>`. Completes REQ-SEC-07 for the directive surface (clause (a) via
       // task-042's `requireCustomAsset`, clause (b) via `checkUnreferenced` — dl-030).
-      directiveRemove: { name: 'directiveRemove', mutates: true, fn: directiveRemoveFn },
+      directiveRemove: {
+        name: 'directiveRemove',
+        mutates: true,
+        description: 'delete a custom directive',
+        positional: { name: 'name', required: true, description: 'the custom directive to delete (built-in directives cannot be removed)' },
+        example: 'wingfoil directive remove api-style',
+        fn: directiveRemoveFn,
+      },
     },
   },
 ];

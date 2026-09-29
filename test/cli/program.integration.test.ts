@@ -444,7 +444,7 @@ paths:
     it("`--help` shows the positional and states --value's two meanings rather than leaving them inferred (AC6)", () => {
       const result = runCliInRoot(repo, 'dna', 'add', '--help');
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain('positionals');
+      expect(result.stdout).toContain('<path>');
       expect(result.stdout).not.toContain('--field');
       expect(result.stdout).toContain('--value');
       expect(result.stdout.toLowerCase()).toContain('collection');

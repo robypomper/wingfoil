@@ -65,7 +65,12 @@ const FIXTURE_MODULES: CoreModule[] = [
   {
     name: 'dna',
     operations: {
-      dnaShow: { name: 'dnaShow', mutates: false, fn: async () => coreOk({ hello: 'world' }) },
+      dnaShow: {
+        name: 'dnaShow',
+        mutates: false,
+        positional: { name: 'section', description: 'a top-level key' },
+        fn: async () => coreOk({ hello: 'world' }),
+      },
       // Mirrors the real registration since `dl-082-cli-parameter-shape`: the path is the command's
       // positional, the value a declared `--value` option (`CORE_MODULES`, `src/core/index.ts`).
       dnaSet: { name: 'dnaSet', mutates: true, options: [{ name: 'value' }], fn: async () => coreOk({ committed: true }) },
@@ -89,7 +94,7 @@ const FIXTURE_MODULES: CoreModule[] = [
   {
     name: 'paths',
     operations: {
-      paths: { name: 'paths', mutates: false, flags: ['list'], fn: async () => coreOk({ category: 'sources' }) },
+      paths: { name: 'paths', mutates: false, flags: [{ name: 'list' }], fn: async () => coreOk({ category: 'sources' }) },
     },
   },
 ];
@@ -245,12 +250,22 @@ describe('buildProgram — command tree derivation (spec-006 §4, spec-008 §1)'
     expect(nameOf('paths')?.commands).toEqual([]);
   });
 
-  it('gives every derived command the shared variadic `[positionals...]` argument (task-025/026)', async () => {
+  it('registers a declared positional under its own name, optional and variadic to Commander (task-120)', async () => {
     const program = await buildFixtureProgram();
     const dnaShow = program.commands.find((c) => c.name() === 'dna')?.commands.find((c) => c.name() === 'show');
-    expect(dnaShow?.registeredArguments.map((argument) => argument.name())).toEqual(['positionals']);
+    expect(dnaShow?.registeredArguments.map((argument) => argument.name())).toEqual(['section']);
+    // Parsing is unchanged by the name: Commander still accepts any number of operands and never
+    // refuses a missing one — core does (task-120 AC 4).
     expect(dnaShow?.registeredArguments[0]?.variadic).toBe(true);
     expect(dnaShow?.registeredArguments[0]?.required).toBe(false);
+  });
+
+  it('registers no argument for a command that declares no positional, and still forwards its operands (task-120)', async () => {
+    const program = await buildFixtureProgram();
+    const dnaSet = program.commands.find((c) => c.name() === 'dna')?.commands.find((c) => c.name() === 'set');
+    expect(dnaSet?.registeredArguments).toEqual([]);
+    await program.parseAsync(['node', 'wingfoil', 'dna', 'set', 'project.license', 'extra', '--value', 'MIT']);
+    expect(seenContexts[0]).toMatchObject({ positional: 'project.license', positionals: ['project.license', 'extra'], options: { value: 'MIT' } });
   });
 
   it('registers one `--{flag}` per declared boolean flag and one `--{name} <value>` per declared option', async () => {
@@ -364,7 +379,7 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     const program = await buildFixtureProgram();
     const init = program.commands.find((command) => command.name() === 'init');
     expect(init?.options.map((option) => option.flags)).toEqual(['--template <name>']);
-    expect(init?.description()).toBe('initialize WingFoil in the current git repository');
+    expect(init?.description()).toBe('scaffold .wingfoil/ in the current git repository and commit it');
   });
 
   it('`init --help` names every registered template in the `--template` description (task-119 AC 2, bug-140)', async () => {

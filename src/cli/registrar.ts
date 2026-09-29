@@ -15,7 +15,7 @@
  * unit-testable; wiring this command model onto a real `commander` `Command` tree is a separate,
  * thin, mechanical concern.
  */
-import type { CoreModule, CoreOption, ParamsBuilder } from '../core/registry';
+import type { CoreFlag, CoreModule, CoreOption, CorePositional, ParamsBuilder } from '../core/registry';
 import { enumerateOperations, deriveVerb } from '../core/registry';
 import type { CoreResult } from '../core/types';
 import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
@@ -41,10 +41,18 @@ export interface CliCommand {
   readonly noun: string;
   readonly verb: string;
   readonly mutates: boolean;
-  /** Copied from `CoreOperation.flags` (`../core/registry.ts`) — the boolean flag names `program.ts`
+  /** Copied from `CoreModule.description` — the noun's one-line summary (task-120). */
+  readonly nounDescription?: string;
+  /** Copied from `CoreOperation.description` — the command's one-line summary (task-120). */
+  readonly description?: string;
+  /** Copied from `CoreOperation.positional` — the operand `--help` names; absent when it reads none (task-120). */
+  readonly positional?: CorePositional;
+  /** Copied from `CoreOperation.example` — the invocation `--help` shows under `Example:` (task-120). */
+  readonly example?: string;
+  /** Copied from `CoreOperation.flags` (`../core/registry.ts`) — the boolean flags `program.ts`
    * registers as Commander `--{name}` options for this command (empty/absent for every command
-   * before task-028-implement-paths-category; `['list']` for `paths`). */
-  readonly flags?: readonly string[];
+   * before task-028-implement-paths-category; `--list` for `paths`). */
+  readonly flags?: readonly CoreFlag[];
   /** Copied from `CoreOperation.options` (`../core/registry.ts`) — the value-bearing `--{name} <value>`
    * options `program.ts` registers for this command (task-020-implement-memory-add; empty/absent for
    * every command before it). */
@@ -81,6 +89,10 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
       noun: module.name,
       verb,
       mutates: operation.mutates,
+      nounDescription: module.description,
+      description: operation.description,
+      positional: operation.positional,
+      example: operation.example,
       flags: operation.flags,
       options: operation.options,
       run: async (

@@ -472,5 +472,6 @@ Full script: [`examples/05-ci-json-exit-codes`](examples/05-ci-json-exit-codes/r
 - **`dna show` takes only a top-level section** (`team`, not `team.members`).
 - **Adding the first entry of a collection `dna.yaml` does not contain yet** (for example the first
   `team.agents` entry) rewrites `dna.yaml` without its comments. Other DNA writes keep them.
-- **Subcommand `--help` is terse** — the argument and option descriptions are generic; this guide and
-  the [CLI reference](cli-reference.md) are the authoritative description.
+- **Subcommand `--help` is terse in 0.2.1** — the argument and option descriptions are generic. From
+  0.2.2 every command's `--help` describes the command, names its argument, explains each option and
+  shows an example; this guide and the [CLI reference](cli-reference.md) remain the full description.

@@ -71,7 +71,8 @@ describe('CORE_MODULES directive.directiveCreate — registration (spec-006 §3 
 
   it('declares `--name` as a required value-bearing option', () => {
     const operation = CORE_MODULES.find((m) => m.name === 'directive')?.operations.directiveCreate;
-    expect(operation?.options).toEqual([{ name: 'name', required: true }]);
+    // The `--help` text the option also declares (task-120) is `test/cli/help-describes-every-command.test.ts`'s.
+    expect(operation?.options).toEqual([expect.objectContaining({ name: 'name', required: true })]);
   });
 });
 
