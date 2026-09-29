@@ -408,3 +408,10 @@ identity that exists today. The MCP Registry listing does **not** exist yet:
 once published. The first publish belongs to the approver at `release-publishing` (`dl-093` point 6,
 `dl-130`). That phase's plan must add the service element and, if they are claimed, the directory
 entries too.
+
+**S9 — `align-user-docs` APPROVED** by the approver (Roberto Pompermaier, `approver`) in chat on
+2026-09-29, on the evidence above (S2–S8), at `f9d9337c`. There is no Memory element to transition:
+this repository records a phase approval in its plan, as `user-docs-rel-v0.2-plan` did, until
+`dl-125` gives documents an approval verb. The findings outside `produces:` were filed first:
+`bug-169` `open` (`59fb0e06`, `1250e905`), via `bug-ingest-rel-v0.2.2-user-docs-findings-plan`
+(`active`, `d3f566f7`). It awaits the approver's triage.
