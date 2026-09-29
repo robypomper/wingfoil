@@ -2,7 +2,7 @@
 id: "dl-125-approving-documents-that-are-not-memory-elements"
 type: decision-log
 title: "Vision, feature and requirement documents declare themselves *Approved* but no verb can approve them, so their approvals are hand-written commits `memory history` cannot see"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.4"
 contributor: ""
