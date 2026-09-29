@@ -137,7 +137,7 @@ truthy/negated form shown above).
 |--------------------------------------------------------------------|------------------------------------------------------------------------|
 | All required args present (flags or positionals)                 | Direct execution; no prompt                                          |
 | Required arg missing, stdout is a TTY, `--interactive` (default)  | Readline prompt for each missing arg, one at a time                  |
-| Required arg missing, stdout is **not** a TTY (CI/pipe/non-interactive) | Fail immediately: exit `2`, `error: missing required argument: --<name>` |
+| Required arg missing, stdout is **not** a TTY (CI/pipe/non-interactive) | Fail immediately: exit `2`, `error: missing required argument: --<name>`; where the argument takes one of a closed set of values, the line ends with ` (one of: <v1>, <v2>, …)`, read from the same registry the command validates against (e.g. `init`: `missing required argument: --template (one of: Scrum, Kanban)`) |
 | `--no-interactive` passed (any TTY state)                         | Fail immediately, same as the non-TTY case — no prompt is attempted  |
 
 Wizard-style multi-step collection (`wingfoil init` with no `--mode params` flags) is command-specific:
@@ -567,3 +567,12 @@ the implementing task ahead of the approver's sign-off at its review gate; until
 proposal carried in the task branch, not a ratified revision. Edited in place without a supersede or a
 state change, per `dl-047-tech-specs-carry-no-version-field` (tech-specs carry no `version:` field, so
 there is nothing to bump) and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — §4's non-TTY row names the allowed values of a closed-set argument, per
+`task-119-init-names-its-templates-and-a-real-remedy` (`bug-140`).** `init`'s missing-template error
+now ends with ` (one of: Scrum, Kanban)`, built from the template registry (`TEMPLATE_NAMES`), so a
+new template appears without editing the message. The row keeps `missing required argument:
+--<name>` as the prefix, so every existing reader of the message still matches, and adds the suffix
+for arguments whose values are a closed set. Exit code unchanged (`2`). Edited in place without a
+supersede or a state change; signed off by the approver with `task-119`'s approval at its review
+gate.

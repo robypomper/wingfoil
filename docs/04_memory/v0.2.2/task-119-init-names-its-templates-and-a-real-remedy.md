@@ -187,3 +187,9 @@ Checks (`npm ci` done in the worktree):
 - **For the approver:** (1) `spec-008` §4 still reads `error: missing required argument: --<name>`;
   the new message keeps it as a prefix and adds the list. Amend §4 or leave it — not edited in-task.
   (2) The BDD scenario text was changed in-task (`21a1dc83`), as `task-100` did for `P2.1`.
+
+**Approver's ruling at the review gate (2026-09-29).** Approved, with `spec-008` §4 updated in-task
+before approval: its non-TTY row named only `missing required argument: --<name>`, which `init`'s new
+message extends. The row now names the ` (one of: …)` suffix for closed-set arguments, with a dated
+revision note, signed off with this approval. The rewritten `P5.1.1-init.feature` scenario is
+accepted.
