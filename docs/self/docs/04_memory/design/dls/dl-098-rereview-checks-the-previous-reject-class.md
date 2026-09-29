@@ -2,7 +2,7 @@
 id: "dl-098-rereview-checks-the-previous-reject-class"
 type: decision-log
 title: "A second rejection usually repeats the first one's class, often in the very passage written to fix it; the dev-loop re-review checks the previous reject's class explicitly"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
