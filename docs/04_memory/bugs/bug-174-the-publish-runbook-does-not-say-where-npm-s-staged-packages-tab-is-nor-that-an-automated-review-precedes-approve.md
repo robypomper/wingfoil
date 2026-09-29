@@ -22,8 +22,8 @@ into:
 - It does not say that a staged version first sits in an **"automated review"** state, during which
   it cannot be approved.
 
-The `publish` phase description in `.wingfoil/workflows/custom/release-publishing.yaml` repeats the
-same short form.
+The `publish` phase description in `.wingfoil/workflows/custom/release-publishing.yaml` (line 31) is
+shorter still: "or Approve on npmjs.com", with no tab named.
 
 ## Steps to Reproduce
 
