@@ -7,7 +7,7 @@ release: "v0.2.2"
 priority: "medium"
 tags: ["v0.2.2", "memory", "config", "service", "operations"]
 ref: "dl-088-a-memory-type-for-state-that-lives-outside-the-repository"
-bug: []                # optional — LIST of bug ids this task closes (dl-045). Two cases: a fix task derived from a bug
+bug: ["bug-159-storage-layout-spec-tree-omits-three-configuration-files"]
                        # by release-planning, and a bug ABSORBED into an existing task's Acceptance Criteria because that
                        # task already owns the ground. `bug.sync_state` iterates this list; a bug with no task naming it
                        # here can never leave `triaged`. A single string is still accepted for documents predating dl-045.
@@ -326,3 +326,11 @@ social handles (after v0.3, §"External identities registered", §E); the benchm
   `memory.yaml` (`grep -n "rejected\|pending → approved" .wingfoil/WORKFLOW.md` afterwards → only
   `seed-specs`' tech-spec `draft → pending → approved`, which is correct). Not a type list, so recorded
   here rather than in the refactor table.
+
+**Approver's ruling at the review gate (2026-09-29).** Approved, with the revisions of `spec-001`,
+`spec-004`, `spec-010` and `spec-011` signed off. `bug-159` (`spec-011`'s tree omitted three files,
+`triaged`, v0.3) is **absorbed** into this task (`dl-045`), because this task's `spec-011` revision
+lists every file under `.wingfoil/`. Checked with `find .wingfoil -maxdepth 4 -type f -printf '%f\n'`
+against the file names in the tree block: no file is missing. Its `release` moves to v0.2.2 and it closes
+with this task. The double meaning of `release` on a `service` (finding 6) is filed as a bug on
+`main`.
