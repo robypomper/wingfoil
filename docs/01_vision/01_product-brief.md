@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.3
-**Date:** 2026-09-21  
+**Version:** 1.4
+**Date:** 2026-09-29  
 **Status:** Approved
 
 ---
@@ -200,19 +200,17 @@ rather than adding a new one.
 ## Investment & Timeline
 
 - **Team:** 1 developer (Roberto Pompermaier, supported by AI agents)
-- **Release Cadence:** roughly one release per week, each centered on a pillar (some weeks deliver shared
-  infrastructure or span two pillars; aggressive but achievable with AI support)
+- **Release sequence:** v0.1 (Project Memory + Project DNA) → v0.2 (+ Project Directives) → v0.3 (+ Project
+  Workflow) → v0.4 (+ Interaction Layer) → v1.0 (MVP Complete), each centered on a pillar (some releases deliver
+  shared infrastructure or span two pillars).
 - **Estimate:** ~13 story points (v0.1), ~63 across the full MVP; roadmap TBD post-validation
-- **Target Releases:**
-    - **v0.1** (Project Memory + Project DNA): ~July 10, 2026
-    - **v0.2** (+ Project Directives): ~July 17, 2026
-    - **v0.3** (+ Project Workflow): ~July 24, 2026
-    - **v0.4** (+ Interaction Layer): ~July 31, 2026
-    - **v1.0** (MVP Complete): ~August 7, 2026
+- **Schedule:** release budgets are stated in **active development days**, and the calendar is a forecast that
+  states its cadence assumption. Budgets, actuals and the current forecast live in one place,
+  [`07_sequencer.md`](07_sequencer.md) (*Re-baseline on active days*), which this brief does not repeat
+  (`dl-096-schedule-rebaseline-on-active-days`).
 
-**Note:** Each release is technically oversized for a traditional 1-week sprint (would require 2–3 weeks without AI
-support). This schedule assumes consistent AI-assisted development; additional buffers may be needed if velocity drops
-or unforeseen blockers emerge. Proceed with this timeline and adjust if necessary during execution.
+**Note:** The original plan of one release per calendar week did not survive a pause in
+development and v0.2's scope growth; it is kept in the sequencer, next to the actuals, for comparison.
 
 ---
 
@@ -279,7 +277,8 @@ or unforeseen blockers emerge. Proceed with this timeline and adjust if necessar
 - **Single Project:** One `.wingfoil/` instance per repo (multi-project in v1+)
 - **Git-only Storage:** No cloud backend; all state versioned in git
 - **Local First:** No real-time collaboration (async via git push/pull) (auto-sync in v1+)
-- **Timeline:** 5 weeks (aggressive with AI support; buffer if velocity drops)
+- **Timeline:** budgeted in active development days, with a forecast that states its cadence; see
+  [`07_sequencer.md`](07_sequencer.md) (*Re-baseline on active days*)
 - **No IDE Plugins in MVP:** MCP sufficient; native integration in v1+
 - **Keyword Search Only:** Semantic search deferred to v1.1+
 - **Manual Approval Gates:** No automated workflow triggers in MVP
@@ -302,7 +301,8 @@ This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). 
 **Technical & Planning:**
 
 - [`X_cli-cmds.md`](X_cli-cmds.md) — CLI commands reference (all pillars)
-- [`07_sequencer.md`](07_sequencer.md) — Week-by-week timeline, Definition of Done
+- [`07_sequencer.md`](07_sequencer.md) — Active-day budgets, actuals and calendar forecast; the original
+  week-by-week plan; Definition of Done
 - [`08_mvp-canvas.md`](08_mvp-canvas.md) — MVP canvas and success criteria
 
 All documents are versioned in git and open for refinement as development progresses.
