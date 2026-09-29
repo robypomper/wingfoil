@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -27,6 +27,9 @@ stays `""`: scheduling is the approver's, at triage.
 **Preconditions (2026-09-29).** At the first batch, the next free bug number was `bug-155`: the highest existing file is
 `bug-154-directives-list-succeeds-with-no-configuration.md` (`ls docs/04_memory/bugs |
 sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
+From `task-112` on, every batch also requires the build in use to be the pinned one (`dl-095`):
+`npm run -s wingfoil -- --version` prints the version `npm pkg get devDependencies.wingfoil-released`
+pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CLI.
 
 ## Phases / Steps
 

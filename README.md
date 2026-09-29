@@ -239,9 +239,10 @@ WingFoil is built one pillar per release until all five are integrated in 1.0.
 | **1.0** | MVP complete | Planned |
 
 **Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives in
-`.wingfoil/` and its Memory in `docs/04_memory/`, at the repository root. From there `wingfoil
-memory search`, `memory history`, `submit`, `approve`, `reject` and `deprecate` run on WingFoil's own
-Memory. `memory add` follows once a path fix lands (`bug-156`).
+`.wingfoil/` and its Memory in `docs/04_memory/`, at the repository root. From there the Memory verbs
+(`add`, `submit`, `approve`, `reject`, `deprecate`, `history`, `search`) run on WingFoil's own Memory,
+through a published, pinned build of WingFoil (`npm run -s wingfoil -- <command>`), whose MCP server
+is registered in `.mcp.json`. See [COLLABORATION.md](COLLABORATION.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # Contributing to WingFoil — through Memory, not (only) code
 
-**Version:** 1.1 · **Date:** 2026-09-29
+**Version:** 1.2 · **Date:** 2026-09-29
 
 WingFoil is a harness for **AI-assisted, deterministic software development**. It manages its own
 development the same way it asks other projects to (dogfooding): every change flows through
@@ -35,7 +35,8 @@ agent implements it under the `dev-loop` (TDD + BDD, `code-review`/`code-quality
 
 ## How to contribute (today)
 
-The `wingfoil` CLI is still being built, so the current path is:
+The `wingfoil` CLI ships (npm `wingfoil`), but it cannot run a workflow yet, so the ingest workflows
+are still run by a maintainer or an agent. The current path is:
 
 1. **Open a GitHub issue** describing the bug / decision / spec you have in mind (see the README’s
    *Contributing* section).
@@ -43,7 +44,45 @@ The `wingfoil` CLI is still being built, so the current path is:
    recording you as its `contributor` (below).
 3. You are kept in the loop as it is ratified and delivered.
 
-Once the CLI ships, you (or an agent on your behalf) will run the ingest workflow directly.
+Once workflow execution ships, you (or an agent on your behalf) will run the ingest workflow directly.
+
+## Contributor setup — the WingFoil build that manages this repository
+
+WingFoil's own Memory, DNA and workflows are read and written by a **published, pinned** WingFoil
+build, never by the code under development
+([`dl-095`](docs/04_memory/design/dls/dl-095-which-wingfoil-build-develops-wingfoil.md)). It is
+declared in `package.json` as the devDependency `"wingfoil-released": "npm:wingfoil@<version>"`, so a
+clone needs one command and no build step:
+
+```bash
+git clone <this repository> && cd <it>
+npm ci                                   # installs the pinned build with everything else
+npm run -s wingfoil -- --version         # prints the pinned version
+npm run -s wingfoil -- memory search --type bug
+```
+
+Run it as `npm run -s wingfoil -- …`, not `npx wingfoil`: this package is itself named `wingfoil`, and
+once `npm run build` has produced `dist/`, `npx wingfoil` runs *that* build instead. `-s` keeps npm's
+own banner off standard output, so `--format json` stays parseable.
+
+**The MCP server.** The repository's [`.mcp.json`](.mcp.json) registers the pinned build's server
+([`dl-026`](docs/04_memory/design/dls/dl-026-repo-versioned-mcp-server-config.md)), so an agent
+session opened at the repository root reads DNA, Memory and workflows through it with no setup:
+
+```json
+{ "mcpServers": { "wingfoil": { "command": "node", "args": ["node_modules/wingfoil-released/dist/cli.js", "mcp"] } } }
+```
+
+`.mcp.json` is the Claude Code format. The server itself is plain MCP over stdio, so any other MCP
+client registers the same thing: command `node`, arguments
+`node_modules/wingfoil-released/dist/cli.js mcp`, working directory the repository root (the server
+resolves the configuration from the git root). Use an absolute path to `cli.js` if your client starts
+servers from another directory. `npm run check:mcp` starts the registered server and checks that it is
+the pinned version and advertises the expected channels.
+
+The pin moves forward only, to published builds, one commit per switch (`dl-095` Q3): at the start of
+each release's planning (`release-planning`'s `advance-pinned-build` step) and after every published
+patch.
 
 ## Credit — you are credited for the AI-generated work derived from your contribution
 
