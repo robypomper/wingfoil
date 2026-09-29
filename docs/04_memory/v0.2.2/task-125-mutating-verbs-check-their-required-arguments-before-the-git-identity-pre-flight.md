@@ -79,7 +79,9 @@ Every run it records had a git identity. This task keeps that test byte-identica
 
 **Specs.** `spec-005-cli-command-contract` and `spec-008-cli-grammar` are `approved`. Neither states
 an order between the argument check and the identity pre-flight (`grep -n -i "identity\|pre-flight\|order"`
-over both: no ordering clause). REQ-INT-04 requires exit `2` for a missing argument. REQ-SEC-01
+over both: no ordering clause). `spec-008` does point this way, though: its `--reason` row (§2, the
+"unrecordable value" row) and its `--set` errors (§10) are refused "before anything is read or
+written", and reading the git config is a read (added at review, finding 3). REQ-INT-04 requires exit `2` for a missing argument. REQ-SEC-01
 requires that "with git identity unset, any state-mutating command fails with [the identity message]
 and writes nothing". An invocation missing a required argument is not yet a command that can mutate
 anything, and an argument check reads and writes nothing. Both requirements therefore hold with the
@@ -153,12 +155,14 @@ Gates, on `5adfee17`:
 | `npx tsc --noEmit -p tsconfig.json` | exit 0, no output |
 | `npm run -s lint` | exit 0 |
 | `npm run -s docs:api` | exit 0 |
-| **AC 4** — `env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL GIT_CONFIG_GLOBAL=<empty file> GIT_CONFIG_NOSYSTEM=1 HOME=<empty dir> npx jest` | exit 0; 161 suites / 2638 tests. That includes `help-positional-required.integration.test.ts` through `dist/` built from this branch, and the gate job's 5 failures |
+| **AC 4** — `env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL GIT_CONFIG_GLOBAL=<empty file> GIT_CONFIG_NOSYSTEM=1 HOME=<empty dir> npx jest` | exit 0; 161 suites / 2638 tests. That includes `help-positional-required.integration.test.ts` through `dist/` built from this branch, and the 5 tests that failed in run `36621412441`'s `gate` job |
 
-AC 2: no existing test file changed (`git diff --stat 1890f473 HEAD -- test/` → only the new file).
-The REQ-SEC-01 tests (`test/core/git-identity.test.ts` and the "no identity" cases in
-`memory-submit`, `memory-reject`, `memory-deprecate`, `directive-create` and `directive-remove`) pass
-unchanged in both runs.
+AC 2: no existing test was changed by the fix (`git diff --stat 1890f473 5adfee17 -- test/` → only
+the new file). The REQ-SEC-01 tests (`test/core/git-identity.test.ts` and the valid-arguments,
+no-identity cases in `memory-add`, `memory-submit`, `memory-reject`, `memory-deprecate`,
+`directive-create`, `directive-assign` and `directive-remove`) pass unchanged in both runs. The first
+version of this note listed 5 of those 7 files and did not say that `memory-approve` had no such case.
+The review found both, and the case was added (finding 2, below).
 
 `bug-171` and `bug-131` are untouched: the extra-operand handling was not moved, and neither is
 easier or harder to fix after this change.
@@ -173,3 +177,44 @@ The unit and BDD-contract suites are green, with and without a git identity (abo
 - AC 5: the gates table.
 
 Submitted for the approver's review. `bug-172` synced to `in-review`.
+
+**Independent review (2026-09-29, on the approver's request).** A separate agent reviewed the task
+read-only on `d25df4cd`.
+- **Verdict:** REQUEST CHANGES, minor. The fix itself was judged correct.
+- **What it confirmed:**
+  - every usage check in the 8 functions now precedes `requireGitIdentity`;
+  - only pure code runs before the pre-flight: `parseSetOptions`, `requireReason`, `optionalReason`,
+    `isValidDirectiveName`, `parseDirectiveIds`;
+  - no usage throw follows it on a mutating path;
+  - the red: 8 failed / 5 passed, on an extract of `aae09854`;
+  - the full no-identity run: 161 / 2638, with the same coverage.
+
+Six findings. The approver asked for all six to be fixed in-task, with the task left `in-review`:
+
+1. **`dl-064` described the superseded order.** Its Context (i) lists identity → `<id>` → `--reason`,
+   and its option A.1 would ratify "today's order" into `spec-006`. Fixed with a dated Code addendum
+   on `dl-064`: the new order, what A.1 now means, and that questions A and B are otherwise
+   unaffected. `dl-064` stays `in-discussion`.
+2. **AC 2 had no approve case.** Added in `test/core/memory-approve.test.ts`: valid arguments and no
+   identity → the exact REQ-SEC-01 message, exit 1, status unchanged. It is a characterization test,
+   so it passes on first run (`npx jest test/core/memory-approve.test.ts` → 16/16). The AC 2
+   paragraph above is corrected.
+3. **The spec-008 text was not cited.** Now cited in design.
+4. **Wrong step in `runDnaMutation`'s comment.** "see step 4" becomes "see step 5": Resolve + apply
+   is where a well-formed path that names nothing is refused. The error predates this task, but it
+   is in a comment the task rewrote.
+5. **Unclear phrase in the gates table.** Reworded.
+6. **Sweep blind spots.** `MALFORMED` gains a trailer-shaped `--reason`, a non-kebab-case `--name` and
+   a `--directive` of `","`. Each raises a `UsageError` on its target verb, probed with identity:
+   - approve and deprecate: `invalid flag value: --reason must not contain a line starting with
+     "Approver:" …`;
+   - create: `invalid directive name (use kebab-case)`;
+   - assign: `missing required argument: --directive`.
+
+   `npx jest test/core/usage-before-identity.test.ts` → 13/13.
+
+Commits: `7b7cc40a` (findings 2, 4, 6: tests and the comment) and `a422a4e3` (finding 1, `dl-064`).
+Gates re-run on `a422a4e3`:
+- `npx jest --coverage` → exit 0; 161 suites / 2639 tests; 98.68 / 94.29 / 93.84 / 99.47.
+- Both `tsc`, `npm run -s lint` and `npm run -s docs:api` → exit 0.
+- The AC 4 no-identity `npx jest` → exit 0; 161 / 2639.
