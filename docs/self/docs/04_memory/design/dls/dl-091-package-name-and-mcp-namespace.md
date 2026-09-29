@@ -117,7 +117,28 @@ that the new set depends on):
 | npm, scope `@wingfoilhq` | **Free**: no organisation, no package in the scope | `https://registry.npmjs.org/-/org/wingfoilhq/package` → 404; `…/-/v1/search?text=scope:wingfoilhq` → 0 results |
 | `wingfoil.dev`, `wingfoilhq.dev` | **Not registered**: the `.dev` registry has no record; neither name resolves | `https://pubapi.registry.google/rdap/domain/<name>` → 404; `getent hosts <name>` → nothing |
 | MCP Registry | Still no server matches `wingfoil` | `https://registry.modelcontextprotocol.io/v0/servers?search=wingfoil` → `count: 0` |
-| Trademarks | **Still not checked** | — |
+| Trademarks | **No mark consisting of "wingfoil" alone is in force**; composite marks exist, two of them in software-related classes (see below) | TMView search, trademark name `wingfoil`, exported by the approver on 2026-09-29 |
+| GitHub organisation `wingfoil` | **Created** by the approver, 2026-09-29 11:05 UTC | `https://api.github.com/orgs/wingfoil` → `type: Organization`, `created_at: 2026-09-29T11:05:14Z` |
+| npm organisation `wingfoilhq` | **Created** by the approver on 2026-09-29; no package yet | `https://registry.npmjs.org/-/org/wingfoilhq/package` → 200, `{}` |
+
+**The trademark search, in detail.** TMView returned 22 records for `wingfoil`, from national offices,
+EUIPO (`EM`) and WIPO (`WO`, one designation covering GB and US). What they show:
+
+- The only mark that is exactly `WINGFOIL` is Japanese (`JP 2019120061`, class 28, sporting goods),
+  and its status is **Ended**.
+- Every other record is a composite name for the water sport: schools, events, federations and board
+  brands (e.g. `DUOTONE TRUE WINGFOILING`, EUIPO `018408263` and WIPO `1618789`, classes 22/25/28).
+- Two composite marks are registered in classes that cover software:
+  - `WINGFOIL BIBLE` (PT `050000759288`, registered 2026-04-13) in classes 9, 16, 35 and 41;
+  - `WingFoilCampione` (IT `2022000048677`, registered 2022-12-12) in classes 25, 38 and 42.
+
+  Both names refer to the sport. Neither is the bare word, and neither is a developer tool.
+- The export names no USPTO record of its own. Whether the search included the USPTO register is not
+  stated in the export, so that part of the action is recorded as covered only through the WIPO
+  designation above.
+
+This is a record of what the search returned, not a legal opinion on registrability or conflict.
+
 
 **What the new set changes for the namespace.** `io.github.wingfoil/*` is granted by GitHub-based
 authentication to an **Owner** of the `wingfoil` organisation (see *The MCP namespace* above), so
@@ -168,8 +189,8 @@ this decision-log's approve commit:
 
 ## Actions
 
-- [ ] Search at least the EUIPO and USPTO registers for "wingfoil" in software classes, and record
-      the result with source and date in this decision-log before ratification (owner: approver).
+- [x] Search the trademark registers for "wingfoil" and record the result with source and date
+      (owner: approver). Done 2026-09-29 through TMView; recorded above, with the USPTO caveat.
 - [x] The rename investigation reported on 2026-09-29; its set is recorded above.
 - [ ] Ratify at v0.2.2 `release-planning` (`reconcile-governance`), with the 2026-09-29 answers to
       Q1, Q2 and Q4 (owner: approver). The choices go in the approve commit's `Reason:`.
