@@ -327,6 +327,57 @@ discovered. `dna set` is the exception that proves it: it is `update` restricted
 `--value` carries only the second meaning and its `--help` says so. A `<path>` that names a collection
 or a list is refused there with the verb that reaches it.
 
+### 10. Id-pattern token values on `memory add` (`--set <name>=<value>`)
+
+`spec-001-memory-yaml-schema`'s `id_pattern` section (as amended 2026-09-29) gives every token other
+than `{n}`, `{slug}`, `{date}` and `{author}` its value from a **frontmatter field of the same name**,
+and the context tokens `{workflow}`, `{phase}` and `{scope}` from the workflow engine — "from the CLI
+they must be given explicitly" (`dl-107` S2 (a)+(c)). `memory add` carries those values through **one
+declared, repeatable option**:
+
+```
+wingfoil memory add --type release --title "WingFoil v0.2.3" \
+                    --set kind=patch --set version=v0.2.3 --set release-line=v1
+wingfoil memory add --type plan --title "Dev-loop — rel-v0.2.3" \
+                    --set workflow=dev-loop --set phase=rel-v0.2.3 --set scope=rl-v1/rel-v0.2.3
+```
+
+| Part | Meaning |
+|------|---------|
+| `--set <name>=<value>` | **Repeatable**; one field per occurrence. `<name>` is split from `<value>` at the **first** `=`, so a value may itself contain `=`. `<name>` must name a token of the type's committed `id_pattern` or `path` (other than `{id}`); the value fills that token, and `memory add` also writes it into the frontmatter field of that name, so the id and the field cannot disagree. A context token (`workflow`, `phase`, `scope`) is written only where the type's template declares a field of that name (`plan` declares `workflow` and `phase`, not `scope`); every other token is always written. |
+
+**Why one option, not one per field, and why not `--field`.**
+- `--field` is not reused: §9 retired it for DNA paths under `dl-082`, and the same spelling with a
+  different meaning on a sibling noun would be a collision the grammar cannot show.
+- One option per field (`--version v0.3`, `--kind patch`) is the **derived namespace** §9 had to fence
+  off with the `entry-` prefix, here in its worst form: the field names come from the project's own
+  `memory.yaml`, not from a WingFoil schema, and the very first one this option exists for, `version`,
+  is a §2 global action flag — `--version v0.3` would print the CLI version and exit `0` having
+  written nothing. A single declared name with the field inside its value keeps the two namespaces
+  disjoint by construction, for every present and future field and every future global.
+- It follows `dl-082`: `--type` still identifies what is created and every `--set` names an attribute
+  of the action.
+
+**Error cases.** The first five are properties of how the argument is spelled, decided before anything
+is read, so they are usage errors (§5, exit `2`), each with its own message:
+
+| Case | Message | Exit |
+|------|---------|------|
+| No `=`, or nothing before it | `error: invalid flag value: --set expects <name>=<value>, got "<raw>"` | `2` |
+| `<name>` outside `[a-z][a-z0-9_-]*` — including a dotted name such as `release.version`, which stays undefined until `dl-090` | `error: invalid flag value: --set name "<name>" is not a field name ([a-z][a-z0-9_-]*)` | `2` |
+| Blank or whitespace-only `<value>` | `error: invalid flag value: --set <name> must not be blank` | `2` |
+| The same `<name>` given twice | `error: invalid flag value: --set <name> given more than once` | `2` |
+| A name `memory add` fills itself or through its own option: `id`, `type`, `status`, `title`, `tags`, `n`, `slug`, `date`, `author` | `error: invalid flag value: --set cannot set "<name>": memory add fills it itself or through its own option` | `2` |
+| A well-formed `<name>` the type's committed `id_pattern` and `path` do not contain | `error: --set <name>: memory type '<type>' has no token {<name>} in its id_pattern or path` | `1` |
+| An `id_pattern` token with no `--set` value | `error: missing value for token {<name>}: give it with --set <name>=<value>` | `1` |
+| A value that would take the id outside `[a-z0-9-.]` (`spec-009` §1) | `error: value for token {<name>} is not a valid [a-z0-9-.] piece: "<value>"` | `1` |
+
+The last three depend on the committed `memory.yaml` (`dl-080` (B): a gating read at `HEAD`), which is
+what separates them from the first five — the same malformed-versus-unresolvable line §5 draws for a
+DNA path. A `path` token with no value keeps its existing storage refusal (exit `1`, naming the token).
+There is no free-form `--id`: an id a type's pattern cannot express is `spec-001`'s per-action
+`id_pattern` override on a workflow's `memory.add` action (`dl-107` S3 (a)), not a CLI option.
+
 ## Consequences
 
 - Every command implementation under `src/cli` registers global flags exactly once, on the root
@@ -501,3 +552,18 @@ name §2 *does* declare is still consumed by the global option and still exits `
 
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
 and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — the new §10, `memory add`'s `--set <name>=<value>`, per
+`dl-107-slug-keeps-version-dots` (`ready`, options S1 (a), S2 (a)+(c), S3 (a)) Action 2, carried out by
+`task-110-memory-add-keeps-version-dots-and-sources-every-id-token`.** `spec-001`'s 2026-09-29 revision
+gives every `id_pattern` token a declared source and leaves the option that carries a frontmatter
+field's value on the command line to this spec, with one constraint: not `--field`, which §9 retired
+under `dl-082`. §10 names it `--set`, states its repeatable `<name>=<value>` shape and its error cases,
+and records why one declared option was chosen over a derived option per field — the `version` field
+this exists for is a §2 global action flag, so the derived form would reproduce, for the first field it
+served, the silent `--version` no-op §9's 2026-09-24 revisions measured. No existing section changes:
+§2's globals, §5's table and §9 are untouched, and §10's exit codes are §5's rows applied. Written by
+the implementing task ahead of the approver's sign-off at its review gate; until that sign-off it is a
+proposal carried in the task branch, not a ratified revision. Edited in place without a supersede or a
+state change, per `dl-047-tech-specs-carry-no-version-field` (tech-specs carry no `version:` field, so
+there is nothing to bump) and the same `spec-001` precedent the 2026-09-17 revision cites.
