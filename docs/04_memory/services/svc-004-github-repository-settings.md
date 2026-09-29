@@ -2,7 +2,7 @@
 id: svc-004-github-repository-settings
 type: service
 title: "GitHub repository settings"
-status: pending
+status: active
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
