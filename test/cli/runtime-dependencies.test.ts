@@ -37,7 +37,7 @@ function tsFiles(dir: string): string[] {
 function packageOf(specifier: string): string | null {
   if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('node:')) return null;
   const parts = specifier.split('/');
-  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? null);
 }
 
 /** Every package some `src/` file imports. */
@@ -46,7 +46,7 @@ function importedPackages(): Set<string> {
   const found = new Set<string>();
   for (const file of tsFiles(join(REPO_ROOT, 'src'))) {
     for (const match of readFileSync(file, 'utf8').matchAll(specifier)) {
-      const pkg = packageOf(match[1]);
+      const pkg = match[1] === undefined ? null : packageOf(match[1]);
       if (pkg !== null) found.add(pkg);
     }
   }
