@@ -263,3 +263,12 @@ Checklist against the ACs: 1 ✔ (red → green, `grep` counts above); 2 ✔ (24
   publishing access "Require two-factor authentication and disallow tokens"; revoke the stage-only
   token and `gh secret delete <name> --env npm-publish`. Until the trusted publisher exists, a tag
   run fails at `promote` (expected; the Implementation Notes).
+
+**Second merge of `main`, after the submit.** `main` moved again (`task-122` and `task-123` merged)
+and the submit commit `dff98406` went in before this was noticed; merged at `54ff1312` (no conflict,
+none of this task's files touched by it) and every check re-run there: `npx jest --coverage` →
+**154 suites, 2500 tests passed**, Statements 98.62 % (3874/3928), Branches 94.18 % (1993/2116),
+Functions 93.79 % (650/693), Lines 99.47 % (3398/3416). The drop in Functions is `task-122`'s
+wider `collectCoverageFrom` (index files with logic now measured), not this task: no `src/` file is
+changed here (`git diff --stat main...HEAD -- src` → nothing). `npm run lint`, `npx tsc --noEmit`,
+`npm run docs:api` → exit 0.
