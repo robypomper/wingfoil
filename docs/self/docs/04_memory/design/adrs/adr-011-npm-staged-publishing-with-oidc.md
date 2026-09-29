@@ -2,7 +2,7 @@
 id: "adr-011-npm-staged-publishing-with-oidc"
 type: adr
 title: "npm promotion through staged publishing, authenticated by a stage-only OIDC trusted publisher, with no long-lived token"
-status: pending
+status: accepted
 sard_ref: "REQ-SYS-09, REQ-SEC-08, REQ-SEC-03"
 supersedes: ""
 release: "v0.2.2"
