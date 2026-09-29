@@ -2,7 +2,7 @@
 id: "bug-125-a-dangling-symlink-breaks-every-directive-read"
 type: bug
 title: "One dangling symlink under `.wingfoil/directives/` makes every directive read fail with a raw `ENOENT`, including the read-only `directives list`"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
