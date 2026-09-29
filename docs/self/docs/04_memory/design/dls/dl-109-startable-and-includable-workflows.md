@@ -2,7 +2,7 @@
 id: "dl-109-startable-and-includable-workflows"
 type: decision-log
 title: "A workflow's `kind: main | sub` forces a choice between being startable and being includable, though several workflows need to be both"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
