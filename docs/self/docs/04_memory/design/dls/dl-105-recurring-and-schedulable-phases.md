@@ -2,7 +2,7 @@
 id: "dl-105-recurring-and-schedulable-phases"
 type: decision-log
 title: "No workflow phase can recur or be scheduled: a phase declares a cadence, records its last run, and is triggered by a scheduled CI job until the workflow engine takes over"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
