@@ -118,6 +118,134 @@ for faults that need the committed `memory.yaml` (`dl-080` (B)).
 | 5 — workflow `id_pattern` argument validated, dotted token rejected | red-first | `Phase.actions` is `z.array(z.string())`, accepts anything |
 | 6 — e2e `patch-v0.2.3` | characterization (manual e2e) | end-to-end run of AC 1–3 on a scratch repo, recorded below |
 
+### red (developer) — `9c060b25`
+
+`npx jest --json test/memory/add.test.ts test/core/memory-add-id-tokens.test.ts test/workflow/schema.test.ts test/cli/memory-add-set.integration.test.ts`
+→ 29 failed, 30 passed. Per file: `add.test.ts` 1 failed (the dot-keeping slug, AC 1);
+`memory-add-id-tokens.test.ts` 22 failed (AC 2/3 and §10's error table); `memory-add-set.integration.test.ts`
+4 failed (repeated option through `dist/cli.js`, `--help`); `workflow/schema.test.ts` 2 failed (AC 5).
+New tests that passed at red, each a guard of behaviour that already held, not a fabricated red:
+"collapses a dot that does not sit between two alphanumerics", "accepts a well-formed undotted
+override", "leaves a memory.add action without an id_pattern argument untouched", "{date} stays
+unsupported". The first run had a fixture bug (no `template.frontmatter` in the fixture
+`memory.yaml` → a registry `VALIDATION` error, not the behaviour under test); fixed before the commit,
+after which every failure was the asserted value (`Received: "dl-001-retrospective-v0-2"`,
+`"missing value for token {version}"`, …).
+
+### green (developer) — `9025816f`
+
+- `slugifyTitle` keeps a single `.` run between two alphanumerics.
+- `src/memory/add.ts`: `parseSetOptions` (§10's spelling faults, first failing occurrence),
+  `unknownSetNames`, `expandFieldTokens` (field/context tokens materialized before `{slug}`/`{n}`;
+  `{date}`/`{author}` left in place), `writtenFields` (sorted; context tokens only where the scaffold
+  declares the key); `renderAddDocument` gains `fields`; `resolveTypeDirectory` takes path values.
+- `memoryAddFn`: usage error for a bad `--set`, `VALIDATION` for an unknown name, id from the
+  materialized pattern, path values `{...set, id}` for the absence guard and the write.
+- `CoreOption.repeatable` / `valueName`; `program.ts` collects a repeatable option's occurrences;
+  `ParamsContext.options` values widen to `string | readonly string[]`.
+- `src/validation/id.ts`: `idPatternIssues`, `patternTokens`, `isIdPiece`; `src/workflow/schema.ts`
+  refines `Phase.actions` with them.
+- Docs: `docs/cli-reference.md` (`memory add` option table, the `release` example, error list; the
+  row says "New in 0.2.2" because the reference header still reads 0.2.1 — `user-docs` owns the
+  header) and `docs/user-guide.md`'s `id_pattern` row.
+- Targeted run: `npx jest test/memory/add.test.ts test/core/memory-add-id-tokens.test.ts test/workflow/schema.test.ts test/cli/memory-add-set.integration.test.ts test/core/memory-add.test.ts test/validation`
+  → 11 suites, 155 tests passed.
+
+### AC 6 — end to end on a scratch repository
+
+Script `e2e.sh` in the session scratchpad: `git init` in a `mktemp -d` directory outside the repo,
+copy `docs/self/.wingfoil/memory.yaml` and `memory/templates/*.md` into `.wingfoil/`, commit, run
+the built `dist/cli.js` (built by the jest `globalSetup` of the refactor run below).
+
+**Finding first.** Copied verbatim, this repository's configuration cannot add anything:
+```
+$ wingfoil memory add --type release --title "WingFoil v0.2.3" --set kind=patch --set version=v0.2.3 --set release-line=v1
+error: cannot read the scaffold for memory type 'release': '.wingfoil/.wingfoil/memory/templates/release.md' is not committed at HEAD. …
+exit 1
+```
+`memory.yaml` writes `template.file: ".wingfoil/memory/templates/release.md"` (`grep -n "file:"
+docs/self/.wingfoil/memory.yaml`), while the CLI resolves `template.file` against `.wingfoil/`
+(`src/core/memory-add-type.ts` at `9025816f`: `templatePath` is `WINGFOIL_DIR` + `/` + `template.file`). Every type is
+affected, not only the ones this task touches. `task-111`'s ACs do not mention it. **Not fixed here**
+(configuration, and `task-111`'s ground); reported for the approver to file. With the prefix removed
+(`sed -i 's#file: ".wingfoil/memory/templates/#file: "memory/templates/#' .wingfoil/memory.yaml`,
+committed), the rest of the configuration is unchanged:
+
+```
+$ wingfoil memory add --type release --title "WingFoil v0.2.3" --set kind=patch --set version=v0.2.3 --set release-line=v1 --format json
+{"id":"patch-v0.2.3","path":"docs/04_memory/planning/v1/patch-v0.2.3.md"}
+exit 0
+$ git log -1 --format=%s --name-only
+wf(release): add patch-v0.2.3
+docs/04_memory/planning/v1/patch-v0.2.3.md
+$ sed -n 1,14p docs/04_memory/planning/v1/patch-v0.2.3.md   (excerpt)
+id: patch-v0.2.3
+kind: "patch"
+version: "v0.2.3"
+release-line: "v1"
+$ wingfoil memory add --type plan --title "Dev-loop — rel-v0.2.3" --set workflow=dev-loop --set phase=rel-v0.2.3 --set scope=rl-v1/rel-v0.2.3 --format json
+{"id":"dev-loop-rel-v0.2.3-plan","path":"docs/05_plans/rl-v1/rel-v0.2.3/dev-loop-rel-v0.2.3-plan.md"}
+   → frontmatter: workflow: "dev-loop", phase: "rel-v0.2.3", no scope: line
+$ wingfoil memory add --type release-line --title "WingFoil v2" --set version=v2 --format json
+{"id":"rl-v2","path":"docs/04_memory/planning/rl-v2.md"}
+$ wingfoil memory add --type decision-log --title "Retrospective v0.2.3" --format json
+{"id":"dl-001-retrospective-v0.2.3","path":"docs/04_memory/design/dls/dl-001-retrospective-v0.2.3.md"}
+$ wingfoil memory add --type release --title X --set kind=patch --set release-line=v1
+error: missing value for token {version}: give it with --set version=<value>
+exit 1
+$ wingfoil memory add --type release --title X --set version
+error: invalid flag value: --set expects <name>=<value>, got "version"
+exit 2
+$ wingfoil memory add --type release-line --title X --version v3      # the rejected per-field form
+0.2.1
+exit 0
+```
+The last run is the measurement `spec-008` §10 cites: `--version` is consumed by the global flag,
+prints the package version (the worktree's `package.json` is still `0.2.1`) and writes nothing.
+
+### refactor (developer) — `b02ad53d`
+
+No production refactor. One test commit: the `--set` collector ran only in the spawned `dist/cli.js`,
+which coverage does not measure, so `program.ts`'s function coverage dropped; `test/cli/program.test.ts`
+now drives it in-process (and pins last-one-wins for a non-repeatable option).
+
+| Check | Command | Result |
+|---|---|---|
+| unit + BDD | `npx jest --coverage` | 151 suites / 2455 tests, all passing |
+| coverage before (main `2e1190a4`, this worktree before any change) | `npx jest --coverage --coverageReporters=text-summary` | stmts 98.58 · branches 94.03 · funcs 98.94 · lines 99.41 |
+| coverage after | same | stmts 98.66 · branches 94.25 · funcs 98.98 · lines 99.46 |
+| `lint.clean` | `npm run lint` | exit 0 |
+| `docs.api.*` | `npm run docs:api` | exit 0 |
+| types | `npx tsc --noEmit` | exit 0 |
+
+Remaining uncovered line in new code: `src/workflow/schema.ts` `match[1] ?? match[2] ?? ''` — the
+final `''` is unreachable (one of the two groups always matches), kept for the type checker.
+
+### review (reviewer)
+
+- BDD acceptance for `memory add` (`P1.3-memory-add.feature`) plus this task's suites:
+  `npx jest $(grep -rl "P1.3-memory-add\|P1\.3" test | sort) test/core/memory-add-id-tokens.test.ts test/cli/memory-add-set.integration.test.ts test/workflow/schema.test.ts`
+  → 6 suites, 84 tests passed. The P1.3 scenarios are unchanged: no `--set` means the old behaviour.
+- AC 1 — met (`add.test.ts`, the `decision-log` e2e `dl-001-retrospective-v0.2.3`).
+- AC 2 — met (`memory-add-id-tokens.test.ts`, CLI integration test, e2e `patch-v0.2.3`).
+- AC 3 — met (`plan` e2e: id, `{scope}` folder, `workflow`/`phase` written, `scope` not).
+- AC 4 — `spec-008` §10 + dated revision note at `0de025f5`; **pending the approver's sign-off**.
+  `docs/cli-reference.md` updated; `test/docs/cli-reference.test.ts` green in the full run.
+- AC 5 — met (`workflow/schema.test.ts`; the live workflow files still parse — same file's
+  "every referenced workflow-definition file parses" test).
+- AC 6 — met, with the `template.file` finding above.
+
+**For the approver.**
+1. Sign off `spec-008` §10 (`--set <name>=<value>`), or reject naming another option.
+2. `template.file` prefix in this repository's `memory.yaml` (AC 6 finding): after `task-111`'s root
+   move `memory add` still cannot add any type here unless the eight `file:` values drop their
+   `.wingfoil/` prefix. Needs a bug or a note on `task-111`.
+3. Out of this task's ACs, still open from `dl-107`'s Actions: Action 1's `spec-009` §1 slug rule is
+   not amended (`spec-001` carries the rule); Action 3 (`retrospective.yaml`'s `capture` action using
+   the S3 (a) override) is not done, and cannot be until `dl-090` defines `{release.version}`.
+4. `{date}`/`{author}` are in `spec-001`'s table and have no implementation (`grep -rn "{date}\|{author}" src`
+   → nothing before this task); `--set` refuses them as reserved. Pre-existing gap, not widened.
+
 <!-- Running log of what actually happened while working this task through dev-loop — filled in
      incrementally per phase, not written after the fact. Raw material for the release's Execution
      Notes / the retrospective, not the retrospective itself.
