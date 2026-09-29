@@ -2,7 +2,7 @@
 id: "dl-104-phase-scope-evidence-and-entry-points"
 type: decision-log
 title: "A workflow phase does not declare what it iterates over, what evidence it leaves, whose deliverable it produces or whom it waits for, so neither an interface nor the workflow engine can tell that a phase is done"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
