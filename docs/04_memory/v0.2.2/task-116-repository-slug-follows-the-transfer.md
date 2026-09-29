@@ -2,7 +2,7 @@
 id: "task-116-repository-slug-follows-the-transfer"
 type: task
 title: "After the transfer to `wingfoil/wingfoil`, the repository slug is swept and the external wiring is re-checked, before the v0.2.2 publish"
-status: in-review
+status: approved
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "publishing", "identity"]
