@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -115,17 +115,20 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    **Gate passed 2026-09-29** (steps 4 and 5): `adr-011` accepted (`cdf286d4`), and `adr-009`'s
    revision note added in the commit after this revision; the approver signed off the `spec-015`,
    `spec-001` and `spec-010` amendments as committed (`0a4f7a9c`, `0f68c739`, `289300a5`, fixed in
-   `74fcf0ab`). The specs carry no state change: they stay `approved`. Next: build-backlog (step 6),
+   `33d89b7c`). The specs carry no state change: they stay `approved`. Next: build-backlog (step 6),
    on the approver's go.
 6. **build-backlog** (product-owner, no gate). Tasks `task-109…`, tagged `v0.2.2`, `add → submit`
    `[draft → pending]`, grouped by §6.8 step so the dev-loop respects its order (`depends_on`,
    `dl-015`): step 1 (`bug-137`; `dl-094`'s `.mailmap` if the ruling needs one), step 2 (`bug-075`,
    `dl-107`, `dl-095`, `dl-026`), step 3 (`dl-087` + `bug-136`), step 4 (`dl-088`), step 5 (`dl-091` +
-   `dl-093` metadata and the URL sweep after the approver's rename; `bug-138`, `bug-139`, `bug-140`,
+   `dl-093` metadata; **the slug sweep after the approver's transfer to `wingfoil/wingfoil`**, planned
+   below in *Visibility session outcome* §C, before the publish; `bug-138`, `bug-139`, `bug-140`,
    `bug-128`, `bug-129`; `bug-021`; `dl-123` edge then `bug-092`; `dl-096` vision re-baseline). The
    selected bugs go `bug.set_state(planned)` `[triaged → planned]`. `release: "v0.2.2"` is stamped on
    `bug-021`, `bug-075`, `bug-092`, `bug-128`, `bug-129`, `bug-136` (from `v0.3`, approver ruling
-   2026-09-29) and `dl-026`, and on every ADR, spec and task this phase creates.
+   2026-09-29) and `dl-026`, and on every ADR, spec and task this phase creates. The build-backlog also carries
+   the two follow-ups identify-specs deferred (the `spec-008` token option, `dl-107` Action 2; the
+   npm approval step in `release-publishing.yaml`, `dl-087` Action 3).
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`;
    `patch-v0.2.2` `[planning → in-development]`.
 
@@ -171,7 +174,119 @@ recorded here, with the date and the account used, and each becomes a `service` 
 |---|---|---|---|
 | GitHub organisation `wingfoil` | 2026-09-29 11:05 UTC | `robypomper` (GitHub) | `https://api.github.com/orgs/wingfoil` → `created_at: 2026-09-29T11:05:14Z` |
 | npm organisation `wingfoilhq` | 2026-09-29 | `robypomper` (npm) | `https://registry.npmjs.org/-/org/wingfoilhq/package` → 200 |
-| `wingfoil.dev`, `wingfoilhq.dev`, handles | not yet | — | — |
+| `wingfoil.dev`, `wingfoilhq.dev`, Bluesky | **after v0.3** (`dl-091` addendum, D7) | — | — |
+| `wingfoilhq` on X, LinkedIn, Mastodon, YouTube | not yet; the approver checks at signup | — | — |
+
+## Visibility session outcome (2026-09-29)
+
+The project-visibility session handed back what it did after its planning was absorbed by the v0.2
+retrospective (§6.7): the approver's external actions and decisions, each with its dated source. The
+approver chose on 2026-09-29 to integrate it here rather than revive that withdrawn plan
+(`decision-log-ingest-rel-v0.3-visibility-plan`, which exists only on the withdrawn branch). External
+checks are **not repeated**. The evidence below is the session's, with its dates, except where a row
+says this session read it.
+
+### A. Execution Notes of the visibility planning's stages 3 and 5
+
+**Stage 3 — name check → DL-N (2026-09-28/29).** DL-N is `dl-091`. Its facts and ratified answers
+are in `dl-091` (`4283ca65`, `f5927f93`, approve `a4e80e11`). The session's own findings and the
+approver's later decisions went into its addendum (`1405a700`):
+- the brand stays WingFoil (D3), positioning "Intent" (D4);
+- the organisation `wingfoil` and the repository transfer happen last (D5);
+- `@wingfoilhq` is the npm scope, because `@wingfoil` is wingfoil-io's (D6);
+- the domains wait until after v0.3 (D7);
+- wingfoil-io's "deterministic" positioning, and the trademark residual risk.
+
+Stage 4 (DL-P) is `dl-092`, ratified `864d8bdf`.
+
+**Stage 5 — external steps (2026-09-29).** The order was identities → repository settings →
+directory claims → metrics baseline. Done by the approver:
+- the GitHub organisation `wingfoil` and the npm organisation `wingfoilhq`, both from the
+  `robypomper` account;
+- the repository settings of §B.3, applied by hand in the web interface.
+
+Directory claims did not happen: the MCP Registry entry needs the transfer and `dl-093`'s `mcpName`
+first. The metrics baseline was read on 2026-09-29 and is recorded in `dl-130`'s Context
+(`2f3f14ee`). It is DL-F's baseline, next to the first reading of 2026-09-28,
+whose view count differs. The session also proposed declaring the repository's settings as code (a
+`.github/repository.yml` with a drift check). The approver declined it on 2026-09-29, and no
+decision-log was filed: **no repository settings as code in the project**.
+
+### B. `service` candidates — registered through `service-ingest` once `dl-088` is implemented (§6.8 step 4)
+
+Each is `add → submit`, and the approver approves after running `verify`. None carries a secret
+value.
+
+1. **GitHub organisation `wingfoil`.**
+   - provider GitHub · kind `account` · owner_role `approver` · account `robypomper` (owner) ·
+     renews `""` (free plan) · url `https://github.com/wingfoil` · created 2026-09-29.
+   - verify: `gh api orgs/wingfoil --jq .login` → `wingfoil`.
+   - Purpose: owner of the canonical repository, the MCP namespace `io.github.wingfoil`, and Pages.
+   - Settings the session recommended, for the approver to confirm as applied: profile name
+     "WingFoil" with the category line; require 2FA; base permission "No permission".
+2. **npm organisation `wingfoilhq`.**
+   - provider npmjs.com · kind `account` · owner_role `approver` · account `robypomper` (owner) ·
+     renews `""` (free, unlimited public packages) · url `https://www.npmjs.com/org/wingfoilhq` ·
+     created 2026-09-29.
+   - verify: `curl -s https://registry.npmjs.org/-/org/wingfoilhq/package` → HTTP 200 `{}`, read by
+     the session and by this one on 2026-09-29.
+   - Purpose: the scope for future auxiliary packages; the main package stays the unscoped `wingfoil`.
+3. **The GitHub repository's settings** (`robypomper/wingfoil`, then `wingfoil/wingfoil`).
+   - provider GitHub · kind `setting` · owner_role `approver` · applied by hand 2026-09-29.
+   - verify: `gh api repos/<owner>/wingfoil --jq '{description,homepage,topics,has_discussions,has_wiki,has_projects}'`.
+     The session read every value below through the GitHub MCP on 2026-09-29, and all matched:
+     - description: "The repo-native intent layer for AI-native software engineering — keeps intent
+       and engineering state in git, turns them into workflows, verifies what agents deliver.
+       CLI + MCP.";
+     - homepage `https://www.npmjs.com/package/wingfoil`, until a domain exists;
+     - 14 topics: `ai-agents`, `ai-assisted-development`, `claude-code`, `cli`,
+       `context-engineering`, `determinism`, `developer-tools`, `git`, `intent-engineering`, `mcp`,
+       `mcp-server`, `model-context-protocol`, `spec-driven-development`, `typescript`;
+     - Discussions on, Issues on, Wiki off, Projects off; public; MIT;
+     - Discussions categories Announcements, Q&A, Ideas, Show and tell (General and Polls deleted;
+       the approver's report);
+     - no social preview (`dl-128`).
+   - This element is the only record of the settings: they are not declared as code (approver
+     ruling, 2026-09-29).
+4. **Backfill already listed in `dl-088` Actions.** The npm package `wingfoil`, the `npm-publish`
+   environment and the repository's visibility, all unchanged by the session. The `NPM_TOKEN` secret
+   is recorded only if it still exists when the type lands: `adr-011` removes it.
+
+### C. The slug change — planned before the v0.2.2 publish
+
+The transfer `robypomper/wingfoil → wingfoil/wingfoil` is the approver's last identity step (D5), and
+it must land **before** the v0.2.2 publish, because npm provenance checks `repository.url` against the
+repository that builds the package. build-backlog derives one task for it, in §6.8 step 5, which
+depends on the transfer. The task:
+
+- **changes the slug** in `package.json` (`repository.url`, `homepage`, `bugs.url`) and in
+  `test/cli/publish-metadata.test.ts` (`REPO_SLUG`). These are the two files `dl-091` Q3 step 3
+  found. The task re-runs its `grep` rather than trusting the list;
+- **checks `spec-015` §1 against the result.** The 2026-09-29 amendment (`0a4f7a9c`) already fixes
+  `<owner>` as `wingfoil`. If the task finds anything in `spec-015` still naming `robypomper/wingfoil`,
+  it amends it under the approver's sign-off in the same task;
+- **leaves historical Memory documents citing the old slug unchanged**, because GitHub redirects;
+- **after the transfer, re-checks** on `wingfoil/wingfoil`:
+  - the `npm-publish` environment and its required reviewer;
+  - the Actions secrets, where `adr-011` expects no `NPM_TOKEN`;
+  - the Claude GitHub App installation on the `wingfoil` organisation;
+  - the local remotes (`git remote set-url origin https://github.com/wingfoil/wingfoil.git`);
+  - the trusted publisher on npmjs.com, keyed on `wingfoil/wingfoil` (`adr-011` point 2);
+  - the repository's settings (§B.3).
+
+### D. For `dl-093`'s metadata task (§6.8 step 5)
+
+The session's keyword list adds `intent-engineering`, `context-engineering` and `developer-tools` to
+`dl-093`'s list, and omits `workflow` and `governance`. `spec-015` §1 fixes a minimum and leaves the
+exact list to the task. The task starts from the union, and the approver settles the list at review.
+`mcpName` is `io.github.wingfoil/wingfoil` in both `package.json` and `server.json`, and the
+`description` follows the category line (`spec-015` §1, §1a).
+
+### E. After v0.3 — not planned here
+
+Registering `wingfoil.dev` and `wingfoilhq.dev` (auto-renew, transfer lock, WHOIS privacy), each a
+`service` with `renews`; the Pages custom domain; Bluesky `@wingfoil.dev`; the `wingfoilhq` social
+handles; an optional EUIPO filing (`dl-091` addendum).
 
 ## Handoff
 
