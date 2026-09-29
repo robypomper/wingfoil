@@ -2,7 +2,7 @@
 id: "dl-044-typecheck-gate-for-test-sources"
 type: decision-log
 title: "test/** lost its only standing typecheck gate when ts-jest moved to tsconfig.test.json"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
