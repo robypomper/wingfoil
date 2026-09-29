@@ -2,7 +2,7 @@
 id: "dl-084-which-baseline-a-read-only-verb-reports-from"
 type: decision-log
 title: "A user refused by `memory add` will check with `memory search --type`, and the two answer from different baselines — so the tool can tell someone a type both does and does not exist"
-status: in-discussion
+status: ready
 context: "architecture"
 release: ""
 contributor: ""
