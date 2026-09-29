@@ -114,9 +114,9 @@ delegated.**
 Systematically mine the `## Execution Notes` of **every v0.1 Memory document** to surface process
 friction — the raw evidence base for the retrospective. **Read-only, no state change**; feeds A3.
 
-- **Sources swept (exhaustive):** all 33 `docs/self/docs/04_memory/v0.1/task-*.md` (Execution Notes);
-  the bug files `docs/self/docs/04_memory/bugs/bug-*.md`; the six governance DLs (`dl-013..018`); the
-  `minor-v0.1` release doc `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` *(dir normalized to
+- **Sources swept (exhaustive):** all 33 `docs/04_memory/v0.1/task-*.md` (Execution Notes);
+  the bug files `docs/04_memory/bugs/bug-*.md`; the six governance DLs (`dl-013..018`); the
+  `minor-v0.1` release doc `docs/04_memory/planning/rl-v1/minor-v0.1.md` *(dir normalized to
   `rl-v1/` in B12 — T11)*; the outcome sections of `docs/05_plans/rl-v1/rel-v0.1/*`.
 - **Extracted:** plan deviations, blockers, scope surprises, review rejection reasons, honest-TDD notes,
   tooling immaturity/verification-only work, forward-reference / inter-task dependency friction,
@@ -135,7 +135,7 @@ not an approval-gated transition** (no commit). Resolved this run:
 
 ### A3 · capture — role: facilitator
 - `memory.add(type: decision-log, title: "Retrospective v0.1")` → `retro-v0.1.md`
-  (`docs/self/docs/04_memory/design/dls/retro-v0.1.md`), then `memory.submit` (`draft → in-discussion`).
+  (`docs/04_memory/design/dls/retro-v0.1.md`), then `memory.submit` (`draft → in-discussion`).
   Two commits: `wf(decision-log): add retro-v0.1` then `wf(decision-log): submit retro-v0.1`.
 - Frontmatter: `context: retrospective`, `release: v0.1`.
 - **Body — synthesize the A1 inventory + A2 decisions** into went-well / what-didn't / **action items**,

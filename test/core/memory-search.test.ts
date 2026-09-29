@@ -11,7 +11,7 @@
  * `CoreFn` both `src/cli`'s `memory search` command and the MCP `wingfoil://memory/search` Resource
  * call. Wraps task-008/023's `src/memory/query.ts` primitives (`searchMemoryDocuments`,
  * `validateSearchQuery`) — no scan/ranking/validation logic is reimplemented here. Every fixture
- * lives in a THROWAWAY temp git repo (never this repo's own `docs/self/docs/04_memory/`).
+ * lives in a THROWAWAY temp git repo (never this repo's own `docs/04_memory/`).
  */
 import { CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';

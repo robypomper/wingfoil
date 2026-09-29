@@ -92,7 +92,7 @@ describe('LICENSE file (task-070) — AC2 every licence claim agrees', () => {
   });
 
   it('matches the `dna.yaml` project licence entry', () => {
-    const dna = readFileSync(join(REPO_ROOT, 'docs', 'self', '.wingfoil', 'dna.yaml'), 'utf-8');
+    const dna = readFileSync(join(REPO_ROOT, '.wingfoil', 'dna.yaml'), 'utf-8');
     expect(dna).toMatch(/^ {2}license: MIT\s*$/m);
   });
 });

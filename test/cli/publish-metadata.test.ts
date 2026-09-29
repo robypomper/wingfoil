@@ -22,7 +22,7 @@
  * are there) and two spot exclusions. That is satisfiable by a tarball that also ships something it
  * should not, so this file tightens it to an **exhaustive allowlist** — every packed path must be
  * `dist/**`, `README.md`, `LICENSE` (npm packs it regardless of `files`; task-070), or `package.json`.
- * A package that leaked `docs/self/` or dropped `dist/` fails here.
+ * A package that leaked the project's own `.wingfoil/` or `docs/04_memory/` or dropped `dist/` fails here.
  *
  * Deterministic: both the parsed `package.json` and `npm pack --dry-run`'s file selection are pure
  * functions of the working tree — no clock, no network, no ordering assumptions (path sets are

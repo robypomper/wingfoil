@@ -5,7 +5,7 @@
  * type's `path` pattern against caller-supplied values — including `{id}`, which the ID-generation
  * engine (src/validation/id.ts, task-002) already produced — with no hardcoded paths anywhere.
  *
- * `path` values below are copied verbatim from docs/self/.wingfoil/memory.yaml, per the project's
+ * `path` values below are copied verbatim from .wingfoil/memory.yaml, per the project's
  * established convention (see test/validation/id.test.ts, test/core/module-layout.test.ts).
  */
 import { join } from 'path';

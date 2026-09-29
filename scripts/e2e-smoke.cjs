@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * dl-023 fresh-init + CLI end-to-end smoke — the executable form of
- * `docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`, reused verbatim as spec-015 §3 stage 3.
+ * `.wingfoil/workflows/custom/e2e-smoke.yaml`, reused verbatim as spec-015 §3 stage 3.
  *
  * Black-box: it only spawns a `wingfoil` command and reads exit codes/stdout. For each supported template
  * it creates a throwaway git repository, runs `wingfoil init --template <T>`, drives the scaffolded project

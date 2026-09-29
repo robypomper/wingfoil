@@ -33,12 +33,12 @@
  * now only asserts the shared `dist/` is present.
  *
  * The fixture `.wingfoil` config lives at `test/cli/fixtures/wingfoil-root/` — a small, static,
- * committed config (not the evolving `docs/self/.wingfoil/` one), so this test's assertions never
+ * committed config (not the evolving `.wingfoil/` one), so this test's assertions never
  * drift out from under it as the real project config changes.
  *
  * Every exit code / message asserted below was confirmed by running the harness by hand against the
  * compiled `dist/` before writing the assertion (see this task's Execution Notes) — not guessed from
- * `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md`. Until
+ * `docs/04_memory/design/specs/spec-008-cli-grammar.md`. Until
  * task-101-route-commander-parse-errors-through-the-exit-code-contract (`bug-098`) an unknown command
  * exited `1` here — Commander's own built-in default (`Command.unknownCommand()` ->
  * `this.error(message, { code: 'commander.unknownCommand' })`, `exitCode` defaulting to `1`) — against

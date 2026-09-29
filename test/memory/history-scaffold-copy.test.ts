@@ -13,7 +13,7 @@
  * distinction rather than only the defect:
  *
  * - a **rename** (`R`) is the element continuing under a new name — keep following it. This is not
- *   hypothetical: `docs/self/docs/04_memory/planning/v1/*` was renamed to `planning/rl-v1/*` in this
+ *   hypothetical: the Memory folder's `planning/v1/*` was renamed to `planning/rl-v1/*` in this
  *   repository, moving five `release` elements at once, because the `release` type's `path` pattern
  *   interpolates the release-line id. Dropping `--follow` would cut `minor-v0.1`'s audit trail from
  *   six commits to one.

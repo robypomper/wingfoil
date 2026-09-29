@@ -2,7 +2,7 @@
  * bug-004-dna-set-strips-yaml-comments / task-063 — `wingfoil dna set` must be a MINIMAL,
  * comment-preserving in-place edit, not a whole-file `js-yaml` `dump()` round-trip.
  *
- * The fixture is deliberately **WingFoil's own `docs/self/.wingfoil/dna.yaml`**, read from this
+ * The fixture is deliberately **WingFoil's own `.wingfoil/dna.yaml`**, read from this
  * repository at run time: it is the real, comment-dense artefact the bug is about, and the one whose
  * inline `[SPEC]`/`[AUTHORING]` field-provenance annotations carry governance weight (removing or
  * renaming a `[SPEC]` field requires changing the referenced specification first, per the legend
@@ -25,7 +25,7 @@ import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../
 
 /** WingFoil's own dogfooding Project DNA — the realistic comment-rich fixture bug-004 describes. */
 const REAL_DNA = readFileSync(
-  join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml'),
+  join(__dirname, '..', '..', '.wingfoil', 'dna.yaml'),
   'utf-8',
 );
 

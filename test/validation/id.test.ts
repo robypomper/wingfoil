@@ -1,7 +1,7 @@
 import { EXIT_INTEGRITY, ValidationError } from '../../src/validation/errors';
 import { generateId, patternToRegExp } from '../../src/validation/id';
 
-// id_pattern values copied literally from docs/self/.wingfoil/memory.yaml (the authoritative
+// id_pattern values copied literally from .wingfoil/memory.yaml (the authoritative
 // source), one per Memory type — not re-derived. Mirrors module-layout.test.ts's convention of
 // copying config values verbatim. Padding to 3 digits is the engine's declared choice (memory.yaml
 // records exact numbering/padding as "an ID-generation-engine detail, not fixed here").

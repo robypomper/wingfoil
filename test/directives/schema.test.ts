@@ -3,7 +3,7 @@
  * the task's Acceptance Criteria ("directives/*.yaml ... validate against their own Zod schema
  * independently"). NOTE: unlike memory.yaml/dna.yaml/workflows.yaml, no dedicated tech-spec exists
  * yet for the directive file's own frontmatter shape (spec-010-memory-frontmatter-schema explicitly
- * scopes to `docs/self/docs/04_memory/**\/*.md`, not `.wingfoil/directives/**`). This schema is
+ * scopes to `docs/04_memory/**\/*.md`, not `.wingfoil/directives/**`). This schema is
  * grounded directly in the fields actually present on every current directive file, plus one BDD
  * contract requirement (`name` is required per `p3-directives/P3.5-project-directives.feature`'s
  * "missing required header fields" scenario) — see this task's Execution Notes for the design-gap
@@ -68,9 +68,9 @@ describe('DirectiveFrontmatter — structural shape', () => {
   });
 });
 
-describe('DirectiveFrontmatter — validates every real, live docs/self/.wingfoil/directives/custom/*.md file', () => {
+describe('DirectiveFrontmatter — validates every real, live .wingfoil/directives/custom/*.md file', () => {
   it('parses each file’s frontmatter with zero structural errors', () => {
-    const dir = join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'directives', 'custom');
+    const dir = join(__dirname, '..', '..', '.wingfoil', 'directives', 'custom');
     const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
@@ -90,7 +90,7 @@ describe('DirectiveFrontmatter — validates every real, live docs/self/.wingfoi
 /**
  * RolesYaml schema (task-037-role-task-scoped-context, REQ-STATE-05) — the role → directive binding
  * config (`.wingfoil/roles.yaml`, P3.2/P3.7) `directive-loader` (spec-012 §5) resolves against. A
- * minimal [AUTHORING] shape grounded directly in the real `docs/self/.wingfoil/roles.yaml` file's
+ * minimal [AUTHORING] shape grounded directly in the real `.wingfoil/roles.yaml` file's
  * fields (`version`, `assignments`, `global`) — same rationale as `DirectiveFrontmatter` above: no
  * dedicated tech-spec exists for this pillar's file shapes yet.
  */
@@ -126,9 +126,9 @@ describe('RolesYaml — structural shape', () => {
   });
 });
 
-describe('RolesYaml — validates the real, live docs/self/.wingfoil/roles.yaml file', () => {
+describe('RolesYaml — validates the real, live .wingfoil/roles.yaml file', () => {
   it('parses the live file with zero structural errors', () => {
-    const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'roles.yaml'), 'utf-8');
+    const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'roles.yaml'), 'utf-8');
     const data = load(raw);
     const result = RolesYaml.safeParse(data);
     if (!result.success) {

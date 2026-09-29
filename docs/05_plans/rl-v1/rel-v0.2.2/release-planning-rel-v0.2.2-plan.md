@@ -13,7 +13,7 @@ tmpl_version: 260703
 
 ## Context
 
-`patch-v0.2.2` (`docs/self/docs/04_memory/planning/rl-v1/patch-v0.2.2.md`) is the first patch of a
+`patch-v0.2.2` (`docs/04_memory/planning/rl-v1/patch-v0.2.2.md`) is the first patch of a
 released minor. The v0.2 retrospective ruled that it ships before v0.3.0 (`retro-v0.2`, rows 9–42;
 `retrospective-rel-v0.2-plan` §6.7–§6.8), and `dl-092` ruled how it is tracked: a `release` element
 with `kind: patch` and `patch-of: minor-v0.2` (Q1 (A), id variant (a), `{kind}-{version}`), running
@@ -58,7 +58,7 @@ through `git merge main`, never a rebase (`dl-035`).
 
 **Produces.** `patch-v0.2.2` → `in-development`; `dl-091` → `ready`; the selected bugs `triaged` then
 `planned`, `bug-094` `closed`; any ADR or tech-spec amendment the scope needs; tasks `task-109…` at
-`backlog` under `docs/self/docs/04_memory/v0.2.2/`; `release: "v0.2.2"` stamped on every included
+`backlog` under `docs/04_memory/v0.2.2/`; `release: "v0.2.2"` stamped on every included
 element.
 
 ## Phases / Steps

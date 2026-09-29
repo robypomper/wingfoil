@@ -122,7 +122,7 @@ paths:
   sources: [ src/ ]
 `;
 
-// Mirrors docs/self/.wingfoil/memory.yaml's real path patterns (states omitted — not needed by the
+// Mirrors .wingfoil/memory.yaml's real path patterns (states omitted — not needed by the
 // query primitives, and MemoryTypeEntry.states is optional).
 const MEMORY_YAML = `
 version: 1.1

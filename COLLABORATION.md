@@ -1,6 +1,6 @@
 # Contributing to WingFoil — through Memory, not (only) code
 
-**Version:** 1.0 · **Date:** 2026-07-08
+**Version:** 1.1 · **Date:** 2026-09-29
 
 WingFoil is a harness for **AI-assisted, deterministic software development**. It manages its own
 development the same way it asks other projects to (dogfooding): every change flows through
@@ -12,7 +12,7 @@ into delivered work.** You do not need to write the code, the tests, or run `win
 
 > This is the demonstration of WingFoil's thesis: structured, AI-mediated contribution is more
 > reproducible than an unstructured pull-request inbox. Decision recorded in
-> [`dl-020-contribution-model`](docs/self/docs/04_memory/design/dls/dl-020-contribution-model.md).
+> [`dl-020-contribution-model`](docs/04_memory/design/dls/dl-020-contribution-model.md).
 
 ---
 
@@ -23,7 +23,7 @@ capture (“ingest”) workflow:
 
 | You want to… | File a… | Via workflow | Lands as |
 |---|---|---|---|
-| report a defect | **Bug** | `bug-ingest` | `docs/self/docs/04_memory/bugs/{id}.md` |
+| report a defect | **Bug** | `bug-ingest` | `docs/04_memory/bugs/{id}.md` |
 | propose a product/process decision | **Decision-Log (DL)** | `decision-log-ingest` | `…/design/dls/{id}.md` |
 | propose an architectural decision | **ADR** | `adr-ingest` | `…/design/adrs/{id}.md` |
 | define a shared format/schema/API | **Tech-Spec** | `release-planning` (`identify-specs`) | `…/design/specs/{id}.md` |
@@ -49,7 +49,7 @@ Once the CLI ships, you (or an agent on your behalf) will run the ingest workflo
 
 Attribution in WingFoil rides on **git identity**: every state-change commit records its author and
 timestamp as the audit trail
-([`adr-006-git-identity-role-based-authz`](docs/self/docs/04_memory/design/adrs/adr-006-git-identity-role-based-authz.md)).
+([`adr-006-git-identity-role-based-authz`](docs/04_memory/design/adrs/adr-006-git-identity-role-based-authz.md)).
 That records *who made the change*. It does **not**, by itself, capture *whose idea it was* when an AI
 agent — not the contributor — authors the commits.
 
@@ -79,6 +79,6 @@ truth model — no external contributor database, no commit rewriting.
 ## Pointers
 
 - Project overview & how it all fits together: [`CLAUDE.md`](CLAUDE.md) and
-  [`docs/self/.wingfoil/README.md`](docs/self/.wingfoil/README.md).
+  [`.wingfoil/README.md`](.wingfoil/README.md).
 - The decision behind this document: `dl-020-contribution-model`.
 - Attribution model: `adr-006-git-identity-role-based-authz`.

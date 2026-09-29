@@ -3,7 +3,7 @@
  * task-040-role-based-approval-authority). Mirrors `test/core/git-identity.test.ts`'s isolation
  * pattern for the git-identity-resolution cases, and `test/memory/state-machine.test.ts`'s
  * real-config-fixture pattern for the pure role-lookup cases (parses the REAL
- * `docs/self/.wingfoil/dna.yaml`, whose one `team.members` entry — Roberto Pompermaier,
+ * `.wingfoil/dna.yaml`, whose one `team.members` entry — Roberto Pompermaier,
  * `robypomper@gmail.com` — holds the `approver` role among others).
  *
  * Since task-090 (`bug-079-uncommitted-dna-yaml-grants-approval-authority`), `requireApprovalAuthority`
@@ -24,7 +24,7 @@ import { DnaYaml } from '../../src/dna/schema';
 import { hasApproverRole, requireApprovalAuthority, resolveMemberRoles } from '../../src/core/approval-authority';
 import * as loaders from '../../src/core/loaders';
 
-const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml'), 'utf-8');
+const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'dna.yaml'), 'utf-8');
 const realDna = DnaYaml.parse(load(raw));
 
 const REVIEWER_ONLY_DNA: DnaYaml = {

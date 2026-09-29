@@ -1,0 +1,569 @@
+---
+id: spec-008-cli-grammar
+type: tech-spec
+title: "CLI grammar & global options (src/cli)"
+status: approved
+scope: "src/cli"
+supersedes: ""
+tmpl_version: 260703
+---
+
+## Context
+
+`src/cli` (Commander.js + chalk, `dna.yaml` `tech_stack.cli`) is one of two surfaces that must expose
+**identical behaviour** for every WingFoil operation (REQ-SYS-05 — single behaviour behind CLI and MCP).
+Every `CLI-*`/`memory.*` command, every workflow step that shells out to `wingfoil`, and every BDD
+scenario under `docs/02_requirements/02_bdd/features/p1-memory/` and `p5-interaction/` assumes a single,
+shared grammar: how commands are invoked, which flags are global, how a Memory document is referenced on
+the command line, and when the CLI prompts interactively versus fails outright. Without one authoritative
+definition, individual command implementations would each reinvent flag parsing, error formatting, and
+exit-code conventions — producing divergent, non-deterministic CLI behaviour that breaks REQ-INT-04
+(exit-code contract), REQ-INT-05 (machine-readable output), and REQ-INT-08 (consistent error format).
+
+## Specification
+
+### 1. Invocation grammar
+
+Two invocation forms, matching the command map in `docs/01_vision/X_cli-cmds.md` and the `CLI-*` command
+surface:
+
+```
+wingfoil [global-flags] <noun> <verb> [args] [flags]      # pillar/verb form, e.g. `memory add`
+wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. `init`, `paths`, `audit`
+```
+
+- `<noun>` is a pillar namespace (`memory`, `dna`, `directive`, `directives`, `workflow`, `agent`) or a
+  flat command (`init`, `paths`, `audit`). The DNA pillar's verbs are `show`, `set`, and the three
+  mutation verbs `add`, `remove` and `update` (§9) — the collection they act on travels in their
+  `<path>` argument, not in the verb name, so the verb list does not grow as `spec-002`'s schema does
+  (`dl-081-dna-mutation-surface-shape`). The Directives pillar deliberately exposes two nouns —
+  singular `directive` (`create`, `assign`, `remove`) and plural `directives` (`list`) — each the
+  `CoreModule.name` its operations register under (`spec-006-core-domain-api` §3 `module` column,
+  `dl-041-spec-006-module-grouping-vs-core-module-name`).
+- Global flags (§2) may appear anywhere after `wingfoil` — before or after `<noun>`/`<verb>`. If a flag is
+  repeated, the last occurrence wins.
+- Unknown `<noun>` or `<noun> <verb>` tokens produce `E_UNKNOWN_COMMAND` (exit `2`, REQ-INT-04) with a
+  closest-match suggestion when Levenshtein distance ≤ 2 (ground-truth BDD:
+  `p5-interaction/P5.1.4-cli-ux.feature` — `wingfoil memroy add` → `"unknown command 'memroy'"` suggests
+  `"memory"`, exit `2`).
+
+### 2. Global flags
+
+Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08:
+
+| Flag              | Type                   | Default   | Behaviour                                                                                             |
+|-------------------|------------------------|-----------|---------------------------------------------------------------------------------------------------------|
+| `--help`, `-h`    | flag                   | —         | Print context-sensitive help (synopsis, args, flags, example) and exit `0`. Takes precedence over all other flags. |
+| `--version`       | flag                   | —         | Print CLI version and exit `0`. Takes precedence over all other flags except `--help`.                |
+| `--format <fmt>`  | `console\|json\|yaml`  | `console` | Output encoding. `console` for humans (colour, `✓`/`⚠`/`✗` prefixes); `json`/`yaml` for scripting/CI (REQ-INT-05). An unsupported value exits `2` with `error: invalid --format value "<value>"`. |
+| `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`); optional elsewhere (e.g. `memory deprecate`). Recorded in the resulting git commit body (P1.7) as a `Reason:` **block** — the remainder of the `Reason:` line plus every following body line, up to (exclusive) git's trailing trailer paragraph or the end of the body — in the **declared normal form**, not as the raw argument (`dl-067-reason-trailer-contract`; see the Notes). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
+| `--reason` (unrecordable value) | —        | —         | A reason that cannot be recorded faithfully in the trailer is refused at the CLI boundary with exit `2`, before anything is read or written, on **every** verb that takes the flag — `memory deprecate` included, where the flag is optional but a declared-and-empty value is still a usage error (`dl-067` S2). Three cases, each with its own message, none of them `missing required argument: --reason` (which answers the *omitted* case above): blank or whitespace-only → `error: invalid flag value: --reason must not be blank`; a line starting `Approver:` or `Reason:` → `error: invalid flag value: --reason must not contain a line starting with "Approver:" or "Reason:"`; a final paragraph made entirely of `Key: value` lines → `error: invalid flag value: --reason must not end in a paragraph of "Key: value" lines`. |
+| `--verbose`       | flag                   | `false`   | Emit diagnostic logs to stderr in plain text, even under `--format json`/`yaml`. Never alters stdout.  |
+| `--color` (negatable) | boolean flag        | `true`    | ANSI colour on stdout. Pass `--no-color` to disable; also disabled automatically when `NO_COLOR` is set to any non-empty string (https://no-color.org/) — an explicitly empty `NO_COLOR=` does **not** disable colour. |
+| `--interactive` (negatable) | boolean flag  | `true`    | Whether missing required args may trigger a readline prompt in a TTY (§4). Pass `--no-interactive` to force immediate failure instead. |
+
+Notes:
+
+- `--format` values are `console`/`json`/`yaml`; the fit criterion in REQ-INT-05 calls these out
+  explicitly for `wingfoil paths` and `wingfoil workflow status`, but the flag is registered globally so
+  every command honours it uniformly (REQ-SYS-05).
+- `--color`/`--interactive` are **negatable booleans**, not independent `--no-*` flags with their own
+  default — see §3 for why this distinction matters and how Commander.js models it.
+- **`--reason`'s declared normal form** (`dl-067-reason-trailer-contract`, ratified), in two parts:
+  - **What git already does, and would do whether or not this row existed** — per-line trailing
+    whitespace stripped, runs of blank lines collapsed to one, leading and trailing blank lines
+    dropped. That is git's own `cleanup=whitespace`, which `git commit -m` applies to every message.
+    Stating it here does not add a transformation; it makes the outcome declared instead of incidental.
+  - **What WingFoil adds** — the first line's leading whitespace is trimmed. git does **not** do this;
+    it is the writer's own step, and it exists because that line sits after `Reason: ` on the same
+    physical line and the reader consumes the key with its following whitespace. Without it, a reason
+    beginning with spaces would round-trip unequally.
+
+  Interior indentation is preserved by both parts. The rule is enforced once, where the trailer is
+  built, and the reader consumes the same grammar, so what is read back out of the commit equals what
+  the writer declared rather than approximately equalling what the caller typed.
+- **Why not "verbatim".** This row said "Recorded verbatim in the resulting git commit body" until
+  `dl-067`. That was never achievable for multi-line text — git normalizes on the way in — and the gap
+  between the promise and the behaviour was `bug-042`: a blank reason was accepted at exit `0` and
+  destroyed the whole approval record, a multi-line one was truncated to its first line on read, and
+  one shaped like a trailer could forge a second `Approver:` line into the audit record.
+
+### 3. Commander.js negatable-boolean pattern (`--no-color`, `--no-interactive`)
+
+A naive implementation might register `.option('--no-color', ..., false)` and then read
+`flags.noColor`. That is wrong on two counts — Commander's negatable-boolean convention exposes the
+**positive** property (`color`, default `true`), so `flags.noColor` is `undefined` and the check never
+fires; and passing an explicit `false` default flips the *positive* property's default to disabled,
+inverting the intended "colour on unless opted out" contract. This spec mandates the correct pattern
+below instead.
+
+**Correct pattern** — register the flag with no default, and read the *positive*, auto-negated property
+Commander creates from any `--no-<name>` option:
+
+```ts
+import {Command} from 'commander'
+
+const program = new Command('wingfoil')
+
+program
+    .option('--format <format>', 'output format (console|json|yaml)', 'console')
+    .option('--verbose', 'emit diagnostic logs to stderr')
+    .option('--no-color', 'disable ANSI colors')          // -> opts().color, default true
+    .option('--no-interactive', 'fail on missing args instead of prompting') // -> opts().interactive, default true
+
+const opts = program.opts()
+// opts.color        === true unless --no-color was passed (then false)
+// opts.interactive   === true unless --no-interactive was passed (then false)
+
+const colorEnabled = opts.color && !isNoColorEnvSet()
+const interactiveAllowed = opts.interactive
+```
+
+```ts
+function isNoColorEnvSet(): boolean {
+    const env = process.env['NO_COLOR']
+    return env !== undefined && env !== ''
+}
+```
+
+Key rule: **never** declare a manual default on a `--no-*` option and **never** invent a `noColor`/
+`noInteractive` property — Commander derives `color`/`interactive` automatically from the flag's name,
+defaulting to `true`; only check `opts().color === false` / `opts().interactive === false` (or the
+truthy/negated form shown above).
+
+### 4. Interactive-prompt rules
+
+| Condition                                                        | Behaviour                                                          |
+|--------------------------------------------------------------------|------------------------------------------------------------------------|
+| All required args present (flags or positionals)                 | Direct execution; no prompt                                          |
+| Required arg missing, stdout is a TTY, `--interactive` (default)  | Readline prompt for each missing arg, one at a time                  |
+| Required arg missing, stdout is **not** a TTY (CI/pipe/non-interactive) | Fail immediately: exit `2`, `error: missing required argument: --<name>` |
+| `--no-interactive` passed (any TTY state)                         | Fail immediately, same as the non-TTY case — no prompt is attempted  |
+
+Wizard-style multi-step collection (`wingfoil init` with no `--mode params` flags) is command-specific:
+it runs the same present/missing × TTY/non-TTY matrix per field, in the field order the command defines.
+Optional flags never trigger a prompt — an omitted optional flag simply keeps its default.
+
+### 5. Exit-code contract (REQ-INT-04)
+
+| Code | Name              | When                                                                                     |
+|------|-------------------|-------------------------------------------------------------------------------------------|
+| `0`  | Success            | Command completed (including a no-op `--dry-run` simulation)                             |
+| `1`  | User/logic error   | Valid invocation, but the operation itself failed: unknown Memory type, illegal state transition, document not found, unauthorized approver |
+| `2`  | Usage/argument error | Malformed invocation: unknown command/flag, missing required argument, invalid `--format` value |
+
+This table is the single source of truth for exit codes; ground-truth BDD scenarios (`P1.3-memory-add`,
+`P1.6-memory-submit`, `P1.7-memory-approve`, `P5.1.4-cli-ux`) exercise exactly these three codes and no
+others.
+
+A distinction the DNA verbs make visible, and which the table already decides: a **malformed** path is
+exit `2` (`dna set ..language --value python` → `error: invalid key path: '..language'`, as
+`P2.1-dna-set.feature` pins it) — and so are the two ways §9's quoting can fail, an unterminated
+quote and a `"` no delimiter can account for — because the invocation itself is malformed, while a
+**well-formed path naming a field the schema does
+not declare** is exit `1` — a validation failure, like an unknown Memory type. The same reading is what
+`bug-076`'s Correction records the approver ruling for a dirty working tree: the code follows the kind
+of failure, not its severity.
+
+A second case the table decides once it is read the same way: a **noun invoked without its verb**
+(`wingfoil dna`), `wingfoil` invoked with no command at all, and `wingfoil help <unknown>` are
+**"missing required argument"** in the exit-`2` row — the case already enumerated there, not a fourth
+one. §1's grammar makes the verb a required argument of the noun, so an invocation that stops at the
+noun is malformed, and it exits `2` with an `error: ` line naming what was missing (`spec-005` §1's
+rule that a non-zero exit always carries an error message admits no exception for it). An argument
+parser that answers such an invocation by printing the command's usage has not thereby emitted the
+error message. An **explicit** request for help by name — `wingfoil help`, `wingfoil help <known>` —
+is the opposite case and exits `0` alongside `--help`/`--version`, even though it prints the same
+text.
+
+### 6. Error format (REQ-INT-08)
+
+Every user-facing error, on stderr, in `--format console` (default):
+
+```
+error: <reason>
+```
+
+Example:
+
+```
+$ wingfoil memory add --type unicorn --title "X"
+error: unknown memory type 'unicorn' (not defined in memory.yaml)
+```
+
+For `--format json` / `--format yaml`, the same `<reason>` is carried as a structured field:
+
+```json
+{"error": "<reason>"}
+```
+
+`--verbose` appends diagnostic lines (stack trace, underlying git output) to stderr after the error line;
+it never changes the error line itself or the exit code.
+
+### 7. Element-ref syntax
+
+A Memory document is referenced on the command line as `<type>:<id>` (colon separator):
+
+```
+task:task-101
+adr:adr-004
+release-line:rl-v1
+```
+
+Used consistently in every context that names a document *by type*:
+
+| Context                                    | Syntax        | Example              |
+|---------------------------------------------|---------------|-----------------------|
+| `--element` flag (`agent execute`)          | `<type>:<id>` | `--element task:202` |
+
+Commands whose noun already scopes the type (`memory submit <id>`, `memory approve <id> --reason ...`,
+`memory reject <id> --reason ...`, `memory deprecate <id>`) take the **bare `<id>`** as the positional
+argument — the type is not repeated because IDs are globally unique (`id_pattern` per type in
+`memory.yaml`) and the type is redundant once written out that way. `memory add` supplies the type via
+`--type <type>` instead of an element-ref, since the document does not exist yet.
+
+### 8. Help system
+
+| Invocation                    | Output                                                              |
+|--------------------------------|-----------------------------------------------------------------------|
+| `wingfoil --help`               | Binary synopsis, noun list (pillars + flat commands), global flags table |
+| `wingfoil <noun> --help`        | Noun synopsis, list of verbs with one-line descriptions               |
+| `wingfoil <noun> <verb> --help` | Synopsis, argument table, flags table, exit codes, one example        |
+
+Help output always renders as `--format console` regardless of the ambient `--format` flag, and always
+exits `0`.
+
+### 9. DNA field paths (`<path>` / `--value`)
+
+The DNA verbs state their parameters the way the other nine `memory`/`paths` commands already do
+(`dl-082-cli-parameter-shape`): **the path is a positional, because it identifies the target; every
+attribute is an option.** `dl-081-dna-mutation-surface-shape` ratified the surface (option (E)) with
+the path in a `--field` option; `dl-082` amended that one point and left its semantics untouched.
+
+```
+wingfoil dna set    project.license              --value MIT
+wingfoil dna add    team.roles                   --value reviewer --entry-description "reviews changes"
+wingfoil dna add    team.members                 --value roberto --entry-email r@example.it --entry-roles approver
+wingfoil dna add    team.members.roberto.roles   --value qa
+wingfoil dna add    paths.sources                --value "src/**"
+wingfoil dna update team.members                 --value roberto --entry-email new@example.it
+wingfoil dna update modules.core.path            --value src/core
+wingfoil dna remove modules                      --value core
+```
+
+| Parameter | Meaning |
+|--------|---------|
+| `<path>` | **Required**, and the only positional the verb reads. The FULL dotted path to the field, never a bare field name: `team.roles` (the project's role catalogue) and `team.members.<name>.roles` (one member's roles) are different fields, and both must be expressible. A segment may be double-quoted, which makes an entry whose `name` contains a `.` addressable — see *Quoting a segment* below. A second positional is refused at exit `2` naming the new grammar — the migration error for `dna set <key> <value>`. |
+| `--value` | The new entry's **identity** when `<path>` ends at a collection; the new **value** when it ends at a leaf. Comma-separated where the field is a list of values. Required for `add` and for `set`; required for `remove`/`update` unless `<path>` already identifies the entry. |
+| `--entry-<field>` | One option per field the entry schema declares (`--entry-description`, `--entry-path`, `--entry-email`, `--entry-roles`, `--entry-category`, `--entry-version`, `--entry-notes`, `--entry-phase`, `--entry-executes_as`), the `<field>` spelled exactly as `spec-002` spells it. Accepted by `add` and `update`. The `entry-` prefix is **required**, and is what keeps this derived namespace disjoint from the declared global flags in §2 — see the two outcomes below. |
+
+**What an unprefixed spelling does, which is two different things.** The option set is derived from
+`spec-002`'s entry schemas; §2's global flags are declared here. Where the two namespaces overlap, the
+global wins silently, which is the whole reason for the prefix:
+
+- A name §2 does **not** declare — `--category`, `--email`, `--notes` — is refused by Commander as an
+  unknown option, exit `2`, nothing written.
+- A name §2 **does** declare is consumed by the global instead and is never reported. Today the overlap
+  is exactly one name, `version` (`TechEntry` declares it), and because `--version` is an *action* flag
+  the result is a silent no-op: `wingfoil dna add stacks.technologies --value Go --version 1.22` prints
+  the CLI version and exits `0` having written nothing — §1's precedence rule and `spec-005` §1's exit
+  code, both working as specified. A global that merely carries a value (`--format`) or sets a boolean
+  (`--verbose`) would instead swallow the value and let the command run with that field absent.
+
+The second outcome is what the prefix removes **by construction**, for every present and future name on
+both sides: §2 is amendable, so a global flag added later would otherwise silently disable an entry
+field that had been writable, and a prefix applied only to the names that happen to collide would make
+an option's spelling depend on §2 — adding a flag there would silently *rename* an existing option.
+
+Two rules the shape rests on, both ratified rather than inferred:
+
+- **Entries are addressed by `name`, never by index.** `team.members.roberto.roles` reaches that
+  member's list; `team.members.2.roles` is refused. An index shifts the moment an entry is removed, so
+  a path written today would address a different entry tomorrow. Name uniqueness per collection is
+  therefore a schema constraint (`spec-002`), not an assumption.
+- **A path that does not resolve is refused, never created** — exit `1`, naming the path (§5). Under
+  add/remove/update semantics one cannot add to a collection that does not exist, and the same rule
+  answers the wider question: the DNA pillar accepts unknown keys when *reading* a document and refuses
+  to write one (`bug-084-dna-key-alias-writes-unschemad-keys`).
+
+**Quoting a segment** (`dl-083-dotted-entry-names-in-paths`, ratified). Entries are addressed by
+`name`, and a `name` may contain a `.` — `stacks.technologies` in this repository's own `dna.yaml`
+carries `Node.js` and `Commander.js`, and `team.agents` carries `AI agent (Claude/Cursor/etc.)`. A
+path segment may therefore be **double-quoted**, and a quoted segment is taken verbatim, dots
+included:
+
+```
+wingfoil dna update 'stacks.technologies."Node.js".version'                   --value 22.14+
+wingfoil dna add    'team.agents."AI agent (Claude/Cursor/etc.)".executes_as' --value reviewer
+wingfoil dna remove  stacks.technologies                                      --value "Node.js"
+```
+
+**The two quoting layers overlap, and that is the thing a reader gets wrong.** In the first line the
+**outer single quotes are the shell's** — without them the shell would eat the double quotes — and the
+**inner double quotes are WingFoil's**. Both are needed. The third line is the other way round: the
+double quotes there are the **shell's alone**, because `--value` never takes WingFoil quoting, and
+`--value '"Node.js"'` would name an entry whose name literally begins and ends with a quote.
+
+The rules, in full:
+
+- a segment is quoted when it **begins and ends** with `"`; the delimiters are not part of the name,
+  and inside them `.` is an ordinary character;
+- quoting is **optional** where it is unnecessary: `team."members".roberto` and
+  `team.members.roberto` are the same path;
+- a quoted segment may **not contain `"`**, and there is **no escape sequence** — a name containing a
+  double quote stays unaddressable. `dl-083` accepted that cost deliberately (no plausible technology,
+  module, role or person is named that way), so the refusal says the **name** is unaddressable rather
+  than that the path is malformed;
+- an **unterminated** quote is a usage error at exit `2` (§5), not a name that happens to begin with
+  `"`. So is a `"` no delimiter can account for, and so is an empty segment: all three are properties
+  of how the argument is spelled, decided before anything is read, which is what separates them from
+  the exit-`1` refusal of a path that is well-formed but resolves nowhere;
+- quoting applies to the **path only**. `--value` carries an entry's identity directly and never needs
+  it.
+
+`--value`'s double duty is a convention the grammar cannot show, so it is stated here and in the
+option's own `--help` text (`CoreOption.description`, `src/core/registry.ts`) rather than left to be
+discovered. `dna set` is the exception that proves it: it is `update` restricted to a scalar, so its
+`--value` carries only the second meaning and its `--help` says so. A `<path>` that names a collection
+or a list is refused there with the verb that reaches it.
+
+### 10. Id-pattern token values on `memory add` (`--set <name>=<value>`)
+
+`spec-001-memory-yaml-schema`'s `id_pattern` section (as amended 2026-09-29) gives every token other
+than `{n}`, `{slug}`, `{date}` and `{author}` its value from a **frontmatter field of the same name**,
+and the context tokens `{workflow}`, `{phase}` and `{scope}` from the workflow engine — "from the CLI
+they must be given explicitly" (`dl-107` S2 (a)+(c)). `memory add` carries those values through **one
+declared, repeatable option**:
+
+```
+wingfoil memory add --type release --title "WingFoil v0.2.3" \
+                    --set kind=patch --set version=v0.2.3 --set release-line=v1
+wingfoil memory add --type plan --title "Dev-loop — rel-v0.2.3" \
+                    --set workflow=dev-loop --set phase=rel-v0.2.3 --set scope=rl-v1/rel-v0.2.3
+```
+
+| Part | Meaning |
+|------|---------|
+| `--set <name>=<value>` | **Repeatable**; one field per occurrence. `<name>` is split from `<value>` at the **first** `=`, so a value may itself contain `=`. `<name>` must name a token of the type's committed `id_pattern` or `path` (other than `{id}`); the value fills that token, and `memory add` also writes it into the frontmatter field of that name, so the id and the field cannot disagree. A context token (`workflow`, `phase`, `scope`) is written only where the type's template declares a field of that name (`plan` declares `workflow` and `phase`, not `scope`); every other token is always written. |
+
+**Why one option, not one per field, and why not `--field`.**
+- `--field` is not reused: §9 retired it for DNA paths under `dl-082`, and the same spelling with a
+  different meaning on a sibling noun would be a collision the grammar cannot show.
+- One option per field (`--version v0.3`, `--kind patch`) is the **derived namespace** §9 had to fence
+  off with the `entry-` prefix, here in its worst form: the field names come from the project's own
+  `memory.yaml`, not from a WingFoil schema, and the very first one this option exists for, `version`,
+  is a §2 global action flag — `--version v0.3` would print the CLI version and exit `0` having
+  written nothing. A single declared name with the field inside its value keeps the two namespaces
+  disjoint by construction, for every present and future field and every future global.
+- It follows `dl-082`: `--type` still identifies what is created and every `--set` names an attribute
+  of the action.
+
+**Error cases.** The first five are properties of how the argument is spelled, decided before anything
+is read, so they are usage errors (§5, exit `2`), each with its own message:
+
+| Case | Message | Exit |
+|------|---------|------|
+| No `=`, or nothing before it | `error: invalid flag value: --set expects <name>=<value>, got "<raw>"` | `2` |
+| `<name>` outside `[a-z][a-z0-9_-]*` — including a dotted name such as `release.version`, which stays undefined until `dl-090` | `error: invalid flag value: --set name "<name>" is not a field name ([a-z][a-z0-9_-]*)` | `2` |
+| Blank or whitespace-only `<value>` | `error: invalid flag value: --set <name> must not be blank` | `2` |
+| The same `<name>` given twice | `error: invalid flag value: --set <name> given more than once` | `2` |
+| A name `memory add` fills itself or through its own option: `id`, `type`, `status`, `title`, `tags`, `n`, `slug`, `date`, `author` | `error: invalid flag value: --set cannot set "<name>": memory add fills it itself or through its own option` | `2` |
+| A well-formed `<name>` the type's committed `id_pattern` and `path` do not contain | `error: --set <name>: memory type '<type>' has no token {<name>} in its id_pattern or path` | `1` |
+| An `id_pattern` token with no `--set` value | `error: missing value for token {<name>}: give it with --set <name>=<value>` | `1` |
+| A value that would take the id outside `[a-z0-9-.]` (`spec-009` §1) | `error: value for token {<name>} is not a valid [a-z0-9-.] piece: "<value>"` | `1` |
+
+The last three depend on the committed `memory.yaml` (`dl-080` (B): a gating read at `HEAD`), which is
+what separates them from the first five — the same malformed-versus-unresolvable line §5 draws for a
+DNA path. A `path` token with no value keeps its existing storage refusal (exit `1`, naming the token).
+There is no free-form `--id`: an id a type's pattern cannot express is `spec-001`'s per-action
+`id_pattern` override on a workflow's `memory.add` action (`dl-107` S3 (a)), not a CLI option.
+
+## Consequences
+
+- Every command implementation under `src/cli` registers global flags exactly once, on the root
+  `Command`, using the negatable-boolean pattern in §3 — no per-command `noColor`/`noInteractive`
+  re-implementation.
+- `src/core` owns exit-code selection and error-message formatting (single behaviour shared with
+  `src/mcp-server`, REQ-SYS-05); `src/cli` only maps `core` results onto stdout/stderr + `process.exit`.
+- Any future command (`CLI-01`…`CLI-06` equivalents) inherits this grammar by construction and must not
+  redefine flag names, exit codes, or the error format.
+- If REQ-INT-04/REQ-INT-05/REQ-INT-08 are revised (e.g. a new global flag or exit code is added), this
+  spec must be updated first — command implementations trace back to it.
+
+## Process Notes
+
+Cross-checked every claim against `.wingfoil/dna.yaml` (`tech_stack.cli` = Commander.js +
+chalk) and `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-04, REQ-INT-05, REQ-INT-08).
+
+**Revision (2026-09-17) — `directives` added to §1's noun list, per
+`dl-041-spec-006-module-grouping-vs-core-module-name`.** The list named only the singular `directive`,
+although `wingfoil directives list` (BDD `P3.4-directives-list.feature`) has shipped on the `directives`
+module since `task-006`. Edited in place without a supersede or a state change (the `spec-001`
+precedent `dl-041` cites).
+
+**Revision (2026-09-21) — §2's `--reason` contract, per `dl-067-reason-trailer-contract` (`ready`),
+carried out by `task-072-fix-reason-trailer-contract` (fixing `bug-042`).** The row promised the value
+was "Recorded verbatim in the resulting git commit body (P1.7)" and said nothing about emptiness or
+newlines, while the trailer it lands in is read and written as single lines. The row now states the
+block extent, the declared normal form, and the narrow refusals, and a second row pins the
+unrecordable-value messages and their exit `2`. Ratified by `dl-067`'s approve commit, whose `Reason:`
+records the option chosen and the sub-decisions taken with it; edited in place without a supersede or
+a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001` precedent the
+2026-09-17 revision cites.
+
+**Revision (2026-09-23) — §1's noun note, §5's malformed-vs-unresolvable distinction, and the new §9
+(DNA field paths), per `dl-081-dna-mutation-surface-shape` (`ready`, approve commit `5aaa5af`,
+option (E)) and `task-093-dna-mutation-surface-add-remove-update`.** The grammar grew by three verbs
+on the `dna` noun, and `dl-081` action 3 requires the grammar spec to record a shape rather than let
+it be discovered — "a ratified shape that no spec records is the defect this whole class came from".
+§9 pins the option-bearing form, `--value`'s two meanings, entry addressing by name, and the
+refuse-rather-than-create rule; §5 gains the sentence separating a malformed path (exit `2`, as
+`P2.1-dna-set.feature` pins it) from a path that names nothing the schema declares (exit `1`, per §5's
+own kind-of-failure rule and `bug-076`'s Correction). No existing row changed. Edited in place without
+a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` and the same `spec-001`
+precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — §9's per-entry options carry an `entry-` prefix, corrected in the same task
+that shipped them.** The 2026-09-23 note above wrote them bare (`--email`, `--version`), which is what
+`task-093` first implemented and what its review rejected: the option set is derived from `spec-002`'s
+entry schemas while §2's global flags are declared, nothing kept the two namespaces disjoint, and
+`TechEntry`'s `version` collided. Measured on a real project, `dna add … --version 4.0` reached
+Commander's program-level `-V, --version`, printed the CLI version, exited `0` and wrote nothing,
+while `--help` advertised the option as working; `--format` and `--verbose` are swallowed the same way
+without even the print.
+
+The prefix is **not** a fix for `version` in particular: it is what makes a **derived** namespace and a
+**declared** one disjoint, for every present and future name on both sides. §2 is amendable, so a
+global flag added later would otherwise silently disable an entry field that had been writable — and a
+prefix applied only to the names that happen to collide would make an option's spelling depend on §2,
+so adding a flag there would silently *rename* an existing option. Only the **spelling** of the
+per-entry options changes here: `--field`, `--value`, entry addressing by name and the refusal rules
+are exactly as ratified, so this corrects what §9 records rather than reopening what it decided.
+
+`spec-002` and `spec-006` were checked for the same staleness and carry none — both mention only
+`--field`/`--value`, never a per-entry option, so neither needed a correction.
+
+**Revision (2026-09-24) — §9 is rewritten to `dl-082-cli-parameter-shape`'s grammar, and its
+unprefixed-option claim is corrected.** Two changes, one ruled and one a defect, in the pass that
+shipped the section.
+
+*The grammar.* `dl-082` (`ready`) states the rule nine of the eleven `dna`/`memory` commands already
+followed and no document had written down: **a parameter is positional when it identifies the target
+of the command, and an option when it names an attribute of the action.** Applied here, the path
+leaves `--field` for a positional `<path>` on `add`/`remove`/`update`, and `dna set`'s second
+positional — the value, an attribute in positional clothing — becomes `--value`. Everything `dl-081`
+ratified about *semantics* is untouched: entries addressed by name and never by index, a path that
+does not resolve refused rather than created, uniqueness as a prerequisite, and `--value` meaning the
+entry's identity at a collection and the new value at a leaf. §1's noun note is respelled to match.
+`dna set` losing a positional is a **breaking change to a shipped command**; it lands before
+`minor-v0.2` is published, must appear in `CHANGELOG.md` (the `user-docs` phase owns it), and
+`P2.1-dna-set.feature` still shows the old spelling — `bug-089` rewrites those scenarios and is
+sequenced after this, so they are written once.
+
+*The defect.* The 2026-09-23 note's option row ended "an unprefixed spelling is an unknown option
+(exit `1`), never a silent no-op". Measured against the build that shipped it,
+`wingfoil dna add --field stacks.technologies --value Go --version 1.22` printed `0.1.0` and exited
+`0` having written nothing: the sentence was false for the very field §9 uses as its worked example,
+and false again for any name §2 declares that carries a value or sets a boolean. The *behaviour* was
+correct and specified — §1 gives a global precedence, `spec-005` §1 gives `--version` exit `0` — and
+only the claim was wrong, which is worse than a wrong behaviour because nothing goes red. The test
+that pinned it drove `--category`, one of the names for which the sentence does hold, so the criterion
+was verified where it could not fail. §9 now states both outcomes and names the overlap (today exactly
+`version`), and `test/cli/derived-option-namespace.test.ts` derives that overlap from the built
+program and drives every member of it.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-24) — §9 gains the quoted-segment rule, and §5 names the two usage errors it adds,
+per `dl-083-dotted-entry-names-in-paths` (`ready`) and `task-099`.** `dl-081` made an entry's `name`
+the key it is addressed by, which made two properties of `name` load-bearing: uniqueness, and
+expressibility inside a dotted path. The 2026-09-23 revision recorded the first; only `bug-091` noticed
+the second, and its first ruling — forbid dots in `name` — was given against a claim that no such entry
+existed. Measured at `c2102c87`, three do, in this repository's own `dna.yaml`: `Node.js` and
+`Commander.js` in `stacks.technologies`, `AI agent (Claude/Cursor/etc.)` in `team.agents`. A dot
+refinement attached where `uniquelyNamed` is attached would have rejected that file **on read**, taking
+`dna show`, `paths` and every DNA-reading command with it.
+
+So the grammar carries the cost instead. Quoting stays optional where it is unnecessary and `--value`
+is untouched — but this is **not** a change under which every existing path keeps its meaning. Before
+the rule, `"` was an ordinary character inside a segment; under it every `"` is a delimiter, so any
+path containing one is narrowed. Two measured consequences, neither hypothetical:
+`isValidKeyPath('modules.co"re')` was `true` and is now `false`; and where a collection carries an
+entry named `"a"` beside one named `a` — the schema permits both, `uniquelyNamed` included —
+`stacks.technologies."a".category` resolved to the quote-named entry before and resolves to the
+**other** entry now, silently rather than by refusing. `dl-083` accepts that narrowing deliberately
+(a name containing `"` becomes unaddressable, with no escape sequence); what it does not do is make
+such names impossible, so this is a consequence to know about rather than one to be surprised by —
+and a grammar contract is where the next reader will look for it.
+
+What is new is a spelling that reaches names the schema has always permitted,
+two usage errors at exit `2` (an unterminated quote; a `"` no delimiter can account for — the latter
+refused as an **unaddressable name**, because there is no escape sequence and `dl-083` accepted that),
+and the shell-versus-WingFoil quoting overlap stated outright, since the examples are unreadable
+without it. `test/dna/path-quoting.test.ts` holds the grammar and carries the three live names as a
+fixture, so the dot ban cannot be reintroduced without a failing test.
+
+**Revision (2026-09-24) — §9's unprefixed-option outcome is `2`, not `1`: Commander's own parse errors
+now reach §5's table.** §5 has always assigned exit `2` to "unknown command/flag", and the shipped CLI
+honoured it only for the errors WingFoil itself raised. Commander detects an unknown command and an
+unknown option before any WingFoil code runs and terminated through its own `process.exit(1)`, so
+those two classes reported `1` — §5's code for a *valid* invocation whose operation failed. `bug-098`
+files the gap and `task-101-route-commander-parse-errors-through-the-exit-code-contract` closes it, by
+routing every Commander termination through `exitCodeForParseOutcome` (`src/core/exit-code.ts`), the
+same module `task-012` made the single decision site.
+
+Only §9's first unprefixed-option bullet changes text: it recorded the measured `1`, and the measured
+value is now `2`. §5's table needed no change — it already said what the CLI now does. The second
+bullet is untouched: a name §2 *does* declare is still consumed by the global and still exits `0`,
+because `--version` is a successful termination and not a parse error. A noun invoked with no verb
+(`wingfoil dna`) kept its exit `1` with help on stderr through this revision; that is Commander's
+`commander.help`, not one of its errors, and whether §5 and `spec-005` §1 should claim it was a
+separate question this revision did not answer — it is `bug-103`, answered by the revision below,
+which is what §5 now says. The closest-match suggestion §1
+asks for is likewise untouched: the binary emits Commander's own `(Did you mean memory?)` rather than
+`spec-005` §3.1's `hint: ` line, which is `bug-104`. This revision changes exit codes only.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-25) — §5 settles what a missing verb is, per `bug-103` and
+`task-103-a-missing-verb-exits-2-with-an-error-line`.** §5's exit-`2` row has always read "unknown
+command/flag, missing required argument, invalid `--format` value", and a *missing* verb is arguably
+the second of those and arguably a case of its own. That ambiguity is what made the revision directly
+above leave `wingfoil dna` at exit `1`: a judgement, because the table could be read either way, and
+one that left the shipped CLI breaking `spec-005` §1 twice at once — a malformed invocation reporting
+`1`, and a non-zero exit carrying no error message at all. §5 now names the case in both directions —
+a noun without its verb is a missing required argument (exit `2`, with an `error: ` line), an explicit
+`wingfoil help` is a success (exit `0`) — and `spec-005` §1's Rules carry the same sentence, since the
+two tables state one contract.
+
+The distinction is not one an argument parser draws for free. Measured on commander@15.0.0, both cases
+terminate through the *same* non-error identifier, `commander.help`, and are separated only by the
+exit code it suggests alongside it: `1` where `Command#help({ error: true })` was reached because there
+was nothing to run, `0` where the user asked. `wingfoil dna` → `error: missing required argument:
+wingfoil dna <command>`; `wingfoil help nosuchnoun` → `error: unknown command 'nosuchnoun'`, the line
+`wingfoil nosuchnoun` already emitted. The `hint: ` suggestion §1 asks for is still absent from both,
+and still `bug-104`; this revision changes exit codes and adds error lines, and the wording of that
+suggestion is not its to pick.
+
+§9's unprefixed-option bullets are untouched, and so is the second bullet of the revision above: a
+name §2 *does* declare is still consumed by the global option and still exits `0`.
+
+Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`
+and the same `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — the new §10, `memory add`'s `--set <name>=<value>`, per
+`dl-107-slug-keeps-version-dots` (`ready`, options S1 (a), S2 (a)+(c), S3 (a)) Action 2, carried out by
+`task-110-memory-add-keeps-version-dots-and-sources-every-id-token`.** `spec-001`'s 2026-09-29 revision
+gives every `id_pattern` token a declared source and leaves the option that carries a frontmatter
+field's value on the command line to this spec, with one constraint: not `--field`, which §9 retired
+under `dl-082`. §10 names it `--set`, states its repeatable `<name>=<value>` shape and its error cases,
+and records why one declared option was chosen over a derived option per field — the `version` field
+this exists for is a §2 global action flag, so the derived form would reproduce, for the first field it
+served, the silent `--version` no-op §9's 2026-09-24 revisions measured. No existing section changes:
+§2's globals, §5's table and §9 are untouched, and §10's exit codes are §5's rows applied. Written by
+the implementing task ahead of the approver's sign-off at its review gate; until that sign-off it is a
+proposal carried in the task branch, not a ratified revision. Edited in place without a supersede or a
+state change, per `dl-047-tech-specs-carry-no-version-field` (tech-specs carry no `version:` field, so
+there is nothing to bump) and the same `spec-001` precedent the 2026-09-17 revision cites.

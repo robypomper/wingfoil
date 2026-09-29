@@ -34,7 +34,7 @@ import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../
 
 /**
  * A fixture carrying the two dotted `stacks.technologies` names and the dotted `team.agents` name
- * this repository's own `docs/self/.wingfoil/dna.yaml` carries (transcribed at commit `3a350aa6`),
+ * this repository's own `.wingfoil/dna.yaml` carries (transcribed at commit `3a350aa6`),
  * comments included — the provenance annotations are part of what a write must not destroy.
  */
 const DNA_FIXTURE = `# Project DNA (P2.4)

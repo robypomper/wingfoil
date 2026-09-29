@@ -151,7 +151,7 @@ describe('update and delete a scalar, including inside a sequence entry', () => 
 });
 
 describe("WingFoil's own dna.yaml survives a round trip with its provenance annotations intact", () => {
-  const path = join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml');
+  const path = join(__dirname, '..', '..', '.wingfoil', 'dna.yaml');
   const text = readFileSync(path, 'utf-8');
 
   /** Every comment line in a document, trimmed — the thing `bug-004` exists to keep. */

@@ -4,12 +4,12 @@
 
 `rl-v1` (release-line v1) is `active`; its `initial-design` phase is done — 5 releases seeded
 (`minor-v0.1` … `minor-v1.0`, all already moved `draft → planning`), 8 ADRs `accepted`, 12
-Decision Logs `ready`, 12 tech-specs `approved` (see `docs/self/docs/04_memory/planning/rl-v1.md`
+Decision Logs `ready`, 12 tech-specs `approved` (see `docs/04_memory/planning/rl-v1.md`
 Execution Notes). Per `release-line-cycle`, the next step is `delivery` → one `release-cycle` per
 release, starting with `minor-v0.1`. Per CLAUDE.md §6/§10.7 (no workflow engine yet), starting a
 (sub-)workflow phase requires writing a coherent plan first — this document is that plan for
 `release-cycle`'s `planning` phase, i.e. the `release-planning` sub-workflow
-(`docs/self/.wingfoil/workflows/custom/release-planning.yaml`), scoped to `minor-v0.1` only.
+(`.wingfoil/workflows/custom/release-planning.yaml`), scoped to `minor-v0.1` only.
 
 A prior, **abandoned** branch (`design/rel_v0.1_planning`, not an ancestor of `main`) already
 attempted this exact phase on 2026-06-29 against an *older* config (flat `rel-v0.1`, no
@@ -25,7 +25,7 @@ changed, and folds in that gap fix proactively per the user's decision (see §5)
 ## 1. Preconditions (verified against current repo state)
 
 - `rl-v1` — `status: active`.
-- `minor-v0.1` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`) — `status: planning`
+- `minor-v0.1` (`docs/04_memory/planning/rl-v1/minor-v0.1.md`) — `status: planning`
   **already** (moved there by `initial-design`'s `seed-releases`, not by this phase — see §2.1).
   All required frontmatter (`title, version, pillar, features, requirements, release-line`) and
   body (Scope / Pillar Focus / Success Criteria) already filled.
@@ -33,9 +33,9 @@ changed, and folds in that gap fix proactively per the user's decision (see §5)
   `spec-001..012` — `approved`.
 - `docs/03_backlog/04_backlog/by-release/v0.1.json` — 28 tasks (`TASK-001..028`), unchanged from
   the abandoned branch's copy.
-- No bugs exist yet (`docs/self/docs/04_memory/bugs/` not created) — the bug-driven part of
+- No bugs exist yet (`docs/04_memory/bugs/` not created) — the bug-driven part of
   `build-backlog` is a no-op for v0.1.
-- No task files exist yet under `docs/self/docs/04_memory/` (only `planning/` and `design/`).
+- No task files exist yet under `docs/04_memory/` (only `planning/` and `design/`).
 
 ---
 
@@ -82,7 +82,7 @@ needed — only the tasks themselves (§2.4).
 
 ### 2.4 `build-backlog` — role: product-owner
 
-Create Memory task files under `docs/self/docs/04_memory/v0.1/` (assumption: the `{release}`
+Create Memory task files under `docs/04_memory/v0.1/` (assumption: the `{release}`
 placeholder in `task.path` resolves to `release.version`, i.e. `"v0.1"`, matching the abandoned
 branch's convention and the current directory layout, which has no release-*id*-named folders).
 
@@ -135,7 +135,7 @@ end-to-end"), which none of the other 32 tasks exercise.
 | 30 | `task-030-implement-mcp-resources` | Implement MCP Resources (DNA + Memory) | Critical | P5.2.1 | `v0.1.json` |
 | 31 | `task-031-post-v01-dna-config-sync` | Post-v0.1 `dna.yaml` config sync | High | `spec-002-dna-yaml-schema` | New (from abandoned branch) |
 | 32 | `task-032-readme-cli-quickstart` | README.md and CLI quick-start docs | High | `spec-005-cli-command-contract` | New (from abandoned branch) |
-| 33 | `task-033-manual-e2e-journey-validation` | Manual E2E validation of Journey 0a + Journey 1 against `minor-v0.1` Success Criteria | Critical | `docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md` (Success Criteria) | New (this pass) |
+| 33 | `task-033-manual-e2e-journey-validation` | Manual E2E validation of Journey 0a + Journey 1 against `minor-v0.1` Success Criteria | Critical | `docs/04_memory/planning/rl-v1/minor-v0.1.md` (Success Criteria) | New (this pass) |
 
 None of the 5 new tasks are added to `v0.1.json` (per user decision, §5) — their `ref` points
 directly at the ADR/spec/Memory doc that justifies them.
@@ -148,7 +148,7 @@ memory.add(self): task-001..task-033 [status: draft]
 memory.submit(self): task-001..task-033 [draft → pending]
 ```
 
-**Checks:** 33 files at `docs/self/docs/04_memory/v0.1/`, all `status: pending`,
+**Checks:** 33 files at `docs/04_memory/v0.1/`, all `status: pending`,
 `frontmatter.required: [title, release]` satisfied on each.
 
 ### 2.5 `commit-backlog` — role: tech-lead — approval: approver

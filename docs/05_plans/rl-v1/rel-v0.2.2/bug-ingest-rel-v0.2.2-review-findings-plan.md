@@ -25,7 +25,7 @@ named in the bug's Notes. `release-origin` is `v0.2.2`, the release under develo
 stays `""`: scheduling is the approver's, at triage.
 
 **Preconditions (2026-09-29).** At the first batch, the next free bug number was `bug-155`: the highest existing file is
-`bug-154-directives-list-succeeds-with-no-configuration.md` (`ls docs/self/docs/04_memory/bugs |
+`bug-154-directives-list-succeeds-with-no-configuration.md` (`ls docs/04_memory/bugs |
 sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 
 ## Phases / Steps
@@ -57,7 +57,7 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 
 ## Execution Notes
 
-- **bug-155.** Duplicate search: `grep -rli "multi-hop\|multi hop" docs/self/docs/04_memory/bugs
+- **bug-155.** Duplicate search: `grep -rli "multi-hop\|multi hop" docs/04_memory/bugs
   docs/self/docs/04_memory/design/dls` → no hit. `dl-079` (the `wf()` grammar, `in-discussion`) does
   not mention chained brackets (`grep -n -i "hop\|chain" dl-079-*.md` → nothing). Added in
   `5b280ec2`; submitted in the commit after this plan's submit.

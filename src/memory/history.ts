@@ -75,7 +75,7 @@ const CREATION_PROBE_ARGS = ['--follow', '--diff-filter=C', '--format=%H'];
  * kinds of edge, and they mean opposite things for an audit trail:
  *
  *  - **`R` (rename)** — the element continuing under a new name. Keep following. This is not a
- *    hypothetical requirement: `docs/self/docs/04_memory/planning/v1/*` became `planning/rl-v1/*` in
+ *    hypothetical requirement: the Memory folder's `planning/v1/*` became `planning/rl-v1/*` in
  *    one commit in this repository, moving five `release` elements at once, because the `release`
  *    type's `path` pattern interpolates the release-line id (`memory.yaml`). For one of them a plain
  *    `git log -- <path>` returns a single commit where the followed walk returns seven, so dropping

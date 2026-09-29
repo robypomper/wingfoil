@@ -6,7 +6,7 @@
  *
  * Exercised at the `CoreFn` seam through the REAL registered `memory.memoryAdd`, in a throwaway git
  * repo whose `memory.yaml` mirrors this repository's own `release`, `release-line` and `plan` types
- * (`docs/self/.wingfoil/memory.yaml`): `{kind}-{version}` under a `{release-line}` path folder,
+ * (`.wingfoil/memory.yaml`): `{kind}-{version}` under a `{release-line}` path folder,
  * `rl-{version}`, and `{workflow}-{phase}-plan` under a `{scope}` path folder. The CLI surface hands
  * the repeatable option as a string array under `options.set` (`src/cli/program.ts`).
  */

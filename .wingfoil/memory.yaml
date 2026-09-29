@@ -1,0 +1,202 @@
+# WingFoil — Memory Element Schema (P1.13)
+# Declares each Memory element type: path pattern, name, description, tags,
+# and its own state machine (allowed states + transitions).
+# There is NO global state machine — a release and a task move through different
+# lifecycles. CLI verbs (submit/approve/reject/deprecate) and workflow
+# element.set_state actions are validated against the type's graph.
+# Source: docs/01_vision/06_features.md, docs/02_requirements/.../P1.13-memory-element-schema.feature
+#          docs/02_requirements/03_sard/03_state-context.md (REQ-STATE-01, REQ-STATE-08)
+#
+# Field-provenance legend (human-audit aid), same scheme as dna.yaml:
+#   [SPEC]      = required or defined by the specifications (ref cited inline).
+#   [AUTHORING] = authoring addition: coherent with the specs but not mandated by them.
+# P1.13 defines each type by (path pattern, states, transitions); REQ-STATE-08 fixes the default machine.
+# So `path`, `states` (values/initial/transitions) and the `defaults` block are [SPEC]; per-type
+# `name`/`description`/`tags`/`template`/`id_pattern`, the `version`, and the chosen state *vocabularies* are [AUTHORING].
+# The `template` block (frontmatter.required + file) is an [AUTHORING] addition: it drives the
+# scaffold that `wingfoil memory add` generates; the tool validates required fields on submit (P4.12).
+#
+# Template ↔ P4.12 alignment rule:
+#   `template.frontmatter.required` lists the fields a human/agent MUST fill in after `memory add`.
+#   Workflow steps that produce an element of this type SHOULD declare a matching
+#   `checks.post: ["frontmatter.required: [<same fields>]"]` (P4.12) so the gate enforces it.
+#   If the two lists diverge, the template is the authoritative definition — update the workflow check.
+#
+# Provenance policy: element types are declared on a NEED basis — a type is kept only when a
+# workflow or a role responsibility produces/consumes it; speculative types are not declared.
+#   release-line — one per major version (v1, v2, ...); the first one seeded inline by sw-life-cycle
+#                  (seed-first-release-line, right after init); each subsequent one self-seeded by
+#                  its own release-line-cycle (plan-next-release-line, once all its releases are
+#                  released) — iterated by sw-life-cycle (iterate_over: release-line).
+#   release      — a minor release wave (v0.1, v0.2, ...) belonging to a release-line; produced by
+#                  release-line-cycle's initial-design (seed-releases); iterated by release-line-cycle
+#                  (iterate_over: release) / release-cycle. A patch of a released minor (v0.2.2, ...)
+#                  is the same type with `kind: patch` (dl-092), registered on its retrospective's ruling.
+#   task         — produced by release-planning (memory.add type: task); iterated by dev-loop.
+#   adr          — created (optional) by initial-design & release-planning; created on demand via the
+#                  `adr-ingest` main during dev-loop and other phases.
+#   decision-log — produced by retrospective / end-of-life; created on demand via the `decision-log-ingest` main.
+#   bug          — created on demand via the `bug-ingest` main (e.g. raised during dev-loop).
+#   tech-spec    — produced by initial-design's `seed-specs` (per release-line, project-wide within it) and
+#                  release-planning's `identify-specs` (proactive, per release scope);
+#                  `dev-loop/design` is a reactive fallback for artefacts discovered only during a task.
+# (risk / rfc / note were dropped: no workflow action currently produces them.)
+# Memory content lives under docs/04_memory/ (each type's `path`), resolved against the repository
+# root, where this .wingfoil/ also sits (moved there from docs/self/ by task-111). Seeded so far: `release` (roadmap derived from
+# docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
+# and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
+# The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
+version: 1.3                     # [AUTHORING] config-file format version (WingFoil convention)
+
+# Default machine used by any type that does not declare its own `states` block.
+# [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
+# State-machine encoding: `sequence` (ordered chain) + `gates` (per-state approve/reject) +
+# `waiting` (workflow/engine-triggered edges, no CLI verb) — replaces the earlier `transitions`
+# dict-of-arrays format, which left ambiguous which of several legal targets from one state is the
+# `approve` outcome vs the `reject` outcome. See spec-001-memory-yaml-schema (initial-design, rl-v1)
+# for the full schema and rationale. NOTE: this collapses the old explicit `rejected` status into a
+# direct `pending -> draft` edge on reject — no document records `status: rejected` anymore; the
+# rejection reason still lives in the `wf(...): reject ...` git commit body (P1.7), just not as a
+# status value. `"deprecated"` is an implicit wildcard edge from any state, invoked via
+# `memory.deprecate`, and is never declared explicitly in `sequence`/`gates`/`waiting`.
+defaults:
+  states:
+    sequence: [ draft, pending, approved ]
+    gates:
+      pending: { reject: draft }   # [AUTHORING] reject sends straight back to draft (no separate "rejected" status — see above)
+
+# Types — per type, `path` and `states` (values/initial/transitions) are [SPEC] (P1.13 / REQ-SYS-04);
+# `name`, `description`, `tags` and the chosen state *vocabularies* are [AUTHORING]. (release is tagged
+# inline below as the worked example; the other types follow the same rule.)
+types:
+  release-line:
+    path: "docs/04_memory/planning/{id}.md"     # [SPEC] path pattern (P1.13)
+    id_pattern: "rl-{version}"                  # [AUTHORING] id derives from version, e.g. rl-v1
+    name: Release Line          # [AUTHORING]
+    description: A major version line (v1, v2, ...) grouping the minor release waves that deliver it. Workflow — the first one is seeded by sw-life-cycle's `seed-first-release-line` (right after `init`); each following one is self-seeded by its own `release-line-cycle` (`plan-next-release-line`, once every one of its releases is `released`); iterated by sw-life-cycle (iterate_over release-line).   # [AUTHORING]
+    tags: [ release-line, roadmap ]    # [AUTHORING]
+    template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release-line`
+      frontmatter:
+        required: [ title, version ]
+      file: ".wingfoil/memory/templates/release-line.md"
+    states: # [AUTHORING] structure + vocabulary (release-line is not itself named by P1.13; modeled on the same shape)
+      sequence: [ draft, planning, active, done ]
+      gates:
+        planning: { reject: draft }   # approve: planning->active · reject: ->draft
+      waiting: [ active ]             # active->done: fires when every release under it is `released`
+
+  release:
+    path: "docs/04_memory/planning/{release-line}/{id}.md"     # [SPEC] path pattern (P1.13)
+    id_pattern: "{kind}-{version}"              # [AUTHORING] dl-092 Q1 (A); `kind` is the implementation chosen 2026-09-29 — id derives from kind + version, e.g. minor-v0.1, patch-v0.2.2; ids added before dl-092 (minor-v0.1..minor-v1.0) are immutable and carry no `kind:` field
+    name: Release               # [AUTHORING]
+    description: A WingFoil release wave centered on a pillar (v0.1 .. v1.0), belonging to a release-line — a `minor`, or a `patch` of a minor already `released` (dl-092). Workflow — a minor is produced by release-line-cycle's `initial-design` (`seed-releases`, per release-line); a patch is registered on the ruling of the patched minor's retrospective (dl-092 — no workflow action seeds it yet); both are iterated by release-line-cycle / release-cycle (iterate_over release). A patch runs every release-cycle phase except `retrospective` (dl-092 Q2 (ii)), declared in its release-planning plan.   # [AUTHORING]
+    tags: [ release, roadmap ]    # [AUTHORING]
+    template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release`
+      frontmatter:
+        required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
+      file: ".wingfoil/memory/templates/release.md"
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding
+      sequence: [ draft, planning, in-development, releasing, released ]  # [SPEC] (BDD P1.13: release exposes initial state 'draft' = sequence[0])
+      # draft->planning: memory.submit; the rest are workflow-phase transitions (no CLI verb)
+      waiting: [ planning, in-development, releasing ]
+
+  task:
+    path: "docs/04_memory/{release}/{id}.md"
+    id_pattern: "task-{n}-{slug}"         # [AUTHORING] e.g. task-001-memory-add; exact numbering format (padding) is an ID-generation-engine detail, not fixed here
+    name: Task
+    description: A unit of development work delivered inside a release. Workflow — generated by release-planning (memory.add type task); iterated by dev-loop (iterate_over task). A task may optionally carry a `bug:` field (template field, not [SPEC]) when it is a fix derived from a bug — dev-loop then keeps the source bug's own state in sync via `bug.sync_state` instead of running a separate bug workflow.
+    tags: [ task, backlog ]
+    template:                   # [AUTHORING]
+      frontmatter:
+        required: [ title, release ]
+      file: ".wingfoil/memory/templates/task.md"
+    states:
+      sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
+      gates:
+        pending:   { reject: draft }        # approve: pending->backlog · reject: ->draft
+        in-review: { reject: in-progress }  # approve: in-review->approved · reject: ->in-progress
+      waiting: [ backlog, approved ]        # backlog->in-progress (dev-loop starts);
+                                            # approved->done (dev-loop finalizes)
+
+  adr:
+    path: "docs/04_memory/design/adrs/{id}.md"
+    id_pattern: "adr-{n}-{slug}"          # [AUTHORING] e.g. adr-001-git-backed-storage; exact numbering format (padding) is an ID-generation-engine detail, not fixed here
+    name: Architectural Decision Record
+    description: An architectural decision with context, decision, and consequences (renamed from `decision`). Workflow — created (optional) by initial-design & release-planning, and on demand via the `adr-ingest` main during dev-loop / other phases.
+    tags: [ adr, architecture, design ]
+    template:                   # [AUTHORING]
+      frontmatter:
+        required: [ title, sard_ref ]
+      file: ".wingfoil/memory/templates/adr.md"
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] ADR vocabulary+encoding (accepted/superseded lifecycle)
+      sequence: [ draft, pending, accepted, superseded ]
+      gates:
+        pending: { reject: draft }      # approve: pending->accepted · reject: ->draft
+      waiting: [ accepted ]             # accepted->superseded: triggered by a later ADR's `supersedes:`
+
+  decision-log:
+    path: "docs/04_memory/design/dls/{id}.md"
+    id_pattern: "dl-{n}-{slug}"           # [AUTHORING] e.g. dl-001-keyword-search; exact numbering format (padding) is an ID-generation-engine detail, not fixed here
+    name: Decision Log
+    description: A product/process decision record (DL). Workflow — produced by retrospective / end-of-life, and on demand via the `decision-log-ingest` main.
+    tags: [ decision-log, decision, product ]
+    template:                   # [AUTHORING]
+      frontmatter:
+        required: [ title ]
+      file: ".wingfoil/memory/templates/decision-log.md"
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (record-with-approval lifecycle, per dl-012 + dl-017-decision-log-remove-delivery-states)
+      sequence: [ draft, in-discussion, ready ]
+      gates:
+        in-discussion: { reject: draft }  # approve: in-discussion->ready · reject: ->draft
+      waiting: [ ]                         # `ready` is terminal — a decision is settled once accepted (mirrors adr/tech-spec).
+                                          # in-develop/done removed per dl-017 (the task->DL back-reference they
+                                          # presupposed was never implemented). deprecated stays a memory.deprecate target.
+
+  tech-spec:
+    path: "docs/04_memory/design/specs/{id}.md"
+    id_pattern: "spec-{n}-{slug}"         # [AUTHORING] e.g. spec-003-workflows-yaml-schema; exact numbering format (padding) is an ID-generation-engine detail, not fixed here
+    name: Technical Specification
+    description: A definition of a shared file format, schema, constant set, or module API implemented by one or more tasks. Workflow — produced by initial-design (`seed-specs`, per release-line) and proactively by release-planning (`identify-specs`, per release scope); dev-loop/design is a reactive fallback for artefacts discovered only during a task.
+    tags: [ tech-spec, design, architecture ]
+    template:                   # [AUTHORING]
+      frontmatter:
+        required: [ title, scope ]
+      file: ".wingfoil/memory/templates/tech-spec.md"
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] tech-spec vocabulary+encoding (approved/superseded lifecycle, mirrors adr)
+      sequence: [ draft, pending, approved, superseded ]
+      gates:
+        pending: { reject: draft }      # approve: pending->approved · reject: ->draft
+      waiting: [ approved ]             # approved->superseded: triggered by a later spec's `supersedes:`
+
+  bug:
+    path: "docs/04_memory/bugs/{id}.md"
+    id_pattern: "bug-{n}-{slug}"          # [AUTHORING] e.g. bug-001-null-deref; exact numbering format (padding) is an ID-generation-engine detail, not fixed here
+    name: Bug
+    description: A defect report. Workflow — created on demand via the `bug-ingest` main (e.g. raised during dev-loop); triaged by bug-ingest, then release-planning's build-backlog creates its fix task(s) and schedules it into a release. From there its state tracks its fix task(s) automatically (dev-loop's `bug.sync_state`) — there is no separate bug-fix workflow.
+    tags: [ bug, defect ]
+    template:                   # [AUTHORING]
+      frontmatter:
+        required: [ title, severity ]
+      file: ".wingfoil/memory/templates/bug.md"
+    states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] bug vocabulary+encoding (open -> triaged -> planned -> in-progress -> in-review -> resolved -> closed)
+      sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
+      gates:
+        open:      { reject: closed }        # approve: open->triaged · reject: ->closed (wontfix/dup)
+        in-review: { reject: in-progress }   # approve: in-review->resolved · reject: reopen ->in-progress
+        resolved:  { reject: in-progress }   # approve: resolved->closed · reject: reopen ->in-progress
+      waiting: [ triaged, planned ]          # triaged->planned (release-planning schedules it);
+                                             # planned->in-progress (dev-loop starts the fix)
+
+  plan:
+    path: "docs/05_plans/{scope}/{id}.md"       # [AUTHORING] dl-019 — phase plans live OUTSIDE docs/04_memory/ (execution scaffolds); {scope} = the release-line/release nesting (e.g. rl-v1/rel-v0.1); X_* ad-hoc plans grandfathered
+    id_pattern: "{workflow}-{phase}-plan"       # [AUTHORING] e.g. dev-loop-rel-v0.1-plan
+    name: Phase plan          # [AUTHORING]
+    description: The executable plan for one workflow phase — the interim substitute for the not-yet-built workflow engine (Workflow pillar P4) — whenever a workflow phase is started its plan is authored under docs/05_plans/ and executed against. Workflow — produced by the phase that runs it (memory.add type plan). See dl-019-plans-as-memory-element.   # [AUTHORING]
+    tags: [ plan, process, workflow ]    # [AUTHORING]
+    template:                   # [AUTHORING] scaffold for `wingfoil memory add --type plan`
+      frontmatter:
+        required: [ title, workflow, phase ]
+      file: ".wingfoil/memory/templates/plan.md"
+    states: # [AUTHORING] dl-019 — no spec mandates a plan type; simple author->execute->complete lifecycle
+      sequence: [ draft, active, done ]
+      waiting: [ active ]        # active->done: fires once the phase's produces:/checks are satisfied. deprecated/superseded via memory.deprecate.

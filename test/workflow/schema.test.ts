@@ -114,8 +114,8 @@ describe('Workflow — Layer 2 per-file DSL (spec-003)', () => {
   });
 });
 
-describe('WorkflowsYaml/Workflow — validates the real, live docs/self/.wingfoil workflow files', () => {
-  const wingfoilRoot = join(__dirname, '..', '..', 'docs', 'self', '.wingfoil');
+describe('WorkflowsYaml/Workflow — validates the real, live .wingfoil workflow files', () => {
+  const wingfoilRoot = join(__dirname, '..', '..', '.wingfoil');
 
   it('the manifest parses with zero structural errors', () => {
     const raw = readFileSync(join(wingfoilRoot, 'workflows.yaml'), 'utf-8');

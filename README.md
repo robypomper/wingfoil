@@ -83,7 +83,7 @@ real-time tracking of project state.
 |---|---|
 | Setup | `wingfoil init [--template Scrum\|Kanban]` · `wingfoil mcp` |
 | DNA | `wingfoil dna show [section]` · `dna set <path> --value <v>` · `dna add` · `dna update` · `dna remove` · `wingfoil paths [category]` |
-| Memory | `wingfoil memory add --type <t> --title <t>` · `submit <id>` · `approve <id> --reason <r>` · `reject <id> --reason <r>` · `deprecate <id>` · `history <id>` · `search [keyword]` |
+| Memory | `wingfoil memory add --type <t> --title <t> [--set <name>=<value>]` · `submit <id>` · `approve <id> --reason <r>` · `reject <id> --reason <r>` · `deprecate <id>` · `history <id>` · `search [keyword]` |
 | Directives | `wingfoil directive create --name <n>` · `directive assign --directive <n> --role <r>` · `directive remove <n>` · `wingfoil directives list [--role <r>]` |
 | Workflow | `wingfoil workflow list` |
 
@@ -232,13 +232,16 @@ WingFoil is built one pillar per release until all five are integrated in 1.0.
 |---|---|---|
 | Lean Inception · Requirements | Product vision, USM · BDD · SARD · backlog | ✓ Complete |
 | **0.1** | Project Memory + DNA | ✓ Released (not published to npm) |
-| **0.2** | + Project Directives, Memory approvals, DNA editing, MCP role Prompts | 🔄 Being released |
+| **0.2** | + Project Directives, Memory approvals, DNA editing, MCP role Prompts | ✓ Released (`wingfoil@0.2.1` on npm) |
+| **0.2.2** | Patch: configuration at the repository root, staged npm publishing, first-use fixes | 🔄 In development |
 | **0.3** | + Project Workflow | Planned |
 | **0.4** | + Interaction Layer polish | Planned |
 | **1.0** | MVP complete | Planned |
 
-**Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives under
-`docs/self/`.
+**Dogfooding:** WingFoil's own development is managed with WingFoil — its configuration lives in
+`.wingfoil/` and its Memory in `docs/04_memory/`, at the repository root. From there `wingfoil
+memory search`, `memory history`, `submit`, `approve`, `reject` and `deprecate` run on WingFoil's own
+Memory. `memory add` follows once a path fix lands (`bug-156`).
 
 ---
 

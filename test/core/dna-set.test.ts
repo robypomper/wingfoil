@@ -1,7 +1,7 @@
 /**
  * P2.1 (US-0A-08) — `wingfoil dna set <key> <value>` core-op fit criteria, per
  * `docs/02_requirements/02_bdd/features/p2-dna/P2.1-dna-set.feature`,
- * `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` (DnaYaml re-validation),
+ * `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` (DnaYaml re-validation),
  * `spec-005-cli-command-contract.md` (exit codes: usage error -> 2, logic error -> 1),
  * `spec-006-core-domain-api.md` (dnaSet is `mutates: true`; requireGitIdentity pre-flight),
  * task-025-implement-dna-set.

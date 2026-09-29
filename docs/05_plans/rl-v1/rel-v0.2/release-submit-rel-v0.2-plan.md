@@ -14,9 +14,9 @@ tmpl_version: 260703
 ## Context
 
 This plan executes the **`release-submit`** sub-workflow
-(`docs/self/.wingfoil/workflows/custom/release-submit.yaml`, `version: 1.0`, `element: release`)
+(`.wingfoil/workflows/custom/release-submit.yaml`, `version: 1.0`, `element: release`)
 against the release element **`minor-v0.2`**
-(`docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`). In `release-cycle.yaml` (`version: 1.1`)
+(`docs/04_memory/planning/rl-v1/minor-v0.2.md`). In `release-cycle.yaml` (`version: 1.1`)
 it is the `submit` phase — the one after `user-docs` and `e2e-smoke`, and before `publishing`.
 
 Per CLAUDE.md §6 there is **no workflow engine**: `workflow list` is the only workflow operation in
@@ -100,8 +100,8 @@ not started yet** — say so and stop.
 the release association in a **`release:` frontmatter field** (`dl-016` stamps it on every element
 `build-backlog` includes), so the checks are settled as follows.
 
-**C1 — every v0.2 task is `done`.** Tasks for a release live in `docs/self/docs/04_memory/{release}/`
-(`memory.yaml`'s `task.path`), i.e. `docs/self/docs/04_memory/v0.2/`:
+**C1 — every v0.2 task is `done`.** Tasks for a release live in `docs/04_memory/{release}/`
+(`memory.yaml`'s `task.path`), i.e. `docs/04_memory/v0.2/`:
 
 ```sh
 for f in docs/self/docs/04_memory/v0.2/*.md; do
@@ -115,7 +115,7 @@ The check passes iff the loop prints no `NOT DONE:` line. Note the `awk … exit
 lines quoted inside a task's body and will mislead you.
 
 **C2 — every bug scheduled into v0.2 is `resolved` or `closed`.** Bugs live in one flat directory
-(`memory.yaml`'s `bug.path` → `docs/self/docs/04_memory/bugs/`) and are selected by their `release:`
+(`memory.yaml`'s `bug.path` → `docs/04_memory/bugs/`) and are selected by their `release:`
 field:
 
 ```sh
@@ -149,7 +149,7 @@ So: if this check prints a `RETIRED:` line, read that bug's `Reason:` and its ru
 proceed, and say in the release record that you did. If it prints `NOT RESOLVED:`, stop.
 
 > Note this is the *executed* form. The declared check in
-> `docs/self/.wingfoil/workflows/custom/release-submit.yaml` still reads
+> `.wingfoil/workflows/custom/release-submit.yaml` still reads
 > `"all bugs where tags=[{release.version}] are status: [resolved, closed]"` and carries the same gap.
 > Nothing evaluates that string today — there is no workflow engine — so it is `bug-094`'s to correct,
 > not this plan's.
@@ -245,7 +245,7 @@ unchanged — see §6.5 and that plan's §7.5 for the reasons that outlive the f
 - **Action declared by the workflow:** `element.set_state(releasing)` — release: `in-development →
   releasing`
 - **Produces:** one commit changing exactly one line of
-  `docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`
+  `docs/04_memory/planning/rl-v1/minor-v0.2.md`
 - **Settled by:** `awk '/^status:/{print $2; exit}' docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`
   → `releasing`, and `git show --stat HEAD` showing that one file and no other
 
@@ -323,7 +323,7 @@ directory where `js-yaml` resolves — the repository root after `npm ci`, not a
 ### 3.2 The commit
 
 Edit **only** the `status:` field of
-`docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`, from `in-development` to `releasing`. Touch
+`docs/04_memory/planning/rl-v1/minor-v0.2.md`, from `in-development` to `releasing`. Touch
 no other frontmatter field and no body text.
 
 Recommended subject (and the reasoning, because the word is not settled by any document):

@@ -10,7 +10,7 @@
  * Exercises the REAL, registered `CORE_MODULES` `memory.memoryAdd` operation — the first Memory
  * document mutation, the exact same `CoreFn` both `src/cli`'s `memory add` command and the MCP
  * `memory.add` Tool call. Every write lands in a THROWAWAY temp git repo (never this repo's own
- * `docs/self/docs/04_memory/`).
+ * `docs/04_memory/`).
  *
  * The `--type decision` fixture type below matches the BDD Background's placeholder type verbatim
  * (the BDD declares a type literally named `decision`); `memory add` resolves `--type` against

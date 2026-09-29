@@ -12,7 +12,7 @@
  *    would invoke it.
  * 2. Runs `npm pack --dry-run --json` — the same file-selection logic `npm publish` uses — and
  *    asserts the resulting tarball file list includes the compiled `dist/` output and `README.md`,
- *    and excludes the dogfooding `docs/self/.wingfoil/` config (spec-011: project-local, not part of
+ *    and excludes the dogfooding `.wingfoil/` config and `docs/04_memory/` Memory (spec-011: project-local, not part of
  *    the shipped artifact) and the `test/` tree (source-only, not runtime).
  *
  * `dist/` is built once by jest's `globalSetup` (`test/global-setup.cjs`) before any worker starts.
@@ -125,7 +125,7 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
     expect(result.stderr).toBe('');
   });
 
-  it('`npm pack --dry-run --json` includes the compiled dist/ bin + README.md, and excludes docs/self/.wingfoil + test/', () => {
+  it('`npm pack --dry-run --json` includes the compiled dist/ bin + README.md, and excludes .wingfoil + docs/04_memory + test/', () => {
     const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
       cwd: REPO_ROOT,
       encoding: 'utf-8',
@@ -136,7 +136,8 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
     expect(paths).toContain('dist/cli.js');
     expect(paths).toContain('README.md');
 
-    expect(paths.some((p) => p.startsWith('docs/self/.wingfoil'))).toBe(false);
+    expect(paths.some((p) => p.startsWith('.wingfoil'))).toBe(false);
+    expect(paths.some((p) => p.startsWith('docs/04_memory'))).toBe(false);
     expect(paths.some((p) => p.startsWith('test/'))).toBe(false);
   });
 });

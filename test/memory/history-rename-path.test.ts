@@ -9,9 +9,9 @@
  *    child inherited the parent's stderr and git's `fatal:` went straight to the operator's terminal.
  *
  * Everything here runs against **throwaway fixture repositories built by this file**, never against
- * this repository's own history: `bug-075` keeps the CLI off our Memory, and a test reading our
- * commits breaks the day someone rewrites them — which has happened in this release. The fixture
- * reproduces the *shape* of the live case (`a353c12` moved `docs/self/docs/04_memory/planning/v1/*`
+ * this repository's own history: a test reading our commits by sha breaks the day someone rewrites
+ * them — which has happened in this release. The fixture reproduces the *shape* of the live case
+ * (`a353c12` moved the Memory folder's `planning/v1/*`, then under the nested dogfooding root,
  * to `planning/rl-v1/*`, renaming five `release` elements at once because the `release` type's
  * `path` pattern interpolates the release-line id) rather than reading the live case itself.
  */
