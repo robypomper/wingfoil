@@ -2,7 +2,7 @@
 id: "dl-092-tracking-a-patch-after-its-minor-is-released"
 type: decision-log
 title: "A patch release after its minor is `released` has no tracking element, and two releases in flight need a rule for what reaches `main`"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
