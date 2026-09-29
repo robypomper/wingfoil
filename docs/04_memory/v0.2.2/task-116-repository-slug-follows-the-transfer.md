@@ -111,11 +111,11 @@ answers.
 | tags | `git ls-remote --tags origin` | `v0.2.0`, `v0.2.1` carried over |
 | `npm-publish` environment | `gh api repos/wingfoil/wingfoil/environments --jq …` | present; `branch_policy` (`v*` tags) and `required_reviewers` (`robypomper`) carried over |
 | secrets | `gh api …/environments/npm-publish/secrets`; `gh api …/actions/secrets` | environment `NPM_TOKEN` still present (updated 2026-09-28T09:25:34Z); no repository-level secret. `adr-011` removes it after the trusted publisher exists |
-| Claude GitHub App | `gh api orgs/wingfoil/installations --jq '.installations[]…'` | **no installation listed**: the approver installs it on the organisation |
+| Claude GitHub App | `gh api orgs/wingfoil/installations --jq '.installations[]…'` | first read: no installation. After the approver installed it (2026-09-29 17:34 +02:00): app `claude`, installation `166199613`, `repository_selection: all` (the organisation's only repository is `wingfoil/wingfoil`). Registered as `svc-008-claude-github-app-on-the-wingfoil-organisation`, `pending` |
 | local remote | `git remote set-url origin git@github.com:wingfoil/wingfoil.git`; `git fetch origin` | done; `main` equals `origin/main` after the fetch, except the one local commit `fb715a93` |
 | repository settings (§B.3) | `gh api repos/wingfoil/wingfoil --jq '{description,homepage,topics,…}'`; GraphQL `discussionCategories` | description, homepage, 14 topics, Discussions on (Announcements, Ideas, Q&A, Show and tell), Issues on, Wiki and Projects off: all carried over |
 | organisation | `gh api orgs/wingfoil --jq '{name,two_factor_requirement_enabled,default_repository_permission}'` | 2FA required, base permission `none`; profile name still `wingFoil` (§B.1 recommends "WingFoil") |
 
-**Open, the approver's (AC 3–4):** install the Claude GitHub App on `wingfoil`; configure the npm
+**Open, the approver's (AC 4):** configure the npm
 trusted publisher (`wingfoil`/`wingfoil`/`publish.yml`/`npm-publish`, stage only) with the rest of
 the `publish.yml` runbook; then confirm, and the task goes to review.
