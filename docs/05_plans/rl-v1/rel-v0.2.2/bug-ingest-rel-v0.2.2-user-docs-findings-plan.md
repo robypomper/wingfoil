@@ -64,3 +64,6 @@ phase branch `docs/user_docs_v0.2.2`.
   - The first call named both ids, approved only `bug-169`, and exited `0`. That is `bug-171`, added
     (`49001ddc`) and submitted `draft → open` (`8ea13a58`). It awaits triage, so this plan stays
     `active`.
+- `bug-171`: `release: "v0.3"` stamped in its own commit (`f0f25b1a`), then `open → triaged` by the
+  pinned `memory approve` (`fe2613f6`), on the approver's ruling of 2026-09-29. Every bug here is
+  now `triaged`, so this plan moves `active → done`.
