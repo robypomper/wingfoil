@@ -2,7 +2,7 @@
 id: release-submit-rel-v0.2.2-plan
 type: plan
 title: "Release-submit — v0.2.2 (assemble the patch, enter releasing, stop at the approver gate)"
-status: active
+status: done
 version: "1.1"
 workflow: "release-submit"
 phase: "rel-v0.2.2"
