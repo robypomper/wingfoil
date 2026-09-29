@@ -45,9 +45,35 @@ documents only. The forecast is refreshed at every retrospective.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+### design (architect, 2026-09-29)
+
+- **depends_on: none** (`depends_on: []` in this file's frontmatter), so there is no upstream
+  Execution Notes to read (`dl-015`).
+- **Governing decision:** `dl-096-schedule-rebaseline-on-active-days`, `status: ready`
+  (`grep -m1 '^status:' docs/04_memory/design/dls/dl-096-schedule-rebaseline-on-active-days.md`),
+  ratified as Q1 (a), Q2 (i). No tech-spec is cited or needed: the change is to the vision documents
+  only, which are specs themselves (`CLAUDE.md` §10.1).
+- **AC classification (T1).** Every AC is **documentation / characterization**: there is no code
+  behaviour, so no red test exists and none is fabricated. The evidence for each AC is the command
+  whose output backs every number written, recorded below and in the sequencer itself.
+  - AC 1 — documentation: actuals table, active-day budgets, forecast with cadence in
+    `07_sequencer.md`; original plan kept verbatim.
+  - AC 2 — documentation: v0.2.2 budget from build-backlog (14 tasks) next to `dl-096`'s proxy;
+    `patch-v0.2.2` Planning notes explain the difference (content edit, no status change).
+  - AC 3 — documentation: brief and canvas point at the sequencer.
+  - AC 4 — documentation: `version`/date bump. All three documents were committed before
+    (`git log --format='%h %ad' --date=short -1 -- docs/01_vision/{01_product-brief,07_sequencer,08_mvp-canvas}.md`
+    → `a4c8a53e 2026-09-21`, `0927f5df 2026-06-29`, `0927f5df 2026-06-29`), so each is bumped once.
+  - AC 5 — characterization: no `memory.yaml` change (`git diff main -- .wingfoil/memory.yaml` empty
+    at review).
+- **Tests.** No test reads the three vision documents' calendar
+  (`grep -rln "01_vision" test/` → only `test/cli/journey-0a.integration.test.ts`, which cites
+  `05_journeys.md` in a comment). The review gate runs `npm test` as a regression check only.
+
+### documentation (developer)
+
+<!-- filled while editing -->
+
+### review (reviewer)
+
+<!-- filled at review -->
