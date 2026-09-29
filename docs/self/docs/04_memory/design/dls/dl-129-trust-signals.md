@@ -2,7 +2,7 @@
 id: "dl-129-trust-signals"
 type: decision-log
 title: "Nothing outside the code shows a visitor or an agent that WingFoil is maintained and safe to adopt — an OpenSSF Scorecard workflow, a documentation site on GitHub Pages, and an `llms.txt`"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
