@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -73,14 +73,14 @@ the files the tasks share, so that two open tasks never rewrite the same file:
 | `package.json` / `package-lock.json` | `task-112`, `task-115`, `task-116`, `task-117` (112 and 117 both regenerate the lock) |
 | `docs/cli-reference.md` | `task-110`, `task-119`, `task-120` |
 | `init` scaffold and messages | `task-118`, `task-119` |
-| `memory.yaml` | `task-114`, and the out-of-flow `dl-088` change |
+| `memory.yaml` | `task-123`, `task-114`, and the out-of-flow `dl-088` change, in that order |
 
 | Wave | Tasks | Starts when |
 |---|---|---|
 | **W1** | `task-109` (`bug-137`), `task-110` (`dl-107`) | now |
 | **W2** | `task-111` (`bug-075`), **alone** | W1 merged into `main` |
-| **W3** | `task-112` (`dl-095`, `dl-026`), `task-113` (`adr-011`, `bug-136`), `task-114` (`dl-123`), `task-118` (`bug-139`), `task-121` (`dl-096`), `task-122` (`bug-021`) | W2 merged |
-| **W4** | `task-115` (`dl-093`), `task-117` (`bug-138`), `task-119` (`bug-140`, `bug-129`) | the W3 task that holds the same file is merged (`112` for `117`, `118` for `119`) |
+| **W3** | `task-123` (`bug-156`), `task-112` (`dl-095`, `dl-026`), `task-113` (`adr-011`, `bug-136`), `task-118` (`bug-139`), `task-121` (`dl-096`), `task-122` (`bug-021`) | W2 merged |
+| **W4** | `task-114` (`dl-123`), `task-115` (`dl-093`), `task-117` (`bug-138`), `task-119` (`bug-140`, `bug-129`) | the W3 task that holds the same file is merged (`123` for `114`, `112` for `117`, `118` for `119`) |
 | **W5** | `task-120` (`bug-128`); `task-116` (the slug) | `119` merged for `120`; `113`, `115` and the approver's repository transfer for `116` |
 
 - **W1 is narrow on purpose.** The approver chose `109 + 110` alone, over a wider W1 that also
@@ -92,10 +92,16 @@ the files the tasks share, so that two open tasks never rewrite the same file:
 - Within a wave, tasks run in parallel. A W4/W5 task may start as soon as its own blocker is merged,
   without waiting for the whole previous wave.
 
+**Added during the loop.** `task-123` (`bug-156`, found at `task-110`'s review) was filed on
+2026-09-29 on the approver's instruction: bug triaged into v0.2.2 (`528fe805`), task `add → submit`
+(`50c64846` and the commit after it), bug `[triaged → planned]`. It depends on `task-111` and goes
+first in W3, because `memory add` on this repository fails for every type until it lands. It takes
+`memory.yaml` before `task-114`, which moves to W4. The backlog is now **15 tasks**.
+
 **In scope, with no task, and not run by this plan:**
 - `dl-088` (the `service` type) is a configuration change after W2 (§6.8 step 4, route (a)). It is
-  run by another session, serialized with `task-114` because both edit `memory.yaml` and its
-  `version`.
+  run by another session, after `task-123` and `task-114`, because all three edit `memory.yaml` and
+  its `version`.
 - `bug-092` closes by the approver's `reject [triaged → closed]` after `task-114` merges.
 
 ### 3. Paths before and after `task-111`
@@ -119,6 +125,7 @@ deleted.
 | `task-119` | `bug-140`, `bug-129` |
 | `task-120` | `bug-128` |
 | `task-122` | `bug-021` |
+| `task-123` | `bug-156` |
 
 Each bug has exactly one task, so the aggregate rule is 1:1. The bug's `status` changes in its own
 commit, right after the task's transition and on the task branch:
@@ -141,5 +148,5 @@ commit, right after the task's transition and on the task branch:
   `task-116`. The reject of `bug-092` after `task-114`. `dl-088`, through another session.
 - **Agent:** start → review for each task in wave order, and the `done` mechanics (merge, worktree
   cleanup, bug sync) once the approver has ruled. It never approves.
-- **Completion criteria:** the 14 tasks `done` and merged into `main`; their nine linked bugs
+- **Completion criteria:** the 15 tasks `done` and merged into `main`; their ten linked bugs
   `closed`; `npm test` green with coverage > 80%; this plan `active → done`. Next phase: `user-docs`.
