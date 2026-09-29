@@ -6,11 +6,11 @@
   "author": "Roberto Pompermaier <robypomper@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/robypomper/wingfoil.git"
+    "url": "git+https://github.com/wingfoil/wingfoil.git"
   },
-  "homepage": "https://github.com/robypomper/wingfoil#readme",
+  "homepage": "https://github.com/wingfoil/wingfoil#readme",
   "bugs": {
-    "url": "https://github.com/robypomper/wingfoil/issues"
+    "url": "https://github.com/wingfoil/wingfoil/issues"
   },
   "engines": {
     "node": ">=22.12.0"

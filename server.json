@@ -4,7 +4,7 @@
   "title": "WingFoil",
   "description": "WingFoil — the repo-native intent layer for AI-native software engineering",
   "repository": {
-    "url": "https://github.com/robypomper/wingfoil",
+    "url": "https://github.com/wingfoil/wingfoil",
     "source": "github"
   },
   "version": "0.2.1",
