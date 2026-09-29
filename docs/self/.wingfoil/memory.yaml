@@ -30,7 +30,8 @@
 #                  released) — iterated by sw-life-cycle (iterate_over: release-line).
 #   release      — a minor release wave (v0.1, v0.2, ...) belonging to a release-line; produced by
 #                  release-line-cycle's initial-design (seed-releases); iterated by release-line-cycle
-#                  (iterate_over: release) / release-cycle.
+#                  (iterate_over: release) / release-cycle. A patch of a released minor (v0.2.2, ...)
+#                  is the same type with `kind: patch` (dl-092), registered on its retrospective's ruling.
 #   task         — produced by release-planning (memory.add type: task); iterated by dev-loop.
 #   adr          — created (optional) by initial-design & release-planning; created on demand via the
 #                  `adr-ingest` main during dev-loop and other phases.
@@ -45,7 +46,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.1                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.2                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -86,13 +87,13 @@ types:
 
   release:
     path: "docs/04_memory/planning/{release-line}/{id}.md"     # [SPEC] path pattern (P1.13)
-    id_pattern: "minor-{version}"               # [AUTHORING] id derives from version, e.g. minor-v0.1
+    id_pattern: "{kind}-{version}"              # [AUTHORING] dl-092 Q1 (A)(a) — id derives from kind + version, e.g. minor-v0.1, patch-v0.2.2; ids added before dl-092 (minor-v0.1..minor-v1.0) are immutable and carry no `kind:` field
     name: Release               # [AUTHORING]
-    description: A WingFoil release wave centered on a pillar (v0.1 .. v1.0), belonging to a release-line. Workflow — produced by release-line-cycle's `initial-design` (`seed-releases`, per release-line); iterated by release-line-cycle / release-cycle (iterate_over release).   # [AUTHORING]
+    description: A WingFoil release wave centered on a pillar (v0.1 .. v1.0), belonging to a release-line — a `minor`, or a `patch` of a minor already `released` (dl-092). Workflow — a minor is produced by release-line-cycle's `initial-design` (`seed-releases`, per release-line); a patch is registered on the ruling of the patched minor's retrospective (dl-092 — no workflow action seeds it yet); both are iterated by release-line-cycle / release-cycle (iterate_over release). A patch runs every release-cycle phase except `retrospective` (dl-092 Q2 (ii)), declared in its release-planning plan.   # [AUTHORING]
     tags: [ release, roadmap ]    # [AUTHORING]
     template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release`
       frontmatter:
-        required: [ title, version, pillar, features, requirements, release-line ]
+        required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
       file: ".wingfoil/memory/templates/release.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding
       sequence: [ draft, planning, in-development, releasing, released ]  # [SPEC] (BDD P1.13: release exposes initial state 'draft' = sequence[0])

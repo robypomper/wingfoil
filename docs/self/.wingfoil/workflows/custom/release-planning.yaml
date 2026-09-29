@@ -7,7 +7,7 @@ description: >-
   governance into their gated states, identify and spec shared artefacts up front, pull backlog
   tasks for the release, and stamp each included element with its `release`. Set the release
   element to `planning` then `in-development`.
-version: 1.1                     # dl-016: added triage-bugs + reconcile-governance, record-adrs approve, build-backlog release-stamping
+version: 1.2                     # dl-016: added triage-bugs + reconcile-governance, record-adrs approve, build-backlog release-stamping; 1.2 dl-092: define-scope check gains `kind`
 element: release
 
 # Selection filter (dl-016 §1) — every phase that considers accumulated elements picks those whose
@@ -23,7 +23,7 @@ phases:
     produces:
       - "docs/04_memory/planning/{release-line}/{release.id}.md"
     checks:
-      post: ["frontmatter.required: [title, version, pillar, features, requirements, release-line]"]
+      post: ["frontmatter.required: [title, kind, version, pillar, features, requirements, release-line]"]   # dl-092: + kind
 
   - name: triage-bugs                          # dl-016 §2 phase 2 (new)
     description: >-
