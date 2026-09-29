@@ -109,4 +109,11 @@ export {
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from './audit';
-export type { AttributionEntry, ApprovalMetadata, MemoryTransition, ConsistencyMismatch } from './audit';
+export type {
+  AttributionEntry,
+  ApprovalMetadata,
+  MemoryTransition,
+  ConsistencyMismatch,
+  TransitionFinding,
+  UnparseableTransition,
+} from './audit';

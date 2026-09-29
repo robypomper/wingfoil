@@ -25,7 +25,7 @@
  */
 import type { TransitionOp } from './state-machine';
 
-/** The arrow used in `[from → to]` subject brackets (U+2192), as `./audit.ts`'s `BRACKET_RE` expects. */
+/** The canonical arrow written in `[from → to]` subject brackets (U+2192); `./audit.ts`'s `BRACKET_RE` also reads the ASCII `->` (`bug-137`). */
 const ARROW = '→';
 
 // --- The reason grammar (dl-067-reason-trailer-contract) ---------------------------------------

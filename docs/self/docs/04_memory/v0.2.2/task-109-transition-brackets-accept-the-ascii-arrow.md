@@ -92,3 +92,16 @@ read, not skipped (`retrospective-rel-v0.2-plan` §6.8 step 1). This closes `bug
   *agrees* with the frontmatter also passes today, vacuously — the bracket is skipped and `[]` comes
   back either way; it is kept because after green it is the only row proving an ASCII bracket that
   agrees yields no finding.
+
+### green (developer)
+
+- `src/memory/audit.ts`: `BRACKET_RE` reads `(?:→|->)`, first group lazy over `[^[\]]`; new
+  `WF_SUBJECT_WITH_BRACKET_RE` (`^wf\([^)]*\):.*[[\]]`) selects the subjects that must parse;
+  `verifyTransitionConsistency` returns `TransitionFinding[]` (`ConsistencyMismatch` gained
+  `kind: 'mismatch'`; new `UnparseableTransition`, `kind: 'unparseable'`). `src/memory/index.ts`
+  re-exports the two new types. `src/memory/commit-message.ts`: the `ARROW` TSDoc now says `→` is
+  the canonical arrow written and `->` is also read. The writer is unchanged — it still emits only
+  `→`.
+- `npx jest test/memory/audit.test.ts` → **47 passed, 47 total**.
+- No history subject is rewritten (Implementation Notes); the change is the regex and its one
+  consumer.

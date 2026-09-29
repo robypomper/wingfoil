@@ -322,39 +322,74 @@ export function reconstructMemoryTransitions(root: string, relativePath: string)
 
 /** One disagreement between the commit subject's `[old → new]` bracket and the frontmatter actually committed. */
 export interface ConsistencyMismatch {
+  readonly kind: 'mismatch';
   readonly sha: string;
   readonly subject: string;
   readonly declared: { readonly from: string; readonly to: string };
   readonly derived: { readonly from: string | null; readonly to: string | null };
 }
 
+/**
+ * A `wf(…)` commit subject that carries a bracket (a `[` or a `]`) which reads as a transition in
+ * neither arrow form — an unknown arrow (`[triaged => planned]`), an unbalanced bracket, a bracket with
+ * no from-state, or a trailing bracket that is not a transition. It is reported rather than skipped so
+ * that an empty result from {@link verifyTransitionConsistency} means "checked", never "passed over"
+ * (`task-109`, `bug-137`).
+ */
+export interface UnparseableTransition {
+  readonly kind: 'unparseable';
+  readonly sha: string;
+  readonly subject: string;
+}
+
+/** One finding of {@link verifyTransitionConsistency}, discriminated by `kind`. */
+export type TransitionFinding = ConsistencyMismatch | UnparseableTransition;
+
 // Matches the `[old-state → new-state]` bracket CLAUDE.md §5.1 mandates on approve/reject/deprecate
-// subjects (the arrow is the U+2192 character used throughout CLAUDE.md/the memory templates).
-const BRACKET_RE = /\[([^[\]→]+?)\s*→\s*([^[\]]+?)\]\s*$/;
+// subjects. The canonical arrow is U+2192 (`./commit-message.ts` writes only that one); the ASCII
+// `->` is read as its equivalent, because hand-written history carries it (`bug-137`). The lazy first
+// group stops at the FIRST arrow, so a multi-hop `[a → b → c]` keeps its historical reading:
+// from `a`, to `b → c`.
+const BRACKET_RE = /\[([^[\]]+?)\s*(?:→|->)\s*([^[\]]+?)\]\s*$/;
+
+// A subject in the Memory commit grammar (`wf({type}): …`) that contains any bracket character — the
+// set of subjects that must either parse with {@link BRACKET_RE} or be reported as unparseable.
+const WF_SUBJECT_WITH_BRACKET_RE = /^wf\([^)]*\):.*[[\]]/;
 
 /**
  * Cross-check, for every transition that carries a `[old → new]` bracket in its subject (`approve`/
  * `reject`/`deprecate`, per CLAUDE.md §5.1 — a plain `add`/`submit` subject has no bracket and is
  * skipped), that the bracket's declared states agree with the states independently derived from the
- * document's own frontmatter at that commit ({@link reconstructMemoryTransitions}). Returns `[]` when
- * every bracketed transition agrees — REQ-SEC-02/REQ-STATE-02's "no drift between the two views";
- * any entry in the returned array is a genuine inconsistency (e.g. a hand-edited commit message that
- * doesn't match what was actually written to disk).
+ * document's own frontmatter at that commit ({@link reconstructMemoryTransitions}).
+ *
+ * The bracket is read in either arrow form, `→` or `->`, with the same result. A `wf(…)` subject that
+ * carries a bracket readable in neither form is reported as an {@link UnparseableTransition} instead
+ * of being passed over; a subject outside the `wf(…)` grammar that merely quotes a bracket in prose is
+ * not. Returns `[]` when every bracketed transition was parsed and agrees — REQ-SEC-02/REQ-STATE-02's
+ * "no drift between the two views"; any entry is either a genuine inconsistency (e.g. a hand-edited
+ * commit message that doesn't match what was actually written to disk) or a bracket the check could
+ * not read.
  */
-export function verifyTransitionConsistency(root: string, relativePath: string): ConsistencyMismatch[] {
+export function verifyTransitionConsistency(root: string, relativePath: string): TransitionFinding[] {
   const transitions = reconstructMemoryTransitions(root, relativePath);
-  const mismatches: ConsistencyMismatch[] = [];
+  const findings: TransitionFinding[] = [];
 
   for (const transition of transitions) {
     const match = BRACKET_RE.exec(transition.subject);
-    if (!match) continue;
+    if (!match) {
+      if (WF_SUBJECT_WITH_BRACKET_RE.test(transition.subject)) {
+        findings.push({ kind: 'unparseable', sha: transition.sha, subject: transition.subject });
+      }
+      continue;
+    }
 
     const [, declaredFromRaw = '', declaredToRaw = ''] = match;
     const declaredFrom = declaredFromRaw.trim();
     const declaredTo = declaredToRaw.trim();
 
     if (declaredFrom !== transition.fromState || declaredTo !== transition.toState) {
-      mismatches.push({
+      findings.push({
+        kind: 'mismatch',
         sha: transition.sha,
         subject: transition.subject,
         declared: { from: declaredFrom, to: declaredTo },
@@ -363,5 +398,5 @@ export function verifyTransitionConsistency(root: string, relativePath: string):
     }
   }
 
-  return mismatches;
+  return findings;
 }
