@@ -2,7 +2,7 @@
 id: "task-115-package-discovery-metadata-and-server-json"
 type: task
 title: "The package carries its discovery metadata and a `server.json`, and the tag gate keeps every copy of the version equal"
-status: approved
+status: done
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "publishing", "metadata", "mcp"]
