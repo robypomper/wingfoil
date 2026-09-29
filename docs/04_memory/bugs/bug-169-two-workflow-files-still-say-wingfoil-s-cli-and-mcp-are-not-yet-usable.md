@@ -5,7 +5,7 @@ title: "Two workflow files still say WingFoil's CLI and MCP are not yet usable"
 status: open
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: "P4.1"
 contributor: ""
 credit: ""

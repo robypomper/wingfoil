@@ -5,7 +5,7 @@ title: "WORKFLOW.md draws a release cycle without user-docs, e2e-smoke and three
 status: open
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: "P4.1"
 contributor: ""
 credit: ""
