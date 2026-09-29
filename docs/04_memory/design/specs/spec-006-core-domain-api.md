@@ -92,6 +92,12 @@ export interface CoreOperation {
   readonly name: string;              // e.g. "memoryApprove"
   readonly mutates: boolean;          // true => MCP Tool, false => MCP Resource; CLI exposes both
   readonly fn: CoreFn<unknown, unknown>;
+  // CLI declaration, all optional; the CLI's --help and argument registration derive from them:
+  readonly flags?: readonly CoreFlag[];        // boolean --{name} flags, each with a description
+  readonly options?: readonly CoreOption[];    // value-bearing --{name} <placeholder> options
+  readonly description?: string;               // the one-line --help summary (= cli-reference first sentence)
+  readonly positional?: CorePositional;        // the operand it reads (e.g. <id>, [section]) and whether required
+  readonly example?: string;                   // one complete invocation shown under "Example:" (spec-008 §8)
 }
 ```
 
@@ -416,3 +422,13 @@ surface said "Anthropic SDK", following `adr-004`'s framing; `src/mcp` imports
 approver's ruling at its review. Two parentheticals in §Context change; nothing in §Specification
 does. Edited in place without a supersede or a state change, per the same `spec-001`
 precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-29) — §2's `CoreOperation` listing names the CLI declaration fields, per
+`task-120-subcommand-help-describes-every-command` (`bug-128`), on the approver's ruling at its
+review.** The listing showed only `name`, `mutates` and `fn`. It already omitted `flags` (task-028)
+and `options` (task-020), and `task-120` added `description`, `positional` and `example`, from which
+every command's `--help` is now derived. The five optional fields are listed with one-line comments,
+and `src/core/registry.ts` holds their full TSDoc. `mutates` stays the only surface-routing field,
+and nothing in the parity rule (§4) changes. Edited in place without a supersede or a state change,
+per the same `spec-001` precedent the 2026-09-17 revision cites. Signed off with `task-120`'s
+approval.

@@ -123,8 +123,8 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // `wingfoil init` is a SPECIAL bootstrap command (task-029, P5.1.1): it runs BEFORE config exists,
   // so it is NOT a `CORE_MODULES` noun-verb op — it is wired directly here and drives `runInit`
   // (./init-command.ts). The wizard/`--template`/prompt-matrix logic is fully unit-tested in
-  // ./init-command.ts; this registration is the same thin, un-unit-tested `commander` seam as the
-  // rest of this file (see the module doc).
+  // ./init-command.ts; this registration is a thin `commander` seam, and `test/cli/program.test.ts`
+  // pins it (the command is registered and drives `runInit` with the resolved options).
   program
     .command('init')
     .description('scaffold .wingfoil/ in the current git repository and commit it')
@@ -155,8 +155,8 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // starts the long-running production MCP server over stdio rather than wrapping a `CORE_MODULES`
   // noun-verb op, so — like `init` above — it is wired directly here and drives `runMcp`
   // (./mcp-command.ts). The pre-flight (resolve-root / error / exit 1) is unit-tested in
-  // ./mcp-command.ts with an injected server-start; this registration is the same thin, un-unit-tested
-  // `commander` seam as the rest of this file (see the module doc).
+  // ./mcp-command.ts with an injected server-start; this registration is a thin `commander` seam, and
+  // `test/cli/program.test.ts` pins it (the command is registered and drives `runMcp`).
   program
     .command('mcp')
     .description('start the WingFoil MCP server (read-only Resources and role Prompts) over stdio')

@@ -217,3 +217,10 @@ Unit and BDD-contract suites green (above). AC evidence: AC 1 and AC 2 —
 `cli-reference.test.ts` description and positional checks; AC 4 — the 41-invocation identical diff
 plus the extra-operand and `init|mcp extra` pins; AC 5 — `npm test` green. Submitted for the
 approver's review; `bug-128` synced to `in-review`.
+
+**Approver's ruling at the review gate (2026-09-29).** Approved, after two same-class corrections made
+before approval. `src/cli/program.ts`'s comments no longer call the `init` and `mcp` registrations
+"un-unit-tested": `test/cli/program.test.ts` pins both (lines 239, 395, 435). `spec-006` §2's
+`CoreOperation` listing names `flags`, `options`, `description`, `positional` and `example`, with a
+dated revision note signed off with this approval. The flaky `publish-secrets` dry-run test and the
+inconsistent missing-positional messages are filed as bugs on `main`.
