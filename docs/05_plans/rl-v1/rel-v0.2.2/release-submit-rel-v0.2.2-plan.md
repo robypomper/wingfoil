@@ -3,7 +3,7 @@ id: release-submit-rel-v0.2.2-plan
 type: plan
 title: "Release-submit — v0.2.2 (assemble the patch, enter releasing, stop at the approver gate)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "release-submit"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -182,4 +182,78 @@ npmjs.com).
 
 ## Execution Notes
 
-<!-- Filled during the run: one subsection per step, each result with the command that produced it. -->
+Phase started 2026-09-29 by the agent (role `qa`), session "DEV v0.2.2 - D.release-submit", on branch
+`design/release_submit_v0.2.2` (worktree `../.wf2-wt/release-submit-v0.2.2`), cut from `main`
+`227fbad5`. Plan: add `cbdd14a5` (dev build, H5) → submit `7a03edc9` (pinned 0.2.1,
+`draft → active`). Every result below was measured on the tree at `7a03edc9`, whose only difference
+from `main` `227fbad5` is this plan file.
+
+### P — preconditions: all met
+
+| # | Command | Result |
+|---|---|---|
+| P0 | `npm run -s wingfoil -- --version` | `0.2.1` |
+| P1 | `awk '/^status:/{print $2; exit}' docs/04_memory/planning/rl-v1/patch-v0.2.2.md` | `in-development` |
+| P2 | `git merge-base --is-ancestor main HEAD`; `git rev-list --left-right --count origin/main...main` | exit 0; `0 0` — `origin/main` is `227fbad5`: the e2e-smoke merge has been pushed since that phase's handoff |
+| P3 | `git status --porcelain` | empty |
+| P4 | `npm ci` | exit 0 |
+| P5 | `ls -1d README.md CHANGELOG.md docs/user-guide.md docs/cli-reference.md docs/examples/`; plan `status:` | all five present; `user-docs-rel-v0.2.2-plan` `done` |
+| P6 | `awk … e2e-smoke-rel-v0.2.2-plan.md` | `done` |
+| P7 | `awk …` on this file | `active` |
+
+### S1 — `pre-release-checks`: C1–C5 pass
+
+| Check | Command (§S1) | Result |
+|---|---|---|
+| C1 | the task loop over `docs/04_memory/v0.2.2/*.md` | no `NOT DONE` line; 16 task files |
+| C2 | the three-outcome bug loop, `release == "v0.2.2"` | 12 bugs; no `NOT RESOLVED`, no `RETIRED` line |
+| C3+C4 | `npx jest --coverage` | exit 0; 160 suites / 2624 tests passed; statements 98.63, branches 94.2, functions 93.84, lines 99.47. `bug-167` did not fire |
+| C5 | `grep -l 'release: "v0.2.2"' docs/04_memory/design/dls/*.md` + `status:` | 11 DLs — dl-026, 087, 088, 091, 092, 093, 094, 095, 096, 107, 123 — all `ready` |
+
+### S1 — the six gates and the tag-gating checks: all green
+
+| # | Command | Result |
+|---|---|---|
+| G1+G2 | `npx jest --coverage` | as C3+C4 |
+| G3 | `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| G4 | `npx tsc --noEmit -p tsconfig.json` | exit 0, no output |
+| G5 | `npm run -s lint` | exit 0 |
+| G6 | `npm run -s docs:api` | exit 0; `git status --porcelain` empty afterwards |
+| — | `npm run -s check:lockfile` | exit 0 — "carries every pinned entry (2 overrides pin(s), 1 npm alias(es)) and every required peer edge resolves" |
+| — | `npm run -s check:mcp` | exit 0 — the pinned wingfoil 0.2.1, `[prompts, resources]` (prompts: 8, resources: 2) |
+
+### C2′ — the bugs C2 does not see (for the approver; not waived by the agent)
+
+The v0.2 plan §2.2 loop (every bug whose `status:` is not `closed`, with its `release:`) prints
+**103 bugs**; none carries `release: "v0.2.2"`. By state and release:
+
+| Count | Status | `release:` |
+|---|---|---|
+| 66 | `open` | empty |
+| 2 | `open` | `v0.3` — bug-087, bug-088 |
+| 4 | `triaged` | empty — bug-019, bug-132, bug-133, bug-134 |
+| 31 | `triaged` | `v0.3` |
+
+The 66 `open` with an empty `release:` are bug-024, 025, 028, 031–040, 045–048, 051–055, 060, 061,
+064–070, 072, 073, 093, 095–097, 099–102, 104–116, 118, 119, 121–127, 130, 131, 154.
+
+Two of them bear on publishing and are named as the plan requires: **`bug-055`** (`open`; the
+secret-scan fixture tripped GitHub push protection again at the dev-loop push, cleared by the approver
+with a second allowlist exception; not touched by this phase) and **`bug-067`** (`open`; an interrupt
+during a blocking npm step is honoured late).
+
+### Publishing carry-over — read, not changed
+
+| Item | Command | Read |
+|---|---|---|
+| `package.json` version | `node -p "require('./package.json').version"` | `0.2.1` |
+| `server.json` versions | `grep -n '"version"' server.json` | `0.2.1` at lines 10 and 15 |
+| CHANGELOG heading | `grep -n '^## \[0.2.2\]' CHANGELOG.md` | line 11: `## [0.2.2] - Unreleased` |
+| README roadmap row | `grep -n '0\.2\.2' README.md` | line 238: `🔄 Being released` |
+
+### S2 — prepared, not performed
+
+- `dl-079` is `in-discussion` (`awk '/^status:/{print $2; exit}' docs/04_memory/design/dls/dl-079-*.md`),
+  so the proposed subject stands: `wf(release): enter-releasing patch-v0.2.2 [in-development → releasing]`.
+- **Stopped at the Handoff.** S2's role is `tech-lead`, outside the agent role set; S3 is the
+  approver's.
