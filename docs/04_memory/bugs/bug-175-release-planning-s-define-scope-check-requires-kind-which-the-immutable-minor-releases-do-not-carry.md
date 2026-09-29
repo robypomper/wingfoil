@@ -2,7 +2,7 @@
 id: bug-175-release-planning-s-define-scope-check-requires-kind-which-the-immutable-minor-releases-do-not-carry
 type: bug
 title: "release-planning's define-scope check requires kind, which the immutable minor releases do not carry"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.3"
 release: ""
