@@ -2,7 +2,7 @@
 id: "task-123-template-paths-are-relative-to-the-config-root"
 type: task
 title: "Every `template.file` in this repository's `memory.yaml` is relative to the configuration root, so `memory add` works on its own Memory"
-status: pending
+status: backlog
 release: "v0.2.2"
 priority: "high"
 tags: ["v0.2.2", "memory", "config", "dogfooding"]
