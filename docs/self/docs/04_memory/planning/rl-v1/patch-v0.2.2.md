@@ -1,30 +1,67 @@
 ---
 id: "patch-v0.2.2"
 type: release
-title: ""              # REQUIRED — e.g. "WingFoil v0.1 — Memory & Storage"
-status: draft
+title: "WingFoil v0.2.2 - Configuration at the root, staged publishing, first-use fixes"
+status: planning
 kind: "patch"
 patch-of: "minor-v0.2"
 version: "v0.2.2"
-pillar: ""             # REQUIRED — primary feature pillar, e.g. "P1"
-features: []           # REQUIRED — feature IDs covered by this release, e.g. [P1.1, P1.2, P1.13]
-requirements: ""       # REQUIRED — path to per-release backlog JSON, e.g. "docs/03_backlog/04_backlog/by-release/v0.1.json"
+pillar: "P1"
+features: [P1.3, P1.10, P1.13, P2.4, P5.1.1, P5.1.4, P5.2.1]
+requirements: "docs/self/docs/04_memory/design/dls/retro-v0.2.md"
 release-line: "v1"
-tmpl_version: 260929   # Orignal template version
+tmpl_version: 260929
 ---
 
 ## Scope
 
-<!-- What this release delivers: primary pillar focus, key features shipped. -->
+v0.2.2 is a patch of `minor-v0.2`, published before v0.3.0. It adds no feature: it prepares the
+repository, rehearses the new publishing steps, and fixes what a first user meets. Its code changes
+are limited to the fixes listed below; `dl-107` (`memory add` keeps version dots) and the help and
+error texts of `bug-128`, `bug-129`, `bug-140` are the only ones a user can observe. Its approved scope is the v0.2 retrospective's
+disposition table (`retro-v0.2`, the rows targeting v0.2.2), carried out in the order the approver
+fixed on 2026-09-28 (`retrospective-rel-v0.2-plan` §6.8):
+
+1. **Prerequisites.** One author identity per act (`dl-094`); `BRACKET_RE` accepts the ASCII arrow
+   (`bug-137`); patch tracking (`dl-092`, already in configuration).
+2. **Configuration at the root.** `docs/self/.wingfoil/` moves to the repository root so the Memory
+   verbs can run on WingFoil's own Memory (`bug-075`); version dots survive in ids (`dl-107`); the
+   released build that develops WingFoil is pinned (`dl-095`); the MCP server is registered in the
+   repository (`dl-026`). v0.3 may start once this step is on `main`.
+3. **Staged publishing.** npm staged publishing (`dl-087`) with the publish workflow's actions moved
+   off Node 20 (`bug-136`).
+4. **External state in Memory.** The `service` type and the services WingFoil already depends on
+   (`dl-088`).
+5. **Public identity and first use.** The name and MCP namespace (`dl-091`), the repository renamed
+   and its URLs swept before publish, the package's discovery metadata (`dl-093`); the unused
+   `@anthropic-ai/sdk` removed (`bug-138`); `init` and its scaffold name what they need
+   (`bug-139`, `bug-140`, `bug-129`); subcommand help describes its commands (`bug-128`); closures
+   with no code (`bug-021`, and `bug-092` through `dl-123`'s won't-fix exit); the vision's calendar
+   re-based on active days (`dl-096`).
+6. **Publish.** Staging, then the `v0.2.2` tag on the pushed `main`, then the npm publish.
+
+Out of scope on purpose: `bug-118`, `bug-126`, `bug-072`, `bug-131` and the dirty-tree `submit`
+question, which need behaviour changes and stay in v0.3.
 
 ## Pillar Focus
 
-<!-- Describe the pillar and why it is the focus for this release wave. -->
+**Pillar 1 (Project Memory)** is where most of the patch lands: the configuration root that the
+Memory verbs read, the `service` type, the `kind` field that lets a patch be a `release` at all, and
+the bug machine's won't-fix exit. The rest is packaging and first-use polish on P2 and P5. The patch
+matters less for what it adds than for what it unblocks: after it, WingFoil's own Memory is operated
+through its own verbs, and every later publish goes through staging.
 
 ## Success Criteria
 
-<!-- Measurable criteria that mark this release as complete.
-     Reference the MVP Canvas if applicable (docs/01_vision/08_mvp-canvas.md). -->
+- The configuration lives at the repository root; `wingfoil memory history` and the gated verbs run
+  on this repository's own Memory (`bug-075` closed).
+- A pinned, released build of `wingfoil` develops WingFoil, and `.mcp.json` registers its MCP server.
+- `wingfoil@0.2.2` is published through npm staged publishing, with provenance, from the `v0.2.2`
+  tag on the pushed `main`.
+- The published package carries its discovery metadata and URLs that match the renamed repository.
+- Every bug scheduled into v0.2.2 is `closed`; `npm test` green; coverage >80% and not regressing.
+- Every `release-cycle` phase except `retrospective` has a `done` plan under
+  `docs/05_plans/rl-v1/rel-v0.2.2/` (`dl-092` Q2 (ii)).
 
 ## Execution Notes
 
