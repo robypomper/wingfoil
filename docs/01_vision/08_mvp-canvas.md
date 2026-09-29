@@ -1,6 +1,6 @@
 # MVP Canvas — WingFoil v1.0 (MVP Complete)
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-09-29
 **Status:** Approved
 
@@ -187,8 +187,8 @@ This MVP Canvas is part of a comprehensive product specification created via Lea
 | `03_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
 | `04_personas.md`           | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
 | `05_journeys.md`           | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
-| `06_features.md`           | 1.4     | Approved | 63 features across 5 pillars, organized by release version |
-| `07_sequencer.md`          | 1.4     | Approved | Active-day budgets, actuals, forecast; original plan       |
+| `06_features.md`           | 1.5     | Approved | 63 features across 5 pillars, organized by release version |
+| `07_sequencer.md`          | 1.5     | Approved | Active-day budgets, actuals, forecast; original plan       |
 | `08_mvp-canvas.md`         | 1.2     | Approved | This file — MVP canvas with success criteria               |
 | `X_cli-cmds.md`            | 1.3     | Approved | CLI commands reference (all pillars)                       |
 | `X_lean-inception-plan.md` | —       | —        | Lean Inception workshop plan and session log               |
