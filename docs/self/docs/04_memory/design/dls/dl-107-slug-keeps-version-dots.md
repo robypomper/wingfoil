@@ -2,7 +2,7 @@
 id: "dl-107-slug-keeps-version-dots"
 type: decision-log
 title: "`memory add` cannot produce a version-shaped id: the slug drops dots, and an `id_pattern` token other than `{n}` and `{slug}` has no source, so this repository's own `release`, `release-line` and `plan` patterns cannot be filled"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
