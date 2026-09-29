@@ -13,7 +13,8 @@
  *
  * The staging orchestration (`scripts/publish-staging.cjs`), the dl-023 smoke (`scripts/e2e-smoke.cjs`) and
  * the tag check (`scripts/check-release-tag.cjs`) have their own suites: `publish-staging.test.ts`,
- * `e2e-smoke.test.ts`, `check-release-tag.test.ts`.
+ * `e2e-smoke.test.ts`, `check-release-tag.test.ts` (plus the task-115 `server.json` version cases in
+ * `publish-metadata.test.ts`).
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';

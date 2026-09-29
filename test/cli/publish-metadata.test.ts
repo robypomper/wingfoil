@@ -32,10 +32,18 @@
  * `task-074-fix-engines-node-floor` (`bug-023`) later added the `engines.node` guard at the bottom of
  * this file — the same "metadata only" boundary, one field over. Its own header explains why it is
  * computed from the installed tree rather than pinned to a value.
+ *
+ * `task-115-package-discovery-metadata-and-server-json` (`dl-093`, `dl-091`) added the discovery
+ * metadata (`description`, `keywords`, `mcpName`), the root `server.json` of the MCP Registry listing
+ * (`spec-015` §1a), and — the one exception to "nothing here asserts a script" — the version-sync
+ * cases of `checkReleaseTag` (`spec-015` §4), which `spec-015` pins in this file because they keep
+ * metadata copies equal. That block sits just before the task-074 one.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
+import { checkReleaseTag } from '../../scripts/check-release-tag.cjs';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const PKG_PATH = join(REPO_ROOT, 'package.json');
@@ -45,6 +53,11 @@ const REPO_SLUG = 'robypomper/wingfoil';
 
 /** The `spec-015` §1 publish surface, as far as this task's assertions reach into it. */
 interface PublishManifest {
+  readonly version?: string;
+  /** task-115: the discovery metadata of `spec-015` §1 (`dl-093` points 1–3). */
+  readonly description?: string;
+  readonly keywords?: readonly string[];
+  readonly mcpName?: string;
   readonly repository?: { readonly type?: string; readonly url?: string };
   readonly author?: string;
   readonly homepage?: string;
@@ -161,6 +174,169 @@ describe('publish metadata (task-059) — shipped file surface', () => {
     const paths = packedPaths();
     expect(paths).toContain('dist/cli.js');
     expect(paths).toContain('README.md');
+  });
+});
+
+/* ---------------------------------------------------------------------------------------------- *
+ * task-115-package-discovery-metadata-and-server-json (`dl-093`, `dl-091`, `spec-015` §1/§1a/§4) —
+ * the discovery metadata, the MCP Registry `server.json`, and the check that keeps its versions equal.
+ *
+ * `server.json` is the input of the MCP Registry listing. The registry verifies npm ownership by
+ * reading `mcpName` in the *published* `package.json`, which must equal `server.json` `name`; and a
+ * published listing's metadata cannot be changed afterwards. So the three copies of the version
+ * (`package.json`, `server.json`, each `packages[]` entry) are asserted equal by the gate that already
+ * asserts the tag (`checkReleaseTag`, `dl-093` point 5 option (a)).
+ *
+ * The full shape of `server.json` is validated against the registry's published JSON schema at
+ * review time and recorded in the task's Execution Notes: a test cannot fetch it offline, so this
+ * block pins the fields the spec names, and the schema limit a shared `description` must respect.
+ * ---------------------------------------------------------------------------------------------- */
+
+const SERVER_JSON_PATH = join(REPO_ROOT, 'server.json');
+
+/** `dl-091` Q2 (iii) — the MCP namespace, permanent once published. */
+const MCP_NAME = 'io.github.wingfoil/wingfoil';
+
+/** The MCP Registry schema's `description.maxLength` (server.schema.json 2025-12-11). */
+const REGISTRY_DESCRIPTION_MAX = 100;
+
+/** The subset of the MCP Registry `server.json` this block asserts. */
+interface ServerJson {
+  readonly $schema?: string;
+  readonly name?: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly version?: string;
+  readonly repository?: { readonly url?: string; readonly source?: string };
+  readonly packages?: readonly {
+    readonly registryType?: string;
+    readonly identifier?: string;
+    readonly version?: string;
+    readonly transport?: { readonly type?: string };
+    readonly packageArguments?: readonly { readonly type?: string; readonly value?: string }[];
+  }[];
+}
+
+function readServerJson(): ServerJson {
+  return JSON.parse(readFileSync(SERVER_JSON_PATH, 'utf-8')) as ServerJson;
+}
+
+describe('discovery metadata (task-115) — spec-015 §1', () => {
+  it('declares `mcpName` as the dl-091 namespace', () => {
+    expect(pkg.mcpName).toBe(MCP_NAME);
+  });
+
+  it('declares a one-line `description` that carries the display name', () => {
+    const description = pkg.description ?? '';
+    expect(description).toContain('WingFoil');
+    expect(description).not.toMatch(/[\r\n]/);
+    // The same string is `server.json` `description`, which the registry caps.
+    expect(description.length).toBeGreaterThan(0);
+    expect(description.length).toBeLessThanOrEqual(REGISTRY_DESCRIPTION_MAX);
+  });
+
+  it('carries at least the spec-015 §1 keywords', () => {
+    const minimum = [
+      'mcp',
+      'model-context-protocol',
+      'mcp-server',
+      'ai-agents',
+      'cli',
+      'workflow',
+      'governance',
+      'spec-driven-development',
+      'claude-code',
+    ];
+    expect(minimum.filter((k) => !(pkg.keywords ?? []).includes(k))).toEqual([]);
+  });
+
+  it('carries the visibility-session additions and no duplicate keyword', () => {
+    const keywords = pkg.keywords ?? [];
+    for (const k of ['intent-engineering', 'context-engineering', 'developer-tools']) {
+      expect(keywords).toContain(k);
+    }
+    expect(new Set(keywords).size).toBe(keywords.length);
+  });
+});
+
+describe('MCP Registry listing (task-115) — spec-015 §1a `server.json`', () => {
+  it('exists at the repository root', () => {
+    expect(existsSync(SERVER_JSON_PATH)).toBe(true);
+  });
+
+  it('names the server as `mcpName` and describes it as `package.json` does', () => {
+    const server = readServerJson();
+    expect(server.name).toBe(pkg.mcpName);
+    expect(server.description).toBe(pkg.description);
+    expect(server.$schema).toMatch(/^https:\/\/static\.modelcontextprotocol\.io\/schemas\/[\d-]+\/server\.schema\.json$/);
+  });
+
+  it('points at the same repository as `package.json`', () => {
+    expect(readServerJson().repository).toEqual({
+      url: `https://github.com/${REPO_SLUG}`,
+      source: 'github',
+    });
+  });
+
+  it('lists exactly one npm package, `wingfoil`, over stdio with the argument `mcp`', () => {
+    expect(readServerJson().packages).toEqual([
+      {
+        registryType: 'npm',
+        identifier: 'wingfoil',
+        version: pkg.version,
+        transport: { type: 'stdio' },
+        packageArguments: [{ type: 'positional', value: 'mcp' }],
+      },
+    ]);
+  });
+
+  it('is not shipped in the tarball — it is the listing input, not package content', () => {
+    expect(pkg.files ?? []).not.toContain('server.json');
+    expect(packedPaths()).not.toContain('server.json');
+  });
+});
+
+describe('version sync (task-115) — spec-015 §4 `checkReleaseTag` over `server.json`', () => {
+  const synced = { version: '0.2.2', packages: [{ version: '0.2.2' }] };
+
+  it('accepts a tag and a `server.json` that both equal the package version', () => {
+    const result = checkReleaseTag('v0.2.2', '0.2.2', synced);
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('server.json');
+  });
+
+  it.each<[string, unknown]>([
+    ['server.json `version` differs', { version: '0.2.1', packages: [{ version: '0.2.2' }] }],
+    ['server.json `version` missing', { packages: [{ version: '0.2.2' }] }],
+    ['the only package `version` differs', { version: '0.2.2', packages: [{ version: '0.2.1' }] }],
+    ['a package `version` is missing', { version: '0.2.2', packages: [{}] }],
+    [
+      'one of several package versions differs',
+      { version: '0.2.2', packages: [{ version: '0.2.2' }, { version: '0.2.0' }] },
+    ],
+    ['`packages` is empty', { version: '0.2.2', packages: [] }],
+    ['`packages` is missing', { version: '0.2.2' }],
+    ['`packages` is not an array', { version: '0.2.2', packages: { version: '0.2.2' } }],
+    ['no server.json was read', undefined],
+  ])('rejects when %s', (_case, server) => {
+    const result = checkReleaseTag('v0.2.2', '0.2.2', server as Parameters<typeof checkReleaseTag>[2]);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('server.json');
+  });
+
+  it('still rejects a tag mismatch even when `server.json` is in sync', () => {
+    expect(checkReleaseTag('v0.2.1', '0.2.2', synced).ok).toBe(false);
+  });
+
+  it('passes on this repository: the gate step reads the real `server.json`', () => {
+    // The same invocation `.github/workflows/publish.yml`'s gate job runs, with the tag it expects.
+    const run = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts', 'check-release-tag.cjs'), `v${pkg.version ?? ''}`], {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+    });
+    expect(run.stderr).toBe('');
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain('server.json');
   });
 });
 

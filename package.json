@@ -1,7 +1,7 @@
 {
   "name": "wingfoil",
   "version": "0.2.1",
-  "description": "Open-source harness for AI-assisted software development that makes the process deterministic — Project Memory, Project DNA, Project Directives, Project Workflow, and a CLI + MCP interaction layer.",
+  "description": "WingFoil — the repo-native intent layer for AI-native software engineering",
   "license": "MIT",
   "author": "Roberto Pompermaier <robypomper@gmail.com>",
   "repository": {
@@ -44,9 +44,22 @@
   },
   "keywords": [
     "wingfoil",
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agents",
     "ai-assisted-development",
+    "claude-code",
+    "cli",
+    "workflow",
+    "governance",
+    "spec-driven-development",
+    "intent-engineering",
+    "context-engineering",
+    "developer-tools",
     "determinism"
   ],
+  "mcpName": "io.github.wingfoil/wingfoil",
   "//devDependencies:@emnapi": "task-104 / bug-063. @emnapi/core and @emnapi/runtime are NOT imported by anything in this repository. They are declared here, at the exact version the overrides block below pins, because an overrides pin binds a version but does not make npm record a node: under npm 11.x a plain `npm install` prunes both hoisted entries out of package-lock.json and reports `up to date`, which silently reverts task-080 and makes `npm ci` fail again under the npm 10.9.x that the pipeline's pinned Node 22.12.0 bundles (bug-056). A DIRECT dependency is never pruned, so declaring them is what makes the lock entries survive an ordinary install. Keep the two versions here equal to the overrides pins - `npm run check:lockfile` (scripts/check-lockfile-pins.cjs) fails if they drift, if either entry leaves the lock, or if these declarations are removed. Being devDependencies, they are never installed by a consumer of the published package.",
   "devDependencies": {
     "@emnapi/core": "1.11.3",
