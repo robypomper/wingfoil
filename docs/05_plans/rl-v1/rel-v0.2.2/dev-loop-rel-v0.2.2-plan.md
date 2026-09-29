@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
