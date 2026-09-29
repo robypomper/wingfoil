@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.2.2-mcp-registry-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 MCP Registry publish findings"
-status: active
+status: done
 version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-mcp-registry-findings"
@@ -58,4 +58,11 @@ at triage.
   pinned build. It is low severity; the location of the Staged Packages tab is to come from the
   approver. Its body was corrected afterwards, in its own commit: `release-publishing.yaml` line 31
   says only "or Approve on npmjs.com".
-- Awaiting the approver's triage of `bug-173` and `bug-174`.
+- **Triage, 2026-09-29, the approver's ruling in chat:** both go into v0.3, `bug-173` kept.
+  - The approver gave the Staged Packages location, "the account menu", and it is recorded in
+    `bug-174` (`28a2e36d`).
+  - `release: "v0.3"` stamped on both in one commit (`aea0927c`), before the transitions (the
+    `bug-076` guard).
+  - `bug-173` → `triaged` (`e4859473`) and `bug-174` → `triaged` (`78b941cb`), each by its own pinned
+    `memory approve` call (`bug-171`).
+  - Every bug here is `triaged`, so this plan moves `active → done`.

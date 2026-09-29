@@ -2,10 +2,10 @@
 id: bug-174-the-publish-runbook-does-not-say-where-npm-s-staged-packages-tab-is-nor-that-an-automated-review-precedes-approve
 type: bug
 title: "The publish runbook does not say where npm's Staged Packages tab is, nor that an automated review precedes Approve"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""
@@ -51,8 +51,9 @@ state had ended. The version went live at `2026-09-29T20:47:50.934Z`.
 
 ## Notes
 
-- **The location of the tab is not recorded yet.** The approver found it but it was not written down.
-  The fix must take it from the approver, not guess it.
+- **Where the tab is (the approver, 2026-09-29):** Staged Packages is reached from the **account
+  menu** on npmjs.com, the signed-in user's menu, not from the package page. The fix writes that into
+  the runbook.
 - The fix changes a comment in a pipeline file and a phase description in a workflow file. No
   behaviour changes.
 - **Duplicate search:** `grep -il "staged packages\|automated review\|runbook"
