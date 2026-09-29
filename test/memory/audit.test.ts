@@ -412,3 +412,97 @@ describe('verifyTransitionConsistency — frontmatter-derived state agrees with 
     });
   });
 });
+
+// task-109-transition-brackets-accept-the-ascii-arrow (bug-137). The bracket reader accepted only the
+// Unicode arrow, so an ASCII `[from -> to]` bracket — a form this repository's own history carries —
+// was passed over in silence, and so was any bracket that parsed in neither form. AC classification
+// (T1) is recorded in the task's Execution Notes: the `→` rows and the multi-hop pin are
+// characterization, the `->` rows and the unparseable cases are red-first.
+describe('verifyTransitionConsistency — both arrow forms, and brackets that parse in neither (task-109)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  /** `draft` → `pending` via plain add/submit, then one bracketed commit writing `writtenStatus`. */
+  function bracketedHistory(subject: string, writtenStatus: string): void {
+    repo = makeTempGitRepo();
+    writeDoc(repo, DOC_PATH, 'draft');
+    commitAll(repo, 'wf(task): add task-901-doc');
+    writeDoc(repo, DOC_PATH, 'pending');
+    commitAll(repo, 'wf(task): submit task-901-doc');
+    writeDoc(repo, DOC_PATH, writtenStatus);
+    commitAll(
+      repo,
+      `${subject}\n\nApprover: Roberto Pompermaier <robypomper@gmail.com> (approver)\nReason: looks good`,
+    );
+  }
+
+  it.each(['→', '->'])('AC1/AC2: a `[pending %s backlog]` bracket that agrees with the frontmatter yields no finding', (arrow) => {
+    bracketedHistory(`wf(task): approve task-901-doc [pending ${arrow} backlog]`, 'backlog');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([]);
+  });
+
+  it.each(['→', '->'])('AC1/AC2: a `[pending %s backlog]` bracket that disagrees with the frontmatter is a mismatch with the same declared states', (arrow) => {
+    bracketedHistory(`wf(task): approve task-901-doc [pending ${arrow} backlog]`, 'approved');
+
+    const findings = verifyTransitionConsistency(repo, DOC_PATH);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      declared: { from: 'pending', to: 'backlog' },
+      derived: { from: 'pending', to: 'approved' },
+    });
+  });
+
+  it('AC3: every finding says which kind it is — a disagreement is `kind: \'mismatch\'`', () => {
+    bracketedHistory('wf(task): approve task-901-doc [pending → backlog]', 'approved');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([
+      expect.objectContaining({ kind: 'mismatch' }),
+    ]);
+  });
+
+  it.each(['→', '->'])('AC1/AC2: the arrow may sit without surrounding spaces (`[pending%sbacklog]`)', (arrow) => {
+    bracketedHistory(`wf(task): approve task-901-doc [pending${arrow}backlog]`, 'approved');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([
+      expect.objectContaining({ declared: { from: 'pending', to: 'backlog' } }),
+    ]);
+  });
+
+  it.each([
+    ['an unknown arrow', 'wf(task): approve task-901-doc [pending => backlog]'],
+    ['an unbalanced bracket (no closing `]`)', 'wf(task): approve task-901-doc [pending → backlog'],
+    ['a bracket with no from-state', 'wf(bug): sync task-901-doc [-> backlog, v0.3]'],
+    ['a trailing bracket that is not a transition, after one that is', 'wf(bug): sync task-901-doc [pending -> backlog] and task-902 [-> release v0.2]'],
+  ])('AC3: a wf() subject carrying %s is reported as an unparseable transition', (_label, subject) => {
+    bracketedHistory(subject, 'backlog');
+
+    const findings = verifyTransitionConsistency(repo, DOC_PATH);
+    const sha = reconstructMemoryTransitions(repo, DOC_PATH)[2]?.sha;
+
+    expect(findings).toEqual([{ kind: 'unparseable', sha, subject }]);
+  });
+
+  it('AC3: a non-wf() subject that quotes a bracket in prose is not reported', () => {
+    bracketedHistory('docs(self): the [from → to] bracket belongs to approver-gated verbs', 'backlog');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([]);
+  });
+
+  it.each(['→', '->'])('AC4: a multi-hop `[in-review → resolved → closed]` bracket, written with `%s`, keeps today\'s reading — split at the first arrow, so a mismatch', (arrow) => {
+    repo = makeTempGitRepo();
+    writeDoc(repo, DOC_PATH, 'in-review');
+    commitAll(repo, 'wf(bug): add task-901-doc');
+    writeDoc(repo, DOC_PATH, 'closed');
+    commitAll(repo, `wf(bug): sync task-901-doc [in-review ${arrow} resolved ${arrow} closed]`);
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([
+      expect.objectContaining({
+        declared: { from: 'in-review', to: `resolved ${arrow} closed` },
+        derived: { from: 'in-review', to: 'closed' },
+      }),
+    ]);
+  });
+});
