@@ -2,7 +2,7 @@
 id: "dl-094-one-author-identity-per-act"
 type: decision-log
 title: "The repository's shared git configuration set an identity outside `team.members`, so the authority check would refuse every approval once the verbs run here"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
