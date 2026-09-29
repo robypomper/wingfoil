@@ -1,45 +1,51 @@
 ---
 id: bug-162-task-counter-restarts-per-release
 type: bug
-title: "task counter restarts per release"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`memory add --type task` numbers from 1 in every release, because the `{n}` counter only counts the type's folder and a task's folder is per release"
+status: open
+severity: "medium"
+release-origin: "v0.2.2"
+release: ""
+feature: "P1.3"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`nextSequenceNumber` (`src/memory/add.ts:85`) returns 1 + the number of matching files in the
+directory the type's `path` resolves to. For `task` that directory is `docs/04_memory/{release}/`, so
+each release starts again at `task-001`. This repository numbers tasks across releases: it is at
+`task-123` in `v0.2.2`, which started at `task-109`. So `memory add` can never produce the next id
+this repository expects, and the ids it does produce repeat numbers already used in other releases.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. Take a clone of this repository at `68f64091` or later.
+2. Build it and run `node dist/cli.js memory add --type task --title probe --set release=v0.2.3`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The next task id continues the project's sequence, here `task-124-probe`. Or, if per-release
+numbering is intended, `memory.yaml` declares the counter's scope, and this repository's config says
+it counts across releases.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+`task-001-probe`, observed in `task-123`'s AC 4 run on a throwaway clone (2026-09-29, recorded in
+`task-123`'s Execution Notes). The same holds in any release directory, since the counter never sees
+other releases' tasks.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Found at `task-123`'s review (2026-09-29). The approver ruled it a bug.
+- Not covered by `bug-087` (count + 1 over a gapped sequence) or by `dl-101` (`ready`, v0.3, id
+  allocation across refs), because both keep the scan inside the type's own directory.
+- Any type whose `path` contains a field token other than `{id}` has the same property. In this
+  repository's `memory.yaml` that is `task` (`{release}`) and `release` (`{release-line}`, but its
+  id has no `{n}`).
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->
