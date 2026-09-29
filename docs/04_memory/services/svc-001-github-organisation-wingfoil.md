@@ -33,8 +33,10 @@ organisation `wingfoil`, has no owner to point at.
   them (read-only, `task-124`, 2026-09-29):
   - require 2FA → `two_factor_requirement_enabled: true` (applied);
   - base permission "No permission" → `default_repository_permission: "none"` (applied);
-  - profile name "WingFoil" with the category line → `name: "wingFoil"`: **the capitalisation differs
-    from the recommendation**, for the approver to confirm or correct. The category line was not read.
+  - profile name "WingFoil" with the category line: `name: "WingFoil"` (corrected by the approver
+    on 2026-09-29, first read as `"wingFoil"`), and `description: "The repo-native intent layer for
+    AI-native software engineering"`, the category line (`gh api orgs/wingfoil --jq
+    '{name,description}'`, 2026-09-29).
 - No repository lives under it yet: the transfer is the approver's last identity step, before the
   v0.2.2 publish (`task-116-repository-slug-follows-the-transfer`).
 
