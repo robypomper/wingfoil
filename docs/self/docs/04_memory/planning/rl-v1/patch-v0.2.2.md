@@ -2,7 +2,7 @@
 id: "patch-v0.2.2"
 type: release
 title: "WingFoil v0.2.2 - Configuration at the root, staged publishing, first-use fixes"
-status: planning
+status: in-development
 kind: "patch"
 patch-of: "minor-v0.2"
 version: "v0.2.2"
