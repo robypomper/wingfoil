@@ -140,3 +140,4 @@ rehearsal stays at (a), because it starts a local registry.
   `dl-076-toolchain-divergence-unexercised-until-tag`; `bug-075`; `bug-144`, `bug-145`.
 - **Traceability:** REQ-SYS-09 (distribution as an npm package), REQ-INT-04 (CLI exit-code
   contract).
+- **Amended by** `dl-133-fix-task-tail` (2026-09-29, v0.3 planning): the smoke and the mechanical user-doc checks also run at every wave end.

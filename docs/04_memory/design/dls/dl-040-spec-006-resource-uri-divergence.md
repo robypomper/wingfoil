@@ -4,7 +4,7 @@ type: decision-log
 title: "Core operations diverge from spec-006 §3's Resource-URI column, and nothing tracks it"
 status: in-discussion
 context: "dev-loop-review"
-release: "v0.3"
+release: "v0.4"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -137,3 +137,4 @@ Alternatives considered:
 - **Related:** `dl-113-personas-revisited`, the other vision edit filed by this retrospective;
   `dl-125-approving-documents-that-are-not-memory-elements`, since this approval is itself a
   hand-written commit on a document outside Memory.
+- **Refined by** `dl-131-determinism-index-scope` (2026-09-29, v0.3 planning): what the Determinism Index is made of and which component is promised; the two vision edits are applied in one commit.

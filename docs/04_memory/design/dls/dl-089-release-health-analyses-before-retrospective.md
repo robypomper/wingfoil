@@ -451,3 +451,4 @@ Alternatives considered:
   external-state decision was re-filed by the v0.2 retrospective as
   `dl-088-a-memory-type-for-state-that-lives-outside-the-repository`, which is the id this document
   cites.
+- **Amended by** `dl-133-fix-task-tail` (2026-09-29, v0.3 planning): the catalogue gains the fix-share metrics; and by `dl-131-determinism-index-scope`: D01 is the Index's outcome component, and the process-conformance measures join the catalogue.
