@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -43,6 +43,7 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 | `bug-156-repository-memory-yaml-template-paths-carry-the-config-root` | `task-110` review (2026-09-29, approver: separate bug, to triage) | this repository's 8 `template.file` entries carry a `.wingfoil/` prefix, so `memory add` resolves `.wingfoil/.wingfoil/…` and fails for every type; `task-111` does not fix it | medium |
 | `bug-157-dl-107-action-1-names-a-slug-rule-spec-009-does-not-hold` | `task-110` review (2026-09-29, approver: bug) | `dl-107` Action 1 targets a slug rule `spec-009` §1 does not hold; its `spec-009` half is neither done nor void | low |
 | `bug-158-date-and-author-id-tokens-are-declared-but-not-implemented` | `task-110` review (2026-09-29, approver: bug) | `{date}`/`{author}` are in `spec-001`'s token table but not implemented; `--set` refuses them claiming the command fills them | low |
+| `bug-159-storage-layout-spec-tree-omits-three-configuration-files` | `task-111` review (2026-09-29, approver: bug) | `spec-011`'s "ground truth" tree omits `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`, `workflows/custom/e2e-smoke.yaml` | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -71,3 +72,11 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
   bugs". There were four findings, but the first was the `spec-008` sign-off, given in that same
   approval; three became bugs (`bug-156`, `bug-157`, `bug-158`). The commit is merged and is left as
   written.
+- **Triage (2026-09-29):** `bug-156` → `triaged`, `release: v0.2.2` (`528fe805`), then `planned` under
+  its fix task `task-123`; `bug-157` and `bug-158` → `triaged`, `release: v0.3` (`6afb473d`).
+- **Batch 3, `task-111` review (2026-09-29).** Since `task-111` (merge `582ec08a`), bugs live under
+  `docs/04_memory/bugs/`. Next free number `bug-159` (`ls docs/04_memory/bugs | sort -V | tail -1` →
+  `bug-158`; `git log --all --oneline | grep -c bug-159` → 0). Duplicate search: `grep -rli
+  "spec-011" docs/04_memory/bugs` → no bug about its tree. Added in `b503236d`, submitted in the
+  commit after this revision. At the same review the approver had `bug-154` and `bug-035` updated to
+  the new layout (`31623e1c`), with no state change.
