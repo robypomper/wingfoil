@@ -111,6 +111,14 @@ B-DECISION … choice here or on `dl-013`/`dl-023`"*. The ruling was made at S5.
   Its `gate` text must be amended to state hard-reject **before v0.3's `e2e-smoke` phase runs**. That
   amendment edits the same file as `bug-134`'s `produces:` fix and rides with it, behind a task
   (plan H8), so `bug-134` carries it.
+- **Smoke gate, v0.2.2 — hard-reject, brought forward.** v0.2.2 is a patch released before v0.3, so
+  the ruling above did not name it. At D1 of `e2e-smoke-rel-v0.2.2-plan` the approver ruled on
+  2026-09-29 that v0.2.2 already runs in **hard-reject**: v0.2 ran green, and that meets the flip
+  condition of the staged posture. The gate report was **PASS**, so the ruling blocked nothing. The run
+  had 20/20 `ok` on the smoke, 5/5 `docs/examples`, and `check:mcp` passing on the first run of the
+  `mcp-registration` phase. The approver approved the `gate` phase on 2026-09-29. From here on a failing
+  `e2e-smoke` gate blocks `release-submit`. The `e2e-smoke.yaml` text amendment still rides with
+  `bug-134`.
 - **`produces:` — yes.** At S5.3 the approver ruled that `e2e-smoke.yaml` gains the smoke-test report
   that Actions item (1) asked for. The change is carried by `bug-134-e2e-smoke-yaml-declares-no-produces`
   (`triaged`), and it is made behind a task, not inline.
