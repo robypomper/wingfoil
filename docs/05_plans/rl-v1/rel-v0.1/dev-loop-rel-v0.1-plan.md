@@ -3,10 +3,10 @@
 ## Context
 
 `minor-v0.1` is `in-development`; its `planning` phase is done — 33 backlog tasks (`task-001..033`,
-`docs/self/docs/04_memory/v0.1/`), all `status: backlog`
+`docs/04_memory/v0.1/`), all `status: backlog`
 (`docs/05_plans/rl-v1/rel-v0.1/release-planning-rel-v0.1-plan.md`). Per `release-cycle`, the next
 phase is `implementation`: one `dev-loop` sub-workflow run
-(`docs/self/.wingfoil/workflows/custom/dev-loop.yaml`, `element: task`) per backlog task tagged
+(`.wingfoil/workflows/custom/dev-loop.yaml`, `element: task`) per backlog task tagged
 `v0.1`. Per CLAUDE.md §6/§10.7 (no workflow engine yet), starting a sub-workflow requires a coherent
 plan first.
 
@@ -26,7 +26,7 @@ next section). This mirrors how `X_wingfoil-init-plan.md` models `wingfoil-init`
 An agent picking up a task does **not** copy this file. Instead:
 
 1. Read this plan for the phase-by-phase contract (§3) and the git/commit conventions (§2).
-2. Open the task's own Memory file (`docs/self/docs/04_memory/v0.1/task-{n}-{slug}.md`) — its
+2. Open the task's own Memory file (`docs/04_memory/v0.1/task-{n}-{slug}.md`) — its
    **Description / Acceptance Criteria / Implementation Notes** sections already carry the
    task-specific content, and its **Execution Notes** section is where the running log of what
    actually happened (specs found missing, deviations, rejection reasons) is filled in
@@ -196,7 +196,7 @@ branch, which defeats the point of giving every task a dedicated branch in the f
 
 ---
 
-## 4. Task Registry (snapshot — source of truth is `docs/self/docs/04_memory/v0.1/task-*.md`)
+## 4. Task Registry (snapshot — source of truth is `docs/04_memory/v0.1/task-*.md`)
 
 33 tasks, all `status: backlog`, tag `v0.1`. `task-001` and `task-002` are prerequisites (scaffold +
 shared validation/ID engine) that the other 31 build on:

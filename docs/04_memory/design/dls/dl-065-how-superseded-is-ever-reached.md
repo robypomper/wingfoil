@@ -14,7 +14,7 @@ tmpl_version: 260703
 
 `task-048-memory-deprecate` had to decide what `wingfoil memory deprecate` writes for an `adr` or a
 `tech-spec`, whose machines both end in `superseded`. Its design decision D1
-(`docs/self/docs/04_memory/v0.2/task-048-memory-deprecate.md:136-167`) and its independent review both
+(`docs/04_memory/v0.2/task-048-memory-deprecate.md:136-167`) and its independent review both
 landed on the same reading — the verb writes `deprecated` for every type — and the code shipped that
 way. What neither could settle is the question the reading exposes: **if no verb writes `superseded`,
 what does?** Verified below: nothing does, and one approved specification still says `deprecate` does.
@@ -31,7 +31,7 @@ what does?** Verified below: nothing does, and one approved specification still 
 - **`spec-001:207` and `:226`** — the spec's own worked `adr` and `tech-spec` examples —
   `waiting: [ accepted ]  # accepted→superseded: triggered by a later ADR's supersedes:` and
   `waiting: [ approved ]  # approved→superseded: triggered by a later spec's supersedes:`. Both match
-  `docs/self/.wingfoil/memory.yaml` verbatim (`adr`: `waiting: [ accepted ]`; `tech-spec`:
+  `.wingfoil/memory.yaml` verbatim (`adr`: `waiting: [ accepted ]`; `tech-spec`:
   `waiting: [ approved ]`).
 - **`src/memory/schema.ts`** enforces the reservation as a `.superRefine()` on `StateMachine`
   (`RESERVED_STATE = 'deprecated'`, `:13`; four issues raised at `:43`, `:53`, `:66`, `:77`, plus the
@@ -61,7 +61,7 @@ an engine trigger, never by a CLI verb.
 > and is corrected here rather than repeated.
 
 `supersedes:` exists as an optional frontmatter field in the `adr` and `tech-spec` templates
-(`docs/self/.wingfoil/memory/templates/adr.md:7`, `tech-spec.md:7` — "id of the ADR this one replaces")
+(`.wingfoil/memory/templates/adr.md:7`, `tech-spec.md:7` — "id of the ADR this one replaces")
 and in every `adr`/`tech-spec` on disk, always empty. It is the input the trigger would read; nothing
 reads it.
 

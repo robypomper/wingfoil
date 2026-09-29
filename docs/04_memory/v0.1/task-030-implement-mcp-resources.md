@@ -37,7 +37,7 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.2.1-mcp-resources.fe
 ## Implementation Notes
 
 - Implements exactly §1 (transport & channels) and §2 (Resources: URI scheme, read contract, write
-  refusal) of `docs/self/docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` — the URI scheme
+  refusal) of `docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` — the URI scheme
   (`wingfoil://dna`, `wingfoil://dna/{section}`, `wingfoil://memory/{type}[/{id}]`,
   `wingfoil://workflows[/{name}]`), the exact refusal string `"resources are read-only"`, and the
   collection-listing rule (frontmatter-only for `wingfoil://memory/{type}` with no `{id}`, full content
@@ -47,7 +47,7 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.2.1-mcp-resources.fe
   Memory `path` patterns from `memory.yaml`; must not re-implement DNA/Memory parsing independently of
   the CLI (REQ-SYS-05 — single behaviour behind both surfaces).
 - `.wingfoil/` layout and root-detection algorithm consumed by the server's path resolution follow
-  `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`.
+  `docs/04_memory/design/specs/spec-011-storage-layout.md`.
 - Depends on `task-004-decoupled-pillars`, `task-007-npm-distribution`, `task-009-mcp-resource-fetch-
   latency`, and `task-014-git-identity-required` as prerequisites (per the backlog's TASK-028
   dependency set), plus `task-027-implement-project-dna` for the DNA structure this Resource exposes.

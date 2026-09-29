@@ -327,7 +327,7 @@ merge, and the effect on this task's notes:
 - No requirement, BDD feature or spec this task cites changed in the merge:
   `git diff main@{u}...` was not usable offline, so checked directly —
   `git diff ec68fd1 HEAD --stat -- docs/02_requirements` → empty, and the only
-  `docs/self/docs/04_memory/design` files touched are the four listed above plus this task's own
+  `docs/04_memory/design` files touched are the four listed above plus this task's own
   `spec-006` edit.
 
 ### review-ready summary

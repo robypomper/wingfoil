@@ -301,7 +301,7 @@ longer open.
 - `adr-005-typescript-node-stack` is `superseded` — `wf(adr): deprecate adr-005-typescript-node-stack
   [accepted → superseded]`, `a7d783a`.
 - Its cascade merged as `7bb95d6` and touched exactly four files: `CLAUDE.md`,
-  `docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml` and
+  `docs/01_vision/01_product-brief.md`, `.wingfoil/dna.yaml` and
   `dl-001-typescript-over-python`. In `dl-001` the original sentences (`:19`, `:35`) are deliberately
   **not** rewritten — a dated *Correction (2026-09-21)* note at `dl-001:37-42` states that wherever
   that document says "Node.js 18+" the runtime clause now reads 22.12+ — so the record of what v0.1

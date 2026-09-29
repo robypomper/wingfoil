@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-29
 **Roles:** Tech Lead
-**Workflow:** `docs/self/.wingfoil/workflows/custom/wingfoil-init.yaml`
+**Workflow:** `.wingfoil/workflows/custom/wingfoil-init.yaml`
 **Feature refs:** P5.1.1 (init), P2.4 (DNA), P1.13 (Memory schema), P3.5/P3.8 (Directives), P4.1 (Workflow)
 **Input:** `docs/01_vision/`, `docs/02_requirements/`, `docs/03_backlog/`
 

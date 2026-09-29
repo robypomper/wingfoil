@@ -16,7 +16,7 @@ tmpl_version: 260703   # Orignal template version
 
 Initializes the actual Node.js/TypeScript project that every other v0.1 task will build against —
 today the repo is spec-only with no `src/` tree. Per `adr-005-typescript-node-stack` and
-`docs/self/.wingfoil/dna.yaml`'s `tech_stack.technologies`, this task creates `package.json` (npm as
+`.wingfoil/dna.yaml`'s `tech_stack.technologies`, this task creates `package.json` (npm as
 package manager), `tsconfig.json` targeting Node.js 18+, and the `src/{core,storage,memory,dna,
 directives,workflow,cli,mcp-server}` module layout from `dna.yaml`'s `modules:` section. It adds
 Commander.js + chalk (CLI surface), the Model Context Protocol SDK + Anthropic SDK (MCP server), and

@@ -29,7 +29,7 @@ feature (P3.8) depends on a reference template that belongs to P4.18, a later fe
 3. `grep -rn Trunk docs/02_requirements/02_bdd/features` → only this scenario and
    `p4-workflow/P4.18-reference-workflow-templates.feature:3,18` (the reference workflow templates,
    Scrum/Kanban/Lean Inception/Trunk-Based/Custom).
-4. Scheduling: `docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md:8` lists `P3.8` among its features;
+4. Scheduling: `docs/04_memory/planning/rl-v1/minor-v0.2.md:8` lists `P3.8` among its features;
    `grep -ln P4.18 docs/self/docs/04_memory/planning/rl-v1/*.md` → `minor-v0.3.md`.
 
 ## Expected Behavior

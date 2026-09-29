@@ -47,7 +47,7 @@ if (serialized === undefined) {
   record — never a specification:
   `grep -rn "discarding its comments" docs/ src/ test/ --include=*.md --include=*.ts --include=*.feature`
   → `src/core/directive-assign.ts:143`, `test/core/directive-assign.test.ts:326`, and
-  `docs/self/docs/04_memory/v0.2/task-051-directive-assign.md:168,267`.
+  `docs/04_memory/v0.2/task-051-directive-assign.md:168,267`.
 - `docs/02_requirements/02_bdd/features/p3-directives/P3.2-directive-assign.feature` has three scenarios
   (success, unknown role, unknown directive) and no unwritable-file scenario.
   `spec-011-storage-layout` describes `roles.yaml`'s contract (`:105`) and the `built-in`/`custom` split
@@ -94,7 +94,7 @@ over inferred behaviour"). *(As written this sentence named `task-052` and `task
 **How reachable is branch (b)?** Less than it first looks, and worth stating so the decision is not
 over-weighted. The `wingfoil init` scaffold writes a `roles.yaml` that *does* carry comments
 (`src/storage/templates.ts:275-276` and `:299`, two `#` lines), and this repository's own
-`docs/self/.wingfoil/roles.yaml` carries six. So branch (b) needs a hand-written comment-free
+`.wingfoil/roles.yaml` carries six. So branch (b) needs a hand-written comment-free
 `roles.yaml`, or one a previous branch-(b) rewrite already flattened — which is the self-reinforcing
 part: once a file has been dumped it has no `#` left, so every later unwritable edit takes branch (b)
 too.

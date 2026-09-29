@@ -24,7 +24,7 @@ approver accepted three related proposals:
 `explore`, mines "the `## Execution Notes` of every Memory document in the release scope" after the
 release has shipped. Nothing asks anyone to mark, while working, what the retrospective should look
 at. The task template's `## Execution Notes` is one undifferentiated section
-(`docs/self/.wingfoil/memory/templates/task.md`), and in v0.2 it is where most of the text is: in the
+(`.wingfoil/memory/templates/task.md`), and in v0.2 it is where most of the text is: in the
 75 task files under `docs/self/docs/04_memory/v0.2/` at `a20b346c`, 277,196 of 315,509 words sit
 under `## Execution Notes`, which is the last section of the template (words from that heading to the
 end of each file, `awk '/^## Execution Notes/{e=1} e' <file> | wc -w`, summed). The v0.2
@@ -99,7 +99,7 @@ disposition. The open choices below remain for the approver.
 ## Actions
 
 1. **Ratify, choosing Q1–Q3.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **Templates:** add `### Retrospective` to `docs/self/.wingfoil/memory/templates/task.md`,
+2. **Templates:** add `### Retrospective` to `.wingfoil/memory/templates/task.md`,
    `bug.md` and `plan.md` under Q1 (A) or (C).
 3. **Workflows:** `dev-loop.yaml` (`done` phase `checks.post`, and the step that keeps a fix task's
    source bug in sync) under Q2 (a); `retrospective.yaml` `explore` and `additional-points` under

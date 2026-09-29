@@ -32,7 +32,7 @@ still holds, and approved re-baselining the vision's calendar as a documentation
 Definitions. An **active day** is a calendar date on which at least one commit reachable from
 `a20b346c` has its committer date (`git log a20b346c --format=%cd --date=short | sort -u` → 26 dates).
 A **gap** is the difference between consecutive active dates. **Tasks** are the files under
-`docs/self/docs/04_memory/v0.{1,2}/` (`ls … | wc -l` → 33 and 75). **Features** are the length of each
+`docs/04_memory/v0.{1,2}/` (`ls … | wc -l` → 33 and 75). **Features** are the length of each
 release element's `features` list.
 
 | | Planned (sequencer) | Actual | Active days | Tasks planned → shipped | Features |

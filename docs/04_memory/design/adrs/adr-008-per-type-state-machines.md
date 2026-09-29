@@ -84,7 +84,7 @@ type it belongs to.
 
 Grounded directly in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-04) and
 `docs/02_requirements/03_sard/03_state-context.md` (REQ-STATE-08), cross-checked against the live
-`types:` and `defaults:` blocks in `docs/self/.wingfoil/memory.yaml` on `design/initial-design` for the
+`types:` and `defaults:` blocks in `.wingfoil/memory.yaml` on `design/initial-design` for the
 actual per-type state vocabularies (e.g. `release` has no `pending`/`in-review` state, `bug` can close
 directly from `open`, `decision-log` has no `states` block and runs on the default). This document is
 expanded with the concrete per-type machine details and the default-fallback case.

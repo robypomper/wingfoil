@@ -152,9 +152,9 @@ a scan. That enforcement point is `dl-097-claim-evidence-needs-an-enforcement-po
 ## Actions
 
 1. **Ratify, choosing Q1 and Q2.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/directives/custom/documentation.md` changes**, gaining
-   D1–D5. **`docs/self/.wingfoil/directives/custom/doc-versioning.md` changes**, gaining V1 once
-   `dl-047` is ratified. Under Q1 (b), a new file under `docs/self/.wingfoil/directives/custom/`
+2. **On ratification, `.wingfoil/directives/custom/documentation.md` changes**, gaining
+   D1–D5. **`.wingfoil/directives/custom/doc-versioning.md` changes**, gaining V1 once
+   `dl-047` is ratified. Under Q1 (b), a new file under `.wingfoil/directives/custom/`
    holds D1–D5, and `roles.yaml` `global:` binds it.
 3. **`claim-evidence.md`** gains a one-line pointer from *How a claim is recorded* to D1. **`code-quality.md`**
    (and `testing.md`, if `dl-044` is ratified) gains a pointer to the gate that enforces each rule

@@ -96,7 +96,7 @@ Two red-first ACs, two characterization ACs. `red` must show AC1+AC2 failing for
 2. **`homepage`** — `spec-015` §1 says "the repo README/pages URL"; no GitHub Pages site exists, so the
    README anchor form (`…/wingfoil#readme`, npm's own convention for a repo-hosted readme) is used.
 3. **`author`** — taken verbatim from `spec-015` §1. Not a new disclosure: the same
-   name+address is already public in git (`docs/self/.wingfoil/dna.yaml` `team`, `spec-002` §, and
+   name+address is already public in git (`.wingfoil/dna.yaml` `team`, `spec-002` §, and
    `spec-015` itself) and is the repo's git author identity. No token, registry credential, or
    non-public address is introduced anywhere in this task (`security-secrets`).
 
@@ -112,7 +112,7 @@ the tarball"), so a review may legitimately conclude "no change". Reasons:
   fixing a copyright holder and year, which is an `approver` decision, not a developer one, and it is
   not publish *metadata* — so it is **not** done here.
 - **`COLLABORATION.md` — present, but not intended in the tarball.** Its links are repo-relative into
-  trees that deliberately do not ship (`docs/self/docs/04_memory/design/dls/dl-020-contribution-model.md`,
+  trees that deliberately do not ship (`docs/04_memory/design/dls/dl-020-contribution-model.md`,
   `docs/`), so inside the tarball it would be a page of dead links. REQ-SYS-09's fit criterion asks for
   "README + command docs"; npmjs.com renders `README.md` only. Contribution flow is reached from the
   README, which does ship.

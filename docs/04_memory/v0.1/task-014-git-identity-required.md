@@ -44,11 +44,11 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Architectural backing: `docs/self/docs/04_memory/design/adrs/adr-006-git-identity-role-based-authz.md`
+- Architectural backing: `docs/04_memory/design/adrs/adr-006-git-identity-role-based-authz.md`
   — point 1 fixes git identity as the attribution mechanism for every state change (no external
   IAM/OAuth2/Cognito/Auth0 provider); point 2 (role-based approval authority, REQ-SEC-03) is a
   separate, later concern layered on top of this same identity.
-- Storage grounding: `docs/self/docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — git is
+- Storage grounding: `docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — git is
   the single source of truth (REQ-SYS-01); attribution rides on the commit author git already
   tracks, with no separate identity/session system to build or operate.
 - Implement the check once in `src/core` (not duplicated per CLI command or per MCP Tool) so the

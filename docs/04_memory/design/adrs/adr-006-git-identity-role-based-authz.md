@@ -76,7 +76,7 @@ Two combined points:
 ## Process Notes
 
 Grounded in `docs/02_requirements/03_sard/05_security-compliance.md` (REQ-SEC-01, REQ-SEC-03),
-`docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-08), and `docs/self/.wingfoil/dna.yaml`
+`docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-08), and `.wingfoil/dna.yaml`
 (`team.members`, `team.agents`, `team.roles`). Point 1 (REQ-SEC-01) and its consequences were
 authored fresh against the SARD ground truth. This ADR is filed as `pending` per the current
 template scaffold.

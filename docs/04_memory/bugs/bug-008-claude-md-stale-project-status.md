@@ -24,7 +24,7 @@ tmpl_version: 260703
    modules plus the CLI entry), with the matching suites under `test/`.
 3. `grep -E '"version"|"bin"' -A2 package.json` → `version: 0.1.0`, `bin: { "wingfoil": "./dist/cli.js" }`.
 4. `grep -h '^status:' docs/self/docs/04_memory/planning/rl-v1/*.md` → `minor-v0.1: released`,
-   `minor-v0.2: in-development`, and 32 task documents under `docs/self/docs/04_memory/v0.2/`.
+   `minor-v0.2: in-development`, and 32 task documents under `docs/04_memory/v0.2/`.
 
 Steps 2–4 contradict step 1.
 

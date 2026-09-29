@@ -90,5 +90,5 @@ engine), whose ID/type validation this schema engine drives.
   AC test asserts the required message is *present* among the issues.
 - **refactor**: none — implementation is minimal; no genuine refactor (honest no-op).
 - **review**: full `npx tsc --noEmit` exit 0; full `npx jest` 367/367 green; `src/memory/schema.ts`
-  100% stmts/branch/funcs/lines. Real `docs/self/.wingfoil/memory.yaml` still parses cleanly through
+  100% stmts/branch/funcs/lines. Real `.wingfoil/memory.yaml` still parses cleanly through
   the new refinement (all 7 types have in-`sequence` gate keys/waiting entries).

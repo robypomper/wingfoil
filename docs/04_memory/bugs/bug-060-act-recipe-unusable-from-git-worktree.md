@@ -73,7 +73,7 @@ pointing at a host path the container cannot see; `git clone <this repo> <tmp> &
 is exactly the workaround `task-077` had to discover by failing, and it cost that task a run to find.
 
 Documentation-only, no code change; severity **low**, as proposed. Left to the fix's carrier whether the
-same caveat also belongs in `docs/self/WORKFLOW.md` — not asserted here, because that file was not read
+same caveat also belongs in `.wingfoil/WORKFLOW.md` — not asserted here, because that file was not read
 in this ingest.
 
 ## Triage & Execution Notes

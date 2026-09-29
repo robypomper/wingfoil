@@ -17,7 +17,7 @@ The v0.2 retrospective (`retro-v0.2`) files this decision-log, target v0.3. Its 
 outside this repository and was reproduced on `wingfoil@0.2.1`.
 
 **The machines only walk forward.** This repository's `task` machine
-(`docs/self/.wingfoil/memory.yaml`, `types.task.states`) is `draft → pending → backlog → in-progress
+(`.wingfoil/memory.yaml`, `types.task.states`) is `draft → pending → backlog → in-progress
 → in-review → approved → done`. It has two gates: `pending` rejects to `draft`, and `in-review`
 rejects to `in-progress`. `backlog` and `approved` are `waiting` states. `in-progress` has one verb
 edge out, forward to `in-review` by `submit`. The only other exit is `deprecate`, which retires the
@@ -120,7 +120,7 @@ same mechanism `dl-100` needs for its WIP limit on `in-discussion` decision-logs
 
 On ratification, with P1–P3 chosen in the approve commit's `Reason:`:
 1. Amend `spec-001-memory-yaml-schema` (`returns`, `limits`) and `spec-008-cli-grammar` (the
-   verb), and `docs/self/.wingfoil/memory.yaml`'s `task` machine.
+   verb), and `.wingfoil/memory.yaml`'s `task` machine.
 2. Amend `dev-loop.yaml` for P2.
 3. Make the Kanban template's WIP sentence true, or reword it (the `KANBAN` definition in
    `src/storage/templates.ts`).

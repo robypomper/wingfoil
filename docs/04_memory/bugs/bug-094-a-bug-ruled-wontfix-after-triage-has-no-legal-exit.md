@@ -101,7 +101,7 @@ reachable from `triaged` is the *better* record is a design question, not a defe
 belong in a bug.
 
 **What survives is the second half, and it is real.** The release gate does not recognise the one
-legal exit. `docs/self/.wingfoil/workflows/custom/release-submit.yaml`, phase `pre-release-checks`,
+legal exit. `.wingfoil/workflows/custom/release-submit.yaml`, phase `pre-release-checks`,
 declares:
 
 ```yaml

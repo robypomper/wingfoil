@@ -37,16 +37,16 @@ See `docs/02_requirements/02_bdd/features/p2-dna/P2.1-dna-set.feature`:
 ## Implementation Notes
 
 - The written file must validate against the `DnaYaml` Zod schema in
-  `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` — a `dna set` that would produce
+  `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` — a `dna set` that would produce
   a schema-invalid file must be rejected before the write is persisted.
 - Exit codes / `--format`/error-message shape follow
-  `docs/self/docs/04_memory/design/specs/spec-005-cli-command-contract.md` (invalid key path is a usage
+  `docs/04_memory/design/specs/spec-005-cli-command-contract.md` (invalid key path is a usage
   error → exit `2`; a value that fails schema validation is a logic error → exit `1`).
 - Invocation grammar (`wingfoil dna set <path> <value>`, global flags position, element-ref conventions)
-  follows `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md`.
+  follows `docs/04_memory/design/specs/spec-008-cli-grammar.md`.
 - Depends on `task-001-nodejs-typescript-scaffold` (TS/Node project scaffold) and
   `task-002-validation-id-engine` (shared validation plumbing) as prerequisites.
-- The live worked example of the target schema is `docs/self/.wingfoil/dna.yaml` itself (note its
+- The live worked example of the target schema is `.wingfoil/dna.yaml` itself (note its
   `stacks.technologies`/`stacks.methodologies` list shape, not a fixed `tech_stack` object — the BDD
   scenario's `tech_stack.language` phrasing predates the spec-002 schema rename to `stacks`).
 

@@ -13,10 +13,10 @@ tmpl_version: 260703
 
 ## Context
 
-`patch-v0.2.2` (`docs/self/docs/04_memory/planning/rl-v1/patch-v0.2.2.md`) is `in-development`
+`patch-v0.2.2` (`docs/04_memory/planning/rl-v1/patch-v0.2.2.md`) is `in-development`
 (`16e12769`). Its `release-planning` phase is `done` (`release-planning-rel-v0.2.2-plan`, merged into
 `main` at `4770a52c`), with **14 backlog tasks**, `task-109` … `task-122`, under
-`docs/self/docs/04_memory/v0.2.2/`. Per `release-cycle` the next phase is `implementation`: one
+`docs/04_memory/v0.2.2/`. Per `release-cycle` the next phase is `implementation`: one
 `dev-loop` run (`.wingfoil/workflows/custom/dev-loop.yaml` **v1.3**, `element: task`) per task. The
 workflow engine does not exist yet, so this `plan` element is the phase's execution scaffold
 (`dl-019`).

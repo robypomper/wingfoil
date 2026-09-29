@@ -17,7 +17,7 @@ declares five `produces:` entries — `README.md`, `docs/user-guide.md`, `docs/c
 surface"*. Every one of them is **human**-facing.
 
 The repository's **agent**-facing entry point, `CLAUDE.md`, appears in no `produces:` and no `checks:`
-anywhere under `docs/self/.wingfoil/workflows/`. Neither does `docs/self/.wingfoil/README.md`, the
+anywhere under `.wingfoil/workflows/`. Neither does `.wingfoil/README.md`, the
 config-package entry point it delegates to. Nothing in the delivery loop re-aligns them when a release
 ships.
 
@@ -39,7 +39,7 @@ Extend the `dl-013` documentation gate so it owns
 
 Concretely, two candidate shapes (choose at ratification):
 
-- **(A) Extend the existing phase.** Add `CLAUDE.md` and `docs/self/.wingfoil/README.md` to
+- **(A) Extend the existing phase.** Add `CLAUDE.md` and `.wingfoil/README.md` to
   `user-docs.yaml` → `align-user-docs` → `produces:`, and add a post-check asserting that the entry
   point's *project status*, *doc-map paths*, *element/state tables*, and *golden rules* match the shipped
   surface and the current `memory.yaml`/`workflows.yaml`.
@@ -74,11 +74,11 @@ Either way: bump `user-docs.yaml`'s `version:` and cite this DL, per the field-p
 
 - [ ] Ratify this decision and choose shape (A) or (B) (owner: approver).
 - [ ] On `ready`, derive the config task(s) at the next `release-planning` → `build-backlog`:
-  - [ ] Amend `docs/self/.wingfoil/workflows/custom/user-docs.yaml` per the chosen shape; bump its
+  - [ ] Amend `.wingfoil/workflows/custom/user-docs.yaml` per the chosen shape; bump its
         `version:` and cite `dl-025`.
   - [ ] Define the post-check concretely enough to be executable by an agent (which sections of
         `CLAUDE.md` are checked against which config files).
-  - [ ] Decide whether `docs/self/.wingfoil/README.md` and the §2 doc-map table fall under the same check.
+  - [ ] Decide whether `.wingfoil/README.md` and the §2 doc-map table fall under the same check.
 - [ ] Open question for ratification: is a release-scoped gate sufficient, or should agent-facing docs
       also re-align at `release-line-cycle` close (`plan-next-release-line`), where structural changes
       like new Memory types or pillars land?

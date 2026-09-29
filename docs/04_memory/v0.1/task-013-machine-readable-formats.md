@@ -45,11 +45,11 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Full contract: `docs/self/docs/04_memory/design/specs/spec-005-cli-command-contract.md` §2
+- Full contract: `docs/04_memory/design/specs/spec-005-cli-command-contract.md` §2
   (machine-readable output formats) — the envelope rules (stdout-only, single top-level value); the
   payload *shape* per command is owned by that command's own spec.
 - Grammar-level restatement (global flag registration, negatable-boolean interplay with `--color`):
-  `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md` §2.
+  `docs/04_memory/design/specs/spec-008-cli-grammar.md` §2.
 - Register `--format` exactly once on the root Commander.js `Command` (per `dna.yaml` `tech_stack.cli`)
   so every command inherits it uniformly (REQ-SYS-05 parity) rather than re-declaring it per command.
 - Related feature tasks that depend on this contract in this release: `task-028-implement-paths-category`

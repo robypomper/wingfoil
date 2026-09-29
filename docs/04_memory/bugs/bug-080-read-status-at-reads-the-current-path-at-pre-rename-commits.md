@@ -30,7 +30,7 @@ Against this repository, using a build of `main` (the walk itself is exercised d
 
 1. Run `reconstructMemoryTransitions` on `minor-v0.1`.
 2. Observe five entries whose `from` and `to` are both `null`, and five
-   `fatal: path 'docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md' exists on disk, but not in
+   `fatal: path 'docs/04_memory/planning/rl-v1/minor-v0.1.md' exists on disk, but not in
    '<sha>'` lines on stderr.
 3. `git log --follow --name-status -- <path>` shows the `R100` edge at `a353c12`.
 

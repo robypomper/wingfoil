@@ -444,7 +444,7 @@ have no CLI verb and the only reject edge to `closed` starts from `open`.
 `main` moved again between the review-ready summary and the submit, so it was merged a second time
 (`dl-035` — merge, never rebase) and **every gate was re-run on the merged tree**, not carried over.
 The second merge brought exactly one file, a new task document
-(`docs/self/docs/04_memory/v0.2/task-079-spec-015-staging-and-node-floor-corrections.md`); no conflict,
+(`docs/04_memory/v0.2/task-079-spec-015-staging-and-node-floor-corrections.md`); no conflict,
 and nothing these notes cite.
 
 ```
@@ -470,7 +470,7 @@ new defect.
 Cited elements re-read on the merged tree: `dl-044` still `in-discussion` with `release: ""` — so AC7's
 premise holds and the gate remains v0.3's to decide; `dl-045` still `ready`; `bug-026`'s body untouched
 by `main`. The standing-rule sweep re-run post-merge still returns **36** hits outside this task's own
-file, and `grep -rn "bug-026\|directive-create.test" CLAUDE.md docs/05_plans docs/self/.wingfoil
+file, and `grep -rn "bug-026\|directive-create.test" CLAUDE.md docs/05_plans .wingfoil
 docs/01_vision` returns **no match** — no governing document states the exception as a rule for future
 work.
 

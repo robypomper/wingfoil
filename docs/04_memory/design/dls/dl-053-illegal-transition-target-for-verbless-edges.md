@@ -21,7 +21,7 @@ gives one. The only fixed points are the two BDD scenarios that pin a concrete s
 - `P1.6-memory-submit.feature:21` and `P5.2.3-mcp-tools.feature:18`: `submit` on a `task` in `approved`
   → `illegal transition approved -> pending for type 'task'`.
 
-On this repository's `task` machine (`docs/self/.wingfoil/memory.yaml:113-117`:
+On this repository's `task` machine (`.wingfoil/memory.yaml:113-117`:
 `sequence: [draft, pending, backlog, in-progress, in-review, approved, done]`, gates `pending` and
 `in-review`, waiting `[backlog, approved]`) the literal forward edge out of `approved` is `done`, not
 `pending` — so the BDD's `pending` is not "the next state".

@@ -180,7 +180,7 @@ the new value at a leaf; nothing extends `DNA_KEY_ALIASES`.
   `spec-002` already sets: `Team.superRefine` is a same-document integrity rule that makes a violating
   file fail to load, and duplicate names are the same kind of rule. The cost — a document that loads
   today would stop loading — is what AC4 asks be measured rather than assumed:
-  - `docs/self/.wingfoil/dna.yaml`: **0 duplicates**, 38 object entries across 6 collections plus 8
+  - `.wingfoil/dna.yaml`: **0 duplicates**, 38 object entries across 6 collections plus 8
     strings across 5 `paths` categories (measured by parsing the file, not by reading it).
   - the **scaffold templates** (`dnaYaml()`, `src/storage/templates.ts`) — the second half of AC4, and
     a different question: `modules`, `stacks.technologies`, `team.members` and every `paths` category
@@ -231,7 +231,7 @@ pin, so the change is visible in the diff rather than deleted.
 | AC2 (three verbs exist) | **red-first** | `CORE_MODULES.dna` today registers `dnaSet`/`dnaShow` only (`src/core/index.ts`) | `test/core/dna-mutation-surface.test.ts` |
 | AC3 (`--field` is a full path; entries by `name`) | **red-first** | no path in the codebase traverses an array | `test/dna/path.test.ts` |
 | AC4 (uniqueness enforced) | **red-first** | `src/dna/schema.ts` carries exactly one refinement (`Team.superRefine`, referential) and no uniqueness constraint | `test/dna/schema-uniqueness.test.ts` |
-| AC4 (non-breaking, own + scaffold) | **characterization** | measured: 0 duplicates in `docs/self/.wingfoil/dna.yaml`; the scaffold's only non-empty collections are distinct | same file, "non-breaking" block |
+| AC4 (non-breaking, own + scaffold) | **characterization** | measured: 0 duplicates in `.wingfoil/dna.yaml`; the scaffold's only non-empty collections are distinct | same file, "non-breaking" block |
 | AC5 (all four path shapes) | **red-first** | none of the four is reachable today (`dl-081` E2) | `test/core/dna-mutation-surface.test.ts` |
 | AC6 (`--value`'s two meanings stated in `--help`) | **red-first** | the option does not exist | `test/core/dna-mutation-surface.test.ts` ("states --value's two meanings") + `test/cli/program.integration.test.ts` (`dna add --help`) |
 | AC7 (MCP parity: three Tools) | **red-first** | `dna.add|remove|update` do not exist, so the parity enumeration cannot contain them | `test/core/dna-mutation-surface.test.ts` "MCP parity" |
@@ -927,7 +927,7 @@ is why it is reported here in a table rather than left to be discovered.
   lines in the user-facing entry point is the exact pattern the last two rejects named.
 - **`scripts/e2e-smoke.cjs`** — the `dl-023` gate drives `dna set` for real. Left unfixed it would
   have gone red at release, which is late.
-- **`docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`** — the `drive-cli` action string, `version`
+- **`.wingfoil/workflows/custom/e2e-smoke.yaml`** — the `drive-cli` action string, `version`
   bumped `1.0 → 1.1` with the reason inline, per the doc-versioning directive and the file's own
   convention.
 - **`test/cli/fixtures/cli-harness.cjs`**, **`src/cli/registrar.ts`**, **`src/core/registry.ts`** —

@@ -46,7 +46,7 @@ Two details must be settled as part of ratification:
   exposed to integration risk (an external protocol, an external client), and it is the only one never
   exercised by the team building it. Registering it turns every development session into a smoke test.
 - **It closes a determinism question that is otherwise untested.** Two agents — one reading
-  `docs/self/.wingfoil/` from disk, one reading the same content through MCP Resources — must build
+  `.wingfoil/` from disk, one reading the same content through MCP Resources — must build
   equivalent context. Until the server is actually consumed, that equivalence is asserted by unit tests
   over an in-memory transport, never observed end to end.
 - **The timing is favourable.** `v0.2` is already touching the server for P5.2.2, so the work lands while

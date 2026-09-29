@@ -56,7 +56,7 @@ retrospective's own plan records that hazard (`retrospective-rel-v0.2-plan` §7.
 
 ## Decision
 
-A new directive, `docs/self/.wingfoil/directives/custom/git-conventions.md` (`kind: custom`), states
+A new directive, `.wingfoil/directives/custom/git-conventions.md` (`kind: custom`), states
 the following. Each clause cites the decision-log that argued it, and those decision-logs stay
 `ready`.
 
@@ -133,10 +133,10 @@ while the same pipe with `publish.yml` prints `1`. Clauses 4 and 5 are exactly t
 ## Actions
 
 1. **Ratify, choosing Q1 and Q2.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, create `docs/self/.wingfoil/directives/custom/git-conventions.md`**, with
+2. **On ratification, create `.wingfoil/directives/custom/git-conventions.md`**, with
    clauses 1–5 and a header naming `dl-024`, `dl-035`, `dl-054` and `dl-094` as where each rule is
    argued, in the form `command-baseline.md` uses for `dl-080`.
-3. **Change `docs/self/.wingfoil/roles.yaml`** to bind it per Q2, and bump its `version`.
+3. **Change `.wingfoil/roles.yaml`** to bind it per Q2, and bump its `version`.
 4. **Replace the `dl-024` comments** in `sw-life-cycle.yaml` and `release-cycle.yaml` with a pointer
    to the directive, if Q1 changes the naming they describe, and bump each file's `version`.
 5. `dl-024`, `dl-035` and `dl-054` are **not** transitioned: they stay `ready` and are cited.

@@ -22,7 +22,7 @@ result.
 ## Steps to Reproduce
 
 1. In a repo with a memory document under a scanned surface root, delete the file on disk without
-   staging the deletion (`rm docs/self/docs/04_memory/bugs/bug-001-cli-version-flag.md`).
+   staging the deletion (`rm docs/04_memory/bugs/bug-001-cli-version-flag.md`).
 2. Call `scanProjectSurface(repoRoot)`.
 3. It throws `ENOENT` rather than producing a `ScanResult`.
 

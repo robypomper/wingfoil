@@ -39,7 +39,7 @@ run against this repository's own Memory (`bug-075`).
 
 - **The staging rehearsal is declared in no workflow.**
   `git grep -liE 'staging|verdaccio' a20b346c -- docs/self/.wingfoil/workflows/custom/` prints
-  nothing. The same pattern over `docs/self/docs/04_memory/design/` finds 16 files, among them
+  nothing. The same pattern over `docs/04_memory/design/` finds 16 files, among them
   `adr-009`, `spec-015` and `dl-056`. In v0.2 it ran because people wrote it in:
   - `task-077`, owned by the task `dl-056` asked for;
   - `release-publishing-rel-v0.2-plan` *Step 6*, once for `0.2.0` and again for `0.2.1`.
@@ -120,7 +120,7 @@ rehearsal stays at (a), because it starts a local registry.
 
 1. **Ratify, choosing the cadence in §4.** Owner: approver. The choice goes in the approve commit's
    `Reason:`.
-2. **Amend `docs/self/.wingfoil/workflows/custom/release-publishing.yaml`** (the `staging-rehearsal`
+2. **Amend `.wingfoil/workflows/custom/release-publishing.yaml`** (the `staging-rehearsal`
    phase) and **`e2e-smoke.yaml`** (scenario, re-validation, exact exit codes, `produces:`), with
    version bumps. **Amend `release-cycle.yaml`** so a re-cut candidate re-enters both checks.
 3. **Amend `spec-015-packaging-publishing`** where it describes the rehearsal's place in the

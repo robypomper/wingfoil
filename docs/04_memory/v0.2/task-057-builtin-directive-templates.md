@@ -97,7 +97,7 @@ spec-013, spec-015 §1, REQ-SEC-07/08/10.
   `templateScaffold`. **`package.json` `files` and the `publish-metadata` allowlist are NOT changed**;
   a pack test proves the carrying module is in the tarball. spec-011's *text* is stale on this point
   ("EMPTY today", "roles.yaml binds by directive **name**") → reported as a proposed element, not a
-  blocker (it describes `docs/self/.wingfoil/`, which this task does not change).
+  blocker (it describes `.wingfoil/`, which this task does not change).
 - **REQ-SEC-10 / dl-031**: schema check only — satisfied by existing guard 5 over derived sources.
 - **REQ-SEC-08 / spec-007 / dl-036**: clause (a) delivered here; security template text proven clean.
 - **REQ-SEC-07 / dl-030**: `requireCustomAsset` already refuses `directives/built-in/**` — pinned for
@@ -149,7 +149,7 @@ src/storage/templates.ts` → the scaffold writes only `${BUILTIN_DIRECTIVES_DIR
 - **D5 — scope held**: `scaffoldFiles()` (P1.1 skeleton, no CLI verb) unchanged; `roles.yaml` scaffold
   unchanged (the unbound `security` id is a proposed element, not a silent change); no change to
   `src/core/init.ts`, `src/core/context.ts`, `src/core/index.ts`, `package.json`.
-- **D6 — dogfood config untouched.** `docs/self/.wingfoil/directives/{built-in,custom}/` not edited;
+- **D6 — dogfood config untouched.** `.wingfoil/directives/{built-in,custom}/` not edited;
   the stand-ins stay. Delete/rename vs. keep-as-customization is the approver's call (review summary).
 
 ### red — role: developer (directives: code-quality, testing, determinism) — `81cb63d`
@@ -245,9 +245,9 @@ branch; the −0.02 pt is the arithmetic of deleting the fully-covered `p38` ter
 `node dist/cli.js init --template Kanban` → exit 0, empty stderr; `git ls-files .wingfoil/directives` →
 6 `built-in/*.md` + 4 `custom/*.md`; `directives list --format json` → 10 entries, `warnings: []`, exit 0.
 
-**Dogfood config — APPROVER DECISION (nothing changed here).** `docs/self/.wingfoil/directives/built-in/`
+**Dogfood config — APPROVER DECISION (nothing changed here).** `.wingfoil/directives/built-in/`
 still holds only `.gitkeep` and there is no root `.wingfoil/`, so **today this repo reports no shadow
-warning**. Simulated by copying `docs/self/.wingfoil` into a scratch repo and adding the six shipped
+warning**. Simulated by copying `.wingfoil` into a scratch repo and adding the six shipped
 files: `directives list` reports six warnings of the form
 `directive 'testing' defined in directives/built-in/testing.md, directives/custom/testing.md; using directives/custom/testing.md`
 (architecture, code-quality, code-review, documentation, security, testing). Options:

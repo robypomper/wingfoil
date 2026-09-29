@@ -49,7 +49,7 @@ there — the serial workaround "would hide it only in CI", while the flake also
 
 1. **`test/cli/npm-distribution.test.ts`'s `npm pack` call passes `--ignore-scripts`,** and the suite
    still asserts what it asserted before: `dist/cli.js` and `README.md` are in the packed file list, and
-   nothing under `docs/self/.wingfoil` or `test/` is. The assertions are unchanged; only the argument
+   nothing under `.wingfoil` or `test/` is. The assertions are unchanged; only the argument
    list moves.
 2. **`--ignore-scripts` does not hollow out the test.** The packed list must still be the real one.
    Show that: with `dist/` present (the `globalSetup` build), record the packed paths the suite observes
@@ -263,7 +263,7 @@ Two edits to `test/cli/npm-distribution.test.ts`, both inside the one test file 
 
 1. `['pack', '--dry-run', '--json']` → `['pack', '--dry-run', '--json', '--ignore-scripts']` (now at
    `:129` after the header grew). The four assertions are byte-identical — `dist/cli.js` and
-   `README.md` present, nothing under `docs/self/.wingfoil` or `test/`.
+   `README.md` present, nothing under `.wingfoil` or `test/`.
 2. The header comment gained a "**Why `npm pack` carries `--ignore-scripts`**" paragraph (AC4),
    naming `bug-022`, `dl-056` clause B, the measured truncation window and the release-gate exposure —
    matching what `publish-metadata.test.ts:29` and `license-file.test.ts:16` already do.
@@ -347,8 +347,8 @@ summary below.
 |---|---|
 | `test/cli/npm-distribution.test.ts` | `--ignore-scripts` added to the `npm pack` argv (`:129`); header gains the "why" paragraph (AC4). Assertions untouched. |
 | `test/lint/pack-ignore-scripts.test.ts` | **new** — repo-hygiene gate holding AC3's standing property, plus a non-vacuity case. |
-| `docs/self/docs/04_memory/v0.2/task-075-…md` | these Execution Notes. |
-| `docs/self/docs/04_memory/bugs/bug-022-…md` | `status` only, via `bug.sync_state`. |
+| `docs/04_memory/v0.2/task-075-…md` | these Execution Notes. |
+| `docs/04_memory/bugs/bug-022-…md` | `status` only, via `bug.sync_state`. |
 
 No `src/` file, no `package.json`, no `jest.config.js`, no `.github/workflows/publish.yml`, no
 `scripts/` file — AC7(a)/(b)/(c) all held: no `--runInBand`, no `maxWorkers`, no workflow edit.

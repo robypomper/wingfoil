@@ -3,7 +3,7 @@ id: "spec-013-directive-frontmatter-schema"
 type: tech-spec
 title: "Directive frontmatter schema: the Directives pillar's per-file YAML frontmatter shape"
 status: approved
-scope: "docs/self/.wingfoil/directives/**/*.md frontmatter (the Directives pillar file shape loaded by src/directives)"
+scope: ".wingfoil/directives/**/*.md frontmatter (the Directives pillar file shape loaded by src/directives)"
 supersedes: ""
 tmpl_version: 260703
 ---
@@ -19,9 +19,9 @@ two-pass pipeline of `spec-009`).
 
 Unlike the other three pillars, the Directives pillar had **no dedicated tech-spec** when its schema
 was first written: `spec-010-memory-frontmatter-schema`'s scope is explicitly
-`docs/self/docs/04_memory/**/*.md` (Memory documents), **not** `.wingfoil/directives/**`. So the
+`docs/04_memory/**/*.md` (Memory documents), **not** `.wingfoil/directives/**`. So the
 `DirectiveFrontmatter` schema shipped in `task-004` as an explicit `[AUTHORING]` shape grounded in the
-ten real files under `docs/self/.wingfoil/directives/custom/*.md`, with a single field (`name`)
+ten real files under `.wingfoil/directives/custom/*.md`, with a single field (`name`)
 traced to a BDD scenario. This spec closes that traceability gap: it is the authoritative definition
 of the Directives-pillar file shape, retroactively blessing (and where noted, constraining) the shape
 `task-004` implemented. It is deliberately **minimal** — it fixes only what the loader must enforce to
@@ -36,7 +36,7 @@ Two upstream anchors bound this shape:
   directive file that lacks its required `name` header is reported as invalid. This is the one
   hard `[SPEC]` requirement in the schema.
 - **P3.8 (built-in directive templates)** — every `kind: custom` stand-in file cites `ref: [P3.8]`
-  (see `CLAUDE.md` §3 / `docs/self/.wingfoil/README.md`): the official P3.8 built-in templates are
+  (see `CLAUDE.md` §3 / `.wingfoil/README.md`): the official P3.8 built-in templates are
   not implemented yet, so the ten current files live under `directives/custom/` as stand-ins. The
   schema must accept both `kind` values (`custom` today; `built-in` once those ship) without change.
 
@@ -48,7 +48,7 @@ Two upstream anchors bound this shape:
 
 ### File shape
 
-A Directives-pillar file is a Markdown file under `docs/self/.wingfoil/directives/{custom,built-in}/`
+A Directives-pillar file is a Markdown file under `.wingfoil/directives/{custom,built-in}/`
 whose leading YAML frontmatter block (delimited by `---` … `---`, extracted per `spec-011`'s storage
 layer) validates against the schema below. The Markdown body after the frontmatter is the directive's
 rule text and is **out of scope** for this spec (not schema-validated).

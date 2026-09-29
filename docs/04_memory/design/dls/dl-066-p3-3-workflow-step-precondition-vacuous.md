@@ -120,7 +120,7 @@ question whose cost is paid only when P4.19 or P4.9 is scheduled.
   it is a statement about a model that does not exist.
 - **It is not `task-052`'s to decide.** The task recorded it as a known weak spot — on branch
   `task/task-052-directive-remove` at `a624067` (read read-only; the document on `main` is still the
-  52-line `backlog` version), `docs/self/docs/04_memory/v0.2/task-052-directive-remove.md:349`:
+  52-line `backlog` version), `docs/04_memory/v0.2/task-052-directive-remove.md:349`:
   "`checkUnreferenced` checks `roles.yaml` only. Nothing else in the repository can reference a directive
   today … but if a future pillar gains directive references, clause (b) must grow a second referrer
   source" — and shipped the only check it could. (Its `:71` calls the quoted line P3.3's *Background*;

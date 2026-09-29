@@ -71,7 +71,7 @@ class produced two different architectures.
 - Read `dl-080` in full, including its approve commit's `Reason:`, before writing a word. The
   ratification settles which option was chosen and why the other four were not, and a directive that
   re-opens that is worse than none.
-- `docs/self/.wingfoil/directives/custom/` holds ten directives today; `determinism.md` is the closest
+- `.wingfoil/directives/custom/` holds ten directives today; `determinism.md` is the closest
   neighbour and is already bound to `developer` and `architect`. Whether this rule belongs inside it
   or beside it is part of AC1.
 - Classify every AC per `dl-014`/T1. This is a documentation and configuration task: expect
@@ -124,7 +124,7 @@ read in full before drafting.
 
 **Chosen: a new `custom/` directive as the normative home, plus one new section in `spec-006`.**
 
-- **`command-baseline` directive** (`docs/self/.wingfoil/directives/custom/command-baseline.md`) —
+- **`command-baseline` directive** (`.wingfoil/directives/custom/command-baseline.md`) —
   bound by role, auto-loaded on execution (P3.6), so it reaches the implementer at the moment of
   writing. That is the population that re-derived this rule four times. *Misses:* anyone not
   executing under a bound role, and any consumer of the published package — this file is WingFoil's
@@ -232,7 +232,7 @@ Two pre-existing warnings also print (`unknown field(s) ignored: scope`) for `cl
   role→directive table), `dev-loop-rel-v0.2-plan.md` v1.1 → v1.2 and
   `user-docs-rel-v0.2-plan.md` v1.0 → v1.1 (both carry a "directives auto-loaded" table derived from
   `roles.yaml`; both are `status: active`, so both would otherwise tell the next implementer to load
-  the old set). `docs/self/.wingfoil/README.md` was checked and is **not** stale — it enumerates
+  the old set). `.wingfoil/README.md` was checked and is **not** stale — it enumerates
   only the six P3.8 stand-ins, which are unchanged.
   **This list was incomplete when written, and "fixed here" was an unearned exhaustiveness claim —
   three more `active` plans and two `approved` specs also say it. See *Review round 1 — corrections*
@@ -325,7 +325,7 @@ and every hit classified. Fixed (all `active`, all made false by this change):
   role; `claim-evidence` added, same Revision-note route.
 
 Checked and deliberately **not** touched: `docs/05_plans/rl-v1/rel-v0.1/dev-loop-rel-v0.1-plan.md`
-(a v0.1 plan, no frontmatter, a record of a released phase), `docs/self/X_wingfoil-init-plan.md`
+(a v0.1 plan, no frontmatter, a record of a released phase), `docs/05_plans/X_wingfoil-init-plan.md`
 (grandfathered `X_` plan recording what `wingfoil-init` scaffolded then), every `task-0xx` Execution
 Note reciting the directives it loaded (historical records, true when written), and the
 decision-logs that quote captured listings (`dl-058`, `dl-059`, `dl-060`, `dl-062`).

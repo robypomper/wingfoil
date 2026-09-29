@@ -46,14 +46,14 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Full contract: `docs/self/docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` §1
+- Full contract: `docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` §1
   (transport & channels — the structural partition: Resources/Prompts read-only, Tools mutating) and
   §2.3 (write-refusal contract, verbatim message). §4 (Tools) defines the parity/validation rules
   this task's Tool-side assertion depends on, though full Tools implementation ships in v0.4 per that
   spec's Consequences section — this v0.1 task validates the *read-channel* half of the guarantee end
   to end and stubs/asserts the channel-enumeration property against whatever Tool surface exists at
   this release.
-- Architectural backing: `docs/self/docs/04_memory/design/adrs/adr-004-mcp-over-stdio.md` — read/write
+- Architectural backing: `docs/04_memory/design/adrs/adr-004-mcp-over-stdio.md` — read/write
   separation is structural (distinct MCP primitive kinds), not something re-verified per endpoint.
 - Related feature tasks in this release: `task-030-implement-mcp-resources` (backlog `TASK-028`,
   P5.2.1); the MCP Tools feature (backlog `TASK-087`, P5.2.3) lands in a later release but this task's

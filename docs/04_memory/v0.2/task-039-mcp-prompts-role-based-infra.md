@@ -93,7 +93,7 @@ resolved *inside* the approved specs rather than by inventing contract:
    role's directives and 0 of another role's" the *same* guarantee instead of two drifting ones.
 3. **`## Directive: {x}` — which field is `{x}`?** spec-004 §3.2's example headings read
    `## Directive: code-quality` / `testing` / `security-secrets`. Those strings are the `id` frontmatter
-   values of the real directive files (`docs/self/.wingfoil/directives/custom/code-quality.md` carries
+   values of the real directive files (`.wingfoil/directives/custom/code-quality.md` carries
    `id: code-quality`, `name: "Code Quality"`), and `roles.yaml` binds by id — so the heading uses
    `frontmatter.id`.
 

@@ -21,7 +21,7 @@ record live with `agent execute`.
 - `git grep -n -iE "input_tokens|output_tokens|usage\.|tokenCount|token_usage" a20b346c -- src
   docs/self/.wingfoil` returns one line, `src/memory/query.ts`, where "Resource usage." is prose
   about an MCP Resource. The pattern matches text, so the search works; nothing measures tokens.
-- No Memory template has a field for it: `docs/self/.wingfoil/memory/templates/task.md` has the
+- No Memory template has a field for it: `.wingfoil/memory/templates/task.md` has the
   sections Description, Acceptance Criteria, Implementation Notes and Execution Notes, and no cost
   field.
 - `REQ-PERF-05` bounds the context an agent receives ("bounding token usage", through relevance

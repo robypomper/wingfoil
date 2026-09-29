@@ -56,7 +56,7 @@ This task's ACs are the union of three sources, all binding:
    amended on `main` to dl-029 (c): globals only **plus** `no directives assigned to role 'intern'`).
 2. **`dl-037-builtin-vs-custom-directive-precedence`** (`ready`, A.1 + B.1) — assigned in this task's
    own AC section: `custom/` wins over `built-in/`; the shadowed file is reported through `warnings`.
-   `spec-012` §5 already states both rules (checked: `grep -n "custom/\` wins" docs/self/docs/04_memory/design/specs/spec-012-*.md`).
+   `spec-012` §5 already states both rules (checked: `grep -n "custom/\` wins" docs/04_memory/design/specs/spec-012-*.md`).
 3. **`dl-042-directives-list-output-contract`** (`ready`, ratified in `995dfc0` — handed to this task
    by the approver's commit body, **scope expansion by approver decision**): **A** — a shadowed
    directive is reported via a `warnings` channel on the listing; **D** — `directives list --role <r>`

@@ -20,7 +20,7 @@ infrastructure task underlying the whole DNA pillar: implement the `DnaYaml` Zod
 parses/validates `.wingfoil/dna.yaml` at load time (`project`, `modules`, `stacks`, `team`, `paths`),
 exposes it as the single structure both `dna set`/`dna show` (task-025/026), `wingfoil paths`
 (task-028), and — later — the MCP `wingfoil://dna` Resource (task-030) all consume, so the CLI and MCP
-surfaces cannot drift (REQ-SYS-05). `docs/self/.wingfoil/dna.yaml` is the live, hand-authored worked
+surfaces cannot drift (REQ-SYS-05). `.wingfoil/dna.yaml` is the live, hand-authored worked
 example this schema must validate.
 
 ## Acceptance Criteria
@@ -39,14 +39,14 @@ See `docs/02_requirements/02_bdd/features/p2-dna/P2.4-project-dna-config.feature
 ## Implementation Notes
 
 - Implement exactly the `DnaYaml` Zod schema pinned in
-  `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` — `.passthrough()` on every node
+  `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` — `.passthrough()` on every node
   (forward-compat), `stacks.technologies`/`stacks.methodologies` as flat generic lists (not the BDD's
   legacy fixed-key `tech_stack`), `team.roles` as the canonical role registry (REQ-SYS-08), and no
   top-level `conventions` field (its former values now live in `directives/custom/`, per spec-002
   Consequences table).
 - Directory/root-detection rules (where `.wingfoil/dna.yaml` must live, git-root walk-up, init-marker
-  check) follow `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`.
-- `docs/self/.wingfoil/dna.yaml` is the authoritative worked example/fixture for schema tests — the
+  check) follow `docs/04_memory/design/specs/spec-011-storage-layout.md`.
+- `.wingfoil/dna.yaml` is the authoritative worked example/fixture for schema tests — the
   loader must accept it as-is.
 - Depends on `task-001-nodejs-typescript-scaffold` and `task-002-validation-id-engine` as prerequisites;
   `dna set`/`dna show`/`paths` (task-025/026/028) and the MCP DNA Resource (task-030) all depend on this

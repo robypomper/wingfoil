@@ -241,7 +241,7 @@ untouched`, `AC7: assigns to a DNA role absent from roles.yaml …`, `AC9: optio
 registration block (3 cases), plus the writer suite (36 cases; `npx jest test/directives/roles-edit.test.ts` → `Tests: 36 passed`).
 
 **End-to-end on the compiled CLI** against a copy of this repository's own comment-rich
-`docs/self/.wingfoil/` in a scratch repo: `directive assign --directive security --role developer` →
+`.wingfoil/` in a scratch repo: `directive assign --directive security --role developer` →
 exit 0, `wf(directive): assign security to developer`, `git show --stat` = `.wingfoil/roles.yaml | 1 +`;
 re-run → exit 0, no commit; `--role approver` (defined in DNA, absent from `roles.yaml`) → `+  approver:`
 / `+    - security` inserted after `tech-lead`'s list, before `# Global directives …`; `--role wizard` →
@@ -398,7 +398,7 @@ stale. Both corrected, and the property is now pinned at this call path:
 | lint.clean | `npm run lint` | exit 0 |
 | docs.api | `npm run docs:api` | exit 0 |
 
-**End-to-end re-run after the merge**, same scratch-repo copy of this repository's `docs/self/.wingfoil/`:
+**End-to-end re-run after the merge**, same scratch-repo copy of this repository's `.wingfoil/`:
 `assign security to developer` → exit 0, subject `wf(directive): assign security to developer`,
 `git show --stat` = `.wingfoil/roles.yaml | 1 +`; re-run → exit 0 and still 2 commits (idempotent);
 `--role approver` → `+  approver:` / `+    - security`; `--role wizard` → exit 1

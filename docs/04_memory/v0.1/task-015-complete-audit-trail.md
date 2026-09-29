@@ -49,10 +49,10 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Architectural backing: `docs/self/docs/04_memory/design/adrs/adr-007-stateless-state-derivation.md`
+- Architectural backing: `docs/04_memory/design/adrs/adr-007-stateless-state-derivation.md`
   — state is derived from frontmatter, not a separate index; git history is the sole audit trail for
   transitions, so there is nothing else to keep consistent with it.
-- Storage grounding: `docs/self/docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — every
+- Storage grounding: `docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — every
   state change is a git commit with author + timestamp by construction (REQ-SYS-01); no external
   database or log store.
 - Depends on `task-014-git-identity-required` (REQ-SEC-01) for attribution to be possible at all —

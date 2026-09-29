@@ -138,11 +138,11 @@ and `dl-103-governance-enforced-outside-the-agent`, not by this decision.
 
 1. **Ratify, choosing (A), (B) or (C).** Owner: approver. The choice goes in the approve commit's
    `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/directives/custom/traceability.md` changes.** It gains
+2. **On ratification, `.wingfoil/directives/custom/traceability.md` changes.** It gains
    rules 1–3, the example of `dl-060`, and a citation of this decision-log.
-3. Under (B), `docs/self/.wingfoil/workflows/custom/bug-ingest.yaml` and `decision-log-ingest.yaml`
+3. Under (B), `.wingfoil/workflows/custom/bug-ingest.yaml` and `decision-log-ingest.yaml`
    change their `capture` phase `description` and bump `version`. Under (C),
-   `docs/self/.wingfoil/memory.yaml` `types.bug.description` and `types.decision-log.description`
+   `.wingfoil/memory.yaml` `types.bug.description` and `types.decision-log.description`
    change too, and so does `memoryYaml` in `src/storage/templates.ts`.
 4. The twelve elements listed in Context are **not** transitioned by this decision.
 5. Tasks are derived by v0.3 `release-planning` (`build-backlog`), not created here.

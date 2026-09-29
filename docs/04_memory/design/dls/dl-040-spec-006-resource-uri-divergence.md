@@ -23,7 +23,7 @@ the column the spec pins for them.
 This is not new, and that is the problem. `task-021` hit it first with `memorySearch` and recorded it
 in a source comment and its own Execution Notes — and `task-021` is `done`, so nothing reschedules
 those. `task-049` then added `memoryHistory` and made the divergence two-wide. A search across
-`docs/self/docs/04_memory/` for a bug, decision-log or tech-spec covering it returns **nothing**: the
+`docs/04_memory/` for a bug, decision-log or tech-spec covering it returns **nothing**: the
 only elements that mention it are three `done` task files and the spec itself.
 
 It will widen again. Every future operation taking an argument reproduces it by construction, and each

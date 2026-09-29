@@ -21,7 +21,7 @@ codes, and copy-pasted bugs. `src/validation` is that shared module: it is consu
 schema in `spec-001/002/003` (and by the not-yet-authored Memory-frontmatter schema spec) and by
 the CLI/MCP surfaces described in `spec-008`.
 
-`dna.yaml`'s `tech_stack.validation: Zod` (`docs/self/.wingfoil/dna.yaml`) fixes Zod as the only
+`dna.yaml`'s `tech_stack.validation: Zod` (`.wingfoil/dna.yaml`) fixes Zod as the only
 runtime validator project-wide — this spec assumes Zod throughout and does not evaluate
 alternatives.
 
@@ -258,5 +258,5 @@ to `1` on the return path while the throw path produced `2` for the same failure
 Authored proactively during `initial-design` to give `spec-001/002/003/008` a shared validation
 contract. The error-code family names (`E_INVALID_<SCHEMA>_SCHEMA`, `E_INVALID_<X>`,
 `E_YAML_PARSE_ERROR`) and schema/spec ownership mapping were cross-checked against the current
-`docs/self/docs/04_memory/design/specs/` catalog (spec-001/002/003/008) and
-`docs/self/.wingfoil/dna.yaml`'s `tech_stack.validation: Zod`.
+`docs/04_memory/design/specs/` catalog (spec-001/002/003/008) and
+`.wingfoil/dna.yaml`'s `tech_stack.validation: Zod`.

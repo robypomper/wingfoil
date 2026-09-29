@@ -36,14 +36,14 @@ See `docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature`:
 ## Implementation Notes
 
 - Reads and displays the same `DnaYaml` structure defined in
-  `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md`; the schema renamed the BDD's
+  `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md`; the schema renamed the BDD's
   `tech_stack`/`conventions` wording to `stacks` (technologies + methodologies) — `conventions` no
   longer exists as a top-level section (moved to `directives/custom/`, per spec-002 Consequences), so
   the command should resolve `tech_stack` as an alias for `stacks` for BDD compatibility.
 - Output-format switching (`--format console|json|yaml`) and the sub-1-second latency budget follow
-  `docs/self/docs/04_memory/design/specs/spec-005-cli-command-contract.md`; invocation grammar (bare
+  `docs/04_memory/design/specs/spec-005-cli-command-contract.md`; invocation grammar (bare
   positional `section` argument, global flags) follows
-  `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md`.
+  `docs/04_memory/design/specs/spec-008-cli-grammar.md`.
 - Depends on `task-001-nodejs-typescript-scaffold` and `task-002-validation-id-engine` as prerequisites,
   plus a shared DNA loader (introduced alongside task-025/task-027) that both `dna set` and `dna show`
   reuse rather than each re-implementing YAML parsing.

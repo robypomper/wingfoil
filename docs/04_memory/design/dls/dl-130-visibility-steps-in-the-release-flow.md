@@ -138,7 +138,7 @@ approver's external steps.
 ## Actions
 
 1. **Ratify, choosing Q1–Q4.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/workflows/custom/release-publishing.yaml` changes:**
+2. **On ratification, `.wingfoil/workflows/custom/release-publishing.yaml` changes:**
    - the `publish` phase gains the verify sweep as a `checks.pre` (Q3);
    - it gains the GitHub Release and MCP Registry steps as actions after the npm publish, with
      `post` checks that each exists;

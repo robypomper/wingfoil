@@ -49,7 +49,7 @@ WingFoil is structured as a **modular monolith**, not a client-server or microse
   `.wingfoil/workflows.yaml` each has its own schema and validates in isolation; editing one does not
   require touching, or re-validating, the others (REQ-SYS-02). This is mirrored in the planned module
   layout under `src/`: `core`, `storage`, `memory`, `dna`, `directives`, `workflow`, `cli`, `mcp-server`
-  (per `docs/self/.wingfoil/dna.yaml`), where `memory`, `dna`, `directives`, and `workflow` are separate
+  (per `.wingfoil/dna.yaml`), where `memory`, `dna`, `directives`, and `workflow` are separate
   modules loaded by the shared `core`, and `cli` / `mcp-server` are the two interface modules on top of it.
 
 ## Consequences
@@ -84,7 +84,7 @@ WingFoil is structured as a **modular monolith**, not a client-server or microse
 ## Process Notes
 
 Grounded in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-05, REQ-SYS-02) and the
-`modules:` list in `docs/self/.wingfoil/dna.yaml`. The Decision/Consequences for the CLI/MCP half
+`modules:` list in `.wingfoil/dna.yaml`. The Decision/Consequences for the CLI/MCP half
 cover REQ-SYS-02 (decoupled pillar configs) and reframe the whole thing as a modular-monolith
 structural decision, and this document is filed as `adr-002` at `status: pending` per this
 repository's current ADR numbering and workflow.

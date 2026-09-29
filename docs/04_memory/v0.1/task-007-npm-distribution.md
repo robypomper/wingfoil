@@ -47,7 +47,7 @@ Testable form:
   `dna.yaml`'s `stacks.technologies` (npm, TypeScript/Node 18+) as the binding constraints, and flag in
   Execution Notes if a dedicated packaging spec turns out to be needed during `dev-loop`'s design gate.
 - `spec-011-storage-layout` is relevant background for what the published package must **not** ship
-  (the dogfooding `docs/self/.wingfoil/` content is project-local config, not part of the npm artifact).
+  (the dogfooding `.wingfoil/` content is project-local config, not part of the npm artifact).
 - Related feature work: none — per backlog `TASK-005` (`docs/03_backlog/04_backlog/by-release/v0.1.json`),
   `related_stories` is intentionally empty: "foundational/cross-cutting infrastructure (npm
   distribution) not tied to a single story."
@@ -68,10 +68,10 @@ Testable form:
 - **red:** `test/cli/npm-distribution.test.ts` added — three cases: (1) `dist/cli.js` exists after a
   clean build, (2) spawning it with `--help` exits `0`/prints usage/empty stderr, (3) `npm pack
   --dry-run --json`'s file list includes `dist/cli.js` + `README.md` and excludes
-  `docs/self/.wingfoil/*` + `test/*`. Confirmed all three FAIL pre-implementation: no `src/cli.ts`
+  `.wingfoil/*` + `test/*`. Confirmed all three FAIL pre-implementation: no `src/cli.ts`
   existed (so no `dist/cli.js` to spawn), and `package.json` had neither a `bin` nor a `files` field —
   a plain `npm pack --dry-run --json` at that point actually shipped **the entire repository**
-  (`docs/`, `test/`, `CLAUDE.md`, `docs/self/.wingfoil/`, everything — 441 entries), because npm's
+  (`docs/`, `test/`, `CLAUDE.md`, `.wingfoil/`, everything — 441 entries), because npm's
   `.gitignore`-fallback packing (no `.npmignore` present) does not exclude the gitignored `dist/`
   either once it exists on disk from a prior build; verified this by hand with `npm pack --dry-run
   --json` before writing the fix.
@@ -84,7 +84,7 @@ Testable form:
   `commander` itself before any handler runs — exit `0` even outside a git repository; this is what
   lets `wingfoil --help` satisfy spec-005 §1 unconditionally. `package.json` gained: `"bin": {
   "wingfoil": "./dist/cli.js" }`; `"files": ["dist", "README.md"]` (an explicit allowlist, not a
-  `.npmignore` — deliberately excludes `docs/`, `test/`, `docs/self/.wingfoil/`, and
+  `.npmignore` — deliberately excludes `docs/`, `test/`, `.wingfoil/`, and
   source-only cruft regardless of `.gitignore` quirks); a `"prepack": "npm run build"` script so both
   `npm pack` and `npm publish` always ship a freshly-compiled `dist/` (verified empirically that
   `prepack` — not `prepublishOnly` — is the hook that actually runs on a bare `npm pack`). `main`/
@@ -113,5 +113,5 @@ Testable form:
 - **review:** Full `npx jest` (214/214) + `npx tsc --noEmit` + `npx eslint .` all clean immediately
   before submit. Manually re-verified the AC end-to-end: `node dist/cli.js --help` exits `0` and prints
   usage; `npm pack --dry-run --json` on the final tree lists exactly `README.md`, `package.json`, and
-  every `dist/**` file (150 entries total) — no `docs/`, no `test/`, no `docs/self/.wingfoil/`. No
+  every `dist/**` file (150 entries total) — no `docs/`, no `test/`, no `.wingfoil/`. No
   rejection this pass.

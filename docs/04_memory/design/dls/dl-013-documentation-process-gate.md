@@ -14,7 +14,7 @@ Reviewing the current documentation-process config (`directives/custom/documenta
 `workflows/custom/release-cycle.yaml`) surfaces two gaps:
 
 1. **No enforceable rule for code-level API docs.** The custom `documentation` directive
-   (`docs/self/.wingfoil/directives/custom/documentation.md`, P3.8 stand-in) requires "every
+   (`.wingfoil/directives/custom/documentation.md`, P3.8 stand-in) requires "every
    command/feature is documented" but says nothing about public API surface inside the code itself
    (TSDoc comments, `TypeDoc` build health).
 2. **No workflow gate for user-facing docs at release end.** `release-cycle.yaml` goes straight from
@@ -26,12 +26,12 @@ Reviewing the current documentation-process config (`directives/custom/documenta
 
 **Adopt both documentation-process changes into the current config:**
 
-1. Extend `docs/self/.wingfoil/directives/custom/documentation.md` with two concrete, checkable rules:
+1. Extend `.wingfoil/directives/custom/documentation.md` with two concrete, checkable rules:
    - Every public/exported symbol carries a TSDoc comment; `TypeDoc` must build clean; the `dev-loop`
      review gate rejects any undocumented public element.
    - User-facing docs — `README.md`, user guide, CLI reference, working examples, `CHANGELOG` — are
      written/aligned before `release-submit`.
-2. Add a `user-docs` phase to `docs/self/.wingfoil/workflows/custom/release-cycle.yaml`, positioned
+2. Add a `user-docs` phase to `.wingfoil/workflows/custom/release-cycle.yaml`, positioned
    between `implementation` and `submit`: pre-check that every task tagged for the release is `done`;
    `produces:` `README.md`, user guide, CLI reference, examples, `CHANGELOG`.
 
@@ -50,12 +50,12 @@ Reviewing the current documentation-process config (`directives/custom/documenta
 
 ## Actions
 
-- [ ] Update `docs/self/.wingfoil/directives/custom/documentation.md` — add the TSDoc/TypeDoc rule and
+- [ ] Update `.wingfoil/directives/custom/documentation.md` — add the TSDoc/TypeDoc rule and
   the user-facing-docs release-end rule — owner: tech-lead.
 - [ ] Add a `user-docs.yaml` sub-workflow (`kind: sub`, `element: release`) with a pre-check phase
   (`all tasks where tags=[{release.version}] are status: done`) and a `produces:` phase (`README.md`,
   user guide, CLI reference, examples, `CHANGELOG`), then include it in
-  `docs/self/.wingfoil/workflows/custom/release-cycle.yaml` between `implementation` and `submit` —
+  `.wingfoil/workflows/custom/release-cycle.yaml` between `implementation` and `submit` —
   owner: architect.
 - [ ] Once `release-cycle.yaml` is updated, align any execution plan under `docs/05_plans/rl-v1/rel-v0.1/`
   that models `release-cycle` phases past `planning` to include the new `user-docs` phase — owner:

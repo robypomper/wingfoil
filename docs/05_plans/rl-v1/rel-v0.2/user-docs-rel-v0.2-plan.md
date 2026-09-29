@@ -18,7 +18,7 @@ tmpl_version: 260703
 (a phase plan is itself a `plan` Memory element) and CLAUDE.md §10 golden rule 7 (no workflow engine
 exists, so a workflow start produces a plan first).
 
-The phase contract is `docs/self/.wingfoil/workflows/custom/user-docs.yaml`, **version 1.0**,
+The phase contract is `.wingfoil/workflows/custom/user-docs.yaml`, **version 1.0**,
 `element: release`, two phases:
 
 | Phase | Role | Contract |
@@ -215,7 +215,7 @@ Measured on `main` at `a2e3586`, in `README.md`:
 | *What Comes Later* → **v0.2+** | semantic search, automated validation, IDE integrations beyond MCP, notification routing, multi-project | none of these is what v0.2 delivered |
 
 The Node-floor sweep finds **exactly one** occurrence outside Memory: the README's install sentence.
-`docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml` and `CLAUDE.md` already read
+`docs/01_vision/01_product-brief.md`, `.wingfoil/dna.yaml` and `CLAUDE.md` already read
 `22.12+`. The only other `18+` left anywhere in the cascade is `dl-001`'s — P5, the approver's.
 
 ### 4.3 What is *adjacent* and deliberately **out of scope**
@@ -233,12 +233,12 @@ Read these before you are tempted to fix them. Each is measured; each falls outs
   docs at release-line close. `user-docs.yaml` on `a2e3586` is still `version: 1.0` with two phases
   and no such sibling, because `dl-025`'s own Actions defer the amendment to *"the next
   `release-planning` → `build-backlog`"* — i.e. v0.3. **Therefore `CLAUDE.md` and
-  `docs/self/.wingfoil/README.md` are not in this run's `produces:` and are not this phase's work.**
+  `.wingfoil/README.md` are not in this run's `produces:` and are not this phase's work.**
   Do not add them.
 - **`bug-040-builtin-directive-docs-stale-after-task-057` — `open`, `release: ""`, and its trigger
   has fired** (`task-057` is `done`, as are all 54 v0.2 tasks). Its targets are
-  `spec-011-storage-layout`, `docs/self/.wingfoil/roles.yaml`, the six P3.8 stand-ins under
-  `docs/self/.wingfoil/directives/custom/`, and `CLAUDE.md` §3. **None is a user-facing document** —
+  `spec-011-storage-layout`, `.wingfoil/roles.yaml`, the six P3.8 stand-ins under
+  `.wingfoil/directives/custom/`, and `CLAUDE.md` §3. **None is a user-facing document** —
   no `produces:` in this or any other phase covers them, which is exactly why the bug carries no
   `release`. **Out of scope.** One consequence *is* in scope: whatever you write about directives in
   the user docs must describe the built-in templates as **shipped and installed by `init`**, so this
@@ -372,7 +372,7 @@ exiting 0 **is** the ≥80% gate — there is no separate number to read off. `n
   README" has inverted the ordering `adr-010` states in prose. Stop and report.
 - **H2 — the `documentation` directive you load is itself stale.** `align-user-docs` runs as
   `developer`, which auto-loads the global `documentation` directive
-  (`docs/self/.wingfoil/directives/custom/documentation.md`), whose stand-in note opens *"WingFoil's
+  (`.wingfoil/directives/custom/documentation.md`), whose stand-in note opens *"WingFoil's
   official built-in P3.8 templates are not yet implemented"*. That sentence is false since `task-057`
   merged, and it is `bug-040`'s item 2 — **out of scope to fix here** (§4.3), but do not copy it into
   the docs you write.
@@ -638,7 +638,7 @@ existed → `ENOENT … docs/cli-reference.md`. After → passing. Checked in re
 - `CLAUDE.md` §3: the note calling the built-in directives "not implemented yet (`task-057`, still
   `backlog`)" rewritten — `task-057` is `done`; this repo's config still carries the stand-ins, and
   reconciling them stays `bug-040` (`open`).
-- `docs/self/.wingfoil/README.md`: dropped "the CLI/MCP tooling is not yet implemented"; the
+- `.wingfoil/README.md`: dropped "the CLI/MCP tooling is not yet implemented"; the
   directives note matches §3; the workflow tree gained `release-planning`'s seven phases,
   `user-docs` and `e2e-smoke`.
 - Post-checks: the §5 element/state table was compared with `memory.yaml` (`sequence`, `gates`,

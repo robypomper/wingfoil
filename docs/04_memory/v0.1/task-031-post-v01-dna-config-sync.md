@@ -14,7 +14,7 @@ tmpl_version: 260703   # Orignal template version
 
 ## Description
 
-`docs/self/.wingfoil/dna.yaml` was hand-authored before any v0.1 code existed, so several of its
+`.wingfoil/dna.yaml` was hand-authored before any v0.1 code existed, so several of its
 entries are declared as aspirational (`paths.sources`/`paths.tests`/`paths.config` are explicitly
 commented `# planned`, and `stacks.technologies` lists Commander.js/chalk/MCP SDK/Anthropic SDK/Zod/
 Jest as intended dependencies rather than confirmed ones). Once `task-025-implement-dna-set`,
@@ -30,7 +30,7 @@ codebase scans."
 
 ## Acceptance Criteria
 
-- `docs/self/.wingfoil/dna.yaml` parses and validates against the `DnaYaml` Zod schema defined in
+- `.wingfoil/dna.yaml` parses and validates against the `DnaYaml` Zod schema defined in
   `spec-002-dna-yaml-schema.md` (required top-level fields `version`, `modules`, `stacks`, `team`,
   `paths`; `stacks.technologies[]` entries shaped `{name, category, version?, notes?}`).
 - `modules[]` matches the actual `src/` directory tree produced by `task-001` — no module listed that
@@ -73,11 +73,11 @@ dev-loop phases accordingly.
   `jest`, `typescript`, plus eslint/ts-jest tooling left out of scope — AC only names the six above).
 - **red:** rewrote `test/core/module-layout.test.ts` from a manually-mirrored `MODULE_PATHS` list
   (which is exactly how `validation` fell out of sync unnoticed) to a self-enforcing test: it loads
-  the live `docs/self/.wingfoil/dna.yaml` via the real `loadDnaYaml` (no re-implementation) and
+  the live `.wingfoil/dna.yaml` via the real `loadDnaYaml` (no re-implementation) and
   diffs its `modules[].path` set against `readdirSync('src')`'s real directories. Confirmed genuinely
   RED first: `expect(declaredPaths).toEqual(actualDirs)` failed with `src/validation` present on
   disk but missing from `dna.yaml`. Commit `bbf1b96`.
-- **green:** hand-edited `docs/self/.wingfoil/dna.yaml` directly (not round-tripped through
+- **green:** hand-edited `.wingfoil/dna.yaml` directly (not round-tripped through
   `wingfoil dna set`, which strips comments — bug-004):
   - `modules[]`: added the `validation` module (`src/validation`, spec-009's shared validation/ID
     engine) — the one implemented-but-undeclared module the red test caught.
@@ -107,7 +107,7 @@ dev-loop phases accordingly.
   'docs/self' })` against the built `dist/` — `result.ok === true`, full parsed `DnaYaml` returned, no
   schema errors. Also confirmed `loadDnaYaml('docs/self')` succeeds directly against the edited file.
   No fixture test needed correction beyond the module-layout rewrite itself — every other test that
-  mentions `docs/self/.wingfoil` either uses its own inline DNA fixture string or only asserts
+  mentions `.wingfoil` either uses its own inline DNA fixture string or only asserts
   generic shape (`not.toThrow()`, `.length > 0`), so none was coupled to the specific stale values
   this task changed.
 

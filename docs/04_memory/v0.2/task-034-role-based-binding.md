@@ -63,7 +63,7 @@ new file format, schema, or constant set is introduced. `design` passes straight
 gate.
 
 Side observation (not actioned — out of this task's scope, config already committed/approved):
-`docs/self/.wingfoil/dna.yaml`'s `team.roles` comment cites `[SPEC: REQ-SYS-08 / BDD P4.20 "role
+`.wingfoil/dna.yaml`'s `team.roles` comment cites `[SPEC: REQ-SYS-08 / BDD P4.20 "role
 '...' not defined in dna.yaml"]` — `P4.20` is `p4-workflow/P4.20-template-customization.feature`
 (unrelated). The quoted message actually matches `P5.4.2`'s "unknown role '...' (not defined in
 dna.yaml)" almost verbatim, so this reads as a stale/mistyped BDD citation in the DNA config comment,

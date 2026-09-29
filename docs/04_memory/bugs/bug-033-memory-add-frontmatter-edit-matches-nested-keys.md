@@ -65,7 +65,7 @@ stripped on every `memory add`.
 - **Impact is narrow today.** The templates `wingfoil init` scaffolds carry no inline comments and no
   nesting (`head -6 .wingfoil/memory/templates/task.md` in a fresh project → bare `id: ""`,
   `type: task`, `title: ""`, `status: draft`), so defaults are unaffected. It bites customised
-  templates — including this repository's own (`docs/self/.wingfoil/memory/templates/*.md` all carry
+  templates — including this repository's own (`.wingfoil/memory/templates/*.md` all carry
   inline comments) once `memory add` is dogfooded.
 - **Suggested fix:** once `task-045` merges, route `renderAddDocument` through
   `src/memory/frontmatter-edit.ts`'s `setFrontmatterField` and delete the private copy, with a

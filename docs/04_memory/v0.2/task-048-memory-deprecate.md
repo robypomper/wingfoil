@@ -387,7 +387,7 @@ Re-read after the merge, with the effect on this task's notes:
   pillar).
 - No requirement, BDD feature or spec this task cites changed in the merge. Checked directly:
   `git diff 573543d HEAD --stat -- docs/02_requirements` → empty; the only
-  `docs/self/docs/04_memory/design` files touched are `dl-062`/`dl-063`/`dl-064` (new) and `spec-006`
+  `docs/04_memory/design` files touched are `dl-062`/`dl-063`/`dl-064` (new) and `spec-006`
   (task-046's `memoryApprove` row plus this task's own `memoryDeprecate` row).
 
 ### review-ready summary

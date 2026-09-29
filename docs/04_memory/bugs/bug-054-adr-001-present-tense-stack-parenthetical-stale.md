@@ -33,7 +33,7 @@ WingFoil's answer to "which database does the core tech stack use": none — `dn
 in the stack (TypeScript/Node.js 18+/Commander.js/MCP over stdio/Zod/Jest, per `dna.yaml`).
 ```
 
-2. What `dna.yaml` says, `docs/self/.wingfoil/dna.yaml:73-75`:
+2. What `dna.yaml` says, `.wingfoil/dna.yaml:73-75`:
 
 ```
     - name: Node.js

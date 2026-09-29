@@ -540,7 +540,7 @@ Merge made by the 'ort' strategy.
 ```
 
 `main` moved by one commit while this task ran, and it touches one `bug` document under
-`docs/self/docs/04_memory/bugs/` — no `src/`, no `test/`, nothing this task cites. Every gate below
+`docs/04_memory/bugs/` — no `src/`, no `test/`, nothing this task cites. Every gate below
 was run **after** that merge.
 
 #### Gates (run in this worktree, after the merge)

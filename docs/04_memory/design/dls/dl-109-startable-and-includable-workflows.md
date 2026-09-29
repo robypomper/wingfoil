@@ -48,7 +48,7 @@ Observed results:
 - `workflow --help` lists only `list`, so neither half of the consequence can be run end to end
   today. There is no `workflow start` (P4.2).
 
-**Workflows in this repository that need both.** From `docs/self/.wingfoil/workflows/custom/`:
+**Workflows in this repository that need both.** From `.wingfoil/workflows/custom/`:
 - **The three ingest mains** (`bug-ingest`, `decision-log-ingest`, `adr-ingest`) are `kind: main`.
   `bug-ingest.yaml`'s header describes how the bug inherits the active `element` "when invoked while
   another workflow ... is running". That is inclusion, performed at runtime and declared only in a

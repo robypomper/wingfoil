@@ -48,17 +48,17 @@ Testable breakdown:
 ## Implementation Notes
 
 - Note on path literalism: this project's *current* dogfooding layout resolves Memory element
-  **content** under `docs/self/docs/04_memory/` (per each type's `path` pattern in `memory.yaml`),
-  not literally inside `.wingfoil/memory/` — `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`
+  **content** under `docs/04_memory/` (per each type's `path` pattern in `memory.yaml`),
+  not literally inside `.wingfoil/memory/` — `docs/04_memory/design/specs/spec-011-storage-layout.md`
   documents `.wingfoil/memory/templates/` (scaffolds only) as distinct from element content's own
   resolved path. Implement the confinement check against whichever concrete root is authoritative at
   build time (the resolved per-type `path` pattern against the WingFoil root), not a hardcoded
   literal `.wingfoil/memory/` string, so the guarantee holds under both the current dogfooding layout
   and the eventual repo-root `.wingfoil/` layout `spec-011` describes.
-- Full layout contract: `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md` — directory
+- Full layout contract: `docs/04_memory/design/specs/spec-011-storage-layout.md` — directory
   layout, top-level config files, and the git-root/init-marker detection algorithms a confinement
   check must build on to resolve "the managed tree" correctly.
-- Storage grounding: `docs/self/docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — git is
+- Storage grounding: `docs/04_memory/design/adrs/adr-001-git-backed-storage.md` — git is
   the single source of truth with no external state store; confinement keeps that guarantee intact by
   construction.
 - Related feature task in this release: `task-022-implement-memory-entries` (backlog `TASK-020`,

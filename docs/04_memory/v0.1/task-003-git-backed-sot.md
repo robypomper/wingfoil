@@ -46,9 +46,9 @@ Testable form:
 
 ## Implementation Notes
 
-- `spec-011-storage-layout` (`docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`) is the
+- `spec-011-storage-layout` (`docs/04_memory/design/specs/spec-011-storage-layout.md`) is the
   authoritative directory layout and root-detection/init-marker algorithm this task must implement
-  against — it documents the current `docs/self/.wingfoil/` ground truth and the rule for finding the
+  against — it documents the current `.wingfoil/` ground truth and the rule for finding the
   project root once the directory moves to the repo root.
 - `spec-001-memory-yaml-schema` defines the per-type `path`/`id_pattern` resolution that the storage
   layer must honor when reading/writing Memory documents (no hardcoded paths).
@@ -92,7 +92,7 @@ Testable form:
   REQ-SYS-01's fit criterion is literally stated in terms of `git clone`, so the acceptance test
   exercises a real clone rather than a mock: `git-root` (walk-up detection + at-root enforcement),
   `init-state` (absent/incomplete/initialized), `memory-path` (per-type `path` pattern rendering,
-  values copied verbatim from `docs/self/.wingfoil/memory.yaml` per the project's established
+  values copied verbatim from `.wingfoil/memory.yaml` per the project's established
   convention), `frontmatter` (raw YAML block extraction), `document` (plain read/write, no
   side-channel state), and `snapshot` (the direct REQ-SYS-01 fit-criterion test: seed a fixture repo,
   commit, `git clone` it for real, and assert the two snapshots are byte-identical; plus "no file

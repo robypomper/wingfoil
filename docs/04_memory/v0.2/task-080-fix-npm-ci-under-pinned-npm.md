@@ -87,7 +87,7 @@ task moves to `in-progress`** — see Implementation Notes.
 4. That the failure still reproduces **before** the fix — a red-first AC1 run under npm 10.9.0 — so the
    fix is shown to cause the green, not merely to coexist with it.
 5. `bug-056`'s claim that `bug-043` cannot be reopened, re-read from
-   `docs/self/.wingfoil/memory.yaml`'s `bug` machine, if anyone proposes reopening it instead.
+   `.wingfoil/memory.yaml`'s `bug` machine, if anyone proposes reopening it instead.
 
 ## Execution Notes
 

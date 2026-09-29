@@ -15,7 +15,7 @@ tmpl_version: 260703
 ## Summary
 
 `dna.yaml`, `memory.yaml`, `workflows.yaml` and `roles.yaml` each carry a `version:` field that the
-global `doc-versioning` directive (`docs/self/.wingfoil/directives/custom/doc-versioning.md`)
+global `doc-versioning` directive (`.wingfoil/directives/custom/doc-versioning.md`)
 requires be bumped "only on the first edit after the file has been committed to git." Across the
 v0.2 era, nine content-touching commits to the first three files left `version:` unchanged; no lint
 or test enforces the rule for these four files.

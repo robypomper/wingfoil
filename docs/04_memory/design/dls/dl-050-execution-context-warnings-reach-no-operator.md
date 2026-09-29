@@ -31,7 +31,7 @@ to render however that surface renders warnings". Measured, no surface does so f
    server has no operator channel besides stderr, which nothing writes.
 2. **Context assembly — no caller.** `grep -rn 'assembleExecutionContext(' src` → only its definition
    (`src/core/context.ts:208`; `:267` at `9c83ca2`). Its consumer, `wingfoil agent execute` (P5.3.1), is `minor-v0.3` scope
-   (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.3.md:16`).
+   (`docs/04_memory/planning/rl-v1/minor-v0.3.md:16`).
 3. **`directives list` — the only surface.** `task-055-auto-load-directives-by-role` (`749e0e9`,
    merged to `main` at `9c83ca2` while this batch was being written) makes `src/core/directives-list.ts`
    return `{ entries, warnings }` (`dl-042`), with `--role` giving that role's resolver warnings.

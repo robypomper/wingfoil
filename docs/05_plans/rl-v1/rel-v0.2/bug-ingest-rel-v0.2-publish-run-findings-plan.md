@@ -28,7 +28,7 @@ coherent plan first; this `plan` element is that plan. It covers **one batch run
 phase**. `triage` is the approver's.
 
 **Preconditions:** the next free bug number is `bug-135`. The last existing file is
-`bug-134-e2e-smoke-yaml-declares-no-produces.md` (`ls docs/self/docs/04_memory/bugs | sort -V | tail
+`bug-134-e2e-smoke-yaml-declares-no-produces.md` (`ls docs/04_memory/bugs | sort -V | tail
 -1`), and `git log --all --oneline | grep -c bug-135` → 0.
 
 **Produces:** `bug-135-*.md` and `bug-136-*.md` at `status: open`.
@@ -51,7 +51,7 @@ phase**. `triage` is the approver's.
 | `bug-135-promote-publishes-a-relative-tarball-path-npm-reads-as-a-git-repo` | `npm publish dist-pack/*.tgz` under npm 10.9 is parsed as a GitHub shorthand; nothing is published | high | v0.2 (v0.2.1) |
 | `bug-136-publish-workflow-pins-actions-that-target-node-20` | the four pinned `actions/*` v4 SHAs target Node 20, which the runners removed on 2026-09-23; they are force-run on Node 24 | low | v0.3 |
 
-Duplicate search: `grep -rli "dist-pack\|ls-remote\|node.js 20\|node20" docs/self/docs/04_memory/bugs
+Duplicate search: `grep -rli "dist-pack\|ls-remote\|node.js 20\|node20" docs/04_memory/bugs
 docs/self/docs/04_memory/design/dls`. The results are in Execution Notes.
 
 ## Handoff

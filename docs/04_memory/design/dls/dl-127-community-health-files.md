@@ -116,7 +116,7 @@ ingested as a Memory element without re-asking.
 2. **On ratification, add** `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,
    `.github/ISSUE_TEMPLATE/` (bug form, proposal form, `config.yml`) and
    `.github/PULL_REQUEST_TEMPLATE.md`. Under Q4 (a), add them to
-   `docs/self/.wingfoil/workflows/custom/user-docs.yaml` `align-user-docs` `produces:` and bump its
+   `.wingfoil/workflows/custom/user-docs.yaml` `align-user-docs` `produces:` and bump its
    `version`.
 3. **Approver, in a session:** switch on private vulnerability reporting (Q3 (a)), then record it as a
    `service` element (`kind: setting`) with `verify:`

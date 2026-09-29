@@ -28,7 +28,7 @@ Memory elements need a way to be approved by a verb.
 - 20 commits on `main` touch `docs/01_vision/` or `docs/02_requirements/`
   (`git log --format='%h %s' a20b346c -- docs/01_vision docs/02_requirements | wc -l`), and none is a
   `wf()` commit (the same list piped through `grep -c '^[0-9a-f]* wf('` → `0`, against `1056` for
-  `docs/self/docs/04_memory`, so the pattern finds them where they exist).
+  `docs/04_memory`, so the pattern finds them where they exist).
 
 So an approval of a vision document is whatever its author wrote: a status line and a commit
 subject, with no `Approver:` line, no `Reason:`, no state machine and no authority check. `wingfoil

@@ -49,7 +49,7 @@ and **64** do not. The split is not random:
 > `grep -vcE '\['`, and broken down with `sed -E 's/^wf\(([a-z-]+)\).*/\1/' | sort | uniq -c`.
 
 So hand-made history already distinguishes the two meanings of `submit` that
-`docs/self/.wingfoil/workflows/custom/dev-loop.yaml` uses: the capture submit (`:51`,
+`.wingfoil/workflows/custom/dev-loop.yaml` uses: the capture submit (`:51`,
 `draft -> pending`, which fills content and moves to the post-submit state) and the review hand-off
 (`:89`, `task: in-progress -> in-review`, a pure state move with no content step). When
 `wingfoil memory submit` replaces the hand-made commits, every review hand-off loses the bracket its

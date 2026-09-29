@@ -37,7 +37,7 @@ approver accepted the proposal of a compaction and comment policy, with target r
 
 Where the words are, at `a20b346c` (files, words, median words per file):
 
-| Path under `docs/self/docs/04_memory/` | Files | Words | Median |
+| Path under `docs/04_memory/` | Files | Words | Median |
 |---|---|---|---|
 | `v0.2/` (tasks) | 75 | 315,509 | 3,721 |
 | `design/dls/` | 87 | 99,971 | 829 |
@@ -108,9 +108,9 @@ measured release by release. The open choices below remain for the approver.
 ## Actions
 
 1. **Ratify, choosing Q1 and Q2.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **Templates** (`docs/self/.wingfoil/memory/templates/`) gain the section guidance under Q1 (A);
+2. **Templates** (`.wingfoil/memory/templates/`) gain the section guidance under Q1 (A);
    **`dl-089`'s catalogue** changes Q16 under Q1 (C), through its own catalogue rule.
-3. **`code-quality` directive** (`docs/self/.wingfoil/directives/custom/code-quality.md`) gains the
+3. **`code-quality` directive** (`.wingfoil/directives/custom/code-quality.md`) gains the
    comment rule under Q2 (a), and the built-in `code-quality` template that `wingfoil init` installs is
    amended the same way, so new projects inherit it.
 4. **Existing comments are not rewritten wholesale**; they are brought in line when their file is next

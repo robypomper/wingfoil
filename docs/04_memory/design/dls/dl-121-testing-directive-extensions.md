@@ -120,9 +120,9 @@ first. How it is enforced there is `dl-097-claim-evidence-needs-an-enforcement-p
 ## Actions
 
 1. **Ratify, choosing Q1 and Q2.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/directives/custom/testing.md` changes**, gaining T1 and T2
+2. **On ratification, `.wingfoil/directives/custom/testing.md` changes**, gaining T1 and T2
    with this decision-log cited. Under Q2's alternative, a new file under
-   `docs/self/.wingfoil/directives/custom/` holds them, and `roles.yaml` binds it to `developer` and
+   `.wingfoil/directives/custom/` holds them, and `roles.yaml` binds it to `developer` and
    `qa`.
 3. The ten bugs listed in Context are **not** absorbed. Each has a concrete fix, in the prose or in
    the assertions, and stays a bug. T1 prevents the next one.

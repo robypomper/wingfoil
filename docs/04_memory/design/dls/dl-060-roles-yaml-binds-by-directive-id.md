@@ -33,9 +33,9 @@ Every implementation binds by **id** (`frontmatter.id`):
 
 **The difference is behavioural, not wording.** In this repository's own configuration no directive's
 `name` equals its `id` — 10 of 10 differ (`grep -m1 '^id:\|^name:'` over
-`docs/self/.wingfoil/directives/custom/*.md`: `code-quality` / "Code Quality", `security-secrets` /
+`.wingfoil/directives/custom/*.md`: `code-quality` / "Code Quality", `security-secrets` /
 "Security & secrets handling", `traceability` / "Requirement traceability chain", …), and
-`docs/self/.wingfoil/roles.yaml` lists ids (`code-quality`, `testing`, …). An implementation that
+`.wingfoil/roles.yaml` lists ids (`code-quality`, `testing`, …). An implementation that
 followed `spec-011` literally would match none of the existing bindings.
 
 ## Decision

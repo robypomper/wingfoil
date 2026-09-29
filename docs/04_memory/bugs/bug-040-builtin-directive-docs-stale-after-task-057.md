@@ -44,7 +44,7 @@ All on `main` (`8a6a091`) unless stated; each statement is true today and false 
 
 After `task-057` merges, documentation distinguishes two facts that are currently worded as one: the
 P3.8 templates **are** shipped by the tool and installed by `init`; this repository's own dogfood tree
-(`docs/self/.wingfoil/directives/built-in/`) still has none, because moving the dogfood config onto the
+(`.wingfoil/directives/built-in/`) still has none, because moving the dogfood config onto the
 tool-managed layout is a separate, open intention.
 
 ## Actual Behavior
@@ -53,7 +53,7 @@ The texts above state that the templates are not implemented.
 
 ## Notes
 
-- **What stays true after the merge — do not "fix" it:** the dogfood `docs/self/.wingfoil/directives/built-in/`
+- **What stays true after the merge — do not "fix" it:** the dogfood `.wingfoil/directives/built-in/`
   remains empty (`.gitkeep` only), and the stand-ins remain in `custom/`. `task-057` judged
   `src/core/builtin-asset.ts:8` still accurate on that reading ("it paraphrases spec-011's description of
   the dogfood tree"); the corrections are about the "not implemented / once implemented" clauses.

@@ -13,9 +13,9 @@ tmpl_version: 260703
 
 ## Context
 
-`minor-v0.2` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`) is `in-development`; its
+`minor-v0.2` (`docs/04_memory/planning/rl-v1/minor-v0.2.md`) is `in-development`; its
 `planning` phase is complete (`release-planning-rel-v0.2-plan.md`) — **32 backlog tasks**
-(`task-034..065`, `docs/self/docs/04_memory/v0.2/`), all `status: backlog`, tag `v0.2`. Per
+(`task-034..065`, `docs/04_memory/v0.2/`), all `status: backlog`, tag `v0.2`. Per
 `release-cycle` (`.wingfoil/workflows/custom/release-cycle.yaml` v1.1) the next phase is
 **`implementation`**: one `dev-loop` sub-workflow run
 (`.wingfoil/workflows/custom/dev-loop.yaml` **v1.3**, `element: task`) per backlog task tagged
@@ -58,7 +58,7 @@ advances to its **`user-docs`** phase (dl-013) — *not* part of this plan.
 An agent picking up a task does **not** copy this file. Instead:
 
 1. Read this plan for the phase-by-phase contract (§3) and the git/commit conventions (§2).
-2. Open the task's own Memory file (`docs/self/docs/04_memory/v0.2/task-{n}-{slug}.md`) — its
+2. Open the task's own Memory file (`docs/04_memory/v0.2/task-{n}-{slug}.md`) — its
    **Description / Acceptance Criteria / Implementation Notes** carry the task-specific content, and
    its **Execution Notes** section is the running log filled in incrementally, phase by phase (T1 AC
    classification, `depends_on` acknowledgements, specs found missing, deviations, rejection reasons).
@@ -236,7 +236,7 @@ one that actually reaches `done`):
 
 ---
 
-## 4. Task registry & execution order (snapshot — source of truth is `docs/self/docs/04_memory/v0.2/task-*.md`)
+## 4. Task registry & execution order (snapshot — source of truth is `docs/04_memory/v0.2/task-*.md`)
 
 32 tasks, all `status: backlog`, tag `v0.2`. The `depends_on` graph defines a topological order;
 within a wave order is free. Recommend running `task-062` in Wave 1 to flip `docs.api.*` to

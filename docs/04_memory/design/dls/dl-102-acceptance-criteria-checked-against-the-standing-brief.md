@@ -44,7 +44,7 @@ it.
 
 - **The brief is not in the repository.** It was handed to agents from outside version control.
   `git grep -n 'orchestrator' a20b346c -- docs/self/.wingfoil/` prints nothing, while the same
-  pattern over `docs/self/docs/04_memory/design/dls/` finds `dl-051`, `dl-061` and `dl-086`. No
+  pattern over `docs/04_memory/design/dls/` finds `dl-051`, `dl-061` and `dl-086`. No
   directive, template or workflow file carries its rules, so no reviewer and no later session can
   check a criterion against it.
 - **Whoever writes an out-of-band task's criteria holds no declared role.** `dna.yaml` declares
@@ -116,9 +116,9 @@ not implemented and not silently resolved. This is what `task-088` did.
 1. **Ratify, choosing the placement in §1.** Owner: approver. The choice goes in the approve
    commit's `Reason:`.
 2. **Move the brief's standing rules into the chosen directive files** under
-   `docs/self/.wingfoil/directives/custom/`, and **update `roles.yaml`** if a new directive is
+   `.wingfoil/directives/custom/`, and **update `roles.yaml`** if a new directive is
    added.
-3. **Amend `docs/self/.wingfoil/workflows/custom/release-planning.yaml`** (`build-backlog`
+3. **Amend `.wingfoil/workflows/custom/release-planning.yaml`** (`build-backlog`
    `checks.post`) and **`dev-loop.yaml`** (`design`: the criterion check), with version bumps. The
    check tokens' bindings are decided by `dl-090`.
 4. **Tasks are derived by v0.3 `release-planning` (`build-backlog`)**, not created here.

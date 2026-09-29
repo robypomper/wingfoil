@@ -70,7 +70,7 @@ Acknowledged obligations from its "Handoff to task-060 / task-061" section and r
 
 **Governance acknowledged.** `adr-009` (accepted), `spec-015` (approved) §2–§4 (§1 = task-059, §5 = task-061,
 not done here), `dl-018` (ready, T3), `dl-023` (ready — the smoke reused at stage 3; the gate exists only as
-`docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`, there is no executable smoke on `main`:
+`.wingfoil/workflows/custom/e2e-smoke.yaml`, there is no executable smoke on `main`:
 `grep -rln smoke test src` → only `test/cli/program.integration.test.ts`, whose "smoke" is its own suite),
 `bug-020` (absorbed), `bug-022` (read — `npm-distribution.test.ts` packs without `--ignore-scripts`; every
 `npm` call this task adds to the test suite passes `--ignore-scripts`, so it does not add a second instance),

@@ -141,8 +141,8 @@ machine-verifiable, once the workflow engine exists.**
    `spec-015-packaging-publishing`** if the script ships in the package; it should not.
 3. **Under §1 (C): configure branch protection on `main`** (approver action), recorded as a
    `service` element per `dl-088`.
-4. **Under §2: amend `docs/self/.wingfoil/dna.yaml`** (team, approval policy) as `dl-094` and the
-   chosen option require, and **`docs/self/.wingfoil/directives/custom/code-review.md`** with the
+4. **Under §2: amend `.wingfoil/dna.yaml`** (team, approval policy) as `dl-094` and the
+   chosen option require, and **`.wingfoil/directives/custom/code-review.md`** with the
    policy in one line.
 5. **Sequencing.** The check reads the configuration from the repository root once v0.2.2's step 2
    closes `bug-075`. It depends on `bug-137` (canonical arrow) and on `dl-079` (verb set), and it

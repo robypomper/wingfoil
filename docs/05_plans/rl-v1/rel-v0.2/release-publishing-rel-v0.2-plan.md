@@ -14,7 +14,7 @@ tmpl_version: 260703
 ## Context
 
 This plan executes the **`release-publishing`** sub-workflow
-(`docs/self/.wingfoil/workflows/custom/release-publishing.yaml`, `version: 1.0`, `element: release`)
+(`.wingfoil/workflows/custom/release-publishing.yaml`, `version: 1.0`, `element: release`)
 against **`minor-v0.2`**. In `release-cycle.yaml` (`version: 1.1`) it is the `publishing` phase,
 after `submit` and before `retrospective`. Its three declared phases are `tag`, `publish`,
 `mark-released`.
@@ -150,7 +150,7 @@ that link.
 - **Action:** an **in-place dated Revision note** on an `approved` tech-spec — no supersede, no state
   change, no `version:` bump
 - **Produces:** an edit to
-  `docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`
+  `docs/04_memory/design/specs/spec-015-packaging-publishing.md`
 - **Settled by:** `grep -n "pushed" docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`
   returning the new §4 sentence, and `awk '/^status:/{print $2; exit}'` on that file still returning
   `approved`
@@ -686,7 +686,7 @@ own credentials, then ship a patch through the same tag flow.
 - **Workflow phase:** `mark-released`; **role:** `tech-lead` → **Roberto's instruction required**
 - **Workflow action:** `element.set_state(released)` — release: `releasing → released`
 - **Produces:** one commit changing exactly one line of
-  `docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`
+  `docs/04_memory/planning/rl-v1/minor-v0.2.md`
 - **Settled by:** `awk '/^status:/{print $2; exit}' docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`
   → `released`
 

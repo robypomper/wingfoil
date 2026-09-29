@@ -17,7 +17,7 @@ tmpl_version: 260703   # Orignal template version
 
 ## Context
 
-`docs/self/.wingfoil/memory.yaml` currently declares **no `states` block** for the `decision-log`
+`.wingfoil/memory.yaml` currently declares **no `states` block** for the `decision-log`
 type, so it falls back to the shared default machine (REQ-STATE-08):
 `draft → pending → approved/rejected → deprecated`. Every other type that carries real downstream
 consequences (`task`, `adr`, `release`, `release-line`, `tech-spec`, `bug`) already declares its own
@@ -87,11 +87,11 @@ If this DL is **not** adopted, `decision-log` keeps the shared default machine
 
 ## Actions
 
-- [ ] Update `docs/self/.wingfoil/memory.yaml` — add the `states` block above to the `decision-log`
+- [ ] Update `.wingfoil/memory.yaml` — add the `states` block above to the `decision-log`
   type, replacing the `# no states -> default machine (REQ-STATE-08)` comment — owner: tech-lead.
 - [ ] `spec-001` (memory.yaml schema tech-spec) documents `decision-log`'s custom sequence, gates, and
   the `ready` waiting block, conditional on this DL's approval — owner: architect.
-- [ ] Update `docs/self/.wingfoil/workflows/custom/decision-log-ingest.yaml`, `retrospective.yaml`,
+- [ ] Update `.wingfoil/workflows/custom/decision-log-ingest.yaml`, `retrospective.yaml`,
   and `end-of-life.yaml` so their `decision-log` transitions use the new vocabulary
   (`submit`: `draft → in-discussion`; `approve`: `in-discussion → ready`) — owner: architect.
 - [ ] Define the `ready → in-develop` trigger inside `release-planning` and the `in-develop → done`

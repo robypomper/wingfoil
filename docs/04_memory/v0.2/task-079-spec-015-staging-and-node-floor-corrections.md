@@ -28,7 +28,7 @@ from the sources that raised them.
 `dl-052-verdaccio-started-by-staging-script-in-ci` is **`status: ready`**, approve commit **`58ac6f9`**
 (`[in-discussion → ready]`), ratified with **option 1**.
 
-The current text, `docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md:92-93`,
+The current text, `docs/04_memory/design/specs/spec-015-packaging-publishing.md:92-93`,
 verbatim:
 
 ```
@@ -72,8 +72,8 @@ It **is** settled now, verified for this task:
 - `adr-005-typescript-node-stack` is **`status: superseded`**, commit **`a7d783a`**
   (`wf(adr): deprecate adr-005-typescript-node-stack [accepted → superseded]`).
 - The cascade merged as **`7bb95d6`** and touched exactly four files —
-  `CLAUDE.md`, `docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml`,
-  `docs/self/docs/04_memory/design/dls/dl-001-typescript-over-python.md`.
+  `CLAUDE.md`, `docs/01_vision/01_product-brief.md`, `.wingfoil/dna.yaml`,
+  `docs/04_memory/design/dls/dl-001-typescript-over-python.md`.
 - `grep -rn '18+\|>=18\|Node.js 18\|node 18'` over those four files plus `README.md` leaves the claim
   standing in only two places: `dl-001:19` and `:35`, where the original sentences are deliberately
   preserved under a dated **Correction (2026-09-21)** note at `dl-001:37-42` (so the record reads
@@ -415,7 +415,7 @@ throwaway work dir* without claiming teardown is unconditional.
 
 ### green — role: developer
 
-One commit, one file: `docs/self/docs/04_memory/design/specs/spec-015-packaging-publishing.md`
+One commit, one file: `docs/04_memory/design/specs/spec-015-packaging-publishing.md`
 (`+105 / -8`). No `red` commit precedes it — every AC is characterization (T1 above), and the testing
 directive forbids fabricating a failing test for behaviour that does not exist. Four edits:
 

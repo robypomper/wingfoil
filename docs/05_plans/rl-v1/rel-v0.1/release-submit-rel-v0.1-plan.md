@@ -2,11 +2,11 @@
 
 ## Context
 
-`minor-v0.1` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.1.md`) is `in-development`; its
+`minor-v0.1` (`docs/04_memory/planning/rl-v1/minor-v0.1.md`) is `in-development`; its
 `dev-loop` is complete — all 33 tasks `done`, suite green (548/548). Per `release-cycle`
-(`docs/self/.wingfoil/workflows/custom/release-cycle.yaml`), the phase after `implementation`
+(`.wingfoil/workflows/custom/release-cycle.yaml`), the phase after `implementation`
 (`dev-loop`) is `submit`, i.e. the **`release-submit`** sub-workflow
-(`docs/self/.wingfoil/workflows/custom/release-submit.yaml`), scoped to `minor-v0.1`. Per
+(`.wingfoil/workflows/custom/release-submit.yaml`), scoped to `minor-v0.1`. Per
 CLAUDE.md §6/§10.7 (no workflow engine yet), this document is the coherent plan required before
 executing that phase.
 
@@ -21,8 +21,8 @@ v0.1 (not npm-published) — out of scope here.
 ## 1. Preconditions (verified against current repo state)
 
 - `minor-v0.1` — `status: in-development`.
-- Tasks `release=v0.1` (`docs/self/docs/04_memory/v0.1/`) — **33/33 `done`**.
-- Bugs `release=v0.1` (`docs/self/docs/04_memory/bugs/`): bug-001, bug-002, bug-003 `closed`;
+- Tasks `release=v0.1` (`docs/04_memory/v0.1/`) — **33/33 `done`**.
+- Bugs `release=v0.1` (`docs/04_memory/bugs/`): bug-001, bug-002, bug-003 `closed`;
   bug-005 `resolved`; **bug-004, bug-006 `open`** (deferred — see §2.1).
 - `jest.config` — `coverageThreshold.global` = 80 on all metrics.
 

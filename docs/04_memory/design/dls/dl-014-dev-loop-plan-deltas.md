@@ -10,7 +10,7 @@ tmpl_version: 260703   # Orignal template version
 
 ## Context
 
-`docs/self/.wingfoil/workflows/custom/dev-loop.yaml` encodes only the bare TDD cycle
+`.wingfoil/workflows/custom/dev-loop.yaml` encodes only the bare TDD cycle
 (`start → design → red → green → refactor → review → done`) with minimal git actions:
 `git.create_branch("{task.id}")` (no naming convention), `git.merge(to: main)` (no strategy, no
 declared conflict handling), and `refactor.checks.post` limited to `tests.passing` +

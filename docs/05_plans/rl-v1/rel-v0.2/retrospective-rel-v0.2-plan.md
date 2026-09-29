@@ -15,7 +15,7 @@ tmpl_version: 260703
 
 This plan executes the **`retrospective`** sub-workflow
 (`.wingfoil/workflows/custom/retrospective.yaml`, `version: 1.1`, `element: release`) for the release
-`minor-v0.2` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`). It is the **last** phase of
+`minor-v0.2` (`docs/04_memory/planning/rl-v1/minor-v0.2.md`). It is the **last** phase of
 `release-cycle` (`.wingfoil/workflows/custom/release-cycle.yaml`, `version: 1.1`): its `phases:` list
 ends `… → submit → publishing → retrospective`, so this phase starts only after
 `release-publishing` has taken `minor-v0.2` to `released`. Per CLAUDE.md §6 (interim — no workflow
@@ -39,9 +39,9 @@ same commands give 181 and 29 over 1,654 commits) — each carrying a `Reason:` 
 by what command, and what was wrong. Those bodies are the primary source (§4.2). The task documents
 are secondary: they are what the `Reason:` blocks were written *about*.
 
-**Produces:** `docs/self/docs/04_memory/design/dls/retro-v0.2.md` — a `decision-log` element, per
+**Produces:** `docs/04_memory/design/dls/retro-v0.2.md` — a `decision-log` element, per
 `retrospective.yaml`'s `capture` phase `produces:`. The precedent for what that file looks like is
-`retro-v0.1.md` in the same directory (`docs/self/docs/04_memory/design/dls/retro-v0.1.md`,
+`retro-v0.1.md` in the same directory (`docs/04_memory/design/dls/retro-v0.1.md`,
 `status: ready`, approved at commit `20e8271`); read it before writing, and note that it was itself
 produced by this same workflow version.
 
@@ -433,7 +433,7 @@ with what survived.
   `memory.add(type: decision-log, title: "Retrospective {release.version}")` then `memory.submit`.
 - **`{release.version}`** for this run is `v0.2`, so the title is **`Retrospective v0.2`** and, by the
   `produces:` path `docs/04_memory/design/dls/retro-{release.version}.md`, the id is **`retro-v0.2`**
-  and the file is `docs/self/docs/04_memory/design/dls/retro-v0.2.md`. Note this id deliberately
+  and the file is `docs/04_memory/design/dls/retro-v0.2.md`. Note this id deliberately
   departs from the type's `id_pattern` (`dl-{n}-{slug}` in `.wingfoil/memory.yaml`, the
   `decision-log:` entry) — the workflow's `produces:` pins it, and `retro-v0.1` set the precedent.
 - **`memory.add`** (CLAUDE.md §5.1): copy `.wingfoil/memory/templates/decision-log.md` verbatim,
@@ -1266,7 +1266,7 @@ either:
 
 What that means in practice is that the substance must be **restated from versioned ground**. The six
 questions are about `actions:` and `checks:` tokens, and those live in
-`docs/self/.wingfoil/workflows/custom/*.yaml`, which *is* versioned — so each question can be posed
+`.wingfoil/workflows/custom/*.yaml`, which *is* versioned — so each question can be posed
 against the real token it concerns, cited by workflow name and key path per `dl-075`. The proposal
 document is where the thinking came from; the workflow files are what the decision-log argues about.
 This is the same discipline the v0.3 notes are under (§4.8) and the same one `bug-076` and `bug-077`

@@ -23,8 +23,8 @@ implicit.
 
 ### E1 — the audience is bounded by the dogfood config
 
-Both new directives live in `docs/self/.wingfoil/directives/custom/`. They are loaded when an agent
-executes under a role `docs/self/.wingfoil/roles.yaml` binds. That config is **this project's own**;
+Both new directives live in `.wingfoil/directives/custom/`. They are loaded when an agent
+executes under a role `.wingfoil/roles.yaml` binds. That config is **this project's own**;
 no other project has it, and `bug-075` means even this project's shipped verbs cannot read it.
 
 ### E2 — `built-in/` ships nothing

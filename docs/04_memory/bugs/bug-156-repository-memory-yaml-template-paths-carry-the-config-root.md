@@ -25,7 +25,7 @@ hand-authored `memory.yaml` does not: its 8 `template.file` entries all start wi
 ## Steps to Reproduce
 
 1. Build `main` at `1087c166` (`npm run build`).
-2. In a scratch git repository, copy `docs/self/.wingfoil/` to `.wingfoil/` and commit it.
+2. In a scratch git repository, copy this repository's `.wingfoil/` to `.wingfoil/` and commit it.
 3. Run `node <repo>/dist/cli.js memory add --type bug --title "x"`.
 
 ## Expected Behavior

@@ -12,7 +12,7 @@ tmpl_version: 260703
 
 ## Context
 
-The global `doc-versioning` directive (`docs/self/.wingfoil/directives/custom/doc-versioning.md`,
+The global `doc-versioning` directive (`.wingfoil/directives/custom/doc-versioning.md`,
 bound to every role in `roles.yaml:31`) states: "A document carries a `**Version:**` / `version:`
 field. Bump the version only on the first edit after the file has been committed to git … Update the
 `**Date:**` to the edit date when bumping."
@@ -23,7 +23,7 @@ Implementing `dl-041` (`ebfb1e3`) required editing two `approved` specs and foun
 
 Measured on `main` (`8a6a091`) rather than assumed:
 
-- **Template:** `docs/self/.wingfoil/memory/templates/tech-spec.md` has no `version:` key. Across the
+- **Template:** `.wingfoil/memory/templates/tech-spec.md` has no `version:` key. Across the
   Memory templates, `grep -c '^version:'` → `adr 0`, `decision-log 0`, `task 0`, `tech-spec 0`;
   only `release` and `plan` have one.
 - **Specs:** frontmatter `version:` in **0 of 15** tech-specs (`spec-001`..`spec-015`), and no
@@ -74,7 +74,7 @@ Measured on `main` (`8a6a091`) rather than assumed:
 ## Actions
 
 - Owner **approver**: choose 1, 2 or 3.
-- If 1: amend `docs/self/.wingfoil/directives/custom/doc-versioning.md`; the two still-pending DLs
+- If 1: amend `.wingfoil/directives/custom/doc-versioning.md`; the two still-pending DLs
   (`dl-039`, `dl-040`) then follow the Revision-note form when implemented. Optionally backfill a
   Revision note in the specs the five implemented DLs amended without one (`spec-007`, `spec-009`,
   `spec-012`).

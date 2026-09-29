@@ -135,7 +135,7 @@ No AC requires a new tech-spec (`agent.verify_specs` below), so the design gate 
 #### `agent.read_related` (dl-015, HARD gate) — acknowledged
 
 - **`task-034-role-based-binding`** (the declared `depends_on`; read at
-  `docs/self/docs/04_memory/v0.2/task-034-role-based-binding.md`). Its second pass is the operative
+  `docs/04_memory/v0.2/task-034-role-based-binding.md`). Its second pass is the operative
   one: per `dl-033` option (b), `src/dna/roles.ts` is canonical for **binding** and is scoped **out of
   approval entirely** — `resolveApprover`/`NoRoleHolderError` were *removed* from it, and its module
   surface is pinned to exactly `['UnknownRoleError','assertRoleDefined','isRoleDefined','resolveRoleHolders']`
@@ -464,7 +464,7 @@ Two merges this pass. The first (`9bae748`, during the design stop) took `main` 
 takes it to **`91258a7`**. Between the branch point and `91258a7`, `main` gained four commits: three
 `docs(self)` edits to `dl-061`, `dl-063` and `dl-064`, and the `wf(bug)` triage approval of
 `bug-023`/`030`/`042`/`043`. `git diff --stat 7bac856..91258a7` touches only
-`docs/self/docs/04_memory/{design/dls,bugs}/` — **no `src/`, `test/` or spec file**, and no conflict in
+`docs/04_memory/{design/dls,bugs}/` — **no `src/`, `test/` or spec file**, and no conflict in
 either merge. Re-read after merging: `dl-064`'s addendum now says Wave 2 "is closed apart from
 `task-056`" and that its B.1 needs its own v0.3 task; it names `directive assign` only as one of nine
 `requireGitIdentity` call sites and hands this task nothing. No sentence in these notes went stale.
@@ -492,7 +492,7 @@ Supporting cases: `assigns a duplicated id once …`, `trims whitespace around t
 `P3.7 D3: a blank `--directive` is a usage error (exit 2) …`, plus the 10 `parseDirectiveIds` cases.
 
 **End-to-end on the compiled CLI**, against a scratch git repo seeded with a copy of this
-repository's own comment-rich `docs/self/.wingfoil/`:
+repository's own comment-rich `.wingfoil/`:
 
 ```
 $ grep -c '#' .wingfoil/roles.yaml                                       -> 7

@@ -117,7 +117,7 @@ change them.
 2. **On ratification, add** `.github/workflows/scorecard.yml`, the Pages build per Q2, and
    `llms.txt` (plus its parity test under Q3 (b)). The `package.json` `homepage` field changes, so
    the change is released as a package change.
-3. **Change `docs/self/.wingfoil/workflows/custom/user-docs.yaml`:** `align-user-docs` `produces:`
+3. **Change `.wingfoil/workflows/custom/user-docs.yaml`:** `align-user-docs` `produces:`
    gains `llms.txt` and the site sources, and its `version` is bumped.
 4. **Approver, in a session:** enable Pages, set the repository `homepage`, and record each as a
    `service` element with its `verify:`. That is `gh api repos/robypomper/wingfoil/pages` for Pages

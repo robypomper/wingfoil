@@ -20,7 +20,7 @@ decision-logs, so it was a matter of scheduling. `retro-v0.2` records it as an a
 the disposition "workflow action and check token bindings, six questions", target v0.3. Nothing in the
 retrospective's mining led to it. The source proposal is not cited, because a reader could not resolve
 it (`dl-075`). Each question below is restated against the token it concerns in
-`docs/self/.wingfoil/workflows/custom/*.yaml`, which is versioned.
+`.wingfoil/workflows/custom/*.yaml`, which is versioned.
 
 **What a token is today.** `spec-003-workflows-yaml-schema` (`approved`) § "Action expressions"
 defines an action as a "free-form string token naming one atomic operation". Its § "Check

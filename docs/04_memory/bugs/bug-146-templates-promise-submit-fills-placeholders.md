@@ -54,7 +54,7 @@ that ships a template.
 
 ## Notes
 
-- Root cause: the template wording (`docs/self/.wingfoil/memory/templates/*.md` and the equivalent
+- Root cause: the template wording (`.wingfoil/memory/templates/*.md` and the equivalent
   scaffold `wingfoil init` writes) was authored aspirationally, ahead of `memory.submit`'s actual
   scope (spec-010's "field-write ownership": `submit` owns only `status`/`rejection_reason`), and
   never reconciled once the verb shipped.

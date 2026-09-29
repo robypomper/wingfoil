@@ -27,7 +27,7 @@ in the scaffold or in this repository's own configuration. Verified on `main` (`
   → only the `DIRECTIVES` catalogue entries (`:203`, `:204`) and `- security-secrets` in the roles scaffold
   (`:307`). Same on `task/task-057-builtin-directive-templates` (`9b77243`, `:303`), which moves
   `security` into `built-in/`.
-- **Dogfood:** `docs/self/.wingfoil/roles.yaml` binds `security-secrets` globally and states the omission
+- **Dogfood:** `.wingfoil/roles.yaml` binds `security-secrets` globally and states the omission
   on purpose (`:4-6`): "The generic `security` stand-in is left unassigned here; its WingFoil
   elaboration `security-secrets` is assigned globally."
 

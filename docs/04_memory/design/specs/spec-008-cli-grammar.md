@@ -392,7 +392,7 @@ There is no free-form `--id`: an id a type's pattern cannot express is `spec-001
 
 ## Process Notes
 
-Cross-checked every claim against `docs/self/.wingfoil/dna.yaml` (`tech_stack.cli` = Commander.js +
+Cross-checked every claim against `.wingfoil/dna.yaml` (`tech_stack.cli` = Commander.js +
 chalk) and `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-04, REQ-INT-05, REQ-INT-08).
 
 **Revision (2026-09-17) — `directives` added to §1's noun list, per

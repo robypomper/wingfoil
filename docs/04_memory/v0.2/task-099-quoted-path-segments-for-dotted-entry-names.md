@@ -46,7 +46,7 @@ unaddressable rather than that the path is malformed.
 quoting: `dna remove stacks.technologies --value "Node.js"` quotes for the shell only. Pin this, since
 it is the thing a reader will get wrong.
 
-**AC6 — the three live dotted names enter the test corpus.** `docs/self/.wingfoil/dna.yaml` carries
+**AC6 — the three live dotted names enter the test corpus.** `.wingfoil/dna.yaml` carries
 `Node.js`, `Commander.js` and `AI agent (Claude/Cursor/etc.)`. Build a fixture containing all three
 and assert each is addressable. This is the test that makes a future dot-ban impossible to add
 silently, which is the point of `dl-083`'s Action 4.

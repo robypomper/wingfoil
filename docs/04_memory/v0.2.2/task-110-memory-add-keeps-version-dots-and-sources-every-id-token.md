@@ -154,7 +154,7 @@ after which every failure was the asserted value (`Received: "dl-001-retrospecti
 ### AC 6 — end to end on a scratch repository
 
 Script `e2e.sh` in the session scratchpad: `git init` in a `mktemp -d` directory outside the repo,
-copy `docs/self/.wingfoil/memory.yaml` and `memory/templates/*.md` into `.wingfoil/`, commit, run
+copy `.wingfoil/memory.yaml` and `memory/templates/*.md` into `.wingfoil/`, commit, run
 the built `dist/cli.js` (built by the jest `globalSetup` of the refactor run below).
 
 **Finding first.** Copied verbatim, this repository's configuration cannot add anything:

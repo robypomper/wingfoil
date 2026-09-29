@@ -32,7 +32,7 @@ this call site.
    templates are proven clean only by tests
    (`test/storage/builtin-directives.test.ts:16-17`: the text "trips ZERO spec-007 secret-scan
    findings"; `test/core/builtin-directive-templates.test.ts:89` runs `scanProjectSurface` after init).
-3. Ownership: `docs/self/docs/04_memory/v0.2/task-043-secret-credential-hygiene.md:72-73` names the
+3. Ownership: `docs/04_memory/v0.2/task-043-secret-credential-hygiene.md:72-73` names the
    scanner as "the seam spec-007 §4 step 5 describes future callers (a commit-time gate, `task-044`'s
    init integrity check) consuming"; `grep -n -i scan docs/self/docs/04_memory/v0.2/task-044-builtin-template-integrity.md`
    → no output. `task-043` and `task-044` are both `done`.

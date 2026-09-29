@@ -99,7 +99,7 @@ fabricated red for it — it is asserted as a regression guard instead.
   preservation, absent-key insertion, scalar-rendering parity with `dump`, and every honest refusal.
 - `test/core/dna-set-comment-preservation.test.ts` (7 cases) — end-to-end through the **registered**
   `CORE_MODULES` `dna.dnaSet` op, seeding a throwaway git repo with WingFoil's own
-  `docs/self/.wingfoil/dna.yaml`, read from this repository at run time (never written to).
+  `.wingfoil/dna.yaml`, read from this repository at run time (never written to).
 
   Observed red: **28 failed, 2 passed (30 total, 2 suites)**. The two that passed are the fixture guard
   (`the fixture is genuinely comment-rich`) and the invalid-key-path case, which already worked. The
@@ -157,7 +157,7 @@ Refactor-gate results, all observed on this branch:
 | `npx eslint .` | exit 0 (`lint.clean`, `dl-034`) |
 
 **Property verification — comments survive (AC(a)/(b)).** Run against a throwaway repo seeded with the
-real `docs/self/.wingfoil/dna.yaml` (**182 lines, 44 whole-line comments, 23 `[SPEC]`/`[AUTHORING]`
+real `.wingfoil/dna.yaml` (**182 lines, 44 whole-line comments, 23 `[SPEC]`/`[AUTHORING]`
 markers**):
 
 - `dna set project.name "WingFoil Renamed"` → ok; **44 comments and 23 markers after**, unchanged.

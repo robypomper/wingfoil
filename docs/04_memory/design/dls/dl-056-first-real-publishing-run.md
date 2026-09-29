@@ -29,7 +29,7 @@ registry)"). Measured on `main` (`8a6a091`):
 
 So the first execution of the staging registry, the throwaway auth flow, the tarball install and the
 promote job would be the v0.2 `release-publishing` phase itself
-(`docs/self/.wingfoil/workflows/custom/release-publishing.yaml`, phase `publish`, action
+(`.wingfoil/workflows/custom/release-publishing.yaml`, phase `publish`, action
 `agent.execute # build + npm publish`) — on a tagged release, with the approver waiting.
 
 **A known flake now sits inside that gate.** The `gate` job runs `npm run prepublishOnly`

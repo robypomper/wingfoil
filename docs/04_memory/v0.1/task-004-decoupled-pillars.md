@@ -72,7 +72,7 @@ Testable form:
     ("`memory.yaml`, `dna.yaml`, `directives/*.yaml`, and `workflows.yaml` each validate against
     their own Zod schema independently... reloads all four pillars reports zero validation errors")
     but no approved tech-spec defines the Directives pillar's own file shape —
-    `spec-010-memory-frontmatter-schema`'s scope is explicitly `docs/self/docs/04_memory/**/*.md`
+    `spec-010-memory-frontmatter-schema`'s scope is explicitly `docs/04_memory/**/*.md`
     (Memory documents), not `.wingfoil/directives/**`. The AC's "directives/*.yaml" phrasing is also
     literally wrong: real directive files are `.md` with YAML frontmatter, not `.yaml`. I did not
     treat this as a hard STOP because (a) this task's own Implementation Notes — the more specific,
@@ -122,11 +122,11 @@ Testable form:
     with the "every `gates` key / `waiting` entry must be in `sequence`" and reserved-`"deprecated"`
     rules embedded as a `.superRefine()` (spec-009 §1 frames exactly this same-document cross-field
     shape as expressible inside the Zod schema, "logically Pass 2"). Validated clean against the
-    real, live `docs/self/.wingfoil/memory.yaml`.
+    real, live `.wingfoil/memory.yaml`.
   - `src/dna/schema.ts` (`DnaYaml`) — spec-002's `Project`/`Module`/`Stacks`/`Team`/`Paths`, with the
     REQ-SYS-08 role-binding check (`team.members[].roles` / `team.agents[].executes_as` must
     reference a name in `team.roles`) as a `Team`-level `.superRefine()`. Validated clean against the
-    real, live `docs/self/.wingfoil/dna.yaml`.
+    real, live `.wingfoil/dna.yaml`.
   - `src/workflow/schema.ts` (`WorkflowsYaml` + `Workflow`) — spec-003's Layer 1 manifest
     (`include`, canonical singular) and Layer 2 per-file DSL (phases, free-form `actions`/`checks`
     strings, `include`/`iterate_over`/`where` composition, `approval`/`fallback` gates). The two
@@ -137,7 +137,7 @@ Testable form:
   - **Real bug found and fixed while validating the live workflow files.** Two workflow files had an
     unquoted action string shaped like `key: value`, which YAML parses as a one-key mapping instead
     of the intended plain string (`actions` must be `string[]` per spec-003):
-    `docs/self/.wingfoil/workflows/custom/dev-loop.yaml`'s `done` phase (`git.merge(to: main)`) and
+    `.wingfoil/workflows/custom/dev-loop.yaml`'s `done` phase (`git.merge(to: main)`) and
     `end-of-life.yaml`'s `archive` phase (`git.commit("end-of-life: archive")`). Both quoted, matching
     the convention already used elsewhere in the same files for action strings containing `:`/`{}`
     (e.g. `'bug.sync_state(where: { id: task.bug })'`). This is exactly the class of drift this

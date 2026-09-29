@@ -95,9 +95,9 @@ by the task doing the work, rather than being stamped retroactively. That is the
 
 The surface was **measured, not assumed**:
 
-1. **`docs/self/.wingfoil/memory/templates/task.md:10`** — `bug: ""` becomes a list, with the comment
+1. **`.wingfoil/memory/templates/task.md:10`** — `bug: ""` becomes a list, with the comment
    rewritten to describe absorption as well as derivation.
-2. **`docs/self/.wingfoil/workflows/custom/dev-loop.yaml`** — three call sites (`:29`, `:82`, `:96`)
+2. **`.wingfoil/workflows/custom/dev-loop.yaml`** — three call sites (`:29`, `:82`, `:96`)
    change from `where: { id: task.bug }` to an iteration over the list. The header comment at `:6-11`
    already describes the aggregate rule ("the bug only advances once every one of its fix tasks has
    reached the matching state") and needs widening to cover hosts as well as derived fix tasks.

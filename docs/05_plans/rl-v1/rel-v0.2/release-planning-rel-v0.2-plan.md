@@ -13,7 +13,7 @@ tmpl_version: 260703
 
 ## Context
 
-`minor-v0.2` (`docs/self/docs/04_memory/planning/rl-v1/minor-v0.2.md`) is `planning`. The normal
+`minor-v0.2` (`docs/04_memory/planning/rl-v1/minor-v0.2.md`) is `planning`. The normal
 `sw-life-cycle` → `release-line-cycle/delivery` resumes and picks it up, running its `release-cycle`
 (`.wingfoil/workflows/custom/release-cycle.yaml`) starting at `release-planning`
 (`.wingfoil/workflows/custom/release-planning.yaml`, v1.1).

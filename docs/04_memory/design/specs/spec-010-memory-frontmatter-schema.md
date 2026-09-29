@@ -3,7 +3,7 @@ id: spec-010-memory-frontmatter-schema
 type: tech-spec
 title: "Memory document base frontmatter schema"
 status: approved
-scope: "docs/self/docs/04_memory/**/*.md frontmatter"
+scope: "docs/04_memory/**/*.md frontmatter"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version
 ---
@@ -13,7 +13,7 @@ tmpl_version: 260703   # Orignal template version
 `spec-001-memory-yaml-schema` defines the **type registry** — `memory.yaml`'s `types.*` map, each
 type's `path` pattern, `id_pattern`, and per-type `states` machine. This spec sits one layer below
 it: it defines the **document-instance contract** — the actual YAML frontmatter block that every
-file matching a type's `path` pattern under `docs/self/docs/04_memory/` carries once
+file matching a type's `path` pattern under `docs/04_memory/` carries once
 `wingfoil memory add`/`submit`/`approve`/`reject`/`deprecate` has touched it.
 
 Without a single shared base-field definition, every consumer that reads Memory frontmatter
@@ -25,7 +25,7 @@ versus which are
 type-specific, and would disagree on where audit history and version bookkeeping live.
 
 **Ground truth, not aspiration.** The scaffold files (seven when this spec was written) under
-`docs/self/.wingfoil/memory/templates/*.md` are the actual current definition of what a freshly
+`.wingfoil/memory/templates/*.md` are the actual current definition of what a freshly
 created document of each type looks like — this spec transcribes their common structure. It
 deliberately does **not** invent a `wingfoil:` namespace block, a `state_history[]`/`review[]`
 audit array, or a per-write incrementing `version` counter — none of those exist in the real
@@ -160,7 +160,7 @@ verbs, matching the field-write ownership table above.
 
 ## Process Notes
 
-Grounded against the ground truth in `docs/self/.wingfoil/memory/templates/{adr,task,release,...}.md`,
+Grounded against the ground truth in `.wingfoil/memory/templates/{adr,task,release,...}.md`,
 which uses a flat schema and a static `tmpl_version` build stamp — not a nested `wingfoil:` block,
 `state_history[]`/`review[]` audit arrays, or a per-write incrementing `version` counter. This spec has
 no per-write counter or audit array to get wrong, since the audit trail is git commits (REQ-SEC-02,

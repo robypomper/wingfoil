@@ -25,9 +25,9 @@ authentication layer" (adr-006 line 41). That mechanism assumes the person actin
 It has no answer for the case this DL is about: an external contributor who does not (and should not
 need to) commit code or run `wingfoil` themselves, but instead raises a `bug`, `decision-log`, `adr`,
 or `tech-spec` through the corresponding ingest workflow (`bug-ingest.yaml`, `decision-log-ingest.yaml`,
-`adr-ingest.yaml` under `docs/self/.wingfoil/workflows/custom/`, plus the tech-spec identification path
+`adr-ingest.yaml` under `.wingfoil/workflows/custom/`, plus the tech-spec identification path
 in `release-planning`), which an AI agent then turns into delivered tasks under `dev-loop`. Nothing in
-the four ingested templates (`docs/self/.wingfoil/memory/templates/{bug,decision-log,adr,tech-spec}.md`)
+the four ingested templates (`.wingfoil/memory/templates/{bug,decision-log,adr,tech-spec}.md`)
 records who originated the idea versus who (or what agent, under whose role) executed it.
 
 This gap was surfaced explicitly in the v0.1 retrospective (`retro-v0.1`), whose friction inventory
@@ -53,7 +53,7 @@ in a new repo-root `COLLABORATION.md`:
 3. **Mechanism: a frontmatter layer on top of `adr-006`, not a replacement for it.** Add a
    `contributor:` field (and an optional `credit:` note) to the four ingested templates
    (`bug.md`, `decision-log.md`, `adr.md`, `tech-spec.md` under
-   `docs/self/.wingfoil/memory/templates/`), populated at `memory.add`/`memory.submit` time for
+   `.wingfoil/memory/templates/`), populated at `memory.add`/`memory.submit` time for
    artifacts originated by someone other than the committing git identity. This sits *above*
    `adr-006`'s attribution mechanism — git identity still records "who made this state change and
    when" for every commit; `contributor:` separately records "whose idea this was." No git history
@@ -93,7 +93,7 @@ in a new repo-root `COLLABORATION.md`:
 - [ ] On ready: author repo-root `COLLABORATION.md` (contribution channel, credit model, ingest workflow
   pointers, `doc-versioning`-compliant `Version:`/`Date:` header).
 - [ ] Add `contributor:` (+ optional `credit:`) fields to the four ingested templates —
-  `docs/self/.wingfoil/memory/templates/{bug,decision-log,adr,tech-spec}.md`.
+  `.wingfoil/memory/templates/{bug,decision-log,adr,tech-spec}.md`.
 - [ ] Update `README.md`'s `## Contributing` section (`README.md:374-390`) to link `COLLABORATION.md`
   and drop the "`CONTRIBUTING.md` (coming soon)" pointer at `README.md:382`.
 - [ ] Cross-check `adr-006-git-identity-role-based-authz`'s Consequences section for a note that this

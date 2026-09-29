@@ -109,7 +109,7 @@ rule. The general one is `dl-097-claim-evidence-needs-an-enforcement-point` and
 ## Actions
 
 1. **Ratify, choosing Q1.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/directives/custom/security-secrets.md` changes**, gaining
+2. **On ratification, `.wingfoil/directives/custom/security-secrets.md` changes**, gaining
    S1 with `dl-073` and `bug-055` cited. The directive stays bound globally in `roles.yaml`.
 3. **`bug-055` stays a bug.** Its fix is rewriting the fixtures in
    `test/validation/secret-scan.test.ts` to satisfy S1. Under Q1 (b), the same task or a sibling adds

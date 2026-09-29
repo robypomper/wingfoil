@@ -260,7 +260,7 @@ exit=0
 
 *Scenario 3 (edge) — after deleting `custom/`, exactly the six built-ins are listed, exit 0.*
 
-*Against WingFoil's own `docs/self/.wingfoil/` (copied into a scratch repo):*
+*Against WingFoil's own `.wingfoil/` (copied into a scratch repo):*
 
 ```
 $ wingfoil directives list --format json

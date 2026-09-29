@@ -59,7 +59,7 @@ in this worktree, not assumed:
 
 **`agent.verify_specs`.** The contract already exists and is approved:
 `spec-013-directive-frontmatter-schema` (`status: approved`, scope
-`docs/self/.wingfoil/directives/**/*.md frontmatter`) — its field table requires
+`.wingfoil/directives/**/*.md frontmatter`) — its field table requires
 `id` / `name` / `type: directive` / `kind` / `title` (+ optional `tags`, `ref`), realized verbatim by
 `DirectiveFrontmatter` in `src/directives/schema.ts`. `spec-011-storage-layout` (approved) owns the
 `built-in`/`custom` split the scaffold writes into. **No missing artefact → no `memory.add(type:
@@ -154,7 +154,7 @@ stem), `name` string, `type` literal `directive`, `kind` string, `title` string,
 string[] — all five required fields present, `tags` legitimately omitted (optional).
 
 `title` is quoted, `id`/`name` are not — the same style the ten real stand-ins under
-`docs/self/.wingfoil/directives/custom/` use.
+`.wingfoil/directives/custom/` use.
 
 **Observed after the change (no other file touched):**
 - `npx jest test/storage/templates.test.ts test/core/builtin-integrity.test.ts --maxWorkers=2` →
@@ -291,7 +291,7 @@ written as a property over `TEMPLATES` so it keeps biting if a directive or temp
 ### Deviations / left for others
 
 - **`name` kept as the slug.** `spec-013` describes `name` as the "human-readable directive name",
-  and the ten real stand-ins under `docs/self/.wingfoil/directives/custom/` use `name: "Architecture"`
+  and the ten real stand-ins under `.wingfoil/directives/custom/` use `name: "Architecture"`
   with `id: architecture`; the scaffold emits `name: architecture` (slug) for both. Left unchanged on
   its own merits: the fix is additive by design and `name` was already present and schema-valid
   (`z.string()`), so touching it would add regression surface for no acceptance criterion. It is a

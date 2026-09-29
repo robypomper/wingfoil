@@ -58,7 +58,7 @@ reusable `src/core` building block, not a wired-up `wingfoil memory approve` (th
   from whichever human account runs the command, so role resolution is git-identity → `team.members`
   only (agents' `approval_authority: false` in `dna.yaml` is enforced by process/CLAUDE.md governance,
   not by a code path this git-identity-keyed check could distinguish).
-- Tests: pure-function cases against the REAL `docs/self/.wingfoil/dna.yaml` (`DnaYaml.parse`, mirrors
+- Tests: pure-function cases against the REAL `.wingfoil/dna.yaml` (`DnaYaml.parse`, mirrors
   `test/memory/state-machine.test.ts`'s real-`memory.yaml` pattern) plus a `makeTempGitRepo`
   integration case for `requireApprovalAuthority`'s git-identity resolution (mirrors
   `test/core/git-identity.test.ts`).
@@ -66,7 +66,7 @@ reusable `src/core` building block, not a wired-up `wingfoil memory approve` (th
 ### red
 
 Added `test/core/approval-authority.test.ts` (11 cases): pure `resolveMemberRoles`/`hasApproverRole`
-lookup against the REAL `docs/self/.wingfoil/dna.yaml` (Roberto holds `approver`) + a synthetic
+lookup against the REAL `.wingfoil/dna.yaml` (Roberto holds `approver`) + a synthetic
 approver/reviewer DNA, and git-identity-gated `requireApprovalAuthority` cases over a `makeTempGitRepo`
 fixture with isolated `GIT_CONFIG_*` (asserting the exact REQ-SEC-03 message
 `user not authorized to approve type '<type>'`, `VALIDATION` code, and the success path). Ran red:

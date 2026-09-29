@@ -268,7 +268,7 @@ is "rejected identically to the CLI path". It now shows the string the shipped e
 example's own call (`approve` on a `task` in `draft`):
 `illegal transition draft -> backlog for type 'task'`, with `<to>` computed as `approve`'s canonical
 edge by `contractTarget` (`src/memory/state-machine.ts`) under `dl-053` option 1 — verified by running
-`resolveTypeTransition` against `docs/self/.wingfoil/memory.yaml`, not transcribed. The spec's contract
+`resolveTypeTransition` against `.wingfoil/memory.yaml`, not transcribed. The spec's contract
 is unchanged: only an illustrative comment moved, and no Tool is registered on the running server yet.
 Edited in place without a supersede or a state change, per the `spec-001` precedent `dl-041` cites; the
 tech-spec template carries no `version:` field, so this dated note is the record (`dl-047`).

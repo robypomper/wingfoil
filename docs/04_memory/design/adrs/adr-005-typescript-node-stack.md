@@ -24,7 +24,7 @@ would lack a single well-trodden packaging path.
 
 WingFoil is implemented in **TypeScript**, running on **Node.js 18+**, and distributed as a public
 package via the **npm registry** (`npm install -g wingfoil`), using **semantic versioning** for
-releases. This is recorded as the authoritative tech stack in `docs/self/.wingfoil/dna.yaml`
+releases. This is recorded as the authoritative tech stack in `.wingfoil/dna.yaml`
 (`tech_stack:`) and in the product brief's Technical Stack section, and it underpins the surrounding
 toolchain choices — Commander.js + chalk for the CLI, MCP over stdio with the Anthropic SDK for the
 MCP server, Zod for validation at system boundaries, and Jest (>80% coverage target) for testing.
@@ -51,7 +51,7 @@ MCP server, Zod for validation at system boundaries, and Jest (>80% coverage tar
 
 ## Process Notes
 
-Grounded in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-09), `docs/self/.wingfoil/dna.yaml`
+Grounded in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-09), `.wingfoil/dna.yaml`
 (`tech_stack:` section), and `docs/01_vision/01_product-brief.md` (Technical Stack section), all of
 which agree on TypeScript/Node.js 18+/npm as the stack. This plan classifies it as an **ADR** because
 REQ-SYS-09 gives the decision a citable, testable SARD fit criterion (`npm install -g wingfoil`

@@ -24,7 +24,7 @@ for every type without its own is absent from the layout contract.
 
 Measured 2026-09-21 on `main` at `ba2cad0`.
 
-1. The row, `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md:104`:
+1. The row, `docs/04_memory/design/specs/spec-011-storage-layout.md:104`:
 
 ```
 | `memory.yaml`    | Memory (P1.13)      | `types:` map — one entry per element type, each declaring `path` (must contain `{id}`), `states` (values/initial/transitions), and `template:` (`frontmatter.required` + `file:` pointing into `memory/templates/`) |
@@ -46,7 +46,7 @@ $ grep -n "defaults" docs/self/docs/04_memory/design/specs/spec-011-storage-layo
 
 and whose schema (`:116`) declares `states: StateMachine.optional(), // absent ⇒ defaults.states applies (REQ-STATE-08)`.
 
-4. The live config and the code both use the new encoding. `docs/self/.wingfoil/memory.yaml:58-63`:
+4. The live config and the code both use the new encoding. `.wingfoil/memory.yaml:58-63`:
 
 ```
 defaults:

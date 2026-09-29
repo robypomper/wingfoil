@@ -52,13 +52,13 @@ Observed results:
 - The plan-shaped pattern fails with `error: missing value for token {workflow}; missing value for
   token {phase}`, exit 1.
 
-**This repository is affected, not only other projects.** `docs/self/.wingfoil/memory.yaml`
+**This repository is affected, not only other projects.** `.wingfoil/memory.yaml`
 declares these patterns:
 - `release-line`: `id_pattern: "rl-{version}"`;
 - `release`: `"minor-{version}"`;
 - `plan`: `"{workflow}-{phase}-plan"`.
 
-21 ids in this repository contain a dot: `grep -rhE "^id:" docs/self/docs/04_memory docs/05_plans |
+21 ids in this repository contain a dot: `grep -rhE "^id:" docs/04_memory docs/05_plans |
 grep -c '\.'`. They include `minor-v0.1` to `minor-v1.0`, `retro-v0.1` and every
 `*-rel-v0.2-*-plan`. None could have been created by `wingfoil memory add` at 0.2.1. Nothing has
 failed yet, because this repository's Memory is written by hand (`bug-075`). The root move scheduled

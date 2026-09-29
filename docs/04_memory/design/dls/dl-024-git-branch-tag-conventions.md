@@ -21,7 +21,7 @@ based` and `dl-014-dev-loop-plan-deltas` already settled for `dev-loop` branches
 codifies the phase-level half of the same convention**, in `workflows/custom/sw-life-cycle.yaml`,
 `release-cycle.yaml`, or anywhere else.
 
-The `retro-v0.1` retrospective (`docs/self/docs/04_memory/design/dls/retro-v0.1.md`) flagged this as
+The `retro-v0.1` retrospective (`docs/04_memory/design/dls/retro-v0.1.md`) flagged this as
 finding **N1/N2** ("git rules": one branch per phase; tag on `main`) and named this DL as the vehicle
 (disposition table, row `N1/N2`). Two concrete risks motivate it:
 
@@ -60,7 +60,7 @@ practice), two rules:
    approver's choice.
 
 Concretely:
-- Add a `git:` conventions note to `docs/self/.wingfoil/workflows/custom/sw-life-cycle.yaml` and
+- Add a `git:` conventions note to `.wingfoil/workflows/custom/sw-life-cycle.yaml` and
   `release-cycle.yaml` stating the one-branch-per-phase rule and branch-naming pattern.
 - Add an explicit "tag `vX.Y` on `main`" step to `release-publishing.yaml`, positioned after the merge
   action and before the phase is considered complete.

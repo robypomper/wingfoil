@@ -25,7 +25,7 @@ than the product. On 2026-09-28 the approver ruled on the parts, and all of them
 ### The population
 
 An element is **unscheduled** when its frontmatter `release:` is the empty string, whatever its
-status. It is counted with the awk scan below, run over `docs/self/docs/04_memory/bugs/*.md` and
+status. It is counted with the awk scan below, run over `docs/04_memory/bugs/*.md` and
 `design/dls/*.md` in a `git archive <sha> docs/self/docs/04_memory` extract:
 
 ```sh
@@ -72,7 +72,7 @@ The retrospective plan defines the clean-up that opens v0.3 (`retrospective-rel-
 (a)): size re-measured at execution, the approver decides, `bug-094` (retyped by
 `dl-123-a-bug-ruled-wontfix-has-a-legal-exit`) first, and `build-backlog` as the venue, run by hand
 until `element.set_release` has a binding. `git grep -c set_release a20b346c -- src/` prints
-nothing, while the same grep over `docs/self/.wingfoil/workflows/custom/` finds
+nothing, while the same grep over `.wingfoil/workflows/custom/` finds
 `release-planning.yaml`. This decision covers what keeps the population from growing back.
 
 ## Decision
@@ -153,11 +153,11 @@ fresh ones.
 
 1. **Ratify, choosing the options in §1, §3, §4 and §5.** Owner: approver. The choices go in the
    approve commit's `Reason:`.
-2. **Amend `docs/self/.wingfoil/workflows/custom/release-planning.yaml`**: the `reconcile-governance`
+2. **Amend `.wingfoil/workflows/custom/release-planning.yaml`**: the `reconcile-governance`
    filter includes `ready` decision-logs, and a growth-threshold check is added. **Amend
    `release-cycle.yaml`** and **`dev-loop.yaml`**: the wave and the re-sweep phase at its boundary,
    under §1 (a). All get version bumps.
-3. **Amend `docs/self/.wingfoil/memory/templates/release.md`** (the `## Scope changes` section) and
+3. **Amend `.wingfoil/memory/templates/release.md`** (the `## Scope changes` section) and
    **`memory.yaml`**'s `release` type (the `backlog_committed` field, `[AUTHORING]`).
 4. **Add the capacity and WIP measures to `dl-089`'s catalogue**, if both are ratified.
 5. **Run the one-off clean-up** at the start of v0.3 per `retrospective-rel-v0.2-plan` §6.3 (a).

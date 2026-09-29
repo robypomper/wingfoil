@@ -47,7 +47,7 @@ documents, and those are not a task's to change unilaterally (see AC2).
    | `spec-015-packaging-publishing` | `:60`, under "Unchanged" | `engines: node >=18` | **yes** — an `approved` spec ratifies the wrong floor and must move with the fix |
    | `adr-009-npm-publishing-pipeline` | whole document | `grep -n -i "node\b"` → no output; it states no Node floor (`sard_ref: REQ-SYS-09`) | **no** — nothing to change |
    | `README.md` | `:115` "This installs the `wingfoil` binary (Node.js 18+ required)" | 18+ | **yes** — but `README.md` is owned by the `user-docs` release gate (`dl-013`); decide whether to correct it here or hand it to that gate, and say which |
-   | `dna.yaml` | `docs/self/.wingfoil/dna.yaml:73-75`, `stacks.technologies` → `Node.js`, `version: "18+"` | 18+ | **yes** — not named in bug-023's list; surfaced by this survey |
+   | `dna.yaml` | `.wingfoil/dna.yaml:73-75`, `stacks.technologies` → `Node.js`, `version: "18+"` | 18+ | **yes** — not named in bug-023's list; surfaced by this survey |
    | Product brief | `docs/01_vision/01_product-brief.md:267` "Node.js 18+ (npm)" | 18+ | **yes** — and it is a **vision** document. Per CLAUDE.md §10.1 the specs win over config, and changing the product's declared runtime floor is an approver/spec-level decision, not a task edit. **Stop and report** rather than editing the vision package unilaterally |
    | `CLAUDE.md` | `:18`, `:92` "Node.js 18+" | 18+ | **yes** — no workflow gate owns `CLAUDE.md` (`dl-025`, `in-discussion`); note it, do not silently absorb it |
 
@@ -121,7 +121,7 @@ added 500 packages in 9s                                             # exit 0
 Every gate figure in the `refactor` table, and the closure counts above, are from that real install.
 
 **`agent.read_related` (`dl-015`, HARD gate) — `depends_on: ["task-059-publish-metadata"]`,
-acknowledged.** Read `docs/self/docs/04_memory/v0.2/task-059-publish-metadata.md` §Execution Notes in
+acknowledged.** Read `docs/04_memory/v0.2/task-059-publish-metadata.md` §Execution Notes in
 full. What this task takes from it:
 
 - **It owns `test/cli/publish-metadata.test.ts`, the file AC3 edits**, and states that file's design
@@ -539,7 +539,7 @@ and an **accepted ADR**:
 - `adr-005-typescript-node-stack` — `accepted`; its **title** is "TypeScript on Node.js 18+";
   `:45` "Requires contributors and CI to standardize on Node.js 18+ as a baseline"
 - `dl-001-typescript-over-python:19,:35` — `ready`; the same claim, "recorded in `dna.yaml`"
-- `docs/self/.wingfoil/dna.yaml:73-75` — `stacks.technologies` → `Node.js`, `version: "18+"`
+- `.wingfoil/dna.yaml:73-75` — `stacks.technologies` → `Node.js`, `version: "18+"`
 - `README.md:115`, `CLAUDE.md:18/:92` — restatements
 
 Per CLAUDE.md §10.1 vision wins over config, and a fix task cannot supersede an accepted ADR, so all

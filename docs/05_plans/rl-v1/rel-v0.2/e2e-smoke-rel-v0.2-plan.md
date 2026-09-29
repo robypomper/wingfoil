@@ -17,7 +17,7 @@ tmpl_version: 260703
 `include: e2e-smoke`. This plan is that phase's execution scaffold for `minor-v0.2`, per `dl-019` and
 CLAUDE.md §10 golden rule 7 (no workflow engine exists, so a workflow start produces a plan first).
 
-The phase contract is `docs/self/.wingfoil/workflows/custom/e2e-smoke.yaml`, **version 1.0**,
+The phase contract is `.wingfoil/workflows/custom/e2e-smoke.yaml`, **version 1.0**,
 `element: release`, three phases — all `role: qa`:
 
 | Phase | `actions` | `checks.post` |

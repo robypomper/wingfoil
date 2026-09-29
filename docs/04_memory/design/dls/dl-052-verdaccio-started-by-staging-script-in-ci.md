@@ -28,7 +28,7 @@ Verdaccio is started by the staging script itself:
   only ever install the tarball staged by this run — never a same-named package from npmjs" — then
   installs `verdaccio@6` (`VERDACCIO_PACKAGE`, `:37`) into a temp tools prefix and spawns it.
 
-The task's Execution Notes (design point 4, `docs/self/docs/04_memory/v0.2/task-060-publish-pipeline.md`)
+The task's Execution Notes (design point 4, `docs/04_memory/v0.2/task-060-publish-pipeline.md`)
 give the reason: a GitHub service container starts **before** `actions/checkout`, so "it cannot be given
 a repo-controlled config", and it "would make CI take a different code path from the local run". (A
 service container would therefore run with whatever config its image ships; whether that default

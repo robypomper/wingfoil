@@ -3,14 +3,14 @@
 **Date:** 2026-07-03
 **Roles:** Product Owner · Architect
 **Element:** `release-line` `rl-v1` (status: `active` — approved via `wf(release-line): approve rl-v1 [planning → active]`)
-**Sub-workflow:** `docs/self/.wingfoil/workflows/custom/initial-design.yaml`
+**Sub-workflow:** `.wingfoil/workflows/custom/initial-design.yaml`
 **Process model:** `docs/self/X_initial-design-plan.md` (generic, reusable per release-line) — this file is
 the **concrete, rl-v1-scoped instance** of that process: it enumerates the actual releases, ADRs, Decision
 Logs, and Tech-Specs to create, not just the generic phase mechanics.
 **Feature refs:** P1.13 (Memory schema — `release`/`adr`/`decision-log`/`tech-spec` types)
 **Input:** `docs/01_vision/06_features.md`, `docs/01_vision/07_sequencer.md`, `docs/01_vision/08_mvp-canvas.md`,
 `docs/02_requirements/03_sard/`, `docs/02_requirements/01_user_story_map/06_decisions.md`, `docs/03_backlog/`,
-`docs/self/.wingfoil/` (config pillars)
+`.wingfoil/` (config pillars)
 
 ---
 
@@ -22,7 +22,7 @@ for this release-line, before its `delivery` phase starts (Phases 2–4, optiona
 has enough already-made macro decisions worth formalizing up front).
 
 Per CLAUDE.md §6, `wingfoil` is not implemented yet, so Phases 1–4 below are executed **manually**: files are
-authored directly under `docs/self/docs/04_memory/` following each type's template and state machine
+authored directly under `docs/04_memory/` following each type's template and state machine
 (`memory.yaml`), and each `memory.add`/`memory.submit`/`memory.approve` step produces its own git commit per
 the commit-format rules in CLAUDE.md §5.1.
 
@@ -117,17 +117,17 @@ every release/task within rl-v1), not artefacts scoped to one release's tasks (t
 
 | id                              | title                                                                                    | scope                                                                 | Bucket |
 |----------------------------------|--------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|--------|
-| `spec-001-memory-yaml-schema`    | Memory Element Schema (`MemoryYaml`) — type catalog, `id_pattern` engine, `template` block, and a `sequence`/`gates`/`waiting` state-machine format (ordered chain + per-state approve/reject + engine-triggered edges) in place of a `transitions` dict, to remove the ambiguity of which target is `approve` vs `reject` when a state has more than one legal transition | `docs/self/.wingfoil/memory.yaml`                                      | Core Data Models / Base Schemas |
-| `spec-002-dna-yaml-schema`       | Project DNA Schema (`DnaYaml`) — `modules`, a generic `stacks` section (technologies/methodologies lists, not fixed keys), `team`/`agents`, `paths` | `docs/self/.wingfoil/dna.yaml`                                          | Core Data Models / Base Schemas |
-| `spec-003-workflows-yaml-schema` | Workflow Definition Schema (`WorkflowsYaml`) — top-level `include:` manifest (the field is `includes:` today and needs renaming to the singular `include:`), per-file DSL (`phases`, `actions`, `produces`, `checks`, `approval`/`fallback`, `iterate_over`/`where`) | `docs/self/.wingfoil/workflows.yaml`, `docs/self/.wingfoil/workflows/**/*.yaml` | Core Data Models / Base Schemas |
+| `spec-001-memory-yaml-schema`    | Memory Element Schema (`MemoryYaml`) — type catalog, `id_pattern` engine, `template` block, and a `sequence`/`gates`/`waiting` state-machine format (ordered chain + per-state approve/reject + engine-triggered edges) in place of a `transitions` dict, to remove the ambiguity of which target is `approve` vs `reject` when a state has more than one legal transition | `.wingfoil/memory.yaml`                                      | Core Data Models / Base Schemas |
+| `spec-002-dna-yaml-schema`       | Project DNA Schema (`DnaYaml`) — `modules`, a generic `stacks` section (technologies/methodologies lists, not fixed keys), `team`/`agents`, `paths` | `.wingfoil/dna.yaml`                                          | Core Data Models / Base Schemas |
+| `spec-003-workflows-yaml-schema` | Workflow Definition Schema (`WorkflowsYaml`) — top-level `include:` manifest (the field is `includes:` today and needs renaming to the singular `include:`), per-file DSL (`phases`, `actions`, `produces`, `checks`, `approval`/`fallback`, `iterate_over`/`where`) | `.wingfoil/workflows.yaml`, `.wingfoil/workflows/**/*.yaml` | Core Data Models / Base Schemas |
 | `spec-004-mcp-surface-contract`  | MCP Server Surface Contract — Resources (read-only) / Prompts (role-based) / Tools (state-mutating) | `src/mcp` (planned) — REQ-INT-01, REQ-INT-02, REQ-INT-03, REQ-SEC-05    | Bounded-Context API Contracts |
 | `spec-005-cli-command-contract`  | CLI Command & Output Contract — command surface, exit-code contract (0/1/2), `--format console\|json\|yaml`, error message format | `src/cli` (planned) — REQ-INT-04, REQ-INT-05, REQ-INT-08                | Bounded-Context API Contracts |
 | `spec-006-core-domain-api`       | Core Domain API — the internal contract both CLI and MCP bind to, guaranteeing behavior parity | `src/core` (planned) — REQ-SYS-05                                       | Bounded-Context API Contracts |
-| `spec-007-secret-hygiene-patterns` | Secret & Credential Hygiene Patterns — the concrete regex/pattern set and scan procedure backing the `security-secrets` directive | `docs/self/.wingfoil/directives/custom/security-secrets.md` + future scan tooling — REQ-SEC-08, REQ-SEC-10 | Code & Security Conventions |
+| `spec-007-secret-hygiene-patterns` | Secret & Credential Hygiene Patterns — the concrete regex/pattern set and scan procedure backing the `security-secrets` directive | `.wingfoil/directives/custom/security-secrets.md` + future scan tooling — REQ-SEC-08, REQ-SEC-10 | Code & Security Conventions |
 | `spec-008-cli-grammar`           | CLI Grammar & Global Options — invocation grammar, global flags, interactive-prompt rules, element-ref syntax | `src/cli` (planned) — REQ-INT-04, REQ-INT-05, REQ-INT-08 | Bounded-Context API Contracts (widens `spec-005` into the full grammar, not just exit-code/output-format) |
 | `spec-009-validation-strategy`   | Validation Strategy — shared two-pass (structural Zod / semantic) algorithm, shared regex constants, validation trigger points, unknown-field `.passthrough()` warning policy tying `spec-001`/`002`/`003`/`008` together | `src/validation` (planned) | Code & Security Conventions (cross-cutting, not one bounded context) |
-| `spec-010-memory-frontmatter-schema` | Memory Document Frontmatter base schema — the per-document `id`/`type`/`status`/`created`/`version`/`state_history` contract every Memory document instance carries, one layer below `spec-001`'s type registry | `docs/self/docs/04_memory/**/*.md` frontmatter — REQ-STATE-01 | Core Data Models / Base Schemas |
-| `spec-011-storage-layout`        | `.wingfoil/` Storage Layout — directory tree, `built-in/` vs `custom/` split, `.gitignore` marker-append behavior, init-marker detection, git-root-detection algorithm | `docs/self/.wingfoil/` — REQ-SYS-01 (rounds it out beyond just Memory path patterns) | Core Data Models / Base Schemas |
+| `spec-010-memory-frontmatter-schema` | Memory Document Frontmatter base schema — the per-document `id`/`type`/`status`/`created`/`version`/`state_history` contract every Memory document instance carries, one layer below `spec-001`'s type registry | `docs/04_memory/**/*.md` frontmatter — REQ-STATE-01 | Core Data Models / Base Schemas |
+| `spec-011-storage-layout`        | `.wingfoil/` Storage Layout — directory tree, `built-in/` vs `custom/` split, `.gitignore` marker-append behavior, init-marker detection, git-root-detection algorithm | `.wingfoil/` — REQ-SYS-01 (rounds it out beyond just Memory path patterns) | Core Data Models / Base Schemas |
 | `spec-012-context-loader-relevance-filtering` | Agent Context Loader — how DNA + directives + relevant Memory get assembled/filtered per role/task (`<30s` assembly target, bounded payload size) | `src/core` (planned) — REQ-SYS-07 (Determinism North Star), P5.3.3, P5.4.3, P5.4.4 | Bounded-Context API Contracts (core↔agent-execution boundary) |
 
 **Mapping notes (no silent gaps):** the illustrative categories "encryption-at-rest format" and "system log
@@ -137,7 +137,7 @@ exists yet). The closest real artefacts are captured instead: secret-hygiene det
 (`spec-007`) and the CLI error/message format (folded into `spec-005`/`spec-008`, per REQ-INT-08).
 
 **Stop-Check:** each tech-spec has Context/Specification/Consequences; each is not already covered by an
-existing approved spec (none exist yet — verified: `docs/self/docs/04_memory/design/` is currently empty);
+existing approved spec (none exist yet — verified: `docs/04_memory/design/` is currently empty);
 all reach `status: approved`.
 
 ---
@@ -149,7 +149,7 @@ all reach `status: approved`.
 - [x] **Phase 2 — seed-adrs:** create 8 ADR files per the table above; `memory.submit` → `memory.approve` each.
 - [x] **Phase 3 — seed-dls:** create 12 Decision Log files per the table above; `memory.submit` → `memory.approve` each.
 - [x] **Phase 4 — seed-specs:** create 12 Tech-Spec files per the table above; `memory.submit` → `memory.approve` each.
-- [x] As part of `spec-001`/`spec-003`'s approval: migrate `docs/self/.wingfoil/memory.yaml` states from
+- [x] As part of `spec-001`/`spec-003`'s approval: migrate `.wingfoil/memory.yaml` states from
   `transitions` dict to `sequence`/`gates`/`waiting`, and rename `workflows.yaml`'s `includes:` → `include:`.
 - [x] Update `rl-v1.md`'s "Execution Notes → Initial Design" section with a summary once all phases commit.
 - [x] Update Claude Code auto-memory (MEMORY.md) once `rl-v1`'s initial-design content lands (CLAUDE.md §10 rule 9).

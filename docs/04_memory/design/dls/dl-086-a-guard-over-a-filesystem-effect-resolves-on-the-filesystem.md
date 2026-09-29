@@ -107,6 +107,6 @@ play; two runs against the same filesystem agree.
 - Extends `dl-080-which-baseline-each-command-reads` (ready); does not amend its subject.
 - Raised by `task-102-directive-remove-confines-its-deletion-to-the-project-root`, at its reviewer's
   insistence, against an instruction the orchestrator had written into that task.
-- Constrains `command-baseline` (`docs/self/.wingfoil/directives/custom/`) and `task-105`, which
+- Constrains `command-baseline` (`.wingfoil/directives/custom/`) and `task-105`, which
   applies the same guard shape to the Memory store (`bug-117`).
 - `bug-108` is the adjacent read that keeps `HEAD`.

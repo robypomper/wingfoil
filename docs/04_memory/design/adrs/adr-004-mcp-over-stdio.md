@@ -86,5 +86,5 @@ convention.
 
 Grounded in `docs/02_requirements/03_sard/04_integrations.md` (REQ-INT-01, REQ-INT-02, REQ-INT-03),
 `docs/02_requirements/03_sard/05_security-compliance.md` (REQ-SEC-05), and the `tech_stack.mcp` /
-`modules` sections of `docs/self/.wingfoil/dna.yaml`; no prior-art source material was available, so the
+`modules` sections of `.wingfoil/dna.yaml`; no prior-art source material was available, so the
 document was authored directly from these ground-truth files and the ADR brief.

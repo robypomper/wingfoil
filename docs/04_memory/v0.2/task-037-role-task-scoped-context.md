@@ -70,7 +70,7 @@ Failing tests written first (all red before any impl — confirmed the `RolesYam
   `ValidationError`; added `.wingfoil/roles.yaml` to the shared four-pillar fixture writer.
 - `test/directives/schema.test.ts` — `RolesYaml` structural shape (assignments+global accepted;
   missing `assignments` rejected; `global` defaults to `[]`; non-array assignment value rejected) +
-  live `docs/self/.wingfoil/roles.yaml` parse.
+  live `.wingfoil/roles.yaml` parse.
 
 ### green
 

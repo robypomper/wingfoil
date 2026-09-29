@@ -20,7 +20,7 @@ types that don't need a custom lifecycle. This task implements that fallback res
 state-machine validator: when a `types.<name>` entry has no `states:` key, the validator must resolve
 `defaults.states` for that type instead of erroring or silently allowing any transition.
 
-Per `spec-001-memory-yaml-schema` (`docs/self/.wingfoil/memory.yaml` lines 61-65), the current default
+Per `spec-001-memory-yaml-schema` (`.wingfoil/memory.yaml` lines 61-65), the current default
 machine is encoded as:
 
 ```yaml
@@ -70,7 +70,7 @@ Testable form:
   (structural) validates whichever `StateMachine` block ends up in play (declared or default); Pass 2
   (semantic) enforces the resolved machine's `sequence`/`gates`/`waiting` against the requested
   transition.
-- Since no current type in `docs/self/.wingfoil/memory.yaml` actually omits `states:`, verification for
+- Since no current type in `.wingfoil/memory.yaml` actually omits `states:`, verification for
   this task should add a throwaway fixture type in the test suite (not a change to the real
   `memory.yaml`) to exercise the fallback path end-to-end.
 - Related feature work in this release that this infra task unblocks (`related_stories` in
@@ -103,7 +103,7 @@ Testable form:
 - **red:** per the task's TDD nuance (production code already correct, only the fixture/coverage
   missing), wrote the failing-because-absent fixture test suite first: a throwaway `MemoryYaml` fixture
   document (parsed through the real Zod schema, never written to the real
-  `docs/self/.wingfoil/memory.yaml`) whose one type, `fixture-no-states`, declares no `states:` key at
+  `.wingfoil/memory.yaml`) whose one type, `fixture-no-states`, declares no `states:` key at
   all. Added one `describe` block to `test/memory/state-machine.test.ts` covering every AC bullet:
   Pass-1 structural validity of a states-less type entry; `resolveStateMachine` resolving to
   `defaults.states` (by-reference `toBe`); the `add→draft / submit draft→pending / approve

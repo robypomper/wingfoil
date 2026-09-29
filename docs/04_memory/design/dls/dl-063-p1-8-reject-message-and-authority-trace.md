@@ -47,7 +47,7 @@ Three authoritative sources pin a different string for the same event:
 `dl-032` was ratified.
 
 **The P1.8 wording is also factually false**, because it hard-codes `pending` as "the state one may
-reject from". Against this repository's own `docs/self/.wingfoil/memory.yaml` that is wrong for four
+reject from". Against this repository's own `.wingfoil/memory.yaml` that is wrong for four
 types — `task`, the type the scenario itself uses, among them:
 
 | Type | `gates` states carrying a `reject` edge (memory.yaml) | "only pending …" correct? |
@@ -63,7 +63,7 @@ A message naming `pending` cannot be emitted generically without lying to the us
 rows.
 
 `task-047` implements the generic message and **discloses the deviation rather than absorbing it
-silently** — `docs/self/docs/04_memory/v0.2/task-047-memory-reject.md:141` on `main`, section
+silently** — `docs/04_memory/v0.2/task-047-memory-reject.md:141` on `main`, section
 "SPEC CONFLICT — P1.8 sc.2's message vs REQ-STATE-01 / `dl-032` / `dl-053`", repeated in its BDD-to-test
 table (`:355`) and its final report. It asserts the two parts of sc.2 that are *not* in conflict — exit
 `1`, and "the state is unchanged" — literally. Because the task is now `done`, that disclosure is the
@@ -177,7 +177,7 @@ Related: `dl-032-illegal-transition-message-contract` (`ready`),
 by no gate), `bug-032-spec-004-stale-illegal-transition-example` (the same message, stale in `spec-004`
 §4.3), `task-046-memory-approve`, `task-047-memory-reject`, `task-048-memory-deprecate`,
 `P1.6-memory-submit.feature:21`, `P1.7-memory-approve.feature`, `P1.8-memory-reject.feature:18`,
-`P5.2.3-mcp-tools.feature:18`, REQ-STATE-01, REQ-SEC-03, REQ-SEC-04, `docs/self/.wingfoil/memory.yaml`
+`P5.2.3-mcp-tools.feature:18`, REQ-STATE-01, REQ-SEC-03, REQ-SEC-04, `.wingfoil/memory.yaml`
 (the per-type `gates` blocks), `src/core/approval-authority.ts:66-72`.
 
 ## Scheduling addendum (2026-09-21) — unscheduled obligation for v0.3

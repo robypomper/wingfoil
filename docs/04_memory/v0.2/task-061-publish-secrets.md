@@ -37,7 +37,7 @@ into documentation, i.e. the most likely tripper of the pattern being promoted. 
    document will meet it. `dl-036` makes this part of the decision rather than a follow-up.
 
 Beware the self-reference: this task's own `.env`-style examples are written into a scanned surface
-(`docs/self/docs/04_memory/`), so it must use the §3 hatch on its own documentation or it will fail
+(`docs/04_memory/`), so it must use the §3 hatch on its own documentation or it will fail
 the gate it is landing.
 
 **`bug-015` — guard the scanner against a staged deletion before a gate consumes it.**
@@ -210,7 +210,7 @@ Commit `fcd5142 feat(validation): …`.
   the "NOT wired here" paragraph.
 - `.gitignore`: `.npmrc` (the file had no trailing newline — the first append produced `.idea.npmrc`;
   caught by the `git check-ignore` case, fixed before commit).
-- `docs/self/.wingfoil/directives/custom/security-secrets.md`: "The secret scan, and how to document a
+- `.wingfoil/directives/custom/security-secrets.md`: "The secret scan, and how to document a
   credential without tripping it" — the three §3 exclusions with worked examples. The placeholder
   example first sat indented under a list item and matched **nothing** (see proposed element on the
   dotenv regex), which the "only because they use the hatch" case caught; it is now at column 0.

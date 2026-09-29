@@ -49,7 +49,7 @@ Executed per `docs/05_plans/rl-v1/initial-design-rl-v1-plan.md` on 2026-07-03 (b
 sub-agents, cross-checking two unmerged prior-art sources (`_backup/` and branch
 `task/task-109-validation-id-engine`) against this line's current config rather than copying them
 verbatim — several factual corrections were needed (stale pre-release-line path examples, an
-`includes:`→`include:` rename). As part of `spec-001`/`spec-003`, `docs/self/.wingfoil/memory.yaml`
+`includes:`→`include:` rename). As part of `spec-001`/`spec-003`, `.wingfoil/memory.yaml`
 was migrated from a `transitions` dict-of-arrays state encoding to `sequence`/`gates`/`waiting`
 (removes an approve/reject ambiguity; the default machine, `adr`, and `tech-spec` lose their separate
 `rejected` status as a result) and `decision-log` gained its own custom lifecycle

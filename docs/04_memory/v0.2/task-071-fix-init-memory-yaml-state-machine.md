@@ -119,7 +119,7 @@ under `dl-034` point 4's exception — see the scheduling commit for the argumen
 `depends_on: []` — no predecessor task's Execution Notes to load. The elements the task instructions
 name instead, all read in full before any edit:
 
-- **`bug-030-init-memory-yaml-has-no-state-machine`** (`docs/self/docs/04_memory/bugs/`) — read in
+- **`bug-030-init-memory-yaml-has-no-state-machine`** (`docs/04_memory/bugs/`) — read in
   full. Its two candidate readings ("scaffold a machine" / "give the resolver a built-in default",
   "not exclusive") are the design question resolved below. Its reproduction is re-run first-hand in
   the review section; its `Notes` grep is re-run verbatim under AC3 below.
@@ -623,7 +623,7 @@ test/core/memory-approve.test.ts test/core/memory-reject.test.ts test/core/memor
 `main` moved five times while this task ran, and was merged each time, never rebased: `7aeeb91` →
 `f304bf7` (`dl-067` ratified) → `bcc66a9` (`task-073`, the lockfile fix) → `a7d783a` (`task-074` /
 `adr-010`, the Node-22 engines floor, plus `dl-068`/`dl-069` and `bug-046..049`) → `7bb95d6`
-(`docs/adr-010-cascade`: `CLAUDE.md`, the product brief, `docs/self/.wingfoil/dna.yaml`, `dl-001`).
+(`docs/adr-010-cascade`: `CLAUDE.md`, the product brief, `.wingfoil/dna.yaml`, `dl-001`).
 Every merge was clean — no conflicts in any of them, and none touched a file this task changed. The
 last one is **docs-only** (`git diff --stat a7d783a main` → 4 files, none under `src/` or `test/`), so
 the Gates table's numbers, measured at `a7d783a`, still describe this tree; `npx jest`

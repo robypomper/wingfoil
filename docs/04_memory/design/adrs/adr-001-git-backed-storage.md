@@ -61,5 +61,5 @@ in the stack (TypeScript/Node.js 18+/Commander.js/MCP over stdio/Zod/Jest, per `
 ## Process Notes
 
 Grounded in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-01, REQ-SYS-03, REQ-SYS-05)
-and `docs/self/.wingfoil/dna.yaml` (`tech_stack.storage: git`, module list, and lack of any database
+and `.wingfoil/dna.yaml` (`tech_stack.storage: git`, module list, and lack of any database
 dependency).

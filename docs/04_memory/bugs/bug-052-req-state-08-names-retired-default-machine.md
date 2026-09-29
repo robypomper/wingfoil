@@ -79,7 +79,7 @@ $ grep -rn "^status: rejected" docs/
      Then type "note" uses the default machine draft -> pending -> approved/rejected -> deprecated
      ```
 
-   - **the live self-config** — `docs/self/.wingfoil/memory.yaml:51`:
+   - **the live self-config** — `.wingfoil/memory.yaml:51`:
 
      ```
      # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -92,7 +92,7 @@ $ grep -rn "^status: rejected" docs/
 
    Two further hits are **not** defects and are listed so a fixer does not chase them:
    `docs/02_requirements/03_sard/00_index.md:70` (a summary table row that names the requirement, not
-   the machine) and `docs/self/X_wingfoil-init-plan.md:101` (a grandfathered `X_*` plan — history).
+   the machine) and `docs/05_plans/X_wingfoil-init-plan.md:101` (a grandfathered `X_*` plan — history).
 
 ## Expected Behavior
 

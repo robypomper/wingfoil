@@ -8,7 +8,7 @@ patch-of: "minor-v0.2"
 version: "v0.2.2"
 pillar: "P1"
 features: [P1.3, P1.10, P1.13, P2.4, P5.1.1, P5.1.4, P5.2.1]
-requirements: "docs/self/docs/04_memory/design/dls/retro-v0.2.md"
+requirements: "docs/04_memory/design/dls/retro-v0.2.md"
 release-line: "v1"
 tmpl_version: 260929
 ---

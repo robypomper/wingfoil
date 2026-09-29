@@ -616,7 +616,7 @@ decision with a working-tree file.
    still binds it, which walks past the one check REQ-SEC-07 clause (b) exists to enforce, on the
    only verb that destroys an artefact. I grade it above `bug-082`.
 2. **`dl-080`'s Action 4 — "write the ruling where an implementer meets it"** — has no owner. No task
-   in `docs/self/docs/04_memory/v0.2/` references `dl-080` other than task-091/092/093, and none of
+   in `docs/04_memory/v0.2/` references `dl-080` other than task-091/092/093, and none of
    the three carries that action. Two TSDoc comments and this file now state the rule; a directive or
    a `spec-005`/`spec-008` amendment is what the ratification asked for.
 

@@ -143,7 +143,7 @@ On ratification, with the approver's choices recorded in the approve commit's `R
 1. Amend `spec-003-workflows-yaml-schema` Layer 2 with the chosen fields (evidence and run record,
    `iterate_over` collections, `produces` ownership, `awaits`), and REQ-STATE-07's fit criterion
    for non-Memory collections under D2 (b).
-2. Update `docs/self/.wingfoil/workflows/custom/*.yaml` in the same change, starting with the four
+2. Update `.wingfoil/workflows/custom/*.yaml` in the same change, starting with the four
    approval-only phases and `retrospective.yaml`'s `explore.produces`.
 3. Extend `workflow list` validation (`src/workflow/`) to enforce D1 and D3.
 

@@ -40,7 +40,7 @@ $ grep -rlE '[A-Za-z0-9_./-]+\.(ts|js|cjs|yml|yaml|json|md):[0-9]+' \
 ```
 
 549 occurrences, **371 distinct** `path:line` strings, across **112** documents. The same sweep over
-`docs/self/.wingfoil/` returns **zero** — the hand-authored configuration cites no offsets at all, so
+`.wingfoil/` returns **zero** — the hand-authored configuration cites no offsets at all, so
 whatever is decided here touches Memory documents and phase plans only, never a config pillar.
 
 Where they sit, by element type (one pass over that grep output, bucketing each hit by the directory
@@ -223,7 +223,7 @@ catches and no freshness convention prevents:
   notes**. Correcting the attribution makes the point worse, not better: it was produced in the same
   pass that re-read three neighbouring offsets (`stagingPaths` `:50-63`, `stagingEnv` `:99-112`, the
   `finally` `:163-169`) and got all three exactly right.
-- `bug-053`'s `docs/self/.wingfoil/memory.yaml:58-63`, quoted as the `defaults:` block. At the bug's
+- `bug-053`'s `.wingfoil/memory.yaml:58-63`, quoted as the `defaults:` block. At the bug's
   own pinned commit `ba2cad0`, `git show ba2cad0:docs/self/.wingfoil/memory.yaml | grep -n '^defaults:'`
   returns **`61`**; `:58-63` is the tail of a comment paragraph about rejection reasons. Off by three,
   at the commit it was measured against.
@@ -318,7 +318,7 @@ no answer for citations added by a later edit under the same pin.
 
 ### (C) Status quo plus a mechanical check
 
-Leave the convention alone; add a test that resolves every citation in `docs/self/docs/04_memory/`
+Leave the convention alone; add a test that resolves every citation in `docs/04_memory/`
 and `docs/05_plans/` and fails when one no longer points at what it claimed.
 
 *This is the option that sounds best and is worst, and it is costed here so the record shows it was

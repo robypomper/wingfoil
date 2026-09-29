@@ -111,7 +111,7 @@ Result: `npx jest test/mcp test/cli` → **207 passed / 207**.
 ### refactor — developer
 
 - **Defect found by a stdio smoke run, fixed test-first.** Built `dist/` and drove `node dist/cli.js mcp`
-  with the SDK `StdioClientTransport` against a temp repo carrying `docs/self/.wingfoil/{dna,roles}.yaml`
+  with the SDK `StdioClientTransport` against a temp repo carrying `.wingfoil/{dna,roles}.yaml`
   + `directives/custom/*.md`: the refusal arrived as `MCP error -32602: MCP error -32602: no prompt for
   undefined role 'wizard'` — `McpError` pre-prefixes its own message and the client prefixes again. Tests
   tightened to exact `toBe("MCP error -32602: no prompt for undefined role 'wizard'")` → **2 failed**
@@ -239,7 +239,7 @@ without any read. `src/mcp/server.ts` doc updated. `npx jest test/mcp test/cli` 
   `wingfoil://dna` each → `MCP error -32603: ENOENT: no such file or directory, open
   '/home/robypomper/Workspaces/WingFoil2/.wingfoil/dna.yaml'` (same error shape as the pre-existing DNA
   Resource — raised as a proposed bug, not changed here).
-- cwd = temp repo with `docs/self/.wingfoil/{dna,roles}.yaml` + directives: 8 `*-session` prompts listed,
+- cwd = temp repo with `.wingfoil/{dna,roles}.yaml` + directives: 8 `*-session` prompts listed,
   `prompts/get("developer-session")` ok.
 
 **Merge.** `git merge --no-ff main` (dl-035) at `8a6a091` (task-060, task-070, bug-027 sync) → merge

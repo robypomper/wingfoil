@@ -208,7 +208,7 @@ this decision-log's approve commit:
   3. the slug is swept. On 2026-09-29 it occurs in exactly two files outside Memory and plans:
      `package.json` (`repository.url`, `homepage`, `bugs.url`) and `test/cli/publish-metadata.test.ts`
      (`REPO_SLUG`) — `grep -rln "robypomper/wingfoil" --exclude-dir={node_modules,dist,.git} .`,
-     less `docs/self/docs/04_memory/` and `docs/05_plans/`. README, `docs/*.md` and
+     less `docs/04_memory/` and `docs/05_plans/`. README, `docs/*.md` and
      `.github/workflows/` carry none. `spec-015` §1 writes `<owner>/wingfoil`, so it needs no edit
      unless the approver wants the owner fixed there; the sweep re-runs the `grep` rather than trusting
      this list;

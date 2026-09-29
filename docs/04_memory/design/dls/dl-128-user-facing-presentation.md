@@ -110,7 +110,7 @@ release re-checks it (`dl-013`).
 ## Actions
 
 1. **Ratify, choosing Q1–Q3.** Owner: approver. The choice goes in the approve commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/workflows/custom/user-docs.yaml` changes:**
+2. **On ratification, `.wingfoil/workflows/custom/user-docs.yaml` changes:**
    `align-user-docs` `produces:` gains the demo script and its rendering, `docs/comparison.md` and
    `docs/case-study.md`, and its `checks.post` covers them. Its `version` is bumped.
 3. **Add** the badges to `README.md`, and the demo script next to the example it drives.

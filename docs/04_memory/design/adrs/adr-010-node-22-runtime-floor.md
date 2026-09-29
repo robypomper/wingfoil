@@ -217,7 +217,7 @@ none of these files**; filing them as ordered actions is its whole contribution.
    the `decision-log` machine allows `memory.deprecate` from any state, and
    amendment-with-a-dated-note is the established alternative (`dl-047`). Note dl-001's *substantive*
    decision — TypeScript over Python/Go/Rust — is untouched by adr-010; only its runtime clause is.
-4. **`docs/self/.wingfoil/dna.yaml:73-75`** — `stacks.technologies` → `- name: Node.js` /
+4. **`.wingfoil/dna.yaml:73-75`** — `stacks.technologies` → `- name: Node.js` /
    `category: runtime` / `version: "18+"`. Owner: `task-074` (DNA is config, downstream of the vision
    per §10.1). Not named in `bug-023`'s list; surfaced by `task-074`'s AC2 survey.
 5. **`README.md:115`** — "This installs the `wingfoil` binary (Node.js 18+ required)." Owner: the

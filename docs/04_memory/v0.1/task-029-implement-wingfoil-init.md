@@ -42,11 +42,11 @@ See `docs/02_requirements/02_bdd/features/p5-interaction/P5.1.1-init.feature`:
 
 - Root/init-marker detection (`findGitRoot`, `detectInitState` → `absent`/`incomplete`/`initialized`)
   and the exact target directory layout to produce follow
-  `docs/self/docs/04_memory/design/specs/spec-011-storage-layout.md`.
+  `docs/04_memory/design/specs/spec-011-storage-layout.md`.
 - Interactive-prompt behaviour (TTY wizard vs. non-interactive `--template`/`--no-interactive` failure)
   follows the prompt-rules matrix in
-  `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md` §4; exit codes/error format follow
-  `docs/self/docs/04_memory/design/specs/spec-005-cli-command-contract.md`.
+  `docs/04_memory/design/specs/spec-008-cli-grammar.md` §4; exit codes/error format follow
+  `docs/04_memory/design/specs/spec-005-cli-command-contract.md`.
 - The v0.1 scope is the wizard + `--template` param mode only; agent-assisted natural-language setup
   (P5.4.5) and `--template {name}` as its own standalone CLI flag refinement land later (v0.4/v0.3 per
   `docs/01_vision/06_features.md`).

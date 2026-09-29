@@ -133,7 +133,7 @@ target verbatim — with its own comment saying so. So for any type declaring an
 a document it wrote itself, and the document cannot be moved again. That is a REQ-SYS-04 failure for a
 config shape the spec names by example.
 
-It stayed green because none of the registered types in `docs/self/.wingfoil/memory.yaml` triggers it —
+It stayed green because none of the registered types in `.wingfoil/memory.yaml` triggers it —
 all three reject targets (`task`/`adr`/`tech-spec`/`decision-log`/`release-line` → `draft`, `bug`'s
 `open` → `closed`, `bug`'s `in-review`/`resolved` → `in-progress`) happen to be `sequence` members. The
 first pass tested only against the real config, so the whole branch was invisible.

@@ -102,8 +102,8 @@ for that, it falls directly out of "iteration is always a live query."
 ## Process Notes
 
 Grounded in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-06) and the project's own
-running configuration, `docs/self/.wingfoil/workflows.yaml` and
-`docs/self/.wingfoil/workflows/custom/release-line-cycle.yaml`, which supplied the concrete
+running configuration, `.wingfoil/workflows.yaml` and
+`.wingfoil/workflows/custom/release-line-cycle.yaml`, which supplied the concrete
 `include()`/`iterate_over`/`where` example cited above. This version's phases -> steps ->
 atomic-actions decomposition and self-seeding / live-query behavior are added directly from the
 current workflow files.

@@ -983,7 +983,7 @@ publish" note is satisfied, and the gate ran with `engines.node >= 22.12.0` in p
 ### review-ready summary — role: reviewer
 
 **Sync with `main` (dl-035 — merge, never rebase).** `git merge main --no-edit` → `8f7facb`, clean. The
-merge brought `CLAUDE.md`, `docs/01_vision/01_product-brief.md`, `docs/self/.wingfoil/dna.yaml`,
+merge brought `CLAUDE.md`, `docs/01_vision/01_product-brief.md`, `.wingfoil/dna.yaml`,
 `dl-001` and the new `task-079`. Checked, not assumed, that it invalidates nothing recorded above:
 
 ```

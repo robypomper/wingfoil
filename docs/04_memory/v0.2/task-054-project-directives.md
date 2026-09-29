@@ -483,7 +483,7 @@ pass changed no production behaviour, so no coverage number moved.
 | `test/core/project-directives.test.ts` | new (pass 1) |
 | `test/storage/builtin-template-sources.test.ts` | one added case (pass 1) |
 | `test/storage/git-backed-storage.test.ts` | one added `describe` (pass 2) |
-| `docs/self/docs/04_memory/bugs/bug-025-…md` | new element (pass 2) |
+| `docs/04_memory/bugs/bug-025-…md` | new element (pass 2) |
 
 Still untouched: `src/directives/`, `src/core/index.ts`, `package.json`, `jest.config.js`. No merge
 run; worktree and branch left in place.

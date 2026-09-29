@@ -113,7 +113,7 @@ artefact; **corrected** means the old text asserted something the artefact contr
 |---|---|---|
 | header | "orients any AI agent … read it first" | true — unchanged |
 | 1 | North Star; MIT; npm; TypeScript/Node 18+ | true — matches `dna.yaml` `north_star`/`project.license` and `package.json` `engines.node: ">=18.0.0"`. `Distribution: npm (public)` is the DNA-declared channel (`dna.yaml` `stacks.technologies`, category `distribution`), not a claim of having published; the pipeline is `task-059/060/061`, all `backlog`. Left as-is |
-| 1 | *"no source code yet"* / *"CLI/MCP tool is not implemented"* / *"do not assume runtime behaviour exists"* | **corrected — all three false.** `src/` holds nine module directories + `cli.ts`; `package.json` has `bin: { wingfoil: ./dist/cli.js }`; `src/cli/program.ts` registers `init` and `mcp`; the suite runs 69 files / 866 tests green. Replaced with the real status (`rl-v1` `active`, `minor-v0.1` `released`, `minor-v0.2` `in-development`, read from `docs/self/docs/04_memory/planning/`) **plus** an explicit boundary — the surface is exactly `CORE_MODULES`, and no workflow engine or Memory transition verb exists. The "specs win" clause was kept and pointed at §10.1 |
+| 1 | *"no source code yet"* / *"CLI/MCP tool is not implemented"* / *"do not assume runtime behaviour exists"* | **corrected — all three false.** `src/` holds nine module directories + `cli.ts`; `package.json` has `bin: { wingfoil: ./dist/cli.js }`; `src/cli/program.ts` registers `init` and `mcp`; the suite runs 69 files / 866 tests green. Replaced with the real status (`rl-v1` `active`, `minor-v0.1` `released`, `minor-v0.2` `in-development`, read from `docs/04_memory/planning/`) **plus** an explicit boundary — the surface is exactly `CORE_MODULES`, and no workflow engine or Memory transition verb exists. The "specs win" clause was kept and pointed at §10.1 |
 | 1 | test counts | deliberately **not** pinned in the document (they are in these notes instead) — an exact count is the same drift trap the callout just fell into; `npm test` is the durable reference |
 | 2 | `docs/self/` row cites `X_initial-design-plan.md` | **corrected — the file is not in the repository.** `git ls-files docs/self` returns only `WORKFLOW.md`, `X_wingfoil-init-plan.md` and `.wingfoil/…`. The real artefact is `docs/05_plans/rl-v1/initial-design-rl-v1-plan.md` (also fixed at its second occurrence in §6) |
 | 2 | vision / requirements / SARD / backlog rows | true — every named file exists (`docs/01_vision/` 01,04,05,06,07,08 + both `X_*`; `03_sard/` all five; `by-release/` v0.1,v0.2,v0.3,v0.4,v1.0) |
@@ -222,7 +222,7 @@ this worktree:
 2. `93d8e57`, the single commit that moved **all 32** v0.2 tasks `pending → backlog`, touches
    **32 files, none under `docs/03_backlog/`** (`git show --name-only` filtered: zero matches).
 3. Widened to the general clause, not just its example: I walked **every** `wf(…): approve` commit in the
-   history and filtered each file list to paths outside `docs/self/docs/04_memory/`. The result is
+   history and filtered each file list to paths outside `docs/04_memory/`. The result is
    **empty** — no approval commit has ever carried an external artifact. So the rule as written has no
    instances at all, not merely a bad example.
 4. The workflow disagrees with the instruction. `release-planning.yaml` v1.1 is where a task reaches

@@ -55,7 +55,7 @@ the next one.
   for a second pass either (`grep -ciE "previous|re-review|second pass"` → `0`; `grep -ci reject` → `1`).
 - **The implementer's side is a placeholder.** The task template's `## Execution Notes` comment asks
   the review stage to record "rejection reasons and what changed on the next pass"
-  (`docs/self/.wingfoil/memory/templates/task.md`). Nothing checks that it was done.
+  (`.wingfoil/memory/templates/task.md`). Nothing checks that it was done.
 
 ## Decision
 
@@ -109,11 +109,11 @@ such passages.
 
 1. **Ratify, choosing among (a), (b) and (c).** Owner: approver. The choice goes in the approve
    commit's `Reason:`.
-2. **Amend `docs/self/.wingfoil/workflows/custom/dev-loop.yaml`** `review` phase: a `checks.pre`
+2. **Amend `.wingfoil/workflows/custom/dev-loop.yaml`** `review` phase: a `checks.pre`
    entry for a re-review ("previous reject's items re-verified"), with a version bump. The token's
    binding is decided by `dl-090`.
-3. **Amend `docs/self/.wingfoil/directives/custom/code-review.md`** with the re-review item of §1.
-4. **Under (b): amend `docs/self/.wingfoil/memory/templates/task.md`**, so the Execution Notes
+3. **Amend `.wingfoil/directives/custom/code-review.md`** with the re-review item of §1.
+4. **Under (b): amend `.wingfoil/memory/templates/task.md`**, so the Execution Notes
    placeholder names the required per-item entry.
 5. **Tasks are derived by v0.3 `release-planning` (`build-backlog`)**, not created here.
 

@@ -111,7 +111,7 @@ directive warns about. **Design therefore passes through with no approval gate**
    `pillar-isolation`, `parity`) and therefore is not itself in the scanned set.
 
 **Files deliberately not touched (concurrent tasks):** `test/storage/git-backed-storage.test.ts` and
-`docs/self/.wingfoil/workflows/custom/dev-loop.yaml` (task-066); `src/memory/query.ts`,
+`.wingfoil/workflows/custom/dev-loop.yaml` (task-066); `src/memory/query.ts`,
 `test/memory/query.test.ts`, `test/core/memory-search.test.ts` (task-035's
 `isDeprecatedStatus` → `isArchivedStatus` rename). `test/core/query-latency.test.ts` is in none of
 those sets and references no renamed symbol, so extending it is conflict-free.

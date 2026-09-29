@@ -51,7 +51,7 @@ The sequence is duplicated four times with only the operation-name literal (`'su
   submit/approve/reject/deprecate each in their own task).
 - This was flagged during v0.2 itself: task-048's Execution Notes propose extracting "the 4-way
   preamble duplication ... as a follow-up in the final report"
-  (`docs/self/docs/04_memory/v0.2/task-048-memory-deprecate.md`), but no bug or task element was ever
+  (`docs/04_memory/v0.2/task-048-memory-deprecate.md`), but no bug or task element was ever
   filed for it — `grep -rln "preamble duplication" docs/self/docs/04_memory/ docs/05_plans/` finds
   only that one task's own notes raising it, confirming the deferral never became an element.
 - Fix: a small `beginMemoryTransition(root, id, op)` helper returning the identity + prepared

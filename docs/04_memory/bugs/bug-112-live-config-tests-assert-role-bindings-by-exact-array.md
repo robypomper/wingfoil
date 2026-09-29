@@ -15,7 +15,7 @@ tmpl_version: 260703
 ## Summary
 
 `test/directives/schema.test.ts` and `test/core/loaders.test.ts` each assert
-`assignments.developer` against the **live** `docs/self/.wingfoil/roles.yaml` with an exact-array
+`assignments.developer` against the **live** `.wingfoil/roles.yaml` with an exact-array
 `toEqual`. Adding a binding therefore fails both suites with `Received +1: "<name>"`, which is
 indistinguishable in the output from a genuine regression.
 
@@ -24,7 +24,7 @@ indistinguishable in the output from a genuine regression.
 
 ## Steps to Reproduce
 
-Bind any new directive to `developer` in `docs/self/.wingfoil/roles.yaml` and run
+Bind any new directive to `developer` in `.wingfoil/roles.yaml` and run
 `npx jest test/directives/schema.test.ts test/core/loaders.test.ts`.
 
 ## Expected Behavior

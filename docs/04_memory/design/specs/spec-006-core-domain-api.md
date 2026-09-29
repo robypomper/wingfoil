@@ -238,7 +238,7 @@ Because both surfaces call the same core function (§1, §4), the baseline a dec
 is `src/core`'s property, not the CLI's or the MCP server's. It is ratified in
 `dl-080-which-baseline-each-command-reads` (`ready`, option (B), approve commit `333a3c0f`) and
 elaborated for implementers in the `command-baseline` directive
-(`docs/self/.wingfoil/directives/custom/command-baseline.md`, bound to `developer`, `architect` and
+(`.wingfoil/directives/custom/command-baseline.md`, bound to `developer`, `architect` and
 `reviewer` in `roles.yaml`). Normatively, for every `CoreOperation`:
 
 1. **A read that gates resolves at `HEAD`.** A read gates when its answer can change whether the
@@ -286,7 +286,7 @@ Symbols in this section read at `9642ab5f`.
 
 Authored proactively during `initial-design` (no code exists yet to react to a gap). Grounded directly
 in `docs/02_requirements/03_sard/01_architecture.md` (REQ-SYS-05, verbatim description/fit
-criterion/traceability) and `docs/self/.wingfoil/dna.yaml` (`modules: core/cli/mcp-server` descriptions
+criterion/traceability) and `.wingfoil/dna.yaml` (`modules: core/cli/mcp-server` descriptions
 and `path:` values); the §3 function/command enumeration cross-checks every row against
 `docs/01_vision/X_cli-cmds.md` (approved v1.2) so the operation table matches the currently-approved CLI
 surface rather than an invented one. No prior-art source was available or used.

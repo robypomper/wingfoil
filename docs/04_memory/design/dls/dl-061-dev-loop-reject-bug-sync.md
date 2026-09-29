@@ -16,7 +16,7 @@ tmpl_version: 260703
 an existing task's Acceptance Criteria has a closure path: `bug.sync_state(for_each: task.bug)`
 recomputes each named bug's state from its host task's progress. `dl-045`'s own Actions enumerate the
 surface it changed — "three call sites (`:29`, `:82`, `:96`)" — and
-`docs/self/.wingfoil/workflows/custom/dev-loop.yaml` (v1.3) has exactly those three today:
+`.wingfoil/workflows/custom/dev-loop.yaml` (v1.3) has exactly those three today:
 
 - `start` (`:37`) — `planned → in-progress`, at branch/worktree creation.
 - `review` (`:90`) — `in-progress → in-review`, next to the `memory.submit` at `:89`.

@@ -136,9 +136,9 @@ rate has been measured.
 
 1. **Ratify, choosing the enforcement option(s) in §2.** Owner: approver. The choice goes in the
    approve commit's `Reason:`.
-2. **Amend `docs/self/.wingfoil/directives/custom/claim-evidence.md`** with the clause in §1.
-3. **Under (a): amend `docs/self/.wingfoil/directives/custom/code-review.md`** (checklist item) and
-   **`docs/self/.wingfoil/workflows/custom/dev-loop.yaml`** (`review` phase `checks.pre`, version
+2. **Amend `.wingfoil/directives/custom/claim-evidence.md`** with the clause in §1.
+3. **Under (a): amend `.wingfoil/directives/custom/code-review.md`** (checklist item) and
+   **`.wingfoil/workflows/custom/dev-loop.yaml`** (`review` phase `checks.pre`, version
    bump). The check token's binding is decided by `dl-090`.
 4. **Under (b): a lint script and a CI job**, hosted by the check `dl-103` introduces, warn-only
    until its false-positive rate has been measured over one release.

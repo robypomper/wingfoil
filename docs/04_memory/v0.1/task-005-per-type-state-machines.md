@@ -82,7 +82,7 @@ Testable form:
   - state **is both** a `gates` key **and** in `waiting` (spec-001's explicit dual case: "its forward
     edge is verb-less (picked up automatically) while it still exposes a manual `reject`/decline
     path") → `approve` illegal (verb-less; a Workflow action drives it), `reject` still legal. None of
-    the 7 real types in `docs/self/.wingfoil/memory.yaml` currently construct a machine this way, but
+    the 7 real types in `.wingfoil/memory.yaml` currently construct a machine this way, but
     the structural schema explicitly allows it (`test/memory/schema.test.ts`: "allows a state to be
     both in `waiting` and a `gates` key") and spec-001 gives it explicit semantics, so a synthetic
     machine covers it in `test/memory/state-machine.test.ts` rather than skipping it.

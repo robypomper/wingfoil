@@ -143,9 +143,9 @@ is scheduled for v0.2.2.
 
 1. **Ratify, choosing (A)–(D) and (i)–(iii).** Owner: approver. The choice goes in the approve
    commit's `Reason:`.
-2. **On ratification, `docs/self/.wingfoil/memory.yaml` `types.bug.states` changes** per the chosen
+2. **On ratification, `.wingfoil/memory.yaml` `types.bug.states` changes** per the chosen
    option, and its `version` is bumped. The file is at the repository root if the configuration move
-   has landed by then. Under (B) or (C), `docs/self/.wingfoil/workflows/custom/release-submit.yaml`'s
+   has landed by then. Under (B) or (C), `.wingfoil/workflows/custom/release-submit.yaml`'s
    `pre-release-checks` string changes too.
 3. **Close `bug-094` as retyped.** It goes through the existing `open → closed` edge (`reject`, the
    wontfix/duplicate path), with a `Reason:` citing this decision-log. It is not deprecated.

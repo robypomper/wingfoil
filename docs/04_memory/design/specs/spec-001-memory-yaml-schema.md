@@ -3,7 +3,7 @@ id: spec-001-memory-yaml-schema
 type: tech-spec
 title: "memory.yaml schema (MemoryYaml): sequence/gates/waiting state machines"
 status: approved
-scope: "docs/self/.wingfoil/memory.yaml"
+scope: ".wingfoil/memory.yaml"
 supersedes: ""
 tmpl_version: 260703   # Orignal template version
 ---
@@ -21,7 +21,7 @@ Workflow pillar (to resolve `element:` type declarations), by the ID-generation 
 `id_pattern` + `path`), and by the state-machine validator that enforces **REQ-STATE-01** (every
 transition validated against the type's declared machine).
 
-The file exists today (authoritative under `docs/self/.wingfoil/memory.yaml`), but it declares each
+The file exists today (authoritative under `.wingfoil/memory.yaml`), but it declares each
 type's lifecycle with a **`transitions: {state: [target, ...]}` dict-of-arrays**. That shape is
 **structurally ambiguous**: when a state lists two legal targets (e.g. the current default machine's
 `pending: [ approved, rejected ]`, or the current `task`'s `in-review: [ approved, in-progress ]`),
@@ -319,7 +319,7 @@ multi-target cases the old graph left ambiguous: old `task in-review: [ approved
 
 ## Process Notes
 
-Grounded in the current `docs/self/.wingfoil/memory.yaml` (source of every path, id_pattern, and legal
+Grounded in the current `.wingfoil/memory.yaml` (source of every path, id_pattern, and legal
 transition here), `docs/02_requirements/03_sard/03_state-context.md` (REQ-STATE-01/-02/-08), and P1.13.
 
 **Revision (2026-09-29) — the `release` id pattern, the `{kind}` and frontmatter tokens, the slug's

@@ -98,7 +98,7 @@ ever use.
 **`bug-043` cannot be reopened, and this is not a duplicate of it.**
 `bug-043-npm-ci-fails-on-stale-package-lock` is `status: closed` and `task-073-fix-stale-package-lock`
 is `status: done` (both read from their frontmatter at `b505473`). The `bug` state machine in
-`docs/self/.wingfoil/memory.yaml` gives `closed` no outbound edge —
+`.wingfoil/memory.yaml` gives `closed` no outbound edge —
 `sequence: [draft, open, triaged, planned, in-progress, in-review, resolved, closed]` ends there,
 `gates` declares nothing for `closed`, and `waiting` lists only `triaged`/`planned`; the sole wildcard is
 `memory.deprecate`, which retires rather than reopens. So a new bug is the only legal way to carry this.

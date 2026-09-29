@@ -48,11 +48,11 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Full contract: `docs/self/docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` §2
+- Full contract: `docs/04_memory/design/specs/spec-004-mcp-surface-contract.md` §2
   (Resources) — URI scheme (§2.1), read contract shape (§2.2), and the verbatim write-refusal
   string (§2.3). This spec explicitly scopes the v0.1 "read-only skeleton" milestone to §2 only;
   §3 (Prompts, REQ-INT-02) and §4 (Tools, REQ-INT-03) land in later releases (v0.2/v0.4).
-- Architectural backing: `docs/self/docs/04_memory/design/adrs/adr-004-mcp-over-stdio.md` — MCP
+- Architectural backing: `docs/04_memory/design/adrs/adr-004-mcp-over-stdio.md` — MCP
   over stdio (Anthropic SDK) as the agent-facing protocol; Resources/Prompts/Tools as MCP's own
   three primitive kinds, with the read/write split enforced structurally (distinct primitive kinds,
   not a convention re-checked per endpoint).

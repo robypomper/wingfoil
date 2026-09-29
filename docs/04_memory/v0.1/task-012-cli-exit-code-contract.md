@@ -48,10 +48,10 @@ Testable breakdown:
 
 ## Implementation Notes
 
-- Full contract: `docs/self/docs/04_memory/design/specs/spec-005-cli-command-contract.md` §1
+- Full contract: `docs/04_memory/design/specs/spec-005-cli-command-contract.md` §1
   (exit-code table + rules) and §3 (consistent error format, REQ-INT-08, shares the same
   `exitWith`/`emitError` plumbing).
-- Grammar-level restatement and the exit-code table cross-check: `docs/self/docs/04_memory/design/specs/spec-008-cli-grammar.md` §5.
+- Grammar-level restatement and the exit-code table cross-check: `docs/04_memory/design/specs/spec-008-cli-grammar.md` §5.
 - `src/core` owns exit-code *selection* and error-message formatting (shared with `src/mcp-server`
   per REQ-SYS-05); `src/cli` only maps `core` results onto stdout/stderr + `process.exit` — do not
   duplicate the mapping logic in the CLI layer.
