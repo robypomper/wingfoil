@@ -146,6 +146,47 @@ the approver must own the organisation before `dl-093`'s `mcpName` is published.
 recorded above (`wingfoil-io/wingfoil` on GitHub, crates.io and PyPI) is not resolved by a
 qualifier any more; it is met by an organisation, a domain and a scope of the project's own.
 
+### Addendum (2026-09-29, after ratification) — the visibility session's hand-back
+
+The project-visibility session handed back its outcome on 2026-09-29, after this decision-log reached
+`ready` (`a4e80e11`). The facts below come from that hand-back, with the dates and sources it gives.
+They were not checked again (`release-planning-rel-v0.2.2-plan`, *Visibility session outcome*). They refine
+the ratified answers and change none of them, except the timing of the domains.
+
+**Approver decisions recorded by the session:**
+
+- **D4 — positioning "Intent".** The category line is "The repo-native intent layer for AI-native
+  software engineering", and the slogan is "Keep your intent on course while agents do the work."
+  The metaphor: the wing is the agents (power), and the foil is the repo-native layer (lift and
+  heading). The session found "intent layer" to be an emerging, unowned category term, used by
+  Pathmode, by a Hacker News thread titled "Intent Layer" and by intent-driven.dev. It can serve as
+  a descriptor but not as a name.
+- **D7 — domains are deferred until after v0.3.** `wingfoil.dev` and `wingfoilhq.dev` were free on
+  2026-09-29 (the approver's reading). The approver accepts the risk of losing them. This changes Q4
+  as ratified, which named both domains among the reservations to make now. Until then:
+  - the site is GitHub Pages at `wingfoil.github.io/wingfoil`, which redirects once a custom domain is
+    set;
+  - the Bluesky handle `@wingfoil.dev` waits for the domain;
+  - the `wingfoilhq` handles on X, LinkedIn, Mastodon and YouTube are checked by the approver at
+    signup;
+  - registering the domains means auto-renew, transfer lock and WHOIS privacy, each recorded as a
+    `service` with `renews`.
+- **The npm scope's reason.** `@wingfoilhq` is the scope because `@wingfoil` belongs to wingfoil-io.
+
+**Evidence added to the name check** (read 2026-09-28/29 by the session):
+
+- **The other project in more detail.** On crates.io, `wingfoil` 9.0.0 has 8 461 downloads.
+  `wingfoil-io/wingfoil` has 955 commits. The project markets itself with "deterministic" and
+  "real-time AI systems", which is close to this project's own vocabulary; the Determinism Index is
+  its North Star.
+- **Trademark residual risk** (not legal advice). The remaining risk is wingfoil-io's *unregistered*
+  prior use of the name for software. The TMView records above include none held by wingfoil-io. An
+  optional EUIPO filing of "WINGFOIL", or a composite, in classes 9 and 42 is left for after v0.3.
+- **What the session could not check itself**, because of its network policy: TMView, EUIPO, USPTO and
+  WIPO directly, domain RDAP, the GitHub organisation API, Bluesky, Mastodon, Reddit and
+  api.npmjs.org. Of these, the organisation API and the `.dev` RDAP records were read by this
+  repository's planning session on 2026-09-29 (tables above).
+
 ## Decision
 
 The 2026-09-29 set above is the recommendation. It keeps the install surface (package and command),
@@ -199,6 +240,8 @@ this decision-log's approve commit:
       v0.2.2 publish (task, via `build-backlog`).
 - [ ] On `ready`, `dl-093` uses the chosen namespace for `mcpName` and `server.json`, and the chosen
       display name in `package.json` `description` and the directory listings.
+- [ ] Domains, their Pages custom domain and the Bluesky handle: after v0.3 (addendum, D7; owner:
+      approver).
 - [ ] Record each reserved identity as a `service` element once it exists (`dl-088`), with the date
       and account the approver reports: the organisation, the npm scope, both domains, the handles,
       the transferred repository and the MCP namespace.
