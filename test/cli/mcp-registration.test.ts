@@ -19,6 +19,8 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { load } from 'js-yaml';
+
 import {
   EXPECTED_CHANNELS,
   channelSet,
@@ -179,4 +181,34 @@ describe('scripts/check-mcp-registration.cjs — against the real pinned build',
       rmSync(dir, { recursive: true, force: true });
     }
   }, SERVER_TIMEOUT_MS);
+});
+
+/**
+ * task-112 AC 3 and AC 4 — the two workflow steps that use the commands above. Guard tests written
+ * after the configuration change (classified configuration in the Execution Notes), not a red.
+ */
+describe('the workflow steps that run these checks (task-112 AC 3, AC 4)', () => {
+  interface Phase {
+    readonly name: string;
+    readonly actions?: readonly string[];
+    readonly checks?: { readonly pre?: readonly string[] };
+  }
+  function phases(workflow: string): readonly Phase[] {
+    const path = join(REPO_ROOT, '.wingfoil', 'workflows', 'custom', `${workflow}.yaml`);
+    return (load(readFileSync(path, 'utf-8')) as { phases: readonly Phase[] }).phases;
+  }
+
+  it('e2e-smoke re-verifies the registered server with `npm run check:mcp`, before its gate (dl-026)', () => {
+    const names = phases('e2e-smoke').map((phase) => phase.name);
+    expect(names.indexOf('mcp-registration')).toBe(names.indexOf('gate') - 1);
+    expect(phases('e2e-smoke').find((phase) => phase.name === 'mcp-registration')?.actions).toEqual([
+      'cli.run("npm run check:mcp")',
+    ]);
+  });
+
+  it('release-planning opens with the pin-advance precondition step (dl-095 Q3 (B))', () => {
+    const first = phases('release-planning')[0];
+    expect(first?.name).toBe('advance-pinned-build');
+    expect(first?.checks?.pre?.join(' ')).toContain('npm run -s wingfoil -- --version');
+  });
 });

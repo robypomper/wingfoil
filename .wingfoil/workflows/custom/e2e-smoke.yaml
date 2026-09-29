@@ -8,7 +8,7 @@ description: >-
   scaffolded artifacts. Would have caught bug-005 at release time instead of at the last task.
   STAGED per the dl-014 B-DECISION (Option 2): warn on failure until the gate runs green for a
   release, then flip to hard-reject.
-version: 1.1                     # dl-082: `dna set` respelled to `<path> --value <v>` (task-093)
+version: 1.2                     # dl-082: `dna set` respelled to `<path> --value <v>` (task-093); 1.2 dl-026: + mcp-registration (task-112)
 element: release
 
 phases:
@@ -33,6 +33,19 @@ phases:
       - 'cli.run("directives list")'
     checks:
       post: ["exit-codes match spec-005-cli-command-contract", "no schema-invalid artifact produced by any command"]
+
+  - name: mcp-registration          # dl-026 re-verification, dl-095 Q2 (i) — task-112
+    description: >-
+      Re-verify the MCP server this repository's `.mcp.json` registers: it is the pinned published
+      build (`wingfoil-released` in package.json), and the channel set it advertises equals the one
+      `scripts/check-mcp-registration.cjs` declares (EXPECTED_CHANNELS — Resources P5.2.1, Prompts
+      P5.2.2; Tools P5.2.3 from v0.4). A release that changes the channel set updates that constant on
+      purpose, or this step fails.
+    role: qa
+    actions:
+      - 'cli.run("npm run check:mcp")'
+    checks:
+      post: ["exit-code-zero", "registered server version == package.json pin", "advertised channel set == EXPECTED_CHANNELS, every advertised list answers"]
 
   - name: gate
     description: >-
