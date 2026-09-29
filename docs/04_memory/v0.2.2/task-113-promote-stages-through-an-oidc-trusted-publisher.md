@@ -63,9 +63,52 @@ runners on 2026-09-23 (`bug-136`). This closes `bug-136` and delivers `dl-087` A
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Branch `task/task-113-promote-stages-through-an-oidc-trusted-publisher`, worktree
+`../.wf2-wt/task-113`, cut from `main` at `c3df9df3`. The configuration is at the root since
+`task-111`, so the Memory transitions below are commits in the §5.1 format on this branch.
+
+### design (architect)
+
+**Contracts (`grep -m1 '^status:'`).** `adr-011-npm-staged-publishing-with-oidc` → `accepted`;
+`spec-015-packaging-publishing` → `approved` (§3 stage 4 and §5 carry the 2026-09-29 amendment);
+`dl-087` → `ready`; `dl-057` and `dl-068` → `ready` (edited here as content, no state change). No
+tech-spec is missing: `spec-015` §3/§5 is the file-level contract of every AC, so none is scaffolded
+and the design approval is a pass-through.
+
+**`depends_on` read (dl-015).** `task-111` is `done` (`grep -m1 '^status:'`; `5f0e9052` `wf(task): finalize … [approved → done]`
+is on `main`). What this task takes from its Execution Notes:
+- the configuration and the Memory are at the root (`.wingfoil/`, `docs/04_memory/`), so the two
+  files this task owns are `.github/workflows/publish.yml` and
+  `.wingfoil/workflows/custom/release-publishing.yaml`, and every path cited here is a root path;
+- its AC 5 hand-off list (`CLAUDE.md` §3/§5.1 staleness, left to `align-agent-docs`) touches nothing
+  here;
+- its refactor rule for config files: a comment or path correction bumps no `version:`. This task
+  changes `release-publishing.yaml`'s *behaviour* (a new phase step), so that file's `version`
+  is bumped under `doc-versioning` — the first edit after it was committed.
+
+**Design.**
+- `promote` keeps `environment: npm-publish` and `permissions: {contents: read, id-token: write}`,
+  loses its `env: NPM_TOKEN`, the token guard, the `.npmrc` and the `trap`, and runs
+  `npm stage publish ./dist-pack/*.tgz --provenance --access public`. The explicit `./` of
+  `task-108` (`bug-135`) stays. `if: ${{ !env.ACT }}` stays, so a local `act` run can never stage.
+- `promote`'s `setup-node` takes a job-level `env.PROMOTE_NODE_VERSION`, an exact Node ≥ 24.18.0;
+  `gate` and `stage` keep `env.NODE_VERSION: '22.12.0'`.
+- Every `actions/*` pin moves to the latest release of that action whose `action.yml` `runs.using`
+  is `node24` (lookups in *green*).
+- The `set +x` rule of `task-078` (`dl-057` f) is kept as the step's first command: there is no
+  secret to leak any more, but the tests that forbid tracing cost nothing and would matter again if a
+  credential ever came back.
+
+**AC classification (T1).**
+
+| AC | Class | Why |
+|---|---|---|
+| 1 — `npm stage publish`, no token, no `.npmrc` | **red-first** | today the step runs `npm publish` with `secrets.NPM_TOKEN` and a transient `.npmrc` |
+| 2 — `promote` on Node ≥ 24.18.0, the others on 22.12.0 | **red-first** | today all three jobs read `env.NODE_VERSION` |
+| 3 — node24 pins by SHA, tag comment, recorded source | **red-first** (pin form + table) | today the four pins are v4 releases (`runs.using: node20`); the runtime itself is established by `gh api`, recorded below, because a test cannot read `action.yml` offline |
+| 4 — `--access public` with the job's npm | verification | settled with `npm stage publish --help` and a dry run, recorded in `dl-068` Action 4 |
+| 5 — approver runbook | **red-first** (text contract) | the header's runbook today describes `NPM_TOKEN` provisioning and rotation; the suite pins the new steps |
+| 6 — `release-publishing.yaml` npm approval step | configuration | no runtime reads the step text; the file is checked by the workflow schema suite (characterization) |
+| 7 — `dl-057` (e) closed | documentation | no behaviour |
+| 8 — `act` | verification | `act` is not installed (`which act` → nothing); what could not be exercised is listed |
+| 9 — `npm test` green | verification | gate below |
