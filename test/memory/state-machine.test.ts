@@ -1,14 +1,14 @@
 /**
  * State-machine transition-legality engine (spec-001-memory-yaml-schema, REQ-SYS-04,
  * task-005-per-type-state-machines). Exercises `resolveStateMachine` + `resolveTransitionTarget`
- * against every type registered in `docs/self/.wingfoil/memory.yaml` (per the task's Acceptance
+ * against every type registered in `.wingfoil/memory.yaml` (per the task's Acceptance
  * Criteria) plus illegal-transition rejection. The registered-type list is DERIVED from the parsed
  * config (`REGISTERED_TYPE_NAMES`) rather than hard-coded — the previous hard-coded list of 7 had gone
  * stale when `dl-019-plans-as-memory-element` registered `plan` as an 8th type.
  *
  * The final `describe` block below (REQ-STATE-08) is task-010-default-state-machine-fallback's
  * scope: a throwaway fixture `MemoryYaml` document (parsed in-test, never written to the real
- * `docs/self/.wingfoil/memory.yaml` per that task's Implementation Notes) whose one declared type has
+ * `.wingfoil/memory.yaml` per that task's Implementation Notes) whose one declared type has
  * NO `states:` key at all, proving `resolveStateMachine` falls back to `defaults.states` end-to-end
  * (Pass-1 structural parse → Pass-2 semantic transition legality, spec-009-validation-strategy §1) and
  * covering the two branches task-005 left genuinely unexercised in `resolveStateMachine` (see that
@@ -35,11 +35,11 @@ import {
 } from '../../src/memory/state-machine';
 import { ValidationError } from '../../src/validation';
 
-const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'), 'utf-8');
+const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8');
 const memoryYaml = MemoryYaml.parse(load(raw));
 
 /**
- * Every type actually registered in `docs/self/.wingfoil/memory.yaml`, **derived** from the parsed
+ * Every type actually registered in `.wingfoil/memory.yaml`, **derived** from the parsed
  * config rather than hard-coded. The hard-coded list these loops previously used named 7 types and had
  * silently gone stale: `dl-019-plans-as-memory-element` registered an 8th (`plan`), which was therefore
  * never exercised here. Deriving the list keeps the suite honest as types are added or removed, and
@@ -247,7 +247,7 @@ describe('resolveTransitionTarget — defensive edge case: a `gates` state with 
 });
 
 describe('REQ-STATE-08 — a type with no `states` block falls back to `defaults.states` (task-010)', () => {
-  // Throwaway fixture — deliberately NOT added to the real `docs/self/.wingfoil/memory.yaml`
+  // Throwaway fixture — deliberately NOT added to the real `.wingfoil/memory.yaml`
   // (task-010's Implementation Notes are explicit: today all 7 real types declare their own
   // `states:`, so this path has no live consumer and must be exercised by a dedicated fixture type
   // here instead). Parsed through the real `MemoryYaml` schema (Pass 1, spec-009 §1) so this is a
@@ -509,7 +509,7 @@ describe('validateFrontmatterState — REQ-STATE-01 per-type frontmatter `status
 });
 
 describe('validateFrontmatterState — an off-chain `gates.<state>.reject` target is a legal state (spec-001)', () => {
-  // Synthetic fixture — none of the real registered types in `docs/self/.wingfoil/memory.yaml` trigger
+  // Synthetic fixture — none of the real registered types in `.wingfoil/memory.yaml` trigger
   // this case: all three of its reject targets (`draft`, `closed`, `in-progress`) happen to be
   // `sequence` members, which is precisely why the suite stayed green over this defect. spec-001's
   // "Semantic validation (post-parse)" is explicit that a reject target "need **not** be a member of

@@ -11,7 +11,7 @@
  * Exercises the REAL, registered `CORE_MODULES` `memory.memorySubmit` operation — the exact `CoreFn`
  * the CLI command and the MCP Tool dispatch to. Every write lands in a THROWAWAY temp git repo.
  *
- * The `task` fixture type carries the REAL `task` state machine from `docs/self/.wingfoil/memory.yaml`
+ * The `task` fixture type carries the REAL `task` state machine from `.wingfoil/memory.yaml`
  * (not the default machine), because P1.6's pinned message must hold against the machine this project
  * actually runs — there `approved` is a `waiting` state whose forward edge is `done`, not `pending`.
  */

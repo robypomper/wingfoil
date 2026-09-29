@@ -1,8 +1,8 @@
 /**
  * P2.2 (US-3-03) — `wingfoil dna show [section]` core-op fit criteria, per
  * `docs/02_requirements/02_bdd/features/p2-dna/P2.2-dna-show.feature` and
- * `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` /
- * `docs/self/docs/04_memory/design/specs/spec-006-core-domain-api.md` (task-026-implement-dna-show).
+ * `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md` /
+ * `docs/04_memory/design/specs/spec-006-core-domain-api.md` (task-026-implement-dna-show).
  *
  * Exercises the REAL `CORE_MODULES` `dna.dnaShow` operation directly — the exact same `CoreFn` both
  * `src/cli`'s `dna show` command and the MCP `wingfoil://dna/show` Resource call (spec-006 §2/§4) —

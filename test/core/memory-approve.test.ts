@@ -11,7 +11,7 @@
  * Exercises the REAL, registered `CORE_MODULES` `memory.memoryApprove` operation — the exact `CoreFn`
  * the CLI command and the MCP Tool dispatch to. Every write lands in a THROWAWAY temp git repo.
  *
- * The `task` fixture type carries the REAL `task` state machine from `docs/self/.wingfoil/memory.yaml`
+ * The `task` fixture type carries the REAL `task` state machine from `.wingfoil/memory.yaml`
  * (not the default machine), so both approval gates this project actually uses are exercised:
  * `pending → backlog` and the review hand-off `in-review → approved`. The `note` type falls back to
  * `defaults.states`, where `approve` lands on the literally-named `approved` state of P1.7's wording.

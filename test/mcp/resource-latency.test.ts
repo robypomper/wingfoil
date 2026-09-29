@@ -52,7 +52,7 @@ paths:
   sources: [ src/ ]
 `;
 
-// Mirrors docs/self/.wingfoil/memory.yaml's real path patterns (states omitted, as in task-008's
+// Mirrors .wingfoil/memory.yaml's real path patterns (states omitted, as in task-008's
 // own fixture — not needed by the query primitives).
 const MEMORY_YAML = `
 version: 1.1

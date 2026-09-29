@@ -1,11 +1,11 @@
 /**
  * P2.4 (US-0A-05) — Project DNA loader fit criteria, per
  * `docs/02_requirements/02_bdd/features/p2-dna/P2.4-project-dna-config.feature` and
- * `docs/self/docs/04_memory/design/specs/spec-002-dna-yaml-schema.md`. Exercises the REAL
+ * `docs/04_memory/design/specs/spec-002-dna-yaml-schema.md`. Exercises the REAL
  * `loadDnaYaml` + `DnaYaml` schema (task-004/task-027) end to end — no re-implementation of either.
  *
  * - "DNA file exists and is schema-valid after init" → AC(a) below, against the live
- *   `docs/self/.wingfoil/dna.yaml` fixture (the worked example spec-002 pins).
+ *   `.wingfoil/dna.yaml` fixture (the worked example spec-002 pins).
  * - "Agents read DNA as the authoritative project map" → AC(b), an arbitrary extra module
  *   round-trips through `.passthrough()`.
  * - "Error - malformed YAML in the DNA file" → AC(c), the one piece this task adds: `loadDnaYaml`
@@ -20,8 +20,8 @@ import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/hel
 
 describe('loadDnaYaml — P2.4 fit criteria', () => {
   describe('AC(a): DNA file exists and is schema-valid after init', () => {
-    // docs/self/.wingfoil/dna.yaml is the live, hand-authored worked example spec-002 pins.
-    const liveRoot = join(__dirname, '..', '..', 'docs', 'self');
+    // .wingfoil/dna.yaml is the live, hand-authored worked example spec-002 pins.
+    const liveRoot = join(__dirname, '..', '..');
 
     it('validates and declares modules/stacks/team', () => {
       const dna = loadDnaYaml(liveRoot);

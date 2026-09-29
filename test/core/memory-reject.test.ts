@@ -13,7 +13,7 @@
  * Exercises the REAL, registered `CORE_MODULES` `memory.memoryReject` operation — the exact `CoreFn`
  * the CLI command and the MCP Tool dispatch to. Every write lands in a THROWAWAY temp git repo.
  *
- * The `task` fixture type carries the REAL `task` state machine from `docs/self/.wingfoil/memory.yaml`
+ * The `task` fixture type carries the REAL `task` state machine from `.wingfoil/memory.yaml`
  * (two gates, `pending -> draft` and `in-review -> in-progress`), so both reject edges this project
  * actually runs are exercised, not just the default machine's single one.
  */

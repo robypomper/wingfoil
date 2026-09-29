@@ -7,14 +7,14 @@ import { loadDnaYaml } from '../../src/core/loaders';
  * dna.yaml `modules:` list must be a truthful map of the real `src/` directory tree
  * (task-031-post-v01-dna-config-sync AC, spec-002-dna-yaml-schema): no module listed that doesn't
  * exist on disk, no implemented module missing from the list. Both sides are derived dynamically —
- * `modules[].path` from the live, hand-authored `docs/self/.wingfoil/dna.yaml` via the real
+ * `modules[].path` from the live, hand-authored `.wingfoil/dna.yaml` via the real
  * `loadDnaYaml` loader (no re-implementation), and the real tree via `readdirSync('src')` — so this
  * test self-enforces the reconciliation going forward instead of relying on a manually-mirrored list
  * that can silently drift again (which is exactly how the list previously fell out of sync).
  */
 describe('src/ module layout (dna.yaml modules:)', () => {
   const repoRoot = join(__dirname, '..', '..');
-  const liveRoot = join(repoRoot, 'docs', 'self');
+  const liveRoot = repoRoot;
 
   const dna = loadDnaYaml(liveRoot);
   const declaredPaths = dna.modules

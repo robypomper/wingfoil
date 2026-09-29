@@ -5,11 +5,11 @@
  *
  * UNLIKE memory.yaml/dna.yaml/workflows.yaml, there is currently no dedicated, approved tech-spec
  * for the Directives pillar's own file shape: spec-010-memory-frontmatter-schema's scope is
- * explicitly `docs/self/docs/04_memory/**\/*.md frontmatter` (Memory documents), not
+ * explicitly `docs/04_memory/**\/*.md frontmatter` (Memory documents), not
  * `.wingfoil/directives/**` (Directives files are `.md` with YAML frontmatter, not `.yaml` — the
  * AC's "directives/*.yaml" phrasing does not match the real file extension either). This schema is
  * therefore an [AUTHORING]-level minimal shape, grounded directly in the fields every one of the
- * twelve real files under `docs/self/.wingfoil/directives/custom/*.md` actually carries (`id`,
+ * twelve real files under `.wingfoil/directives/custom/*.md` actually carries (`id`,
  * `name`, `type: directive`, `kind`, `title`, `tags`, `ref`, and — on three files — `scope`), not a
  * transcription of an approved spec. See this task's Execution Notes for why this was not treated
  * as a hard STOP (design-gap) and the follow-up this leaves for the reviewer/approver (a candidate
@@ -53,7 +53,7 @@ export type DirectiveFrontmatter = z.infer<typeof DirectiveFrontmatter>;
  * pillar's own file shapes yet (spec-012-context-loader-relevance-filtering §5 describes the
  * `directive-loader`'s *behavior* — "look up the request role in `roles.yaml`" — but not roles.yaml's
  * own schema), so this is grounded directly in the fields the real, live
- * `docs/self/.wingfoil/roles.yaml` file carries: `version`, `assignments` (role name -> directive id
+ * `.wingfoil/roles.yaml` file carries: `version`, `assignments` (role name -> directive id
  * array), and `global` (directive ids applied to every role). `assignments` keys are role names
  * (validated against `dna.yaml`'s `team.roles` catalogue elsewhere, by REQ-SYS-08/task-034 — NOT here,
  * to keep this pillar's schema independent per REQ-SYS-02); `assignments` values and `global` entries

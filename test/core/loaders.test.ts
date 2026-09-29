@@ -175,8 +175,8 @@ describe('per-pillar loaders — fixture repo', () => {
   });
 });
 
-describe('per-pillar loaders — validate the real, live docs/self/.wingfoil config', () => {
-  const liveRoot = join(__dirname, '..', '..', 'docs', 'self');
+describe('per-pillar loaders — validate the real, live .wingfoil config', () => {
+  const liveRoot = join(__dirname, '..', '..');
 
   it('all four pillars load without throwing', () => {
     expect(() => loadMemoryYaml(liveRoot)).not.toThrow();
@@ -190,7 +190,7 @@ describe('per-pillar loaders — validate the real, live docs/self/.wingfoil con
     expect(directives.length).toBeGreaterThanOrEqual(10);
   });
 
-  it('loadRolesYaml parses the real, live docs/self/.wingfoil/roles.yaml', () => {
+  it('loadRolesYaml parses the real, live .wingfoil/roles.yaml', () => {
     expect(() => loadRolesYaml(liveRoot)).not.toThrow();
     const roles = loadRolesYaml(liveRoot);
     // task-094 added `command-baseline` (dl-080 option (B)) to the three code-writing roles.

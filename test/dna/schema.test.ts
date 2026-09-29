@@ -27,7 +27,7 @@ const MINIMAL_VALID = {
     tests: ['test/'],
     docs: ['docs/'],
     config: ['package.json'],
-    governance: ['docs/self/.wingfoil/'],
+    governance: ['.wingfoil/'],
   },
 };
 
@@ -95,9 +95,9 @@ describe('DnaYaml — role-binding semantic check (spec-002 "Role binding (REQ-S
   });
 });
 
-describe('DnaYaml — validates the real, live docs/self/.wingfoil/dna.yaml', () => {
+describe('DnaYaml — validates the real, live .wingfoil/dna.yaml', () => {
   it('parses with zero structural or semantic errors', () => {
-    const raw = readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml'), 'utf-8');
+    const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'dna.yaml'), 'utf-8');
     const data = load(raw);
     const result = DnaYaml.safeParse(data);
     expect(result.success).toBe(true);

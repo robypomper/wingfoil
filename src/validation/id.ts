@@ -2,7 +2,7 @@
  * ID-generation engine (task-002-validation-id-engine, acceptance criteria 5).
  *
  * Generates a concrete Memory-element ID from a type's `id_pattern` (declared in
- * `docs/self/.wingfoil/memory.yaml`, e.g. `task-{n}-{slug}`) plus values for its `{placeholder}`
+ * `.wingfoil/memory.yaml`, e.g. `task-{n}-{slug}`) plus values for its `{placeholder}`
  * tokens. It enforces the shared ID character class `[a-z0-9-.]` that spec-009-validation-strategy
  * §1 frames as a Pass-2 rule owned by "the shared ID constants":
  *

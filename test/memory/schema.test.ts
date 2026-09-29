@@ -141,10 +141,10 @@ describe('MemoryYaml — StateMachine semantic checks (spec-001 "Semantic valida
   });
 });
 
-describe('MemoryYaml — validates the real, live docs/self/.wingfoil/memory.yaml', () => {
+describe('MemoryYaml — validates the real, live .wingfoil/memory.yaml', () => {
   it('parses with zero structural or semantic errors', () => {
     const raw = readFileSync(
-      join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'),
+      join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'),
       'utf-8',
     );
     const data = load(raw);

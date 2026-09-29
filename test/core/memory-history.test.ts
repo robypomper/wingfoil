@@ -10,7 +10,7 @@
  * `CoreFn` `src/cli`'s `memory history` command dispatches to. It wraps task-009's
  * `findMemoryDocumentById` and task-015's `reconstructMemoryTransitions`; no git walk, body parsing
  * or state derivation is reimplemented here. Every fixture lives in a THROWAWAY temp git repo (never
- * this repo's own `docs/self/docs/04_memory/`).
+ * this repo's own `docs/04_memory/`).
  *
  * **No latency assertion lives in this file.** P1.10's "And the query returns in under 1 second"
  * clause is owned by `test/core/query-latency.test.ts`, in-process, at REQ-PERF-02's own measurement

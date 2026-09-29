@@ -101,8 +101,8 @@ describe('DnaYaml — duplicate entry names are a validation failure, per collec
 });
 
 describe('the refinement is non-breaking — measured, not assumed (AC4)', () => {
-  it("WingFoil's own docs/self/.wingfoil/dna.yaml still validates", () => {
-    const path = join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'dna.yaml');
+  it("WingFoil's own .wingfoil/dna.yaml still validates", () => {
+    const path = join(__dirname, '..', '..', '.wingfoil', 'dna.yaml');
     const parsed = DnaYaml.safeParse(load(readFileSync(path, 'utf-8')));
     expect(parsed.success).toBe(true);
   });

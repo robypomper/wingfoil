@@ -57,7 +57,7 @@
  *
  * **Type resolution (REQ-STATE-08):** `resolveStateMachine` resolves a type's machine as
  * `types.<name>.states ?? defaults.states ?? `{@link DEFAULT_STATE_MACHINE}. task-005's own tests
- * exercise only the real types registered in `docs/self/.wingfoil/memory.yaml`, every one of which
+ * exercise only the real types registered in `.wingfoil/memory.yaml`, every one of which
  * declares its own `states` block — so the `?? defaults.states` arm was left uncovered by that task,
  * and `task-010-default-state-machine-fallback` closed that gap with a throwaway fixture type
  * (declared with no `states:` key) in `test/memory/state-machine.test.ts`. The **third** arm is
@@ -391,7 +391,7 @@ export function resolveTypeTransition(
  *    are not. Omitting this arm is what task-036's first pass got wrong: the `reject` verb would write
  *    a status that this very function then declared invalid, leaving the document unmovable —
  *    a REQ-SYS-04 violation for a config shape spec-001 names by example. No type registered in
- *    `docs/self/.wingfoil/memory.yaml` currently exercises it (all three of its reject targets —
+ *    `.wingfoil/memory.yaml` currently exercises it (all three of its reject targets —
  *    `draft`, `closed`, `in-progress` — happen to be `sequence` members), so it is covered by a
  *    synthetic fixture machine in `test/memory/state-machine.test.ts`.
  * 3. **{@link DEPRECATED_STATE}** — the reserved implicit wildcard target every type reaches via

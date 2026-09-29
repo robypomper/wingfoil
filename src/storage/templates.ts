@@ -175,7 +175,7 @@ const MEMORY_TYPES = ['adr', 'bug', 'decision-log', 'release', 'release-line', '
  * grammar, `src/validation/id.ts`) — required by `memoryAdd` (`src/core/index.ts`) even though
  * `memory.yaml`'s own schema only marks the field `.optional()` (bug-005-init-scaffold-fails-schema-validation:
  * without this, a freshly-`init`'d project's `wingfoil memory add` fails on every type). Mirrors this
- * repository's own dogfooded `docs/self/.wingfoil/memory.yaml` scheme, a sensible [AUTHORING] default
+ * repository's own dogfooded `.wingfoil/memory.yaml` scheme, a sensible [AUTHORING] default
  * a user is free to change.
  */
 const MEMORY_ID_PATTERNS: Readonly<Record<(typeof MEMORY_TYPES)[number], string>> = {

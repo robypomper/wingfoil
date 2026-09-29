@@ -283,7 +283,7 @@ function readStatusAt(root: string, sha: string, historicalPath: string): string
  * guesses.
  *
  * This was never the hypothetical the TSDoc here used to call "a documented edge case, not a live
- * defect": `docs/self/docs/04_memory/planning/v1/*` became `planning/rl-v1/*` in a single commit,
+ * defect": the Memory folder's `planning/v1/*` became `planning/rl-v1/*` in a single commit,
  * moving five `release` elements at once, precisely BECAUSE the `release` type's `path` pattern
  * interpolates a component — the release-line id — that itself changed. Any edit to a `path`
  * pattern, or to an id one interpolates, renames documents.

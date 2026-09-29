@@ -33,13 +33,13 @@ import { resolveStateMachine, resolveTransitionTarget } from '../../src/memory/s
 
 /** The real, live type registry — the authoritative well-formed source for scenario 1. */
 const realMemoryYaml = MemoryYaml.parse(
-  load(readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'), 'utf-8')),
+  load(readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8')),
 );
 
 describe('P1.13 scenario 1 — a well-formed `release` type validates and exposes initial state `draft`', () => {
   it('the real memory.yaml (which defines `release` with states and transitions) parses with no errors', () => {
     const result = MemoryYaml.safeParse(
-      load(readFileSync(join(__dirname, '..', '..', 'docs', 'self', '.wingfoil', 'memory.yaml'), 'utf-8')),
+      load(readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8')),
     );
     expect(result.success).toBe(true);
   });

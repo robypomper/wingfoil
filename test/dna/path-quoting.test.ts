@@ -26,7 +26,7 @@ import { DnaYaml } from '../../src/dna/schema';
 import { isValidKeyPath, quoteDnaSegment, splitDnaPath } from '../../src/dna/set';
 
 /**
- * The three entry names `docs/self/.wingfoil/dna.yaml` really carries whose `name` contains a dot,
+ * The three entry names `.wingfoil/dna.yaml` really carries whose `name` contains a dot,
  * transcribed from that file at commit `3a350aa6` — `Node.js` and `Commander.js` in
  * `stacks.technologies`, `AI agent (Claude/Cursor/etc.)` in `team.agents`.
  *
