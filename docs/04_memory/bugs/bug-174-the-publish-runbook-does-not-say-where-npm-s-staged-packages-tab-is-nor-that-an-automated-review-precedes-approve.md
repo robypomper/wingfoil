@@ -2,44 +2,64 @@
 id: bug-174-the-publish-runbook-does-not-say-where-npm-s-staged-packages-tab-is-nor-that-an-automated-review-precedes-approve
 type: bug
 title: "The publish runbook does not say where npm's Staged Packages tab is, nor that an automated review precedes Approve"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+status: open
+severity: "low"
+release-origin: "v0.2.2"
+release: ""
+feature: ""
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+The approver runbook in the header of `.github/workflows/publish.yml` (step 6, lines 53–59 at
+`0f68abcb`) leaves out two things the first staged publish, `wingfoil@0.2.2` on 2026-09-29, ran
+into:
+- It sends the approver to "Approve on npmjs.com → Staged Packages" without saying where on
+  npmjs.com that tab is. The approver could not find the Approve button at first.
+- It does not say that a staged version first sits in an **"automated review"** state, during which
+  it cannot be approved.
+
+The `publish` phase description in `.wingfoil/workflows/custom/release-publishing.yaml` repeats the
+same short form.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. Follow `publish.yml`'s runbook step 6 after a tag run's `promote` has staged a version (run
+   `36627583940`, stage id `800ec0cc-4f8f-482b-b73c-4f902a927d61`).
+2. Look for the Approve button on npmjs.com using only the runbook's wording.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The runbook names:
+- where the Staged Packages tab is and who sees it;
+- the "automated review" state: that it comes first, that Approve is unavailable during it, and what
+  to do while waiting;
+- a way to meet "npm ≥ 11.15.0 on the approver's machine" without a global upgrade, e.g.
+  `npx -y npm@<version> stage approve <stage-id>`.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The runbook says only "Approve on npmjs.com → Staged Packages" and "These commands need npm ≥ 11.15.0
+on the approver's machine" (`grep -n "Staged Packages\|11.15" .github/workflows/publish.yml`).
+Neither npm's documentation (docs.npmjs.com/staged-publishing, read 2026-09-29) nor the GitHub
+changelog announcing staged publishing says where the tab is, or mentions an automated review. The
+approver found the tab by searching, saw the version "in automated review", and approved once that
+state had ended. The version went live at `2026-09-29T20:47:50.934Z`.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- **The location of the tab is not recorded yet.** The approver found it but it was not written down.
+  The fix must take it from the approver, not guess it.
+- The fix changes a comment in a pipeline file and a phase description in a workflow file. No
+  behaviour changes.
+- **Duplicate search:** `grep -il "staged packages\|automated review\|runbook"
+  docs/04_memory/bugs/*.md` → nothing.
+- **Related:** `adr-011` (staged publishing), `dl-087`, `task-113` (the runbook's author),
+  `release-publishing-rel-v0.2.2-plan` S6, `bug-173` (the other publish finding of this phase).
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- Filled at triage. -->
