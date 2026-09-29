@@ -178,4 +178,57 @@ the approver's call.
 
 ## Execution Notes
 
-<!-- run logs, delta audit, gate report -->
+### 2026-09-29 — run on `b68bc306` (branch `qa/e2e-smoke-v0.2.2`, cut from `main` `3a8518e9`)
+
+Handoffs received from the sessions "DEV v0.2.2 - B.dev-loop" (gates at `cb7e8b1c`) and
+"DEV v0.2.2 - C.user-docs" (examples at `804c4545`, S8 gates at `03ea7db7`); nothing under `src/` or
+`test/` changed after either measurement (`git diff --stat cb7e8b1c 3a8518e9 -- src test scripts`).
+
+**P — preconditions: all met.** P0 `npm run -s wingfoil -- --version` → `0.2.1`. P1
+`user-docs-rel-v0.2.2-plan` `status: done`. P2 `patch-v0.2.2` `in-development`. P3 `16 done` tasks,
+`12 closed` bugs with `release: "v0.2.2"`. P4 `npm ci` exit 0, `npm run build` exit 0, worktree clean.
+Toolchain: Node 22.21.0, npm 11.6.2.
+
+**S1 + S2 — `fresh-init` + `drive-cli`: PASS.**
+`node scripts/e2e-smoke.cjs --expect-version 0.2.1 -- node "$PWD/dist/cli.js"` → exit 0, **20/20 `ok`**:
+`--help`, `--version = 0.2.1`, then for `[Scrum]` and `[Kanban]` each of `init --template`,
+`dna show`, `dna set project.name --value …`, `memory add --type task`, `memory submit
+task-001-smoke-task`, `paths config --list`, `directives list`, `workflow list` exit 0, and "working
+tree clean after every mutation — clean". `grep -n "export const TEMPLATES" src/storage/templates.ts`
+→ `[SCRUM, KANBAN]`, the same set as `SMOKE_TEMPLATES`.
+Contract delta vs `e2e-smoke.yaml` `drive-cli`: unchanged since v0.2 — `memory submit` present
+(`task-107`); exit-code coverage (only 0 asserted) and artefact revalidation remain the open gaps
+carried by `bug-132` / `bug-133`; the missing `produces:` by `bug-134`. Not re-filed.
+
+**S2a — patch-surface probe (Scrum, throwaway repo, `dist/` of this worktree): no finding.**
+`init` with no `--template` → exit 2, `error: missing required argument: --template (one of: Scrum,
+Kanban)` (`task-119`). The scaffolded `dna.yaml` carries the `{name, category}` comment block above
+`technologies: []` (`task-118`); after `dna set project.name --value Probe` (exit 0) the block is
+intact, and after `dna add stacks.technologies --value TypeScript --entry-category language` (exit 0,
+commit `wf(dna): add stacks.technologies TypeScript`) the block is intact and the entry reads
+`{name: TypeScript, category: language}`; `git status --porcelain` empty after each.
+
+**S2b — user-docs examples: PASS, 5/5.**
+`for d in docs/examples/0*/; do WINGFOIL="node $PWD/dist/cli.js" bash "$d/run.sh"; done` — each exit 0:
+`01-first-project` "OK: first project: init → add → submit → approve"; `02-custom-memory-type` "OK:
+custom type: draft → ready → in-progress → done"; `03-directives-per-role` "OK: directives: create →
+assign → list → unassign → remove"; `04-mcp-server` "OK: MCP server: resources, templates, role
+prompts, a Memory read"; `05-ci-json-exit-codes` "OK: CI: json output, exit codes 0/1/2, a
+pending-approval gate".
+
+**S3 — `mcp-registration`: PASS (first run as a release gate).** `npm run -s check:mcp` → exit 0,
+`.mcp.json "wingfoil" runs the pinned wingfoil 0.2.1, advertising [prompts, resources] (prompts: 8,
+resources: 2)`. `.mcp.json` → `node node_modules/wingfoil-released/dist/cli.js mcp`; `package.json`
+pins `"wingfoil-released": "npm:wingfoil@0.2.1"`.
+
+**S4 — repository gates: all green.** `npx tsc --noEmit` exit 0; `npx jest --coverage` → 160 suites /
+2624 tests passed, exit 0 (the `coverageThreshold.global` 80% gate is enforced by that exit); `npm run
+lint` exit 0; `npm run docs:api` exit 0; `npm run check:lockfile` exit 0; `npm pack --dry-run` →
+`total files: 339` (= `cb7e8b1c`). `bug-167` did not fire. `git status --porcelain` empty afterwards.
+
+**S5 — findings: none.** No element filed by this phase.
+
+**S6 — gate report (qa): PASS.** Every check of the four phases passed; the known smoke gaps are
+`bug-132..134` (`triaged`, unscheduled). Posture: pending the approver's D1 ruling — under either
+option the run passes, so the posture decides only what a future v0.2.x run would do. Awaiting the
+approver's `gate` approval.
