@@ -83,7 +83,7 @@ read, not skipped (`retrospective-rel-v0.2-plan` §6.8 step 1). This closes `bug
 ### red (developer)
 
 - Tests appended to `test/memory/audit.test.ts` (describe `… both arrow forms, and brackets that parse
-  in neither (task-109)`), 15 cases. `npx jest test/memory/audit.test.ts --verbose` before any code
+  in neither (task-109)`), 14 cases. `npx jest test/memory/audit.test.ts --verbose` before any code
   change: **8 failed, 39 passed** (47 in the file). The 8 reds are exactly the red-first rows: the
   `->` mismatch and no-space rows (AC1), the `->` multi-hop row (AC1 applied to AC4's shape), the four
   unparseable shapes and the `kind` discriminant (AC3).
@@ -105,3 +105,51 @@ read, not skipped (`retrospective-rel-v0.2-plan` §6.8 step 1). This closes `bug
 - `npx jest test/memory/audit.test.ts` → **47 passed, 47 total**.
 - No history subject is rewritten (Implementation Notes); the change is the regex and its one
   consumer.
+
+### refactor (developer)
+
+- No code change beyond green, so no `refactor(...)` commit.
+- Gates, run in this worktree at `f5d4ea72`: `npx jest --coverage` → **149 suites, 2432 tests
+  passed** (baseline at `9b0d605c`, the same command: 149 suites, 2418 tests; +14 = the new cases);
+  `npm run lint` → exit 0; `npm run docs:api` → exit 0; `npx tsc --noEmit` → exit 0.
+- Coverage, `npx jest --coverage --coverageReporters=json-summary`, before → after:
+  statements 98.58% (3282/3329) → 98.58% (3285/3332); branches 94.03% (1718/1827) → 94.04%
+  (1720/1829); functions 98.94% (563/569) → 98.94% (563/569); lines 99.41% (2904/2921) → 99.41%
+  (2908/2925). `src/memory/audit.ts` alone: lines 100% → 100% (62 → 66), branches 64.7% (22/34) →
+  66.66% (24/36). Not regressing.
+- **Measurement (Implementation Notes).** Over the `wf(` subjects of `git log --format=%s 2e1190a4`
+  (the branch base; 1177 subjects), classified with the old and the new `BRACKET_RE` and the new
+  `wf(`-with-bracket guard by a throwaway `node` script applying exactly those three regexes:
+  - 794 subjects carry a bracket character.
+  - parsed by the old regex (`→` only): **622**; parsed by the new one: **791** — **169** newly
+    parsed, all ASCII.
+  - reported as unparseable now: **3**, all hand-written `sync` subjects whose trailing bracket has
+    no from-state (`[-> release cleared, wontfix]`, `… and bug-092 [-> release v0.2]`,
+    `… and bug-087, bug-088 [-> planned, v0.3]`); before, silently skipped.
+  - Cross-check with grep: `git log --format=%s 2e1190a4 | grep '^wf(' | grep -c -- '->\s*[^]]*\]\s*$'`
+    → **172** ASCII-terminated subjects (= 169 + 3), and the same with `→` → **622**.
+  - These are subject counts over the whole history; `verifyTransitionConsistency` sees, per file,
+    only the commits touching that file. No subject was rewritten.
+  - `bug-137`'s own figures (198 `->` vs 430 `→`, range `20e8271..a20b346c`) count arrow
+    *occurrences*, so multi-hop and multi-bracket subjects count more than once; they are not the
+    same unit as the 172/622 subjects above.
+
+### review (reviewer)
+
+- Unit + BDD acceptance: the P1.2 / P1.10 scenarios (`P1.2-versioning-audit-trail.feature`,
+  `P1.10-memory-history.feature`) are encoded as Jest suites, so `npm test` runs them. Targeted run:
+  `npx jest test/memory/versioning-audit-trail.test.ts test/memory/history.test.ts test/core/memory-history.test.ts test/memory/audit.test.ts test/core/memory-approve.test.ts test/memory/history-rename-path.test.ts test/memory/commit-message.test.ts`
+  → **7 suites, 100 tests passed**; the full suite is the refactor run above.
+- AC1 — `->` rows of the mismatch, no-space and multi-hop tests: same declared states as `→`.
+  AC2 — `→` rows unchanged, plus the pre-existing `verifyTransitionConsistency` tests at lines
+  372–414 still pass. AC3 — four unparseable shapes reported with `kind: 'unparseable'`, `sha`,
+  `subject`; the prose `docs(self):` subject is not. AC4 — multi-hop pinned in both arrow forms.
+  AC5 — refactor gates above.
+- **Findings for the approver (not fixed here, out of this task's ACs):**
+  1. *Multi-hop brackets always read as drift.* AC4 pins today's reading, under which
+     `[in-review → resolved → closed]` declares `to: 'resolved → closed'`, a string no frontmatter
+     can hold — every such commit is a mismatch. `git log --format=%s 2e1190a4 | grep '^wf(' | grep -cP '\[[^][]*(→|->)[^][]*(→|->)[^][]*\]'`
+     → **40** subjects. Whether a multi-hop bracket is legal grammar belongs with `dl-079`
+     (`in-discussion`).
+  2. The Description's claim that `memory history` skips ASCII transitions does not hold (see
+     design); `bug-137`'s own scope (the audit's consistency check) is the correct one.
