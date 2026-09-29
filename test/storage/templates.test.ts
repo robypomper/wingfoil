@@ -340,9 +340,9 @@ describe('scaffolded dna.yaml shows the technology {name, category} shape (task-
     const lines = text.split('\n');
     const head = lines.indexOf(EXAMPLE_HEAD);
     expect(head).toBeGreaterThanOrEqual(0);
-    const block = [lines[head]];
-    for (let i = head + 1; i < lines.length && lines[i].startsWith('  #   '); i++) block.push(lines[i]);
-    return block;
+    const rest = lines.slice(head + 1);
+    const end = rest.findIndex((l) => !l.startsWith('  #   '));
+    return [EXAMPLE_HEAD, ...(end === -1 ? rest : rest.slice(0, end))];
   }
 
   /** Writes `text` as `<tmp>/.wingfoil/dna.yaml` and loads it with the real loader. */
