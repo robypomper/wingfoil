@@ -2,7 +2,7 @@
 id: release-publishing-rel-v0.2.2-plan
 type: plan
 title: "Release-publishing — v0.2.2 (bump, rehearse, tag, stage on npm, approve, mark released)"
-status: active
+status: done
 version: "1.3"
 workflow: "release-publishing"
 phase: "rel-v0.2.2"
