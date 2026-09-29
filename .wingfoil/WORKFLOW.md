@@ -150,7 +150,7 @@ flowchart TD
     P3["**seed-adrs** *(architect)* · **OPTIONAL**\nmemory.add(type: adr)\ndraft → pending → accepted\n✔ P4.12: [title, sard_ref]\n`docs/04_memory/design/adrs/{id}.md`"]
     SC3{{"Stop-Check\nSARD ref present · Context/Decision/Consequences\nall ADRs status: accepted"}}
 
-    P4["**seed-dls** *(architect)* · **OPTIONAL**\nmemory.add(type: decision-log)\ndraft → pending → approved\n✔ P4.12: [title]\n`docs/04_memory/design/dls/{id}.md`"]
+    P4["**seed-dls** *(architect)* · **OPTIONAL**\nmemory.add(type: decision-log)\ndraft → in-discussion → ready\n✔ P4.12: [title]\n`docs/04_memory/design/dls/{id}.md`"]
     SC4{{"Stop-Check\nContext/Decision/Consequences\nall DLs status: approved"}}
 
     P5["**seed-specs** *(architect)* · **OPTIONAL**\nagent.survey_specs (this release-line) → memory.add(type: tech-spec)\ndraft → pending → approved\n✔ P4.12: [title, scope]\n`docs/04_memory/design/specs/{id}.md`"]
@@ -280,7 +280,7 @@ flowchart LR
 
     subgraph DLI["decision-log-ingest"]
         direction TB
-        D1["**capture** *(product-owner)*\nmemory.add(type: decision-log)\nmemory.submit\n✔ P4.12: [title]\ndraft → pending"]
+        D1["**capture** *(product-owner)*\nmemory.add(type: decision-log)\nmemory.submit\n✔ P4.12: [title]\ndraft → in-discussion"]
     end
 
     subgraph AI["adr-ingest"]
@@ -372,9 +372,8 @@ stateDiagram-v2
     [*] --> draft
     draft --> pending : memory.submit
     pending --> accepted : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    accepted --> superseded : memory.deprecate (superseded by later ADR)
+    pending --> draft : memory.reject
+    accepted --> superseded : waiting (a later ADR's supersedes:, no CLI verb)
     accepted --> deprecated : memory.deprecate
     superseded --> deprecated : memory.deprecate
 ```
@@ -387,24 +386,24 @@ stateDiagram-v2
     [*] --> draft
     draft --> pending : memory.submit
     pending --> approved : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    approved --> superseded : memory.deprecate (superseded by a later spec)
+    pending --> draft : memory.reject
+    approved --> superseded : waiting (a later spec's supersedes:, no CLI verb)
     approved --> deprecated : memory.deprecate
     superseded --> deprecated : memory.deprecate
 ```
 
-### Decision Log  *(uses default machine)*
+### Decision Log  *(own machine — `dl-012` as reduced by `dl-017`)*
 
 ```mermaid
 stateDiagram-v2
     direction LR
     [*] --> draft
-    draft --> pending : memory.submit
-    pending --> approved : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    approved --> deprecated : memory.deprecate
+    draft --> in_discussion : memory.submit
+    in_discussion --> ready : memory.approve
+    in_discussion --> draft : memory.reject
+    ready --> deprecated : memory.deprecate
+
+    in_discussion : in-discussion
 ```
 
 ### Bug
