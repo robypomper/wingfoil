@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -134,6 +134,7 @@ deleted.
 | `task-120` | `bug-128` |
 | `task-122` | `bug-021` |
 | `task-123` | `bug-156` |
+| `task-124` | `bug-159` (absorbed at review, `dl-045`) |
 
 Each bug has exactly one task, so the aggregate rule is 1:1. The bug's `status` changes in its own
 commit, right after the task's transition and on the task branch:
@@ -156,5 +157,5 @@ commit, right after the task's transition and on the task branch:
   `task-116`. The reject of `bug-092` after `task-114`. 
 - **Agent:** start → review for each task in wave order, and the `done` mechanics (merge, worktree
   cleanup, bug sync) once the approver has ruled. It never approves.
-- **Completion criteria:** the 16 tasks `done` and merged into `main`; their ten linked bugs
+- **Completion criteria:** the 16 tasks `done` and merged into `main`; their eleven linked bugs
   `closed`; `npm test` green with coverage > 80%; this plan `active → done`. Next phase: `user-docs`.

@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -52,6 +52,7 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
 | `bug-162-task-counter-restarts-per-release` | `task-123` review (2026-09-29, approver: bug) | the `{n}` counter only counts the type's folder; a task's folder is per release, so each release restarts at `task-001` | medium |
 | `bug-163-release-line-folder-and-field-disagree` | `task-123` review (2026-09-29, approver: bug) | releases sit under `planning/rl-v1/` but carry `release-line: "v1"`; no `--set` value matches both | medium |
 | `bug-165-illegal-approve-names-a-wrong-target` | `task-114` review (2026-09-29, approver: bug) | the illegal-transition error prints the verb's canonical edge (`planned -> triaged` for `approve` on a `planned` bug), a backward or unreachable move | low |
+| `bug-166-release-field-means-two-things-on-a-service` | `task-124` review (2026-09-29, approver: bug) | a `service`'s `release` means "set up in", while `traceability` gives `release` the uniform meaning "assigned to" | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -116,3 +117,9 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
   returned (`42b50a07` add, `e13512b0` submit), one file per commit. It was reproduced first on a
   throwaway clone with `dist/cli.js`. Duplicate search: `dl-032` and `dl-053` ratified the current
   rule and are cited in the bug. No bug covers it.
+- **Triage and closures (2026-09-29):** `bug-165` → `triaged`, v0.3 (`07a983ab`). `bug-159` was absorbed into
+  `task-124` (`dl-045`) and closed with it, with `release` moved to v0.2.2, because that task's
+  `spec-011` revision rewrote the tree.
+- **Batch 7, `task-124` review (2026-09-29).** `bug-166`, as returned by the pinned build's
+  `memory add` (`0c5395a3`), then `memory submit` (`c3074e88`). Duplicate search: `grep -rln
+  "set_up_in\|release.*service"` over `bugs/` and `dls/` → only `dl-088`, which introduced the field.
