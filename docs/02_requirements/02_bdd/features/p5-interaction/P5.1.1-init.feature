@@ -20,4 +20,4 @@ Feature: P5.1.1 (US-0A-06) - wingfoil init
     Given a ".wingfoil/" structure already exists
     When I run "wingfoil init"
     Then nothing is overwritten
-    And the command exits with code 1 and message "WingFoil already initialized (use a migration command to change config)"
+    And the command exits with code 1 and message "WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)"
