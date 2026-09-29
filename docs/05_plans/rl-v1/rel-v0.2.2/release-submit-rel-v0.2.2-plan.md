@@ -271,7 +271,10 @@ during a blocking npm step is honoured late).
   `65923465` as `from: in-development`, `to: releasing`, `operation: null`. The null is expected:
   `enter-releasing` is not one of the declared verbs (`dl-079`), and the bracket carries the edge.
 
-### S3 — `approve-release`: pending
+### S3 — `approve-release`: approved
 
-The approver's gate. It will be recorded as this plan's `finalize [active → done]` commit with the
-approver's `Approver:` line.
+Roberto approved the release in chat on 2026-09-29. The approval changes no state; `patch-v0.2.2`
+stays `releasing` until publishing's `mark-released`. It is recorded as this plan's
+`finalize [active → done]` commit, which carries the approver's `Approver:` line and `Reason:`, and
+the branch is then merged `--no-ff` into `main`. Next: `release-publishing` for v0.2.2, starting from
+the carry-over table above.
