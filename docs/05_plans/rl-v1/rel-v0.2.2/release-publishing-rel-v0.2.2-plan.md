@@ -295,3 +295,26 @@ exit 0, `npm view wingfoil@0.2.2 version` → `E404`. Handed the tag to the appr
   (`bug-162`, `triaged`, v0.3).
 - S3 gains the no-identity suite run above. After `task-125` merges: re-run S3 on the new `main`
   (the release commit `b1cd5db2` is unchanged), then the approver re-tags.
+
+### The fix — `task-125`, and S3 again on `main` `54c18851`
+
+- `bug-172` triaged by the approver (`f5ec8852`); `bug-ingest-rel-v0.2.2-publish-gate-findings-plan`
+  `done` (`cc5a6a1a`).
+- `task-125` approved to `backlog` (`d8ab932e`), then run through dev-loop: red `aae09854`, green
+  `5adfee17`.
+- An independent review agent, run at the approver's request, raised 6 findings; all were fixed in-task
+  (`7b7cc40a`, `a422a4e3` — the latter a code addendum on `dl-064`).
+- Approved (`45b576d0`), `done` (`49336314`), `bug-172` `closed` (`922f50e9`), merged `--no-ff` as
+  `54c18851`.
+- S3 on `54c18851` (this branch fast-forwarded to it), all exit 0:
+
+  | Command | Result |
+  |---|---|
+  | `npm ci`; `node scripts/check-release-tag.cjs v0.2.2`; `npm run -s check:lockfile` | 0; "matches … and so do server.json and its packages"; 0 |
+  | `npx jest --coverage` | 161 suites / 2639 tests; 98.68 / 94.29 / 93.84 / 99.47 |
+  | both `tsc`, `lint`, `docs:api`, `check:mcp` | 0 |
+  | **no-identity `npx jest`** (S3's new line) | 161 / 2639 |
+  | `npm run publish:staging` | exit 0 in 72 s; 20 `ok`; "staged wingfoil@0.2.2 and smoke passed"; nothing left on 4873 |
+
+- The old tag `v0.2.2` still points at `a1a2850b`. The approver deletes it and re-creates it on the
+  new `main`.
