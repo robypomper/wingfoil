@@ -332,3 +332,63 @@ the approver's.
 - **Agent:** S1–S8 and S10, filing findings as elements, and never approving.
 - **Completion:** both approvals given; the branch merged into `main`; `svc-001`/`svc-004` updated;
   this plan `done`. Next phase: `e2e-smoke`.
+
+---
+
+## Execution Notes
+
+**S7 (logo), done ahead of S1 on the approver's request, 2026-09-29.**
+- `424f4c93`: the assets under `docs/assets/`. The logo, the mark and both banners come from the
+  session "Wingfoil logo SVG conversion". The approver ruled the wordmark "WingFoil"; it was redrawn
+  as paths from Inter Bold / Inter Display Bold. The avatar is the mark on white (the agent's choice;
+  the approver used it).
+- `7421e969`: the logo and mark PNGs. `d21bbcd8`: `docs/assets/README.md` gets the organisation's
+  crop right.
+- The approver uploaded the avatar and the **dark** banner. Both were read back through the API and
+  recorded in `svc-001`/`svc-004` (`1a4a3252`):
+  - the social preview is identical to `wingfoil-social-preview-dark.png`, RMSE `0`;
+  - the avatar is a 370×370 crop made in GitHub's dialog.
+- `npm pack --dry-run 2>&1 | grep -c docs/assets` → `0`, with 339 files in total.
+
+**S1**, at `804c4545` (branch up to date with `main`):
+- P1 → `status: in-development`;
+- P2 → `16 done`;
+- P3 → `12 status: closed`;
+- P4 → `0.2.1`;
+- P5 → clean, on `docs/user_docs_v0.2.2`.
+
+**S2 — survey.**
+- **Command surface.** `node dist/cli.js --help` and `<group> --help` list 20 commands: `init`,
+  `mcp`, `paths`, `dna show|set|add|update|remove`,
+  `memory add|submit|approve|reject|deprecate|history|search`, `directive create|assign|remove`,
+  `directives list`, `workflow list`. This matches the README's *CLI at a glance* table and
+  `CLAUDE.md` §1. The cli-reference completeness gate is green (`npx jest test/docs` → 2 suites,
+  4 tests).
+- **Stale version.** `grep -rn '0\.2\.1'` over the user docs found the release named as 0.2.1 in
+  user-guide (5), cli-reference (3), examples/README (1), agents.md (5) and README (2). The one
+  legitimate hit left is the README's 0.2 row, `wingfoil@0.2.1 on npm`.
+- **Repository slug.** `grep -rn robypomper` over README, docs/*.md, examples and COLLABORATION →
+  nothing (task-116 already did it).
+- **README Quick Start.** Re-run verbatim in a throwaway repository with the dev build. Every output
+  (init, dna set/add, memory add/submit/approve, `git log -1 --format=%B`) matches the README.
+- **User guide.** §3 (`init`'s two error messages) and §11 (`dna show team.members` → exit 1;
+  `E_NOT_AT_GIT_ROOT` from a subdirectory) re-run and confirmed. The one stale limitation was
+  "`--help` is terse", fixed by task-120.
+- **Correction to §3 of this plan.** The `service` type and the bug decline edges exist only in
+  *this repository's* `.wingfoil/memory.yaml`. `init --template Scrum` installs templates for
+  adr/bug/decision-log/release/release-line/task/tech-spec, and a bug type with no machine
+  (`grep -A6 '^  bug:'` on the scaffolded `memory.yaml`). So they go in the CHANGELOG's
+  contributor group, not in the user guide.
+
+**S3.** `WINGFOIL="node $PWD/dist/cli.js" bash docs/examples/0*/run.sh` → all five exit `0`.
+
+**S4–S6 (`6dea5c03`).**
+- CHANGELOG `[0.2.2] - Unreleased`: its 15 task ids and 11 bug ids are all `done`/`closed`.
+- Two claims were checked against the pinned 0.2.1:
+  - the slug change: 0.2.1 gives `task-001-v0-2-prep` and 0.2.2 gives `task-s1-001-v0.2-prep`;
+  - the missing-token message: exit 1.
+- The docs name 0.2.2. The README carries the mark and "status in 0.2.2", and its 0.2.2 row reads
+  "🔄 Being released", as the 0.2 row did at the same point in v0.2 (`git show 8e5c14f4:README.md`).
+- **`docs/agents.md`** is in no `produces:` (the approver's ruling at v0.2). Its five "0.2.1" lines
+  are the same class of drift as the user guide's, so they were fixed in the same commit. The
+  approver confirms or reverts this at S9.
