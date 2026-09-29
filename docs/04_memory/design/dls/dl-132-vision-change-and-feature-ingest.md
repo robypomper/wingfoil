@@ -2,7 +2,7 @@
 id: dl-132-vision-change-and-feature-ingest
 type: decision-log
 title: "After inception the vision can only be changed by hand and a new feature has no way in; one vision-change process, with a feature ingest as its special case, records the change as a Memory element, analyses its impact along the traceability chain, downcasts only the delta and ends with the change assigned to a release"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
