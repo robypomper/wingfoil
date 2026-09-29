@@ -4,6 +4,10 @@
  * skeleton and deferred the full spec-011 layout (roles.yaml, the `built-in`/`custom` splits,
  * `memory/templates/`) here; these tests pin that full layout + its determinism (REQ-SYS-07).
  */
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 import { load as loadYaml } from 'js-yaml';
 
 import {
@@ -19,6 +23,7 @@ import type { ScaffoldFile } from '../../src/storage/layout';
 import { extractFrontmatter } from '../../src/storage/frontmatter';
 import { DirectiveFrontmatter } from '../../src/directives/schema';
 import { DnaYaml } from '../../src/dna/schema';
+import { loadDnaYaml } from '../../src/core/loaders';
 import { MemoryYaml } from '../../src/memory/schema';
 import { DEPRECATED_STATE, resolveStateMachine, resolveTypeTransition } from '../../src/memory/state-machine';
 
@@ -301,6 +306,82 @@ describe('templateScaffold directive output satisfies the real DirectiveFrontmat
       );
       const bound = [...Object.values(roles.assignments).flat(), ...roles.global];
       for (const id of bound) expect([id, scaffoldedIds.has(id)]).toEqual([id, true]);
+    });
+  }
+});
+
+/**
+ * task-118-dna-scaffold-shows-the-technology-shape (bug-139-dna-scaffold-hides-required-category) —
+ * the scaffolded `dna.yaml` wrote `stacks.technologies: []` with no hint that every entry is a
+ * `{name, category}` object whose `category` is required, so the first hand edit (`- name: X`) failed
+ * validation. The scaffold now shows the shape and a commented-out example block that, uncommented
+ * and put in place of `technologies: []` (as the scaffold's own comment says), validates through the
+ * same two-pass loader `dna show` uses (`loadDnaYaml`).
+ */
+describe('scaffolded dna.yaml shows the technology {name, category} shape (task-118, bug-139)', () => {
+  const ACTIVE_LINE = '  technologies: []';
+  const EXAMPLE_HEAD = '  # technologies:';
+
+  function dnaTextOf(def: TemplateDefinition): string {
+    return templateScaffold(def).find((f) => f.path === '.wingfoil/dna.yaml')!.content;
+  }
+
+  /** The `stacks:` block: from `stacks:` up to (exclusive) the next top-level line. */
+  function stacksBlockOf(text: string): string[] {
+    const lines = text.split('\n');
+    const start = lines.indexOf('stacks:');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = lines.findIndex((l, i) => i > start && /^\S/.test(l));
+    return lines.slice(start + 1, end === -1 ? undefined : end);
+  }
+
+  /** The commented-out example block: `  # technologies:` plus the deeper-indented comment lines after it. */
+  function exampleBlockOf(text: string): string[] {
+    const lines = text.split('\n');
+    const head = lines.indexOf(EXAMPLE_HEAD);
+    expect(head).toBeGreaterThanOrEqual(0);
+    const block = [lines[head]];
+    for (let i = head + 1; i < lines.length && lines[i].startsWith('  #   '); i++) block.push(lines[i]);
+    return block;
+  }
+
+  /** Writes `text` as `<tmp>/.wingfoil/dna.yaml` and loads it with the real loader. */
+  function loadAsProject(text: string): ReturnType<typeof loadDnaYaml> {
+    const root = mkdtempSync(join(tmpdir(), 'wf-task-118-'));
+    try {
+      mkdirSync(join(root, '.wingfoil'));
+      writeFileSync(join(root, '.wingfoil', 'dna.yaml'), text);
+      return loadDnaYaml(root);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  for (const def of TEMPLATES) {
+    it(`${def.name}: the stacks block names the shape, with category required and visible (AC 1)`, () => {
+      const stacks = stacksBlockOf(dnaTextOf(def));
+      const comments = stacks.filter((l) => l.trimStart().startsWith('#'));
+      expect(comments.some((l) => l.includes('{name, category}'))).toBe(true);
+      expect(comments.some((l) => /`category` is required/.test(l))).toBe(true);
+      expect(comments.some((l) => /^\s*#\s+category: \S/.test(l))).toBe(true);
+      expect(stacks).toContain(ACTIVE_LINE);
+    });
+
+    it(`${def.name}: the example, uncommented in place of \`technologies: []\`, validates (AC 2)`, () => {
+      const text = dnaTextOf(def);
+      const example = exampleBlockOf(text).map((l) => l.replace(/^(\s*)# /, '$1'));
+      const lines = text.split('\n');
+      const at = lines.indexOf(ACTIVE_LINE);
+      expect(at).toBeGreaterThanOrEqual(0);
+      lines.splice(at, 1, ...example);
+
+      const dna = loadAsProject(lines.join('\n'));
+      expect(dna.stacks?.technologies).toEqual([{ name: 'TypeScript', category: 'language' }]);
+    });
+
+    it(`${def.name}: the unedited scaffold loads through the real two-pass loader (AC 3)`, () => {
+      const dna = loadAsProject(dnaTextOf(def));
+      expect(dna.stacks?.technologies).toEqual([]);
     });
   }
 });
