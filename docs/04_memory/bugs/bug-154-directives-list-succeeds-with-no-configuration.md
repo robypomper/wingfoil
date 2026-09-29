@@ -2,7 +2,7 @@
 id: "bug-154-directives-list-succeeds-with-no-configuration"
 type: bug
 title: "`directives list` answers an empty listing with exit 0 in a project that has no configuration, and `--role` adds a false \"no directives assigned\" warning"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
