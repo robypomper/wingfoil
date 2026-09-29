@@ -42,9 +42,9 @@ const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) a
 
 /** The version the committed `package.json` pins, read independently of the script under test. */
 function pinFromPackageJson(): string {
-  const match = /^npm:wingfoil@(\d+\.\d+\.\d+)$/.exec(pkg.devDependencies?.['wingfoil-released'] ?? '');
-  if (match === null) throw new Error('package.json does not pin wingfoil-released exactly');
-  return match[1];
+  const version = /^npm:wingfoil@(\d+\.\d+\.\d+)$/.exec(pkg.devDependencies?.['wingfoil-released'] ?? '')?.[1];
+  if (version === undefined) throw new Error('package.json does not pin wingfoil-released exactly');
+  return version;
 }
 
 const HEALTHY_CONFIG: McpConfig = { mcpServers: { wingfoil: { command: 'node', args: [PINNED_BIN, 'mcp'] } } };
@@ -147,17 +147,20 @@ describe('scripts/check-mcp-registration.cjs — pure parts', () => {
   });
 });
 
+/** Each case below starts a real server process; under a full parallel suite that can exceed jest's 5 s. */
+const SERVER_TIMEOUT_MS = 60_000;
+
 describe('scripts/check-mcp-registration.cjs — against the real pinned build', () => {
   it('passes on this repository: the registered server is the pin and advertises the expected set', async () => {
     const result = await checkMcpRegistration(REPO_ROOT);
     expect(result).toEqual({ ok: true, message: expect.stringContaining(pinFromPackageJson()) });
-  });
+  }, SERVER_TIMEOUT_MS);
 
   it('exits 0 as `npm run check:mcp` would run it', () => {
     const run = spawnSync(process.execPath, [SCRIPT], { cwd: REPO_ROOT, encoding: 'utf-8' });
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' });
     expect(run.stdout).toContain('prompts, resources');
-  });
+  }, SERVER_TIMEOUT_MS);
 
   it('exits 1 when the pin and the registered server disagree', () => {
     const dir = mkdtempSync(join(tmpdir(), 'wf-mcpreg-'));
@@ -175,5 +178,5 @@ describe('scripts/check-mcp-registration.cjs — against the real pinned build',
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, SERVER_TIMEOUT_MS);
 });
