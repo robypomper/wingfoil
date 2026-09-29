@@ -2,10 +2,10 @@
 id: bug-161-core-index-uncovered-paths
 type: bug
 title: "`src/core/index.ts` has 8 statements and 14 branch arms that no test reaches, now visible since task-122 measures the file"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""

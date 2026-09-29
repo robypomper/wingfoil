@@ -2,10 +2,10 @@
 id: "bug-160-vision-index-document-map-and-line-ranges-are-stale"
 type: bug
 title: "`docs/01_vision/00_index.md`'s document map gives stale versions, dates and line counts for five vision documents, and its line-range navigation no longer matches the files"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""
