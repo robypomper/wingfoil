@@ -2,7 +2,7 @@
 id: svc-002-npm-organisation-wingfoilhq
 type: service
 title: "npm organisation wingfoilhq"
-status: pending
+status: active
 provider: "npmjs.com"
 kind: "account"
 owner_role: "approver"
