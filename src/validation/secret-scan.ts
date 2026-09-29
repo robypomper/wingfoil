@@ -298,12 +298,14 @@ export function isBinaryContent(buf: Buffer): boolean {
 }
 
 /**
- * Default scan-surface roots (spec-007 §1): `.wingfoil/` once `init` exists, plus the current
- * self-hosted analog (`docs/self/.wingfoil/`, `docs/self/docs/04_memory/`) "applied by analogy until
- * the tool-managed root exists". A root with no indexed files contributes nothing, so
- * {@link scanProjectSurface} is safe to call before `init` has ever run.
+ * Default scan-surface roots (spec-007 §1): `.wingfoil/` once `init` exists, plus `docs/04_memory/`,
+ * this repository's own Memory folder — spec-007 §1's self-hosted analog, which followed the
+ * configuration to the repository root in `task-111-configuration-moves-to-the-repository-root`
+ * (before it, the analog named the nested dogfooding copies of both folders). A root with no indexed
+ * files contributes nothing, so {@link scanProjectSurface} is safe to call before `init` has ever run,
+ * and on a project whose Memory lives elsewhere.
  */
-export const SCAN_SURFACE_ROOTS = ['.wingfoil', 'docs/self/.wingfoil', 'docs/self/docs/04_memory'] as const;
+export const SCAN_SURFACE_ROOTS = ['.wingfoil', 'docs/04_memory'] as const;
 
 /** Default path (root-relative) of the `security-ignore` glob list (spec-007 §3). */
 export const DEFAULT_IGNORE_FILE = '.wingfoil/security-ignore';

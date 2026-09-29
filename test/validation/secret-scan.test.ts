@@ -207,7 +207,7 @@ describe('scanProjectSurface — the REQ-SEC-08 Fit Criterion made checkable (sp
   it('scans tracked files under the configured surface roots and finds 0 blocking on clean content', () => {
     repo = makeTempGitRepo();
     writeFixtureFile(repo, '.wingfoil/dna.yaml', 'modules: [core]\n');
-    writeFixtureFile(repo, 'docs/self/.wingfoil/roles.yaml', 'developer: [code-quality]\n');
+    writeFixtureFile(repo, 'docs/04_memory/bugs/bug-001-clean.md', 'status: open\n');
     writeFixtureFile(repo, 'not-in-scope/outside.md', 'api_key: "sk_live_fake1234567890abcdef"\n');
     git(repo, ['add', '-A']);
     git(repo, ['commit', '--quiet', '-m', 'seed']);
@@ -357,8 +357,8 @@ describe('scanProjectSurface — reads the git index, not the working tree (bug-
  * matches **0** known secret patterns" — asserted against **this repository's own tracked content**,
  * not a temp fixture. Every other `scanProjectSurface` case above builds a `makeTempGitRepo()`
  * fixture and therefore only proves the scanner works on content the test itself wrote; none of them
- * would notice a real credential committed under `docs/self/docs/04_memory/` or
- * `docs/self/.wingfoil/`. This block is the standing guard that does, in the same spirit as
+ * would notice a real credential committed under `docs/04_memory/` or
+ * `.wingfoil/`. This block is the standing guard that does, in the same spirit as
  * `test/lint/lint-clean.test.ts` (ESLint over the real tree) and `test/docs/api-docs.test.ts`.
  *
  * The Fit Criterion's *first* clause ("after `init`, the built-in `security` directive is present")
@@ -461,11 +461,11 @@ describe('loadIgnoreGlobs — security-ignore file parsing (spec-007 §3)', () =
     writeFixtureFile(
       repo,
       '.wingfoil/security-ignore',
-      ['# a comment', '', '  .wingfoil/fixtures/**  ', 'docs/self/**', ''].join('\n'),
+      ['# a comment', '', '  .wingfoil/fixtures/**  ', 'docs/04_memory/drafts/**', ''].join('\n'),
     );
     expect(loadIgnoreGlobs(join(repo, '.wingfoil/security-ignore'))).toEqual([
       '.wingfoil/fixtures/**',
-      'docs/self/**',
+      'docs/04_memory/drafts/**',
     ]);
   });
 });
@@ -484,7 +484,7 @@ function writeFixtureBinaryFile(root: string, relativePath: string, content: Buf
  * actually exercise the hatch (land in `info`), or they would prove nothing.
  */
 describe('escape hatch documented in the security-secrets directive (dl-036, spec-007 §3)', () => {
-  const directivePath = 'docs/self/.wingfoil/directives/custom/security-secrets.md';
+  const directivePath = '.wingfoil/directives/custom/security-secrets.md';
   const directive = readFileSync(join(__dirname, '..', '..', directivePath), 'utf-8');
 
   it('names all three spec-007 §3 exclusions', () => {
