@@ -2,7 +2,7 @@
 id: "bug-047-engines-guard-asserts-satisfies-not-equals"
 type: bug
 title: "The engines guard task-074 specifies asserts only that our floor SATISFIES every dependency — an over-tight floor passes, and nothing states the equality half"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
 release: ""
