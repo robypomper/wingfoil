@@ -2,7 +2,7 @@
 id: "bug-093-two-more-git-calls-inherit-the-operator-stderr"
 type: bug
 title: "`findElementCreationSha` and `walkGitLogFields` call `execFileSync` without `stdio`, so git's own diagnostics still reach the operator's terminal after `bug-071` is closed"
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
 release: ""
