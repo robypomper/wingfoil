@@ -30,8 +30,10 @@ export interface CoreOption {
   readonly name: string;
   readonly required?: boolean;
   /**
-   * What `--help` says about this option. Optional and additive: an option that declares none keeps
-   * the generic `"{name} value"` text `src/cli/program.ts` has always rendered. It exists because a
+   * What `--help` says about this option. Optional in the type, so a synthetic registry need not
+   * declare it; an option that declares none is shown with no text rather than the generic
+   * `"{name} value"` placeholder rendered before task-120 (`bug-128`), and every option in
+   * `CORE_MODULES` declares one (`test/cli/help-describes-every-command.test.ts`). It exists because a
    * convention a grammar cannot show must be *stated* somewhere a user reads — `dna add|remove|update
    * --value` means the new entry's identity at a collection and the new value at a leaf
    * (`dl-081-dna-mutation-surface-shape`, task-093), which is exactly the kind of thing that otherwise
@@ -50,6 +52,16 @@ export interface CoreOption {
    * `value`, the placeholder every option declared before task-110 renders.
    */
   readonly valueName?: string;
+}
+
+/**
+ * One boolean presence flag an operation accepts (`--list`), with the text `--help` shows for it
+ * (task-120, `bug-128` — before it a flag was a bare name, rendered as the generic `"{name} flag"`).
+ */
+export interface CoreFlag {
+  readonly name: string;
+  /** What `--help` says the flag does. */
+  readonly description?: string;
 }
 
 /**
@@ -83,17 +95,15 @@ export interface CoreOperation<P = unknown, R = unknown> {
   readonly mutates: boolean;
   readonly fn: CoreFn<P, R>;
   /**
-   * Boolean CLI flag names this operation accepts beyond the global flags (spec-008-cli-grammar §2)
-   * — e.g. `['list']` for `paths`'s `--list` drill-down flag (task-028-implement-paths-category,
-   * P2.5). Additive and optional: an operation that declares none keeps exactly the bare-`{ root }`
-   * (+ generic `positional`) shape task-026 established. The bare positional argument itself is NOT
-   * declared here — it stays the single generic `[positional]` `src/cli/program.ts` registers on
-   * every command (task-026's seam, {@link ParamsContext.positional}); only extra `--{name}` flags
-   * are per-operation, since Commander rejects an unknown option so each must be registered
-   * explicitly. `src/cli/program.ts` registers one `--{name}` option per entry and threads the
-   * parsed boolean into {@link ParamsContext.flags}.
+   * Boolean CLI flags this operation accepts beyond the global flags (spec-008-cli-grammar §2) — e.g.
+   * `paths`'s `--list` (task-028-implement-paths-category, P2.5). Additive and optional: an operation
+   * that declares none keeps exactly the bare-`{ root }` shape task-026 established. The positional is
+   * declared separately ({@link positional}); only extra `--{name}` flags are listed here, since
+   * Commander rejects an unknown option so each must be registered explicitly. `src/cli/program.ts`
+   * registers one `--{name}` option per entry, described by its {@link CoreFlag.description}
+   * (task-120), and threads the parsed boolean into {@link ParamsContext.flags}.
    */
-  readonly flags?: readonly string[];
+  readonly flags?: readonly CoreFlag[];
   /**
    * Value-bearing CLI options this operation accepts beyond the global options
    * (task-020-implement-memory-add — e.g. `[{name:'type',required:true}, {name:'title',required:true},
@@ -186,9 +196,10 @@ export function deriveVerb(moduleName: string, operationName: string): string {
  * operation's own CLI-command / Tool-input-schema spec, per spec-005's own scope note) — every
  * operation registered through task-006/task-027 took a bare `{ root }`; task-028-implement-paths-category
  * is the first to need more, and does so exactly the way this interface's doc comment always
- * anticipated: a richer `buildParams`, not a registrar change. `positional` is registered
- * generically as a single `[positional]` on every derived CLI command (`src/cli/program.ts`) and
- * threaded through `command.run` into `ctx.positional`; `flags` is populated from the matching
+ * anticipated: a richer `buildParams`, not a registrar change. `positional` is the first
+ * operand of the invocation: `src/cli/program.ts` reads the operands of every derived command, whether
+ * or not its operation declares a {@link CorePositional} (which only names the operand for `--help`),
+ * and threads them through `command.run` into `ctx.positional`/`ctx.positionals`; `flags` is populated from the matching
  * operation's `CoreOperation.flags` declaration (`./registry.ts`). The MCP adapter's own mechanical,
  * zero-argument Resource/Tool registration (`src/mcp/registrar.ts`) never populates either — a
  * `buildParams` that ignores both (every `ParamsBuilder` before this task) keeps working unchanged.

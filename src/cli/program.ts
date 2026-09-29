@@ -37,7 +37,7 @@ import { join } from 'node:path';
 // Type-only; commander is ESM-only, hence the explicit resolution-mode attribute — see module doc above.
 import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
-import type { CoreModule } from '../core/registry';
+import type { CoreModule, CorePositional } from '../core/registry';
 // Direct module import, not the `../core` barrel — the same path `./registrar.ts` already uses for the
 // other two exit-code mappings (task-101; keeps this file out of the barrel's merge surface).
 import { classifyParseOutcome } from '../core/exit-code';
@@ -101,6 +101,14 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     if (termination.needsErrorLine) emitError(incompleteInvocationReason(program.args), { format: 'console' });
     exitWith(termination.exitCode);
   });
+  // How a command is listed under its parent (task-120, `bug-128`). Commander's own `subcommandTerm`
+  // renders each registered argument from the flag Commander ENFORCES, which is why every derived verb
+  // used to read `[positionals...]`; this renders the positional the operation declares instead,
+  // `<id>` when core refuses its absence and `[section]` when it does not. Installed before the first
+  // `.command()` for the same reason as the callback above: `copyInheritedSettings` copies the help
+  // configuration at registration time.
+  const declaredPositionals = new Map<Command, CorePositional>();
+  program.configureHelp({ subcommandTerm: (command) => subcommandTerm(command, declaredPositionals.get(command)) });
   // Register `-V, --version` so `wingfoil --version` prints the version and exits 0
   // (spec-008-cli-grammar §1, bug-001-cli-version-flag) — Commander handles it before any command.
   program.version(readPackageVersion());
@@ -117,13 +125,14 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // rest of this file (see the module doc).
   program
     .command('init')
-    .description('initialize WingFoil in the current git repository')
+    .description('scaffold .wingfoil/ in the current git repository and commit it')
     // bug-140: the legal values come from the template registry, the same list `--template` resolves
     // against and the missing-argument error names (./init-command.ts).
     .option(
       '--template <name>',
       `methodology template, one of: ${TEMPLATE_NAMES.join(', ')} (required without a terminal or with --no-interactive)`,
     )
+    .addHelpText('after', leafHelpFooter(`wingfoil init --template ${TEMPLATE_NAMES[0] ?? '<name>'}`))
     .action(async (localOpts: { template?: string }) => {
       const globalOpts = program.opts<{ format: string; interactive: boolean }>();
       let root: string;
@@ -149,6 +158,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   program
     .command('mcp')
     .description('start the WingFoil MCP server (read-only Resources and role Prompts) over stdio')
+    .addHelpText('after', leafHelpFooter('wingfoil mcp'))
     .action(async () => {
       const globalOpts = program.opts<{ format: string }>();
       const format = isValidFormat(globalOpts.format) ? globalOpts.format : 'console';
@@ -159,28 +169,40 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   for (const command of buildCliCommands(modules, options)) {
     const target = resolveCommandTarget(program, nounCommands, command);
 
-    // A variadic optional bare positional list (task-025-implement-dna-set's `positionals` seam,
-    // generalizing task-026's single `[positional]`) — registered on every command regardless of how
-    // many positionals its operation reads (harmless if ignored), so `dna show [section]`,
-    // `paths [category]`, `memory approve [id]` and `dna set|add|remove|update <path>` share ONE
-    // positional mechanism. Every one of them now reads at most ONE positional: `dl-082-cli-parameter-shape`
-    // states the rule the nine older commands already followed — a positional carries the identity of
-    // the command's target, an option a named attribute — and task-093 moved `dna set`'s second
-    // positional into `--value` to match. The list stays variadic so an operation can refuse an extra
-    // positional with its own message rather than have Commander refuse it with an arity error.
+    // A flat command IS its noun (`paths`), so only a nested verb's noun takes the module's own line.
+    if (command.verb && command.nounDescription !== undefined) nounCommands.get(command.noun)?.description(command.nounDescription);
+    if (command.description !== undefined) target.description(command.description);
+
+    // The operand (task-025's `positionals` seam, named by task-120). PARSING is the same for every
+    // derived command whatever it declares: Commander accepts any number of operands and core decides
+    // what to refuse, with its own message — `dl-082-cli-parameter-shape` gives each command at most
+    // ONE positional, the identity of its target, and an operation refuses an extra one itself
+    // (`dna set`'s migration message) rather than leave it to a Commander arity error. A declared
+    // positional is registered as an OPTIONAL variadic argument under its declared name: marking it
+    // required to Commander would replace core's `missing required argument: memory submit <id>` with
+    // Commander's own refusal, so required-ness is RENDERED (the usage line below, `subcommandTerm`)
+    // and never enforced here. A command that declares none registers no argument — so `--help` shows
+    // none — and allows excess arguments, which accepts exactly what the variadic list accepted.
+    if (command.positional) {
+      target.argument(`[${command.positional.name}...]`, command.positional.description);
+      declaredPositionals.set(target, command.positional);
+    } else {
+      target.allowExcessArguments(true);
+    }
     // Plus this command's own `--{flag}` options (task-028-implement-paths-category's
     // `CoreOperation.flags`, e.g. `paths`'s `--list`): Commander rejects an unknown option, so each
     // declared flag must be registered explicitly.
-    target.argument('[positionals...]', 'optional positional arguments (the command target — e.g. a section/category name, a document id, or a `dna` field path)');
-    for (const name of command.flags ?? []) {
-      target.option(`--${name}`, `${name} flag`);
+    for (const flag of command.flags ?? []) {
+      target.option(`--${flag.name}`, flag.description ?? '');
     }
     // Value-bearing `--{name} <value>` options (task-020-implement-memory-add's `memory add
     // --type/--title/--tags`): Commander rejects an unknown option, so each declared option must be
     // registered explicitly with a `<value>` operand (distinguishing it from a boolean `--flag`).
+    // `required` is rendered in the description, not enforced by Commander (`requiredOption` would
+    // replace core's refusal, exactly as for the positional above).
     for (const option of command.options ?? []) {
       const flags = `--${option.name} <${option.valueName ?? 'value'}>`;
-      const description = option.description ?? `${option.name} value`;
+      const description = [option.description, option.required === true ? '(required)' : undefined].filter(Boolean).join(' ');
       // A repeatable option (task-110, `memory add --set`) collects every occurrence in order;
       // Commander's default for a value option is last-one-wins, which would drop all but one.
       if (option.repeatable === true) {
@@ -189,18 +211,66 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
         target.option(flags, description);
       }
     }
+    target.usage(['[options]', ...positionalTerm(command.positional)].join(' '));
+    if (command.example !== undefined) target.addHelpText('after', leafHelpFooter(command.example));
 
-    // Commander's action callback for a `[positionals...]` variadic + options command is
-    // `(positionalsArray, optionsObject, commandObject)`. Forward the whole array (task-025),
-    // collapse this command's declared flags into a `{ name: boolean }` record (task-028) and its
-    // declared value options into a `{ name: value }` record (task-020) for `run`.
-    target.action(async (positionals: string[] = [], options: Record<string, unknown> = {}) => {
+    // The action reads the operands and options off the invoked command itself: Commander passes the
+    // declared argument's values first only when one is registered, so the command object — always the
+    // LAST callback argument — is the one shape both kinds of command share. Forward the operands
+    // (task-025), collapse this command's declared flags into a `{ name: boolean }` record (task-028)
+    // and its declared value options into a `{ name: value }` record (task-020) for `run`.
+    target.action(async (...actionArgs: unknown[]) => {
+      const invoked = actionArgs[actionArgs.length - 1] as Command;
       const globalOpts = program.opts<{ format: string }>();
-      await command.run(globalOpts.format, positionals, buildFlagValues(command, options), buildOptionValues(command, options));
+      const options = invoked.opts<Record<string, unknown>>();
+      await command.run(globalOpts.format, invoked.args, buildFlagValues(command, options), buildOptionValues(command, options));
     });
   }
 
   return program;
+}
+
+/**
+ * How `--help` shows a declared positional: `<name>` when the operation refuses its absence, `[name]`
+ * when it does not — one element or none, so callers can spread it into a list of terms.
+ */
+function positionalTerm(positional: CorePositional | undefined): string[] {
+  if (!positional) return [];
+  return [positional.required === true ? `<${positional.name}>` : `[${positional.name}]`];
+}
+
+/**
+ * A command's line in its parent's command list — Commander's own term (`name`, then `[options]` when
+ * it has options of its own, then its arguments), with the DECLARED positional in place of the
+ * registered variadic argument (task-120). A command with no declared positional — Commander's own
+ * `help [command]` included — keeps Commander's rendering of whatever it registered.
+ */
+function subcommandTerm(command: Command, positional: CorePositional | undefined): string {
+  const argumentTerms = positional
+    ? positionalTerm(positional)
+    : command.registeredArguments.map((argument) => {
+        const name = `${argument.name()}${argument.variadic ? '...' : ''}`;
+        return argument.required ? `<${name}>` : `[${name}]`;
+      });
+  return [command.name(), ...(command.options.length > 0 ? ['[options]'] : []), ...argumentTerms].join(' ');
+}
+
+/**
+ * The text after a command's own help (`spec-008-cli-grammar` §8, `P5.1.4-cli-ux.feature`): one example
+ * invocation, and the three exit codes of `spec-005` §1, the same for every command. Leaf commands
+ * only — a noun's help lists its verbs, and each verb carries its own.
+ */
+function leafHelpFooter(example: string): string {
+  return [
+    '',
+    'Example:',
+    `  $ ${example}`,
+    '',
+    'Exit codes:',
+    '  0  success',
+    '  1  the command line was valid, but the operation failed',
+    '  2  the command line is wrong: unknown command or option, missing or invalid argument',
+  ].join('\n');
 }
 
 /**
@@ -263,7 +333,7 @@ function buildFlagValues(
   command: CliCommand,
   options: Record<string, unknown>,
 ): Readonly<Record<string, boolean>> | undefined {
-  const flagNames = command.flags ?? [];
+  const flagNames = (command.flags ?? []).map((flag) => flag.name);
   if (flagNames.length === 0) return undefined;
   const flagValues: Record<string, boolean> = {};
   for (const name of flagNames) {

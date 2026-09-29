@@ -82,7 +82,7 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
   });
 
   // Unified seam (reconciled onto task-026's merged `ParamsContext.positional?: string`): `paths` is a
-  // flat, self-named op that declares only `flags: ['list']`; its `category` rides the SAME generic
+  // flat, self-named op that declares only a `--list` flag; its `category` rides the SAME generic
   // single bare positional `dna show`'s `section` does (no per-op positional metadata).
   const FLAT_MODULES: CoreModule[] = [
     {
@@ -91,7 +91,7 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
         paths: {
           name: 'paths',
           mutates: false,
-          flags: ['list'],
+          flags: [{ name: 'list' }],
           fn: async () => coreOk({ category: 'sources', paths: ['src/'] }),
         },
       },
@@ -102,7 +102,7 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
     const commands = buildCliCommands(FLAT_MODULES, { resolveRoot: () => '/fixture-root', buildParams: () => ({}) });
     const flat = findCommand(commands, 'paths', '');
     expect(flat.verb).toBe('');
-    expect(flat.flags).toEqual(['list']);
+    expect(flat.flags).toEqual([{ name: 'list' }]);
   });
 
   it('`listRegisteredCliCommands` renders a flat command as the bare noun, not "noun " with a trailing space', () => {

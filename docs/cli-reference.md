@@ -5,7 +5,9 @@ read the [user guide](user-guide.md); for runnable scenarios see [`examples/`](e
 
 > This reference is checked against the CLI by `test/docs/cli-reference.test.ts`: every shipped command
 > has exactly one `### wingfoil …` entry below, and no entry documents a command that does not ship.
-> `wingfoil --help` and `wingfoil <noun> --help` list the same surface.
+> `wingfoil --help` and `wingfoil <noun> --help` list the same surface. New in 0.2.2: each command's
+> `--help` opens with the first sentence of its entry, names its argument as the entry does, and shows
+> one example and the exit codes.
 
 ---
 
@@ -103,7 +105,8 @@ directives in `directives/built-in/` plus four starter custom directives in `dir
 
 ### `wingfoil mcp`
 
-Start the WingFoil MCP server over stdio. Meant to be launched by an MCP client, not typed by hand.
+Start the WingFoil MCP server (read-only Resources and role Prompts) over stdio. Meant to be launched
+by an MCP client, not typed by hand.
 
 ```
 wingfoil mcp
@@ -259,8 +262,9 @@ Print the resource paths declared in `dna.yaml` `paths:`.
 wingfoil paths [<category>] [--list]
 ```
 
-`<category>` is `sources`, `tests`, `docs`, `config` or `governance`. Without it (or with `--list`) the
-whole map is printed.
+`<category>` is `sources`, `tests`, `docs`, `config` or `governance`. Without it the whole map is
+printed. `--list` is accepted for a planned drill-down view, but in this release it does not change
+the output.
 
 ```console
 $ wingfoil paths sources

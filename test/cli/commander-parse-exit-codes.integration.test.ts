@@ -236,7 +236,9 @@ describe('AC7 — the conformant cases stay conformant (characterization)', () =
   it('a value option given without its operand is a usage error at exit 2 (commander.optionMissingArgument)', () => {
     const result = runCli('memory', 'add', '--type');
     expect(result.status).toBe(2);
-    expect(result.stderr).toContain("error: option '--type <value>' argument missing");
+    // Commander names the option by its help synopsis, so the placeholder is the declared `valueName`
+    // (`<type>` since task-120, `<value>` before it); the exit code is what this case pins.
+    expect(result.stderr).toContain("error: option '--type <type>' argument missing");
   });
 
   it('a validation / logic failure is still exit 1 — a well-formed invocation that failed', () => {
