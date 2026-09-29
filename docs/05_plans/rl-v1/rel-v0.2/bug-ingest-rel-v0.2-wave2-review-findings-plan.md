@@ -2,7 +2,7 @@
 id: "bug-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2 Wave 2 review findings (defects on main)"
-status: active
+status: done
 version: "1.2"
 workflow: "bug-ingest"
 phase: "rel-v0.2-wave2-review-findings"

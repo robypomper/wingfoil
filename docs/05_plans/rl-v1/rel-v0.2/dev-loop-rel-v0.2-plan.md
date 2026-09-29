@@ -2,7 +2,7 @@
 id: "dev-loop-rel-v0.2-plan"
 type: plan
 title: "Dev-loop — v0.2 (Project Directives + role-based context + publishing pipeline)"
-status: active
+status: done
 version: "1.2"
 workflow: "dev-loop"
 phase: "rel-v0.2"

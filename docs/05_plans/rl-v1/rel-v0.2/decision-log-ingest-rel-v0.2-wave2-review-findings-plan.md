@@ -2,7 +2,7 @@
 id: "decision-log-ingest-rel-v0.2-wave2-review-findings-plan"
 type: plan
 title: "Decision-log ingest — v0.2 Wave 2 review findings (spec-level conflicts)"
-status: active
+status: done
 version: "1.2"
 workflow: "decision-log-ingest"
 phase: "rel-v0.2-wave2-review-findings"
