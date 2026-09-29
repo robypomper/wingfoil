@@ -2,7 +2,7 @@
 id: "dl-097-claim-evidence-needs-an-enforcement-point"
 type: decision-log
 title: "Unverified claims kept reaching review after the rule reached agents: `claim-evidence` gains a falsifiability clause for absence claims, and the rule gains an enforcement point"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
