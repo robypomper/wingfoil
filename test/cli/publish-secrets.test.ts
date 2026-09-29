@@ -218,9 +218,16 @@ describe('release authorization and rollback — spec-015 §5, adr-006, adr-011'
 
   /**
    * AC 5 — the registry-side steps, in the order the approver must take them. Each needle is a phrase
-   * the runbook states; the order of their first occurrence is the order of the steps.
+   * the runbook states; the order of their first occurrence *inside the runbook block* (from its
+   * heading to the rollback paragraph — the header names the trusted publisher earlier too) is the
+   * order of the steps.
    */
   it('states the registry-side runbook steps in their order (task-113 AC 5, adr-011 point 5)', () => {
+    const from = raw.indexOf('Approver runbook');
+    const to = raw.indexOf('Rollback posture');
+    expect(from).toBeGreaterThanOrEqual(0);
+    expect(to).toBeGreaterThan(from);
+    const runbook = raw.slice(from, to);
     const steps = [
       /two-factor authentication \(2FA\) on the approver's npm account/i,
       /trusted publisher/i,
@@ -231,11 +238,11 @@ describe('release authorization and rollback — spec-015 §5, adr-006, adr-011'
       /npm stage view/,
       /npm stage approve/,
     ];
-    const at = steps.map((re) => raw.search(re));
+    const at = steps.map((re) => runbook.search(re));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
-    expect(raw).toMatch(/stag(e|ing) only|stage-only/i);
-    expect(raw).toContain('task-116');
+    expect(runbook).toMatch(/permission limited to staging/i);
+    expect(runbook).toContain('task-116');
   });
 
   it('documents rollback as npm deprecate + a patch release, not npm unpublish', () => {
