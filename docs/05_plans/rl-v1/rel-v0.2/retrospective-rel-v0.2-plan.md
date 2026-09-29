@@ -3,7 +3,7 @@ id: "retrospective-rel-v0.2-plan"
 type: plan
 title: "Retrospective — rel-v0.2"
 status: active
-version: "1.16"
+version: "1.17"
 workflow: "retrospective"
 phase: "rel-v0.2"
 element: "minor-v0.2"
@@ -153,6 +153,17 @@ approved. The approver's rulings at and after the gate:
   - the spec-007 scan has 0 blocking findings, and the scan was positive-controlled.
 
 Next: the approver's `approve` gate.
+
+**Revision 1.17 (2026-09-29).** The `approve` gate is done.
+
+- **`retro-v0.2`:** `in-discussion → ready` (`8ab38168`). Before approval, `dl-107` and `dl-123`
+  were moved to v0.2.2 (`88d7ef55`, `42a52542`).
+- **43 decision-logs** ratified with their recommended options, one commit each: `dl-087`…`dl-090`
+  and `dl-092`…`dl-130`.
+- **`dl-091`** stays `in-discussion`. Its facts and confirmations arrive during v0.2.2 planning.
+- **17 bugs** moved `open → triaged` in two commits (`3c0e9ba2`, `a8ed2d32`).
+
+Next: close-out.
 
 ---
 
