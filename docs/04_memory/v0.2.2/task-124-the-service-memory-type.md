@@ -2,7 +2,7 @@
 id: "task-124-the-service-memory-type"
 type: task
 title: "A `service` Memory type records the state WingFoil depends on outside the repository, with its ingest workflow and the first services registered"
-status: in-progress
+status: in-review
 release: "v0.2.2"
 priority: "medium"
 tags: ["v0.2.2", "memory", "config", "service", "operations"]
