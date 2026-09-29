@@ -2,7 +2,7 @@
 id: "dl-115-retrospective-notes-written-during-the-release"
 type: decision-log
 title: "Retrospective input is reconstructed after the release — write it during the release in a marked section, and give every proposal from a secondary source an explicit disposition before a gate"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
