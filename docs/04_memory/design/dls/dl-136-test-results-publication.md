@@ -2,7 +2,7 @@
 id: dl-136-test-results-publication
 type: decision-log
 title: "A release publishes a tarball and keeps no test results or coverage, so its quality claims cannot be checked afterwards — every release publishes the results of each suite and the coverage, produced by the CI run on the tag"
-status: in-discussion
+status: ready
 context: "planning"
 release: "v0.3"
 contributor: ""
