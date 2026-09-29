@@ -5,7 +5,7 @@ title: "collectCoverageFrom hides src/core/index.ts, which holds real core-opera
 status: triaged
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.2.2"
 feature: ""
 contributor: ""
 credit: ""
