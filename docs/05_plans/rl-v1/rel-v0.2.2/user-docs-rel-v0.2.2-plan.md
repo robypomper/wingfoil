@@ -392,3 +392,19 @@ the approver's.
 - **`docs/agents.md`** is in no `produces:` (the approver's ruling at v0.2). Its five "0.2.1" lines
   are the same class of drift as the user guide's, so they were fixed in the same commit. The
   approver confirms or reverts this at S9.
+
+**`docs/agents.md`.** The approver confirmed the S4–S6 alignment on 2026-09-29.
+
+**S8 — gates**, on `03ea7db7`. All exit `0`:
+- `npx tsc --noEmit`;
+- `npx jest --coverage` → 160 suites / 2624 tests, coverage 98.63 / 94.2 / 93.84 / 99.47;
+- `npm run lint`, `npm run docs:api`, `npm run check:lockfile`, `npm run check:mcp`;
+- `npm pack --dry-run` → 339 files, none under `docs/assets`.
+
+**External identities (the approver asked, 2026-09-29).** The nine `svc-*` elements cover every
+identity that exists today. The MCP Registry listing does **not** exist yet:
+`curl -s 'https://registry.modelcontextprotocol.io/v0/servers?search=wingfoil'` →
+`{"servers":[],"metadata":{"count":0}}`. `dl-093`'s last Action already requires a `service` for it
+once published. The first publish belongs to the approver at `release-publishing` (`dl-093` point 6,
+`dl-130`). That phase's plan must add the service element and, if they are claimed, the directory
+entries too.
