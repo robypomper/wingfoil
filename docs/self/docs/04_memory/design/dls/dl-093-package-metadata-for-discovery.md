@@ -2,7 +2,7 @@
 id: "dl-093-package-metadata-for-discovery"
 type: decision-log
 title: "The published package carries no discovery metadata (keywords, description, `mcpName`, `server.json`), and nothing keeps it in sync with the version"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
