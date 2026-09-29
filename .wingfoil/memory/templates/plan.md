@@ -14,7 +14,10 @@ tmpl_version: 260703   # Orignal template version
 ## Context
 
 <!-- Why this phase runs now, its preconditions, and what it produces. Keep coherent with the
-     workflow definition's phases / roles / actions / produces / checks (dl-019). -->
+     workflow definition's phases / roles / actions / produces / checks (dl-019).
+     Every plan's preconditions include that the build in use is the pinned one (dl-095):
+     `npm run -s wingfoil -- --version` prints the version package.json pins for
+     `wingfoil-released`. -->
 
 ## Phases / Steps
 

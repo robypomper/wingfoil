@@ -36,6 +36,9 @@ middle of it (§3).
   operation is done by hand in the `wf({type}): {verb} {ids}` format until `task-111` lands (§3).
 - Local toolchain: Node 22.21.0, npm 11.6.2 (`node -v`, `npm -v`). `act` is not installed
   (`which act` → nothing), which bounds `task-113` AC 8.
+- From `task-112` on, the build in use is the pinned one (`dl-095`): `npm run -s wingfoil --
+  --version` prints the version `npm pkg get devDependencies.wingfoil-released` pins. Not
+  `npx wingfoil`: once `dist/` is built it runs this repository's own CLI.
 
 **Produces.** The 14 tasks `backlog → done`; their linked bugs `planned → … → closed` through
 `bug.sync_state` (§4); code and tests under `src/` and `test/` with coverage > 80% and not
