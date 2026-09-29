@@ -2,7 +2,7 @@
 id: "dl-106-memory-writes-on-a-dirty-tree"
 type: decision-log
 title: "`memory submit` sweeps uncommitted edits of the element into a commit whose subject names only the transition; a safe-write contract (declared content, dry run, target branch) for the CLI and any future writer"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
