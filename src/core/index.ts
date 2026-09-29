@@ -40,12 +40,14 @@ import { commitPaths, documentExists, readDocument, removeDocument, StorageError
 // run task-092's absence guard on it.
 import { resolveConfinedMemoryPath } from '../storage/memory-path';
 import {
+  expandFieldTokens,
   findMemoryDocumentById,
   formatMemoryCommitMessage,
   hasNumericToken,
   isArchivedStatus,
   missingRequiredFields,
   nextSequenceNumber,
+  parseSetOptions,
   parseTags,
   reconstructMemoryTransitions,
   renderAddDocument,
@@ -56,8 +58,10 @@ import {
   searchMemoryDocuments,
   setFrontmatterField,
   slugifyTitle,
+  unknownSetNames,
   validateSearchQuery,
   writeMemoryEntry,
+  writtenFields,
 } from '../memory';
 
 import {
@@ -580,13 +584,20 @@ const DNA_ENTRY_OPTIONS: readonly CoreOption[] = dnaEntryOptionNames().map((fiel
 /**
  * `wingfoil memory add` params (P1.3, task-020-implement-memory-add) — the FIRST Memory-document
  * mutation. `options` is the value-bearing-option seam this task establishes
- * (`ParamsContext.options`, `core/registry.ts`), read as `--type`/`--title`/`--tags`. The MCP surface
- * never populates it (task-030 wires the Tool input schema); a call with no options simply has all
- * three absent, which the required checks below reject as usage errors.
+ * (`ParamsContext.options`, `core/registry.ts`), read as `--type`/`--title`/`--tags` and the repeatable
+ * `--set <name>=<value>` (task-110, `spec-008-cli-grammar` §10), which arrives as a string array. The
+ * MCP surface never populates it (task-030 wires the Tool input schema); a call with no options simply
+ * has all of them absent, which the required checks below reject as usage errors.
  */
 export interface MemoryAddParams {
   readonly root: string;
-  readonly options?: Readonly<Record<string, string>>;
+  readonly options?: Readonly<Record<string, string | readonly string[]>>;
+}
+
+/** A single-valued option of {@link MemoryAddParams.options}: a repeated occurrence keeps the last. */
+function singleOption(options: MemoryAddParams['options'], name: string): string | undefined {
+  const value = options?.[name];
+  return typeof value === 'string' || value === undefined ? value : value[value.length - 1];
 }
 
 /**
@@ -599,7 +610,8 @@ export interface MemoryAddParams {
  * 2. **Argument validation** — a missing `--type`/`--title` is a usage error: `throw new UsageError`
  *    → exit **2** with the exact `missing required argument: --<name>` message
  *    (spec-008-cli-grammar §5, mapped by `exitCodeForThrow`), same classification as `dna set`'s
- *    missing positional.
+ *    missing positional. So is every spelling fault of `--set` (`spec-008` §10: no `=`, a name that
+ *    is not a field name, a reserved name, a blank value, a name given twice — task-110).
  * 3. **Resolve `--type` against the `memory.yaml` committed at `HEAD`** (spec-001-memory-yaml-schema)
  *    via {@link resolveAddType} — the type registry, the type's `path` and its `template` scaffold
  *    all resolve against the repository as committed, never against the working tree (task-095,
@@ -608,13 +620,17 @@ export interface MemoryAddParams {
  *    domain `NOT_FOUND` (exit 1) with the exact P1.3 message
  *    `unknown memory type '<t>' (not defined in memory.yaml)`, returned BEFORE any write.
  * 4. **Generate the id** deterministically from the type's committed `id_pattern` (task-002's
- *    `generateId`, REQ-SYS-07): the `{slug}` from the title, and — only for a `{n}`-token pattern — a
- *    sequence counter over the type's directory (`src/memory/add.ts`; no wall-clock/random). That
+ *    `generateId`, REQ-SYS-07), in `spec-001`'s fixed order (task-110, `dl-107` S2): first every
+ *    frontmatter/context token from `--set` (a `--set` name the committed `id_pattern` and `path` do
+ *    not contain is refused, exit 1; a token with no value names the option that supplies it), then
+ *    the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence counter over the
+ *    type's directory, matched against the already-materialized pattern (`src/memory/add.ts`; no wall-clock/random). That
  *    counter still reads the WORKING TREE: it is `bug-087` (`release: v0.3`), a different read in
  *    this verb and deliberately not task-095's. What changed is only that the directory it counts in
  *    is now derived from the committed `path` pattern.
  * 5. **Fill the committed scaffold's bytes** with only the `id`/`status: draft`/`--title`/`--tags`
- *    skeleton (P1.3; spec-010-memory-frontmatter-schema), then **write + commit** through task-022's
+ *    skeleton (P1.3; spec-010-memory-frontmatter-schema) plus the `--set` fields (a context token only
+ *    where the scaffold declares it), then **write + commit** through task-022's
  *    confined `writeMemoryEntry` (REQ-SEC-06 refuse-before-write + one scoped commit
  *    `wf(<type>): add <id>`); the returned sha rides `CoreResult.commit`.
  *
@@ -629,11 +645,13 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity;
 
-  const type = options?.type;
+  const type = singleOption(options, 'type');
   if (type === undefined) throw new UsageError('missing required argument: --type');
-  const title = options?.title;
+  const title = singleOption(options, 'title');
   if (title === undefined) throw new UsageError('missing required argument: --title');
-  const tags = parseTags(options?.tags);
+  const tags = parseTags(singleOption(options, 'tags'));
+  const set = parseSetOptions(options?.set);
+  if (!set.ok) throw new UsageError(set.message);
 
   // task-095 / `bug-085`: the registry, the `path` and the scaffold all resolve at HEAD, inside a
   // function that accepts no parsed `MemoryYaml` — so this verb cannot decide any of the three from
@@ -642,12 +660,25 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
   if (!resolved.ok) return resolved;
   const { pathPattern, idPattern, scaffold } = resolved.value;
 
+  const unknown = unknownSetNames(set.values, idPattern, pathPattern);
+  if (unknown.length > 0) {
+    return coreErr({
+      code: 'VALIDATION',
+      message: unknown
+        .map((name) => `--set ${name}: memory type '${type}' has no token {${name}} in its id_pattern or path`)
+        .join('; '),
+    });
+  }
+
   try {
-    const sequence = hasNumericToken(idPattern)
-      ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern), idPattern)
+    // spec-001's order: field/context tokens → {slug} → {n}, so the counter sees the materialized prefix.
+    const materialized = expandFieldTokens(idPattern, set.values);
+    const sequence = hasNumericToken(materialized)
+      ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern, set.values), materialized)
       : 0;
-    const id = generateId(idPattern, { slug: slugifyTitle(title), n: sequence });
-    const content = renderAddDocument(scaffold, { id, title, tags });
+    const id = generateId(materialized, { slug: slugifyTitle(title), n: sequence });
+    const content = renderAddDocument(scaffold, { id, title, tags, fields: writtenFields(scaffold, set.values) });
+    const pathValues = { ...set.values, id };
     const message = `wf(${type}): add ${id}`;
 
     // dl-080 (B) / bug-078, AC3: this verb CREATES, so the rule is absence rather than cleanliness.
@@ -658,11 +689,11 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
     // `writeMemoryEntry`'s return value because the guard must run BEFORE the write; the resolution
     // is pure, so doing it twice is free of side effects and keeps that throwing storage primitive's
     // contract untouched. A confinement escape still throws `StorageError` from this same call.
-    const targetPath = relative(root, resolveConfinedMemoryPath(root, pathPattern, { id })).split(sep).join('/');
+    const targetPath = relative(root, resolveConfinedMemoryPath(root, pathPattern, pathValues)).split(sep).join('/');
     const absent = requireAbsentTarget(root, targetPath);
     if (!absent.ok) return absent;
 
-    const { path, sha } = writeMemoryEntry(root, pathPattern, { id }, content, message);
+    const { path, sha } = writeMemoryEntry(root, pathPattern, pathValues, content, message);
     const leaked = committedScopeError(root, sha, targetPath, content);
     if (leaked) return leaked;
     return coreOk({ id, path: relative(root, path) }, { sha, message });
@@ -1620,6 +1651,16 @@ export const CORE_MODULES: readonly CoreModule[] = [
           { name: 'type', required: true },
           { name: 'title', required: true },
           { name: 'tags' },
+          // task-110, `spec-008-cli-grammar` §10 (`dl-107` S2): the value of an id_pattern/path token,
+          // written into the frontmatter field of that name. One declared option — not one derived
+          // option per field, whose first member, `--version`, is a global action flag.
+          {
+            name: 'set',
+            repeatable: true,
+            valueName: 'name=value',
+            description:
+              'fill the id_pattern/path token {name} and write the frontmatter field of that name (repeatable)',
+          },
         ],
         fn: memoryAddFn,
       },

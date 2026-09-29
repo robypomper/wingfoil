@@ -284,7 +284,7 @@ of its frontmatter. The verbs below are the only supported way to change a state
 Create a document in its type's initial state (`draft`) from the type's template.
 
 ```
-wingfoil memory add --type <type> --title <title> [--tags <t1,t2>]
+wingfoil memory add --type <type> --title <title> [--tags <t1,t2>] [--set <name>=<value> ...]
 ```
 
 ```console
@@ -295,11 +295,39 @@ $ wingfoil memory add --type task --title "My first task" --tags demo,quickstart
 }
 ```
 
-The id comes from the type's `id_pattern` (`task-{n}-{slug}`): a per-type counter plus a slug of the
-title.
+| Option | Description |
+|---|---|
+| `--type <type>` | The Memory type, as the committed `memory.yaml` declares it. Required. |
+| `--title <title>` | The document title; also the source of the `{slug}` token. Required. |
+| `--tags <t1,t2>` | Comma-separated tags, written as the `tags` list. |
+| `--set <name>=<value>` | New in 0.2.2. Repeatable. Gives the `id_pattern` or `path` token `{name}` its value and writes the frontmatter field `name`, so the id and the field agree. |
+
+The id comes from the type's `id_pattern`. For `task-{n}-{slug}` that is a per-type counter plus a
+slug of the title. The slug keeps a `.` between two letters or digits (`v0.2` stays `v0.2`); every
+other run of non-alphanumeric characters becomes one `-`.
+
+Any other token in the pattern names a frontmatter field, and you give its value with `--set`. A
+`release` type with `id_pattern: "{kind}-{version}"` and `path: "docs/04_memory/planning/{release-line}/{id}.md"`:
+
+```console
+$ wingfoil memory add --type release --title "v0.2.3" --set kind=patch --set version=v0.2.3 --set release-line=v1
+{
+  "id": "patch-v0.2.3",
+  "path": "docs/04_memory/planning/v1/patch-v0.2.3.md"
+}
+```
+
+The workflow tokens `{workflow}`, `{phase}` and `{scope}` are given the same way. They are written
+to the frontmatter only where the type's template has a field of that name.
 
 - **Commit:** `wf(<type>): add <id>`
-- **Errors:** missing `--type`/`--title` → exit `2`; type not in the committed `memory.yaml` → exit `1`.
+- **Errors:**
+  - Exit `2`: a missing `--type` or `--title`. Also a `--set` with no `=`, a name that is not a field
+    name (`[a-z][a-z0-9_-]*`, so no dots), a blank value, or the same name twice. So is a name
+    `memory add` fills itself: `id`, `type`, `status`, `title`, `tags`, `n`, `slug`, `date`, `author`.
+  - Exit `1`: a type not in the committed `memory.yaml`. Also a `--set` name the type's `id_pattern`
+    and `path` do not use, or a token left without a value
+    (`missing value for token {version}: give it with --set version=<value>`).
 
 ### `wingfoil memory submit`
 
