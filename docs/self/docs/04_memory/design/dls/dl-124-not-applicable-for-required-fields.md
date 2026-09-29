@@ -2,7 +2,7 @@
 id: "dl-124-not-applicable-for-required-fields"
 type: decision-log
 title: "A required frontmatter field cannot say \"not applicable\", so a type's rule is either weakened for everyone or satisfied with false data — declare an explicit not-applicable value per field"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
