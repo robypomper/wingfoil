@@ -2,7 +2,7 @@
 id: svc-008-claude-github-app-on-the-wingfoil-organisation
 type: service
 title: "Claude GitHub App on the wingfoil organisation"
-status: pending
+status: active
 provider: "GitHub"
 kind: "account"
 owner_role: "approver"
