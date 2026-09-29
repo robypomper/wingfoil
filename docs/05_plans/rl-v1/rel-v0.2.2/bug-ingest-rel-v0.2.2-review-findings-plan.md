@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -44,6 +44,7 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 | `bug-157-dl-107-action-1-names-a-slug-rule-spec-009-does-not-hold` | `task-110` review (2026-09-29, approver: bug) | `dl-107` Action 1 targets a slug rule `spec-009` §1 does not hold; its `spec-009` half is neither done nor void | low |
 | `bug-158-date-and-author-id-tokens-are-declared-but-not-implemented` | `task-110` review (2026-09-29, approver: bug) | `{date}`/`{author}` are in `spec-001`'s token table but not implemented; `--set` refuses them claiming the command fills them | low |
 | `bug-159-storage-layout-spec-tree-omits-three-configuration-files` | `task-111` review (2026-09-29, approver: bug) | `spec-011`'s "ground truth" tree omits `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`, `workflows/custom/e2e-smoke.yaml` | low |
+| `bug-160-vision-index-document-map-and-line-ranges-are-stale` | `task-121` review, after approval (2026-09-29, approver: should have been fixed in-task; file a bug) | `docs/01_vision/00_index.md`'s map gives stale version/date/lines for 5 documents; its `L<n>` ranges no longer match | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -82,3 +83,9 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
   defects of the same spec, not duplicates; `bug-159` names them as related. Added in `b503236d`, submitted in the
   commit after this revision. At the same review the approver had `bug-154` and `bug-035` updated to
   the new layout (`31623e1c`), with no state change.
+- **Batch 4, `task-121` review (2026-09-29).** Next free number `bug-160` (`ls docs/04_memory/bugs |
+  sort -V | tail -1` → `bug-159`; `git log --all --oneline | grep -c bug-160` → 0). Duplicate search:
+  `grep -rli "00_index" docs/04_memory/bugs` → `bug-052` only, which cites
+  `docs/02_requirements/03_sard/00_index.md`, a different index; not a duplicate. Added in `cd8f9d69`, submitted in the
+  commit after this revision. The approver noted that the index belonged in `task-121`'s own fix,
+  like the canvas table, and was not to be left for after the merge.

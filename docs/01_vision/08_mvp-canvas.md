@@ -1,7 +1,7 @@
 # MVP Canvas — WingFoil v1.0 (MVP Complete)
 
-**Version:** 1.1
-**Date:** 2026-06-24
+**Version:** 1.2
+**Date:** 2026-09-29
 **Status:** Approved
 
 ---
@@ -159,17 +159,20 @@ agents should produce substantially equivalent software.
 ### If v1.0 MVP Succeeds
 
 - Validate Determinism Index: two independent runs from same specs produce equivalent outputs
-- Gather feedback from early adopters (Weeks 1–4 post-release Aug 7)
-- Secure ≥1 real team using WingFoil in production by v0.4 milestone (achieved by Week 4 of release cycle)
+- Gather feedback from early adopters (the first four weeks after the v1.0 release; its forecast date is in
+  [`07_sequencer.md`](07_sequencer.md))
+- Secure ≥1 real team using WingFoil in production by the v0.4 milestone (budget and forecast in
+  [`07_sequencer.md`](07_sequencer.md))
 - Prioritize v1.1+ roadmap: semantic search, dashboard UI, IDE plugins, automated validation
 - Explore commercial positioning (white-label, enterprise features, SaaS model)
 
 ### If v1.0 Stalls or Fails
 
-- Reassess critical path: identify Week of slip, reduce scope for that week + subsequent weeks
+- Reassess critical path: identify the release that overran its active-day budget, reduce scope for that release +
+  subsequent releases
 - Fallback options: drop advanced features (dna infer → manual, semantic search → defer, validation → defer)
 - Pivot: focus on solo dev use case (Journeys 0a + 1) for v1.0, move team features to v1.1
-- Extend timeline: push release dates forward, maintain pillar sequence
+- Extend timeline: re-forecast the calendar in [`07_sequencer.md`](07_sequencer.md), maintain pillar sequence
 
 ---
 
@@ -179,15 +182,15 @@ This MVP Canvas is part of a comprehensive product specification created via Lea
 
 | Document                   | Version | Status   | Content                                                    |
 |----------------------------|---------|----------|------------------------------------------------------------|
-| `01_product-brief.md`      | 1.2     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
+| `01_product-brief.md`      | 1.4     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
 | `02_product-vision.md`     | 1.1     | Approved | Vision statement, key decisions, reference workflows       |
 | `03_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
 | `04_personas.md`           | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
 | `05_journeys.md`           | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
-| `06_features.md`           | 1.2     | Approved | 63 features across 5 pillars, organized by release version |
-| `07_sequencer.md`          | 1.3     | Approved | Development timeline: 5 weeks (v0.1–v1.0), weekly releases |
-| `08_mvp-canvas.md`         | 1.1     | Approved | This file — MVP canvas with success criteria               |
-| `X_cli-cmds.md`            | 1.1     | Approved | CLI commands reference (all pillars)                       |
+| `06_features.md`           | 1.4     | Approved | 63 features across 5 pillars, organized by release version |
+| `07_sequencer.md`          | 1.4     | Approved | Active-day budgets, actuals, forecast; original plan       |
+| `08_mvp-canvas.md`         | 1.2     | Approved | This file — MVP canvas with success criteria               |
+| `X_cli-cmds.md`            | 1.3     | Approved | CLI commands reference (all pillars)                       |
 | `X_lean-inception-plan.md` | —       | —        | Lean Inception workshop plan and session log               |
 
 **All outputs are versioned in git and open for refinement as development progresses.**
