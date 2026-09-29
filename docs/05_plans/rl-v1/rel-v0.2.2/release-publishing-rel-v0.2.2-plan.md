@@ -3,7 +3,7 @@ id: release-publishing-rel-v0.2.2-plan
 type: plan
 title: "Release-publishing — v0.2.2 (bump, rehearse, tag, stage on npm, approve, mark released)"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "release-publishing"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -210,4 +210,59 @@ starts with `advance-pinned-build` (pin `wingfoil-released` → `npm:wingfoil@0.
 
 ## Execution Notes
 
-<!-- Filled during the run: one subsection per step, each result with the command that produced it. -->
+Phase started 2026-09-29 by the agent, session "DEV v0.2.2 - D.release-submit", on the approver's
+instruction ("pusha main e procedi con release-publishing"). Before it, `main` was pushed
+(`227fbad5..e5bc1831`). Branch `design/release_publishing_v0.2.2`, worktree
+`../.wf2-wt/release-publishing-v0.2.2`, cut from `main` `e5bc1831`. Plan: add `fc93d793` (dev
+build) → submit `36a4c5a4` (pinned, `draft → active`).
+
+### P — preconditions: all met
+
+| # | Result |
+|---|---|
+| P0 | `0.2.1` |
+| P1 | `releasing` |
+| P2 | `done` |
+| P3 | ancestor exit 0; `origin/main...main` → `0 0` |
+| P4 | clean; `npm ci` exit 0 |
+| P5 | `npm view wingfoil@0.2.2 version` → `E404`; `git ls-remote --tags origin v0.2.2` → empty |
+| P6 | rules `[branch_policy, required_reviewers]`; deployment policy `["v*","tag"]` |
+| P7 | secrets `total_count` → `0` |
+
+### S1 — secret sweep: 26 blocking findings, all accounted for
+
+`npm run -s build`, then the v0.2 plan §2 loop over `git ls-files` (957 files):
+
+- `test/validation/secret-scan.test.ts` — 24: the `bug-055` fixtures.
+- `test/storage/builtin-directives.test.ts` — 1 (`private-key-pem@100`): the non-vacuity fixture, a
+  bare PEM header with no key material (`81cb63dc`, already public).
+- `docs/05_plans/rl-v1/rel-v0.2/release-publishing-rel-v0.2-plan.md` — 1 (`private-key-pem@867`):
+  that plan's own Execution Notes quoting the same header line; already on `origin/main`.
+
+No finding outside these; nothing new is exposed by this phase.
+
+### S2 — release commit `b1cd5db2`
+
+- Hand edit, no `npm version`: `package.json`, `package-lock.json` (`version`, `packages[""].version`),
+  `server.json` (`version`, `packages[0].version`) → `0.2.2`; CHANGELOG line 11 →
+  `## [0.2.2] - 2026-09-29`. `git show --stat b1cd5db2` → those four files, 6+/6−.
+- `npm ci` exit 0, the tree unchanged afterwards; both `@emnapi` entries `1.11.3`;
+  `npm run -s check:lockfile` exit 0;
+  `node scripts/check-release-tag.cjs v0.2.2` → "tag v0.2.2 matches package.json version 0.2.2, and so
+  do server.json and its packages", exit 0.
+
+### S3 — gates and staging rehearsal: all green, on `b1cd5db2`
+
+| Command | Result |
+|---|---|
+| `npx jest --coverage` | exit 0; 160 suites / 2624 tests; 98.63 / 94.2 / 93.84 / 99.47; `bug-167` did not fire |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0, no output |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0; tree clean |
+| `npm run -s check:mcp` | exit 0 — pinned 0.2.1, `[prompts, resources]` (8, 2) |
+| `npm run publish:staging` | exit 0 in 86 s; `--version = 0.2.2 — match`; 20 `ok` (help, version, 9 per template × Scrum/Kanban incl. clean-tree); "staged wingfoil@0.2.2 and smoke passed"; `ss -ltn` shows nothing on 4873 afterwards |
+
+### S4 — merge and handover
+
+Recorded after the merge.
