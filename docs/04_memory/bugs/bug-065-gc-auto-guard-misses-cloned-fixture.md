@@ -2,7 +2,7 @@
 id: "bug-065-gc-auto-guard-misses-cloned-fixture"
 type: bug
 title: "`gc.auto=0` never reaches the repository `cloneTempRepo` produces, while the test asserting it is titled \"every fixture repo\""
-status: open
+status: triaged
 severity: "low"
 release-origin: "v0.2"
 release: ""
