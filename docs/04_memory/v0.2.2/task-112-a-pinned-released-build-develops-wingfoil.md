@@ -213,8 +213,9 @@ client uses (the setup text says to use an absolute path when it is not the repo
 - `npx jest` → `Test Suites: 153 passed`, `Tests: 2501 passed` (2472 at `c3df9df3`).
 - Coverage, `npx jest --coverage --coverageReporters=text-summary`: before (`c3df9df3`) and after
   (`8501d1e0`) identical — Statements 98.66 % (3392/3438), Branches 94.25 % (1789/1898), Functions
-  98.98 % (584/590), Lines 99.46 % (3000/3016). The new code is under `scripts/`, which jest does not
-  instrument (the counts are unchanged); it is tested by the suites above, not counted.
+  98.98 % (584/590), Lines 99.46 % (3000/3016). The new code is under `scripts/`, outside jest's
+  `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']` (`grep -n collectCoverageFrom
+  jest.config.js`); it is tested by the suites above, not counted.
 - `npm run lint` → exit 0 (one `preserve-caught-error` fixed in green: the timeout error now carries
   `cause`). `npx tsc --noEmit` → exit 0. `npm run docs:api` → exit 0.
 - `npm run check:lockfile` → exit 0; `npm run check:mcp` → exit 0.
