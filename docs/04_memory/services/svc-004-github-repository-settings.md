@@ -6,9 +6,9 @@ status: pending
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
-verify: "gh api repos/robypomper/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'"
-url: "https://github.com/robypomper/wingfoil"
-account: "robypomper/wingfoil"
+verify: "gh api repos/wingfoil/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'"
+url: "https://github.com/wingfoil/wingfoil"
+account: "wingfoil/wingfoil"
 renews: ""
 repo_refs: []
 decision: "dl-091-package-name-and-mcp-namespace"
@@ -41,12 +41,16 @@ Applied by hand in the web interface by the approver, 2026-09-29 (§B.3):
 
 ## Verification
 
-`gh api repos/robypomper/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'`
+`gh api repos/wingfoil/wingfoil --jq '{description,homepage,topics,has_discussions,has_issues,has_wiki,has_projects}'`
 → `homepage` `https://www.npmjs.com/package/wingfoil`, the 14 topics above, `has_discussions: true`,
 `has_issues: true`, `has_wiki: false`, `has_projects: false`, and the description above verbatim
-(run read-only by `task-124` on 2026-09-29). The visibility session read every value
-above through the GitHub MCP on 2026-09-29 and all matched (§B.3). The Discussions categories and the
-social preview are checked by eye on the repository page.
+(run read-only by `task-124` against `robypomper/wingfoil`, and again by `task-116` against
+`wingfoil/wingfoil` after the transfer, 2026-09-29: every value carried over). The Discussions
+categories were also read after the transfer through the GraphQL API:
+`gh api graphql -f query='{repository(owner:"wingfoil",name:"wingfoil"){discussionCategories(first:10){nodes{name}}}}'`
+→ Announcements, Ideas, Q&A, Show and tell. The visibility session read every value
+above through the GitHub MCP on 2026-09-29 and all matched (§B.3). The social preview is checked by eye
+on the repository page.
 
 ## Management
 

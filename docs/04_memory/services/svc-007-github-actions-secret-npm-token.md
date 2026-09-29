@@ -2,13 +2,13 @@
 id: svc-007-github-actions-secret-npm-token
 type: service
 title: "GitHub Actions secret NPM_TOKEN"
-status: pending
+status: deprecated
 provider: "GitHub"
 kind: "credential"
 owner_role: "approver"
 verify: "gh secret list --env npm-publish"
 url: ""
-account: "environment npm-publish of robypomper/wingfoil"
+account: "environment npm-publish of wingfoil/wingfoil"
 renews: "2026-12-27"
 repo_refs: []
 decision: "dl-087-publish-through-npm-staged-publishing"
@@ -29,7 +29,9 @@ This element holds **no secret value** — only where the secret is held, its ty
 ## Configuration
 
 - **Held in:** GitHub Actions secret `NPM_TOKEN`, environment `npm-publish`, repository
-  `robypomper/wingfoil` (`svc-006-github-environment-npm-publish`). No repository-level secret of the
+  `wingfoil/wingfoil` (`svc-006-github-environment-npm-publish`). It carried over with the transfer
+  (`gh api repos/wingfoil/wingfoil/environments/npm-publish/secrets --jq '.secrets[]|{name,updated_at}'`
+  → `NPM_TOKEN`, `2026-09-28T09:25:34Z`, run by `task-116` on 2026-09-29). No repository-level secret of the
   same name exists (`gh secret list` → nothing).
 - **Type:** an npm granular token of the **stage-only** type. After `wingfoil@0.2.1` the approver
   revoked the all-packages read-write token the v0.2 publish used and replaced the secret's value with a
@@ -50,6 +52,12 @@ on 2026-09-29). The command shows the secret's name and last update, never its v
 type and expiry are checked on npmjs.com (Access Tokens) by the approver.
 
 ## Management
+
+- **Retired on 2026-09-29** (`memory deprecate`, `9ad827ad`). The approver revoked the stage-only
+  token on npmjs.com, and `task-116` deleted the secret (`gh secret delete NPM_TOKEN --env
+  npm-publish -R wingfoil/wingfoil`; then `…/environments/npm-publish/secrets` → `total_count: 0`).
+  Its replacement is `svc-009-npm-trusted-publisher-for-wingfoil`, `adr-011` decision point 2. The
+  deprecate `Reason:` cites point 5, the approver's registry-side setup that carried it out.
 
 - **Owner:** the `approver` role.
 - **Rotate:** not planned: the secret is being retired, not renewed.

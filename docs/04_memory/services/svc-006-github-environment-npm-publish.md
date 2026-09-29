@@ -6,9 +6,9 @@ status: pending
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
-verify: "gh api repos/robypomper/wingfoil/environments/npm-publish --jq '{name,protection_rules:[.protection_rules[]|{type,reviewers:[.reviewers[]?|.reviewer.login]}],deployment_branch_policy}'"
-url: "https://github.com/robypomper/wingfoil/settings/environments"
-account: "robypomper/wingfoil"
+verify: "gh api repos/wingfoil/wingfoil/environments/npm-publish --jq '{name,protection_rules:[.protection_rules[]|{type,reviewers:[.reviewers[]?|.reviewer.login]}],deployment_branch_policy}'"
+url: "https://github.com/wingfoil/wingfoil/settings/environments"
+account: "wingfoil/wingfoil"
 renews: ""
 repo_refs: [".github/workflows/publish.yml"]
 decision: "adr-011-npm-staged-publishing-with-oidc"
@@ -39,17 +39,19 @@ environment's name.
 
 ## Verification
 
-`gh api repos/robypomper/wingfoil/environments/npm-publish --jq '{name,protection_rules:[…],deployment_branch_policy}'`
+`gh api repos/wingfoil/wingfoil/environments/npm-publish --jq '{name,protection_rules:[…],deployment_branch_policy}'`
 → `name: npm-publish`; rules `branch_policy` and `required_reviewers` (`robypomper`, type `User`);
 `deployment_branch_policy: {custom_branch_policies: true, protected_branches: false}`; and
-`gh api repos/robypomper/wingfoil/environments/npm-publish/deployment-branch-policies --jq '[.branch_policies[]|{name,type}]'`
-→ `[{"name":"v*","type":"tag"}]` (both run read-only by `task-124` on 2026-09-29).
+`gh api repos/wingfoil/wingfoil/environments/npm-publish/deployment-branch-policies --jq '[.branch_policies[]|{name,type}]'`
+→ `[{"name":"v*","type":"tag"}]` (both run read-only by `task-124` against `robypomper/wingfoil`,
+and again by `task-116` against `wingfoil/wingfoil` after the transfer, 2026-09-29: the environment,
+its tag policy and its required reviewer `robypomper` carried over).
 
 ## Management
 
 - **Owner:** the `approver` role, who is also its required reviewer.
-- **After the transfer to `wingfoil/wingfoil`:** re-check the environment and its reviewer
-  (`release-planning-rel-v0.2.2-plan` §C) and update `url`, `account` and `verify`.
+- **After the transfer to `wingfoil/wingfoil`** (2026-09-29): re-checked by `task-116`, and `url`,
+  `account` and `verify` updated (`release-planning-rel-v0.2.2-plan` §C).
 - **When the trusted publisher exists:** delete the `NPM_TOKEN` environment secret (`adr-011` point 2)
   and update Configuration here.
 - **Retire:** `memory deprecate` only if the gate is dropped by the decision-log `adr-011` point 3

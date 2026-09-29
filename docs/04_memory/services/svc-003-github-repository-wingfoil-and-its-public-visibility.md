@@ -6,9 +6,9 @@ status: pending
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
-verify: "gh api repos/robypomper/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'"
-url: "https://github.com/robypomper/wingfoil"
-account: "robypomper/wingfoil"
+verify: "gh api repos/wingfoil/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'"
+url: "https://github.com/wingfoil/wingfoil"
+account: "wingfoil/wingfoil"
 renews: ""
 repo_refs: ["package.json", ".github/workflows/publish.yml", "server.json"]
 decision: "dl-068-publishing-requires-public-repository"
@@ -26,11 +26,13 @@ Context). A private repository breaks the publish of every release.
 
 ## Configuration
 
-- `robypomper/wingfoil`, created 2026-09-17 (`dl-068` E1: `created_at: 2026-09-17T07:31:01Z`), made
-  public before the first publish (`dl-068` §Decision), MIT-licensed, default branch `main`.
+- `wingfoil/wingfoil`, created 2026-09-17 as `robypomper/wingfoil` (`dl-068` E1: `created_at:
+  2026-09-17T07:31:01Z`), made public before the first publish (`dl-068` §Decision), MIT-licensed,
+  default branch `main`. Transferred to the organisation `wingfoil` by the approver on 2026-09-29.
+  The old URL redirects (`gh api repos/robypomper/wingfoil --jq .full_name` → `wingfoil/wingfoil`).
 - `package.json` `repository.url` points at it; npm provenance checks that URL against the repository
   that builds the package (`release-planning-rel-v0.2.2-plan` §C).
-- It moves to `wingfoil/wingfoil` before the v0.2.2 publish (`dl-091` addendum D5); the slug change
+- It moved to `wingfoil/wingfoil` before the v0.2.2 publish (`dl-091` addendum D5); the slug change
   in the repository is `task-116-repository-slug-follows-the-transfer`. Historical documents keep the
   old slug, because GitHub redirects (§C).
 - Its descriptive settings (description, topics, features) are a separate element,
@@ -38,14 +40,15 @@ Context). A private repository breaks the publish of every release.
 
 ## Verification
 
-`gh api repos/robypomper/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'` →
-`{"full_name":"robypomper/wingfoil","license":"MIT","private":false,"visibility":"public"}` (run
-read-only by `task-124` on 2026-09-29). After the transfer the command names `wingfoil/wingfoil`, and
-`full_name` must say so.
+`gh api repos/wingfoil/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'` →
+`full_name: wingfoil/wingfoil`, `visibility: public`, `license: MIT` (run read-only by `task-116`
+after the transfer, 2026-09-29). Before the transfer `task-124` ran the same command against
+`robypomper/wingfoil`.
 
 ## Management
 
-- **Owner:** the `approver` role (the repository owner account is `robypomper` until the transfer).
+- **Owner:** the `approver` role. Since 2026-09-29 the repository is owned by the organisation
+  `wingfoil` (`svc-001-github-organisation-wingfoil`).
 - **Never make it private** while the pipeline relies on provenance and the environment gate: `dl-068`
   options (b) and (c) are the recorded fallbacks, and choosing one is a new decision, not a setting.
 - **Transfer:** after it, update `url`, `account` and `verify` in a `docs(self)` commit (`dl-088`
