@@ -2,7 +2,7 @@
 id: "bug-038-init-skips-secret-scan-of-builtin-templates"
 type: bug
 title: "`init` does not secret-scan the built-in templates before writing them, as spec-007 §4 step 5 requires, and no task owns it"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: ""
