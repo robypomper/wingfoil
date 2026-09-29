@@ -77,6 +77,8 @@ sort -V | tail -1`), and `git log --all --oneline | grep -c bug-155` → 0.
 - **Batch 3, `task-111` review (2026-09-29).** Since `task-111` (merge `582ec08a`), bugs live under
   `docs/04_memory/bugs/`. Next free number `bug-159` (`ls docs/04_memory/bugs | sort -V | tail -1` →
   `bug-158`; `git log --all --oneline | grep -c bug-159` → 0). Duplicate search: `grep -rli
-  "spec-011" docs/04_memory/bugs` → no bug about its tree. Added in `b503236d`, submitted in the
+  "spec-011" docs/04_memory/bugs` → `bug-053` (its `memory.yaml` row describes a retired `states`
+  encoding) and `bug-040` (its `built-in/` text stale after `task-057`), both `open`. Both are other
+  defects of the same spec, not duplicates; `bug-159` names them as related. Added in `b503236d`, submitted in the
   commit after this revision. At the same review the approver had `bug-154` and `bug-035` updated to
   the new layout (`31623e1c`), with no state change.

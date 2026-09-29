@@ -46,6 +46,9 @@ spec-011-storage-layout.md` → only lines 235–236).
 - Nothing checks the tree against the configuration, so the same drift will come back with the next
   added file. The fix can add the three entries. It can also add a test that compares the tree with
   `find .wingfoil`, so the spec cannot drift again unnoticed.
+- Related, other defects of the same spec, both `open`: `bug-053` (the `memory.yaml` row describes the
+  retired `states` encoding) and `bug-040` (the `built-in/` text is stale since `task-057`). A single
+  fix task could take all three.
 - `dl-088`'s `service` type will add `memory/templates/service.md` and a `service-ingest` workflow,
   two more entries the tree will need.
 
