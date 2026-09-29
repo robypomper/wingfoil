@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.2.2-publish-gate-findings-plan
 type: plan
 title: "Bug ingest — v0.2.2 publish-gate findings"
-status: active
+status: done
 version: "1.1"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-publish-gate-findings"
@@ -55,4 +55,8 @@ npm never saw the version), and file the bug. This `plan` element is the ingest'
 - `bug-172` added through the pinned build (`78f4d7dc`). No local branch or `origin/main` held a higher
   bug number (`git ls-tree` over every local branch: `bug-171` highest). It was submitted `draft → open`
   (`fec5665a`) with the reproduction table measured on `a1a2850b` and the duplicate search.
-- Awaiting the approver's triage.
+- `release: "v0.2.2"` stamped in its own commit (`1890f473`), on the approver's ruling (fix in the
+  product, reuse `0.2.2`).
+- Triage, 2026-09-29, the approver's instruction in chat: `bug-172` `open → triaged` by the pinned
+  `memory approve` (`f5ec8852`). Its fix task is `task-125` (dev-loop). Every bug here is `triaged`, so
+  this plan moves `active → done`.
