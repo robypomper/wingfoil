@@ -55,7 +55,8 @@ Layer (CLI + MCP)**.
 | `docs/design.md`                          | Index of the **documentary chain** Lean Inception → USM → BDD → SARD → backlog: where each phase lives, what it produces, and its stop-check                                                                                                                                                                     |
 | `README.md`                               | The **user-facing** entry point (problem, pillars, personas, quick start) — the human counterpart to this file. Owned by the `user-docs` release gate's `align-user-docs` phase (dl-013); `CLAUDE.md` is owned by its `align-agent-docs` phase (dl-025)                                                        |
 | `docs/user-guide.md`, `docs/cli-reference.md`, `docs/examples/`, `CHANGELOG.md` | **User documentation** for projects that *use* WingFoil: step-by-step guide, one entry per command (kept complete by `test/docs/cli-reference.test.ts`), runnable self-checking scripts, release notes. Produced by `align-user-docs` (dl-013) |
-| `docs/agents.md`                          | Guide for AI agents working in a project that **uses** WingFoil — the document counterpart of the MCP server. Not for agents developing WingFoil (that is this file); in no phase's `produces:` (approver decision, `user-docs-rel-v0.2-plan` §10) |
+| `docs/agents.md`                          | Guide for AI agents working in a project that **uses** WingFoil — the document counterpart of the MCP server. Not for agents developing WingFoil (that is this file); in no phase's `produces:` (approver decision, `user-docs-rel-v0.2-plan` §10), though `user-docs` aligns it with the approver's confirmation (`user-docs-rel-v0.2.2-plan`) |
+| `docs/assets/`                            | The **logo, mark, social-preview banners and organisation avatar** — SVG sources plus rendered PNGs, with the regeneration commands in its `README.md`. The uploaded images are recorded by `svc-001` (avatar) and `svc-004` (social preview) |
 | `COLLABORATION.md`                        | How external contributors file **intent as Memory artifacts** rather than pull requests (`dl-020-contribution-model`)                                                                                                                                                                                           |
 
 **Feature IDs** are `P<pillar>.<n>` (e.g. `P1.13`). **Requirement IDs** are `REQ-<AREA>-<nn>`.
@@ -211,7 +212,7 @@ the rule is the same whether the commit is written by `wingfoil memory <verb>` o
 - **A reason is a block, and it may span lines.** `Reason:` carries the remainder of its own line plus
   every following body line, up to (exclusive) the commit's trailing trailer paragraph
   (`Co-Authored-By:` and friends) or the end of the body. Multi-paragraph reasons are normal here — 79
-  of `main`'s 171 approve/reject commits have one — and `wingfoil memory history` now reads all of it.
+  of the 171 approve/reject commits `dl-067` counted on `main` had one — and `wingfoil memory history` now reads all of it.
 - **It may never be blank.** An empty or whitespace-only reason leaves a bare `Reason:` that no reader
   can parse; the CLI refuses it at exit `2` on every verb that takes `--reason`, `deprecate` included.
 - **No line of a reason may begin with `Approver:` or `Reason:`.** Such a line is indistinguishable
@@ -364,13 +365,15 @@ non-blank (`--reason` itself stays optional, `dl-027`).
       `plan-next-release-line` (closes this release-line to `done`, self-seeds the next one once
       every one of its releases is `released`).
         - `delivery` → `release-cycle` *(iterate_over: release, scoped to this release-line)* →
-          `release-planning` *(`define-scope` → `triage-bugs` → `reconcile-governance` → `record-adrs`
-          → `identify-specs` → `build-backlog` → `commit-backlog`; the two sweeps added by dl-016)* →
+          `release-planning` *(`advance-pinned-build` → `define-scope` → `triage-bugs` →
+          `reconcile-governance` → `record-adrs` → `identify-specs` → `build-backlog` →
+          `commit-backlog`; the two sweeps added by dl-016, the pinned-build step by dl-095)* →
           `dev-loop` *(design gate + TDD,
           iterate_over: task; `refactor` runs coverage + API-docs + `lint.clean`; review gate runs unit
           + **BDD** tests; keeps a fix task's source `bug` in sync via `bug.sync_state`)* → `user-docs`
-          *(dl-013 — the user-facing documentation gate)* → `e2e-smoke` *(dl-023 — fresh-init + CLI
-          end-to-end smoke gate)* → `release-submit` → `release-publishing` → `retrospective`.
+          *(dl-013 — `align-user-docs`, the user-facing documentation gate; dl-025 — `align-agent-docs`,
+          this file and `.wingfoil/README.md`)* → `e2e-smoke` *(dl-023 — fresh-init + CLI end-to-end
+          smoke gate, plus the `mcp-registration` check of `.mcp.json`)* → `release-submit` → `release-publishing` → `retrospective`.
     - `sunset` → `end-of-life`.
 - **`bug-ingest`, `decision-log-ingest`, `adr-ingest`, `service-ingest`** — capture a single element on demand. If started
   while another workflow with an active `element` is running, the new file **inherits that element**

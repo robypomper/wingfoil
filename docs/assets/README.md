@@ -1,0 +1,103 @@
+# WingFoil brand assets
+
+The project's logo and the images WingFoil shows on GitHub. They are versioned here so that every
+image the repository displays, or that was uploaded to GitHub by hand, traces to a file in the
+repository and can be regenerated from it.
+
+None of them ships in the npm package: `package.json` `files` is `["dist", "README.md"]`, which
+`npm pack --dry-run` confirms.
+
+## Files
+
+| File | What | Source | Used by |
+|---|---|---|---|
+| `wingfoil-logo.svg` | Full logo: mark plus the "WingFoil" wordmark, transparent background, 163×167 | source | reference |
+| `wingfoil-logo.png` | the full logo, 512 px wide, transparent background | generated | wherever an SVG is not accepted |
+| `wingfoil-mark.svg` | The mark alone, transparent background | source | `README.md` header |
+| `wingfoil-mark.png` | the mark, 512 px wide, transparent background | generated | wherever an SVG is not accepted |
+| `wingfoil-social-preview.svg` | 1280×640 banner, light background | source | — |
+| `wingfoil-social-preview.png` | the light banner, rendered | generated | repository social preview (`svc-004-github-repository-settings`) |
+| `wingfoil-social-preview-dark.svg` | 1280×640 banner, dark background | source | — |
+| `wingfoil-social-preview-dark.png` | the dark banner, rendered | generated | alternative to the light banner |
+| `wingfoil-avatar.png` | 500×500, the mark centred on white | generated | organisation avatar (`svc-001-github-organisation-wingfoil`) |
+
+The SVGs are the sources, and the PNGs are generated from them. Edit an SVG, never a PNG. All text in
+the SVGs is converted to paths, so they render the same on any machine without the Inter fonts.
+
+## Regenerating the PNGs
+
+Run from the repository root. [Inkscape](https://inkscape.org/) 1.x renders the SVGs, and
+[ImageMagick](https://imagemagick.org/) pads the avatar. Neither is a project dependency: install
+them on the machine that regenerates the assets.
+
+```bash
+# Logo and mark, 512 px wide, transparent background (height follows the aspect ratio)
+inkscape docs/assets/wingfoil-logo.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-logo.png -w 512
+inkscape docs/assets/wingfoil-mark.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-mark.png -w 512
+
+# Social preview banners, 1280×640
+inkscape docs/assets/wingfoil-social-preview.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-social-preview.png -w 1280 -h 640
+inkscape docs/assets/wingfoil-social-preview-dark.svg \
+  --export-type=png --export-filename=docs/assets/wingfoil-social-preview-dark.png -w 1280 -h 640
+
+# Organisation avatar, 500×500: the mark 380 px wide, centred on white, no transparency.
+# Organisation avatars are shown as rounded squares, user avatars as circles; at 380 px the
+# mark stays inside either crop.
+inkscape docs/assets/wingfoil-mark.svg \
+  --export-type=png --export-filename=/tmp/wingfoil-mark-380.png -w 380
+convert /tmp/wingfoil-mark-380.png -background white -gravity center -extent 500x500 \
+  -alpha remove -alpha off docs/assets/wingfoil-avatar.png
+```
+
+Check the result:
+
+```bash
+file docs/assets/*.png   # 1280 x 640 banners, 500 x 500 avatar, 512 x 525 logo, 512 x 364 mark
+ls -l docs/assets/*.png  # each banner must stay under 1 MB (GitHub's limit)
+```
+
+## Editing the wordmark
+
+The wordmark is stored as paths, so changing its text means drawing it again:
+
+1. In Inkscape, delete the wordmark group: `text25` in the logo, `text47` in the banners.
+2. Type the new text with the same font:
+   - logo: Inter Bold, 25.5 px, letter-spacing −0.2, centred, fill `#081532`, baseline y = 157;
+   - banners: Inter Display Bold, 112 px, letter-spacing −2, left edge x ≈ 556, baseline y = 262.
+
+   The wordmark fill is `#081532` in the light banner and `#ffffff` in the dark one.
+3. *Path → Object to Path*, save, and regenerate the PNGs.
+
+The same can be done headless: replace the group with a `<text>` element carrying those attributes,
+then run
+`inkscape in.svg --export-text-to-path --export-type=svg --export-filename=out.svg`.
+
+## Uploading to GitHub
+
+GitHub has no API for either image. The approver uploads them by hand:
+
+- **Social preview:** repository → *Settings → General → Social preview → Edit*. GitHub accepts
+  PNG, JPG or GIF, under 1 MB; 1280×640 is the recommended size.
+- **Organisation avatar:** organisation → *Settings → Profile → Profile picture*.
+
+After an upload, update the matching `service` element (`svc-004` for the social preview, `svc-001`
+for the avatar) so that it names the file and the commit it was uploaded from.
+
+## Design notes
+
+- The banner shows:
+  - the mark;
+  - the "WingFoil" wordmark;
+  - the README's lead sentence *"A structured harness for deterministic AI-assisted software
+    development."*;
+  - the five pillar chips: Memory · DNA · Directives · Workflow · CLI + MCP;
+  - `$ npm install -g wingfoil`;
+  - "Open source · MIT";
+  - a teal→blue bar along the bottom.
+
+  If the README's lead sentence or the pillars change, the banner changes with them.
+- Colours: mark gradient `#22CEC6` → `#1686C8` → `#0C469F` (the dark variant brightens the last stop
+  to `#1C5CCC`); wordmark `#081532` on light, `#ffffff` on dark.

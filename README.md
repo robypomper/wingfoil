@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/wingfoil-mark.svg" width="140" alt="WingFoil logo"></p>
+
 # WingFoil
 
 **A structured harness for deterministic AI-assisted software development.**
@@ -63,7 +65,7 @@ real-time tracking of project state.
 
 ## Key Features
 
-### Five Pillars — status in 0.2.1
+### Five Pillars — status in 0.2.2
 
 - ✓ **Project Memory** — Git-backed documents (tasks, ADRs, decision-logs, bugs, specs…) with per-type
   state machines, approval gates and an audit trail (**shipped**: create, search, submit, approve,
@@ -71,7 +73,7 @@ real-time tracking of project state.
 - ✓ **Project DNA** — Structured config: modules, tech stack, team & roles, resource paths
   (**shipped**: show, set, add, update, remove)
 - ✓ **Project Directives** — Role-scoped rules: six built-in templates installed by `init`, your own
-  custom directives, role assignments (**shipped in 0.2.1**)
+  custom directives, role assignments (**shipped in 0.2**)
 - ✓ **Interaction Layer** — CLI for humans and agents; MCP server for agents with read-only Resources
   and one Prompt per role (**shipped**)
 - **Workflow State Management** — workflows are declared and listable today; the engine that starts
@@ -233,7 +235,7 @@ WingFoil is built one pillar per release until all five are integrated in 1.0.
 | Lean Inception · Requirements | Product vision, USM · BDD · SARD · backlog | ✓ Complete |
 | **0.1** | Project Memory + DNA | ✓ Released (not published to npm) |
 | **0.2** | + Project Directives, Memory approvals, DNA editing, MCP role Prompts | ✓ Released (`wingfoil@0.2.1` on npm) |
-| **0.2.2** | Patch: configuration at the repository root, staged npm publishing, first-use fixes | 🔄 In development |
+| **0.2.2** | Patch: configuration at the repository root, staged npm publishing, first-use fixes | 🔄 Being released |
 | **0.3** | + Project Workflow | Planned |
 | **0.4** | + Interaction Layer polish | Planned |
 | **1.0** | MVP complete | Planned |

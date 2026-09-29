@@ -41,6 +41,9 @@ organisation `wingfoil`, has no owner to point at.
   (`task-116-repository-slug-follows-the-transfer`; `gh api orgs/wingfoil/repos --jq '.[].full_name'`
   → `wingfoil/wingfoil`), and the Claude GitHub App is installed on it
   (`svc-008-claude-github-app-on-the-wingfoil-organisation`).
+- **Profile picture:** `docs/assets/wingfoil-avatar.png` at `424f4c93` (500×500, the mark on white),
+  uploaded by the approver on 2026-09-29 (`user-docs-rel-v0.2.2-plan` S7). It was cropped in GitHub's
+  upload dialog, so the stored avatar is a 370×370 central crop of that file, not the file itself.
 
 ## Verification
 
@@ -49,6 +52,10 @@ The settings above are read with
 `gh api orgs/wingfoil --jq '{login,name,created_at,two_factor_requirement_enabled,default_repository_permission}'`
 → `created_at: 2026-09-29T11:05:14Z`, `name: wingFoil`, `two_factor_requirement_enabled: true`,
 `default_repository_permission: none` (same run).
+The avatar is read with `gh api orgs/wingfoil --jq .avatar_url` →
+`https://avatars.githubusercontent.com/u/335503727?v=4`, a 370×370 PNG
+(`curl -sL '<avatar_url>' -o av.png && file av.png`, 2026-09-29). It shows the mark on white, with
+no wordmark, checked by eye against `docs/assets/wingfoil-avatar.png`.
 
 ## Management
 

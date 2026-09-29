@@ -8,6 +8,67 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Every entry ends with the WingFoil Memory element(s) it comes from: a `done` task (`task-NNN`) or a
 `closed` bug (`bug-NNN`).
 
+## [0.2.2] - Unreleased
+
+A patch on 0.2: `memory add` can fill every token of an id pattern, every command's `--help`
+describes it, `init` names its templates and the technology shape, and the package publishes from
+the `wingfoil/wingfoil` repository through npm trusted publishing.
+
+### Added
+
+- `wingfoil memory add --set <name>=<value>`, repeatable, gives the id-pattern or path token `{name}`
+  its value and writes the frontmatter field `name`, so the id and the field agree. `{workflow}`,
+  `{phase}` and `{scope}` are filled the same way. A token left without a value fails with
+  `missing value for token {name}: give it with --set name=<value>` (exit `1`); a `--set` without `=`
+  exits `2`. (task-110)
+- A `memory.add` action in a workflow file may carry its own `id_pattern`. (task-110)
+
+### Changed
+
+- Every command's `--help` shows a description, its operand, a description of each option, which
+  options are `(required)`, an example and the exit codes. A missing option value now reads
+  `error: option '--type <type>' argument missing`. (task-120, bug-128)
+- `wingfoil init` without `--template`, where it cannot ask, fails with
+  `error: missing required argument: --template (one of: Scrum, Kanban)`. Running it in an
+  initialised project names a real remedy: edit the files under `.wingfoil/` and commit them, or use
+  the `dna` and `directive` commands. (task-119, bug-140, bug-129)
+- The `dna.yaml` written by `init` shows the `{name, category}` shape of a technology entry as a
+  commented example, so the required `category` is visible before the first `dna add`. (task-118,
+  bug-139)
+- Titles keep a `.` between two letters or digits in the `{slug}` of a new id: `"v0.2 prep"` gives
+  `v0.2-prep`, no longer `v0-2-prep`. Existing ids are untouched. (task-110)
+- The package metadata names the repository `wingfoil/wingfoil`. The package also carries a new
+  description, 15 discovery keywords and the MCP Registry name `io.github.wingfoil/wingfoil`.
+  (task-115, task-116)
+
+### Removed
+
+- The runtime dependencies `@anthropic-ai/sdk` and `chalk`, which nothing in WingFoil imported. A
+  global install now pulls four runtime dependencies. (task-117, bug-138)
+
+### Security
+
+- Releases are published from GitHub Actions through npm trusted publishing (OIDC) with provenance,
+  as a staged publish a maintainer approves with two-factor authentication. No npm token is stored
+  in the repository or its CI. (task-113, bug-136)
+
+### For contributors
+
+These change how WingFoil itself is developed, not how it behaves in your project.
+
+- WingFoil's own configuration and Memory moved to the repository root (`.wingfoil/`,
+  `docs/04_memory/`), so the Memory verbs run on this repository. (task-111, bug-075; task-123,
+  bug-156)
+- WingFoil is developed with a pinned, published build: `npm run -s wingfoil -- <command>`, with its
+  MCP server registered in `.mcp.json`. (task-112)
+- WingFoil's own configuration gained a `service` Memory type and a `service-ingest` workflow, for
+  external state such as the npm package and the GitHub organisation. Its bug machine also gained
+  decline edges from `triaged` and `planned` to `closed`. Neither is part of what `init` installs.
+  (task-124, bug-159; task-114)
+- The audit that reads Memory commit subjects accepts `->` as well as `→` in a transition bracket, and
+  reports a bracket it cannot parse. (task-109, bug-137)
+- Coverage now measures `src/core/index.ts` and `src/mcp/index.ts`. (task-122, bug-021)
+
 ## [0.2.1] - 2026-09-28
 
 The Project Directives release: the Memory state-transition verbs, the full Directives pillar, a
