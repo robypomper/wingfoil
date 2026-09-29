@@ -1,5 +1,5 @@
 /**
- * `mcp-server` module — agent interface (MCP over stdio, Anthropic SDK); Resources, Prompts, Tools.
+ * `mcp-server` module — agent interface (MCP over stdio, `@modelcontextprotocol/sdk`); Resources, Prompts, Tools.
  * Path is `src/mcp` per `dna.yaml`'s module entry (`name: mcp-server`, `path: src/mcp`).
  *
  * task-006-dual-interface-shared-core adds the thin adapter (spec-006 §2, spec-004): `registerCoreModules`

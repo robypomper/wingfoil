@@ -117,10 +117,12 @@ Workflow execution does not exist yet (§6).
   exist under `src/`, each at its `dna.yaml` `path:` (note `mcp-server` lives at `src/mcp`).
 - **Stacks** (`stacks.technologies`): TypeScript · Node.js 22.12+ · npm · Commander.js + chalk (CLI) · MCP
   over stdio via `@modelcontextprotocol/sdk` · js-yaml (all git-backed YAML) · Zod (validation) · Jest
-  (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. The Anthropic SDK is a
-  declared dependency but is **not** imported by any `src/` module — `dna.yaml` flags this drift from
-  ADR-004's original framing. **Methodologies** (`stacks.methodologies`): Lean Inception · User Story
-  Mapping · Specification by Example (BDD) · SARD · TDD.
+  (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. ADR-004 framed the MCP
+  server around the Anthropic SDK; it was built on `@modelcontextprotocol/sdk` instead, and the unused
+  `@anthropic-ai/sdk` dependency was removed by `task-117` (`bug-138`). It still appears in
+  `package-lock.json`, as a dev-only transitive dependency of the pinned `wingfoil-released` build.
+  **Methodologies** (`stacks.methodologies`): Lean Inception · User Story Mapping · Specification by
+  Example (BDD) · SARD · TDD.
 - **Roles:** `developer, reviewer, qa, architect, product-owner, tech-lead, facilitator, approver`.
   AI agents execute as `developer/reviewer/qa/architect` and **never hold approval authority** — all
   approvals route to the `approver` role (the human, Roberto).
