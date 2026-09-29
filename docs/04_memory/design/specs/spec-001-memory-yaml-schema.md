@@ -13,8 +13,8 @@ tmpl_version: 260703   # Orignal template version
 `memory.yaml` is the **Project Memory type registry** (feature **P1.13**). It declares every Memory
 element type — `release-line, release, task, adr, decision-log, tech-spec, bug, plan, service` (the
 eighth, `plan`, added by `dl-019-plans-as-memory-element`; the ninth, `service`, by
-`dl-088-a-memory-type-for-state-that-lives-outside-the-repository`, specified here ahead of the
-configuration change that adds it to `memory.yaml`) — giving each a path
+`dl-088-a-memory-type-for-state-that-lives-outside-the-repository`, in `memory.yaml` since 1.6,
+`task-124-the-service-memory-type`) — giving each a path
 pattern, an id pattern, human metadata, a template scaffold, and a state machine. It is consumed by
 every `wingfoil memory *` command (add/submit/approve/reject/deprecate/show/search/history), by the
 Workflow pillar (to resolve `element:` type declarations), by the ID-generation engine (reads
@@ -171,8 +171,8 @@ prerequisite, and until it lands only undotted tokens are defined. There is no f
 ### Worked examples — every current type in the new format
 
 The `defaults` machine and the types below reproduce **exactly** the legal transition set of
-`memory.yaml` once the `dl-088` configuration change lands (until then the file has no `service`
-type; the `dl-123` `triaged`/`planned` reject edges landed with `task-114`); only the encoding changes (except the deliberate default-machine collapse called
+`memory.yaml` (1.6: the `dl-123` `triaged`/`planned` reject edges landed with `task-114`, the
+`service` type with `task-124`); only the encoding changes (except the deliberate default-machine collapse called
 out in Consequences). The first seven were written with this spec; `plan`, `service`, the `release`
 id pattern and the two `bug` decline edges were added later (see the *Revision (2026-09-29)* note
 below).
@@ -279,7 +279,7 @@ forward edge stays verb-less, and `reject` is a manual decline to `closed`, behi
 authority check as every other gate. The ruling lives in the `Reason:` block and in
 `rejection_reason`, as for `open → closed`.
 
-Every one of these preserves the file's legal-transition set (with the `dl-088` caveat above). Verification for the two
+Every one of these preserves the file's legal-transition set. Verification for the two
 multi-target cases the old graph left ambiguous: old `task in-review: [ approved, in-progress ]` →
 `approve`=approved, `reject`=in-progress; old `bug in-review: [ resolved, in-progress ]` →
 `approve`=resolved, `reject`=in-progress; old `bug resolved: [ closed, in-progress ]` →
@@ -348,3 +348,15 @@ tasks and configuration changes that implement it:
 
 Edited in place — no supersede, no state change, and no `version:` bump, because tech-specs carry no
 `version:` field (`dl-047`) — per the precedent `spec-015`'s revisions set.
+
+**Revision (2026-09-29, `task-124-the-service-memory-type`) — `service` lands in `memory.yaml`.** The
+approver replaced `dl-088`'s route (a), out of flow, with a task in the v0.2.2 dev-loop
+(`dev-loop-rel-v0.2.2-plan` §2), so the bullet above that says "route (a) out of flow" describes the
+plan of 2026-09-29, not how it landed. `memory.yaml` 1.5 → 1.6 declares `service` exactly as the
+worked example above, with `template.file: "memory/templates/service.md"` — relative to the
+configuration root, per `TemplateConfig`'s `file` comment and `bug-156` — and not the
+`.wingfoil/memory/templates/service.md` spelling `dl-088` quotes. The worked-examples caveat that the
+file "has no `service` type" until then, and the matching "`dl-088` caveat" in the verification
+paragraph, are removed; the Context's type list now says where `service` is declared. No schema,
+field or edge changes. Edited in place, as the revision above; **pending the approver's sign-off at
+`task-124`'s review.**

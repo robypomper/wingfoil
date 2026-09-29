@@ -63,17 +63,20 @@ repository root.
 │       ├── adr.md
 │       ├── bug.md
 │       ├── decision-log.md
+│       ├── plan.md
 │       ├── release-line.md
 │       ├── release.md
+│       ├── service.md
 │       ├── task.md
 │       └── tech-spec.md
 └── workflows/
     ├── built-in/                     ← Official workflow templates; EMPTY today (only a .gitkeep)
-    └── custom/                       ← All 4 startable mains + every sub-workflow (P4.1)
+    └── custom/                       ← All 5 startable mains + every sub-workflow (P4.1)
         ├── sw-life-cycle.yaml         (kind: main — the end-to-end lifecycle)
         ├── bug-ingest.yaml            (kind: main)
         ├── decision-log-ingest.yaml   (kind: main)
         ├── adr-ingest.yaml            (kind: main)
+        ├── service-ingest.yaml        (kind: main)
         ├── lean-inception.yaml        (kind: sub)
         ├── specification-downcast.yaml
         ├── user-story-mapping.yaml
@@ -86,6 +89,8 @@ repository root.
         ├── release-cycle.yaml
         ├── release-planning.yaml
         ├── dev-loop.yaml
+        ├── user-docs.yaml
+        ├── e2e-smoke.yaml
         ├── release-submit.yaml
         ├── release-publishing.yaml
         ├── retrospective.yaml
@@ -126,8 +131,8 @@ Each of these four files is independently loadable and schema-validated (REQ-SYS
 
 - `built-in/` — reserved for official workflow templates shipped by the npm package; empty today
   (`.gitkeep` only).
-- `custom/` — every workflow file that exists today: 4 startable `kind: main` workflows
-  (`sw-life-cycle`, `bug-ingest`, `decision-log-ingest`, `adr-ingest` — REQ-STATE-03 permits multiple
+- `custom/` — every workflow file that exists today: 5 startable `kind: main` workflows
+  (`sw-life-cycle`, `bug-ingest`, `decision-log-ingest`, `adr-ingest`, `service-ingest` — REQ-STATE-03 permits multiple
   open mains) plus every `kind: sub` workflow they compose via `include()` (REQ-SYS-06). `sub`
   workflows cannot be started directly; only `workflows.yaml`'s `includes:` list — not the
   subdirectory a file lives in — determines what is loaded.
@@ -135,7 +140,8 @@ Each of these four files is independently loadable and schema-validated (REQ-SYS
 ### `memory/templates/`
 
 One Markdown scaffold per Memory element type declared in `memory.yaml`'s `types:` map — currently
-`adr.md`, `bug.md`, `decision-log.md`, `release-line.md`, `release.md`, `task.md`, `tech-spec.md`.
+`adr.md`, `bug.md`, `decision-log.md`, `plan.md`, `release-line.md`, `release.md`, `service.md`,
+`task.md`, `tech-spec.md`.
 Each scaffold's frontmatter skeleton must satisfy that type's `template.frontmatter.required` list in
 `memory.yaml` (the P4.12 alignment rule: workflow steps calling `memory.add` declare
 `checks.post: ["frontmatter.required: [...]"]` and that list must match this file). `memory.add`
@@ -237,3 +243,15 @@ and `workflows/custom/e2e-smoke.yaml` — a gap older than this revision, which 
 closes. Nothing about the `built-in/`-versus-`custom/` split, the file names or the
 root-detection algorithm changes. The cross-check paragraph and the 2026-09-24 revision above keep
 the paths they were measured at. Edited in place without a supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's sign-off at that task's review.
+
+**Revision (2026-09-29) — the `service` type's two files, and the three the tree omitted, per
+`task-124-the-service-memory-type` (`dl-088`).** The task adds `memory/templates/service.md` and
+`workflows/custom/service-ingest.yaml` (a fifth `kind: main`), so the tree, the `workflows/custom/`
+paragraph and the `memory/templates/` paragraph gain them. The same pass closes the gap the previous
+revision recorded — `memory/templates/plan.md`, `workflows/custom/user-docs.yaml` and
+`workflows/custom/e2e-smoke.yaml` are now listed — because the listings enumerate "every file that
+exists", and a listing edited for two files while knowingly missing three would still be false.
+Measured with `find .wingfoil -maxdepth 4 -type f | sort` at this revision: 9 templates, 23 workflow
+files. Nothing about the layout, the `built-in/`-versus-`custom/` split or the root-detection
+algorithm changes. Edited in place without a supersede or a state change (the `spec-001` precedent
+`dl-041` cites); pending the approver's sign-off at `task-124`'s review.

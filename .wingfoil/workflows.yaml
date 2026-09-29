@@ -6,7 +6,7 @@
 # allows multiple open mains); every non-main is `kind: sub` (include-only, run when a phase
 # include()s it). See REQ-SYS-06.
 # Source: docs/01_vision/06_features.md (P4.x), docs/02_requirements/01_user_story_map/07_workflow-config.md
-version: 1.1
+version: 1.2
 
 # `include:` (singular) is the canonical manifest key — matches the P4.1 prose and the `include:`
 # phase field of the per-file Workflow DSL, so the manifest key and the phase-composition key read
@@ -17,6 +17,7 @@ include:
   - workflows/custom/bug-ingest.yaml           # capture a bug
   - workflows/custom/decision-log-ingest.yaml  # capture a decision-log
   - workflows/custom/adr-ingest.yaml           # capture an ADR
+  - workflows/custom/service-ingest.yaml       # capture an external service (dl-088)
 
   # Sub-workflows composed by sw-life-cycle (include-only; never started directly).
   # --- Inception (DONE — modeled from docs/01_vision/X_lean-inception-plan.md) ---

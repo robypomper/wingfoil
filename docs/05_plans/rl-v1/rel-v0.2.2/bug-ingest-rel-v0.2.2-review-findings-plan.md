@@ -3,7 +3,7 @@ id: "bug-ingest-rel-v0.2.2-review-findings-plan"
 type: plan
 title: "Bug ingest — v0.2.2 dev-loop review findings"
 status: active
-version: "1.5"
+version: "1.7"
 workflow: "bug-ingest"
 phase: "rel-v0.2.2-review-findings"
 element: ""
@@ -51,6 +51,8 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
 | `bug-161-core-index-uncovered-paths` | `task-122` review (2026-09-29, approver: bug) | `src/core/index.ts`, now measured, has 8 statements and 14 branch arms no test reaches | low |
 | `bug-162-task-counter-restarts-per-release` | `task-123` review (2026-09-29, approver: bug) | the `{n}` counter only counts the type's folder; a task's folder is per release, so each release restarts at `task-001` | medium |
 | `bug-163-release-line-folder-and-field-disagree` | `task-123` review (2026-09-29, approver: bug) | releases sit under `planning/rl-v1/` but carry `release-line: "v1"`; no `--set` value matches both | medium |
+| `bug-165-illegal-approve-names-a-wrong-target` | `task-114` review (2026-09-29, approver: bug) | the illegal-transition error prints the verb's canonical edge (`planned -> triaged` for `approve` on a `planned` bug), a backward or unreachable move | low |
+| `bug-166-release-field-means-two-things-on-a-service` | `task-124` review (2026-09-29, approver: bug) | a `service`'s `release` means "set up in", while `traceability` gives `release` the uniform meaning "assigned to" | low |
 
 ### `triage` — role: tech-lead, approver gate
 
@@ -108,3 +110,19 @@ pins. Not `npx wingfoil`: once `dist/` is built it runs this repository's own CL
   over `bugs/` and `dls/` → `bug-080` (reading states across the `planning/v1/` → `planning/rl-v1/`
   rename, a different defect) and `dl-018` (no relevant hit). `retro-v0.1` T11 is where the folder
   was renamed, and `bug-163` names it as the origin.
+- **Triage (2026-09-29):** `bug-159` … `bug-164` → `triaged`, `release: v0.3` (`9a38cd9e`).
+  `bug-164` was filed by the viewer session under its own `bug-ingest-rel-v0.2.2-viewer-findings-plan`.
+- **Batch 6, `task-114` review (2026-09-29).** Captured with the **pinned build**
+  (`npm run -s wingfoil -- memory add --type bug`, then `memory submit`): `bug-165` is the number the CLI
+  returned (`42b50a07` add, `e13512b0` submit), one file per commit. It was reproduced first on a
+  throwaway clone with `dist/cli.js`. Duplicate search: `dl-032` and `dl-053` ratified the current
+  rule and are cited in the bug. No bug covers it.
+- **Triage and closures (2026-09-29):** `bug-165` → `triaged`, v0.3 (`07a983ab`). `bug-159` was absorbed into
+  `task-124` (`dl-045`) and closed with it, with `release` moved to v0.2.2, because that task's
+  `spec-011` revision rewrote the tree.
+- **Batch 7, `task-124` review (2026-09-29).** `bug-166`, as returned by the pinned build's
+  `memory add` (`0c5395a3`), then `memory submit` (`c3074e88`). Duplicate search: `grep -rln
+  "set_up_in\|release.*service"` over `bugs/` and `dls/` → `dl-130` (a release-publishing check over services), `retro-v0.2` (the
+  benchmark as a service) and `dl-105` (a service verify sweep). All three mention "release" and
+  "service" on the same line, and none is about the field's meaning. `dl-088`, which introduced the
+  field, is cited in the bug.
