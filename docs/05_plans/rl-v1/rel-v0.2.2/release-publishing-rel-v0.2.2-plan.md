@@ -3,7 +3,7 @@ id: release-publishing-rel-v0.2.2-plan
 type: plan
 title: "Release-publishing — v0.2.2 (bump, rehearse, tag, stage on npm, approve, mark released)"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "release-publishing"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -104,6 +104,10 @@ Commit `chore(release): release v0.2.2 — bump version to 0.2.2 (spec-015 §4)`
 - The six gates on the bumped tree: `npx jest --coverage` (G1+G2), `npx tsc -p tsconfig.build.json
   --noEmit`, `npx tsc --noEmit -p tsconfig.json`, `npm run -s lint`, `npm run -s docs:api`; plus
   `npm run -s check:mcp`. `bug-167` flake: one re-run, recorded.
+- **The suite in the `gate` job's environment** (added after run `36621412441`, `bug-172`): no git
+  identity, exactly as the CI runner has none —
+  `env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 HOME=<empty dir> npx jest`
+  → exit 0. Every earlier run had an identity, which is how `bug-172` reached the tag.
 - `npm run publish:staging` (ephemeral Verdaccio on 4873, pack, publish, clean global install,
   `dl-023` smoke with `--version = 0.2.2`, teardown): exit 0, 20/20 `ok`, port 4873 free afterwards.
   Do not kill it when quiet (`bug-067`); not under `act` in a worktree (`bug-060`).
@@ -265,4 +269,29 @@ No finding outside these; nothing new is exposed by this phase.
 
 ### S4 — merge and handover
 
-Recorded after the merge.
+Merged `--no-ff` into `main` as `a1a2850b`; on `main`: `node scripts/check-release-tag.cjs v0.2.2`
+exit 0, `npm view wingfoil@0.2.2 version` → `E404`. Handed the tag to the approver.
+
+### S5/S6 — first tag run: `gate` failed, nothing published
+
+- The approver pushed `main` and the annotated tag `v0.2.2` (tag object `70f79f06`, peeled to
+  `a1a2850b`: `git ls-remote --tags origin v0.2.2 'v0.2.2^{}'`).
+- Run `36621412441`: `gate` **failure** at the `prepublishOnly` step; `stage` and `promote`
+  **skipped** (`gh run view 36621412441 --json jobs`). 5 of 2624 tests failed, all in
+  `test/cli/help-positional-required.integration.test.ts`:70 (`Expected: 2`, `Received: 1`), for
+  `memory submit|approve|reject|deprecate` and `directive remove` without their positional.
+  `npm view wingfoil@0.2.2 version` → `E404`: nothing was staged or published.
+- Cause, reproduced locally with the test harness and no git identity: those verbs run the identity
+  pre-flight (exit 1) before their argument check (exit 2). The `gate` runner has no git identity;
+  every earlier run (dev-loop, release-submit S1, this plan's S3, `publish:staging`) had one.
+- **Approver ruling, 2026-09-29:**
+  - (1a) fix in the product: argument checks before the pre-flight; the test stays as it is;
+  - reuse `0.2.2`: the approver deletes the tag and re-creates it on the fix;
+  - file the bug.
+- Filed through `bug-ingest-rel-v0.2.2-publish-gate-findings-plan`: `bug-172` (`open`, `high`,
+  `release: "v0.2.2"`, `1890f473`). Fix task `task-125` (`pending`), on branch
+  `task/task-125-mutating-verbs-check-their-required-arguments-before-the-git-identity-pre-flight`.
+  It was added by hand, because the pinned and dev builds' `memory add` allocate `task-017` there
+  (`bug-162`, `triaged`, v0.3).
+- S3 gains the no-identity suite run above. After `task-125` merges: re-run S3 on the new `main`
+  (the release commit `b1cd5db2` is unchanged), then the approver re-tags.
