@@ -116,6 +116,28 @@ answers.
 | repository settings (§B.3) | `gh api repos/wingfoil/wingfoil --jq '{description,homepage,topics,…}'`; GraphQL `discussionCategories` | description, homepage, 14 topics, Discussions on (Announcements, Ideas, Q&A, Show and tell), Issues on, Wiki and Projects off: all carried over |
 | organisation | `gh api orgs/wingfoil --jq '{name,two_factor_requirement_enabled,default_repository_permission}'` | 2FA required, base permission `none`; profile name still `wingFoil` (§B.1 recommends "WingFoil") |
 
-**Open, the approver's (AC 4):** configure the npm
-trusted publisher (`wingfoil`/`wingfoil`/`publish.yml`/`npm-publish`, stage only) with the rest of
-the `publish.yml` runbook; then confirm, and the task goes to review.
+### npm side (AC 4, 2026-09-29)
+
+- The approver configured the **trusted publisher** on npmjs.com for the package `wingfoil`: GitHub
+  Actions, `wingfoil`/`wingfoil`/`publish.yml`/`npm-publish`, stage only. The same day they enabled
+  account 2FA, set publishing access to "require 2FA and disallow tokens", and revoked the stage-only
+  token (the approver's confirmation, "fatto", at this task's review). No public command reads a
+  trusted publisher back. The end-to-end proof is the v0.2.2 tag run, in `release-publishing`.
+- On the approver's instruction the environment secret was deleted: `gh secret delete NPM_TOKEN --env
+  npm-publish -R wingfoil/wingfoil` → exit 0. Then `gh api
+  repos/wingfoil/wingfoil/environments/npm-publish/secrets` → `total_count: 0`, and
+  `…/actions/secrets` → `0`. The repository holds no publish credential of any kind.
+- Services: `svc-007` `deprecated` (`9ad827ad`, pinned `memory deprecate`); `svc-009` registered
+  (`85ae6a9a` add, pinned `memory submit` → `pending`); `svc-005` updated; `svc-008` (the Claude
+  GitHub App, installed by the approver) registered earlier in this task. All `pending` services wait
+  for the approver's `verify` and approval.
+
+### review
+
+- The AC 1 sweep is complete. The remaining `robypomper/wingfoil` hits are historical citations,
+  plus `svc-005`'s record of `wingfoil@0.2.1`'s published `repository.url`.
+- AC 2 needed no amendment, AC 3 is the table above, and AC 4 the npm section.
+- AC 5: `npx tsc --noEmit` clean; `npx jest` → 160 suites, 2624 tests passed; `npm run lint` exit 0 (2026-09-29, after the service edits). `git log HEAD..main` → 0.
+
+**Approver's ruling at the review gate (2026-09-29).** "fatto, cancella il secret e chiudi task-116":
+the npm setup is confirmed, the secret deleted on instruction, and the task approved.
