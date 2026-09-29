@@ -2,7 +2,7 @@
 id: "bug-136-publish-workflow-pins-actions-that-target-node-20"
 type: bug
 title: "`publish.yml` pins four `actions/*` v4 releases that target Node 20, which GitHub runners removed on 2026-09-23; they only run because the runner forces them onto Node 24"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"
