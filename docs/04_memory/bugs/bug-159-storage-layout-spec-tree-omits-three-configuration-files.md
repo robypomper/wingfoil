@@ -1,45 +1,54 @@
 ---
 id: "bug-159-storage-layout-spec-tree-omits-three-configuration-files"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
-release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
-contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
-credit: ""             # optional — free-text credit note (dl-020)
-tmpl_version: 260703   # Orignal template version
+title: "`spec-011`'s directory tree, which claims to be the ground truth of `.wingfoil/`, omits three files the configuration holds: `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`, `workflows/custom/e2e-smoke.yaml`"
+status: open
+severity: "low"
+release-origin: "v0.2.2"
+release: ""
+feature: "P1.13"
+contributor: ""
+credit: ""
+tmpl_version: 260703
 ---
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`spec-011-storage-layout` (`approved`) heads its tree "ground truth: `.wingfoil/`, verified via
+`find .wingfoil -maxdepth 4`". Three files that `.wingfoil/` holds are not in it:
+`memory/templates/plan.md` (the `plan` type, `dl-019`), `workflows/custom/user-docs.yaml` (`dl-013`)
+and `workflows/custom/e2e-smoke.yaml` (`dl-023`). Each was added by a change that did not revise the
+spec.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. On `main` at `582ec08a` or later, list the file names in the tree block of
+   `docs/04_memory/design/specs/spec-011-storage-layout.md` (lines 33–101).
+2. List the files under `.wingfoil/` (`find .wingfoil -maxdepth 4 -type f -printf '%f\n'`).
+3. Compare the two lists: `comm -23` of the sorted lists, ignoring `.gitkeep` and the upper-case
+   `README.md` and `WORKFLOW.md` that the lower-case extraction misses.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+The tree lists every file the configuration holds, or it stops calling itself the ground truth and
+says which files it leaves out on purpose.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The three files are named only in the 2026-09-29 revision note (lines 235–236), which records the gap
+rather than closing it. They are not in the tree (`grep -n "plan.md\|user-docs.yaml\|e2e-smoke.yaml"
+spec-011-storage-layout.md` → only lines 235–236).
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Found at `task-111`'s review (2026-09-29). `task-111` measured it while moving the configuration to
+  the root and recorded it in `spec-011`'s revision note. The approver ruled it a bug.
+- Nothing checks the tree against the configuration, so the same drift will come back with the next
+  added file. The fix can add the three entries. It can also add a test that compares the tree with
+  `find .wingfoil`, so the spec cannot drift again unnoticed.
+- `dl-088`'s `service` type will add `memory/templates/service.md` and a `service-ingest` workflow,
+  two more entries the tree will need.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->
