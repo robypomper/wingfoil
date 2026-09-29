@@ -2,7 +2,7 @@
 id: "decision-log-ingest-rel-v0.2-stage-publish-migration-plan"
 type: plan
 title: "Decision-log ingest — v0.2: migrate the publish pipeline to npm staged publishing"
-status: active
+status: done
 version: "1.1"
 workflow: "decision-log-ingest"
 phase: "rel-v0.2-stage-publish-migration"

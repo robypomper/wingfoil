@@ -2,9 +2,9 @@
 id: "dl-087-publish-through-npm-staged-publishing"
 type: decision-log
 title: "Migrate the publish pipeline from token `npm publish` to npm staged publishing before npm removes token direct-publish (January 2027)"
-status: in-discussion
+status: ready
 context: "release-publishing"
-release: ""
+release: "v0.2.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
@@ -60,6 +60,25 @@ Sources:
 - https://github.blog/changelog/2026-09-18-stage-only-npm-tokens-for-safer-automation/
 - https://www.infoq.com/news/2026/08/npm-stage-available/
 - https://docs.npmjs.com/about-access-tokens/
+
+### 2026-09-28 — the direct-publish token is gone, so this decision now blocks the next publish
+
+After `wingfoil@0.2.1` was published, the approver made two changes:
+
+- **revoked** the all-packages read-write npm token the v0.2 publish used;
+- **replaced** the `npm-publish` environment's `NPM_TOKEN` with a token of the **stage-only** type.
+
+The revocation happened on npmjs.com, so it is the approver's statement. The secret change is
+corroborated by `gh secret list --env npm-publish`, which shows `NPM_TOKEN` updated at
+`2026-09-28T09:25:34Z`, after the 0.2.1 publish run.
+
+`.github/workflows/publish.yml`'s promote job still runs `npm publish ./dist-pack/*.tgz --provenance
+…`, and npm refuses `npm publish` with a stage-only token. That was the blocker
+`release-publishing-rel-v0.2-plan` resolved with the direct-publish token now revoked. **So the next
+publish fails under the current pipeline.** The deadline this decision was written against, npm's
+January 2027 removal of token direct-publish, no longer applies. The v0.2 retrospective (`retro-v0.2`)
+schedules this decision into **v0.2.2**: it must be ratified and implemented before the v0.2.2
+publish.
 
 ## Decision
 

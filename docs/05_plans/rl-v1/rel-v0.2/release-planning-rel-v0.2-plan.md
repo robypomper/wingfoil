@@ -2,7 +2,7 @@
 id: "release-planning-rel-v0.2-plan"
 type: plan
 title: "Release-planning — v0.2 (Project Directives + publishing pipeline)"
-status: active
+status: done
 version: "1.0"
 workflow: "release-planning"
 phase: "rel-v0.2"

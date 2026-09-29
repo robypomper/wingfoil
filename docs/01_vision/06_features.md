@@ -1,7 +1,7 @@
 # Features — WingFoil
 
-**Version:** 1.3
-**Date:** 2026-06-29  
+**Version:** 1.4
+**Date:** 2026-09-28  
 **Status:** Approved
 
 ---
@@ -44,7 +44,7 @@ Structural map of project (modules, tech stack, conventions, team structure in `
 
 | ID   | Feature                         | Journey         | User         | Description                                                                                                                           | Type           |
 |------|---------------------------------|-----------------|--------------|---------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| P2.1 | `wingfoil dna set`              | 0a, 6           | All          | Define/update project DNA                                                                                                             | Command        |
+| P2.1 | `wingfoil dna set/add/update/remove`| 0a, 6           | All          | Define/update project DNA: `set` writes scalar fields; `add`/`update`/`remove` edit collection entries (`dl-081`, `dl-082`). `set` and `update` both stay — `set` is `update` with a scalar-only guard whose refusal names the verb that works (`bug-092` ruling)                                                                                                             | Command        |
 | P2.2 | `wingfoil dna show`             | 3, 5            | All          | Query and display project DNA                                                                                                         | Command        |
 | P2.3 | `wingfoil dna infer`            | 0b              | Morgan, Alex | Auto-scan codebase and propose DNA structure (human reviews/approves)                                                                 | Command        |
 | P2.4 | Project DNA (structured config) | 0a, 0b, 1, 2, 3 | All          | Define project anatomy (modules, tech stack, team members, conventions) in `.wingfoil/dna.yaml`                                       | Infrastructure |
@@ -172,7 +172,7 @@ Notifications and alerts across all features.
 | P1.11      | Memory Entries (git-backed)           | Low        | Git                | Low      | Critical | Storage layer for Memory pillar        | Shared infrastructure for all pillars              |
 | P1.12      | Keyword Memory Search                 | Medium     | Memory, file I/O   | Medium   | Critical | Query Memory by topic                  | Basic keyword matching                             |
 | P1.13      | Memory Element Schema (`memory.yaml`) | Low        | Git                | Low      | Critical | Per-type state machines for Memory     | Element schema in `.wingfoil/memory.yaml`; full custom-states configuration refined in v1.0 (see 07_sequencer.md Week 5) |
-| P2.1       | `wingfoil dna set`                    | Low        | DNA                | Low      | Critical | Define/update project structure        | Basic CRUD operations                              |
+| P2.1       | `wingfoil dna set/add/update/remove` | Low        | DNA                | Low      | Critical | Define/update project structure        | Basic CRUD operations                              |
 | P2.2       | `wingfoil dna show`                   | Low        | DNA                | Low      | Critical | Query project structure                | Essential for all journeys                         |
 | P2.4       | Project DNA (structured config)       | Low        | None               | Low      | Critical | Storage layer for DNA pillar           | Shared infrastructure for all pillars              |
 | P2.5       | `wingfoil paths [category]`           | Medium     | DNA (paths config) | Low      | High     | Query resource paths without full scan | Supports drill-down and multi-format output        |
@@ -314,7 +314,7 @@ Notifications and alerts across all features.
 **Pillar 2 — Project DNA:**
 
 - ✓ Project DNA (P2.4) — `.wingfoil/dna.yaml`
-- ✓ Set, Show, Infer commands (P2.1–P2.3)
+- ✓ Set/Add/Update/Remove, Show, Infer commands (P2.1–P2.3)
 
 **Pillar 3 — Project Directives:**
 
