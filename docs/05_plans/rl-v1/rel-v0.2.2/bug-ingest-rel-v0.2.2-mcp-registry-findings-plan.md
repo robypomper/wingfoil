@@ -31,6 +31,7 @@ at triage.
 
 | Finding | Verdict |
 |---|---|
+| `publish.yml` runbook step 6 names neither where npm's Staged Packages tab is nor the "automated review" state | **bug** `bug-174` (low) |
 | `mcp-publisher publish` of `io.github.wingfoil/wingfoil` → 403 "You have permission to publish: io.github.robypomper/*", although the approver is an active owner of `wingfoil` with public membership | **bug** (medium: a `dl-093` deliverable of v0.2.2 is not delivered) |
 
 ### `triage` — role: tech-lead, approver gate
@@ -49,4 +50,12 @@ at triage.
 - `bug-173` added by the pinned build (`9e175125`); `bug-172` was the highest number on every local and
   remote branch. It was then submitted `draft → open`, with the 403 text, the membership evidence, the
   suspected cause and the duplicate search.
-- Awaiting the approver's triage.
+- **Misunderstanding, recorded.** The approver's "apri il bug" meant the runbook gap proposed in
+  `release-publishing-rel-v0.2.2-plan` S8, not the registry 403. The approver corrected it right after.
+  `bug-173` stays `open` for the approver's triage: kept, or rejected to `closed`. It was not retired
+  by the agent.
+- `bug-174` (the runbook gap) added (`3cb4d624`) and submitted `draft → open` (`153f9b44`) by the
+  pinned build. It is low severity; the location of the Staged Packages tab is to come from the
+  approver. Its body was corrected afterwards, in its own commit: `release-publishing.yaml` line 31
+  says only "or Approve on npmjs.com".
+- Awaiting the approver's triage of `bug-173` and `bug-174`.
