@@ -2,7 +2,7 @@
 id: "bug-159-storage-layout-spec-tree-omits-three-configuration-files"
 type: bug
 title: "`spec-011`'s directory tree, which claims to be the ground truth of `.wingfoil/`, omits three files the configuration holds: `memory/templates/plan.md`, `workflows/custom/user-docs.yaml`, `workflows/custom/e2e-smoke.yaml`"
-status: in-review
+status: closed
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.2.2"
