@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -84,6 +84,8 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    - `memory.reject` `[open → closed]`: `bug-094`, `Reason:` retyped to `dl-123` (`ready`,
      `release: v0.2.2`), which carries its content — nothing is left to fix under the bug itself.
    The other 69 open unscheduled bugs are not selected and stay untouched.
+   **Done 2026-09-29** on the approver's instruction: `1b138d40` (approve, four bugs) and `30c18658`
+   (reject `bug-094`, `rejection_reason` set).
 3. **reconcile-governance** (product-owner, ⛔). In scope and not `ready`: only `dl-091`. Before the
    gate, the agent records in `dl-091` the name checks (npm, GitHub, crates.io, PyPI, trademarks), each
    with its source and the date read. The approver chooses the MCP namespace and the new repository
@@ -110,12 +112,30 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`;
    `patch-v0.2.2` `[planning → in-development]`.
 
+## Approver inputs received (2026-09-29)
+
+- **npm (for `dl-087`).** On npmjs.com the `wingfoil` package has one granular token, created
+  2026-09-28, never used, expiring 2026-12-27: read and write, **stage only**, on `wingfoil` alone, no
+  organisation access. **Account 2FA is disabled.** Two gaps against `dl-087` as ratified
+  (`7b1b1e82`: Q1 (B), Q2 (iii)), for the approver at identify-specs (gate 5):
+  - Q1 (B) is OIDC trusted publishing with no long-lived token; the configured credential is Q1 (A),
+    a stage-only token. Either `dl-087`'s ruling is revised to (A), or the trusted publisher is
+    configured on npmjs.com and the token revoked before step 3.
+  - Q2 (iii) keeps two human gates, the second being npm 2FA on `npm stage approve`. With 2FA
+    disabled that gate does not exist; only the GitHub environment reviewer remains.
+  The token's expiry precedes npm's January 2027 removal of direct publish, so it covers v0.2.2 either
+  way. It is recorded here and not in the repository: no token value was given or stored.
+- **Budget (for `dl-096`).** Derived from the measured velocity, not set by hand. `dl-096` Q1 (a)
+  keeps budgets in the vision documents only, so no field is added to `patch-v0.2.2`. At
+  build-backlog the budget is computed as *tasks ÷ 6.5 per active day* (v0.1 6.6, v0.2 6.3,
+  `retrospective-rel-v0.2-plan` §6.9), recorded in `patch-v0.2.2`'s Planning notes next to
+  `dl-096`'s proxy of ≈ 4 active days, and carried into `07_sequencer.md` by `dl-096`'s own task.
+
 ## Handoff
 
 - **Approver:** gates 2–5 and 7, and the go-ahead to merge into `main`. Inputs needed before the
-  gates they block: the MCP namespace and the new repository name (gate 3); the npm-side state for
-  staged publishing — what is configured on npmjs for `dl-087` (gate 5); whether `dl-096`'s re-baseline
-  fixes a target for v0.2.2 in active days.
+  gates they block: the MCP namespace and the new repository name (gate 3); the ruling on the two `dl-087`
+  gaps above (gate 5).
 - **Agent:** all authoring (this plan, `patch-v0.2.2`'s content, `dl-091`'s facts, any ADR or spec,
   the tasks), the non-gated define-scope and build-backlog mechanics, spec-review preparation, commit
   hygiene. It never approves.
