@@ -2,7 +2,7 @@
 id: "dl-118-choosing-between-decision-log-bug-and-directive"
 type: decision-log
 title: "No written rule chooses between a decision-log, a bug and a directive change, so the same situation was filed six times as one and six times as the other"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
