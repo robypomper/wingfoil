@@ -44,7 +44,7 @@ phases:
                                              #   architecture, determinism and traceability
     produces:
       - "CLAUDE.md"
-      - "docs/self/.wingfoil/README.md"
+      - ".wingfoil/README.md"
     checks:
       post:
         - "CLAUDE.md project status matches the shipped command surface (CORE_MODULES)"

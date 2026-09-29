@@ -41,8 +41,8 @@
 #                  release-planning's `identify-specs` (proactive, per release scope);
 #                  `dev-loop/design` is a reactive fallback for artefacts discovered only during a task.
 # (risk / rfc / note were dropped: no workflow action currently produces them.)
-# Memory content lives under docs/04_memory/ (each type's `path`), resolved against the docs/self/
-# dogfooding root -> docs/self/docs/04_memory/. Seeded so far: `release` (roadmap derived from
+# Memory content lives under docs/04_memory/ (each type's `path`), resolved against the repository
+# root, where this .wingfoil/ also sits (moved there from docs/self/ by task-111). Seeded so far: `release` (roadmap derived from
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.

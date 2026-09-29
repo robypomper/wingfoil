@@ -1,7 +1,7 @@
 # WingFoil — Workflow Reference
 
 This document describes the complete workflow configuration for the WingFoil project as defined in
-`docs/self/.wingfoil/`. The single startable lifecycle is `sw-life-cycle`; three independent
+`.wingfoil/` (this directory). The single startable lifecycle is `sw-life-cycle`; three independent
 **ingest mains** can be started on demand at any time.
 
 ---

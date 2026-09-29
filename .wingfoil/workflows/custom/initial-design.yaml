@@ -11,7 +11,7 @@
 # scope. identify-specs already dedupes against "not yet covered by an approved spec", so anything
 # seeded here is not re-created once a release's own delivery starts.
 # NOTE: WingFoil's CLI/MCP is not yet usable, so for THIS project these outputs are produced
-# MANUALLY, under docs/04_memory/ (resolved against docs/self/ for this dogfooding setup).
+# MANUALLY, under docs/04_memory/ (resolved against the repository root).
 name: initial-design
 kind: sub
 element: release-line   # the active element provided by release-line-cycle

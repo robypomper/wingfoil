@@ -178,4 +178,4 @@ paths:
     - package.json
     - tsconfig.json
   governance:
-    - docs/self/.wingfoil/         # this dogfooding configuration
+    - .wingfoil/                   # this dogfooding configuration

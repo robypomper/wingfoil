@@ -23,7 +23,7 @@ Custom WingFoil rule. Applies to all roles.
 
 ## The secret scan, and how to document a credential without tripping it
 
-Everything under `.wingfoil/` (here: `docs/self/.wingfoil/` and `docs/self/docs/04_memory/`) is checked
+Everything under `.wingfoil/` (here also the Memory under `docs/04_memory/`) is checked
 by the secret scan (`spec-007-secret-hygiene-patterns`, REQ-SEC-08). It reads the **git index** — what
 your next commit would contain — and **any blocking match fails the gate**. Nine of its ten patterns
 block, including a JWT-shaped string and a `.env`-style line whose key names a credential
