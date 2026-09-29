@@ -97,3 +97,93 @@ notes record that `test/docs/cli-reference.test.ts` checks command headings, not
 | 3 — already-initialised error names a real remedy | red-first | `init.ts:54` names a command that does not exist (`bug-129`) |
 | 4 — exit codes unchanged | characterization | `2` / `1` already pinned by `test/cli/init-command.test.ts` ("no --template + not a TTY … exit 2", "already-initialized … exits 1") and `test/core/init-project.test.ts` |
 | 5 — `cli-reference.md` matches, `npm test` green | characterization (docs + gate) | documentation; `test/docs/cli-reference.test.ts` checks headings only |
+
+### red
+
+Commit `ad2d50a8`. `npx jest test/cli/init-command.test.ts test/core/init-project.test.ts test/cli/program.test.ts`
+→ **4 failed, 47 passed**, each on its assertion (genuine reds):
+- AC 1, `init-command.test.ts` "no --template + not a TTY": expected
+  `error: missing required argument: --template (one of: Scrum, Kanban)`, received
+  `error: missing required argument: --template`.
+- AC 1, new suite "a template added to the registry appears in the message": re-loads
+  `init-command` under `jest.isolateModules` with `../../src/storage` mocked to
+  `TEMPLATE_NAMES: ['Scrum', 'Kanban', 'Shape Up']`; expected `… (one of: Scrum, Kanban, Shape Up)`,
+  received the bare message. A hard-coded list would keep failing this test.
+- AC 2, `program.test.ts`: expected the `--template` description
+  `methodology template, one of: Scrum, Kanban (required without a terminal or with --no-interactive)`,
+  received `methodology template to initialize with (non-interactive)`; it also asserts
+  `helpInformation()` contains `Scrum, Kanban`.
+- AC 3, `init-project.test.ts`: expected the new `WINGFOIL_ALREADY_INITIALIZED`, received
+  `… (use a migration command to change config)`; it also asserts the constant does not match
+  `/migration/`.
+AC 4 (characterization): the exit-`2` and exit-`1` assertions in those suites passed on first run.
+The `init-command.test.ts` already-initialized test now compares against the constant rather than a
+second copy of the text.
+
+### green
+
+- `5944bd06` — `src/cli/init-command.ts` `selectTemplate` emits
+  `missing required argument: --template (one of: ${TEMPLATE_NAMES.join(', ')})`; `src/cli/program.ts`
+  imports `TEMPLATE_NAMES` from `../storage` and builds the `--template` description from it;
+  `src/core/init.ts` `WINGFOIL_ALREADY_INITIALIZED` carries the new hint (TSDoc updated: "do not
+  reword without that scenario").
+- `21a1dc83` — `P5.1.1-init.feature` scenario "Error - initializing an already-initialized project"
+  pins the new message; exit code `1` unchanged.
+- The three suites → 51 passed.
+
+**End to end** (`npm run build`, then `node dist/cli.js` in a `mktemp -d` `git init` repo under the
+session scratchpad, identity set locally):
+
+| Invocation | Exit | Output |
+|---|---|---|
+| `init </dev/null` | `2` | `error: missing required argument: --template (one of: Scrum, Kanban)` |
+| `init --no-interactive --format json </dev/null` | `2` | `{"error":"missing required argument: --template (one of: Scrum, Kanban)"}` |
+| `init --help` | `0` | `--template <name>  methodology template, one of: Scrum, Kanban (required` / `without a terminal or with --no-interactive)` |
+| `init --template Nope` | `2` | `error: unknown template "Nope", expected one of: Scrum, Kanban` (unchanged) |
+| `init --template Scrum` | `0` | one commit `chore(wingfoil): initialize .wingfoil/ with the Scrum template (P5.1.1)` |
+| `init --template Scrum` again | `1` | `error: WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)`; still 1 commit (`git log --oneline \| wc -l` → 1), clean tree (`git status --short \| wc -l` → 0) |
+
+The named remedy works: `dna set project.name --value Demo` → exit `0`, commit `wf(dna): set project.name`;
+`directive --help` → exit `0`, lists `assign`, `create`; `wingfoil --help | grep -i migrat` → nothing
+(exit `1`).
+
+**Same-class sweep.** `grep -rn "migration command\|already initialized\|missing required argument: --template\|methodology template to initialize"`
+(outside Memory) plus `grep -n -i "template\|no-interactive\|tty"` on the user docs:
+- **Fixed** (`e6cd246e`): `docs/cli-reference.md` `init` entry — option row (lists where `init --help`
+  names the values; required also without a terminal) and **Errors** (both new messages quoted, exit
+  codes as before); `docs/user-guide.md` §3 — the missing-`--template` error and the re-init remedy
+  (edit + commit, or `dna`/`directive`, §4/§6). Only the `init` entry of `cli-reference.md` was touched
+  (task-120 owns the rest).
+- **Checked, nothing stale:** `README.md:84` (`init [--template Scrum|Kanban]`), `README.md:127`,
+  `docs/agents.md:135` (`init --template Scrum # or Kanban`), `docs/examples/*/run.sh` (all pass a
+  valid `--template`). None quotes either message.
+- `CHANGELOG.md` has no unreleased section; it is written by the `user-docs` phase.
+
+### refactor
+
+No code refactor: the change is three strings. `TEMPLATE_NAMES.join(', ')` now appears at five call
+sites (`grep -c` → `init-command.ts` 4, `program.ts` 1); extracting a helper was not done because `program.ts`
+cannot take it from `./init-command` (mocked in `program.test.ts`) and a storage-level helper would be
+new public API for a one-liner.
+
+Checks (`npm ci` done in the worktree):
+- Coverage, `npx jest --coverage` — before (`src test` + docs checked out at `ac39ccb4`): statements
+  98.62% (3874/3928), branches 94.18% (1993/2116), functions 93.79% (650/693), lines 99.47%
+  (3398/3416), 2535 tests; after: 98.62% (3875/3929), 94.18% (1993/2116), 93.79% (650/693), 99.47%
+  (3399/3417), 2537 tests. Not regressing.
+- `npm run lint` → exit 0; `npm run docs:api` → exit 0; `npx tsc --noEmit` → exit 0.
+- `main` had advanced (`git log --oneline HEAD..main` → 6 commits: task-124 filing, bug approvals,
+  plan edits; no `src/`/`test/` file). Merged (`fd25af79`, no conflict), rebuilt, `npx jest` →
+  155 suites, **2537 passed**.
+
+### review
+
+- `tests.bdd`: `P5.1.1-init.feature` is exercised by `test/core/init-project.test.ts` and
+  `test/cli/init-command.test.ts`, green in the full run above.
+- AC 1 ✔ red-first (`ad2d50a8` → `5944bd06`, incl. the mocked-registry test); AC 2 ✔ red-first
+  (same); AC 3 ✔ red-first (same, plus `21a1dc83`); AC 4 ✔ characterization (exit `2`/`1`/`0`
+  unchanged, e2e table); AC 5 ✔ (`e6cd246e`; `test/docs/cli-reference.test.ts` green; `npx jest`
+  2537/2537).
+- **For the approver:** (1) `spec-008` §4 still reads `error: missing required argument: --<name>`;
+  the new message keeps it as a prefix and adds the list. Amend §4 or leave it — not edited in-task.
+  (2) The BDD scenario text was changed in-task (`21a1dc83`), as `task-100` did for `P2.1`.
