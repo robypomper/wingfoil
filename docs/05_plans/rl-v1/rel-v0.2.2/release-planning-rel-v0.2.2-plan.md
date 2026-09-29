@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -91,6 +91,7 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    with its source and the date read. The approver chooses the MCP namespace and the new repository
    name; `memory.approve dl-091 [in-discussion → ready]`. The other 25 unscheduled `in-discussion`
    decision-logs are not selected.
+   **Done 2026-09-29**: the facts in `4283ca65` and `f5927f93`, the approval in `a4e80e11`.
 4. **record-adrs** (architect, optional, `dl-022` spec-review + ⛔). Candidate: `dl-087` replaces the
    staging design `adr-009` accepted (ephemeral Verdaccio). If the spec-review finds it changes that
    decision rather than its implementation, `adr-011` is recorded and `adr-009` retired with
@@ -143,6 +144,18 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
   build-backlog the budget is computed as *tasks ÷ 6.5 per active day* (v0.1 6.6, v0.2 6.3,
   `retrospective-rel-v0.2-plan` §6.9), recorded in `patch-v0.2.2`'s Planning notes next to
   `dl-096`'s proxy of ≈ 4 active days, and carried into `07_sequencer.md` by `dl-096`'s own task.
+
+## External identities registered, pending the `service` type
+
+`dl-088`'s `service` type arrives in §6.8 step 4. Until then the identities the approver reserves are
+recorded here, with the date and the account used, and each becomes a `service` element there
+(`dl-091` Actions):
+
+| Identity | Created | Account | Verified by |
+|---|---|---|---|
+| GitHub organisation `wingfoil` | 2026-09-29 11:05 UTC | `robypomper` (GitHub) | `https://api.github.com/orgs/wingfoil` → `created_at: 2026-09-29T11:05:14Z` |
+| npm organisation `wingfoilhq` | 2026-09-29 | `robypomper` (npm) | `https://registry.npmjs.org/-/org/wingfoilhq/package` → 200 |
+| `wingfoil.dev`, `wingfoilhq.dev`, handles | not yet | — | — |
 
 ## Handoff
 
