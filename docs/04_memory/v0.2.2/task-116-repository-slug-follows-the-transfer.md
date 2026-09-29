@@ -56,3 +56,34 @@ answers.
      - design: tech-specs found missing/needing revision (dev-loop/design safety net).
      - red/green/refactor: deviations from the plan above, blockers, scope surprises.
      - review: rejection reasons and what changed on the next pass. -->
+
+### design (architect)
+
+- **depends_on acknowledged** (`dl-015`): `task-113` (`done`, merge `83f6fd1b`) left the trusted
+  publisher to be configured after the transfer, against `wingfoil`/`wingfoil`/`publish.yml`/
+  `npm-publish`. `task-115` (`done`, merge `ebfccee5`) put the current slug into `server.json` and
+  named `task-116` for the switch. `task-124` (`done`, `a9523820`) registered `svc-003`, `svc-004`,
+  `svc-006` and `svc-007` with the old slug and asked for a `docs(self)` update after the transfer.
+- **Precondition met:** `gh api repos/wingfoil/wingfoil --jq .full_name` → `wingfoil/wingfoil`, and
+  `gh api repos/robypomper/wingfoil --jq .full_name` → `wingfoil/wingfoil` (the redirect), on
+  2026-09-29.
+- **Spec:** `spec-015` §1 already fixes `<owner>` as `wingfoil` (lines 37–43, amended `0a4f7a9c`).
+  `grep -n robypomper spec-015-packaging-publishing.md` finds only the `author` e-mail, so AC 2 needs
+  no amendment.
+- **AC classification (T1):**
+  1. The slug sweep: *red-first* for the metadata (`test/cli/publish-metadata.test.ts` `REPO_SLUG`
+     drives the `package.json` and `server.json` assertions), *configuration* for the files.
+  2. `spec-015` check: *verification*, nothing to amend.
+  3. Post-transfer re-checks: *verification*, each with its command below.
+  4. Trusted publisher: *the approver's*, recorded when confirmed.
+  5. `npm test`.
+- **Sweep scope** (`grep -rln "robypomper/wingfoil" --exclude-dir={node_modules,dist,.git,coverage} .`
+  → 27 files on `main` at `fb715a93`):
+  - changed: `package.json`, `server.json`, `test/cli/publish-metadata.test.ts`, and the
+    services `svc-003`, `svc-004`, `svc-006`, `svc-007`, whose `verify`, `url` and `account` name
+    the live repository;
+  - left as written: the DLs, bugs, plans and done tasks (historical citations, which GitHub
+    redirects), `svc-001` (it states the transfer itself), and `svc-005`, which records the
+    `repository.url` that the **published** `wingfoil@0.2.1` carries, still true on the registry.
+
+
