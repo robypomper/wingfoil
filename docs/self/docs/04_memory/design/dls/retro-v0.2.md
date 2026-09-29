@@ -209,7 +209,7 @@ enters.
 | 41 | Clean-up of the unscheduled population | Plan output, `bug-094`/`dl-123` first | v0.3 start | v0.3 |
 | 42 | v0.2.2 and v0.3 in parallel | On `main`, trunk-based (`dl-002`). v0.3 starts after v0.2.2's root move; until the `v0.2.2` tag it merges only Memory and process documents | `dl-092` | v0.2.2 / v0.3 |
 | 43 | Superseded proposals | Version `0.1.0`, npm name, `history --follow`, `dna set` scalar-only, verbs missing | none (proof in plan §4.10) | — |
-| 44 | Withdrawn branches | Deleted at close-out, after the approver confirms | close-out | — |
+| 44 | Withdrawn branches | Not merged; the approver deletes them after close-out (ruling 2026-09-29). The perennial-agents decision-log that existed only on one of them was added at `54ff3300` and submitted at `05adefd9`, a duplicate `dl-080` never counted here. The other held the project-visibility planning, whose content is restated in plan §6.7 | approver | — |
 
 ## Rationale
 
@@ -234,7 +234,7 @@ enters.
 - [ ] Ratify or amend each decision-log filed here; triage each bug filed here (owner: approver).
 - [ ] Close-out (owner: facilitator):
   - close the six v0.2 plans still `active`, and this retrospective's plan;
-  - delete the two withdrawn branches, after the approver confirms;
+  - the two withdrawn branches are left for the approver to delete;
   - re-check ids across every ref, then merge with `--no-ff` and push.
 - [ ] v0.2.2, in the order of plan §6.8:
   - identity (`dl-094`: shared git config already cleared by the approver), `bug-137`, `dl-092`;
