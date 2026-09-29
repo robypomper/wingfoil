@@ -7,10 +7,10 @@
  * This file is that comparison: each runtime dependency must be the target of at least one
  * `import … from`, `import()`, `require()` or bare `import` in some `src/**\/*.ts` file.
  *
- * `KNOWN_UNIMPORTED` is the explicit, exact exception set. It holds `chalk`, found unimported by this
- * guard at `task-117`'s design (reported at its review; out of that task's scope). The set must equal
- * what is actually unimported, so the test fails both when a new unused dependency appears and when
- * `chalk` is imported or removed without its exception being dropped.
+ * `KNOWN_UNIMPORTED` is the explicit, exact exception set, empty today. It held `chalk`, found
+ * unimported by this guard at `task-117`'s design and removed in the same task on the approver's
+ * ruling. The set must equal what is actually unimported, so the test fails both when a new unused
+ * dependency appears and when an excepted one is imported or removed without its exception going.
  *
  * Deterministic: the file walk is sorted, and both inputs are committed files; no npm, no network.
  */
@@ -20,7 +20,7 @@ import { join } from 'node:path';
 const REPO_ROOT = join(__dirname, '..', '..');
 
 /** Runtime dependencies declared but imported nowhere in `src/`, on purpose and on record. */
-const KNOWN_UNIMPORTED: readonly string[] = ['chalk'];
+const KNOWN_UNIMPORTED: readonly string[] = [];
 
 /** Every `.ts` file under `dir`, sorted. */
 function tsFiles(dir: string): string[] {
