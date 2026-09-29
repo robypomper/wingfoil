@@ -2,7 +2,7 @@
 id: "bug-127-illegal-transition-error-names-a-move-nobody-attempted"
 type: bug
 title: "`illegal transition <from> -> <to>` names a target the user never asked for — `approved -> pending`, `done -> ready`, `approved -> draft`"
-status: open
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: ""
@@ -10,6 +10,7 @@ feature: "P1.6"
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed at v0.3's release-planning triage-bugs (gate 2), approver ruling 2026-09-29, option A (release-planning-rel-v0.3-plan Appendix A). Duplicate of bug-165 (triaged, v0.3): the same canonical-edge rule names a target nobody attempted. Its extra reproduction cases (end of chain, a gate, a custom machine) were folded into bug-165 in 66cf5920, so nothing is lost."
 ---
 
 ## Summary
