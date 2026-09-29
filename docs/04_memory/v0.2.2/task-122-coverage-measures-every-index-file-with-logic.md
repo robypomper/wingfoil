@@ -192,3 +192,12 @@ above 80, so this task does not chase them.
 - Stale quote, not fixed here: `bug-141` (open, v0.3) quotes the old
   `collectCoverageFrom: ['src/**/*.ts', '!src/**/index.ts']` in its Summary. Closed v0.1/v0.2 task
   notes quote it too, and are historical records.
+
+**Approver's ruling at the review gate (2026-09-29).**
+- The drop in `functions` (98.98 → 93.79) is accepted. It is the getter functions the compiler
+  generates for the re-exports of the two index files, which were measured for the first time, and
+  not a loss of tested code. AC 3 is read on the global thresholds.
+- The 8 uncovered statements and 14 branch arms of `src/core/index.ts` are filed as a separate bug.
+- `bug-141`'s Summary quoted the old `collectCoverageFrom` line as current. It is updated in the
+  commit after this note, before approval, because it is the same kind of stale description this task
+  fixes. The historical quotes in closed v0.1/v0.2 task notes stay as written.
