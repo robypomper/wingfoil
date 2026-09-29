@@ -99,7 +99,8 @@ through its own verbs, and every later publish goes through staging.
     patch does not have, so `dl-096` estimated it from the configuration move instead; the count
     measures tasks at the velocity v0.1 and v0.2 showed (33 ÷ 5 = 6.6 and 75 ÷ 12 ≈ 6.25 a day; the
     6.5 used here is a rounding upward, and the pooled 108 ÷ 17 ≈ 6.35 gives the same 2.2), and weighs
-    every task alike.
+    every task alike. The approver ruled on 2026-09-29, at `task-121`'s review, that **6.5 stands** as
+    the planning rate.
   - *Recalculated for 15 tasks (dev-loop, 2026-09-29).* `task-123` was added after build-backlog
     (`50c64846`, from `task-110`'s review), so the backlog is 15 tasks (`ls docs/04_memory/v0.2.2/ | wc -l`
     → 15 at `c3df9df3`): 15 ÷ 6.5 ≈ **2.3 active days** (≈ 2.4 at 6.35). The figure above stays as build-backlog

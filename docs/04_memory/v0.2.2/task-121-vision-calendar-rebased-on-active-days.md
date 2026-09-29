@@ -112,3 +112,14 @@ documents only. The forecast is refreshed at every retrospective.
   already stale for rows this task does not touch — `06_features.md` listed 1.2 (file is 1.4) and
   `X_cli-cmds.md` 1.1 (file is 1.3) (`grep -H -m1 '^\*\*Version' docs/01_vision/*.md`). The three
   documents keep `Status: Approved`; whether a vision edit needs its own approval record is `dl-125`.
+
+**Approver's ruling at the review gate (2026-09-29).**
+- The planning velocity stays **6.5** tasks per active day. The sequencer and `patch-v0.2.2`'s
+  Planning notes now say it is the ratified rate. 6.35 remains in both only as the pooled
+  measurement.
+- The canvas reference table is corrected: `06_features.md` 1.2 → 1.4 and `X_cli-cmds.md` 1.1 → 1.3,
+  the versions in each file's header (`grep -m1 '^\*\*Version' docs/01_vision/<file>`). The canvas
+  stays at 1.2, the version this task gave it.
+- Not touched, recorded for later: `docs/01_vision/00_index.md`'s document map is stale too (brief
+  1.2, sequencer 1.3, canvas 1.1, features 1.2, cli-cmds 1.1, "Last indexed: 2026-06-25"), and so are
+  its line ranges.
