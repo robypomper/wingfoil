@@ -2,7 +2,7 @@
 id: "dl-127-community-health-files"
 type: decision-log
 title: "The public repository has no contributing guide GitHub recognises, no code of conduct, no security policy and no issue or PR templates — which community health files WingFoil adds, and how they route into Memory"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
