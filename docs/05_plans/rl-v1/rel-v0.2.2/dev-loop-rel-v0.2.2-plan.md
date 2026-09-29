@@ -3,7 +3,7 @@ id: "dev-loop-rel-v0.2.2-plan"
 type: plan
 title: "Dev-loop — rel-v0.2.2"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "dev-loop"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -24,7 +24,8 @@ workflow engine does not exist yet, so this `plan` element is the phase's execut
 This is a **generic plan**, as in v0.1 and v0.2: every run follows it, and the per-task content and
 running log live in each task's own **Execution Notes**. No per-task plan file is created. The
 phase-by-phase contract is the one of `dev-loop-rel-v0.2-plan` §3, unchanged, because `dev-loop.yaml`
-is still v1.3. What is specific to v0.2.2 is the wave order (§2) and the configuration move in the
+has no phase or step change since v1.3 (its v1.4, from `task-114`, corrects only the header comment
+on `dl-123`'s bug decline edges). What is specific to v0.2.2 is the wave order (§2) and the configuration move in the
 middle of it (§3).
 
 **Preconditions (verified on `main` at `4770a52c`, 2026-09-29).**
