@@ -8,7 +8,7 @@ kind: "credential"
 owner_role: "approver"
 verify: "gh secret list --env npm-publish"
 url: ""
-account: "environment npm-publish of robypomper/wingfoil"
+account: "environment npm-publish of wingfoil/wingfoil"
 renews: "2026-12-27"
 repo_refs: []
 decision: "dl-087-publish-through-npm-staged-publishing"
@@ -29,7 +29,9 @@ This element holds **no secret value** — only where the secret is held, its ty
 ## Configuration
 
 - **Held in:** GitHub Actions secret `NPM_TOKEN`, environment `npm-publish`, repository
-  `robypomper/wingfoil` (`svc-006-github-environment-npm-publish`). No repository-level secret of the
+  `wingfoil/wingfoil` (`svc-006-github-environment-npm-publish`). It carried over with the transfer
+  (`gh api repos/wingfoil/wingfoil/environments/npm-publish/secrets --jq '.secrets[]|{name,updated_at}'`
+  → `NPM_TOKEN`, `2026-09-28T09:25:34Z`, run by `task-116` on 2026-09-29). No repository-level secret of the
   same name exists (`gh secret list` → nothing).
 - **Type:** an npm granular token of the **stage-only** type. After `wingfoil@0.2.1` the approver
   revoked the all-packages read-write token the v0.2 publish used and replaced the secret's value with a
