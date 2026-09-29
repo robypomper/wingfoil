@@ -2,7 +2,7 @@
 id: "task-114-bug-decline-edges-from-triaged-and-planned"
 type: task
 title: "A bug ruled not-to-be-fixed after triage has an approver-gated exit to `closed`"
-status: approved
+status: done
 release: "v0.2.2"
 priority: "medium"
 tags: ["v0.2.2", "memory", "config", "bug-machine"]
