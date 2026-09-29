@@ -1,5 +1,7 @@
 /** One `package-lock.json` entry, reduced to the fields {@link checkLockfilePins} reasons about. */
 export interface LockfilePackage {
+  /** The package's real name, recorded when it differs from its install path (an `npm:` alias). */
+  readonly name?: string;
   /** The resolved version of this node. */
   readonly version?: string;
   /** Peers this package requires, by name, as declared ranges. */
