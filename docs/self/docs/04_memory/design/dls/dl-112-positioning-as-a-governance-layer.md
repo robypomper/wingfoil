@@ -2,7 +2,7 @@
 id: "dl-112-positioning-as-a-governance-layer"
 type: decision-log
 title: "The product brief positions WingFoil only against flat rule files, scattered docs and large context windows; state it as a governance layer complementary to spec-driven development tools, and stop leading with determinism until it is measured"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
