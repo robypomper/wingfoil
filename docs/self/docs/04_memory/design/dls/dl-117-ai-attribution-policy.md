@@ -2,7 +2,7 @@
 id: "dl-117-ai-attribution-policy"
 type: decision-log
 title: "No rule says when and how AI co-authorship is attributed in commits — five model names, gaps and co-authored approvals follow; declare one policy"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
