@@ -2,7 +2,7 @@
 id: "dl-122-no-secret-shaped-literals-in-fixtures"
 type: decision-log
 title: "The secret scanner's own tests hold 24 secret-shaped source literals, one of which blocked the first push — `security-secrets` gains a rule that such fixtures are built at runtime"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
