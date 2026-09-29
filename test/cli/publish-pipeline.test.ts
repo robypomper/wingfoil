@@ -42,6 +42,7 @@ interface WorkflowJob {
   readonly needs?: string | readonly string[];
   readonly if?: string;
   readonly permissions?: Readonly<Record<string, string>>;
+  readonly env?: Readonly<Record<string, string>>;
   readonly steps: readonly WorkflowStep[];
 }
 
@@ -143,15 +144,16 @@ describe('publish workflow (task-060) — spec-015 §3 / adr-009', () => {
     expect(download?.with?.name).toBe(upload?.with?.name);
   });
 
-  it('promote publishes the same tarball with provenance, skipped under act', () => {
+  it('promote stages the same tarball with provenance, skipped under act (task-113, spec-015 §3 stage 4)', () => {
     const { parsed } = readWorkflow();
     const promote = parsed.jobs.promote;
     const download = promote?.steps.find((s) => s.uses?.startsWith('actions/download-artifact@'));
     expect(download?.with?.name).toBe(parsed.jobs.gate?.steps.find((s) => s.uses?.startsWith('actions/upload-artifact@'))?.with?.name);
-    const publish = promote?.steps.find((s) => s.run?.includes('npm publish'));
-    expect(publish?.run).toContain('--provenance');
-    expect(publish?.run).not.toContain('--dry-run');
-    expect(publish?.if).toBe('${{ !env.ACT }}');
+    const stage = promote?.steps.find((s) => s.run?.includes('npm stage publish'));
+    expect(stage?.run).toContain('npm stage publish ./dist-pack/*.tgz --provenance --access public');
+    expect(stage?.run).not.toContain('--dry-run');
+    expect(stage?.if).toBe('${{ !env.ACT }}');
+    expect(runs(promote)).not.toContain('npm publish');
   });
 
   it('grants `id-token: write` (OIDC provenance) to promote only; the workflow default is read-only', () => {
@@ -162,14 +164,40 @@ describe('publish workflow (task-060) — spec-015 §3 / adr-009', () => {
     expect(parsed.jobs.stage?.permissions).toBeUndefined();
   });
 
-  it('pins one Node version for every job and ties the choice to bug-023', () => {
+  it('keeps gate and stage on the 22.12.0 floor and ties the choice to bug-023 (adr-010)', () => {
     const { raw, parsed } = readWorkflow();
     expect(parsed.env?.NODE_VERSION).toBe('22.12.0');
-    for (const job of Object.values(parsed.jobs)) {
-      const setup = job.steps.find((s) => s.uses?.startsWith('actions/setup-node@'));
+    for (const name of ['gate', 'stage']) {
+      const setup = parsed.jobs[name]?.steps.find((s) => s.uses?.startsWith('actions/setup-node@'));
       expect(setup?.with?.['node-version']).toBe('${{ env.NODE_VERSION }}');
     }
     expect(raw).toContain('bug-023');
+  });
+
+  /**
+   * task-113 AC 2 (adr-011 point 4): `npm stage publish` needs npm ≥ 11.15.0, no Node 22 release bundles
+   * npm 11, and the oldest Node that bundles npm ≥ 11.15 is 24.18.0. So promote alone leaves the floor.
+   */
+  it('runs promote alone on an exact Node ≥ 24.18.0, and explains the asymmetry in the header', () => {
+    const { raw, parsed } = readWorkflow();
+    const pinned = parsed.jobs.promote?.env?.PROMOTE_NODE_VERSION ?? '';
+    expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);
+    const [major, minor] = pinned.split('.').map(Number);
+    expect((major ?? 0) > 24 || ((major ?? 0) === 24 && (minor ?? 0) >= 18)).toBe(true);
+    const setup = parsed.jobs.promote?.steps.find((s) => s.uses?.startsWith('actions/setup-node@'));
+    expect(setup?.with?.['node-version']).toBe('${{ env.PROMOTE_NODE_VERSION }}');
+    expect(parsed.env).not.toHaveProperty('PROMOTE_NODE_VERSION');
+    expect(raw).toContain('adr-011');
+    expect(raw).toMatch(/npm ≥ 11\.15\.0/);
+    expect(raw).toMatch(/no Node 22 release bundles npm 11/i);
+  });
+
+  it('turns off setup-node’s implicit package-manager cache in every job (explicit over inferred)', () => {
+    const { parsed } = readWorkflow();
+    for (const job of Object.values(parsed.jobs)) {
+      const setup = job.steps.find((s) => s.uses?.startsWith('actions/setup-node@'));
+      expect(setup?.with?.['package-manager-cache']).toBe(false);
+    }
   });
 
   it('gate and stage carry no registry credential — the token is promote-only (spec-015 §5, task-061)', () => {
@@ -186,5 +214,37 @@ describe('publish workflow (task-060) — spec-015 §3 / adr-009', () => {
     const { raw } = readWorkflow();
     expect(raw).toContain('act push');
     expect(raw).toContain('--artifact-server-path');
+  });
+});
+
+/**
+ * task-113 AC 3 (bug-136, spec-015 §3) — every action is pinned by full commit SHA to a release whose
+ * `action.yml` `runs.using` is `node24`, a runtime the hosted runners ship; the v4 releases targeted
+ * Node 20, which the runners removed on 2026-09-23. A test cannot read `action.yml` offline, so the
+ * runtime of each pin is established by the lookup recorded in task-113's Execution Notes
+ * (`gh api repos/actions/<name>/contents/action.yml?ref=<tag>`), and this table freezes its result:
+ * a pin moved without redoing that lookup fails here.
+ */
+describe('action pins (task-113) — full SHA, node24 release, tag in the trailing comment', () => {
+  const PINS: Readonly<Record<string, readonly [sha: string, tag: string]>> = {
+    'actions/checkout': ['3d3c42e5aac5ba805825da76410c181273ba90b1', 'v7.0.1'],
+    'actions/setup-node': ['820762786026740c76f36085b0efc47a31fe5020', 'v7.0.0'],
+    'actions/upload-artifact': ['043fb46d1a93c77aae656e7c1c64a875d1fc6a0a', 'v7.0.1'],
+    'actions/download-artifact': ['3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c', 'v8.0.1'],
+  };
+
+  const usesLines = readWorkflow()
+    .raw.split('\n')
+    .filter((line) => /^\s*-?\s*uses:/.test(line));
+
+  it('finds the four actions the pipeline uses', () => {
+    const names = new Set(usesLines.map((l) => /uses:\s*([^@\s]+)@/.exec(l)?.[1]));
+    expect([...names].sort()).toEqual(Object.keys(PINS).sort());
+  });
+
+  it.each(Object.entries(PINS))('pins %s to its node24 release by SHA, with the tag in a comment', (name, [sha, tag]) => {
+    const lines = usesLines.filter((l) => l.includes(`uses: ${name}@`));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line.trim()).toBe(`- uses: ${name}@${sha} # ${tag}`);
   });
 });

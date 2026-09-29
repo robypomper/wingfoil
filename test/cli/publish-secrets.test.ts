@@ -1,14 +1,17 @@
 /**
- * task-061-publish-secrets (`dl-018` T4, `adr-009` §5, `spec-015` §5, REQ-SYS-09) — the publish secret,
- * the transient `.npmrc`, the approver's release gate and the rollback posture, asserted offline.
+ * The promote job's credential, the approver's release gates and the rollback posture, asserted
+ * offline. Originally `task-061-publish-secrets` (`dl-018` T4, `adr-009` §5): a long-lived
+ * `NPM_TOKEN` written to a transient `.npmrc`. Since `task-113` (`adr-011`, `spec-015` §3 stage 4
+ * and §5 as amended on 2026-09-29, `dl-087`) there is **no credential at all**: `promote` stages
+ * the tarball with `npm stage publish`, authenticated by a stage-only npm trusted publisher over
+ * GitHub OIDC, and a maintainer's 2FA approval on npm makes the version live.
  *
- * Nothing here contacts a registry or holds a credential. The promote publish step's shell script is
- * lifted out of `.github/workflows/publish.yml` and run for real with bash, but with a fake `npm` first
- * on `PATH` that only records what it saw; the "token" is the spec-007 §3 placeholder shape
- * `XXXXXXXXXXXXXXXXXXXX`, which the secret scan exempts by construction.
+ * Nothing here contacts a registry or holds a credential. The promote step's shell script is lifted
+ * out of `.github/workflows/publish.yml` and run for real with bash, with a fake `npm` first on
+ * `PATH` that only records what it saw.
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,9 +20,8 @@ import { load as yamlLoad } from 'js-yaml';
 const REPO_ROOT = join(__dirname, '..', '..');
 const WORKFLOW_PATH = join(REPO_ROOT, '.github', 'workflows', 'publish.yml');
 
-/** The exact line spec-015 §5 prescribes — a literal `${NPM_TOKEN}` reference npm expands at read time. */
-const NPMRC_LINE = '//registry.npmjs.org/:_authToken=${NPM_TOKEN}';
-const FAKE_TOKEN = 'XXXXXXXXXXXXXXXXXXXX';
+/** The environment variable the retired token lived in — split so this suite's own grep stays honest. */
+const RETIRED_TOKEN_VAR = ['NPM', 'TOKEN'].join('_');
 
 interface RunDefaults {
   readonly run?: { readonly shell?: string };
@@ -38,6 +40,7 @@ interface WorkflowStep {
 interface WorkflowJob {
   readonly environment?: string | { readonly name: string };
   readonly env?: Readonly<Record<string, string>>;
+  readonly permissions?: Readonly<Record<string, string>>;
   readonly defaults?: RunDefaults;
   readonly steps: readonly WorkflowStep[];
 }
@@ -51,27 +54,44 @@ interface Workflow {
 const raw = readFileSync(WORKFLOW_PATH, 'utf-8');
 const workflow = yamlLoad(raw) as Workflow;
 const promote = workflow.jobs.promote;
-const publishStep = promote?.steps.find((s) => s.run?.includes('npm publish'));
+const stageStep = promote?.steps.find((s) => s.run?.includes('npm stage publish'));
 
-describe('publish secret (task-061) — spec-015 §5 NPM_TOKEN from the Actions secret store', () => {
-  it('maps secrets.NPM_TOKEN into the promote publish step only', () => {
-    expect(publishStep?.env).toEqual({ NPM_TOKEN: '${{ secrets.NPM_TOKEN }}' });
-    const secretRefs = raw.match(/secrets\.[A-Za-z_]+/g) ?? [];
-    expect(secretRefs).toEqual(['secrets.NPM_TOKEN']);
-    expect(workflow.env).not.toHaveProperty('NPM_TOKEN');
-    expect(promote?.env).toBeUndefined();
+describe('promote credential (task-113) — spec-015 §5: a stage-only OIDC trusted publisher, no token', () => {
+  it('stages the tarball with `npm stage publish`, and nothing in promote runs a plain `npm publish`', () => {
+    expect(stageStep).toBeDefined();
+    const promoteRuns = (promote?.steps ?? []).map((s) => s.run ?? '').join('\n');
+    expect(promoteRuns).not.toContain('npm publish');
   });
 
-  it('writes the spec-015 §5 .npmrc line with the token as an unexpanded reference', () => {
-    expect(publishStep?.run).toContain(`'${NPMRC_LINE}'`);
+  it('reads no secret anywhere in the workflow', () => {
+    expect(raw.match(/secrets\.[A-Za-z_]+/g)).toBeNull();
   });
 
-  it('names that .npmrc explicitly on the publish command (task-078, dl-057 item g)', () => {
-    expect(publishStep?.run).toContain('--userconfig "$PWD/.npmrc"');
-    expect(publishStep?.run).toContain("trap 'rm -f .npmrc' EXIT");
+  it('names the retired token nowhere in the workflow — not in a step, not in the header', () => {
+    expect(raw).not.toContain(RETIRED_TOKEN_VAR);
+    expect(raw).not.toContain('NODE_AUTH_TOKEN');
+    expect(raw).not.toContain('_authToken');
   });
 
-  it('keeps the promote job checkout-free, so the transient .npmrc has no git tree to be committed from', () => {
+  it('writes no .npmrc and hands npm no user config', () => {
+    for (const step of promote?.steps ?? []) {
+      expect(step.run ?? '').not.toContain('.npmrc');
+      expect(step.run ?? '').not.toContain('--userconfig');
+      expect(step.with ?? {}).not.toHaveProperty('registry-url');
+    }
+  });
+
+  it('gives the stage step no env of its own; the promote job env carries only its Node pin', () => {
+    expect(stageStep?.env).toBeUndefined();
+    expect(Object.keys(promote?.env ?? {})).toEqual(['PROMOTE_NODE_VERSION']);
+    expect(workflow.env).not.toHaveProperty(RETIRED_TOKEN_VAR);
+  });
+
+  it('holds `id-token: write`, the OIDC grant the trusted publisher and provenance both use', () => {
+    expect(promote?.permissions).toEqual({ contents: 'read', 'id-token': 'write' });
+  });
+
+  it('keeps the promote job checkout-free: it stages the gate tarball, not a tree', () => {
     expect(promote?.steps.some((s) => s.uses?.startsWith('actions/checkout@'))).toBe(false);
   });
 
@@ -90,11 +110,11 @@ describe('publish secret (task-061) — spec-015 §5 NPM_TOKEN from the Actions 
 });
 
 /**
- * task-078 (`dl-057` item f) — shell tracing in the promote publish step would print the
- * `[ -z "${NPM_TOKEN:-}" ]` test with the token **expanded** into the job log, leaving GitHub's secret
- * masking as the only defence. Nothing asserted its absence before this suite.
+ * task-078 (`dl-057` item f) — shell tracing in the promote step once would have printed the token
+ * test with the token **expanded** into the job log. Since task-113 the step holds no secret, but the
+ * rule stays: it is free, and it would matter again the day a credential came back.
  */
-describe('promote publish step (task-078) — no shell tracing can reach the token', () => {
+describe('promote stage step (task-078) — no shell tracing', () => {
   /** Every way a bash step can end up tracing its commands. */
   const TRACING_PATTERNS: readonly (readonly [string, RegExp])[] = [
     // `x` anywhere in a short-option cluster, so `set -euxo pipefail` is caught as well as `set -x`.
@@ -106,24 +126,22 @@ describe('promote publish step (task-078) — no shell tracing can reach the tok
   ];
 
   it.each(TRACING_PATTERNS)('carries no %s', (_label, pattern) => {
-    expect(publishStep?.run ?? '').not.toMatch(pattern);
+    expect(stageStep?.run ?? '').not.toMatch(pattern);
   });
 
-  it('turns tracing off explicitly as its very first command, before anything names the secret', () => {
-    const lines = (publishStep?.run ?? '').split('\n');
+  it('turns tracing off explicitly as its very first command', () => {
+    const lines = (stageStep?.run ?? '').split('\n');
     expect(lines[0]?.trim()).toBe('set +x');
-    const firstTokenLine = lines.findIndex((l) => l.includes('NPM_TOKEN'));
-    expect(firstTokenLine).toBeGreaterThan(0);
   });
 
   it('lets no shell override reintroduce tracing — step, job or workflow defaults', () => {
-    expect(publishStep?.shell).toBeUndefined();
+    expect(stageStep?.shell).toBeUndefined();
     expect(workflow.defaults?.run?.shell).toBeUndefined();
     expect(promote?.defaults?.run?.shell).toBeUndefined();
   });
 });
 
-describe('promote publish step (task-061) — the transient .npmrc, executed with a fake npm', () => {
+describe('promote stage step (task-113) — executed with a fake npm', () => {
   let work: string;
 
   beforeEach(() => {
@@ -131,14 +149,13 @@ describe('promote publish step (task-061) — the transient .npmrc, executed wit
     mkdirSync(join(work, 'bin'));
     mkdirSync(join(work, 'dist-pack'));
     writeFileSync(join(work, 'dist-pack', 'wingfoil-0.2.0.tgz'), 'not a real tarball');
-    // Records argv, the cwd .npmrc as npm would find it, and whether the token reached npm's env.
+    // Records argv, and whether any .npmrc sat in the cwd when npm was called.
     writeFileSync(
       join(work, 'bin', 'npm'),
       [
         '#!/usr/bin/env bash',
         'printf "%s\\n" "$*" > "$RECORD_DIR/args"',
-        'if [ -f .npmrc ]; then cp .npmrc "$RECORD_DIR/npmrc-seen"; fi',
-        'if [ "${NPM_TOKEN:-}" = "$EXPECTED_TOKEN" ]; then touch "$RECORD_DIR/token-in-env"; fi',
+        'if [ -e .npmrc ]; then touch "$RECORD_DIR/npmrc-seen"; fi',
         'exit "${FAKE_NPM_EXIT:-0}"',
       ].join('\n'),
     );
@@ -148,73 +165,77 @@ describe('promote publish step (task-061) — the transient .npmrc, executed wit
 
   afterEach(() => rmSync(work, { recursive: true, force: true }));
 
-  /** Run the step's script as GitHub's default bash shell does (`bash --noprofile --norc -eo pipefail`). */
-  function runStep(env: Record<string, string>): number | null {
-    const result = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', publishStep?.run ?? 'exit 99'], {
+  /**
+   * Run the step's script as GitHub's default bash shell does (`bash --noprofile --norc -eo pipefail`),
+   * with an environment that holds no npm credential of any kind.
+   */
+  function runStep(env: Record<string, string> = {}): number | null {
+    const result = spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', stageStep?.run ?? 'exit 99'], {
       cwd: work,
       encoding: 'utf-8',
       env: {
         PATH: `${join(work, 'bin')}:${process.env.PATH ?? ''}`,
         RECORD_DIR: join(work, 'record'),
-        EXPECTED_TOKEN: FAKE_TOKEN,
         ...env,
       },
     });
     return result.status;
   }
 
-  it('publishes the staged tarball with provenance while the .npmrc exists, never writing the token value', () => {
-    expect(runStep({ NPM_TOKEN: FAKE_TOKEN })).toBe(0);
-    expect(readFileSync(join(work, 'record', 'npmrc-seen'), 'utf-8')).toBe(`${NPMRC_LINE}\n`);
-    expect(existsSync(join(work, 'record', 'token-in-env'))).toBe(true);
-    const args = readFileSync(join(work, 'record', 'args'), 'utf-8');
-    // task-108 (bug-135): the explicit `./` is what keeps npm from reading `dist-pack/<file>` as a
-    // GitHub `user/repo` shorthand — this assertion used to pin the form that failed the v0.2.0 run.
-    expect(args).toContain('publish ./dist-pack/wingfoil-0.2.0.tgz');
-    expect(args).toContain('--provenance');
-  });
-
-  // task-078 (dl-057 item g): npm resolves its project config from the nearest ancestor holding a
-  // package.json or node_modules, so a cwd `.npmrc` is silently ignored when such an ancestor exists —
-  // a property of the runner's workspace layout, not of this repository's code. Name the file instead.
-  it('hands npm the .npmrc it just wrote by absolute path, instead of relying on npm’s cwd lookup', () => {
-    expect(runStep({ NPM_TOKEN: FAKE_TOKEN })).toBe(0);
+  it('stages the gate tarball with provenance and public access, with no credential in its environment', () => {
+    expect(runStep()).toBe(0);
     const args = readFileSync(join(work, 'record', 'args'), 'utf-8').trim();
-    expect(args).toContain(`--userconfig ${realpathSync(work)}/.npmrc`);
+    // task-108 (bug-135): the explicit `./` keeps npm from reading `dist-pack/<file>` as a GitHub
+    // `user/repo` shorthand. adr-011 / dl-068 Action 4: `--access` is accepted by `npm stage publish`.
+    expect(args).toBe('stage publish ./dist-pack/wingfoil-0.2.0.tgz --provenance --access public');
   });
 
-  it('removes the .npmrc after a successful publish', () => {
-    expect(runStep({ NPM_TOKEN: FAKE_TOKEN })).toBe(0);
+  it('leaves no .npmrc in the workspace, before or after npm runs', () => {
+    expect(runStep()).toBe(0);
+    expect(existsSync(join(work, 'record', 'npmrc-seen'))).toBe(false);
     expect(existsSync(join(work, '.npmrc'))).toBe(false);
   });
 
-  it('removes the .npmrc and fails the step when npm publish fails', () => {
-    expect(runStep({ NPM_TOKEN: FAKE_TOKEN, FAKE_NPM_EXIT: '1' })).not.toBe(0);
-    expect(existsSync(join(work, 'record', 'npmrc-seen'))).toBe(true);
-    expect(existsSync(join(work, '.npmrc'))).toBe(false);
-  });
-
-  it('fails before writing anything or calling npm when the secret is not configured', () => {
-    expect(runStep({ NPM_TOKEN: '' })).not.toBe(0);
-    expect(existsSync(join(work, 'record', 'args'))).toBe(false);
-    expect(existsSync(join(work, '.npmrc'))).toBe(false);
+  it('fails the step when npm stage publish fails', () => {
+    expect(runStep({ FAKE_NPM_EXIT: '1' })).not.toBe(0);
+    expect(existsSync(join(work, 'record', 'args'))).toBe(true);
   });
 });
 
-describe('release authorization and rollback (task-061) — spec-015 §5, adr-006', () => {
-  it('runs promote in the protected `npm-publish` environment — the approver gate', () => {
+describe('release authorization and rollback — spec-015 §5, adr-006, adr-011', () => {
+  it('runs promote in the protected `npm-publish` environment — the GitHub deployment gate', () => {
     expect(promote?.environment).toBe('npm-publish');
     expect(workflow.jobs.gate?.environment).toBeUndefined();
     expect(workflow.jobs.stage?.environment).toBeUndefined();
   });
 
-  it('documents the approver runbook: environment protection, providing and rotating NPM_TOKEN', () => {
+  it('keeps the environment runbook: required reviewer, `v*` tags, approver role (adr-006)', () => {
     expect(raw).toContain('approver');
     expect(raw).toContain('adr-006');
     expect(raw).toMatch(/required reviewer/i);
-    expect(raw).toMatch(/environment secret/i);
-    expect(raw).toMatch(/rotat/i);
-    expect(raw).toMatch(/revoke/i);
+    expect(raw).toContain('`v*`');
+  });
+
+  /**
+   * AC 5 — the registry-side steps, in the order the approver must take them. Each needle is a phrase
+   * the runbook states; the order of their first occurrence is the order of the steps.
+   */
+  it('states the registry-side runbook steps in their order (task-113 AC 5, adr-011 point 5)', () => {
+    const steps = [
+      /two-factor authentication \(2FA\) on the approver's npm account/i,
+      /trusted publisher/i,
+      /organisation `wingfoil`, repository `wingfoil`, workflow `publish\.yml`, environment `npm-publish`/,
+      /require two-factor authentication and disallow tokens/i,
+      /revoke the stage-only token/i,
+      /delete the environment secret/i,
+      /npm stage view/,
+      /npm stage approve/,
+    ];
+    const at = steps.map((re) => raw.search(re));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(raw).toMatch(/stag(e|ing) only|stage-only/i);
+    expect(raw).toContain('task-116');
   });
 
   it('documents rollback as npm deprecate + a patch release, not npm unpublish', () => {
@@ -222,6 +243,7 @@ describe('release authorization and rollback (task-061) — spec-015 §5, adr-00
     expect(raw).toMatch(/patch release/i);
     expect(raw).toContain('npm unpublish');
     expect(raw).toMatch(/failed stage.*blocks promote|stage fails.*promote never runs/i);
+    expect(raw).toContain('npm stage reject');
   });
 });
 
@@ -229,7 +251,13 @@ describe('release authorization and rollback (task-061) — spec-015 §5, adr-00
  * task-108 (bug-135) — the fake npm above records argv but cannot parse a package spec, which is how
  * `npm publish dist-pack/*.tgz` passed every test and then failed the first real run (exit 128: npm
  * read the path as a GitHub shorthand and ran `git ls-remote`). Here a REAL npm parses the step's own
- * tarball argument, offline and as a dry run, against a packed fixture. `--offline` does not stop npm
+ * tarball argument, offline and as a dry run, against a packed fixture.
+ *
+ * task-113: the step now runs `npm stage publish`, which the npm on a developer's machine may not
+ * have (it needs npm ≥ 11.15.0). The test still runs `npm publish`, because `stage publish` IS
+ * `publish` for argument parsing: npm 11.19.0's `lib/commands/stage/publish.js` is
+ * `class StagePublish extends Publish` with `static params = Publish.params` and only
+ * `static stage = true` added. What is under test is the spec, and the spec is parsed by the parent. `--offline` does not stop npm
  * from trying git on a git-shaped spec, so a stub `git` sits first on PATH: it records any call and
  * fails at once, keeping the test off the network and making "npm never reached for git" assertable.
  */
@@ -266,7 +294,7 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
   }
 
   it('publishes (dry run) the tarball the step names, without npm ever invoking git', () => {
-    const arg = /npm publish (\S+)/.exec(publishStep?.run ?? '')?.[1];
+    const arg = /npm stage publish (\S+)/.exec(stageStep?.run ?? '')?.[1];
     expect(arg).toBeDefined();
     // The argument is spliced unquoted, exactly as the step's shell sees it, so its glob expands the same way.
     const result = spawnSync(
