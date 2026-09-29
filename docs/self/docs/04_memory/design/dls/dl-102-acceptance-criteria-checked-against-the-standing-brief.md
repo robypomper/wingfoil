@@ -2,7 +2,7 @@
 id: "dl-102-acceptance-criteria-checked-against-the-standing-brief"
 type: decision-log
 title: "Acceptance criteria written by the orchestrating session contradicted the standing brief twice, and the agents were rejected for following the brief; the brief is versioned, and every criterion is checked against it before assignment"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
