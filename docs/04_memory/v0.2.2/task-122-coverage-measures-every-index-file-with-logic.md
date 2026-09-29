@@ -2,7 +2,7 @@
 id: "task-122-coverage-measures-every-index-file-with-logic"
 type: task
 title: "The coverage gate measures every `index.ts` that holds logic, and excludes only true re-export barrels"
-status: approved
+status: done
 release: "v0.2.2"
 priority: "low"
 tags: ["v0.2.2", "testing", "coverage"]
