@@ -2,7 +2,7 @@
 id: "dl-050-execution-context-warnings-reach-no-operator"
 type: decision-log
 title: "Directive-resolution warnings are computed for agent sessions but reach no operator — decide the surface that shows them"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
