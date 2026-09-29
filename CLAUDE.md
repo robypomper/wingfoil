@@ -83,7 +83,8 @@ phase. The same build's MCP server is registered in `.mcp.json`, and `npm run ch
   `workflow list`, `memory search`, `memory history`;
 - `memory submit`, `approve`, `reject` and `deprecate` write their `wf()` commits here;
 - `memory add` works since `task-123` (`bug-156`), but 0.2.1 has no `--set` (`task-110`), so it
-  adds only types whose id and path need no field token: `bug`, `adr`, `decision-log`, `tech-spec`.
+  adds only types whose id and path need no field token: `bug`, `adr`, `decision-log`, `tech-spec`,
+  `service`.
   A `task`, `release`, `release-line` or `plan` is added with the build under development
   (`npm run build`, then `node dist/cli.js memory add … --set <name>=<value>`), or by hand, until the
   pin advances past 0.2.1;
@@ -94,13 +95,13 @@ Workflow execution does not exist yet (§6).
 | File                                                       | Pillar                 | What it holds                                                                                                                                                                                        |
 |------------------------------------------------------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `.wingfoil/dna.yaml`                                       | DNA (P2.4)             | Modules, **stacks** (technologies + methodologies), **team & roles**, resource paths (`conventions` removed in v1.1 — rules moved to `directives/custom/`; see spec-002)                              |
-| `.wingfoil/memory.yaml`                                    | Memory (P1.13)         | Element **types** (`release-line, release, task, adr, decision-log, tech-spec, bug, plan`), per-type **state machines**, and per-type `template:` scaffolds                                          |
+| `.wingfoil/memory.yaml`                                    | Memory (P1.13)         | Element **types** (`release-line, release, task, adr, decision-log, tech-spec, bug, plan, service`), per-type **state machines**, and per-type `template:` scaffolds                                          |
 | `.wingfoil/memory/templates/`                              | Memory (P1.13)         | One Markdown scaffold per element type (`frontmatter.required` enforced on submit)                                                                                                                   |
 | `docs/04_memory/planning/{id}.md`                          | Memory (P1.11)         | The **release-line** roadmap (one file per major version, e.g. `rl-v1.md`)                                                                                                                           |
 | `docs/04_memory/planning/{release-line}/{id}.md`           | Memory (P1.11)         | That release-line's **minor releases** (v0.1→v1.0 for `rl-v1`), derived from `docs/03_backlog/`                                                                                                      |
 | `.wingfoil/directives/custom/`                             | Directives (P3.5/P3.8) | Rules: P3.8 template **stand-ins** (`code-quality, testing, code-review, architecture, security, documentation`) + WingFoil-specific (`determinism, doc-versioning, security-secrets, traceability, command-baseline, claim-evidence`) |
 | `.wingfoil/roles.yaml`                                     | Directives (P3.2/P3.7) | Role → directive bindings                                                                                                                                                                            |
-| `.wingfoil/workflows.yaml` + `workflows/custom/`           | Workflow (P4.1)        | `sw-life-cycle` (main) + sub-workflows + three ingest mains                                                                                                                                          |
+| `.wingfoil/workflows.yaml` + `workflows/custom/`           | Workflow (P4.1)        | `sw-life-cycle` (main) + sub-workflows + four ingest mains                                                                                                                                           |
 
 > The tool now ships the official P3.8 **built-in** directive templates (`task-057`, `done`:
 > `wingfoil init` installs them under `.wingfoil/directives/built-in/`), but this hand-authored config
@@ -162,6 +163,7 @@ as a status value). `task` already worked this way; `decision-log` now has its o
 | `tech-spec`    | `docs/04_memory/design/specs/{id}.md`              | draft→pending(→draft)→approved→superseded (mirrors `adr`)                                |
 | `bug`          | `docs/04_memory/bugs/{id}.md`                      | draft→open(→closed)→triaged(→closed)→planned(→closed)→in-progress→in-review(→in-progress)→resolved(→in-progress)→closed |
 | `plan`         | `docs/05_plans/{scope}/{id}.md`                    | draft→active→done (·→deprecated)  [dl-019 — phase-plan execution scaffold; `X_*` grandfathered]        |
+| `service`      | `docs/04_memory/services/{id}.md`                  | draft→pending(→draft)→active (·→deprecated)  [dl-088 — external state; never a secret value; approve = the approver ran `verify`] |
 
 ---
 
@@ -370,7 +372,7 @@ non-blank (`--reason` itself stays optional, `dl-027`).
           *(dl-013 — the user-facing documentation gate)* → `e2e-smoke` *(dl-023 — fresh-init + CLI
           end-to-end smoke gate)* → `release-submit` → `release-publishing` → `retrospective`.
     - `sunset` → `end-of-life`.
-- **`bug-ingest`, `decision-log-ingest`, `adr-ingest`** — capture a single element on demand. If started
+- **`bug-ingest`, `decision-log-ingest`, `adr-ingest`, `service-ingest`** — capture a single element on demand. If started
   while another workflow with an active `element` is running, the new file **inherits that element**
   (e.g. a bug raised during `dev-loop` inherits the active `task`).
 

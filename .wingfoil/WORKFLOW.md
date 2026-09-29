@@ -1,7 +1,7 @@
 # WingFoil — Workflow Reference
 
 This document describes the complete workflow configuration for the WingFoil project as defined in
-`.wingfoil/` (this directory). The single startable lifecycle is `sw-life-cycle`; three independent
+`.wingfoil/` (this directory). The single startable lifecycle is `sw-life-cycle`; four independent
 **ingest mains** can be started on demand at any time.
 
 ---
@@ -150,7 +150,7 @@ flowchart TD
     P3["**seed-adrs** *(architect)* · **OPTIONAL**\nmemory.add(type: adr)\ndraft → pending → accepted\n✔ P4.12: [title, sard_ref]\n`docs/04_memory/design/adrs/{id}.md`"]
     SC3{{"Stop-Check\nSARD ref present · Context/Decision/Consequences\nall ADRs status: accepted"}}
 
-    P4["**seed-dls** *(architect)* · **OPTIONAL**\nmemory.add(type: decision-log)\ndraft → pending → approved\n✔ P4.12: [title]\n`docs/04_memory/design/dls/{id}.md`"]
+    P4["**seed-dls** *(architect)* · **OPTIONAL**\nmemory.add(type: decision-log)\ndraft → in-discussion → ready\n✔ P4.12: [title]\n`docs/04_memory/design/dls/{id}.md`"]
     SC4{{"Stop-Check\nContext/Decision/Consequences\nall DLs status: approved"}}
 
     P5["**seed-specs** *(architect)* · **OPTIONAL**\nagent.survey_specs (this release-line) → memory.add(type: tech-spec)\ndraft → pending → approved\n✔ P4.12: [title, scope]\n`docs/04_memory/design/specs/{id}.md`"]
@@ -268,7 +268,7 @@ flowchart TD
 
 ## Ingest Mains
 
-Three lightweight `kind: main` workflows startable on demand at any point during the project
+Four lightweight `kind: main` workflows startable on demand at any point during the project
 (REQ-STATE-03 allows multiple open mains concurrently).
 
 ```mermaid
@@ -280,12 +280,19 @@ flowchart LR
 
     subgraph DLI["decision-log-ingest"]
         direction TB
-        D1["**capture** *(product-owner)*\nmemory.add(type: decision-log)\nmemory.submit\n✔ P4.12: [title]\ndraft → pending"]
+        D1["**capture** *(product-owner)*\nmemory.add(type: decision-log)\nmemory.submit\n✔ P4.12: [title]\ndraft → in-discussion"]
     end
 
     subgraph AI["adr-ingest"]
         direction TB
         A1["**capture** *(architect)*\nmemory.add(type: adr)\nmemory.submit\n✔ P4.12: [title, sard_ref]\ndraft → pending"]
+    end
+
+    subgraph SI["service-ingest"]
+        direction TB
+        S1["**capture** *(developer)*\nmemory.add(type: service)\nmemory.submit\n✔ P4.12: [title, provider, kind, owner_role, verify]\n✔ spec-007 scan clean\ndraft → pending"]
+        S2["**approve** *(approver)*\nruns `verify`\nmemory.approve\npending → active"]
+        S1 --> S2
     end
 ```
 
@@ -294,6 +301,7 @@ flowchart LR
 | `bug-ingest` | `docs/04_memory/bugs/{id}.md` | Defect found during dev-loop or testing |
 | `decision-log-ingest` | `docs/04_memory/design/dls/{id}.md` | Ad-hoc product/process decision |
 | `adr-ingest` | `docs/04_memory/design/adrs/{id}.md` | Architectural decision during any phase |
+| `service-ingest` | `docs/04_memory/services/{id}.md` | External state set up (account, credential by reference, listing, setting, domain, handle — `dl-088`) |
 
 ---
 
@@ -364,9 +372,8 @@ stateDiagram-v2
     [*] --> draft
     draft --> pending : memory.submit
     pending --> accepted : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    accepted --> superseded : memory.deprecate (superseded by later ADR)
+    pending --> draft : memory.reject
+    accepted --> superseded : waiting (a later ADR's supersedes:, no CLI verb)
     accepted --> deprecated : memory.deprecate
     superseded --> deprecated : memory.deprecate
 ```
@@ -379,24 +386,24 @@ stateDiagram-v2
     [*] --> draft
     draft --> pending : memory.submit
     pending --> approved : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    approved --> superseded : memory.deprecate (superseded by a later spec)
+    pending --> draft : memory.reject
+    approved --> superseded : waiting (a later spec's supersedes:, no CLI verb)
     approved --> deprecated : memory.deprecate
     superseded --> deprecated : memory.deprecate
 ```
 
-### Decision Log  *(uses default machine)*
+### Decision Log  *(own machine — `dl-012` as reduced by `dl-017`)*
 
 ```mermaid
 stateDiagram-v2
     direction LR
     [*] --> draft
-    draft --> pending : memory.submit
-    pending --> approved : memory.approve
-    pending --> rejected : memory.reject
-    rejected --> draft : memory.reject (reopen)
-    approved --> deprecated : memory.deprecate
+    draft --> in_discussion : memory.submit
+    in_discussion --> ready : memory.approve
+    in_discussion --> draft : memory.reject
+    ready --> deprecated : memory.deprecate
+
+    in_discussion : in-discussion
 ```
 
 ### Bug
@@ -423,6 +430,30 @@ stateDiagram-v2
     in_review : in-review
 ```
 
+### Plan  *(`dl-019` — phase-plan execution scaffold)*
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> draft
+    draft --> active : memory.submit (the phase starts)
+    active --> done : workflow (the phase's produces:/checks hold)
+    draft --> deprecated : memory.deprecate
+    active --> deprecated : memory.deprecate
+```
+
+### Service  *(`dl-088` — external state, never a secret value)*
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> draft
+    draft --> pending : memory.submit (set up and described)
+    pending --> active : memory.approve (the approver ran verify)
+    pending --> draft : memory.reject
+    active --> deprecated : memory.deprecate (dropped or replaced)
+```
+
 ---
 
 ## Roles Summary
@@ -432,8 +463,8 @@ stateDiagram-v2
 | `product-owner` | Release-line seeding/closing (`seed-first-release-line`, `plan-next-release-line`), release-line roadmap (`seed-releases`), release planning, scope definition, backlog creation, retrospective seed |
 | `tech-lead` | Config init, release-line approval, backlog approval, release submission and publishing, deprecation |
 | `architect` | Features session, Volere requirements, ADR authoring, tech-spec identification/authoring (`identify-specs`, `dev-loop/design`) |
-| `developer` | TDD dev-loop (red/green/refactor), branch management, bug capture |
+| `developer` | TDD dev-loop (red/green/refactor), branch management, bug capture, service capture |
 | `reviewer` | Code review in dev-loop |
 | `qa` | BDD specification, pre-release checks |
 | `facilitator` | Lean inception sessions, retrospective capture |
-| `approver` | All approval gates (backlog commit, task review, release, retrospective, end-of-life) |
+| `approver` | All approval gates (backlog commit, task review, release, retrospective, end-of-life, service verification) |

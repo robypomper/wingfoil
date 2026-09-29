@@ -54,7 +54,7 @@ wingfoil://workflows/{name}                   # a single workflow definition (ma
 ```
 
 - `{type}` is any type key declared in `memory.yaml` `types:` (`release-line, release, task, adr,
-  decision-log, tech-spec, bug`).
+  decision-log, tech-spec, bug, plan, service`).
 - `{id}` is the element's `id` frontmatter value (e.g. `task-042-foo`), not its filesystem path —
   the server resolves `id → path` via each type's `path` pattern in `memory.yaml`.
 - Listing a collection (`wingfoil://memory/{type}` with no `{id}`) returns each element's frontmatter
@@ -272,3 +272,11 @@ edge by `contractTarget` (`src/memory/state-machine.ts`) under `dl-053` option 1
 is unchanged: only an illustrative comment moved, and no Tool is registered on the running server yet.
 Edited in place without a supersede or a state change, per the `spec-001` precedent `dl-041` cites; the
 tech-spec template carries no `version:` field, so this dated note is the record (`dl-047`).
+
+**Revision (2026-09-29) — the `{type}` enumeration, per `task-124-the-service-memory-type`
+(`dl-088`).** The parenthesised list of type keys named the seven types of its time; `plan`
+(`dl-019`) had already made it stale, and `service` (`dl-088`, `memory.yaml` 1.6) adds a ninth. It
+now lists all nine, as `spec-001`'s Context does. The rule it illustrates — `{type}` is any key
+`memory.yaml` declares — is unchanged, and no URI or Tool changes. Edited in place without a
+supersede or a state change, per the `spec-001` precedent `dl-041` cites (`dl-047`: no `version:`
+field); pending the approver's sign-off at `task-124`'s review.
