@@ -1,12 +1,12 @@
 ---
 id: "bug-158-date-and-author-id-tokens-are-declared-but-not-implemented"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
+title: "The `{date}` and `{author}` id tokens that `spec-001` declares are not implemented: `memory add` fails on them, and `--set` refuses them with a message saying the command fills them itself"
+status: open
+severity: "low"
+release-origin: "v0.2.2"
 release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
+feature: "P1.3"
 contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
 credit: ""             # optional — free-text credit note (dl-020)
 tmpl_version: 260703   # Orignal template version
@@ -14,32 +14,44 @@ tmpl_version: 260703   # Orignal template version
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`spec-001`'s token table declares `{date}` (current date `YYYYMMDD`, UTC, system clock) and
+`{author}` (slug-normalized git `user.name`), first in the fixed expansion order (lines 145–149).
+`memory add` implements neither. `expandFieldTokens` leaves them in place as "not-yet-implemented"
+(`src/memory/add.ts:236–240`), and nothing expands them later. A type whose `id_pattern` uses one
+cannot create any element.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. Build `main` at `1087c166`.
+2. In a scratch repository with a committed `.wingfoil/`, set the `bug` type's
+   `id_pattern: "bug-{date}-{slug}"` and commit.
+3. Run `memory add --type bug --title "x"`.
+4. Run `memory add --type bug --title "y" --set date=20260929`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Step 3 creates `bug-20260929-x` (on that date), as `spec-001` declares. Or, if the tokens are not
+to be supported yet, `spec-001` marks them as reserved and not implemented, and a `memory.yaml` that
+uses them is refused at load time.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+- Step 3: `error: missing value for token {date}`, exit 1. The message does not say the token is
+  unimplemented.
+- Step 4: `error: invalid flag value: --set cannot set "date": memory add fills it itself or through
+  its own option`, exit 2. That claim is false: nothing fills it.
+
+Both run on 2026-09-29 in the session scratchpad.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Found at `task-110`'s review (2026-09-29). The gap predates `task-110`, which reserved the two
+  names in `--set` without implementing them. The approver ruled it a bug.
+- No `memory.yaml` in this repository or in `init`'s scaffold uses either token today, which is why
+  the severity is low.
+- `{date}` reads the wall clock. Implementing it must respect the `determinism` directive's rules on
+  wall-clock reads.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->

@@ -1,12 +1,12 @@
 ---
 id: "bug-157-dl-107-action-1-names-a-slug-rule-spec-009-does-not-hold"
 type: bug
-title: ""              # REQUIRED — short description, e.g. "memory submit crashes on missing frontmatter"
-status: draft
-severity: ""           # REQUIRED — critical | high | medium | low
-release-origin: ""     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
+title: "`dl-107` Action 1 asks to amend a slug rule in `spec-009` §1, but `spec-009` holds no slug rule, so half of the Action has no target and is still open"
+status: open
+severity: "low"
+release-origin: "v0.2.2"
 release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
-feature: ""            # optional — related feature ID, e.g. "P1.6"
+feature: "P1.3"
 contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
 credit: ""             # optional — free-text credit note (dl-020)
 tmpl_version: 260703   # Orignal template version
@@ -14,32 +14,37 @@ tmpl_version: 260703   # Orignal template version
 
 ## Summary
 
-<!-- One-sentence description of the defect. -->
+`dl-107` (`ready`) Action 1 reads: amend `spec-009-validation-strategy` §1 (slug rule) and
+`spec-001-memory-yaml-schema`. `spec-001` was amended (`0f68c739`, fixed `33d89b7c`) and now carries
+the rule in its `{slug}` row (line 140). `spec-009` §1 was not amended, and it has no slug rule to
+amend. §1 is the two-pass model, and its only related text is the Pass-2 check that literal
+`id_pattern` characters belong to `[a-z0-9-.]` (lines 65–68). `grep -n -i slug
+docs/self/docs/04_memory/design/specs/spec-009-validation-strategy.md` → no hit.
 
 ## Steps to Reproduce
 
-<!-- Numbered list of exact steps to trigger the bug.
-  1. ...
-  2. ...
-  3. ... -->
+1. Read `dl-107` §Actions, item 1.
+2. Run `grep -n -i slug docs/self/docs/04_memory/design/specs/spec-009-validation-strategy.md`.
 
 ## Expected Behavior
 
-<!-- What should happen. -->
+Every Action of a `ready` decision-log either names an existing target or is recorded as done or
+void. Either `spec-009` §1 gains a pointer from its ID character class to `spec-001`'s `{slug}` rule,
+since the two now share one character rule (`dl-107` S1 (a)), or Action 1's `spec-009` half is
+recorded as void because `spec-001` owns the rule.
 
 ## Actual Behavior
 
-<!-- What actually happens. Include error messages or stack traces if available. -->
+The Action names a rule that does not exist, and nothing records that its `spec-009` half was
+neither done nor dropped.
 
 ## Notes
 
-<!-- Optional: environment details, related ADRs, suspected root cause, or workaround. -->
+- Found at `task-110`'s review (2026-09-29), recorded in its Execution Notes (Review, item 3). The
+  approver ruled it a bug.
+- `dl-107` Action 3 (`retrospective.yaml`'s `capture` action) is also open, but it waits on `dl-090`,
+  as `dl-107` itself says. Not part of this bug.
 
 ## Triage & Execution Notes
 
-<!-- Running log, not the retrospective itself.
-     - triage (bug-ingest): severity call, wontfix/duplicate rationale if rejected to `closed`.
-     - fix: once fix task(s) exist (release-planning/build-backlog), day-to-day execution notes
-       live on those tasks (docs/04_memory/{release}/{id}.md, `bug: {this id}`, their own
-       Execution Notes section) — this section only needs a pointer plus anything that doesn't
-       belong on a specific fix task (e.g. why 2 tasks were needed instead of 1). -->
+<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->
