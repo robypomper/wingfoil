@@ -2,7 +2,7 @@
 id: "dl-123-a-bug-ruled-wontfix-has-a-legal-exit"
 type: decision-log
 title: "A bug ruled not-to-be-fixed after triage has no approver-gated exit, and the only legal one (`deprecate`) hides the ruling and fails the release gate — which exit the bug machine offers"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.2.2"
 contributor: ""
