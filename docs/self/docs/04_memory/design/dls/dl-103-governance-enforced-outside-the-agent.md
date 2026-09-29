@@ -2,7 +2,7 @@
 id: "dl-103-governance-enforced-outside-the-agent"
 type: decision-log
 title: "Governance rules on `wf()` commits are checked by nobody: a CI check outside the agent enforces them, and an approval policy says what an unattended run may and may not approve"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
