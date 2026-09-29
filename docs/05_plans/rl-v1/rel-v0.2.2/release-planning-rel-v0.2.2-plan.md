@@ -3,7 +3,7 @@ id: "release-planning-rel-v0.2.2-plan"
 type: plan
 title: "Release-planning — rel-v0.2.2"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "release-planning"
 phase: "rel-v0.2.2"
 element: "patch-v0.2.2"
@@ -112,6 +112,11 @@ with `--no-ff` at the end. Every Memory operation is one scoped `wf({type}): {ve
    done here: the `spec-008` amendment for `memory add`'s token option (`dl-107` Action 2), and the
    `release-publishing.yaml` `publish` phase gaining the npm approval step (`dl-087` Action 3). The
    npm facts were copied into `dl-068` Action 4 as `dl-087` Action 5 asks.
+   **Gate passed 2026-09-29** (steps 4 and 5): `adr-011` accepted (`cdf286d4`), and `adr-009`'s
+   revision note added in the commit after this revision; the approver signed off the `spec-015`,
+   `spec-001` and `spec-010` amendments as committed (`0a4f7a9c`, `0f68c739`, `289300a5`, fixed in
+   `74fcf0ab`). The specs carry no state change: they stay `approved`. Next: build-backlog (step 6),
+   on the approver's go.
 6. **build-backlog** (product-owner, no gate). Tasks `task-109…`, tagged `v0.2.2`, `add → submit`
    `[draft → pending]`, grouped by §6.8 step so the dev-loop respects its order (`depends_on`,
    `dl-015`): step 1 (`bug-137`; `dl-094`'s `.mailmap` if the ruling needs one), step 2 (`bug-075`,

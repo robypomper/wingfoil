@@ -124,3 +124,13 @@ architectural justification — it is a value for the *tool*, not something to d
 script** the CI job merely invokes, explicitly to bound effort and avoid debugging GitHub Actions
 through repeated throwaway commits. The staging default stays ephemeral Verdaccio (approver prefers not
 to depend on GitHub Packages).
+
+**Revision (2026-09-29) — decision points 4 and 5 are replaced by
+`adr-011-npm-staged-publishing-with-oidc` (`accepted`, `cdf286d4`), from
+`dl-087-publish-through-npm-staged-publishing`.** Promotion now stages the tarball with `npm stage
+publish`, and a maintainer's 2FA approval on npm makes it live (point 4). No npm token exists: the
+credential is a trusted publisher over GitHub OIDC limited to staging (point 5). Points 1–3 are
+unchanged and remain this ADR's decision: the tag trigger, the pre-publish gate, and the ephemeral
+Verdaccio staging with its smoke check. This ADR stays `accepted`, and no element moves to
+`superseded`, because the replacement is partial and no engine trigger exists for it. The text above
+is left as written, as the record of what v0.2 shipped.
