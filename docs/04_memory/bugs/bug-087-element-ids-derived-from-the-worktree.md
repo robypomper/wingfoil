@@ -2,7 +2,7 @@
 id: "bug-087-element-ids-derived-from-the-worktree"
 type: bug
 title: "`nextSequenceNumber` derives an element's id by counting files in the working tree, so a gapped sequence produces an id whose path is already occupied"
-status: open
+status: triaged
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
