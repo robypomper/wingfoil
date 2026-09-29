@@ -2,7 +2,7 @@
 id: "dl-090-which-command-each-workflow-token-binds"
 type: decision-log
 title: "Workflow `actions:` and `checks:` tokens bind to no command: where a binding is declared, whether it is strict, how it takes arguments, what its exit code means, who may change it, and what an `agent.*` token binds to"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
