@@ -2,7 +2,7 @@
 id: "dl-101-id-allocation-across-refs"
 type: decision-log
 title: "Memory ids are allocated per branch, so parallel sessions collide; allocation checks every ref and remote, an id is cited only once its element exists, and a tool-side allocator follows"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
