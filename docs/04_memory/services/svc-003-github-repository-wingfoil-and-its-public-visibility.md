@@ -2,7 +2,7 @@
 id: svc-003-github-repository-wingfoil-and-its-public-visibility
 type: service
 title: "GitHub repository wingfoil and its public visibility"
-status: pending
+status: active
 provider: "GitHub"
 kind: "setting"
 owner_role: "approver"
