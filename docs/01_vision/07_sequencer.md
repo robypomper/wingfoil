@@ -52,8 +52,9 @@ Source commands (all at `a20b346c`):
 
 **What the actuals say.**
 
-- **Velocity held**: v0.1 shipped 33 tasks in 5 active days (6.6 a day), v0.2 75 in ≈ 12 (6.3 a day).
-  The planning figure used below is **6.5 tasks per active day**, the rounded mean of the two.
+- **Velocity held**: v0.1 shipped 33 tasks in 5 active days (6.6 a day), v0.2 75 in ≈ 12 (≈ 6.25 a day);
+  pooled, 108 ÷ 17 ≈ 6.35. The planning figure used below is **6.5 tasks per active day**, the one
+  v0.2.2's `build-backlog` used; at 6.35 the v0.2.2 budgets below change by at most 0.1 day.
 - **v0.2's calendar slip is the pause**, and its active-day overrun (≈ 12 against the plan's 5) is scope:
   32 tasks planned, 75 shipped (2.3×).
 - **Cadence when working**: 11 of the 15 calendar days from 09-14 to 09-28 were active, **about 5 active
