@@ -2,7 +2,7 @@
 id: "dl-064-approver-gated-verb-preflight-order"
 type: decision-log
 title: "Two unspecified choices every approver-gated verb makes alone: transition legality is checked before approval authority, and the git identity is read three times per operation"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: ""
 contributor: ""
