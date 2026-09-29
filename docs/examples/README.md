@@ -1,6 +1,6 @@
 # WingFoil examples
 
-Runnable scenarios for WingFoil **0.2.1**. Each one is a `run.sh` script that:
+Runnable scenarios for WingFoil **0.2.2**. Each one is a `run.sh` script that:
 
 - creates a throwaway git repository in a temporary directory, and deletes it on exit;
 - prints every `wingfoil` command it runs, followed by that command's real output;

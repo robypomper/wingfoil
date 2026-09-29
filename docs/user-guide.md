@@ -1,6 +1,6 @@
 # WingFoil user guide
 
-A step-by-step guide to configuring and using WingFoil **0.2.1** in your own project. It starts from an
+A step-by-step guide to configuring and using WingFoil **0.2.2** in your own project. It starts from an
 empty git repository and ends with an AI agent reading your project through MCP.
 
 - Every command is documented in full in the [CLI reference](cli-reference.md).
@@ -22,7 +22,7 @@ empty git repository and ends with an AI agent reading your project through MCP.
 8. [Daily use: the life of a Memory document](#8-daily-use-the-life-of-a-memory-document)
 9. [Connect an AI agent](#9-connect-an-ai-agent)
 10. [CI and scripting](#10-ci-and-scripting)
-11. [Known limitations in 0.2.1](#11-known-limitations-in-021)
+11. [Known limitations in 0.2.2](#11-known-limitations-in-022)
 
 ---
 
@@ -176,6 +176,10 @@ wingfoil dna add paths.docs --value docs,README.md
 wingfoil dna remove paths.docs --value README.md
 ```
 
+Each technology is a `{name, category}` entry: `category` is required, `version` and `notes` are
+optional. The `dna.yaml` that `init` writes shows the shape as a commented example above
+`technologies: []`.
+
 `paths` has five categories — `sources`, `tests`, `docs`, `config`, `governance` — and
 `wingfoil paths <category>` answers "where is X?" for people and agents alike.
 
@@ -296,7 +300,7 @@ wingfoil directive assign --directive api-style --role developer
 `--directive` accepts several names: `--directive api-style,security`.
 
 To retire a directive, first remove it from `roles.yaml` by hand (there is no unassign command in
-0.2.1), commit, then:
+0.2.2), commit, then:
 
 ```bash
 wingfoil directive remove api-style
@@ -318,7 +322,7 @@ Full script: [`examples/03-directives-per-role`](examples/03-directives-per-role
 wingfoil workflow list
 ```
 
-**WingFoil 0.2.1 has no workflow engine**: nothing starts a workflow, tracks its phase or runs its
+**WingFoil 0.2.2 has no workflow engine**: nothing starts a workflow, tracks its phase or runs its
 checks. The workflow files describe your process so that people and agents read the same one, and you
 follow it by hand. In practice:
 
@@ -464,7 +468,7 @@ PENDING=$(wingfoil memory search --type task --status pending --format json \
 
 Full script: [`examples/05-ci-json-exit-codes`](examples/05-ci-json-exit-codes/run.sh).
 
-## 11. Known limitations in 0.2.1
+## 11. Known limitations in 0.2.2
 
 - **No workflow engine** — workflows are followed by hand (§7).
 - **No unassign command for directives** — edit `roles.yaml` and commit (§6.2).
@@ -472,6 +476,3 @@ Full script: [`examples/05-ci-json-exit-codes`](examples/05-ci-json-exit-codes/r
 - **`dna show` takes only a top-level section** (`team`, not `team.members`).
 - **Adding the first entry of a collection `dna.yaml` does not contain yet** (for example the first
   `team.agents` entry) rewrites `dna.yaml` without its comments. Other DNA writes keep them.
-- **Subcommand `--help` is terse in 0.2.1** — the argument and option descriptions are generic. From
-  0.2.2 every command's `--help` describes the command, names its argument, explains each option and
-  shows an example; this guide and the [CLI reference](cli-reference.md) remain the full description.

@@ -6,7 +6,7 @@ breaking its rules. It covers the same ground as the WingFoil MCP server, so it 
 when MCP is not connected and as a reinforcement when it is.
 
 - **Developing WingFoil itself?** This is the wrong file: read `CLAUDE.md` at the repository root.
-- **Version:** this file describes the `main` branch, currently release **0.2.1**. Run
+- **Version:** this file describes the `main` branch, currently release **0.2.2**. Run
   `wingfoil --version` in the project; if it reports a different version, read this file at the matching
   git tag instead. Where this file and the installed CLI disagree, the CLI is right.
 - **Humans:** the [user guide](user-guide.md) and the [CLI reference](cli-reference.md) cover the same
@@ -119,9 +119,9 @@ Useful `error:` lines and what they mean:
 | `unknown memory type '<t>' … not committed …` | configuration was edited but not committed |
 | `E_NOT_AT_GIT_ROOT` | `cd` to the repository root |
 
-## 7. Following a workflow (no engine in 0.2.1)
+## 7. Following a workflow (no engine in 0.2.2)
 
-WingFoil 0.2.1 cannot start or track a workflow. When asked to "run" one:
+WingFoil 0.2.2 cannot start or track a workflow. When asked to "run" one:
 
 1. `wingfoil workflow list` → find the workflow and its phases.
 2. For the current phase, act in the role it names, with that role's directives loaded (§4, rule 3).
@@ -145,11 +145,11 @@ Register the MCP server for your client (Claude Code: `.mcp.json` at the reposit
 
 Only register a human as `approver`, and only when that human asks you to. Never add yourself.
 
-## 9. Known limits in 0.2.1
+## 9. Known limits in 0.2.2
 
 - No workflow engine (§7).
 - No command to unassign a directive: edit `.wingfoil/roles.yaml` and commit.
 - `dna show` accepts only a top-level section.
 - `memory search` excludes `deprecated` documents unless you pass `--status deprecated`.
-- Subcommand `--help` text is generic in 0.2.1 (from 0.2.2 it describes each command, its argument
-  and its options); for anything more than a reminder, trust the [CLI reference](cli-reference.md).
+- Subcommand `--help` is a reminder: it describes the command, its argument and its options, with
+  one example; for anything more, trust the [CLI reference](cli-reference.md).
