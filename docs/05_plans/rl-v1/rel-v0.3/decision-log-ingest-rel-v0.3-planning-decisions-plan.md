@@ -2,27 +2,60 @@
 id: decision-log-ingest-rel-v0.3-planning-decisions-plan
 type: plan
 title: "Decision-log-ingest — rel-v0.3 planning decisions"
-status: draft
-version: ""            # optional — plan version
+status: active
+version: "1.0"
 workflow: "decision-log-ingest"
 phase: "rel-v0.3-planning-decisions"
-element: ""            # optional — the Memory element this phase iterates (e.g. a release id)
-release: ""            # optional — target release, e.g. "v0.1"
-tmpl_version: 260703   # Orignal template version
+element: "minor-v0.3"
+release: "v0.3"
+tmpl_version: 260703
 ---
 
 ## Context
 
-<!-- Why this phase runs now, its preconditions, and what it produces. Keep coherent with the
-     workflow definition's phases / roles / actions / produces / checks (dl-019).
-     Every plan's preconditions include that the build in use is the pinned one (dl-095):
-     `npm run -s wingfoil -- --version` prints the version package.json pins for
-     `wingfoil-released`. -->
+The v0.3 planning conversation produced six decisions that no existing decision-log covers. The
+approver ruled on their substance on 2026-09-29 (`release-planning-rel-v0.3-plan`, rulings R1, R4,
+R5, R6, R9, and idea 2 of step 3). This plan runs `decision-log-ingest`
+(`.wingfoil/workflows/custom/decision-log-ingest.yaml` v1.0) once per decision, started from
+`release-planning` step 3, so each is filed at `in-discussion` with `release: "v0.3"` and
+`context: "planning"`, and is ratified at `reconcile-governance` (gate 3), where the approver's
+choice among any remaining options goes into the approve commit's `Reason:`.
+
+**Preconditions.** The pinned build is `wingfoil 0.2.2`. Next free decision-log id across every ref
+(`dl-101`): `dl-131` (`git ls-tree` over `git for-each-ref refs/heads refs/remotes`, re-run before the
+first `add`).
+
+**How the drafts are written.** Each body is drafted from the rulings and verified against the
+repository (every claim names the command or file:line that establishes it), then reviewed by the
+agent running this plan before `add`. The drafts cite features, requirements, BDD files and related
+elements, never a source outside the repository.
 
 ## Phases / Steps
 
-<!-- The ordered steps to execute against the workflow phase — actions, roles, gates, models. -->
+1. **capture** (product-owner, no gate), per decision: `memory add --type decision-log --title …` →
+   `draft`; write the body; `memory submit` → `in-discussion`. One file per commit, checked afterwards.
+   - **Determinism Index scope** (R1): input / process conformance / outcome equivalence, who controls
+     each, code similarity out of scope; shared black-box contracts written before the run for O;
+     vision consequences listed, not applied; coordinated with `dl-112`.
+   - **Vision change and feature ingest** (idea 2): one process with a Memory type, impact analysis
+     along the traceability chain, a downcast limited to the delta, and a mandatory release assignment.
+   - **Fix-task tail** (R9): amends `dl-089`, `dl-099`, `dl-100`, with the v0.2 measurement and its
+     command.
+   - **dev-loop separation of duties** (R4): `red` by `qa`, tests not edited in `green`, an
+     independence attribute per phase; rules in v0.3, checks in v1.0.
+   - **Agent run tracking** (R5): amends `dl-114` with the session id; past / waiting / active from
+     three sources; `fresh` / `resume` / `reference` modes; v0.3 and v0.4 split as ruled.
+   - **Test-results publication** (R6): what, from which build, where, and which phase owns it; after
+     `bug-141`.
+2. **approve** (approver, ⛔): at `release-planning`'s gate 3, `memory approve [in-discussion → ready]`
+   with the chosen options in the `Reason:`, or `reject [in-discussion → draft]` with what is missing.
 
 ## Handoff
 
-<!-- What requires the approver vs. the agent; the checkpoint(s) and the completion criteria. -->
+- **Approver:** the ratification of each decision-log and its options.
+- **Agent:** drafting, verification of every claim, capture, commit hygiene. It never approves.
+- **After ratification:** the three amended decision-logs (`dl-089`, `dl-099`, `dl-100`) and
+  `dl-114` receive a dated "Amended by" line in their Relations with a documentation commit; their
+  status does not change.
+- **Completion criteria:** the six decision-logs `ready` (or explicitly left `in-discussion` by the
+  approver); the plan then goes `active → done`.
