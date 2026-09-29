@@ -46,7 +46,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.3                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.4                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -78,7 +78,7 @@ types:
     template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release-line`
       frontmatter:
         required: [ title, version ]
-      file: ".wingfoil/memory/templates/release-line.md"
+      file: "memory/templates/release-line.md"
     states: # [AUTHORING] structure + vocabulary (release-line is not itself named by P1.13; modeled on the same shape)
       sequence: [ draft, planning, active, done ]
       gates:
@@ -94,7 +94,7 @@ types:
     template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release`
       frontmatter:
         required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
-      file: ".wingfoil/memory/templates/release.md"
+      file: "memory/templates/release.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding
       sequence: [ draft, planning, in-development, releasing, released ]  # [SPEC] (BDD P1.13: release exposes initial state 'draft' = sequence[0])
       # draft->planning: memory.submit; the rest are workflow-phase transitions (no CLI verb)
@@ -109,7 +109,7 @@ types:
     template:                   # [AUTHORING]
       frontmatter:
         required: [ title, release ]
-      file: ".wingfoil/memory/templates/task.md"
+      file: "memory/templates/task.md"
     states:
       sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
       gates:
@@ -127,7 +127,7 @@ types:
     template:                   # [AUTHORING]
       frontmatter:
         required: [ title, sard_ref ]
-      file: ".wingfoil/memory/templates/adr.md"
+      file: "memory/templates/adr.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] ADR vocabulary+encoding (accepted/superseded lifecycle)
       sequence: [ draft, pending, accepted, superseded ]
       gates:
@@ -143,7 +143,7 @@ types:
     template:                   # [AUTHORING]
       frontmatter:
         required: [ title ]
-      file: ".wingfoil/memory/templates/decision-log.md"
+      file: "memory/templates/decision-log.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (record-with-approval lifecycle, per dl-012 + dl-017-decision-log-remove-delivery-states)
       sequence: [ draft, in-discussion, ready ]
       gates:
@@ -161,7 +161,7 @@ types:
     template:                   # [AUTHORING]
       frontmatter:
         required: [ title, scope ]
-      file: ".wingfoil/memory/templates/tech-spec.md"
+      file: "memory/templates/tech-spec.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] tech-spec vocabulary+encoding (approved/superseded lifecycle, mirrors adr)
       sequence: [ draft, pending, approved, superseded ]
       gates:
@@ -177,7 +177,7 @@ types:
     template:                   # [AUTHORING]
       frontmatter:
         required: [ title, severity ]
-      file: ".wingfoil/memory/templates/bug.md"
+      file: "memory/templates/bug.md"
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] bug vocabulary+encoding (open -> triaged -> planned -> in-progress -> in-review -> resolved -> closed)
       sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
       gates:
@@ -196,7 +196,7 @@ types:
     template:                   # [AUTHORING] scaffold for `wingfoil memory add --type plan`
       frontmatter:
         required: [ title, workflow, phase ]
-      file: ".wingfoil/memory/templates/plan.md"
+      file: "memory/templates/plan.md"
     states: # [AUTHORING] dl-019 — no spec mandates a plan type; simple author->execute->complete lifecycle
       sequence: [ draft, active, done ]
       waiting: [ active ]        # active->done: fires once the phase's produces:/checks are satisfied. deprecated/superseded via memory.deprecate.
