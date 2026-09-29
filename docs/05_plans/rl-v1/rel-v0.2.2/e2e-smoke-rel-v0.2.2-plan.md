@@ -2,7 +2,7 @@
 id: e2e-smoke-rel-v0.2.2-plan
 type: plan
 title: "E2E smoke — v0.2.2 (fresh-init + CLI black-box gate, mcp-registration, examples)"
-status: active
+status: done
 version: "1.1"
 workflow: "e2e-smoke"
 phase: "rel-v0.2.2"
