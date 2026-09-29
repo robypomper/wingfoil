@@ -8,7 +8,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Every entry ends with the WingFoil Memory element(s) it comes from: a `done` task (`task-NNN`) or a
 `closed` bug (`bug-NNN`).
 
-## [0.2.2] - Unreleased
+## [0.2.2] - 2026-09-29
 
 A patch on 0.2: `memory add` can fill every token of an id pattern, every command's `--help`
 describes it, `init` names its templates and the technology shape, and the package publishes from
