@@ -2,44 +2,48 @@
 id: svc-011-alternativeto-listing-wingfoil
 type: service
 title: "AlternativeTo listing WingFoil"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "alternativeto.net"
+kind: "listing"
+owner_role: "approver"
+verify: "open https://alternativeto.net/software/wingfoil/ — the listing renders with license MIT and the repository link"
+url: "https://alternativeto.net/software/wingfoil/"
+account: "RobyPomper (Google sign-in, robypomper@gmail.com), a personal account of the approver"
+renews: ""
+repo_refs: []
+decision: "dl-130-visibility-steps-in-the-release-flow"
+release: "v0.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+A directory entry that lets people looking for a tool like WingFoil find it next to the products they
+already know. It is one of the external listings `dl-130` counts as part of the project's visibility.
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+Created by the approver on 2026-09-29.
+
+- **Account:** `RobyPomper`, a **personal** account of the approver, signed in with Google. It is not
+  owned by the `wingfoil` organisation, because alternativeto.net has no organisation accounts.
+- **Alternatives linked:** none yet. The creation form found none of the suggested products (GitHub Spec
+  Kit, BMAD Method). Alternatives are added from the other products' pages, with *Suggest alternative*;
+  the candidates are Claude Code, Kiro, Cline and Aider.
+- **Moderation:** new listings may sit in moderation before they are public.
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+Manual: alternativeto.net has no public API. Open `https://alternativeto.net/software/wingfoil/` and
+check that the listing renders with license MIT and the link to `github.com/wingfoil/wingfoil`. The page
+is not readable from cloud sessions, whose network policy denies alternativeto.net; the agent did not
+read it for this element.
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Open action (approver):** link 2–3 alternatives from the candidates above.
+- **Ownership:** the listing belongs to a personal account. If the `approver` role ever changes hands,
+  the listing must be transferred or re-claimed by the new holder; until then this element names the
+  account so the dependency is visible.
+- **Retirement:** `memory deprecate`, with a `Reason:` that says whether the listing was deleted or
+  taken over by another account.
