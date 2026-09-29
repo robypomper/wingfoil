@@ -2,44 +2,52 @@
 id: svc-003-github-repository-wingfoil-and-its-public-visibility
 type: service
 title: "GitHub repository wingfoil and its public visibility"
-status: draft
-provider: ""           # REQUIRED — who hosts it, e.g. "npmjs.com", "GitHub", "registry.modelcontextprotocol.io"
-kind: ""               # REQUIRED — account | credential | listing | setting | domain | handle
-owner_role: ""         # REQUIRED — the dna.yaml role that manages it: a role, never a person (REQ-SYS-08)
-verify: ""             # REQUIRED — the read-only command or URL that establishes its current state (claim-evidence)
-url: ""                # optional — its public URL, if any
-account: ""            # optional — the public identifier used (a login, an org name); never a secret
-renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
-repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
-decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+status: pending
+provider: "GitHub"
+kind: "setting"
+owner_role: "approver"
+verify: "gh api repos/robypomper/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'"
+url: "https://github.com/robypomper/wingfoil"
+account: "robypomper/wingfoil"
+renews: ""
+repo_refs: ["package.json", ".github/workflows/publish.yml", "server.json"]
+decision: "dl-068-publishing-requires-public-repository"
+release: "v0.2"
+tmpl_version: 260929
 ---
-
-<!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
-     a service element NEVER holds a secret value — no token, password, recovery code or key, and no
-     fragment of one. Name where the secret is held (e.g. "GitHub Actions secret <NAME>, environment
-     <env>"), its type, its expiry and how it is rotated. The spec-007 scan (`scanText`,
-     src/validation/secret-scan.ts) runs on this file in service-ingest's `capture` phase. -->
 
 ## Purpose
 
-<!-- Why the project needs this external state; what breaks without it. -->
+The repository that hosts WingFoil's source and runs its publish pipeline. Its **public visibility**
+is a precondition of the pipeline, not a preference (`dl-068`, decision (a), 2026-09-21): npm
+provenance and the `npm-publish` environment's required-reviewer gate both depend on it, and the
+gate job's unauthenticated `git fetch origin main` works only on a public repository (`dl-068`
+Context). A private repository breaks the publish of every release.
 
 ## Configuration
 
-<!-- How it is set up and which settings matter. Public identifiers only: a secret is named by where
-     it is held, never by its value. Cite the documents that describe it rather than moving their
-     content. -->
+- `robypomper/wingfoil`, created 2026-09-17 (`dl-068` E1: `created_at: 2026-09-17T07:31:01Z`), made
+  public before the first publish (`dl-068` §Decision), MIT-licensed, default branch `main`.
+- `package.json` `repository.url` points at it; npm provenance checks that URL against the repository
+  that builds the package (`release-planning-rel-v0.2.2-plan` §C).
+- It moves to `wingfoil/wingfoil` before the v0.2.2 publish (`dl-091` addendum D5); the slug change
+  in the repository is `task-116-repository-slug-follows-the-transfer`. Historical documents keep the
+  old slug, because GitHub redirects (§C).
+- Its descriptive settings (description, topics, features) are a separate element,
+  `svc-004-github-repository-settings`.
 
 ## Verification
 
-<!-- The `verify` procedure and the result expected from it — what the approver runs before
-     approving (pending → active). Read-only commands only. -->
+`gh api repos/robypomper/wingfoil --jq '{full_name,visibility,private,license:.license.spdx_id}'` →
+`{"full_name":"robypomper/wingfoil","license":"MIT","private":false,"visibility":"public"}` (run
+read-only by `task-124` on 2026-09-29). After the transfer the command names `wingfoil/wingfoil`, and
+`full_name` must say so.
 
 ## Management
 
-<!-- How to renew, rotate, recover and retire it, with deadlines (`renews`). Retirement is
-     memory.deprecate, whose Reason: names why it was dropped or what replaced it. Edits to an
-     `active` service are body/frontmatter edits committed as `docs(self): …` until dl-079 settles
-     (dl-088 option 2). -->
+- **Owner:** the `approver` role (the repository owner account is `robypomper` until the transfer).
+- **Never make it private** while the pipeline relies on provenance and the environment gate: `dl-068`
+  options (b) and (c) are the recorded fallbacks, and choosing one is a new decision, not a setting.
+- **Transfer:** after it, update `url`, `account` and `verify` in a `docs(self)` commit (`dl-088`
+  option 2) and re-run the checks `release-planning-rel-v0.2.2-plan` §C lists.
+- **Retire:** `memory deprecate`, naming the replacement repository.
