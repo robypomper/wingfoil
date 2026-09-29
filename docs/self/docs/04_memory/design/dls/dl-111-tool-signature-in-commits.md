@@ -2,7 +2,7 @@
 id: "dl-111-tool-signature-in-commits"
 type: decision-log
 title: "Commits WingFoil writes carry no tool signature — add a `WingFoil-Version: <semver> (<sha>)` trailer, stamped at build, so a commit says which build wrote it"
-status: in-discussion
+status: ready
 context: "retrospective"
 release: "v0.3"
 contributor: ""
