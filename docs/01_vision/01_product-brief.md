@@ -1,6 +1,6 @@
 # Product Brief — WingFoil
 
-**Version:** 1.4
+**Version:** 1.5
 **Date:** 2026-09-29  
 **Status:** Approved
 
@@ -264,8 +264,8 @@ development and v0.2's scope growth; it is kept in the sequencer, next to the ac
 
 **Language & Runtime:** TypeScript, Node.js 22.12+ (npm)  
 **Storage:** Git (local file-backed, YAML + Markdown)  
-**CLI:** Commander.js, chalk for formatting  
-**MCP Server:** Model Context Protocol (stdio transport, Anthropic SDK)  
+**CLI:** Commander.js  
+**MCP Server:** Model Context Protocol (stdio transport, `@modelcontextprotocol/sdk`)  
 **Validation:** Zod (JSON Schema)  
 **Testing:** Jest (>80% coverage target)  
 **Deployment:** npm registry (public), semantic versioning

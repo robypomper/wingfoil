@@ -2,7 +2,7 @@
 id: "bug-138-unused-anthropic-sdk-runtime-dependency"
 type: bug
 title: "`@anthropic-ai/sdk` is a declared runtime dependency but is imported nowhere in `src/`"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"

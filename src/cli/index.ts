@@ -1,5 +1,5 @@
 /**
- * `cli` module — human interface (Commander.js + chalk); the `wingfoil` command surface.
+ * `cli` module — human interface (Commander.js); the `wingfoil` command surface.
  *
  * task-006-dual-interface-shared-core adds the thin adapter (spec-006 §2): `buildCliCommands`
  * (`./registrar.ts`) derives one `wingfoil <noun> <verb>` command descriptor per operation from a

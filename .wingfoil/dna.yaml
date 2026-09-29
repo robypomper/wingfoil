@@ -8,7 +8,7 @@
 #   [AUTHORING] = authoring addition: coherent with the specs but not mandated by them.
 # Spec-required top-level sections: modules, stacks, team (BDD P2.4-project-dna-config); paths (P2.5).
 # Sections/fields without a [SPEC] ref are [AUTHORING].
-version: 1.1                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.2                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # [AUTHORING] section — not required by P2.4; identity/strategy values sourced from the Product Brief.
 project:
@@ -53,7 +53,7 @@ modules:
     description: Project Workflow pillar — phases/steps/atomic actions, include() composition.
     path: src/workflow
   - name: cli
-    description: Human interface (Commander.js + chalk); `wingfoil` command surface.
+    description: Human interface (Commander.js); `wingfoil` command surface.
     path: src/cli
   - name: mcp-server
     description: Agent interface (MCP over stdio, @modelcontextprotocol/sdk); Resources, Tools (Prompts v0.2).
@@ -78,15 +78,9 @@ stacks:
     - name: Commander.js
       category: framework
       notes: CLI command surface (P2 Interaction Layer)
-    - name: chalk
-      category: library
-      notes: CLI output formatting
     - name: Model Context Protocol
       category: protocol
       notes: Agent interface; transport over stdio; implemented in src/mcp via the @modelcontextprotocol/sdk package (ADR-004)
-    - name: Anthropic SDK
-      category: sdk
-      notes: declared in package.json dependencies; not yet imported by any src/ module — the MCP server (src/mcp) is built on @modelcontextprotocol/sdk instead (drifted from ADR-004's original framing)
     - name: js-yaml
       category: library
       notes: YAML parse/dump for all git-backed storage files (src/validation/yaml.ts, src/core/loaders.ts)

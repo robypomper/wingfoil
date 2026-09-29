@@ -115,12 +115,16 @@ Workflow execution does not exist yet (§6).
 
 - **Modules:** `core, validation, storage, memory, dna, directives, workflow, cli, mcp-server` — all nine
   exist under `src/`, each at its `dna.yaml` `path:` (note `mcp-server` lives at `src/mcp`).
-- **Stacks** (`stacks.technologies`): TypeScript · Node.js 22.12+ · npm · Commander.js + chalk (CLI) · MCP
+- **Stacks** (`stacks.technologies`): TypeScript · Node.js 22.12+ · npm · Commander.js (CLI) · MCP
   over stdio via `@modelcontextprotocol/sdk` · js-yaml (all git-backed YAML) · Zod (validation) · Jest
-  (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. The Anthropic SDK is a
-  declared dependency but is **not** imported by any `src/` module — `dna.yaml` flags this drift from
-  ADR-004's original framing. **Methodologies** (`stacks.methodologies`): Lean Inception · User Story
-  Mapping · Specification by Example (BDD) · SARD · TDD.
+  (testing, coverage **>80%**) · TypeDoc (API-docs gate) · git storage · semver. ADR-004 framed the MCP
+  server around the Anthropic SDK; it was built on `@modelcontextprotocol/sdk` instead. `task-117`
+  (`bug-138`) removed the two runtime dependencies nothing in `src/` imported, `@anthropic-ai/sdk` and
+  `chalk`, and `test/cli/runtime-dependencies.test.ts` keeps it that way. Both still appear in
+  `package-lock.json` as dev-only transitive dependencies (the SDK of the pinned `wingfoil-released`
+  build, `chalk` of the test toolchain).
+  **Methodologies** (`stacks.methodologies`): Lean Inception · User Story Mapping · Specification by
+  Example (BDD) · SARD · TDD.
 - **Roles:** `developer, reviewer, qa, architect, product-owner, tech-lead, facilitator, approver`.
   AI agents execute as `developer/reviewer/qa/architect` and **never hold approval authority** — all
   approvals route to the `approver` role (the human, Roberto).
