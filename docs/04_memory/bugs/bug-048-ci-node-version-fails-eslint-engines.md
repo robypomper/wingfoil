@@ -2,7 +2,7 @@
 id: "bug-048-ci-node-version-fails-eslint-engines"
 type: bug
 title: "CI's pinned NODE_VERSION 22.12.0 does not satisfy eslint@10.6.0 / @eslint/js@10.0.1, so the publish gate installs with EBADENGINE warnings"
-status: open
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: ""
@@ -10,6 +10,7 @@ feature: ""
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed at v0.3's release-planning triage-bugs (gate 2), approver ruling 2026-09-29, option A (release-planning-rel-v0.3-plan Appendix A). The false CI comment was rewritten in 659b42e8 (task-074): publish.yml now states that 22.12.0 is the production floor and that eslint 10's EBADENGINE warning is accepted on purpose. Whether engine-strict should be enforced is dl-076's open question, not a defect left under this bug."
 ---
 
 ## Summary
