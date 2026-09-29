@@ -2,7 +2,7 @@
 id: "bug-140-init-never-names-its-templates"
 type: bug
 title: "Without a TTY, `wingfoil init` demands `--template` but neither its error nor `--help` names the available template values"
-status: in-review
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.2.2"
