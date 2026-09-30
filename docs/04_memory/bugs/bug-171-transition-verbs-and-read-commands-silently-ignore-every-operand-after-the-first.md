@@ -2,7 +2,7 @@
 id: bug-171-transition-verbs-and-read-commands-silently-ignore-every-operand-after-the-first
 type: bug
 title: "Transition verbs and read commands silently ignore every operand after the first"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2.2"
 release: "v0.3"
