@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.7"
+version: "1.8"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -611,6 +611,11 @@ verdict backed by a file:line or a command.
 - **Nothing is proposed for deprecate.** Every DL still has at least one live clause: a spec, directive or doc that is still false, or code that cites the DL. The partly settled ones (dl-073 via dl-122, dl-084 via task-095) are ratified with the delivered half recorded as delivered, rather than deprecated. Deprecating them would drop their remaining clauses (dl-073's (C) and S3, dl-084's doc fix).
 
 ## Appendix C — record-adrs and identify-specs: the dl-022 spec-review (for gates 4 and 5)
+
+**Gates 4 and 5 passed 2026-09-30**, approver ruling: approve all. `adr-012` `[pending → accepted]`
+(`b638193a`), `spec-016` and `spec-017` `[pending → approved]` (`205fe6fe`, `1cc58e1c`); the `spec-003` and
+`spec-006` amendments (`01645307`) are signed off as committed and stay `approved`; the open questions
+listed below are settled as their recommendations.
 
 Documents, all reserved with the pinned build (`812091cd`, `2683fef4`, `de651a59`) and submitted to
 `pending` after the review; the two amendments are committed with status `approved` unchanged:
