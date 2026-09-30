@@ -21,3 +21,14 @@ Feature: P1.3 (US-4-01) - wingfoil memory add
     When I run "wingfoil memory add --type decision"
     Then no file is created
     And the command exits with code 2 and message "missing required argument: --title"
+
+  # dl-101 §2 (a), Action 3 (task-128; bug-087, bug-162): the number is the highest taken on any
+  # local branch, remote-tracking ref or the working tree, plus one — never a count of one checkout.
+  Scenario: The generated id skips a number already taken on another ref
+    Given the Memory type "decision" has the id pattern "decision-{n}-{slug}"
+    And "decision-001" and "decision-003" are committed on the current branch
+    And "decision-004" is committed only on another local branch
+    And "decision-005" is committed only on a remote-tracking ref
+    When I run "wingfoil memory add --type decision --title 'Use Redis'"
+    Then the new document's id is "decision-006-use-redis"
+    And the command exits with code 0

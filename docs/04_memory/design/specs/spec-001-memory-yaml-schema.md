@@ -157,16 +157,27 @@ like any other `id_pattern`. A dotted token such as `{release.version}` reads a 
 in the workflow's `element:` chain; that resolution is `dl-090`'s, which `dl-107` names as S3's
 prerequisite, and until it lands only undotted tokens are defined. There is no free-form `--id`.
 
-**Counter algorithm (no central ID registry — the filesystem is the source of truth, consistent with
-"state deduced from Memory", REQ-STATE-01/REQ-STATE-02):**
+**Counter algorithm (no central ID registry — the repository is the source of truth, consistent with
+"state deduced from Memory", REQ-STATE-01/REQ-STATE-02; revised by `dl-101` §2 (a), see the
+*Revision (2026-09-30)* note below):**
 
-1. Build a glob from the type's `path` by replacing `{id}` with `*` (all other `path` placeholders are
-   already literal values by this point).
-2. Scan matching files from the config root.
-3. Extract the `{id}` substring from each match.
-4. Apply a regexp derived from `id_pattern`, capturing the numeric group at the `{n}` / `{n:N}`
-   position (e.g. `task-{n}-{slug}` → `^task-(\d+)-.+$`).
-5. `next_n = max(captured) + 1`, defaulting to `1` when no file matches or no numeric group is found.
+1. Build a pattern from the type's `path` by replacing `{id}` with the materialized `id_pattern` and
+   **every other `path` placeholder with a wildcard** (one or more path segments), whatever value the
+   add itself gives it — so a `task`'s counter spans every `docs/04_memory/{release}/` folder, not
+   only the release being added to (`bug-162`).
+2. Collect the candidate paths from **every baseline a number can be taken on**: the tree of each
+   local branch (`refs/heads/*`), of each remote-tracking ref (`refs/remotes/*`) and of `HEAD`, plus
+   the working tree as git sees it (the index and the untracked, non-ignored files). No network is
+   used: what the remotes hold is what was last fetched (`git fetch` stays the operator's step,
+   `dl-101` §1.1).
+3. Keep the paths the pattern matches, and from each capture the numeric group at the `{n}` /
+   `{n:N}` position (e.g. `docs/04_memory/{release}/{id}.md` with `task-{n}-{slug}` →
+   `^docs/04_memory/<any>/task-(\d+)-<slug>\.md$`).
+4. `next_n = max(captured) + 1`, defaulting to `1` when nothing matches. The **highest** number, not
+   a count, so a gap left by a removed element never reissues a number (`bug-087`); and a maximum is
+   independent of the order the refs and paths are enumerated in (REQ-SYS-07).
+5. A git read that fails is an error of the add, never an empty answer: a counter that silently saw
+   nothing would reissue `1`.
 
 ### Worked examples — every current type in the new format
 
@@ -360,3 +371,14 @@ file "has no `service` type" until then, and the matching "`dl-088` caveat" in t
 paragraph, are removed; the Context's type list now says where `service` is declared. No schema,
 field or edge changes. Edited in place, as the revision above; **pending the approver's sign-off at
 `task-124`'s review.**
+
+**Revision (2026-09-30, `task-128-allocate-element-ids-highest-number-ref-across-folder`) — the
+counter scans every ref and every folder.** `dl-101` (`ready`, direction (a)) replaces "the
+filesystem is the source of truth" in the counter algorithm: the number is the highest taken on any
+local branch, remote-tracking ref, `HEAD` or the working tree, plus one. Step 1 no longer treats the
+other `path` placeholders as literal values: they are wildcards, which is the fix for `bug-162` (a
+`task`'s counter restarted at `1` in every `{release}` folder). The code had also never followed the
+old step 5: it counted the matching files rather than taking their maximum (`bug-087`). This baseline
+reads more than `HEAD`, so it is declared in the `command-baseline` directive (`dl-080`, `dl-101`
+Action 3). Remote reservation (`dl-101` §2 (b)) is not part of it. Edited in place, as the revisions
+above, with no `version:` bump (`dl-047`); **pending the approver's sign-off at `task-128`'s review.**
