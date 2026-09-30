@@ -86,6 +86,7 @@ import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
 import type { CoreFn, CoreModule, CoreOption } from './registry';
+import { extraOperandsReason } from './registry';
 import { coreErr, coreOk } from './types';
 import type { CoreResult } from './types';
 
@@ -431,7 +432,10 @@ function dnaCommitSubject(request: DnaMutationRequest): string {
  *    shape on the three new verbs. It gets a named message rather than being ignored, because
  *    `dl-082` is a breaking change to a shipped command and silently dropping the second word would
  *    make `dna set project.license MIT` look like it worked (`--value` absent, the write refused for
- *    a reason that names neither the second word nor the new grammar).
+ *    a reason that names neither the second word nor the new grammar). Since task-129 the registrar
+ *    refuses a surplus operand for every other command before the root is resolved; the four DNA
+ *    path verbs declare `refusesExtraItself` so that rule 2 keeps coming first, and word the refusal
+ *    with the same `extraOperandsReason` plus the migration hint.
  *
  * All three are exit `2` (`UsageError` → `exitCodeForThrow`, `spec-005-cli-command-contract` §1).
  */
@@ -445,9 +449,7 @@ function dnaPathPositional(verb: string, positionals: readonly string[] | undefi
     throw new UsageError(split.message);
   }
   if ((positionals?.length ?? 0) > 1) {
-    throw new UsageError(
-      `wingfoil dna ${verb} takes one positional <path>; the value travels in --value (got ${positionals!.length} positionals)`,
-    );
+    throw new UsageError(extraOperandsReason(`dna ${verb}`, 'path', positionals!.length, 'the value travels in --value'));
   }
   return path;
 }
@@ -1643,7 +1645,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'dnaAdd',
         mutates: true,
         description: 'add an entry to a collection, or values to a list',
-        positional: { name: 'path', required: true, description: 'the collection (e.g. team.members) or list (e.g. paths.sources) to add to' },
+        positional: { name: 'path', required: true, description: 'the collection (e.g. team.members) or list (e.g. paths.sources) to add to', refusesExtraItself: true },
         options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS],
         example: 'wingfoil dna add team.members --value "Ada Lovelace" --entry-email ada@example.com --entry-roles approver',
         fn: dnaAddFn,
@@ -1653,7 +1655,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'dnaRemove',
         mutates: true,
         description: 'remove a collection entry, or values from a list',
-        positional: { name: 'path', required: true, description: 'the entry to remove (<collection>.<name>), or the list to remove the --value values from' },
+        positional: { name: 'path', required: true, description: 'the entry to remove (<collection>.<name>), or the list to remove the --value values from', refusesExtraItself: true },
         options: [DNA_VALUE_OPTION],
         example: 'wingfoil dna remove paths.docs --value README.md',
         fn: dnaRemoveFn,
@@ -1666,7 +1668,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'dnaSet',
         mutates: true,
         description: 'set one scalar field',
-        positional: { name: 'path', required: true, description: 'the dotted path of the scalar field, e.g. project.name (double-quote a segment that contains a dot)' },
+        positional: { name: 'path', required: true, description: 'the dotted path of the scalar field, e.g. project.name (double-quote a segment that contains a dot)', refusesExtraItself: true },
         options: [DNA_SET_VALUE_OPTION],
         example: 'wingfoil dna set project.name --value "My Project"',
         fn: dnaSetFn,
@@ -1683,7 +1685,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'dnaUpdate',
         mutates: true,
         description: 'change fields of an existing collection entry',
-        positional: { name: 'path', required: true, description: 'the entry (<collection>.<name>), or one of its fields (<collection>.<name>.<field>) with --value' },
+        positional: { name: 'path', required: true, description: 'the entry (<collection>.<name>), or one of its fields (<collection>.<name>.<field>) with --value', refusesExtraItself: true },
         options: [DNA_VALUE_OPTION, ...DNA_ENTRY_OPTIONS],
         example: 'wingfoil dna update modules.api --entry-description "Public HTTP API"',
         fn: dnaUpdateFn,

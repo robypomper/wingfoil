@@ -176,15 +176,17 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     if (command.description !== undefined) target.description(command.description);
 
     // The operand (task-025's `positionals` seam, named by task-120). PARSING is the same for every
-    // derived command whatever it declares: Commander accepts any number of operands and core decides
-    // what to refuse, with its own message — `dl-082-cli-parameter-shape` gives each command at most
-    // ONE positional, the identity of its target, and an operation refuses an extra one itself
-    // (`dna set`'s migration message) rather than leave it to a Commander arity error. A declared
+    // derived command whatever it declares: Commander accepts any number of operands and WingFoil
+    // decides what to refuse, with its own message — `dl-082-cli-parameter-shape` gives each command at
+    // most ONE positional, the identity of its target, and `./registrar.ts` refuses a surplus operand
+    // at exit `2` before anything is read (task-129, `bug-171`, `bug-131`; the DNA path verbs refuse it
+    // themselves, after their own path check — `CorePositional.refusesExtraItself`), rather than leave
+    // it to a Commander arity error, whose wording would differ from command to command. A declared
     // positional is registered as an OPTIONAL variadic argument under its declared name: marking it
     // required to Commander would replace core's `missing required argument: memory submit <id>` with
     // Commander's own refusal, so required-ness is RENDERED (the usage line below, `subcommandTerm`)
     // and never enforced here. A command that declares none registers no argument — so `--help` shows
-    // none — and allows excess arguments, which accepts exactly what the variadic list accepted.
+    // none — and allows excess arguments, so that the surplus reaches the registrar's refusal.
     if (command.positional) {
       target.argument(`[${command.positional.name}...]`, command.positional.description);
       declaredPositionals.set(target, command.positional);

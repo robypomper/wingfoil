@@ -81,6 +81,37 @@ export interface CorePositional {
   readonly required?: boolean;
   /** What `--help` says the argument is. */
   readonly description: string;
+  /**
+   * Whether the operation refuses an operand beyond this one ITSELF, instead of the registrar doing it
+   * (task-129, `bug-171`). The registrar refuses a surplus operand for every command, before resolving
+   * the project root (`src/cli/registrar.ts`); an operation sets this only when another usage check of
+   * its own must come first — the DNA path verbs, where a malformed path is reported before the
+   * migration message (`P2.1-dna-set.feature`'s `dna set ..language python`). Such an operation must
+   * still refuse the surplus at exit `2` with {@link extraOperandsReason}'s wording:
+   * `test/cli/extra-operand-refusal.integration.test.ts` drives every registered command with one
+   * operand too many, whoever refuses it. Absent means the registrar refuses.
+   */
+  readonly refusesExtraItself?: boolean;
+}
+
+/**
+ * The usage error for an invocation carrying more operands than its command declares
+ * (`dl-082-cli-parameter-shape`: at most one positional per command; task-129, `bug-171`, `bug-131`):
+ * it names the command, what it takes, and how many operands it got —
+ * `wingfoil memory approve takes one positional <id> (got 2 positionals)`,
+ * `wingfoil workflow list takes no positional (got 1 positional)`. `hint`, when given, follows what the
+ * command takes: `dna set`'s migration message is this sentence with `the value travels in --value`
+ * (task-093), so the two refusals share one wording. Deterministic — a pure function of its arguments
+ * (REQ-SYS-07).
+ *
+ * @param command - the command as typed after `wingfoil`: `memory approve`, or a flat noun (`paths`).
+ * @param positionalName - the declared positional's name, or `undefined` when the command declares none.
+ * @param given - how many operands the invocation carried.
+ * @param hint - an optional clause naming what the surplus operand should have been.
+ */
+export function extraOperandsReason(command: string, positionalName: string | undefined, given: number, hint?: string): string {
+  const takes = positionalName === undefined ? 'takes no positional' : `takes one positional <${positionalName}>`;
+  return `wingfoil ${command} ${takes}${hint === undefined ? '' : `; ${hint}`} (got ${given} positional${given === 1 ? '' : 's'})`;
 }
 
 /**
@@ -229,7 +260,9 @@ export interface ParamsContext {
    * Since `dl-082-cli-parameter-shape` (task-093) every command reads at most ONE positional — the
    * identity of its target — and `dna set`'s value travels in `--value`, so the list is now a
    * uniform seam rather than one shaped by a single two-input verb; it stays variadic so an
-   * operation can refuse an extra positional with its own message.
+   * operation declaring {@link CorePositional.refusesExtraItself} can refuse an extra positional after
+   * its own checks. For every other operation the registrar refuses a surplus before `buildParams` is
+   * called (task-129), so the list it sees never exceeds the declared count.
    * {@link positional} is exactly `positionals?.[0]` and is kept unchanged for the single-positional
    * read ops that predate this (`dna show [section]`, `paths [category]`), so their `buildParams` and
    * `CoreFn`s are untouched; an op that must validate its positional (`dnaSet` and the three mutation

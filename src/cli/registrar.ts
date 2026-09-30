@@ -16,7 +16,7 @@
  * thin, mechanical concern.
  */
 import type { CoreFlag, CoreModule, CoreOption, CorePositional, ParamsBuilder } from '../core/registry';
-import { enumerateOperations, deriveVerb } from '../core/registry';
+import { enumerateOperations, deriveVerb, extraOperandsReason } from '../core/registry';
 import type { CoreResult } from '../core/types';
 import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
 
@@ -106,6 +106,22 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
           return;
         }
         const format = formatValue;
+
+        // An operand beyond the one the command declares (`dl-082-cli-parameter-shape`: at most one
+        // positional per command) is a malformed invocation: exit `2` (spec-005 §1), refused HERE,
+        // before `resolveRoot()` — so before anything is read or written, and before any check the
+        // operation runs, the git-identity pre-flight included (task-129, `bug-171`, `bug-131`). One
+        // refusal for every derived command, present and future. The only exception is an operation
+        // that declares `refusesExtraItself` because a usage check of its own must come first (the DNA
+        // path verbs); it receives the full list and refuses the surplus in the same words.
+        const given = positionals?.length ?? 0;
+        const declared = operation.positional === undefined ? 0 : 1;
+        if (given > declared && operation.positional?.refusesExtraItself !== true) {
+          const commandName = verb ? `${module.name} ${verb}` : module.name;
+          emitError(extraOperandsReason(commandName, operation.positional?.name, given), { format });
+          exitWith(2);
+          return;
+        }
 
         let result: CoreResult<unknown>;
         try {

@@ -91,6 +91,8 @@ describe('buildCliCommands — flat (no-verb) commands (spec-008-cli-grammar §1
         paths: {
           name: 'paths',
           mutates: false,
+          // Declared, so the registrar lets one operand through (task-129 refuses a surplus).
+          positional: { name: 'category', description: 'a path category' },
           flags: [{ name: 'list' }],
           fn: async () => coreOk({ category: 'sources', paths: ['src/'] }),
         },
@@ -260,7 +262,15 @@ describe('positional argument threading (task-026-implement-dna-show — generic
   /** A one-operation module whose core fn just echoes back whatever params it received. */
   function echoCommand(): CliCommand {
     const commands = buildCliCommands(
-      [{ name: 'x', operations: { xEcho: { name: 'xEcho', mutates: false, fn: async (params) => coreOk(params) } } }],
+      [
+        {
+          name: 'x',
+          operations: {
+            // Declares its positional: the registrar refuses an undeclared operand (task-129).
+            xEcho: { name: 'xEcho', mutates: false, positional: { name: 'section', description: 's' }, fn: async (params) => coreOk(params) },
+          },
+        },
+      ],
       {
         resolveRoot: () => '/fixture-root',
         buildParams: (ctx) => ({ root: ctx.root, positional: ctx.positional }),

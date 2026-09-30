@@ -73,7 +73,13 @@ const FIXTURE_MODULES: CoreModule[] = [
       },
       // Mirrors the real registration since `dl-082-cli-parameter-shape`: the path is the command's
       // positional, the value a declared `--value` option (`CORE_MODULES`, `src/core/index.ts`).
-      dnaSet: { name: 'dnaSet', mutates: true, options: [{ name: 'value' }], fn: async () => coreOk({ committed: true }) },
+      dnaSet: {
+        name: 'dnaSet',
+        mutates: true,
+        positional: { name: 'path', required: true, description: 'the dotted path', refusesExtraItself: true },
+        options: [{ name: 'value' }],
+        fn: async () => coreOk({ committed: true }),
+      },
     },
   },
   {
@@ -94,7 +100,13 @@ const FIXTURE_MODULES: CoreModule[] = [
   {
     name: 'paths',
     operations: {
-      paths: { name: 'paths', mutates: false, flags: [{ name: 'list' }], fn: async () => coreOk({ category: 'sources' }) },
+      paths: {
+        name: 'paths',
+        mutates: false,
+        positional: { name: 'category', description: 'a path category' },
+        flags: [{ name: 'list' }],
+        fn: async () => coreOk({ category: 'sources' }),
+      },
     },
   },
 ];
@@ -260,10 +272,20 @@ describe('buildProgram — command tree derivation (spec-006 §4, spec-008 §1)'
     expect(dnaShow?.registeredArguments[0]?.required).toBe(false);
   });
 
-  it('registers no argument for a command that declares no positional, and still forwards its operands (task-120)', async () => {
+  it('registers no argument for a command that declares no positional, and lets an operand reach the registrar\'s refusal (task-120, task-129)', async () => {
     const program = await buildFixtureProgram();
-    const dnaSet = program.commands.find((c) => c.name() === 'dna')?.commands.find((c) => c.name() === 'set');
-    expect(dnaSet?.registeredArguments).toEqual([]);
+    const memoryAdd = program.commands.find((c) => c.name() === 'memory')?.commands.find((c) => c.name() === 'add');
+    expect(memoryAdd?.registeredArguments).toEqual([]);
+    // Not Commander's "too many arguments": the surplus reaches `registrar.run`, which refuses it at
+    // exit 2 with WingFoil's own wording, before `buildParams` is ever called (bug-131).
+    await program.parseAsync(['node', 'wingfoil', 'memory', 'add', 'extra', '--type', 'task']);
+    expect(seenContexts).toEqual([]);
+    expect(written(stderrSpy)).toBe('error: wingfoil memory add takes no positional (got 1 positional)\n');
+    expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('forwards every operand to an operation that refuses a surplus itself (the DNA path verbs, task-129)', async () => {
+    const program = await buildFixtureProgram();
     await program.parseAsync(['node', 'wingfoil', 'dna', 'set', 'project.license', 'extra', '--value', 'MIT']);
     expect(seenContexts[0]).toMatchObject({ positional: 'project.license', positionals: ['project.license', 'extra'], options: { value: 'MIT' } });
   });

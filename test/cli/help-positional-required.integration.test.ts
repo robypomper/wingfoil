@@ -11,9 +11,10 @@
  * - declared required → exit `2`, and the `error:` line names the same `<name>` the synopsis shows;
  * - declared optional → never the usage exit `2`: the command gets past argument checking.
  *
- * The second half pins AC 4 (no parsing change) for the commands that declare NO positional: an extra
- * operand was accepted before task-120 (every derived command registered a variadic list) and still
- * is — Commander's own "too many arguments" refusal must not appear on a derived command.
+ * This suite used to pin, in a second half, task-120's AC 4 (no parsing change): a read-only command
+ * declaring no positional still accepted an extra operand. That acceptance was `bug-131`, and
+ * task-129 turned it into a refusal at exit `2` for every command; the refusal is pinned by
+ * `./extra-operand-refusal.integration.test.ts`, so the half that asserted the opposite is gone.
  *
  * Every invocation either refuses before touching the project or only reads it, so the shared fixture
  * root is never written.
@@ -50,7 +51,6 @@ const COMMANDS = enumerateOperations(CORE_MODULES).map(({ module, operation }) =
   return { args: verb ? [module.name, verb] : [module.name], operation };
 });
 const WITH_POSITIONAL = COMMANDS.filter(({ operation }) => operation.positional !== undefined);
-const WITHOUT_POSITIONAL = COMMANDS.filter(({ operation }) => operation.positional === undefined && operation.mutates === false);
 
 beforeAll(() => {
   expect(existsSync(join(DIST_DIR, 'cli', 'program.js'))).toBe(true);
@@ -74,12 +74,4 @@ describe('the declared required-ness of each positional matches what the command
       }
     },
   );
-});
-
-describe('AC 4 — a read-only derived command that declares no positional still accepts an extra operand', () => {
-  it.each(WITHOUT_POSITIONAL.map(({ args }) => [args.join(' '), args] as const))('`wingfoil %s extra`', (_label, args) => {
-    const result = runCli([...args, 'extra']);
-    expect(result.stderr).not.toContain('too many arguments');
-    expect(result.status).not.toBe(2);
-  });
 });

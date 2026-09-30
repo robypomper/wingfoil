@@ -48,6 +48,8 @@ describe('CLI dispatch — UsageError -> exit 2 (task-025)', () => {
           dnaSet: {
             name: 'dnaSet',
             mutates: true,
+            // Like the real `dna set`, it refuses a surplus operand itself (task-129), after its own checks.
+            positional: { name: 'path', required: true, description: 'p', refusesExtraItself: true },
             fn: async () => {
               throw new UsageError("invalid key path: '..language'");
             },
@@ -68,7 +70,17 @@ describe('CLI dispatch — UsageError -> exit 2 (task-025)', () => {
   it('the full positional list reaches buildParams as ctx.positionals, with ctx.positional == positionals[0]', async () => {
     let seen: unknown;
     const modules: CoreModule[] = [
-      { name: 'dna', operations: { dnaSet: { name: 'dnaSet', mutates: true, fn: async (p) => coreOk(p) } } },
+      {
+        name: 'dna',
+        operations: {
+          dnaSet: {
+            name: 'dnaSet',
+            mutates: true,
+            positional: { name: 'path', required: true, description: 'p', refusesExtraItself: true },
+            fn: async (p) => coreOk(p),
+          },
+        },
+      },
     ];
     const commands = buildCliCommands(modules, {
       resolveRoot: () => '/fixture-root',
