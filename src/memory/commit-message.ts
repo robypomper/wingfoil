@@ -5,8 +5,8 @@
  * subject is `wf({type}): {verb} {id1}, {id2}` (`spec-004-mcp-surface-contract` §4.3), optionally
  * followed by a ` [from → to]` bracket and an `Approver:` / `Reason:` body for the verbs whose
  * evidence rules require them (P1.7/P1.8, REQ-SEC-04). Those are exactly the shapes
- * `./audit.ts` reads back for `wingfoil memory history` (P1.10): `OPERATION_RE` on the subject,
- * `BRACKET_RE` on the bracket, `parseApprovalMetadata`/`parseCommitReason` on the body. Building the
+ * `./audit.ts` reads back for `wingfoil memory history` (P1.10): `parseMemoryOperation` on the subject,
+ * `parseBracketStates` on the bracket, `parseApprovalMetadata`/`parseCommitReason` on the body. Building the
  * message in one place is what keeps writer and reader from drifting apart.
  *
  * Since `task-072-fix-reason-trailer-contract` this module also owns the **reason grammar** —
@@ -25,7 +25,7 @@
  */
 import type { TransitionOp } from './state-machine';
 
-/** The canonical arrow written in `[from → to]` subject brackets (U+2192); `./audit.ts`'s `BRACKET_RE` also reads the ASCII `->` (`bug-137`). */
+/** The canonical arrow written in `[from → to]` subject brackets (U+2192); `./audit.ts`'s bracket reader (`BRACKET_ARROW_RE`) also reads the ASCII `->` (`bug-137`). */
 const ARROW = '→';
 
 // --- The reason grammar (dl-067-reason-trailer-contract) ---------------------------------------

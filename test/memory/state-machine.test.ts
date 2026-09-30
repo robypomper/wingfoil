@@ -27,6 +27,7 @@ import {
   E_INVALID_STATE,
   E_INVALID_TRANSITION,
   isArchivedStatus,
+  isMachineEdge,
   resolveStateMachine,
   resolveTransitionTarget,
   resolveTypeTransition,
@@ -777,5 +778,32 @@ types:
       expect((error as ValidationError).issues[0]!.file).toBe('docs/x.md');
     }
     expect.assertions(1);
+  });
+});
+
+// task-126 (bug-155): the edge predicate a hop of a chained `[a → b → c]` bracket is judged by, over
+// the real `bug` machine of `.wingfoil/memory.yaml` (gated, waiting and plain states alike).
+describe('isMachineEdge — every edge of the machine, whichever verb or action drives it (task-126)', () => {
+  const bug = resolveStateMachine(memoryYaml, 'bug');
+
+  it.each([
+    ['draft', 'open', 'a plain forward edge (submit)'],
+    ['in-review', 'resolved', 'the forward edge out of a gate (approve)'],
+    ['triaged', 'planned', 'the forward edge out of a waiting state (a workflow action)'],
+    ['resolved', 'in-progress', 'a gates reject edge'],
+    ['open', 'closed', 'a gates reject edge to the last state'],
+    ['in-progress', 'deprecated', 'the implicit deprecated edge'],
+  ])('%s → %s is an edge: %s', (from, to) => {
+    expect(isMachineEdge(bug, from, to)).toBe(true);
+  });
+
+  it.each([
+    ['in-review', 'draft', 'a backward move no gate declares'],
+    ['draft', 'closed', 'a forward skip'],
+    ['closed', 'draft', 'out of the last state'],
+    ['in-review', 'in-review', 'a self-loop'],
+    ['shipped', 'closed', 'out of an undeclared state'],
+  ])('%s → %s is not an edge: %s', (from, to) => {
+    expect(isMachineEdge(bug, from, to)).toBe(false);
   });
 });

@@ -418,7 +418,8 @@ describe('verifyTransitionConsistency — frontmatter-derived state agrees with 
 // Unicode arrow, so an ASCII `[from -> to]` bracket — a form this repository's own history carries —
 // was passed over in silence, and so was any bracket that parsed in neither form. AC classification
 // (T1) is recorded in the task's Execution Notes: the `→` rows and the multi-hop pin are
-// characterization, the `->` rows and the unparseable cases are red-first.
+// characterization, the `->` rows and the unparseable cases are red-first. The multi-hop pin (its AC4)
+// was replaced by task-126's chain reading (bug-155), in the describe block after this one.
 describe('verifyTransitionConsistency — both arrow forms, and brackets that parse in neither (task-109)', () => {
   let repo: string;
 
@@ -546,14 +547,14 @@ describe('verifyTransitionConsistency — a multi-hop bracket is a chain (task-1
   });
 
   it.each(['→', '->'])('AC2: a chain written with `%s` whose intermediate hop is not an edge of the machine is an `illegal-hop` finding naming that hop', (arrow) => {
-    // in-review → planned is no edge of the bug machine (neither the forward edge nor a reject target),
-    // and neither is planned → closed.
-    const subject = chainHistory(`[in-review ${arrow} planned ${arrow} closed]`, 'closed');
+    // in-review → draft is no edge of the bug machine (neither the forward edge nor a reject target),
+    // and neither is draft → closed; draft → open → closed would be (forward, then open's reject).
+    const subject = chainHistory(`[in-review ${arrow} draft ${arrow} closed]`, 'closed');
     const sha = reconstructMemoryTransitions(repo, DOC_PATH)[1]?.sha;
 
     expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([
-      { kind: 'illegal-hop', sha, subject, hop: { from: 'in-review', to: 'planned' } },
-      { kind: 'illegal-hop', sha, subject, hop: { from: 'planned', to: 'closed' } },
+      { kind: 'illegal-hop', sha, subject, hop: { from: 'in-review', to: 'draft' } },
+      { kind: 'illegal-hop', sha, subject, hop: { from: 'draft', to: 'closed' } },
     ]);
   });
 

@@ -208,10 +208,11 @@ function docContent(doc: FixtureDoc, index: number, title: string, status: strin
 /**
  * The history target's post-creation commits (task-049): conventional CLAUDE.md §5.1 subjects rather
  * than the synthetic `transition ->` wording they replaced, so the benchmarked op exercises the real
- * parse paths — `OPERATION_RE` on the subject, and an `Approver:`/`Reason:` body on the `approve`
- * commit. `start` is deliberately left unconventional-for-the-parser: it is a real subject this very
- * project writes (`wf(task): start task-049-memory-history [backlog → in-progress]`) that the
- * five-verb `OPERATION_RE` does not recognise, so the fixture covers that case too.
+ * parse paths — `parseMemoryOperation` on the subject, and an `Approver:`/`Reason:` body on the
+ * `approve` commit. `start` was chosen in task-049 as a real subject this project writes
+ * (`wf(task): start task-049-memory-history [backlog → in-progress]`) that the five-verb parser of the
+ * time did not recognise; since task-126 (`dl-079` (A)) it is a declared verb, and the unrecognised-verb
+ * case is covered by `test/memory/audit.test.ts` instead.
  */
 const HISTORY_TARGET_COMMITS = [
   { status: 'pending', message: 'wf(task): submit task-000-doc' },

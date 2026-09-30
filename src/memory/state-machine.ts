@@ -379,6 +379,27 @@ export function resolveTypeTransition(
 }
 
 /**
+ * True when `from → to` is an edge of `machine`, whichever verb or engine action drives it — the
+ * question a hop of a chained transition bracket asks (`[a → b → c]`, `task-126`, `bug-155`), where
+ * the commit names states and no verb per hop. The edges are exactly the targets
+ * {@link resolveTransitionTarget} can return, plus the verb-less forward edges it refuses to drive:
+ *
+ * 1. the **forward edge** `sequence[i] → sequence[i + 1]`, for every `i` — including out of a `gates`
+ *    or `waiting` state, whose forward edge is taken by `approve` or by a workflow action rather than
+ *    by `submit`, but is an edge all the same;
+ * 2. every **`gates.<from>.reject`** target;
+ * 3. the implicit wildcard edge to {@link DEPRECATED_STATE}, from any state.
+ *
+ * A self-loop is not an edge. Pure; no ordering dependence (REQ-SYS-07).
+ */
+export function isMachineEdge(machine: StateMachine, from: string, to: string): boolean {
+  if (to === DEPRECATED_STATE) return true;
+  const index = machine.sequence.indexOf(from);
+  if (index !== -1 && machine.sequence[index + 1] === to) return true;
+  return (machine.gates ?? {})[from]?.reject === to;
+}
+
+/**
  * True when `status` is a state a document of this type may legitimately carry — the **full**
  * reachable state set of `machine`, which is the union of three sources:
  *
