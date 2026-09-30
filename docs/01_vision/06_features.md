@@ -1,7 +1,7 @@
 # Features — WingFoil
 
-**Version:** 1.4
-**Date:** 2026-09-28  
+**Version:** 1.5
+**Date:** 2026-09-29  
 **Status:** Approved
 
 ---
@@ -81,17 +81,17 @@ Unified tracking of project progress, blockers, and deliverables (main config in
 | P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open a **main** workflow and set it as the active workflow context; initialize first step (subs are not started — they run when included)                                                                                           | Command        |
 | P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close the active (or named) main workflow; clear/restore the active context                                                                                                                                                         | Command        |
 | P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step of the active workflow, its **element**, directives for the role + instructions                                                                                                                                      | Command        |
-| P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show state of all open (active) main workflows and pending approvals; highlights the active one                                                                                                                                     | Command        |
+| P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show state of all open (active) main workflows and pending approvals; highlights the active one. *Also called:* pending gates                                                                                                                                     | Command        |
 | P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List workflows **executable now** (startable mains + a sub when it is the next step); `--all` lists every defined workflow                                                                                                          | Command        |
 | P4.7  | `wingfoil workflow show`                    | 0a, 0b, 6          | All           | Display details of a workflow (phases, steps, directives, Memory structure)                                                                                                                                                         | Command        |
 | P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4, 6    | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                                                                                                                                                         | Command        |
 | P4.9  | `wingfoil workflow remove`                  | 2, 4, 6            | Morgan, Alex  | Remove custom workflow after verifying it's not included elsewhere                                                                                                                                                                  | Command        |
 | P4.10 | Workflow Steps (atomic actions)             | 0a, 0b, 1, 2, 4    | All           | Steps execute: memory.add, memory.submit, agent.execute, git operations (branch, worktree, merge)                                                                                                                                   | Feature        |
 | P4.11 | Deliverables (Memory + State)               | 0a, 0b, 2, 4       | All           | Memory files with frontmatter state tracking; states follow the element's **per-type** state machine in `.wingfoil/memory.yaml` (default: draft → pending → approved/rejected → deprecated)                                         | Feature        |
-| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4, 6 | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage)                                                                                                                                         | Feature        |
+| P4.12 | Workflow Checks (pre/post execution)        | 0a, 0b, 1, 2, 4, 6 | All           | Validation rules for steps (file.exists, frontmatter.required, git.commits, tests.coverage). *Also called:* gates; what evaluates one is its *verifier* (command, script, CI or agent)                                                                                                                                         | Feature        |
 | P4.13 | Workflow State Deduction (from Memory)      | 0a, 0b, 1, 2, 3, 4 | All           | State deduced from Memory file existence and frontmatter, validated against the element type's allowed states (P1.13); no separate state index file needed                                                                          | Infrastructure |
-| P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person                                                                                                                                                   | Feature        |
-| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | On reject, jump to a `fallback.step` within the same workflow; optionally assign a new state (`fallback.set_state`) to the rejected document                                                                                        | Feature        |
+| P4.14 | Approval Routing (role-based from DNA)      | 0a, 0b, 2, 4       | Morgan, Casey | Define approvers by role (team members defined in `.wingfoil/dna.yaml`) or person. *Also called:* human + agent verification, when an automated or agent check precedes the human decision                                                                                                                                                   | Feature        |
+| P4.15 | Fallback on Rejection                       | 2, 4               | Morgan, Casey | On reject, jump to a `fallback.step` within the same workflow; optionally assign a new state (`fallback.set_state`) to the rejected document. *Also called:* remediation loop                                                                                        | Feature        |
 | P4.16 | Workflow include() Composition              | 0a, 0b, 4, 6       | Morgan        | Main `.wingfoil/workflows.yaml` references sub-workflows/steps via `include()`; an include runs once or **once per element** via `iterate_over: <type>` with optional `where` filters (status/tags)                                 | Feature        |
 | P4.17 | Built-in Workflow Templates (Task, Release) | 0a, 0b, 2, 4       | All           | Pre-built workflows per common patterns (e.g. Release as a main workflow, Task as an includable sub)                                                                                                                                | Feature        |
 
@@ -216,7 +216,8 @@ Notifications and alerts across all features.
 > *command surface*, but the riskier execution/validation machine is hardened later. Atomic step
 > execution (P4.10), pre/post checks (P4.12) and the built-in Task/Release templates (P4.17) are
 > completed in **v1.0** (07_sequencer.md Week 5); MCP Tools for state management (P5.2.3) ship in
-> **v0.4** alongside the rest of the MCP server.
+> **v0.4** alongside the rest of the MCP server. The reference workflow templates (P4.18–P4.20)
+> moved from v0.3 to **v0.4** on 2026-09-29 (`release-planning-rel-v0.3-plan` R3).
 
 | Feature ID | Feature                                     | Complexity | Dependencies                             | MVP Risk | Priority | Why                                   | Notes                                             |
 |------------|---------------------------------------------|------------|------------------------------------------|----------|----------|---------------------------------------|---------------------------------------------------|
@@ -234,9 +235,6 @@ Notifications and alerts across all features.
 | P4.14      | Approval Routing (role-based from DNA)      | Medium     | DNA (roles, team members), Notifications | Medium   | High     | Route approvals correctly             | Team members defined in `.wingfoil/dna.yaml`      |
 | P4.15      | Fallback on Rejection                       | High       | State machine, optional steps            | High     | High     | Handle rejections gracefully          | Return to previous step                           |
 | P4.16      | Workflow include() Composition              | Medium     | Workflow config                          | Medium   | High     | Compose sub-workflows; iterate_over   | include() once or once-per-element                |
-| P4.18      | Reference Workflow Templates                | Low        | Workflow config                          | Low      | High     | Fast onboarding with proven workflows | Scrum, Kanban, Lean, Trunk-Based                  |
-| P4.19      | Template Expansion                          | Low        | Workflow config                          | Low      | High     | Generate workflow + directives        | From template selection                           |
-| P4.20      | Template Customization                      | Low        | Workflow config                          | Low      | Medium   | Override defaults                     | Adapt templates to team                           |
 | P5.3.1     | `wingfoil agent execute [--next]`           | Medium     | Agent SDK, MCP, Directives               | High     | Critical | Launch agents with context            | Foundation for agent journeys                     |
 | P5.3.2     | Agent Role Selection per Step               | Medium     | Workflow system                          | Medium   | High     | Route agent by step                   | Correct role per phase                            |
 | P5.3.3     | Relevance Filtering                         | Medium     | Memory, Agent context                    | Medium   | Medium   | Load only relevant docs               | Avoid context window exhaustion                   |
@@ -263,6 +261,9 @@ Notifications and alerts across all features.
 | P5.1.4     | CLI UX Improvements               | Low        | None                                  | Low      | High     | Polish help, formatting, errors   | Better user experience                         |
 | P5.4.5     | Agent-Assisted Init Wizard        | Medium     | Agent SDK, conversation               | Medium   | High     | Natural language setup            | Alternative to Q&A mode                        |
 | P5.2.3     | MCP Tools (state management)       | Medium     | Workflow state, MCP spec              | Medium   | High     | Agents can update workflow state  | Submit, approve, record memory                 |
+| P4.18      | Reference Workflow Templates                | Low        | Workflow config                          | Low      | High     | Fast onboarding with proven workflows | Scrum, Kanban, Lean, Trunk-Based                  |
+| P4.19      | Template Expansion                          | Low        | Workflow config                          | Low      | High     | Generate workflow + directives        | From template selection                           |
+| P4.20      | Template Customization                      | Low        | Workflow config                          | Low      | Medium   | Override defaults                     | Adapt templates to team                           |
 
 ---
 
@@ -342,7 +343,7 @@ Notifications and alerts across all features.
 
 **Extra Features:**
 
-- ✓ Reference Workflow Templates (P4.18–P4.20) — Scrum, Kanban, Lean, Trunk-Based
+- ✓ Reference Workflow Templates (P4.18–P4.20) — Scrum, Kanban, Lean, Trunk-Based — **v0.4**
 - ✓ Notification System (X1) — Basic approvals
 
 **Total Features (MVP):** 63 core features across all pillars

@@ -2,9 +2,9 @@
 id: "dl-085-how-tool-implementation-rules-reach-anyone-outside-this-repo"
 type: decision-log
 title: "`command-baseline` and `claim-evidence` reach an agent bound to a role in WingFoil's own dogfood config and nobody else — a contributor arriving through `COLLABORATION.md` meets neither"
-status: in-discussion
+status: ready
 context: "architecture"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

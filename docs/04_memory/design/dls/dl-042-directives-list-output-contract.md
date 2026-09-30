@@ -4,7 +4,7 @@ type: decision-log
 title: "directives list: output contract, shadow marking, and the missing half of dl-029"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

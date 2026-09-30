@@ -2,10 +2,10 @@
 id: "bug-132-e2e-smoke-asserts-only-exit-0"
 type: bug
 title: "The dl-023 smoke asserts only exit 0, so `drive-cli`'s \"exit-codes match spec-005\" check is never exercised for exit 1 or 2"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.1"
 contributor: ""
 credit: ""

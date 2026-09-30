@@ -4,7 +4,7 @@ type: decision-log
 title: "No native IDE plugins in MVP—MCP-only approach"
 status: ready
 context: "scope"
-release: ""
+release: "v0.1"
 tmpl_version: 260703
 ---
 

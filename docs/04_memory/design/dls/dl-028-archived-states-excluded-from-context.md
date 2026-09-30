@@ -4,7 +4,7 @@ type: decision-log
 title: "Which statuses count as archived for context exclusion? REQ-STATE-06 names only `deprecated`, but `superseded` is equally archived"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

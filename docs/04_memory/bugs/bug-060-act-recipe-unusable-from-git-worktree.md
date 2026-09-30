@@ -2,10 +2,10 @@
 id: "bug-060-act-recipe-unusable-from-git-worktree"
 type: bug
 title: "The `act` recipe in `publish.yml`'s header cannot work from a git worktree, and says so nowhere"
-status: open
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""

@@ -4,7 +4,7 @@ type: decision-log
 title: "Three of spec-007's ten patterns can only warn, so REQ-SEC-08's 'matches 0 known secret patterns' is not what the gate enforces"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "Is --reason mandatory on `memory deprecate`? REQ-SEC-04 says yes, spec-008 and BDD P1.9 say no"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

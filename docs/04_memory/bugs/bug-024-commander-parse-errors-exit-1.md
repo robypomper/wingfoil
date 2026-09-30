@@ -2,7 +2,7 @@
 id: "bug-024-commander-parse-errors-exit-1"
 type: bug
 title: "commander parse errors exit 1 where spec-008 and REQ-INT-04 require 2"
-status: open
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: ""
@@ -10,6 +10,7 @@ feature: "P5.1"
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed at v0.3's release-planning triage-bugs (gate 2), approver ruling 2026-09-29, option A (release-planning-rel-v0.3-plan Appendix A). Already fixed by task-101 (62f13b2f): src/cli/program.ts routes Commander parse errors through exitOverride to src/core/exit-code.ts, which maps them to exit 2, pinned by test/cli/commander-parse-exit-codes.integration.test.ts. It is the twin of bug-098, closed by the same task."
 ---
 
 ## Summary

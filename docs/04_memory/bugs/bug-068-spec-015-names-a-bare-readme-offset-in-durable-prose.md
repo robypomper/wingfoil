@@ -2,7 +2,7 @@
 id: "bug-068-spec-015-names-a-bare-readme-offset-in-durable-prose"
 type: bug
 title: "spec-015 cites `README.md:115` as a bare line offset in three durable paragraphs, including the one explaining which offsets it declines to convert"
-status: open
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: ""
@@ -10,6 +10,7 @@ feature: ""
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed at v0.3's release-planning triage-bugs (gate 2), approver ruling 2026-09-29, option A (release-planning-rel-v0.3-plan Appendix A). Already fixed by 9fec695c: the spec-015 revision of 2026-09-25 replaced its README.md:115 offsets with the Installation heading; the only remaining mention is the revision note recording the removal."
 ---
 
 ## Summary

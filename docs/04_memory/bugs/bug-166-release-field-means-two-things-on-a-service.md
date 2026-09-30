@@ -2,7 +2,7 @@
 id: bug-166-release-field-means-two-things-on-a-service
 type: bug
 title: "A `service`'s `release` field means the release it was set up in, while the `traceability` directive gives `release` one uniform meaning, the release the work is assigned to"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"

@@ -2,10 +2,10 @@
 id: "bug-114-parse-path-errors-ignore-the-format-flag"
 type: bug
 title: "Every error on the parse path prints console text regardless of `--format json|yaml`, while WingFoil's own errors honour `spec-005` §3.2 — so one command's stderr changes shape depending on which layer refused it"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.1"
 contributor: ""
 credit: ""

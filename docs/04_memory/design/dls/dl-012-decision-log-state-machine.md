@@ -4,7 +4,7 @@ type: decision-log
 title: "Give decision-log its own state machine (discussion -> delivery lifecycle)"
 status: ready
 context: planning
-release: ""
+release: "v0.1"
 tmpl_version: 260703   # Orignal template version
 ---
 

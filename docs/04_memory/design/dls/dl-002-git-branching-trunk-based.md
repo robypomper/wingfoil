@@ -4,7 +4,7 @@ type: decision-log
 title: "Trunk-based development for rl-v1 delivery"
 status: ready
 context: "process"
-release: ""
+release: "v0.1"
 tmpl_version: 260703
 ---
 

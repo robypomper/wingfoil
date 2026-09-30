@@ -2,9 +2,9 @@
 id: "dl-060-roles-yaml-binds-by-directive-id"
 type: decision-log
 title: "roles.yaml binds by directive id, not name: correct spec-011"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "The CLI already states parameters one way — positional for the target, option for its attributes — and the DNA surface is the only place that disagrees"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

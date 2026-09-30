@@ -2,7 +2,7 @@
 id: "bug-032-spec-004-stale-illegal-transition-example"
 type: bug
 title: "spec-004 §4.3 still shows the pre-dl-032 illegal-transition message, contradicting REQ-STATE-01, P1.6 and P5.2.3"
-status: open
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: ""
@@ -10,6 +10,7 @@ feature: "P5.2.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703
+rejection_reason: "Closed at v0.3's release-planning triage-bugs (gate 2), approver ruling 2026-09-29, option A (release-planning-rel-v0.3-plan Appendix A). Already fixed by af91cf84: spec-004 section 4.3 now carries the ratified message, illegal transition draft -> backlog for type 'task', and the spec's revision note names this bug."
 ---
 
 ## Summary

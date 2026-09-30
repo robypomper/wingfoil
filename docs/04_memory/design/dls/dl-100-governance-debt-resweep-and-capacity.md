@@ -176,3 +176,4 @@ fresh ones.
   (`element.set_release`); `bug-142` (the deferral that reached no element).
 - **Traceability:** P1.13 (the `release` type's fields in `memory.yaml`), P4.17 (the release
   workflow templates), REQ-STATE-01 (per-type lifecycle in frontmatter).
+- **Amended by** `dl-133-fix-task-tail` (2026-09-29, v0.3 planning): a stop-the-line rule on open in-scope fixes, next to the growth threshold.

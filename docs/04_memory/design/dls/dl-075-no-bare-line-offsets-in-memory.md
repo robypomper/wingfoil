@@ -4,7 +4,7 @@ type: decision-log
 title: "Memory documents, tech-specs and acceptance criteria cite source locations as bare line offsets, which decay silently — 11 of a 19-citation sample no longer point at what they claimed, and no cheap check detects it"
 status: ready
 context: "documentation-governance"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

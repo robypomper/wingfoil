@@ -2,10 +2,10 @@
 id: "bug-037-dotenv-secret-pattern-misses-prefixed-lines"
 type: bug
 title: "spec-007's `dotenv-style-secret-line` pattern is anchored at column 0, so indented, `export`-ed or list-item credential lines with short values go undetected"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P3.8"
 contributor: ""
 credit: ""

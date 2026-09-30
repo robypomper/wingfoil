@@ -2,9 +2,9 @@
 id: "dl-061-dev-loop-reject-bug-sync"
 type: decision-log
 title: "dev-loop's review-reject fallback drives the task back but not its absorbed bug, so every reject desynchronizes the pair"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

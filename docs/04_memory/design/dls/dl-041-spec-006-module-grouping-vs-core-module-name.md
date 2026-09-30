@@ -4,7 +4,7 @@ type: decision-log
 title: "spec-006 §3 groupings are not CoreModule.name — reconcile, and pin where directive verbs register"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

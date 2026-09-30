@@ -109,7 +109,7 @@ every operation regardless of `mutates`, as a `wingfoil <module> <verb>` subcomm
 registrar and `src/mcp`'s Tool/Resource registrar, so adding an operation to `CoreModule.operations`
 is sufficient to make it reachable from both surfaces; no per-surface wiring is hand-written.
 
-### 3. Core functions (v0.1 surface, per `X_cli-cmds.md` Pillars 1–5 + Agent Execution)
+### 3. Core functions (surface per `X_cli-cmds.md` and the ratified DLs; release per row)
 
 Grouped by **pillar** — the bold headings below are a human, editorial grouping and are **not**
 `CoreModule.name`. The registering `CoreModule` is named explicitly in the `module` column: its value is
@@ -169,18 +169,34 @@ per-directive mutations (BDD P3.1–P3.3), plural `directives` for the listing (
 | `directiveRemove`    | `directive`               | true    | `wingfoil directive remove`  | Tool `directive.remove`       |
 | `directivesList`     | `directives`              | false   | `wingfoil directives list`   | Resource `wingfoil://directives/list`  |
 
-**Workflow pillar** (P4, `src/workflow`):
+**Workflow pillar** (P4, `src/workflow`) — the v0.3 surface (`minor-v0.3` `features:` P4.2–P4.9, plus
+`workflow finalize` by approver ruling R11; normative command contracts, operands, errors and MCP
+exposure in `spec-017` (workflow commands and state deduction) §7–§10, which this table follows cell
+for cell):
 
-| function          | module                  | mutates | CLI                     | MCP                        |
-|--------------------|--------------------------|---------|--------------------------|------------------------------|
-| `workflowStatus`   | `workflow` *(planned)*   | false   | `wingfoil workflow status` | Resource `wingfoil://workflow/status` |
-| `workflowNext`     | `workflow` *(planned)*   | false   | `wingfoil workflow next`   | Resource `wingfoil://workflow/next`   |
-| `workflowStart`    | `workflow` *(planned)*   | true    | `wingfoil workflow start`  | Tool `workflow.start`        |
-| `workflowEnd`      | `workflow` *(planned)*   | true    | `wingfoil workflow end`    | Tool `workflow.end`          |
-| `workflowList`     | `workflow`               | false   | `wingfoil workflow list`   | Resource `wingfoil://workflow/list`   |
-| `workflowShow`     | `workflow` *(planned)*   | false   | `wingfoil workflow show`   | Resource `wingfoil://workflow/show/{name}` |
-| `workflowCreate`   | `workflow` *(planned)*   | true    | `wingfoil workflow create` | Tool `workflow.create`       |
-| `workflowRemove`   | `workflow` *(planned)*   | true    | `wingfoil workflow remove` | Tool `workflow.remove`       |
+| function          | module                  | mutates | CLI                          | MCP                                          | feature |
+|--------------------|--------------------------|---------|-------------------------------|-----------------------------------------------|---------|
+| `workflowStart`    | `workflow` *(planned)*   | true    | `wingfoil workflow start`     | Tool `workflow.start` *(v0.4, P5.2.3)*        | P4.2    |
+| `workflowEnd`      | `workflow` *(planned)*   | true    | `wingfoil workflow end`       | Tool `workflow.end` *(v0.4)*                  | P4.3    |
+| `workflowNext`     | `workflow` *(planned)*   | false   | `wingfoil workflow next`      | Resource `wingfoil://workflows/-/next` (the active instance) — v0.3, ruling R12 | P4.4    |
+| `workflowStatus`   | `workflow` *(planned)*   | false   | `wingfoil workflow status`    | Resource `wingfoil://workflows/-/status` — v0.3, ruling R12 | P4.5    |
+| `workflowFinalize` | `workflow` *(planned)*   | true    | `wingfoil workflow finalize`  | Tool `workflow.finalize` *(v0.4)*             | ruling R11 (`dl-104` D1) |
+| `workflowList`     | `workflow`               | false   | `wingfoil workflow list`      | the shipped `wingfoil://workflows` keeps its payload in v0.3 | P4.6    |
+| `workflowShow`     | `workflow` *(planned)*   | false   | `wingfoil workflow show`      | the shipped `wingfoil://workflows/{name}` keeps its payload in v0.3 | P4.7    |
+| `workflowCreate`   | `workflow` *(planned)*   | true    | `wingfoil workflow create`    | Tool `workflow.create` *(v0.4)*               | P4.8    |
+| `workflowRemove`   | `workflow` *(planned)*   | true    | `wingfoil workflow remove`    | Tool `workflow.remove` *(v0.4)*               | P4.9    |
+
+- **Why each `mutates` value.** `workflowStart` / `workflowEnd` open and close a startable workflow
+  instance and set or clear the active context (P4.2, P4.3, REQ-STATE-03); `workflowFinalize` writes
+  the phase-record commit of a phase that has no Memory or file evidence (ruling R11, `dl-104` D1);
+  `workflowCreate` writes a workflow file and its manifest entry (P4.8); `workflowRemove` deletes a
+  custom workflow after the REQ-SEC-07 referrer check (P4.9). `workflowNext`, `workflowStatus`,
+  `workflowList` and `workflowShow` only read: in v0.3 `workflow next` **names** the next step, its
+  element, its role and its verb and does not advance it, because step execution (P4.10) is v1.0
+  (plan R3); state is deduced from Memory and commit history, never stored (P4.13, REQ-SYS-03).
+- **Operands.** Every workflow command that works on one instance takes the positional `<ref>` (a
+  workflow name or an open instance id, `spec-017` §3.3, §7); no `--name` option exists. The BDD
+  `--name` spelling (P4.2/P4.3/P4.7/P4.8) is amended in its own task (`spec-017` Consequences).
 
 **Project bootstrap & audit** (P5.1, `src/core` top-level, no dedicated pillar module):
 
@@ -189,16 +205,62 @@ per-directive mutations (BDD P3.1–P3.3), plural `directives` for the listing (
 | `projectInit`| — *(not a `CoreModule`: bootstrap command wired directly in `src/cli/program.ts`)* | true    | `wingfoil init`   | Tool `project.init`      |
 | `projectAudit` | `audit` *(planned — flat `wingfoil audit`, BDD P5.1.3)*              | false   | `wingfoil audit`  | Resource `wingfoil://project/audit` |
 
-**Agent execution** (Agent Execution Commands, `src/core` top-level):
+**Agent execution** (P5.3, `src/agent` *(planned module, `spec-016` §1)*, `CoreModule.name` `agent`)
+— the v0.3 surface (`minor-v0.3` `features:` P5.3.1–P5.3.3; run tracking per `dl-135`; normative
+contract in `spec-016` (agent execution), whose §8 carries the same three rows):
 
-| function        | module                | mutates | CLI                     | MCP                      |
-|------------------|------------------------|---------|---------------------------|----------------------------|
-| `agentExecute`   | `agent` *(planned)*    | true    | `wingfoil agent execute`  | Tool `agent.execute`      |
+| function         | module                | mutates | CLI                        | MCP                                         | feature |
+|-------------------|------------------------|---------|-----------------------------|----------------------------------------------|---------|
+| `agentExecute`    | `agent` *(planned)*    | true    | `wingfoil agent execute`    | Tool `agent.execute` *(v0.4; refuses until v1.0)* | P5.3.1  |
+| `agentList`       | `agent` *(planned)*    | false   | `wingfoil agent list`       | Resource `wingfoil://agent/list` *(v0.4; URI per `dl-040`)* | `dl-135` point 4 |
+| `agentShow`       | `agent` *(planned)*    | false   | `wingfoil agent show`       | Resource `wingfoil://agent/show/{run-id}` *(v0.4; URI per `dl-040`)* | `dl-135` point 4 |
 
-`agentExecute` is `mutates: true` because it can advance the active workflow's step context as a side
-effect of `--next` resolution (per `X_cli-cmds.md`: "Pre-loads Memory context ... "), even though its
-primary output is a read (context payload); when a future revision splits context-preview from
-step-advance into two functions, this table is the record to update (§ Consequences).
+- **`agentExecute` is `mutates: true`** because it commits the run record of `dl-114` (Q2 (b), with
+  the session id `dl-135` point 2 adds), under the subject `agent: record <run-id>`, after launching
+  the agent's own CLI through a declared per-agent adapter (plan R2). It does **not** advance the
+  workflow step: in v0.3 it launches the agent on the step `workflow next` names, and step execution
+  (P4.10) is v1.0. v0.3 runs every agent `fresh`; `--resume` / `--ref` are v0.4 (`dl-135` release
+  split). The instance is selected with `--workflow <ref>`, `spec-017` §3.3's selector as an option,
+  and the step, when the frontier holds several, with `--step <key>` (approver ruling R16, 2026-09-30,
+  `release-planning-rel-v0.3-plan`; `spec-016` §3.1).
+- **`agentList` / `agentShow` read** the run log and the workflow deduction: `agent list --past` and
+  `--waiting` ship in v0.3, `--active` (the git-ignored `.wingfoil/run/` registry, `dl-135` Q1 (a))
+  in v0.4; `agent show` takes a run id `<element-id>/<phase>/<n>` (`dl-135` Q3 (a)). The `feature`
+  cells carry `dl-135` until `06_features.md` gains the P5.3 rows `dl-135` Action 3 asks for; the new
+  ids then replace it.
+
+**MCP exposure of the v0.3 rows.** v0.3 ships every operation above on the **CLI**. On MCP:
+
+- **Tools** (`mutates: true`) come with P5.2.3, which is in `minor-v0.4` `features:`. No Tool of any
+  module is served today: the production server (`src/mcp/server.ts`, `createMcpServer`) registers
+  only the read-only Resources and the role Prompts and deliberately does not call
+  `registerCoreModules`, and it answers `tools/list` with a protocol error (`bug-151`, `triaged`,
+  v0.3). The `memory` and `dna` Tools are in the same position. `agent.execute` is served from v0.4
+  but refuses every call until headless launch exists (v1.0, `spec-016` §3.5, §7), because an MCP
+  caller has no terminal.
+- **The two workflow Resources of v0.3** (ruling R12): `workflowNext` and `workflowStatus` are
+  served on the production server in v0.3, at `wingfoil://workflows/-/next` and
+  `wingfoil://workflows/-/status`, registered next to `registerWorkflowResources` through
+  `registerReadOnlyResources` (`src/mcp/index.ts:79-83`), with the same read-only refusal. They extend
+  the already-shipping `wingfoil://workflows…` family (`src/mcp/workflow-resource.ts`) without
+  colliding with `wingfoil://workflows/{name}`: their second segment is `-`, which no workflow name
+  can be (`spec-003` § "Names", `[a-z][a-z0-9-]*`), and they have a third segment, which the
+  single-segment `{name}` template never matches (`spec-017` §9). Their payloads are `spec-017` §8's
+  `NextResult` and `StatusResult`, read at `HEAD` — a declared exception to §6 item 4 below, justified
+  by determinism (approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`), with
+  `W_UNCOMMITTED_INPUTS` warning when the working tree differs (`spec-017` §1.2); §6 gains the
+  sentence naming it in the implementing task.
+- **The shipped workflow Resources are unchanged in v0.3**: `wingfoil://workflows` and
+  `wingfoil://workflows/{name}` (`spec-004` §2.1, hand-registered) keep their payload and their
+  working-tree baseline (§6 item 4), so v0.3 makes no breaking change on the MCP surface. Aligning
+  them with `workflowList` / `workflowShow`'s v0.3 CLI payloads belongs with the URI unification of
+  `dl-040` (`in-discussion`, `release: "v0.4"`).
+- **The agent Resources** are v0.4 (`dl-135` release split, plan R5). `dl-135` point 4 names the
+  Resource `wingfoil://agents/runs`; the cells above are the mechanical `wingfoil://{module}/{verb}`
+  form `registerCoreModules` would derive (`src/mcp/registrar.ts`). Which form the v0.4 Resource
+  takes, and how a run id containing `/` is addressed (percent-encoded, or three segments), is
+  `dl-040`'s and `spec-004`'s question, settled with that Resource (`spec-016` §7); the agent cells
+  are placeholders for the parity cross-reference, not a URI decision.
 
 ### 4. Parity rule (structural, not tested-for)
 
@@ -282,11 +344,6 @@ Symbols in this section read at `9642ab5f`.
 - When `docs/01_vision/X_cli-cmds.md` adds, renames, or removes a command, this spec's §3 table must be
   revised in the same task/commit that changes the CLI reference, keeping the enumeration source
   authoritative.
-- `agentExecute`'s dual read/mutate nature (§3, `agent` module) is a known rough edge: a future revision
-  of this spec may split it into `agentResolveNext` (`mutates: false`) and `agentAdvanceStep`
-  (`mutates: true`) once workflow-step advancement is itself specified (candidate future tech-spec on
-  `src/workflow` step transitions) — that revision would supersede this one for the `agent` module rows
-  only.
 
 ## Process Notes
 
@@ -432,3 +489,81 @@ and `src/core/registry.ts` holds their full TSDoc. `mutates` stays the only surf
 and nothing in the parity rule (§4) changes. Edited in place without a supersede or a state change,
 per the same `spec-001` precedent the 2026-09-17 revision cites. Signed off with `task-120`'s
 approval.
+
+**Revision (2026-09-30) — §3's workflow and agent tables become the v0.3 surface, at
+`release-planning-rel-v0.3-plan` step 5 (identify-specs), aligned with `spec-017` and `spec-016` and
+with approver rulings R11 and R12.** §3's heading, its workflow and agent tables with the paragraphs
+that follow them, and one Consequences bullet change; §1, §2, §4–§6 and every other §3 row are
+untouched.
+
+- **§3 heading** — "(v0.1 surface, per `X_cli-cmds.md` Pillars 1–5 + Agent Execution)" becomes
+  "(surface per `X_cli-cmds.md` and the ratified DLs; release per row)": the workflow and agent
+  tables now carry the v0.3 surface, and the agent table has rows (`agentList`, `agentShow`) that
+  `X_cli-cmds.md` does not list yet. `X_cli-cmds.md` gains them, with `workflow finalize`, in the
+  tasks `spec-016` and `spec-017` list under Consequences, which restores §5's "this table follows
+  `X_cli-cmds.md`".
+- **Workflow table** — follows `spec-017` §9 cell for cell. The eight existing rows keep their
+  function, `module`, `mutates` and CLI cells and are ordered by feature (P4.2–P4.9, all in
+  `minor-v0.3` `features:`); a `feature` column is added; **`workflowFinalize`** is added
+  (`mutates: true`, ruling R11, `dl-104` D1), the ninth command. The MCP column changes: the Tools are
+  *(v0.4)* with P5.2.3; `workflowNext` and `workflowStatus` are Resources **served in v0.3** at
+  `wingfoil://workflows/-/next` and `wingfoil://workflows/-/status` (ruling R12, `spec-017` §9);
+  `workflowList` and `workflowShow` name the shipped `wingfoil://workflows` and
+  `wingfoil://workflows/{name}`, unchanged in v0.3, replacing the mechanical `wingfoil://workflow/list`
+  and `wingfoil://workflow/show/{name}` cells the production server never served. A paragraph states
+  why each `mutates` value holds, and one states the positional `<ref>` operand (no `--name`).
+- **Agent table** — the heading names `src/agent` *(planned module)*, as `spec-016` §1 and `adr-012`
+  place it, instead of "`src/core` top-level". `agentList` and `agentShow` are added (`dl-135`
+  point 4, approve `7632947b`), both `mutates: false`. `agentExecute` keeps `mutates: true`, but the
+  reason changes: it commits the run record (`dl-114` Q2 (b) as amended by `dl-135` point 2, subject
+  `agent: record <run-id>`) and launches the agent's own CLI through a declared adapter (plan R2);
+  the old reason — advancing the active step as a side effect of `--next` — no longer holds, because
+  step execution is v1.0. Every agent Tool and Resource is *(v0.4)* (`dl-135` release split, plan R5),
+  and `agent.execute` refuses until headless launch (v1.0). The normative contract is `spec-016`.
+- **MCP paragraph** — rewritten: Tools v0.4 (the production server serves none and does not run
+  `registerCoreModules`, `bug-151`); the two v0.3 workflow Resources and why their URIs cannot collide
+  with `wingfoil://workflows/{name}`; the shipped workflow Resources unchanged; the agent Resources
+  v0.4 with their URI and run-id encoding left to `dl-040` / `spec-004`.
+- **Consequences** — the bullet proposing to split `agentExecute` into `agentResolveNext` /
+  `agentAdvanceStep` is deleted: its premise, that `agentExecute` advances the step, is retired by
+  this revision, and keeping it would contradict the agent paragraph of §3.
+- ***(planned)* markers stay**: none of the new operations other than `workflowList` is registered in
+  `CORE_MODULES` yet (`src/core/index.ts:1840-1851` registers the `workflow` module with
+  `workflowList` alone; `grep -cE "name: '(agent|memoryAmend)" src/core/index.ts` → `0`). Each marker
+  drops when its task registers the operation, as `directiveRemove`'s did (2026-09-18 note above).
+- **Not folded in:** `dl-046` (bootstrap rows, REQ-SYS-05 exemption, relaxed naming rule — approve
+  `2ac5a551`), `dl-064` (the approve/reject pre-flight order — approve `b1bc00e5`) and `dl-085` (§6
+  normative, audience stated in the directives — approve `ae6f5a28`) each amend this spec, and each is
+  carried by its own v0.3 task, not by this revision.
+
+Settled at the `dl-022` review of this revision:
+- *Operand spelling:* the positional `<ref>` of `spec-017` §7 on every workflow command; `agent
+  execute` uses `--workflow <ref>` (`spec-016` §3.1). The BDD `--name` spelling (P4.2, P4.3, P4.7,
+  P4.8, e.g. `P4.2-workflow-start.feature:10`) is amended in its own task.
+- *The stale Consequences bullet:* deleted (above).
+- *Release of the workflow Resources:* v0.3 for `next`/`status` (ruling R12); URI unification stays
+  with `dl-040` (v0.4).
+- *Baseline of the new read-only operations* (formerly open question 2): Resolved: R15 (approver
+  ruling, 2026-09-30, `release-planning-rel-v0.3-plan`). `workflowNext`, `workflowStatus`,
+  `workflowList`, `workflowShow`, the two v0.3 workflow Resources, `agentList` and `agentShow` read
+  `HEAD` as a declared exception to §6 item 4, `dl-084` (A) (approve `2985b0ee`) and
+  `command-baseline.md:94`, justified by determinism — one deduction, one baseline (`spec-017` §1.1,
+  `spec-016` §5.1); `W_UNCOMMITTED_INPUTS` warns when the working tree differs, run-log paths
+  included (`spec-017` §1.2). §6 gains, in the task that implements them, one sentence naming these
+  operations as the exception; §6 is not edited before that task.
+
+Open questions for the approver at sign-off:
+
+1. **`spec-004` §4.1 lists `workflow next → workflow.next` as a Tool** ("advances/reads active
+   step"); this table keeps `workflowNext` read-only and a Resource, per P4.4 ("Show next step"),
+   plan R3 and ruling R12. *Recommendation:* amend `spec-004` §4.1 in a v0.3 task (drop the row, or
+   move it to v1.0's step advancement), as `spec-017` Consequences also asks; tying it to `dl-040`
+   would delay a one-line correction for no gain.
+2. **A run id contains `/`** (`<element-id>/<phase>/<n>`), so `wingfoil://agent/show/{run-id}` is not a
+   single URI segment. *Recommendation:* leave to v0.4 with the Resource; `spec-016` §7 records that
+   it must percent-encode the id or take it as three segments.
+
+Tech-specs carry no `version:` field, so there is nothing to bump (`dl-047-tech-specs-carry-no-version-field`,
+option 1, approve `8e7e1e44`). Edited in place without a supersede or a state change, per the same
+`spec-001` precedent the 2026-09-17 revision cites; `status` stays `approved`, pending the approver's
+sign-off at identify-specs (`dl-022` spec-review gate).

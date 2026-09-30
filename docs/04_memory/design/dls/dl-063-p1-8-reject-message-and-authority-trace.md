@@ -4,7 +4,7 @@ type: decision-log
 title: "P1.8 sc.2 pins an illegal-transition message that contradicts REQ-STATE-01, dl-032 and dl-053 and is false for four types; and P1.8 has no authority scenario at all"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

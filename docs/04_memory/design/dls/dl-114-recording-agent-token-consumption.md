@@ -110,3 +110,4 @@ Alternatives considered:
 - **Related:** `REQ-PERF-05` (bounded context); `dl-089-release-health-analyses-before-retrospective`;
   `dl-124-not-applicable-for-required-fields`, whose declared "not applicable" value is the same idea
   as `not-reported`.
+- **Amended by** `dl-135-agent-run-tracking` (2026-09-29, v0.3 planning): the run record also holds the agent's session id (Q2).

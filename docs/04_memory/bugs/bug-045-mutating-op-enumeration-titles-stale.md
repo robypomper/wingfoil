@@ -2,10 +2,10 @@
 id: "bug-045-mutating-op-enumeration-titles-stale"
 type: bug
 title: "Test titles and module docs in the registry/parity/agent-channel enumerations name counts and op lists their own assertions have outgrown"
-status: open
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""

@@ -2,7 +2,7 @@
 id: "bug-087-element-ids-derived-from-the-worktree"
 type: bug
 title: "`nextSequenceNumber` derives an element's id by counting files in the working tree, so a gapped sequence produces an id whose path is already occupied"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
@@ -121,3 +121,13 @@ a false premise is not the same thing as a severity that was reconsidered and he
 cannot be the model for the fix here. Deriving the sequence number from the committed history is the
 actual remedy, and it closes both faces at once — which is the `dl-080` framing the Notes above
 already give.
+
+**Reproduced on this repository with the published 0.2.2 (2026-09-29, v0.3 `release-planning`,
+`decision-log-ingest-rel-v0.3-planning-decisions-plan`).** Six `memory add --type decision-log` calls
+returned `dl-130` … `dl-135`, and `dl-130` already existed (`dl-130-visibility-steps-in-the-release-flow`,
+`ready`). The directory holds 129 decision-logs before the call with one gap, `dl-021`
+(`ls docs/04_memory/design/dls/dl-*.md | wc -l` → 129 before the adds; `dl-021-*` absent), so a count
+plus one lands on an id in use: the "gaps reuse ids" face, on committed files this time, not only on
+the worktree. The six local commits were undone (`git reset --keep c06b883b`, never pushed) and the
+decision-logs added by hand as `dl-131` … `dl-136` (`8c13bb4a`). Until the fix lands, every `memory add`
+on a type with a gap in its numbering must be checked against the highest existing id, not trusted.

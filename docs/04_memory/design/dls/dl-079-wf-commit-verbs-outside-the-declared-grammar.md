@@ -2,9 +2,9 @@
 id: "dl-079-wf-commit-verbs-outside-the-declared-grammar"
 type: decision-log
 title: "A third of this repository's `wf()` commits use verbs the §5.1 grammar does not define — `sync`, `start` and `finalize` above all — and `wingfoil memory history` is specified to read that subject line back"
-status: in-discussion
+status: ready
 context: "governance"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

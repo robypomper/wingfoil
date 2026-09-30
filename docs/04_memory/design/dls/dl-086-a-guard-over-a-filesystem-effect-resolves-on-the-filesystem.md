@@ -2,9 +2,9 @@
 id: "dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem"
 type: decision-log
 title: "A read that predicts what an imminent syscall will touch cannot resolve at `HEAD` — the guard would be decorative in exactly the case it exists for"
-status: in-discussion
+status: ready
 context: "architecture"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

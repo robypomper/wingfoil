@@ -4,7 +4,7 @@ type: decision-log
 title: "Give agent-facing docs (CLAUDE.md) an owning release gate, like dl-013 did for user-facing docs"
 status: ready
 context: "process"
-release: ""
+release: "v0.3"
 tmpl_version: 260703
 ---
 

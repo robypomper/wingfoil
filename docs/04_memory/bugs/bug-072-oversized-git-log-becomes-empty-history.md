@@ -2,10 +2,10 @@
 id: "bug-072-oversized-git-log-becomes-empty-history"
 type: bug
 title: "`walkGitLogFields` sets no `maxBuffer` and swallows the error, so a `git log` past Node's 1 MiB default becomes an empty history rather than a failure"
-status: open
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""

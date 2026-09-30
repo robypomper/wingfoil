@@ -4,7 +4,7 @@ type: decision-log
 title: "Ratify the dangling-binding warning in directive resolution (and so in context assembly), and the shadow-warning text"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -2,9 +2,9 @@
 id: "dl-076-toolchain-divergence-unexercised-until-tag"
 type: decision-log
 title: "The toolchain that builds this repository is not the toolchain that releases it — npm 11.6.2 locally against the 10.9.x every Node 22 release bundles, git 2.43.0 against the runner's 2.55.0 — and nothing declares, gates or exercises the difference until a release tag"
-status: in-discussion
+status: ready
 context: "toolchain-governance"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

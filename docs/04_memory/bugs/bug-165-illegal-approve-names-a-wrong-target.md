@@ -2,7 +2,7 @@
 id: bug-165-illegal-approve-names-a-wrong-target
 type: bug
 title: "The illegal-transition error names the verb's canonical edge instead of the attempted move, so `approve` on a `planned` bug reads `planned -> triaged`, a backward step"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"
@@ -52,6 +52,18 @@ HEAD is unchanged in both cases. Observed on 2026-09-29 (session scratchpad), an
   meaningless from `<from>` on machines with `waiting` states. The fix probably needs `dl-053`
   (`ready`) revisited, or a new decision-log, before any code, and BDD `P1.6` sc.2 / `P5.2.3` sc.2 pin
   the current string for `task` (`approved -> pending`).
+- **Absorbs `bug-127`** (closed as its duplicate at v0.3's `triage-bugs`, 2026-09-29,
+  `release-planning-rel-v0.3-plan` Appendix A). Its reproduction adds cases the fix must cover, all
+  on a scratch project built from `init --template Scrum`, all with the correct exit `1`:
+  - `submit` on an `approved` task → `illegal transition approved -> pending`; `reject` on it →
+    `approved -> draft`: the end of the default chain wraps to a state behind the current one;
+  - `submit` on `pending` (a gate) → `illegal transition pending -> (none)`: the message should say
+    the state is a gate and name `memory approve`;
+  - a custom machine `sequence: [draft, ready, in-progress, done]`, `gates: {ready: {reject: draft}}`:
+    `submit` on `ready` → `ready -> done` (skips `in-progress`); `submit` on `done` → `done -> ready`.
+  Its expected message: the refusal in the user's terms (e.g. "'approved' is the last state of
+  'task'", "'pending' is a gate: use memory approve"), or at least the verb with no invented target.
+  `docs/agents.md` §6 tells agents to read this line, so a misleading target misleads agents first.
 
 ## Triage & Execution Notes
 

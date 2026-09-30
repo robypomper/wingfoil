@@ -2,9 +2,9 @@
 id: "dl-049-mcp-prompt-role-set-read-time"
 type: decision-log
 title: "When the MCP Prompt role set is read — spec-014 §2's no-construction-I/O vs spec-004 §3.1's \"derived from DNA at server start\" — and whether Prompts advertise `listChanged`"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

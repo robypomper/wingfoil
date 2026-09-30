@@ -4,7 +4,7 @@ type: decision-log
 title: "`dna set` can write 7 of the DNA schema's ~38 fields — everything structured is unreachable for create, update and delete, and no spec says so"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

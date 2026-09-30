@@ -2,9 +2,9 @@
 id: "dl-048-spec-004-undefined-role-refusal"
 type: decision-log
 title: "spec-004 §3 does not define the undefined-role Prompt refusal that BDD P5.2.2 requires"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

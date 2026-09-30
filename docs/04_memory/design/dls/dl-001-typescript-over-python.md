@@ -4,7 +4,7 @@ type: decision-log
 title: "Reject Python; adopt TypeScript/Node.js for WingFoil implementation"
 status: ready
 context: "scope"
-release: ""
+release: "v0.2"
 tmpl_version: 260703
 ---
 

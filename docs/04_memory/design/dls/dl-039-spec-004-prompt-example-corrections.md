@@ -2,7 +2,7 @@
 id: "dl-039-spec-004-prompt-example-corrections"
 type: decision-log
 title: "spec-004 §3.2's Prompts example is unimplementable on MCP and its ordering language overreaches"
-status: in-discussion
+status: ready
 context: "dev-loop-review"
 release: "v0.3"
 contributor: ""
