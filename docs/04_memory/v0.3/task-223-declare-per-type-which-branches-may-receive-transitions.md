@@ -2,7 +2,7 @@
 id: "task-223-declare-per-type-which-branches-may-receive-transitions"
 type: task
 title: "Declare per type which branches may receive its transitions, and refuse elsewhere"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "low"
