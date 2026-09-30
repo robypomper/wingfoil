@@ -2,7 +2,7 @@
 id: "task-168-accept-declared-not-applicable-value-required-fields-explicit"
 type: task
 title: "Accept a declared not-applicable value for required fields, and an explicit empty list"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "medium"
