@@ -2,7 +2,7 @@
 id: "task-148-correct-stale-workflow-comments-workflow-md-diagrams-kind"
 type: task
 title: "Correct the stale workflow comments, the `WORKFLOW.md` diagrams and the `kind` requirement on the immutable minors"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "fix"
 priority: "medium"
