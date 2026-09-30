@@ -2,7 +2,7 @@
 id: "task-161-revise-command-baseline-which-verbs-read-head-filesystem"
 type: task
 title: "Revise `command-baseline`: which verbs read HEAD, the filesystem-effect exception, the workflow-read exception, and its audience"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "high"
