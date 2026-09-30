@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -609,6 +609,48 @@ verdict backed by a file:line or a command.
 - **Surprise 3: shipped code cites a DL that is still in discussion.** Five source sites cite dl-086 as `in-discussion`. After ratification those TSDoc citations should drop the status word, or be left alone, because the status goes stale.
 - **Stale statements inside the DLs, to correct in the approve Reasons, not by editing the DLs:** dl-085 E2 (task-057 is done). dl-079's table (counts have roughly doubled: sync 197 / finalize 130 / start 116). dl-064 Context (i), which its own code addendum already corrects. dl-073 E1, where the roots moved with task-111.
 - **Nothing is proposed for deprecate.** Every DL still has at least one live clause: a spec, directive or doc that is still false, or code that cites the DL. The partly settled ones (dl-073 via dl-122, dl-084 via task-095) are ratified with the delivered half recorded as delivered, rather than deprecated. Deprecating them would drop their remaining clauses (dl-073's (C) and S3, dl-084's doc fix).
+
+## Appendix C — record-adrs and identify-specs: the dl-022 spec-review (for gates 4 and 5)
+
+Documents, all reserved with the pinned build (`812091cd`, `2683fef4`, `de651a59`) and submitted to
+`pending` after the review; the two amendments are committed with status `approved` unchanged:
+
+| Document | Scope | State |
+|---|---|---|
+| `adr-012-agent-execution-through-the-agent-cli` | `agent execute` launches the agent's own CLI through a declared adapter (R2, R17); `sard_ref` REQ-INT-07, REQ-PERF-01, REQ-SEC-08, REQ-SEC-07, REQ-SYS-07 | `pending` |
+| `spec-016-agent-execution` | adapter manifest, `agent execute|list|show`, the run record (dl-114 as amended by dl-135) | `pending` |
+| `spec-017-workflow-commands-and-state-deduction` | the nine workflow commands (R11), the active-workflow context, state deduction, approvals and fallback, the v0.3 MCP Resources (R12) | `pending` |
+| `spec-003-workflows-yaml-schema` | amended: dl-109, dl-134, dl-135, dl-105, dl-090, dl-079, dl-066, dl-104 (R14), phase names, one diagnostics model | `approved`, Revision 2026-09-30 |
+| `spec-006-core-domain-api` | amended: the workflow and agent rows for v0.3 | `approved`, Revision 2026-09-30 |
+
+**Review record.** The drafts were written by drafting agents from the rulings, then reviewed on the
+four `dl-022` checks (internal, cross-spec, spec ↔ BDD/vision, traceability):
+- **First pass** (two independent reviewers): adr-012 PASS-with-fixes; spec-016 FAIL (1 blocker: the
+  terminal check made the success path untestable in CI); spec-006 PASS-with-fixes (1 blocker: its
+  MCP column disagreed with spec-017); spec-017 FAIL (1 blocker: workflows that create their own
+  element could never be deduced); spec-003 FAIL (1 blocker: `dl-104`, ratified for v0.3, was left
+  out). 55 findings in all: 4 blocker, 18 major, 33 minor.
+- **Rulings taken on the way:** R11–R14 (after the first pass), R15–R18 (open questions of the fixed
+  drafts).
+- **Confirming pass** (a third reviewer): every first-pass finding closed; 10 new findings (2 major:
+  context delivery depends on the agent fetching the `{role}-session` Prompt, now a verification step
+  of each built-in adapter; the two new Resource URIs extend spec-004 §2.1, now listed as an
+  amendment), all applied. Verdicts: adr-012, spec-016, spec-017, spec-003 PASS-with-fixes (fixes
+  applied); spec-006 PASS.
+- **Still open, each with a recommendation in its document:** spec-003 Q3–Q6 (cadence event names
+  `<memory-type>-<state>`; `mode`/`distinct_from` without `role` is an error; one mode per phase in
+  v0.3; positional token arguments rewritten to `key: value`), spec-006 Q1 (spec-004 §4.1 lists
+  `workflow.next` as a Tool: amend in a v0.3 task), spec-006 Q2 (`/` in run ids in a URI: v0.4), and
+  spec-016's REQ-SEC-07 extension to built-in adapters (recommended).
+- **Amendments carried to build-backlog** (named in the documents' Consequences): REQ-INT-07,
+  REQ-SYS-03 / REQ-STATE-02 fit criteria, REQ-SEC-07, spec-004 (§2.1 URIs, §3.1–§3.2 Prompt
+  arguments, §4.1), spec-005 §2 (stdout under an interactive launch), spec-006 §6 (R15 sentence),
+  spec-008 (`--workflow`, `--step`, `memory add --workflow`), spec-011 (v0.4), dl-079 (`create`,
+  `remove`, `assign`), `06_features.md`, `X_cli-cmds.md`, and the BDD files whose spelling or
+  behaviour the specs depart from (P4.2/3/7/8 `--name`, P4.14, P4.15, P5.3.1, P5.3.2, P5.4.3, X1.2).
+- **Conformance at `997e8998`** (spec-017 §12): the 23 workflows load under the new rules with 1 error
+  (`retrospective.explore`'s prose `produces:`) and 103 warnings; 28 phases complete only through
+  `workflow finalize`. The workflow-alignment task (idea 7) owns the error.
 
 ## Handoff
 
