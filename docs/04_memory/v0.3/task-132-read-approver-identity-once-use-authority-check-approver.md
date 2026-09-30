@@ -2,7 +2,7 @@
 id: "task-132-read-approver-identity-once-use-authority-check-approver"
 type: task
 title: "Read the approver's identity once and use it for the authority check, the `Approver:` line and the commit author"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "fix"
 priority: "high"
