@@ -131,6 +131,25 @@ describe('nextSequenceNumber — every ref, HEAD, the index and the working tree
     expect(nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toBe(21);
   });
 
+  it('a path pattern that starts with a token scans the whole tree', () => {
+    const dir = repo();
+    writeFixtureFile(dir, 'rl-v1/rel-v0.3/p-004-x.md', 'x\n');
+    commitAll(dir, 'p-004');
+    writeFixtureFile(dir, 'elsewhere/p-006-y.md', 'x\n');
+    expect(nextSequenceNumber(dir, '{scope}/{id}.md', 'p-{n}-{slug}')).toBe(7);
+  });
+
+  it('git missing from PATH is an error naming the spawn failure', () => {
+    const dir = repo();
+    const saved = process.env.PATH;
+    process.env.PATH = join(tmpdir(), 'wf-no-such-dir-on-path');
+    try {
+      expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(/E_GIT_READ_FAILED: git ls-files .*ENOENT/);
+    } finally {
+      process.env.PATH = saved;
+    }
+  });
+
   it('a failed git read is an error, never an empty answer that would reissue 1', () => {
     const notARepo = mkdtempSync(join(tmpdir(), 'wf-seq-norepo-'));
     dirs.push(notARepo);

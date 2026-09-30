@@ -74,7 +74,7 @@ function sequencePathRegExp(pathPattern: string, idPattern: string): RegExp {
   let source = '^';
   let last = 0;
   for (const match of pathPattern.matchAll(TOKEN_RE)) {
-    const index = match.index ?? 0;
+    const index = match.index as number;
     source += escapeRegExp(pathPattern.slice(last, index));
     source += match[1] === 'id' ? `(?:${idSource})` : PATH_TOKEN_SOURCE;
     last = index + match[0].length;
@@ -102,28 +102,29 @@ export function highestSequenceNumber(paths: Iterable<string>, pathPattern: stri
 const GIT_READ_MAX_BUFFER = 256 * 1024 * 1024;
 
 /**
- * Run a read-only `git` command in `root` and return its stdout, or `null` when it exits with one of
- * `expectedMisses` (an answer, e.g. `rev-parse --verify` on an unborn `HEAD`). Any other outcome —
- * no repository, a spawn error, output past {@link GIT_READ_MAX_BUFFER} — throws a
+ * Run a read-only `git` command in `root` and return its exit status and stdout. A spawn error (no
+ * `git`, output past {@link GIT_READ_MAX_BUFFER}) or any exit status outside `accepted` throws a
  * {@link StorageError} carrying git's own stderr: this read decides an id, so a failure must never
  * pass for an empty answer. stderr is captured, never inherited, so git's text reaches the user only
  * inside that error.
  */
-function readGit(root: string, args: readonly string[], expectedMisses: readonly number[] = []): string | null {
+function runGitRead(root: string, args: readonly string[], accepted: readonly number[] = [0]): { status: number; stdout: string } {
   const run = spawnSync('git', ['-C', root, ...args], {
     encoding: 'utf-8',
+    env: process.env,
     maxBuffer: GIT_READ_MAX_BUFFER,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  if (run.error === undefined && run.status === 0) return run.stdout;
-  if (run.error === undefined && run.status !== null && expectedMisses.includes(run.status)) return null;
-  const detail = run.error?.message ?? (run.stderr.trim() || `exit status ${String(run.status)}`);
-  throw new StorageError(E_GIT_READ_FAILED, `git ${args.join(' ')} failed in ${root}: ${detail}`);
+  if (run.error !== undefined || run.status === null || !accepted.includes(run.status)) {
+    const detail = run.error !== undefined ? run.error.message : run.stderr.trim();
+    throw new StorageError(E_GIT_READ_FAILED, `git ${args.join(' ')} failed in ${root}: ${detail}`);
+  }
+  return { status: run.status, stdout: run.stdout };
 }
 
 /** The literal directory a `path` pattern starts with (up to its last `/` before any token), or `''`. */
 function literalPrefix(pathPattern: string): string {
-  const head = pathPattern.split('{')[0] ?? '';
+  const head = pathPattern.split('{', 1)[0] as string;
   return head.slice(0, head.lastIndexOf('/') + 1);
 }
 
@@ -141,12 +142,13 @@ function literalPrefix(pathPattern: string): string {
 function sequenceCandidatePaths(root: string, prefix: string): string[] {
   const pathspec = prefix.length === 0 ? [] : ['--', prefix];
   const paths = new Set<string>();
-  const worktree = readGit(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...pathspec]) ?? '';
-  for (const path of worktree.split('\0')) if (path.length > 0) paths.add(path);
+  const worktree = runGitRead(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...pathspec]);
+  for (const path of worktree.stdout.split('\0')) if (path.length > 0) paths.add(path);
 
-  const refs = readGit(root, ['for-each-ref', '--format=%(objectname)', 'refs/heads', 'refs/remotes']) ?? '';
-  const head = readGit(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], [1]);
-  const commits = new Set([...refs.split('\n'), ...(head ?? '').split('\n')].map((sha) => sha.trim()));
+  const refs = runGitRead(root, ['for-each-ref', '--format=%(objectname)', 'refs/heads', 'refs/remotes']);
+  // `--verify --quiet` exits 1, printing nothing, on an unborn `HEAD`: an answer, not a failure.
+  const head = runGitRead(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], [0, 1]);
+  const commits = new Set(`${refs.stdout}\n${head.stdout}`.split('\n').map((sha) => sha.trim()));
   commits.delete('');
   for (const sha of [...commits].sort()) {
     const listed = listPathsAtRev(root, sha, prefix);
