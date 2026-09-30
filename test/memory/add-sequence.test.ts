@@ -137,4 +137,13 @@ describe('nextSequenceNumber — every ref, HEAD, the index and the working tree
     writeFixtureFile(notARepo, 'docs/memory/v0.1/task-005-x.md', 'x\n');
     expect(() => nextSequenceNumber(notARepo, TASK_PATH, TASK_ID)).toThrow(StorageError);
   });
+
+  it('a ref whose tree cannot be listed is an error too, not a ref silently skipped', () => {
+    const dir = repo();
+    writeFixtureFile(dir, 'README.md', 'x\n');
+    commitAll(dir, 'base');
+    const blob = git(dir, ['hash-object', '-w', 'README.md']).trim();
+    git(dir, ['update-ref', 'refs/remotes/origin/not-a-commit', blob]);
+    expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(/E_GIT_READ_FAILED: git ls-tree/);
+  });
 });

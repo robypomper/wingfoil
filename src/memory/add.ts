@@ -5,15 +5,15 @@
  * thin composition and the id/slug/document-render logic is independently unit-testable.
  *
  * Every function here is deterministic (REQ-SYS-07): a slug is a pure function of the title, the
- * rendered document a pure function of `(scaffold, id, title, tags)`, and the sequence counter a pure
- * function of the committed on-disk state (a stable count, order-independent) — no wall-clock, no
- * randomness, no unordered iteration in a value that reaches the produced id or document.
+ * rendered document a pure function of `(scaffold, id, title, tags)`, and the sequence counter a
+ * maximum over the paths every ref and the working tree hold (order-independent, task-128) — no
+ * wall-clock, no randomness, no unordered iteration in a value that reaches the produced id or
+ * document.
  */
-import { existsSync, readdirSync, statSync } from 'fs';
-import { dirname, join } from 'path';
+import { spawnSync } from 'child_process';
 
-import { renderMemoryPath, splitFrontmatter } from '../storage';
-import { isIdPiece, patternTokens, patternToRegExp, ValidationError } from '../validation';
+import { E_GIT_READ_FAILED, listPathsAtRev, splitFrontmatter, StorageError } from '../storage';
+import { isIdPiece, patternTokens, patternToSource, ValidationError } from '../validation';
 import type { ValidationIssue } from '../validation';
 
 const TOKEN_RE = /\{([^{}]+)\}/g;
@@ -60,36 +60,119 @@ export function hasNumericToken(idPattern: string): boolean {
   return false;
 }
 
+/** A non-`{id}` `path` token as the counter matches it: one or more path segments (`dl-101` (a)). */
+const PATH_TOKEN_SOURCE = '[^/]+(?:/[^/]+)*';
+
 /**
- * The directory that holds every document of a type: the type's `path` pattern
- * (spec-001-memory-yaml-schema `MemoryTypeEntry.path`, e.g. `docs/memory/decision/{id}.md`) rendered
- * with a dummy `{id}` and reduced to its containing directory. The directory portion never depends on
- * the concrete id value, so this is well-defined before the id is generated (used by
- * {@link nextSequenceNumber} to count existing siblings). `values` fills any other path token —
- * `{release-line}`, `{scope}` — from `memory add --set` (task-110); `id` is always the dummy.
+ * The RegExp a repository-relative path of this type matches, with the `{n}` value as group 1: the
+ * `path` pattern with `{id}` replaced by the (materialized) `id_pattern` and **every other token a
+ * wildcard**, whatever value this add gives it — so a `task`'s counter spans every
+ * `docs/04_memory/{release}/` folder, not only the one being added to (`bug-162`).
  */
-export function resolveTypeDirectory(
-  root: string,
-  pathPattern: string,
-  values: Readonly<Record<string, string>> = {},
-): string {
-  return dirname(join(root, renderMemoryPath(pathPattern, { ...values, id: '__id__' })));
+function sequencePathRegExp(pathPattern: string, idPattern: string): RegExp {
+  const idSource = patternToSource(idPattern, { captureNumeric: true });
+  let source = '^';
+  let last = 0;
+  for (const match of pathPattern.matchAll(TOKEN_RE)) {
+    const index = match.index ?? 0;
+    source += escapeRegExp(pathPattern.slice(last, index));
+    source += match[1] === 'id' ? `(?:${idSource})` : PATH_TOKEN_SOURCE;
+    last = index + match[0].length;
+  }
+  return new RegExp(`${source}${escapeRegExp(pathPattern.slice(last))}$`);
 }
 
 /**
- * The next sequence number for a `{n}`-token id: `1 +` the count of existing files in `dir` whose
- * basename (sans `.md`) matches `idPattern` (`patternToRegExp`, task-002). Deterministic — a count is
- * independent of directory-entry order (REQ-SYS-07) — and confined to this type's own directory, so
- * unrelated files never perturb it. Returns `1` when the directory does not yet exist.
+ * The highest `{n}` value among `paths` (repository-relative, `/`-separated) that the type's `path`
+ * pattern and materialized `id_pattern` match, or `0` when none does (`spec-001` "Counter algorithm",
+ * `dl-101` §2 (a)). The **highest**, not a count, so a gap never reissues a number (`bug-087`); and a
+ * maximum, so the answer is independent of the order `paths` arrive in (REQ-SYS-07).
  */
-export function nextSequenceNumber(dir: string, idPattern: string): number {
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) return 1;
-  const re = patternToRegExp(idPattern);
-  let count = 0;
-  for (const entry of readdirSync(dir).sort()) {
-    if (entry.endsWith('.md') && re.test(entry.slice(0, -'.md'.length))) count += 1;
+export function highestSequenceNumber(paths: Iterable<string>, pathPattern: string, idPattern: string): number {
+  const re = sequencePathRegExp(pathPattern, idPattern);
+  let highest = 0;
+  for (const path of paths) {
+    const digits = re.exec(path)?.[1];
+    if (digits !== undefined) highest = Math.max(highest, Number.parseInt(digits, 10));
   }
-  return count + 1;
+  return highest;
+}
+
+/** Large enough for a whole tree's path list; a larger answer fails loudly rather than truncating. */
+const GIT_READ_MAX_BUFFER = 256 * 1024 * 1024;
+
+/**
+ * Run a read-only `git` command in `root` and return its stdout, or `null` when it exits with one of
+ * `expectedMisses` (an answer, e.g. `rev-parse --verify` on an unborn `HEAD`). Any other outcome —
+ * no repository, a spawn error, output past {@link GIT_READ_MAX_BUFFER} — throws a
+ * {@link StorageError} carrying git's own stderr: this read decides an id, so a failure must never
+ * pass for an empty answer. stderr is captured, never inherited, so git's text reaches the user only
+ * inside that error.
+ */
+function readGit(root: string, args: readonly string[], expectedMisses: readonly number[] = []): string | null {
+  const run = spawnSync('git', ['-C', root, ...args], {
+    encoding: 'utf-8',
+    maxBuffer: GIT_READ_MAX_BUFFER,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (run.error === undefined && run.status === 0) return run.stdout;
+  if (run.error === undefined && run.status !== null && expectedMisses.includes(run.status)) return null;
+  const detail = run.error?.message ?? (run.stderr.trim() || `exit status ${String(run.status)}`);
+  throw new StorageError(E_GIT_READ_FAILED, `git ${args.join(' ')} failed in ${root}: ${detail}`);
+}
+
+/** The literal directory a `path` pattern starts with (up to its last `/` before any token), or `''`. */
+function literalPrefix(pathPattern: string): string {
+  const head = pathPattern.split('{')[0] ?? '';
+  return head.slice(0, head.lastIndexOf('/') + 1);
+}
+
+/**
+ * Every repository-relative path under `prefix` that any baseline a number can be taken on holds —
+ * `command-baseline`'s declared baseline for `memory add`'s counter (`dl-101` §2 (a), `dl-080`):
+ *
+ * - the tree of every local branch (`refs/heads/*`) and remote-tracking ref (`refs/remotes/*`), and
+ *   of `HEAD` (a detached `HEAD` is on no branch);
+ * - the working tree as git sees it: the index and the untracked, non-ignored files.
+ *
+ * No network: the remote-tracking refs are what the last `git fetch` left (`dl-101` §1.1). Commits are
+ * de-duplicated and visited in sorted order, and the result is sorted (REQ-SYS-07).
+ */
+function sequenceCandidatePaths(root: string, prefix: string): string[] {
+  const pathspec = prefix.length === 0 ? [] : ['--', prefix];
+  const paths = new Set<string>();
+  const worktree = readGit(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...pathspec]) ?? '';
+  for (const path of worktree.split('\0')) if (path.length > 0) paths.add(path);
+
+  const refs = readGit(root, ['for-each-ref', '--format=%(objectname)', 'refs/heads', 'refs/remotes']) ?? '';
+  const head = readGit(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], [1]);
+  const commits = new Set([...refs.split('\n'), ...(head ?? '').split('\n')].map((sha) => sha.trim()));
+  commits.delete('');
+  for (const sha of [...commits].sort()) {
+    const listed = listPathsAtRev(root, sha, prefix);
+    if (listed === null) {
+      throw new StorageError(E_GIT_READ_FAILED, `git ls-tree ${sha} failed in ${root}: the tree could not be listed`);
+    }
+    for (const path of listed) paths.add(path);
+  }
+  return [...paths].sort();
+}
+
+/**
+ * The next sequence number for a `{n}`-token id: `1 +` the highest number any baseline holds for this
+ * type — every local branch, remote-tracking ref, `HEAD`, the index and the untracked working-tree
+ * files ({@link sequenceCandidatePaths}) — over every folder the type's `path` can resolve to
+ * ({@link highestSequenceNumber}). `1` when nothing matches. Ratified `dl-101` §2 (a) (task-128,
+ * `bug-087`, `bug-162`); `spec-001` "Counter algorithm".
+ *
+ * @param root - The repository root.
+ * @param pathPattern - The type's committed `path` pattern, e.g. `docs/04_memory/{release}/{id}.md`.
+ * @param idPattern - The type's `id_pattern` with its field tokens already materialized.
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when a git read fails.
+ */
+export function nextSequenceNumber(root: string, pathPattern: string, idPattern: string): number {
+  const prefix = literalPrefix(pathPattern);
+  return highestSequenceNumber(sequenceCandidatePaths(root, prefix), pathPattern, idPattern) + 1;
 }
 
 /** The fields `memory.add` pins on the freshly-created draft document (P1.3 memory.add / spec-010). */

@@ -4,22 +4,10 @@
  * thin (mirroring `dna set`'s split: pure `setDnaValue` in `src/dna`, the `CoreFn` in `src/core`).
  *
  * These functions are deterministic (REQ-SYS-07): a slug is a pure function of the title, the
- * document render a pure function of (scaffold, id, title, tags), and the sequence counter a pure
- * function of the committed on-disk state — no wall-clock, no randomness.
+ * document render a pure function of (scaffold, id, title, tags) — no wall-clock, no randomness. The
+ * sequence counter has its own suite since task-128: `test/memory/add-sequence.test.ts`.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-import {
-  hasNumericToken,
-  nextSequenceNumber,
-  parseTags,
-  renderAddDocument,
-  resolveTypeDirectory,
-  slugifyTitle,
-} from '../../src/memory/add';
-import { writeFixtureFile } from '../storage/helpers/git-fixture';
+import { hasNumericToken, parseTags, renderAddDocument, slugifyTitle } from '../../src/memory/add';
 
 describe('slugifyTitle — deterministic, valid ID piece from a human title', () => {
   it('lowercases, collapses non-alphanumerics to single hyphens, and trims edges', () => {
@@ -122,28 +110,5 @@ tags: []
 
   it('throws when the scaffold has no frontmatter block', () => {
     expect(() => renderAddDocument('no frontmatter here', { id: 'x', title: 'Y' })).toThrow();
-  });
-});
-
-describe('resolveTypeDirectory + nextSequenceNumber — deterministic counter from committed state', () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'wf-seq-'));
-  });
-  afterEach(() => rmSync(dir, { recursive: true, force: true }));
-
-  it('resolveTypeDirectory strips the {id}.md leaf to the containing directory', () => {
-    expect(resolveTypeDirectory('/root', 'docs/memory/decision/{id}.md')).toBe('/root/docs/memory/decision');
-  });
-
-  it('nextSequenceNumber is 1 for an empty/absent directory', () => {
-    expect(nextSequenceNumber(join(dir, 'missing'), 'decision-{n}-{slug}')).toBe(1);
-  });
-
-  it('counts only files whose basename matches the id_pattern, +1', () => {
-    writeFixtureFile(dir, 'decision/decision-001-a.md', 'x');
-    writeFixtureFile(dir, 'decision/decision-002-b.md', 'x');
-    writeFixtureFile(dir, 'decision/README.md', 'x'); // not an id-pattern match
-    expect(nextSequenceNumber(join(dir, 'decision'), 'decision-{n}-{slug}')).toBe(3);
   });
 });

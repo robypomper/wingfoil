@@ -45,3 +45,10 @@ export const E_PATH_ESCAPES_ROOT = 'E_PATH_ESCAPES_ROOT';
  * `targetIsSymlink` (`./confinement.ts`).
  */
 export const E_TARGET_IS_SYMLINK = 'E_TARGET_IS_SYMLINK';
+
+/**
+ * Raised when a read-only `git` invocation whose answer an operation depends on fails — a repository
+ * that cannot be read, or output larger than the read allows (task-128: `memory add`'s id counter). A
+ * failed read must not pass for an empty answer: a counter that saw nothing would reissue `1`.
+ */
+export const E_GIT_READ_FAILED = 'E_GIT_READ_FAILED';

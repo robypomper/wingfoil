@@ -20,10 +20,11 @@
  * task's `design` notes argue them rather than as the uniform rule would assume:
  *
  * - **`memory add`'s target is new**, so the rule it needs is **absence**, not cleanliness: the path
- *   must not exist at `HEAD`, in the index, or in the working tree. It is reachable because
- *   `nextSequenceNumber` derives the id's number from `readdirSync` of the working tree, so a
- *   working tree that disagrees with `HEAD` about how many elements exist can generate an id that
- *   lands on an occupied path.
+ *   must not exist at `HEAD`, in the index, or in the working tree. It is reachable because a
+ *   slug-only id lands on an occupied path whenever a title repeats (the `note-{slug}` type below).
+ *   Until task-128 a `{n}` id could too — `nextSequenceNumber` counted the working tree's files, so
+ *   a gap reissued a taken number (`bug-087`); it now takes the highest number every ref and the
+ *   working tree hold.
  * - **`init` is scoped out on the `wingfoil init` path and guarded on the other one.**
  *   `initWingfoilProject` refuses before any write when `.wingfoil/` holds any entry
  *   (`detectInitState`), and every path it writes is under `.wingfoil/`, so no target can pre-exist

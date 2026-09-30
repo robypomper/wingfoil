@@ -76,11 +76,11 @@ export type { MemoryEntryWrite } from './entry';
 export {
   expandFieldTokens,
   hasNumericToken,
+  highestSequenceNumber,
   nextSequenceNumber,
   parseSetOptions,
   parseTags,
   renderAddDocument,
-  resolveTypeDirectory,
   slugifyTitle,
   unknownSetNames,
   writtenFields,

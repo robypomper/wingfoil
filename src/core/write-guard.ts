@@ -168,12 +168,12 @@ export function requireUnmodifiedTargets(
  * absent path and for a clean, tracked one — so each of the three places a file can live is checked
  * explicitly.
  *
- * Reachable because `memory add` derives its id's sequence number from `readdirSync` of the working
- * tree (`nextSequenceNumber`, `../memory/add.ts`), so a working tree that disagrees with `HEAD` about
- * how many elements exist can generate an id that lands on an occupied path; the write that follows
- * is unconditional, and the commit's diff then becomes `HEAD` → scaffold rather than absent →
- * scaffold. A commit whose subject says "add" and whose diff removes lines is `bug-078` at its
- * sharpest.
+ * Reachable because an id can land on an occupied path: a slug-only `id_pattern` (`note-{slug}`)
+ * does whenever a title repeats. (Until task-128 a `{n}` id could too: `nextSequenceNumber` counted
+ * the working tree's files, so a gap reissued a taken number, `bug-087`; it now takes the highest
+ * number every ref and the working tree hold.) The write that follows is unconditional, and the
+ * commit's diff would then be `HEAD` → scaffold rather than absent → scaffold. A commit whose subject
+ * says "add" and whose diff removes lines is `bug-078` at its sharpest.
  *
  * @param path - Root-relative POSIX path of the file about to be created.
  */
