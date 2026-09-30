@@ -2,7 +2,7 @@
 id: "bug-155-multi-hop-bracket-always-reads-as-drift"
 type: bug
 title: "A multi-hop transition bracket `[a → b → c]` always reads as drift, because `verifyTransitionConsistency` takes everything after the first arrow as the target state"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"
