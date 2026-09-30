@@ -2,7 +2,7 @@
 id: "task-127-add-memory-amend-id-reason-approver-gated-verb"
 type: task
 title: "Add `memory amend <id> --reason`, an approver-gated verb that records a content correction without a state change"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "high"
