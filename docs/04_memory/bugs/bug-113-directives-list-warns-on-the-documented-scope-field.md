@@ -2,10 +2,10 @@
 id: "bug-113-directives-list-warns-on-the-documented-scope-field"
 type: bug
 title: "`directives list` prints `unknown field(s) ignored: scope` for every global directive on every run, although `spec-013` documents `scope` as a frontmatter field"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P3.5"
 contributor: ""
 credit: ""

@@ -2,10 +2,10 @@
 id: "bug-105-retired-schema-terms-in-requirements-narrative"
 type: bug
 title: "`conventions` survives in the narrative prose of three requirements documents, and the user story is where a fix has to start"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P2.4"
 contributor: ""
 credit: ""

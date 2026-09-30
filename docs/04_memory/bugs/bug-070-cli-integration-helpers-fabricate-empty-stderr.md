@@ -2,10 +2,10 @@
 id: "bug-070-cli-integration-helpers-fabricate-empty-stderr"
 type: bug
 title: "Two CLI integration helpers return a hardcoded `stderr: ''` on the success path, so every assertion that a passing command printed nothing to stderr asserts a literal the helper wrote itself"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: ""
 contributor: ""
 credit: ""

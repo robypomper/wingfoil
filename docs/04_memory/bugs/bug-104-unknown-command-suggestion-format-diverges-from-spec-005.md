@@ -2,10 +2,10 @@
 id: "bug-104-unknown-command-suggestion-format-diverges-from-spec-005"
 type: bug
 title: "The unknown-command suggestion is Commander's `(Did you mean memory?)`, not the `hint:` line `spec-005` §3.1 declares — and a test now pins the third party's shape as though it were the contract"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.1"
 contributor: ""
 credit: ""

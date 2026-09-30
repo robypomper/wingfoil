@@ -2,10 +2,10 @@
 id: "bug-112-live-config-tests-assert-role-bindings-by-exact-array"
 type: bug
 title: "Two suites assert this repository's live `roles.yaml` bindings by exact array, so every future binding change fails them as though it were a regression"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P3.2"
 contributor: ""
 credit: ""

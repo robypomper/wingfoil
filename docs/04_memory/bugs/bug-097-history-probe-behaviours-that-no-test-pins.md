@@ -2,10 +2,10 @@
 id: "bug-097-history-probe-behaviours-that-no-test-pins"
 type: bug
 title: "`core.quotePath=false` and the new history probe's `stdio` are both load-bearing and neither is pinned, and one `readStatusAt` TSDoc sentence claims a distinction the pipe does not make"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.10"
 contributor: ""
 credit: ""
