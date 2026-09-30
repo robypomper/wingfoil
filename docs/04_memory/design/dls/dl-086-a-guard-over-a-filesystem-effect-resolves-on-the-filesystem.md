@@ -4,7 +4,7 @@ type: decision-log
 title: "A read that predicts what an imminent syscall will touch cannot resolve at `HEAD` — the guard would be decorative in exactly the case it exists for"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

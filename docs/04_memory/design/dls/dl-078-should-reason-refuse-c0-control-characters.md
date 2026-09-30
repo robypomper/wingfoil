@@ -4,7 +4,7 @@ type: decision-log
 title: "Should `--reason` refuse C0 control characters as content? The tool now parses them correctly, but a human reading `git log` can still be misled by what renders invisibly"
 status: ready
 context: "audit-trail"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

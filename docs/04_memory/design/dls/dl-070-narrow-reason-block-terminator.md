@@ -4,7 +4,7 @@ type: decision-log
 title: "Where the `Reason:` block ends: any trailing paragraph of `Key: value` lines, or only one whose keys are known git trailers"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "`superseded` is reachable by nothing at all, and spec-010:125 still says `deprecate` writes it"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

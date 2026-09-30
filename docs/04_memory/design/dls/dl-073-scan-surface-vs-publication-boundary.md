@@ -4,7 +4,7 @@ type: decision-log
 title: "Our secret scan and the real publication boundary do not coincide: REQ-SEC-08 can be fully satisfied while the repository is unpushable"
 status: ready
 context: "ad-hoc"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

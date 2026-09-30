@@ -4,7 +4,7 @@ type: decision-log
 title: "How a task branch that has fallen behind main is brought current: merge, never rebase"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

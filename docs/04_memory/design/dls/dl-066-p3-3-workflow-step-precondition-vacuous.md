@@ -4,7 +4,7 @@ type: decision-log
 title: "P3.3's \"or workflow step\" precondition has no referrer to check: nothing in the workflow pillar can name a directive"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "Should the `init` scaffold ship one shared `defaults` state machine, or a per-type `states:` block for each of the seven types?"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "The doc-versioning directive assumes a `version:` field that no tech-spec (and no ADR, DL or task) carries"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

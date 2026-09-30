@@ -4,7 +4,7 @@ type: decision-log
 title: "Publish pipeline hardening left out of task-060/061: action SHA pins, job timeouts, Verdaccio SIGKILL fallback, annotated-tag enforcement, trusted publishing, shell tracing, explicit npm userconfig"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "The built-in `security` directive is bound to no role, so no agent context loads it — bind it globally, or narrow REQ-SEC-08's reliance on it"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

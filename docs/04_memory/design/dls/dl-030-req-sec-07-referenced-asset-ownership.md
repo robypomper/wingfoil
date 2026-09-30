@@ -4,7 +4,7 @@ type: decision-log
 title: "REQ-SEC-07's second clause (still-referenced custom assets) has no owner for the workflow half"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

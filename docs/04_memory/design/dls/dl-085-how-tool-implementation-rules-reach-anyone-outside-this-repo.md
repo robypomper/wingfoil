@@ -4,7 +4,7 @@ type: decision-log
 title: "`command-baseline` and `claim-evidence` reach an agent bound to a role in WingFoil's own dogfood config and nobody else — a contributor arriving through `COLLABORATION.md` meets neither"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

@@ -4,7 +4,7 @@ type: decision-log
 title: "test/** lost its only standing typecheck gate when ts-jest moved to tsconfig.test.json"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703

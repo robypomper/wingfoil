@@ -4,7 +4,7 @@ type: decision-log
 title: "spec-006 §3's bootstrap rows name a `project` module no code has — decide how `init`, `audit` (and `mcp`) appear on the MCP surface"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.3"
 contributor: ""
 credit: ""
 tmpl_version: 260703
