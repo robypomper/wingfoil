@@ -4,7 +4,7 @@ type: decision-log
 title: "Local-first, no cloud backend — keep state in git only"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.1"
 tmpl_version: 260703
 ---
 

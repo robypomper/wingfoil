@@ -4,7 +4,7 @@ type: decision-log
 title: "When a built-in and a custom directive share an id, which one wins — and should the loser be silent?"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

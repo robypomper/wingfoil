@@ -4,7 +4,7 @@ type: decision-log
 title: "REQ-SEC-10 'integrity checks': is schema validation the contract, or is tamper-evidence required?"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

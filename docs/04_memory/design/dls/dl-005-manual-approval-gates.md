@@ -4,7 +4,7 @@ type: decision-log
 title: "Manual approval gates (no automated approval) in the MVP"
 status: ready
 context: process
-release: ""
+release: "v0.2"
 tmpl_version: 260703
 ---
 

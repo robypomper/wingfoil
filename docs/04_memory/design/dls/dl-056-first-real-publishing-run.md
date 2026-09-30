@@ -4,7 +4,7 @@ type: decision-log
 title: "The publish pipeline's real effects have never run — who owns a first real staging run before `release-publishing`, and bug-022 now sits inside the release gate"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

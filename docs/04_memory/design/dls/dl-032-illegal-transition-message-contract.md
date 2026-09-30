@@ -4,7 +4,7 @@ type: decision-log
 title: "The illegal-transition error: REQ-STATE-01 and two BDD features pin a message and exit code the shipped code does not use"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

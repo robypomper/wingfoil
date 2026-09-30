@@ -4,7 +4,7 @@ type: decision-log
 title: "A role with no directive assignments: globals-only (spec-012) or zero directives plus a warning (BDD P3.6)?"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

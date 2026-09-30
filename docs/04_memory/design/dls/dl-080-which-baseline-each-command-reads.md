@@ -4,7 +4,7 @@ type: decision-log
 title: "Which state a command reads — the working tree or the committed repository — has been decided one bug at a time, twice differently, and five defects of one root cause are open"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

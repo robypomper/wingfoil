@@ -4,7 +4,7 @@ type: decision-log
 title: "Keyword-only Memory search for rl-v1 MVP"
 status: ready
 context: scope
-release: ""
+release: "v0.1"
 tmpl_version: 260703
 ---
 

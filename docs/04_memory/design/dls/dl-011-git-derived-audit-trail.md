@@ -4,7 +4,7 @@ type: decision-log
 title: "Derive the audit trail from git history (no separate log store)"
 status: ready
 context: design
-release: ""
+release: "v0.2"
 tmpl_version: 260703
 ---
 

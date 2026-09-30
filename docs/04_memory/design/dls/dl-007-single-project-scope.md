@@ -4,7 +4,7 @@ type: decision-log
 title: "Single `.wingfoil/` per repository in MVP; multi-project deferred to v1+"
 status: ready
 context: scope
-release: ""
+release: "v0.1"
 tmpl_version: 260703
 ---
 

@@ -4,7 +4,7 @@ type: decision-log
 title: "What `--reason` records against a line-oriented `Approver:`/`Reason:` commit trailer: refuse newlines, escape them, or declare the reason a block"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

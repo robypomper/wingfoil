@@ -4,7 +4,7 @@ type: decision-log
 title: "Which `<to>` the illegal-transition message prints when the verb has no legal edge from the current state"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

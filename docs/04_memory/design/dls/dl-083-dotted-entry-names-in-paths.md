@@ -4,7 +4,7 @@ type: decision-log
 title: "An entry named `Node.js` cannot be addressed by a dotted path, and forbidding the dot would make WingFoil's own DNA invalid"
 status: ready
 context: "architecture"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

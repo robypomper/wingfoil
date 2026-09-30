@@ -4,7 +4,7 @@ type: decision-log
 title: "Does a `submit` commit subject carry the `[from → to]` bracket? The written form says no; most of this repository's history says yes"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

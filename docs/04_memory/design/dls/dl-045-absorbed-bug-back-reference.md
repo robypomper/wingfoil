@@ -4,7 +4,7 @@ type: decision-log
 title: "A bug absorbed into an existing task's Acceptance Criteria has no closure path — make the task's `bug` field a list"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703

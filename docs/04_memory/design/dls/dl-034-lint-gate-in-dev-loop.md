@@ -4,7 +4,7 @@ type: decision-log
 title: "Add a lint gate to dev-loop's refactor phase, and authorise the harness fix tasks as a recorded v0.2 exception"
 status: ready
 context: "dev-loop-review"
-release: ""
+release: "v0.2"
 contributor: ""
 credit: ""
 tmpl_version: 260703
