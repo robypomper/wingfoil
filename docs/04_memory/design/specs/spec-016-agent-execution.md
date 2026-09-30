@@ -2,7 +2,7 @@
 id: spec-016-agent-execution
 type: tech-spec
 title: "Agent execution — adapter manifest, `agent` commands and the run record"
-status: pending
+status: approved
 scope: "src/agent (planned module) — the agent adapter manifest, `wingfoil agent execute|list|show`, and the run log"
 supersedes: ""
 release: "v0.3"
