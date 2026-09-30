@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.9"
+version: "2.0"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -98,6 +98,20 @@ shape of the scope and are cited by the steps below:
   the workflow name); context through the `{role}-session` Prompt with `element` and `state`
   arguments; a `paths` category `runs` for the run log; a run with no step runs as `developer` with a
   warning.
+
+**Rulings received at build-backlog (2026-09-30).**
+- R19. `dl-100` §5 (a WIP limit on decision-logs) is dropped: no such limit is needed. `dl-103` §2
+  (iii), signed approvals, is out of v0.3 (v0.4 at the earliest, possibly v1.0).
+- R20. The whole 121-task backlog is kept, and the merge's recommendations are accepted: `submit` keeps
+  no transition bracket (`dl-054` prevails over `dl-106` W1 (a)); `bug-152` is fixed in the docs only
+  (`dl-043` stays v0.4); the GitHub Release and MCP Registry jobs wait for the live npm version with a
+  bounded poll; `element.set_release` is rebound to a declared verb (no `assign`); `bug-175` exempts
+  the pre-`dl-092` minors; `dl-117`'s attribution travels in the `agent execute` bootstrap;
+  `dna.yaml` refuses the whole-file rewrite unless `--force` (as `dl-062`); the partly delivered
+  decision-logs are stamped v0.3; the Journey 4 end-to-end check stays a task. Each ruling is written
+  into the Implementation Notes of the task it binds.
+- The retroactive release stamps on the 32 delivered older decision-logs (Appendix D) were requested
+  by the approver on the same day.
 
 ## Phases / Steps
 
@@ -265,6 +279,18 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
    - the v0.2.2 carry-over: keep a full `npx jest` with no git identity among the pre-tag checks (it
      reproduces the CI gate job), inside `dl-099`'s task.
    Selected bugs go `[triaged → planned]`; `release: "v0.3"` is stamped on every included element.
+   **Done 2026-09-30.** Five read-only proposal agents (workflow, agent execution, core, process, the
+   sweep of older decision-logs) proposed 127 tasks; a merge pass removed six duplicates, assigned the
+   ids, resolved dependencies (no cycle, every `depends_on` pointing to a lower id) and checked coverage
+   by script. Result: **121 tasks, `task-126` … `task-246`** (Appendix E).
+   - The pinned build's `memory add` cannot be trusted here (`bug-087`, `bug-162`), so the skeletons
+     were added by hand, one `wf(task): add` commit per wave; then `memory submit` per task (121
+     commits, each one file). All 121 are `pending`. The pinned build accepted the not-yet-declared
+     `kind:` field.
+   - 86 bugs `[triaged → planned]` with `release: "v0.3"`, in four `wf(bug): plan` commits; 28
+     decision-logs stamped v0.3 (`45fcf676`).
+   - `minor-v0.3`'s Planning notes carry the counts, the coverage and both budget figures
+     (`de66c85b`); the sequencer's v0.3 budget row replaces the proxy (`c2b65b3e`).
 
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`; `minor-v0.3`
    `[planning → in-development]`. The branch merges into `main` with `--no-ff`; pushing is the
@@ -709,6 +735,159 @@ Prepared 2026-09-30 by a read-only survey agent against the code at `53f72538`.
 | dl-081 dna-mutation-surface-shape | **v0.2** | `a1615a94` `task-093` (`uniquelyNamed`, task v0.2) and `task-100` (v0.2). `bug-092` (v0.2.2) was closed won't-fix (the "set and update both stay" ruling), so v0.2.2 added nothing to the delivery | high |
 | dl-082 cli-parameter-shape | **v0.2** | `9a13a3f3` `task-093` "the DNA field path becomes a positional (dl-082)", plus `task-098` and `task-100`. All v0.2. `0de025f5` `task-110` (v0.2.2) applies the grammar to a new flag, which is not part of the delivery | high |
 | dl-083 dotted-entry-names-in-paths | **v0.2** | `task-099-quoted-path-segments-for-dotted-entry-names` (`87afb505` introduced `quoteDnaSegment`, `0b5d761e`; task v0.2, anc v0.2) | high |
+
+## Appendix E — the v0.3 backlog (build-backlog, 2026-09-30)
+
+**build-backlog (2026-09-30, `release-planning-rel-v0.3-plan` step 6): 121 tasks, `task-126` … `task-246`**,
+all `pending` under `docs/04_memory/v0.3/`, each with `kind:` (`dl-133` Q1 (b)).
+- By wave: 0 → 4, 1 → 41, 2 → 23, 3 → 53. Wave 0 is `task-126` (the closed `wf()`
+  grammar, `dl-079`), `task-127` (`memory amend`, `dl-108`), `task-128` (id allocation, `dl-101`, `bug-087`,
+  `bug-162`) and `task-129` (one operand per command, `bug-171`, `bug-131`).
+- By kind: 81 feature, 40 fix. By area: core 47, process 35, workflow 21,
+  agent 18. By size: 57 S, 61 M, 3 L.
+- Coverage: the 86 v0.3 bugs are each named by exactly one task and moved `[triaged → planned]`
+  with `release: "v0.3"`; the 63 v0.3 decision-logs each have at least one implementing task; the
+  six older decision-logs whose remainder is in v0.3 are stamped v0.3. Not scheduled on purpose:
+  `dl-009` (v0.4), `dl-010` Action 2 (v1.0), `dl-100` §5 (dropped, R19), `dl-103` §2 (iii) (v0.4 or
+  v1.0, R19), `smithery.yaml`.
+- Budget (`dl-096`). By task count: 121 ÷ 6.5 per active day ≈ **18.6 active days**, close to the
+  sequencer's proxy of ≈ 20. By task size (S 0.25, M 0.75, L 2 active days): **≈ 66 active days**.
+  The two figures diverge by more than three times, and the approver kept the whole scope (R20,
+  2026-09-30) knowing it: the count is the planning rate `dl-096` ratified, the size estimate is the
+  signal `dl-100`'s capacity rule and `dl-133`'s stop-the-line are there to watch. The longest chain is
+  9 tasks (≈ 8 active days weighted by size).
+
+Dedupe decisions of the merge: `dl-079` has one owner in wave 0 (`task-126`), with the command tasks
+emitting its verbs; the `dev-loop.yaml` changes land in order (workflow alignment → v1.5 separation of
+duties → v1.6 process checks), with `dl-044`'s typecheck gate owned by one task; `bug-134` joins the
+smoke-gate task with `bug-132` and `bug-133`; `bug-019` joins `bug-126`, while `dl-062` builds the
+stderr warning channel both reuse; `X_cli-cmds.md` has one owner (`task-245`), depending on every
+command task; the `spec-006` §6 R15 sentence and `dl-084`–`dl-086` have one owner; `spec-004` §3's two
+edits are ordered (MCP prompt corrections before the Prompt arguments).
+
+| Task | Title | Kind | Pri | Size | Wave | Bugs |
+|---|---|---|---|---|---|---|
+| `task-126` | Declare the closed `wf()` operation grammar with its bracket and `set_state` rules, and make `memory history` read every declared verb | feature | high | M | 0 | bug-155 |
+| `task-127` | Add `memory amend <id> --reason`, an approver-gated verb that records a content correction without a state change | feature | high | M | 0 | — |
+| `task-128` | Allocate element ids from the highest number on every ref, across every folder the type's path can resolve to | fix | high | M | 0 | bug-087, bug-162 |
+| `task-129` | Refuse every operand beyond the one a command declares, with exit 2 and before any write | fix | high | S | 0 | bug-131, bug-171 |
+| `task-130` | Show `CoreError.details` on every surface and give every refusal one shape under `--format` | fix | high | M | 1 | bug-114, bug-123 |
+| `task-131` | Make the dirty-target guard refuse a path it cannot inspect, and stop exporting the unconfined resolver | fix | high | M | 1 | bug-118, bug-122, bug-124 |
+| `task-132` | Read the approver's identity once and use it for the authority check, the `Approver:` line and the commit author | fix | high | M | 1 | bug-142, bug-149, bug-153 |
+| `task-133` | Bind the built-in `security` directive to every role, and stop tests pinning live bindings by exact array | fix | high | S | 1 | bug-112 |
+| `task-134` | Report every source file in coverage, so an untested file counts at 0% | fix | high | M | 1 | bug-141 |
+| `task-135` | Make `init` scan the built-in templates for secrets and refuse to re-initialize storage | fix | high | M | 1 | bug-037, bug-038, bug-088 |
+| `task-136` | Validate workflows as startable/includable, resolve phase `include` by name, and emit one ordered diagnostics array | feature | high | M | 1 | bug-144, bug-145 |
+| `task-137` | Read the pillar configuration and the Memory documents at any commit, not only at `HEAD` or in the working tree | feature | high | M | 1 | — |
+| `task-138` | `dna.yaml` declares `team.agents[].adapter` and the `runs` paths category | feature | high | S | 1 | — |
+| `task-139` | Extend the documentation, doc-versioning and testing directives with the ratified clauses | feature | high | S | 1 | — |
+| `task-140` | Run the packaging gate on every push and pull request in a separate ci.yml | feature | high | S | 1 | — |
+| `task-141` | Reposition the brief as a governance layer and make the Determinism Index composite | feature | high | M | 1 | bug-160 |
+| `task-142` | Run every Memory git read through one helper that captures stderr, sets `maxBuffer` and fails loudly | fix | medium | S | 1 | bug-072, bug-093, bug-097 |
+| `task-143` | Make the directive loader robust to dangling symlinks and to a project with no configuration | fix | medium | S | 1 | bug-125, bug-154 |
+| `task-144` | Declare a directive's `scope` and report when it disagrees with `roles.yaml`'s `global:` list | fix | medium | S | 1 | bug-109, bug-113, bug-148 |
+| `task-145` | Replace the CLI test helpers' fabricated `stderr: ''` with the child's real stderr | fix | medium | M | 1 | bug-070 |
+| `task-146` | Make the suite's result independent of concurrent runs and machine load | fix | medium | S | 1 | bug-095, bug-167 |
+| `task-147` | Detect created files and commits in the REQ-SEC-05 no-persistence check | fix | medium | S | 1 | bug-036 |
+| `task-148` | Correct the stale workflow comments, the `WORKFLOW.md` diagrams and the `kind` requirement on the immutable minors | fix | medium | S | 1 | bug-169, bug-170, bug-175 |
+| `task-149` | Defining a role in DNA makes it usable at once, and a duplicate role is refused with P5.4.1's message | feature | medium | S | 1 | — |
+| `task-150` | Declare a task `kind` and the stop-the-line threshold | feature | medium | S | 1 | — |
+| `task-151` | Check that every backticked name in specs, ADRs and requirements resolves at HEAD | feature | medium | M | 1 | — |
+| `task-152` | Stop `cloneTempRepo` leaking temp directories and give cloned fixtures `gc.auto=0` | fix | low | S | 1 | bug-064, bug-065 |
+| `task-153` | Reconcile REQ-STATE-08, the P1.13 scenario and `memory.yaml`'s annotations with `spec-001`, and ship the commented per-type example | fix | low | S | 1 | bug-052, bug-053 |
+| `task-154` | Give the latency budgets one statistical shape and a guard that says what it enforces | fix | low | S | 1 | bug-012, bug-013, bug-014 |
+| `task-155` | Assert that the lockfile's root `engines` equals `package.json`'s and that the floor equals the closure maximum | fix | low | S | 1 | bug-046, bug-047 |
+| `task-156` | State what `--format console` prints today, until P5.1.4 gives it a human rendering | fix | low | S | 1 | bug-152 |
+| `task-157` | Add glama.json for the Glama directory listing | feature | low | S | 1 | — |
+| `task-158` | Reconcile adr-001 and adr-010 with the Node 22 floor | fix | low | S | 1 | bug-054, bug-069 |
+| `task-159` | Remove the retired `conventions` section from requirements, BDD steps and the v0.1 backlog JSON | fix | low | S | 1 | bug-105, bug-106, bug-107 |
+| `task-160` | Add the OpenSSF Scorecard workflow with private results | feature | low | S | 1 | — |
+| `task-161` | Revise `command-baseline`: which verbs read HEAD, the filesystem-effect exception, the workflow-read exception, and its audience | feature | high | S | 1 | — |
+| `task-162` | Fire the `supersedes:` trigger on the superseding element's approval | feature | medium | M | 1 | — |
+| `task-163` | Implement the `{date}` and `{author}` id tokens and edit frontmatter through the shared setter | fix | low | M | 1 | bug-033, bug-157, bug-158 |
+| `task-164` | File a new release under the folder its siblings use | fix | low | S | 1 | bug-163 |
+| `task-165` | Put the bootstrap commands on the command surface: `mcp` in the specs, bootstrap exempt from REQ-SYS-05 | fix | low | S | 1 | bug-028 |
+| `task-166` | Settle the `Reason:` block's grammar: shape-rule terminator, C0 refusal and the reserved `WingFoil-Version` key | feature | high | S | 1 | — |
+| `task-167` | Build the governance check over pushed wf() commits | feature | high | M | 1 | — |
+| `task-168` | Accept a declared not-applicable value for required fields, and an explicit empty list | feature | medium | S | 1 | bug-147 |
+| `task-169` | Make `directive assign` refuse the whole-file rewrite unless `--force`, and give successful operations a stderr warning channel | feature | medium | M | 1 | — |
+| `task-170` | Give a `service`'s set-up release a field name of its own | fix | low | S | 1 | bug-166 |
+| `task-171` | Make the Memory scan primitives fail closed on archived elements and tolerant of unreadable files | fix | high | M | 2 | bug-031, bug-164 |
+| `task-172` | Confine the config writers (`dna set`, `directive create`, `directive assign`, `init`) | fix | high | S | 2 | bug-121 |
+| `task-173` | Add the whole-project `typecheck.clean` gate and a control-character gate, and run them in CI and before release | feature | high | S | 2 | bug-073 |
+| `task-174` | Settle the MCP Prompts contract and the server's pre-flight, and answer `tools/list` with an empty list | fix | high | M | 2 | bug-035, bug-151 |
+| `task-175` | Declare phase evidence: `produces` ownership, selections, `awaits`, collections and the Layer-3 bindings file | feature | high | M | 2 | — |
+| `task-176` | Complete the `spec-012` context builder: DNA selection, relevance-filtered Memory, the canonical §7 payload and its validation, all pinned to `stateRef` | feature | high | L | 2 | — |
+| `task-177` | Adapter manifests load and validate from `.wingfoil/agents/{built-in,custom}/`, and the `agent` module is registered | feature | high | M | 2 | — |
+| `task-178` | Add the git-conventions directive with the id-allocation hand rule and the AI attribution policy | feature | high | M | 2 | — |
+| `task-179` | Give missing-operand and unknown-command errors the one shape `spec-005`/`spec-008` declare | fix | medium | S | 2 | bug-104, bug-168 |
+| `task-180` | Add `memory park`, a declared `returns` edge and optional per-state WIP limits | feature | medium | M | 2 | — |
+| `task-181` | Name the attempted move, not the verb's canonical edge, in illegal-transition errors | fix | medium | S | 2 | bug-165 |
+| `task-182` | Build secret-shaped fixtures at runtime, gate `test/` with the scanner, and narrow the scan's claim | fix | medium | S | 2 | bug-055 |
+| `task-183` | Gate the four versioned config files on a `version:` bump in the pending change | fix | medium | S | 2 | bug-143 |
+| `task-184` | Bring the test guard prose that overclaims in line with what it asserts (T1 instances) | fix | medium | S | 2 | bug-045, bug-096 |
+| `task-185` | Accept and validate the executor attributes `mode` / `distinct_from` and the phase `cadence` | feature | medium | S | 2 | — |
+| `task-186` | Revisit the personas: Morgan primary, Casey through read-only views, a maintainer persona | feature | medium | S | 2 | — |
+| `task-187` | Add enumeration parity tests for commands, Memory types, exit codes and MCP surfaces | feature | medium | M | 2 | — |
+| `task-188` | Correct `spec-011` (bindings by id) and every stale "built-in templates not yet implemented" text | fix | low | S | 2 | bug-040 |
+| `task-189` | Cover or remove the untested paths of `src/core/index.ts` | fix | low | S | 2 | bug-161 |
+| `task-190` | Run the dependency and lockfile check on a schedule in GitHub Actions (provisional cadence trigger) | feature | low | S | 2 | — |
+| `task-191` | Add the absence-claim falsifiability clause to claim-evidence and reword the determinism directive to the I/P/O split | feature | medium | S | 2 | — |
+| `task-192` | Stamp every WingFoil commit with `WingFoil-Version: <semver> (<sha>)` and pin `git commit --cleanup` | feature | high | M | 2 | bug-051 |
+| `task-193` | Keep `dna.yaml`'s comments when `dna set`/`dna add` cannot edit in place, or say they were lost | fix | medium | M | 2 | bug-019, bug-126 |
+| `task-194` | Check workflows against `memory.yaml`, `dna.yaml` and the state machines at `HEAD` | feature | high | M | 3 | bug-150 |
+| `task-195` | The `{role}-session` MCP Prompt accepts `element` and `state` and returns the `spec-012` §7 payload at that commit | feature | high | M | 3 | — |
+| `task-196` | `wingfoil init` installs the built-in adapters as protected built-in assets | feature | medium | S | 3 | — |
+| `task-197` | Write the filing-type rule and the standing brief's rules into the traceability directive | feature | medium | S | 3 | — |
+| `task-198` | Deduce workflow instances, phase evidence and the frontier from Memory at `HEAD` | feature | high | L | 3 | — |
+| `task-199` | Align `.wingfoil/workflows/custom/` with the v0.3 schema and commands, bind every token, and pin zero load errors | feature | high | L | 3 | — |
+| `task-200` | A fake agent and its custom adapter let every `agent execute` path run under Jest and CI with no real agent and no terminal | feature | high | S | 3 | — |
+| `task-201` | Add the claim re-run and re-review items to code-review and the task template | feature | medium | S | 3 | — |
+| `task-202` | Deduce `iterate_over` over Memory types and collections, live queries, optional and archived phases | feature | high | M | 3 | — |
+| `task-203` | Read the instance history walk: step linkage, created elements, self-creating workflows and re-entry after reject or park | feature | high | M | 3 | — |
+| `task-204` | Reshape `workflow list` and add `workflow show`, both answering from `HEAD` | feature | high | M | 3 | — |
+| `task-205` | Rewrite `dev-loop.yaml` as v1.5: `red` by `qa`, executor independence, the reject bug-sync, parking and the main-sync on resume | feature | high | M | 3 | — |
+| `task-206` | `agent execute` records each run as one JSON Lines line under `paths.runs`, commits it as `agent: record <run-id>`, and reads it back strictly | feature | high | M | 3 | — |
+| `task-207` | Drive e2e-smoke through a fresh-project use scenario with exact exit codes and a report | fix | high | M | 3 | bug-132, bug-133, bug-134 |
+| `task-208` | Enforce the governance check in CI, with hooks, branch protection and the advisory lints | feature | high | M | 3 | — |
+| `task-209` | Declare in `submit`'s commit what content it carries, and make the templates tell the truth about `submit` | feature | medium | S | 3 | bug-146 |
+| `task-210` | Add `--dry-run` to every mutating verb through the commit primitive | feature | medium | M | 3 | — |
+| `task-211` | Add `workflow create` and `workflow remove`, with the REQ-SEC-07 referrer check | feature | medium | M | 3 | — |
+| `task-212` | Add the `change-proposal` Memory type and the startable `vision-change` workflow | feature | medium | M | 3 | — |
+| `task-213` | Write retrospective notes during the release: templates and retrospective workflow | feature | medium | S | 3 | — |
+| `task-214` | Add the community health files, shaped for ingestion | feature | medium | S | 3 | — |
+| `task-215` | A `directives list --role` sweep over every DNA role fails on any resolution warning (dl-050 option 1) | feature | low | S | 3 | — |
+| `task-216` | Add `workflow next`, naming the next step's verb, role, element, directives and bindings | feature | high | M | 3 | — |
+| `task-217` | Add `workflow start` and `workflow end`, recording each instance as a `plan` element | feature | high | M | 3 | — |
+| `task-218` | `agent execute --element` resolves role, agent and adapter, assembles and checks the context, and refuses every bad case before anything is spawned | feature | high | M | 3 | — |
+| `task-219` | Define the release candidate: staging rehearsal as a phase, re-cut re-entry, no-identity suite before the tag | feature | high | S | 3 | — |
+| `task-220` | `wingfoil agent show <run-id>` prints one recorded run and the commit that added it | feature | medium | S | 3 | — |
+| `task-221` | Declare the v0.3 dev-loop gates in one revision of dev-loop.yaml | feature | medium | S | 3 | — |
+| `task-222` | Declare the release-health catalogue v2, its report schema and the release-health workflow | feature | medium | M | 3 | — |
+| `task-223` | Declare per type which branches may receive its transitions, and refuse elsewhere | feature | low | M | 3 | — |
+| `task-224` | Add README badges and a reproducible terminal demo that drives an example | feature | low | S | 3 | — |
+| `task-225` | Add `workflow status` with pending approvals, role routing, fallback and "human needed" lines | feature | high | M | 3 | — |
+| `task-226` | Add `workflow finalize`, which records a checkpoint or an uncarried approval as a phase-record commit | feature | high | M | 3 | — |
+| `task-227` | Link an added element to its workflow step with `memory add --workflow <ref> [--step <key>]` | feature | high | S | 3 | — |
+| `task-228` | `agent execute` launches the agent, forwards the right signals, records the run and reports it on stderr only | feature | high | M | 3 | — |
+| `task-229` | Create a GitHub Release once npm has the version, and sweep service verifies before publishing | feature | high | M | 3 | — |
+| `task-230` | Add waves, the governance re-sweep and the growth threshold to the release process | feature | medium | M | 3 | — |
+| `task-231` | Measure the git-history, process-conformance and external metrics | feature | medium | M | 3 | — |
+| `task-232` | Measure the build, test, coverage, example, latency and install metrics | feature | medium | M | 3 | — |
+| `task-233` | Measure the static and Memory metrics, including the fix share | feature | medium | M | 3 | — |
+| `task-234` | Publish a documentation site with the API reference and an llms.txt index | feature | low | M | 3 | — |
+| `task-235` | `agent execute --next`, `--workflow <ref>` and `--step <key>` take workflow, phase, element and role from the workflow's frontier | feature | high | M | 3 | — |
+| `task-236` | Ship and verify by hand the built-in `claude-code` adapter, and point this repository's agent at it | feature | high | M | 3 | — |
+| `task-237` | Ship and verify by hand the built-in `codex-cli` adapter | feature | high | M | 3 | — |
+| `task-238` | Publish to the MCP Registry from GitHub Actions, bound every publish job in time, and fix the publish runbook | fix | high | M | 3 | bug-060, bug-173, bug-174 |
+| `task-239` | Serve `wingfoil://workflows/-/next` and `wingfoil://workflows/-/status` on the production MCP server | feature | medium | S | 3 | — |
+| `task-240` | `wingfoil agent list --past/--waiting` lists recorded runs and the frontier steps an agent role can take, from `HEAD` | feature | medium | M | 3 | — |
+| `task-241` | Compare runs, write proposals and backfill the v0.1 and v0.2 baselines | feature | medium | M | 3 | — |
+| `task-242` | Verify Journey 4 and the workflow success criteria end to end on a fresh project and on this repository | feature | medium | S | 3 | — |
+| `task-243` | The `e2e-smoke` gate drives `agent execute` through the fake adapter in a fresh `init` project from the packed tarball | feature | medium | S | 3 | — |
+| `task-244` | Publish each release's test results and coverage | feature | medium | M | 3 | — |
+| `task-245` | Correct `X_cli-cmds.md`'s stale claims, unify positional notation and add every v0.3 command row | fix | medium | M | 3 | bug-099, bug-100 |
+| `task-246` | Write the comparison page and the dogfooding case study | feature | low | M | 3 | — |
 
 ## Handoff
 
