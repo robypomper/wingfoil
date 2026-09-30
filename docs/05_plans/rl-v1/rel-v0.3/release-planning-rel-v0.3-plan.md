@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "2.0"
+version: "2.1"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -295,6 +295,11 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
 7. **commit-backlog** (tech-lead, ⛔). `memory.approve` every task `[pending → backlog]`; `minor-v0.3`
    `[planning → in-development]`. The branch merges into `main` with `--no-ff`; pushing is the
    approver's call.
+   **Done 2026-09-30** on the approver's instruction, push included: 121 `memory approve`
+   `[pending → backlog]` (one commit each, `task-126` … `task-246`); `minor-v0.3`
+   `[planning → in-development]` by hand (a `waiting` edge with no verb). Still open outside this plan:
+   `service-ingest-rel-v0.3-listings-plan`, until `svc-012` is approved. Next phase: `dev-loop`,
+   starting with wave 0 (`task-126` … `task-129`).
 
 ## Observations
 
