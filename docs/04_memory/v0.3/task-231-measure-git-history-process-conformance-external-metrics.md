@@ -2,7 +2,7 @@
 id: "task-231-measure-git-history-process-conformance-external-metrics"
 type: task
 title: "Measure the git-history, process-conformance and external metrics"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "medium"
