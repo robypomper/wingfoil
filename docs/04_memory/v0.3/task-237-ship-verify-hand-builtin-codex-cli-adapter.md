@@ -2,7 +2,7 @@
 id: "task-237-ship-verify-hand-builtin-codex-cli-adapter"
 type: task
 title: "Ship and verify by hand the built-in `codex-cli` adapter"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "high"
