@@ -81,6 +81,25 @@ which records a phase with no Memory or file evidence (R11); the read-only MCP R
 `next` and `status` ship in v0.3 (R12); git-hook notifications move to v0.4 (R13); `dl-104` is folded
 into the `spec-003` revision (R14).
 
+**build-backlog (2026-09-30, `release-planning-rel-v0.3-plan` step 6): 121 tasks, `task-126` … `task-246`**,
+all `pending` under `docs/04_memory/v0.3/`, each with `kind:` (`dl-133` Q1 (b)).
+- By wave: 0 → 4, 1 → 41, 2 → 23, 3 → 53. Wave 0 is `task-126` (the closed `wf()`
+  grammar, `dl-079`), `task-127` (`memory amend`, `dl-108`), `task-128` (id allocation, `dl-101`, `bug-087`,
+  `bug-162`) and `task-129` (one operand per command, `bug-171`, `bug-131`).
+- By kind: 81 feature, 40 fix. By area: core 47, process 35, workflow 21,
+  agent 18. By size: 57 S, 61 M, 3 L.
+- Coverage: the 86 v0.3 bugs are each named by exactly one task and moved `[triaged → planned]`
+  with `release: "v0.3"`; the 63 v0.3 decision-logs each have at least one implementing task; the
+  six older decision-logs whose remainder is in v0.3 are stamped v0.3. Not scheduled on purpose:
+  `dl-009` (v0.4), `dl-010` Action 2 (v1.0), `dl-100` §5 (dropped, R19), `dl-103` §2 (iii) (v0.4 or
+  v1.0, R19), `smithery.yaml`.
+- Budget (`dl-096`). By task count: 121 ÷ 6.5 per active day ≈ **18.6 active days**, close to the
+  sequencer's proxy of ≈ 20. By task size (S 0.25, M 0.75, L 2 active days): **≈ 66 active days**.
+  The two figures diverge by more than three times, and the approver kept the whole scope (R20,
+  2026-09-30) knowing it: the count is the planning rate `dl-096` ratified, the size estimate is the
+  signal `dl-100`'s capacity rule and `dl-133`'s stop-the-line are there to watch. The longest chain is
+  9 tasks (≈ 8 active days weighted by size).
+
 ### Implementation (dev-loop, per task)
 
 <!-- Recurring blockers across tasks, tech-specs revised mid-release, review rejections and why,
