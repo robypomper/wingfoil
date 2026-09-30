@@ -11,7 +11,8 @@
  *
  * The headline case is `bug-171`'s reproduction verbatim: two `pending` tasks, an approver identity, and
  * `memory approve <first> <second> --reason x`, which approved the first, ignored the second and
- * exited `0`.
+ * exited `0` — the scenario `P5.1.4-cli-ux.feature` states as "an operand beyond the one a command
+ * declares is refused".
  *
  * `spawnSync`, not `execFileSync` + `catch` (see `./dirty-target-refusal.integration.test.ts`): stderr
  * is read back even when the exit code is `0`. `dist/` is built once by `test/global-setup.cjs`.

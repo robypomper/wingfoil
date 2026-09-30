@@ -40,7 +40,7 @@ Every `wingfoil` invocation terminates with exactly one of three exit codes:
 |------|-------------------------|----------------------------------------------------------------------------------------------------------|
 | `0`  | Success                 | The command completed successfully; any requested Memory/DNA/Directives/Workflow mutation was applied. |
 | `1`  | User / logic error      | The invocation was well-formed but failed on business logic: element not found, illegal state transition, validation failure, git operation failure, missing/invalid credentials. |
-| `2`  | Usage / argument error  | The invocation itself is malformed: unknown command/pillar/verb, unknown flag, missing required argument, invalid flag value (e.g. `--format` not in `console\|json\|yaml`). |
+| `2`  | Usage / argument error  | The invocation itself is malformed: unknown command/pillar/verb, unknown flag, missing required argument, an operand beyond the one the command declares (`spec-008-cli-grammar` §1), invalid flag value (e.g. `--format` not in `console\|json\|yaml`). |
 
 Rules:
 
@@ -246,6 +246,14 @@ measured result is in `task-103`'s Execution Notes; `spec-008-cli-grammar` §5 c
 sentence, since its table is the grammar-side statement of the same contract.
 
 Edited in place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`.
+
+**Revision (2026-09-30) — §1's exit-`2` row names an operand beyond the one the command declares, per
+`task-129-refuse-operand-beyond-command-declares-exit-2-before` (`bug-171`, `bug-131`) and
+`dl-082-cli-parameter-shape`.** Every command takes at most one positional (`spec-008-cli-grammar`
+§1), and a surplus is now refused at exit `2` for every command. The row enumerates the malformed
+invocations, so the new one is named there rather than left to be read into "missing required
+argument", its opposite. No other row or rule changed. Edited in place without a supersede or a state
+change, per `dl-047-tech-specs-carry-no-version-field`.
 
 ## Process Notes
 

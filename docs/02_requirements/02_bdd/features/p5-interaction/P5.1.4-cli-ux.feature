@@ -15,6 +15,12 @@ Feature: P5.1.4 (US-0A-14) - CLI UX Improvements
     Then the CLI exits with code 2
     And the message includes "unknown command 'memroy'" and suggests "memory"
 
+  Scenario: Error - an operand beyond the one a command declares is refused
+    When I run "wingfoil memory approve task-001 task-002 --reason ok"
+    Then the CLI exits with code 2
+    And the message is "error: wingfoil memory approve takes one positional <id> (got 2 positionals)"
+    And no commit is written
+
   Scenario: Error - errors use a consistent format with an exit code
     When any command fails with a user error
     Then the message follows the pattern "error: <reason>"

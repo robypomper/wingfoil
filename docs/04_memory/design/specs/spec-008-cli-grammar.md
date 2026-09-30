@@ -46,6 +46,21 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
   closest-match suggestion when Levenshtein distance ≤ 2 (ground-truth BDD:
   `p5-interaction/P5.1.4-cli-ux.feature` — `wingfoil memroy add` → `"unknown command 'memroy'"` suggests
   `"memory"`, exit `2`).
+- `[args]` is **at most one positional**: the identity of the command's target
+  (`dl-082-cli-parameter-shape` — a positional identifies the target, an option carries an attribute).
+  An operand beyond the one a command declares — any operand at all, for a command that declares none
+  (`workflow list`, `directives list`, `memory add`) — is a malformed invocation: exit `2`, refused
+  before anything is read or written, with a message naming the command, what it takes, and how many
+  operands it got (`error: wingfoil memory approve takes one positional <id> (got 2 positionals)`,
+  `error: wingfoil workflow list takes no positional (got 1 positional)`). The rule holds for every
+  command, present and future, and is enforced once, where commands are registered. The DNA path
+  verbs keep one ordering of their own: a malformed `<path>` is reported before the surplus (§9), and
+  their surplus message adds the migration hint `the value travels in --value`.
+- **One id per call.** The Memory transition verbs (`memory submit`, `approve`, `reject`, `deprecate`)
+  and `memory history` act on exactly one document per invocation; transitioning several documents
+  takes one invocation, and one commit, each. The multi-id commit subject `wf({type}): {verb} {id1},
+  {id2}, ...` is **historical only**: it records batch operations written by hand before the verbs
+  shipped, and no command produces it.
 
 ### 2. Global flags
 
@@ -583,3 +598,17 @@ gate.
 `package.json`. One word in §Context changes; the Process Notes' cross-check sentence is left as the
 record of what was checked then. Edited in place without a supersede or a state change, per the same
 `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-30) — §1 states that `[args]` is at most one positional, that a surplus operand is
+exit `2`, and that the transition verbs take one id per call, per `dl-082-cli-parameter-shape`
+(`ready`) and `task-129-refuse-operand-beyond-command-declares-exit-2-before` (`bug-171`,
+`bug-131`).** `dl-082` gave each command at most one positional, but only `dna set` refused a second;
+every other command acted on the first operand and dropped the rest at exit `0`, and a command
+declaring none accepted any. On this repository `memory approve <bug-169> <bug-170> --reason …`
+approved the first, left the second `open`, and exited `0`. The refusal is now one rule at command
+registration, and §1 records it, with the two message shapes. The DNA path verbs keep their own
+ordering (§9's malformed-path rule first, `P2.1-dna-set.feature`) and their migration wording
+unchanged. The multi-id subject form is marked historical because the choice `bug-171` put — refuse
+or batch — was taken as refuse; the commit grammar itself is `dl-079`'s. No other section changed.
+Edited in place without a supersede or a state change, per the same `spec-001` precedent the
+2026-09-17 revision cites.
