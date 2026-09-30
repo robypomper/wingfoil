@@ -806,4 +806,11 @@ describe('isMachineEdge — every edge of the machine, whichever verb or action 
   ])('%s → %s is not an edge: %s', (from, to) => {
     expect(isMachineEdge(bug, from, to)).toBe(false);
   });
+  it('a machine that declares no `gates` has only its forward and `deprecated` edges', () => {
+    const plain = { sequence: ['draft', 'active', 'done'] };
+
+    expect(isMachineEdge(plain, 'draft', 'active')).toBe(true);
+    expect(isMachineEdge(plain, 'active', 'deprecated')).toBe(true);
+    expect(isMachineEdge(plain, 'active', 'draft')).toBe(false);
+  });
 });

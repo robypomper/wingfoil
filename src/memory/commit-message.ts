@@ -6,7 +6,7 @@
  * followed by a ` [from → to]` bracket and an `Approver:` / `Reason:` body for the verbs whose
  * evidence rules require them (P1.7/P1.8, REQ-SEC-04). Those are exactly the shapes
  * `./audit.ts` reads back for `wingfoil memory history` (P1.10): `parseMemoryOperation` on the subject,
- * `parseBracketStates` on the bracket, `parseApprovalMetadata`/`parseCommitReason` on the body. Building the
+ * `parseBracketHops` on the bracket, `parseApprovalMetadata`/`parseCommitReason` on the body. Building the
  * message in one place is what keeps writer and reader from drifting apart.
  *
  * Since `task-072-fix-reason-trailer-contract` this module also owns the **reason grammar** —

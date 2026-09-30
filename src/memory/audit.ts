@@ -241,7 +241,9 @@ const WF_SUBJECT_RE = /^wf\(([^)]*)\):\s*(\S+)/;
 export function parseMemoryOperation(subject: string): MemoryOperation | null {
   const match = WF_SUBJECT_RE.exec(subject);
   if (!match) return null;
-  const [, scope = '', verb = ''] = match;
+  // Both groups always participate in a match of WF_SUBJECT_RE.
+  const scope = match[1]!;
+  const verb = match[2]!;
   if (CONFIGURATION_SCOPES.includes(scope)) return null;
   return (MEMORY_OPERATIONS as readonly string[]).includes(verb) ? (verb as MemoryOperation) : null;
 }
@@ -425,17 +427,24 @@ const BRACKET_ARROW_RE = /\s*(?:→|->)\s*/;
 // unparseable.
 const WF_SUBJECT_WITH_BRACKET_RE = /^wf\([^)]*\):.*[[\]]/;
 
+/** One hop of a transition bracket: `[a → b]` has one, the chain `[a → b → c]` has two. */
+interface BracketHop {
+  readonly from: string;
+  readonly to: string;
+}
+
 /**
- * The states a subject's trailing bracket names, in order — two for a single hop (`[a → b]`), more for
- * a chain (`[a → b → c]`, `spec-008` §2: `sync` may chain) — or `null` when there is no trailing
- * bracket, or it is not a transition: fewer than two states, or an empty one anywhere.
+ * The hops a subject's trailing bracket names, in order — one for `[a → b]`, more for a chain
+ * (`[a → b → c]`, `spec-008` §2: `sync` may chain) — or `null` when there is no trailing bracket, or
+ * it is not a transition: fewer than two states, or an empty one anywhere. Never an empty array.
  */
-function parseBracketStates(subject: string): string[] | null {
+function parseBracketHops(subject: string): BracketHop[] | null {
   const match = TRAILING_BRACKET_RE.exec(subject);
   if (!match) return null;
-  const states = (match[1] ?? '').split(BRACKET_ARROW_RE).map((state) => state.trim());
+  // The group always participates in a match of TRAILING_BRACKET_RE.
+  const states = match[1]!.split(BRACKET_ARROW_RE).map((state) => state.trim());
   if (states.length < 2 || states.some((state) => state === '')) return null;
-  return states;
+  return states.slice(1).map((to, index) => ({ from: states[index]!, to }));
 }
 
 /**
@@ -474,16 +483,17 @@ export function verifyTransitionConsistency(
     const scope = WF_SUBJECT_RE.exec(subject)?.[1];
     if (scope !== undefined && CONFIGURATION_SCOPES.includes(scope)) continue;
 
-    const states = parseBracketStates(subject);
-    if (!states) {
+    const hops = parseBracketHops(subject);
+    if (!hops) {
       if (WF_SUBJECT_WITH_BRACKET_RE.test(subject)) {
         findings.push({ kind: 'unparseable', sha, subject });
       }
       continue;
     }
 
-    const declaredFrom = states[0] ?? '';
-    const declaredTo = states[states.length - 1] ?? '';
+    // parseBracketHops never returns an empty array.
+    const declaredFrom = hops[0]!.from;
+    const declaredTo = hops[hops.length - 1]!.to;
     if (declaredFrom !== transition.fromState || declaredTo !== transition.toState) {
       findings.push({
         kind: 'mismatch',
@@ -494,12 +504,10 @@ export function verifyTransitionConsistency(
       });
     }
 
-    if (machine && states.length > 2) {
-      for (let i = 1; i < states.length; i++) {
-        const from = states[i - 1] ?? '';
-        const to = states[i] ?? '';
-        if (!isMachineEdge(machine, from, to)) {
-          findings.push({ kind: 'illegal-hop', sha, subject, hop: { from, to } });
+    if (machine && hops.length > 1) {
+      for (const hop of hops) {
+        if (!isMachineEdge(machine, hop.from, hop.to)) {
+          findings.push({ kind: 'illegal-hop', sha, subject, hop: { from: hop.from, to: hop.to } });
         }
       }
     }
