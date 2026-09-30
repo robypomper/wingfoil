@@ -2,7 +2,7 @@
 id: "task-126-declare-closed-wf-operation-grammar-bracket-set-state"
 type: task
 title: "Declare the closed `wf()` operation grammar with its bracket and `set_state` rules, and make `memory history` read every declared verb"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "high"
