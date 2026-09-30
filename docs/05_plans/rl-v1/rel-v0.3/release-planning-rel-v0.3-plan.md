@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.8"
+version: "1.9"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -656,6 +656,59 @@ four `dl-022` checks (internal, cross-spec, spec ↔ BDD/vision, traceability):
 - **Conformance at `997e8998`** (spec-017 §12): the 23 workflows load under the new rules with 1 error
   (`retrospective.explore`'s prose `produces:`) and 103 warnings; 28 phases complete only through
   `workflow finalize`. The workflow-alignment task (idea 7) owns the error.
+
+## Appendix D — the 40 older ready decision-logs with no release (build-backlog sweep)
+
+Prepared 2026-09-30 by a read-only survey agent against the code at `53f72538`.
+- **Delivered, no task: 32.** Stamped retroactively on the approver's request (`482c8e0f`): v0.1 for
+  7 and v0.2 for 25, each with the release in which its decision became fully true (table below).
+- **Partly delivered: 5**, whose remainder joins a v0.3 task: `dl-010` (dependency check → v1.0 with
+  P4.12; nothing in v0.3 beyond an optional catalogue line), `dl-025` (`plan-next-release-line` reuses
+  `align-agent-docs`), `dl-030` (`workflow remove` refuses a still-included workflow), `dl-035`
+  (the sync-with-main rule, into the `dl-119` directive and a dev-loop action), `dl-057` (items (b)
+  and (d): publish-job timeouts and the annotated-tag check).
+- **Not delivered: 3.** `dl-062` (a v0.3 task, with `bug-019`), `dl-075` (into the `dl-120`
+  documentation-directive task), `dl-009` (built-in workflow templates, v0.4 with P4.18–P4.20).
+- The approver accepted the proposed tasks and absorptions on 2026-09-30. These partly and
+  not-delivered decision-logs receive `release` at build-backlog with the rest of the scope, except
+  `dl-009` (v0.4) and `dl-010` (v1.0), which are stamped when those releases plan.
+
+**Retroactive stamps and their evidence:**
+
+| DL | release | evidence | confidence |
+|---|---|---|---|
+| dl-001 typescript-over-python | **v0.2** | TypeScript arrived in v0.1 with `task-001-nodejs-typescript-scaffold` (v0.1). The DL carries a Correction (2026-09-21, `efbc0b7f`, anc v0.2) that sets the runtime clause to **Node.js 22.12+**. That clause became true only with `028766c0` `task-074-fix-engines-node-floor` (task v0.2, anc v0.2). `5b16ab61:package.json` still has `"node": ">=18.0.0"`. Rule 4 (release where fully true) gives v0.2. Partial in v0.1 | low |
+| dl-002 git-branching-trunk-based | **v0.1** | Per-task branches merged straight to `main` were already in use in v0.1: 33 `task/…` merge commits are ancestors of `5b16ab61`, for example the task-017 merge `9a3792a`. Its later refinements (`650f79b4`, `4d21fb63`, 2026-07-08, anc v0.2) are **dl-014's** delivery, not dl-002's | medium |
+| dl-003 no-cloud-backend | **v0.1** | `task-003-git-backed-sot` and `task-018-implement-git-backed-storage` (both v0.1). `src/storage` is git-backed from v0.1 | high |
+| dl-004 keyword-search-only | **v0.1** | `task-023-implement-keyword-search` (v0.1). `src/memory/query.ts` exists at `5b16ab61` | high |
+| dl-005 manual-approval-gates | **v0.2** | The tool first enforced it in v0.2: `f338367a` `task-040-role-based-approval-authority` (`requireApprovalAuthority`, task v0.2, 2026-07-09) and the `memory approve` verb (`task-046`, v0.2). v0.1 had no approve verb, so approvals were manual but by hand only | low |
+| dl-006 no-native-ide-plugin | **v0.1** | Rule 3 (an "absence" decision). v0.1 shipped the surfaces that replace a plugin: CLI (`task-006`) and MCP Resources (`task-030-implement-mcp-resources`, v0.1). `src/mcp` exists at `5b16ab61` | medium |
+| dl-007 single-project-scope | **v0.1** | `e552e7fb` `task-029` "already-initialized guard" (anc v0.1). The same refusal string is in `5b16ab61:src/core/init.ts`. The storage-layer half is `bug-088` (v0.3) | high |
+| dl-008 cli-first-no-gui | **v0.1** | Rule 3 (an "absence" decision). First embodied by the v0.1 CLI (`task-006`, `task-026`/`task-025`, `task-032` README quickstart). There is no GUI in any release | medium |
+| dl-011 git-derived-audit-trail | **v0.2** | The Decision names the `wingfoil memory history` command. That command is `task-049` "Implement `wingfoil memory history`" (task v0.2). The git-derived layer (`src/memory/history.ts`, `git-log.ts`) came earlier, in v0.1 via `task-019-implement-versioning-audit-trail`. Rule 4 gives v0.2; partial in v0.1 | medium |
+| dl-012 decision-log-state-machine | **v0.1** | The DL machine was first written to `memory.yaml` in `3431dbe9` "Memory schema, state machines & templates (P1.13)" (2026-07-03, anc v0.1). Its reduction in `eef3a671` (anc v0.2) is **dl-017's** delivery, which superseded dl-012's delivery states | medium |
+| dl-027 req-sec-04-deprecate-reason-scope | **v0.2** | `e3f816bd` "implement dl-027 — REQ-SEC-04 covers the approval gates only" (anc v0.2). Also `d3f1e416` (task-048 `depends_on`). Tasks task-041/045–048 (v0.2) | high |
+| dl-028 archived-states-excluded-from-context | **v0.2** | `cec37bd7` "implement dl-028" (anc v0.2). `0afc2c08` `task-035` `isArchivedStatus`, and `task-069-fix-archived-excluded-from-agent-context` (`2e338f14`, `5752eeed`). All are v0.2 | high |
+| dl-029 role-with-no-directive-assignments | **v0.2** | `ca5d1e40` "implement dl-029" (P3.6) and `73df7be9` `task-037` "dl-029 no-assignments warning" (task v0.2, anc v0.2) | high |
+| dl-031 req-sec-10-integrity-depth | **v0.2** | `9d74d803` "implement dl-031 — REQ-SEC-10 is a schema check" (anc v0.2). Consumed by `task-044-builtin-template-integrity` (v0.2) | high |
+| dl-032 illegal-transition-message-contract | **v0.2** | `214c3ace` `task-045-memory-submit` "dl-032 transition contract" (task v0.2, anc v0.2). It also introduced `NO_TARGET`. task-046/047 (v0.2) followed | high |
+| dl-034 lint-gate-in-dev-loop | **v0.2** | `61839182` `task-066-fix-eslint-baseline-and-lint-gate` adds `lint.clean` to dev-loop `refactor` (task v0.2, anc v0.2) | high |
+| dl-036 secret-scan-warn-severity | **v0.2** | `c936bdf1` "implement dl-036" (anc v0.2). Code by `task-061-publish-secrets` (`6a3b02f8` introduced "promoted warn → block", task v0.2) | high |
+| dl-037 builtin-vs-custom-directive-precedence | **v0.2** | `66fb960c` "implement dl-037" (spec-012 §5). Code by `task-055-auto-load-directives-by-role` (`d23f8e78` introduced `selectDirectivesById`, task v0.2) | high |
+| dl-041 spec-006-module-grouping | **v0.2** | Merge `f4b36131` "docs/dl-041-implement" (anc v0.2). Registration rows applied by `task-051`/`task-052` (v0.2). `task-111` (v0.2.2) only mentions it | high |
+| dl-042 directives-list-output-contract | **v0.2** | `abea39e1` `task-053-directives-list` (created `src/core/directives-list.ts`) and `task-055`'s warnings channel (`d23f8e78`). Both v0.2 | high |
+| dl-045 absorbed-bug-back-reference | **v0.2** | `3d256c29` "implement dl-045 — task `bug:` becomes a list" (template, dev-loop.yaml) and `216eb53e` "fix(core): implement dl-045" (`asLinkIds`). Both anc v0.2 | high |
+| dl-051 dangling-directive-binding-warning | **v0.2** | `920f9cd0` and `c40e4621` "implement dl-051" (anc v0.2). Warnings code landed with `task-055`/`task-056` (v0.2) | high |
+| dl-052 verdaccio-started-by-staging-script | **v0.2** | `task-079-spec-015-staging-and-node-floor-corrections` (`b92959bd`, v0.2). The script behaviour came with `5236a2e0` `task-060` and `52616070` `task-078` (v0.2) | high |
+| dl-053 illegal-transition-target | **v0.2** | `af91cf84` "implement dl-053" (REQ-STATE-01, spec-004) and `acbd724d` `task-046` "dl-053 <to> is the verb's own next legal edge". Both anc v0.2. Caveat: `bug-165-illegal-approve-names-a-wrong-target` is `triaged`, `release: v0.3`, which is a conformance defect on this contract | medium |
+| dl-054 submit-commit-subject-bracket | **v0.2** | `995e38f0` "implement dl-054" (spec-004). Code by `task-046` (`339420aa`) and `task-047`. All v0.2. `task-109` (v0.2.2, ASCII-arrow brackets) is adjacent, not this decision | high |
+| dl-056 first-real-publishing-run | **v0.2** | `task-077-first-real-staging-run` and `task-075-fix-pack-ignore-scripts` (`80331774`), both task v0.2. The first real publish, `wingfoil@0.2.1`, is the v0.2 release | high |
+| dl-063 p1-8-reject-message-and-authority | **v0.2** | `7eaafc97` "implement dl-063" (anc v0.2). The pinned string `user not authorized to approve type 'task'` was introduced by `31e716cd` `task-040` (v0.2) | high |
+| dl-067 reason-trailer-contract | **v0.2** | `task-072-fix-reason-trailer-contract` (task v0.2; approve `9f4ec7ff`, anc v0.2). Extended by task-086/088 (v0.2). `ef97b938` (v0.2.2) only realigned CLAUDE.md | high |
+| dl-080 which-baseline-each-command-reads | **v0.2** | `617d64a8` `task-094` (the command-baseline directive) and `task-096` (the directive layer), both v0.2. bug-078/081/082 are `closed`, `release: v0.2` | high |
+| dl-081 dna-mutation-surface-shape | **v0.2** | `a1615a94` `task-093` (`uniquelyNamed`, task v0.2) and `task-100` (v0.2). `bug-092` (v0.2.2) was closed won't-fix (the "set and update both stay" ruling), so v0.2.2 added nothing to the delivery | high |
+| dl-082 cli-parameter-shape | **v0.2** | `9a13a3f3` `task-093` "the DNA field path becomes a positional (dl-082)", plus `task-098` and `task-100`. All v0.2. `0de025f5` `task-110` (v0.2.2) applies the grammar to a new flag, which is not part of the delivery | high |
+| dl-083 dotted-entry-names-in-paths | **v0.2** | `task-099-quoted-path-segments-for-dotted-entry-names` (`87afb505` introduced `quoteDnaSegment`, `0b5d761e`; task v0.2, anc v0.2) | high |
 
 ## Handoff
 
