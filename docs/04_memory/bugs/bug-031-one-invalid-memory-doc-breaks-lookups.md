@@ -2,10 +2,10 @@
 id: "bug-031-one-invalid-memory-doc-breaks-lookups"
 type: bug
 title: "One Memory document with unparseable frontmatter breaks search and by-id lookup repo-wide, and the error does not name the file"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.5"
 contributor: ""
 credit: ""

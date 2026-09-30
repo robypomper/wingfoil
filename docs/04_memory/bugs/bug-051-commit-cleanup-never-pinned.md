@@ -2,10 +2,10 @@
 id: "bug-051-commit-cleanup-never-pinned"
 type: bug
 title: "`commitPaths` never passes `--cleanup`, so the commit-body normal form spec-008 and CLAUDE.md §5.1 declare is only true under git's default config"
-status: triaged
+status: planned
 severity: "medium"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.7"
 contributor: ""
 credit: ""

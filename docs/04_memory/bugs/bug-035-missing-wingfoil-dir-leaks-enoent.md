@@ -2,10 +2,10 @@
 id: "bug-035-missing-wingfoil-dir-leaks-enoent"
 type: bug
 title: "In a git root with no `.wingfoil/`, `wingfoil mcp` starts anyway and every DNA read fails with a raw ENOENT carrying an absolute path"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P5.2.1"
 contributor: ""
 credit: ""

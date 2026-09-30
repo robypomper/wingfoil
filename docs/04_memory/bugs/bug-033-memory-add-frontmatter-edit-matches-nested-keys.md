@@ -2,10 +2,10 @@
 id: "bug-033-memory-add-frontmatter-edit-matches-nested-keys"
 type: bug
 title: "`memory add`'s private frontmatter setter edits indented (nested) keys and strips inline comments"
-status: triaged
+status: planned
 severity: "low"
 release-origin: "v0.2"
-release: ""
+release: "v0.3"
 feature: "P1.3"
 contributor: ""
 credit: ""
