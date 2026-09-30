@@ -2,7 +2,7 @@
 id: "task-169-make-directive-assign-refuse-whole-file-rewrite-unless"
 type: task
 title: "Make `directive assign` refuse the whole-file rewrite unless `--force`, and give successful operations a stderr warning channel"
-status: pending
+status: backlog
 release: "v0.3"
 kind: "feature"
 priority: "medium"
