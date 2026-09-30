@@ -1,6 +1,6 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-09-30
 **Status:** Approved
 
@@ -69,7 +69,7 @@ A budget is set by each release's own `release-planning`. Until a release has on
 | Release | Features | Budget (active days)                                             | Source                                                                         |
 |---------|----------|------------------------------------------------------------------|--------------------------------------------------------------------------------|
 | v0.2.2  | —        | **≈ 2.2** by task count; ≈ 4 by `dl-096`'s proxy; expect nearer 4 | v0.2.2 `build-backlog`: 14 tasks ÷ 6.5 per active day; see the note below       |
-| v0.3    | 23       | ≈ 20                                                             | proxy, 23 ÷ 14 × 12; replaced by v0.3's `release-planning`                      |
+| v0.3    | 23       | **≈ 18.6** by task count; ≈ 66 by task size                     | v0.3 `build-backlog` (2026-09-30): 121 tasks ÷ 6.5 per active day; see the note below |
 | v0.4    | 11       | ≈ 9                                                              | proxy, 11 ÷ 14 × 12                                                             |
 | v1.0    | 3        | ≈ 5                                                              | the plan's own estimate; the proportional figure is ≈ 3                        |
 
@@ -82,6 +82,10 @@ A budget is set by each release's own `release-planning`. Until a release has on
   (`50c64846`, `wf(task): add task-123-…`), so the backlog is now **15 tasks**
   (`ls docs/04_memory/v0.2.2/ | wc -l` → 15 at `c3df9df3`): 15 ÷ 6.5 ≈ **2.3 active days**. The
   budget recorded by `build-backlog` stays 14 tasks / 2.2 days; this is the update, not a rewrite.
+- **v0.3's budget (2026-09-30).** Its `build-backlog` created **121 tasks** (`task-126` … `task-246`), so
+  the count gives 121 ÷ 6.5 ≈ **18.6 active days**, near the ≈ 20 proxy it replaces. Weighted by task size
+  (S 0.25, M 0.75, L 2 active days) the same backlog is ≈ 66 active days. The approver kept the
+  whole scope; the gap is recorded so v0.3's retrospective can tell which figure the actuals follow.
 - Features per release: the `features:` list of `minor-v0.3.md`, `minor-v0.4.md`, `minor-v1.0.md`
   → 23, 11, 3 (after the scope change below; 26, 8, 3 before it).
 
