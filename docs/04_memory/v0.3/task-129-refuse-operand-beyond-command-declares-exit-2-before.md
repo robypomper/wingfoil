@@ -2,7 +2,7 @@
 id: "task-129-refuse-operand-beyond-command-declares-exit-2-before"
 type: task
 title: "Refuse every operand beyond the one a command declares, with exit 2 and before any write"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "fix"
 priority: "high"
