@@ -2,7 +2,7 @@
 id: spec-017-workflow-commands-and-state-deduction
 type: tech-spec
 title: "Workflow commands and state deduction"
-status: pending
+status: approved
 scope: "src/workflow — `wingfoil workflow start|end|next|status|finalize|list|show|create|remove`, the active-workflow context and the deduction of workflow state from Memory"
 supersedes: ""
 release: "v0.3"
