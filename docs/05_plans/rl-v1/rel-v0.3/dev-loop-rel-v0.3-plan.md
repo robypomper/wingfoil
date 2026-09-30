@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.0"
+version: "1.1"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -38,11 +38,18 @@ created. The plan is revised at each wave, when the next wave is opened.
   main working tree's `node_modules` still held 0.2.1 (`--version` → `0.2.1`) after the pin advanced;
   `npm ci` fixed it. Each task worktree runs its own `npm ci`.
 - Local toolchain: Node 22.21.0, npm 11.6.2 (`node -v`, `npm -v`).
-- `memory add` of the pinned build allocates wrong ids on this repository (`bug-087`, `bug-162`)
-  until `task-128` lands and the pin advances past it. Numbered elements (task, bug, decision-log,
-  adr, tech-spec, service) are added **by hand**, at the highest number on every ref + 1
-  (`dl-101` §1). Named ids (`plan`) are safe: this plan was added with the pinned build
-  (`f5b0dc2c`, checked: one commit, one file, the `{scope}` token resolved).
+- `memory add` of the pinned build allocates wrong ids on this repository (`bug-087`, `bug-162`).
+  Named ids (`plan`) are safe: this plan was added with the pinned build (`f5b0dc2c`, checked: one
+  commit, one file, the `{scope}` token resolved).
+
+**Which build runs the Memory operations (approver, 2026-09-30).** Task sessions and every later
+phase run the Memory verbs with the **code version**, not the pinned build: `npm run build`, then
+`node dist/cli.js <command>` from the worktree in use, so that a command whose bug has been fixed
+and merged into `main` is used as soon as it lands (e.g. `memory add` once `task-128` is merged).
+This is session practice: `dl-095` and the pin are unchanged, and `npx wingfoil` is still not used.
+Until `task-128` is on `main`, numbered elements (task, bug, decision-log, adr, tech-spec,
+service) are still added **by hand**, at the highest number on every ref + 1 (`dl-101` §1). Every
+command's real effect is checked (commit, diff, exit code).
 
 **Produces.** The 121 tasks `backlog → done`, their linked bugs `planned → … → closed` through
 `bug.sync_state` (§4), code and tests under `src/` and `test/` with coverage > 80% and not
@@ -65,11 +72,12 @@ Each task follows `dev-loop.yaml` v1.4, as detailed in `dev-loop-rel-v0.2-plan` 
 - **red / green / refactor** (developer): refactor's checks are coverage ≥ 80, `docs.api.*` and
   `lint.clean`, all hard-reject. `tsc --noEmit` is also run by hand (`dl-044`'s gate is declared by
   `task-173`).
-- **review** (reviewer): unit and BDD suites green, `wf(task): submit {id}` (plain subject, no
+- **review** (reviewer): unit and BDD suites green, `node dist/cli.js memory submit {id}` →
+  `wf(task): submit {id}` (plain subject, no
   bracket, `dl-054`, confirmed at planning R20), `bug.sync_state`. **The loop stops here** until the
   approver rules.
 - **done** (developer, on the approver's instruction only): `approve [in-review → approved]` with the
-  pinned build, `[approved → done]` by hand (`finalize`), both on the task branch; `git merge
+  code version (`node dist/cli.js memory approve`), `[approved → done]` by hand (`finalize`), both on the task branch; `git merge
   --no-ff` into `main`; worktree and branch removed; `bug.sync_state`.
 
 Every task runs in its own worktree. The main working tree is shared with other sessions, so no
