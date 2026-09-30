@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -76,6 +76,16 @@ shape of the scope and are cited by the steps below:
 - R9. A new decision-log amends `dl-089`, `dl-099` and `dl-100` for the fix-task tail measured at
   the end of v0.2 (proposal approved; options chosen at ratification).
 - R10. At the opening of the planning, every unresolved bug is reviewed for inclusion in v0.3.
+
+**Rulings received at identify-specs (2026-09-30).**
+- R11. v0.3 gains a ninth workflow command, `workflow finalize`, which records a phase's completion
+  with `dl-104`'s phase-record trailer where the phase has no Memory or file evidence; approver
+  authority is required on approval phases. Without it 25 phases could not be passed until v1.0.
+- R12. The read-only MCP Resources for workflow `next` and `status` ship in v0.3; the agent Resources
+  stay v0.4 (R5); URI unification stays with `dl-040` (v0.4).
+- R13. Git-hook notifications (the hook half of X1.1) move to v0.4; v0.3 notifies through the CLI
+  output (`235322f2`).
+- R14. `dl-104` is folded into the `spec-003` revision now and reviewed together with `spec-017`.
 
 ## Phases / Steps
 
@@ -271,6 +281,11 @@ their own plan under `docs/05_plans/rl-v1/rel-v0.3/`, as v0.2.2 did.
   (`a7d783aa`), against the rule that retirement writes `deprecated` and that `superseded` is reached
   only by a later element's `supersedes:`. History is not rewritten (`dl-035`); `dl-065`'s ratification
   says how the state is treated.
+
+- **Correction to `dl-079`'s approve `Reason:`** (`3262ad92`): it restates the verb counts as "start
+  197, finalize 130, sync 116", which swaps them. Measured on 2026-09-30 by the spec-003 drafting
+  survey: `sync` 197 (`bug`), `finalize` 132 (112 `task` + 20 `plan`), `start` 113 (`task`). The
+  commit is not rewritten; this line is the correction of record.
 
 ### On the pinned build (wingfoil 0.2.2)
 
