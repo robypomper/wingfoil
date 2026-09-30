@@ -20,7 +20,8 @@ configuration (main/sub kinds, `include()` composition, `iterate_over`), the wor
 Memory (P4.13) and validated against the per-type state machines, approval routing by role (P4.14),
 fallback on rejection (P4.15), and `wingfoil agent execute`, which launches the agent's own CLI
 through a declared adapter with role-based directives and Memory context pre-loaded. A notification
-system (CLI + git hooks) alerts when approvals are required.
+system alerts when approvals are required, through the CLI output of `workflow status` and
+`workflow next`; git-hook notifications moved to v0.4 (plan R13).
 
 In v0.3 WingFoil **tells humans and agents what to do next and tracks it**; it does not yet
 **execute** workflow steps or run workflow checks. Atomic step execution (P4.10) and pre/post checks
@@ -47,7 +48,7 @@ Per `docs/01_vision/07_sequencer.md` (Week 3 Definition of Done):
   agent on it (the steps themselves are executed by P4.10 in v1.0)
 - State transitions working (per-type state machines; default draft → pending → approved/rejected; reject → fallback step)
 - Approval routing by role functional
-- Notification system (basic CLI output + git hooks) functional
+- Notification system (basic CLI output) functional; git-hook notifications are v0.4 (plan R13)
 - `agent execute` launches the agent's own CLI through a declared adapter, with context loaded in
   <30 sec (REQ-PERF-01), and records every run (`dl-114`)
 - >80% test coverage on workflow module
@@ -73,7 +74,12 @@ Per `docs/01_vision/07_sequencer.md` (Week 3 Definition of Done):
   workflow commands read from v0.3 on.
 - No `kind:` field is added: `memory.yaml` declares the `minor-*` ids added before `dl-092`
   immutable and without `kind:`. `release-planning.yaml`'s define-scope check still lists `kind` as
-  required, which contradicts that rule (recorded in the plan's Observations).
+  required, which contradicts that rule (recorded in the plan's Observations; `bug-175`).
+
+**identify-specs rulings (2026-09-30, plan R11–R14).** The workflow commands gain `workflow finalize`,
+which records a phase with no Memory or file evidence (R11); the read-only MCP Resources for workflow
+`next` and `status` ship in v0.3 (R12); git-hook notifications move to v0.4 (R13); `dl-104` is folded
+into the `spec-003` revision (R14).
 
 ### Implementation (dev-loop, per task)
 

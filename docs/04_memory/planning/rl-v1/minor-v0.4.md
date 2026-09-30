@@ -49,6 +49,8 @@ idea of composable **methodology packs** (directives + workflows + configuration
 selectable at `init` and addable afterwards, the first packs extracted from WingFoil's own workflows),
 which the planning conversation proposed for this release. `bug-144` (the Kanban template includes a
 workflow by path) stays in v0.3: the Kanban template already ships with `init --template`.
+Also moved here from v0.3 (2026-09-30, plan R13): the git-hook half of the notification system
+(X1.1); v0.3 notifies through the CLI output only.
 
 ### Implementation (dev-loop, per task)
 

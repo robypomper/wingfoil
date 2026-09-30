@@ -1,7 +1,7 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.5
-**Date:** 2026-09-29
+**Version:** 1.6
+**Date:** 2026-09-30
 **Status:** Approved
 
 ---
@@ -117,6 +117,9 @@ approver during v0.3's `release-planning` (`release-planning-rel-v0.3-plan`, rul
 - **The agent wrapper launches the agent's own CLI through a declared adapter**, not an SDK. The
   row `` `wingfoil agent execute [--next]` wrapper `` keeps its place in v0.3; the change of
   mechanism is recorded by an ADR during v0.3's planning.
+- **Git-hook notifications move from v0.3 to v0.4** (v1.6, 2026-09-30, ruling R13). v0.3 notifies
+  through the CLI output of `workflow status` and `workflow next`; the row *Notification system (basic:
+  CLI output + git hooks)* keeps its CLI half in v0.3.
 
 ---
 
