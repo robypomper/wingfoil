@@ -2,7 +2,7 @@
 id: adr-012-agent-execution-through-the-agent-cli
 type: adr
 title: "`wingfoil agent execute` launches the agent's own CLI through a declared per-agent adapter, not an AI SDK; context still reaches the agent over MCP"
-status: pending
+status: accepted
 sard_ref: "REQ-INT-07, REQ-PERF-01, REQ-SEC-08, REQ-SEC-07, REQ-SYS-07"
 supersedes: ""
 release: "v0.3"
