@@ -88,6 +88,69 @@ Notes:
   destroyed the whole approval record, a multi-line one was truncated to its first line on read, and
   one shaped like a trailer could forge a second `Approver:` line into the audit record.
 
+#### The Memory commit subject — the closed `wf()` operation list
+
+The `Reason:` block above lands in the body of a Memory commit. Its subject is a parsed interface too:
+`wingfoil memory history` (P1.10) reads the operation back out of it, and the consistency check reads
+its bracket. The grammar is:
+
+```
+wf({type}): {verb} {id1}, {id2}[ [{s0} → {s1}( → {sN})*]]
+```
+
+- `{type}` is a `memory.yaml` type key. `{verb}` is the token after `: ` up to the first whitespace.
+- `{verb}` is one of the ten verbs below and **no other**. The list is closed and declared
+  (`dl-079` (A)); a new verb is a change to this table and to `spec-003`'s verb table together.
+- The bracket closes the subject. `→` (U+2192) is written; `->` is read as its equal (`bug-137`).
+
+| verb        | emitted by                                                                 | bracket |
+|-------------|----------------------------------------------------------------------------|---------|
+| `add`       | `memory add`                                                               | none |
+| `submit`    | `memory submit`                                                            | none (`dl-054`; kept over `dl-106` W1 (a), ruling R20) |
+| `approve`   | `memory approve`; a `set_state` in a phase that declares `approval:`       | `[from → to]` |
+| `reject`    | `memory reject`; a `fallback.set_state` routed by a reject                 | `[from → to]` |
+| `deprecate` | `memory deprecate`                                                         | `[from → deprecated]` |
+| `start`     | a `set_state` that opens work on an element                                | `[from → to]` |
+| `finalize`  | a `set_state` into the last state of the type's `sequence`; `workflow end` for a plan | `[from → to]` |
+| `sync`      | `<type>.sync_state` (`bug.sync_state`, `dl-045`)                           | `[from → to]`, or a chain `[s0 → s1 → … → sN]` |
+| `amend`     | `memory amend` (`dl-108`); `element.set_release` (below)                   | `[s → s]` |
+| `park`      | `memory park` (`dl-110`)                                                   | `[in-progress → backlog]` |
+
+**Which verb a `set_state` emits** (`spec-003` verb table). `approve` when the phase declares
+`approval:`. Otherwise `finalize` when the target is the last state of the type's `sequence`.
+Otherwise `start`.
+
+**`element.set_release` emits `amend`** (approver ruling R20, backlog question Q6; `assign` is not
+added to the list). The token writes the `release` field and leaves `status` as it is. That is
+`dl-108`'s definition of an amendment: a content change on an element in any state, with `status`
+untouched. `dl-108` also lists the practised `wf(tech-spec): assign release v0.2 to spec-015` among
+the amendments the verb exists to record. The subject is `wf({type}): amend {id} [{s} → {s}]`. The
+body carries what `dl-108` A2 (i) requires of an amendment: an `Approver:` line and a `Reason:` block
+that names the release stamped. The stamp records a scope the approver ruled at `release-planning`,
+so the approver's identity is the right one on it. No other listed verb fits. `sync` recomputes a
+state from linked elements, `start` and `finalize` move a state, and each of them would make an
+unchanged `status` read as a transition.
+
+**A chained bracket** is read from its first state to its last. Those two states are compared with
+the frontmatter before and after the commit. Given the type's machine, every hop must be one of its
+edges: the forward edge `sequence[i] → sequence[i+1]`, a `gates` reject target, or the implicit edge to
+`deprecated`. A hop that is none of these is an `illegal-hop` finding of
+`verifyTransitionConsistency` (`src/memory/audit.ts`, `bug-155`). Only `sync` emits a chain.
+
+**A `sync` that crosses a `gates` reject edge** cites the approver's reject commit by sha in its body.
+It carries no `Approver:` line of its own, because the decision is recorded once, on the host task's
+reject (`dl-061` B.1).
+
+**Subjects that are not Memory operations.** `memory history` reports `operation: null` for them and
+the consistency check reads no bracket in them:
+- the configuration scopes `wf(dna): …`, `wf(directive): create|assign|remove …` and
+  `wf(workflow): create|remove …` (`spec-017` §7.7–7.8), whatever their verb token;
+- the records outside the `wf()` grammar: `workflow: finalize …` (`spec-017` §7.9) and
+  `agent: record …` (`spec-016`);
+- every verb outside the list. History is not rewritten (`dl-035`), so the practised `start-fix`,
+  `schedule`, `plan`, `enter-releasing`, `mark-released`, `assign`, `deferred` and the early verbless
+  `wf(task): {id} [a → b]` stay in the record and read as `null`.
+
 ### 3. Commander.js negatable-boolean pattern (`--no-color`, `--no-interactive`)
 
 A naive implementation might register `.option('--no-color', ..., false)` and then read
@@ -583,3 +646,20 @@ gate.
 `package.json`. One word in §Context changes; the Process Notes' cross-check sentence is left as the
 record of what was checked then. Edited in place without a supersede or a state change, per the same
 `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-30) — §2 gains the Memory commit subject grammar, per
+`dl-079-wf-commit-verbs-outside-the-declared-grammar` (`ready`, option (A), approve commit
+`3262ad92`), carried out by `task-126-declare-closed-wf-operation-grammar-bracket-set-state` (fixing
+`bug-155`).** `spec-003`'s verb table sends the subject grammar and its parser here, and no section
+declared them: §2 named only the `--reason` body. The new subsection lists the ten verbs and each
+verb's bracket. The list matches `spec-003`'s table row for row. It also states the `set_state` rule
+and the chain reading of a bracket (`bug-155`), and it records `dl-061` B.1's convention for a
+`sync` that crosses a reject edge. It names the subjects that are not Memory operations, including
+`wf(dna)`, which `spec-003` did not list but whose `add` token would otherwise read as one. It
+settles `spec-003`'s open item on `element.set_release` as the approver ruled it at
+`release-planning` (R20, Q6): the token is rebound to a declared verb. The verb chosen is `amend`,
+and the subsection gives the reasons. That choice is the implementing task's and awaits the
+approver's confirmation at its review. `src/memory/audit.ts` reads the grammar
+(`parseMemoryOperation`, `verifyTransitionConsistency`). No section outside §2 changes. Edited in
+place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` (there is
+no `version:` field to bump) and the `spec-001` precedent the 2026-09-17 revision cites.

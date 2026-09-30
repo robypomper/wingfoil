@@ -468,8 +468,11 @@ wingfoil memory history <id>
 ```
 
 Each entry carries `sha`, `author`, `timestamp` (ISO-8601), `operation`, `from`, `to`, `approver`,
-`reason` and the commit `subject`. A commit that touched the document without being a WingFoil
-operation (a hand edit you committed yourself) appears too, with `"operation": null`.
+`reason` and the commit `subject`. `operation` is one of the ten declared verbs: `add`, `submit`,
+`approve`, `reject`, `deprecate`, `start`, `finalize`, `sync`, `amend`, `park`. A commit that
+touched the document without being one of them appears too, with `"operation": null`. That covers a
+hand edit you committed yourself, a subject with any other verb, and a configuration commit such as
+`wf(dna): …`, `wf(directive): …` or `wf(workflow): …`.
 
 ```console
 $ wingfoil memory history task-001-my-first-task

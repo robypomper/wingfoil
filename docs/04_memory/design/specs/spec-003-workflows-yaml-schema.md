@@ -425,7 +425,7 @@ and the Memory verb its commit carries:
 | `memory.deprecate` | `wingfoil` | `wingfoil memory deprecate` | `deprecate` |
 | `element.set_state(<s>)`, `<type>.set_state(<s>)` | `manual` (no v0.3 command) | — | `approve`, `finalize` or `start`, by the rule under the verb table |
 | `<type>.sync_state(…)` | `manual` (no v0.3 command) | — | `sync` |
-| `element.set_release(<v>)` | `manual` (no v0.3 command) | — | `assign` — **not in `dl-079` (A)'s list**; practised four times (`git log --format=%s \| grep -E '^wf\([a-z-]+\): assign '`, e.g. `wf(adr): assign release v0.2 to adr-009`) and carried to the `dl-079` task as a needed amendment (Consequences) |
+| `element.set_release(<v>)` | `manual` (no v0.3 command) | — | `amend` — rebound to a listed verb rather than adding `assign` (ruling R20, Q6; the verb and its reasons are `spec-008` §2's). The four practised `assign` subjects (`git log --format=%s \| grep -E '^wf\([a-z-]+\): assign '`, e.g. `wf(adr): assign release v0.2 to adr-009`) stay in history |
 | `config.init` | `wingfoil` | `wingfoil init` | none (writes configuration, not Memory) |
 | `agent.*` | `agent` | `wingfoil agent execute`, run under the phase's `role` (P5.3.2), the token name selecting the instruction document; the role's session prompt carries the content (`dl-090` Q6: (a) for execution, (b) for content) | none |
 
@@ -446,7 +446,7 @@ of the following — no other:
 | `start`     | a `set_state` that opens work on an element (`dev-loop` `start`: task `backlog → in-progress`, `dev-loop.yaml:37`) | yes |
 | `finalize`  | a `set_state` that closes an element (`dev-loop` `done`: task `approved → done`, `dev-loop.yaml:104`); `workflow end` for a workflow instance's plan, `active → done` (`spec-017` §7.2) | yes |
 | `sync`      | `<type>.sync_state` (`bug.sync_state`, `dl-045`); the bracket may chain several states (`[in-review → resolved → closed]`) | yes |
-| `amend`     | the `memory amend` verb (`dl-108`); no workflow token emits it  | yes (`[s → s]`)       |
+| `amend`     | the `memory amend` verb (`dl-108`); `element.set_release` (ruling R20) | yes (`[s → s]`)       |
 | `park`      | the `memory park` verb (`dl-110`); no workflow token emits it   | yes (`[in-progress → backlog]`) |
 
 **Which verb a `set_state` emits.** `approve` when the phase declares `approval:`; otherwise
@@ -743,7 +743,8 @@ recommendation the review endorsed.
   closed list (`dl-079`), so a new verb is a change to this spec and to `spec-008` §2 together.
 - **Changes other documents must receive**, each carried to a task at build-backlog:
   - `dl-079`'s declared list gains `assign` (`element.set_release`), or the token is rebound to a
-    listed verb — the `dl-079` task decides which, and `spec-008` §2 follows.
+    listed verb — the `dl-079` task decides which, and `spec-008` §2 follows. *Done:* rebound to
+    `amend` (ruling R20, `task-126`).
   - `spec-004` §4.3: the sentence giving the `[{from} → {to}]` bracket "to the approver-gated verbs
     only" is amended with `dl-079` (A) (bracketed `start`, `finalize`, `sync`, `amend`, `park`).
   - REQ-STATE-07's fit criterion counts collection entries as well as elements (`dl-104` Action 1,
@@ -829,3 +830,12 @@ without a supersede or a state change; `status` stays `approved`, pending the ap
 identify-specs (`dl-022` spec-review gate), where open questions 3–6 above are settled.
 
 Confirming dl-022 pass (2026-09-30): N4 applied.
+
+**Revision (2026-09-30) — `element.set_release` emits `amend`, per ruling R20 (backlog question
+Q6), carried out by `task-126-declare-closed-wf-operation-grammar-bracket-set-state`.** The table
+left the token on `assign`, a verb outside `dl-079` (A)'s list, and its Consequences sent the choice
+to the `dl-079` task. The approver ruled at `release-planning` that the token is rebound to a listed
+verb. `task-126` chose `amend`, and `spec-008` §2 gives the reasons. Three cells change: the token's
+row, the `amend` row's emitter, and the Consequences item, which is marked done. No schema field
+changes. The choice awaits the approver's confirmation at `task-126`'s review. Edited in place without a
+supersede or a state change (`dl-047`: no `version:` field).

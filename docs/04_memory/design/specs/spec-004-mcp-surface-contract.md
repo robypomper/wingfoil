@@ -194,9 +194,12 @@ Each Tool's input schema mirrors its CLI's required flags one-to-one (e.g. `memo
 3. On an illegal transition, is **rejected identically to the CLI path** (REQ-INT-03 fit criterion):
    same error message, same exit-equivalent status, no partial write.
 
-**The `[{from} → {to}]` bracket belongs to the approver-gated verbs only** — `approve`, `reject`,
-`deprecate` — whose subject must say which edge was taken, because those verbs sit on a gate and the
-edge is a decision rather than a derivation. `add` and `submit` subjects stay **plain**
+**The `[{from} → {to}]` bracket belongs to the verbs of the `spec-003` verb table that carry one**
+(`dl-079` (A); the list and each verb's bracket rule are `spec-008-cli-grammar` §2's). Those are the
+approver-gated `approve`, `reject` and `deprecate`, whose subject must say which edge was taken,
+because those verbs sit on a gate and the edge is a decision rather than a derivation. They are also
+the workflow verbs `start`, `finalize` and `sync` (whose bracket may chain states), and `amend`
+(`[s → s]`) and `park`. `add` and `submit` subjects stay **plain**
 (`wf({type}): submit {id}`, exactly the item-2 format above): their target state is derivable from the
 type's state machine in `memory.yaml`, so the bracket would add nothing a reader or `memory history`
 cannot already resolve. Ratified by `dl-054-submit-commit-subject-bracket` (option 2), which chose the
@@ -280,3 +283,14 @@ now lists all nine, as `spec-001`'s Context does. The rule it illustrates — `{
 `memory.yaml` declares — is unchanged, and no URI or Tool changes. Edited in place without a
 supersede or a state change, per the `spec-001` precedent `dl-041` cites (`dl-047`: no `version:`
 field); pending the approver's sign-off at `task-124`'s review.
+
+**Revision (2026-09-30) — §4.3's bracket sentence follows the `spec-003` verb table, per
+`dl-079-wf-commit-verbs-outside-the-declared-grammar` (`ready`, option (A)), carried out by
+`task-126-declare-closed-wf-operation-grammar-bracket-set-state`.** The sentence gave the bracket "to
+the approver-gated verbs only". `dl-079` (A) ratified the bracketed `start`, `finalize` and `sync` of
+practice, and `amend` (`dl-108`) and `park` (`dl-110`) follow them. `spec-003`'s Consequences carried
+this amendment to the `dl-079` task. The sentence now names the table and lists the bracketed verbs.
+`add` and `submit` stay plain: `dl-054` holds, and the approver ruled at `release-planning` that it
+prevails over `dl-106` W1 (a) (R20). Item 2's format and the Tools are unchanged. Edited in place without a
+supersede or a state change, per the `spec-001` precedent `dl-041` cites (`dl-047`: no `version:`
+field).
