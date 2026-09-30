@@ -3,7 +3,7 @@ id: release-planning-rel-v0.3-plan
 type: plan
 title: "Release-planning — rel-v0.3"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "release-planning"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -86,6 +86,18 @@ shape of the scope and are cited by the steps below:
 - R13. Git-hook notifications (the hook half of X1.1) move to v0.4; v0.3 notifies through the CLI
   output (`235322f2`).
 - R14. `dl-104` is folded into the `spec-003` revision now and reviewed together with `spec-017`.
+- R15. The workflow and agent read commands (`workflow status|next|list|show`, `agent list|show`) and
+  the two v0.3 workflow Resources read the committed state (HEAD): a declared exception to `dl-084`
+  (A), `spec-006` §6 item 4 and the `command-baseline` directive, for determinism;
+  `W_UNCOMMITTED_INPUTS` warns when the working tree differs.
+- R16. `memory add --workflow <ref> [--step <key>]` writes the `WingFoil-Instance` / `WingFoil-Step`
+  trailers that tie a created element to its step; `agent execute --step <key>` picks the step when
+  the frontier holds several.
+- R17. v0.3 ships two built-in adapters: Claude Code and Codex CLI, each verified by hand.
+- R18. As recommended: plan defaults at `workflow start` (phase = the element's id, else `1`; scope =
+  the workflow name); context through the `{role}-session` Prompt with `element` and `state`
+  arguments; a `paths` category `runs` for the run log; a run with no step runs as `developer` with a
+  warning.
 
 ## Phases / Steps
 
