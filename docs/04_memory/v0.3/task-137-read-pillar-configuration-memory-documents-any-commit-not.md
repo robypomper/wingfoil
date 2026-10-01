@@ -2,7 +2,7 @@
 id: "task-137-read-pillar-configuration-memory-documents-any-commit-not"
 type: task
 title: "Read the pillar configuration and the Memory documents at any commit, not only at `HEAD` or in the working tree"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "high"
