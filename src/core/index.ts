@@ -81,7 +81,7 @@ import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
-import { requireAmendableEdit, requireAmendableType } from './memory-amend';
+import { requireAmendableEdit, requireAmendableType, requireRequiredFieldsKept } from './memory-amend';
 import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
@@ -1337,14 +1337,17 @@ export interface MemoryAmendResult {
  *    state, so no illegal-transition refusal exists for this verb. Then
  *    {@link requireConfinedWriteTarget} (REQ-SEC-06): a document outside the project, or one that is
  *    itself a symbolic link, is refused before any question about its content.
- * 4. **{@link requireAmendableType}** — the committed entry must declare `amendable: true`
+ * 4. **{@link requireApprovalAuthority}** (REQ-SEC-03, `dl-108` A2 (i)) — the same check and message
+ *    as `approve`, from the committed `dna.yaml`; exit `1`. It runs as soon as the type is known
+ *    (step 3), the same place `approve` runs it, so a caller without authority learns nothing about
+ *    the edit (task-127 review F6).
+ * 5. **{@link requireAmendableType}** — the committed entry must declare `amendable: true`
  *    (`dl-108` A3, `spec-001`); exit `1`.
- * 5. **{@link requireAmendableEdit}** — the document must be committed at `HEAD`, carry a change, and
- *    leave `status`, `id` and `type` as committed (`spec-010` § Field-write ownership); exit `1`,
- *    naming the field.
- * 6. **{@link requireApprovalAuthority}** (REQ-SEC-03, `dl-108` A2 (i)) — the same check and message
- *    as `approve`, from the committed `dna.yaml`; exit `1`. After steps 3–5 for `approve`'s reason:
- *    the message names the type, known once the document is located.
+ * 6. **{@link requireAmendableEdit}** — the document must be committed at `HEAD`, carry a change, and
+ *    leave every field in `AMEND_RESERVED_FIELDS` as committed (`spec-010` § Field-write
+ *    ownership); exit `1`, naming the field. Then {@link requireRequiredFieldsKept}: past the initial
+ *    state, `title` and the type's required fields must stay non-empty (`spec-010` § Validation
+ *    rules); exit `1`, naming the field.
  * 7. **Commit** — {@link commitMemoryTransition} under `carries-content`, the scope `memory submit`
  *    uses: the working-tree bytes are the content of record, so they are written back unchanged and
  *    committed as that one path. `commitPaths` stages only that path, so other modified or staged
@@ -1365,7 +1368,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
 
   const prepared = prepareMemoryTransition(root, id, 'amend');
   if (!prepared.ok) return prepared;
-  const { memoryYaml, type, path, content, from, to } = prepared.value;
+  const { memoryYaml, type, path, content, frontmatter, from, to } = prepared.value;
 
   // Before any question about the edit: is this file the project's to write at all (REQ-SEC-06,
   // `bug-117`/`bug-120`)? The other verbs ask it first inside `commitMemoryTransition`; `amend` asks
@@ -1373,13 +1376,15 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   // would otherwise be refused for a field change it never made.
   const confined = requireConfinedWriteTarget(root, path, 'write');
   if (!confined.ok) return confined;
+  const authorized = requireApprovalAuthority(root, type);
+  if (!authorized.ok) return authorized;
+
   const amendable = requireAmendableType(memoryYaml, type);
   if (!amendable.ok) return amendable;
   const edit = requireAmendableEdit(root, id, path, content);
   if (!edit.ok) return edit;
-
-  const authorized = requireApprovalAuthority(root, type);
-  if (!authorized.ok) return authorized;
+  const filled = requireRequiredFieldsKept(memoryYaml, type, from, frontmatter);
+  if (!filled.ok) return filled;
 
   const { name, email } = readGitIdentity(root);
   const message = formatMemoryCommitMessage({

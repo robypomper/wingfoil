@@ -9,7 +9,7 @@
  * what an amendment owns (`spec-010` § Field-write ownership: the body and every frontmatter field
  * except `status`, `id` and `type`).
  */
-import { describeDocumentChanges, type MemoryYaml } from '../memory';
+import { describeDocumentChanges, missingRequiredFields, resolveStateMachine, type MemoryYaml } from '../memory';
 import { readPathAtRev } from '../storage';
 
 import { coreErr, coreOk, type CoreResult } from './types';
@@ -67,4 +67,25 @@ export function requireAmendableEdit(root: string, id: string, path: string, con
     });
   }
   return coreOk(undefined);
+}
+
+/**
+ * Refuse an amendment that would leave a non-draft document violating `spec-010` § Validation rules:
+ * `title` and every `template.frontmatter.required` field must be non-empty once `status` is past the
+ * type's initial state (task-127 review F1). The rule is `memory submit`'s own
+ * (`missingRequiredFields`), applied to the edited frontmatter, because an amendment is the one other
+ * verb that writes those fields. "Draft" is read as the machine's initial state (`sequence[0]`),
+ * which is `draft` for every type `spec-001` declares.
+ */
+export function requireRequiredFieldsKept(
+  memoryYaml: MemoryYaml,
+  type: string,
+  state: string,
+  frontmatter: Readonly<Record<string, unknown>>,
+): CoreResult<undefined> {
+  if (state === resolveStateMachine(memoryYaml, type).sequence[0]) return coreOk(undefined);
+  const required = memoryYaml.types[type]?.template?.frontmatter.required ?? [];
+  const missing = missingRequiredFields(frontmatter, required);
+  if (missing.length === 0) return coreOk(undefined);
+  return coreErr({ code: 'VALIDATION', message: `missing required field on amend: ${missing.join(', ')}` });
 }
