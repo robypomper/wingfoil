@@ -109,3 +109,35 @@
   byte-for-byte identical output across ≥ 2 runs; shuffling the on-disk order of unrelated Memory files does not change
   the assembled output. (Path-scoped specialization of REQ-SYS-07.)
 * **Traceability:** Feature P5.4.4 (US-1-05, BDD `p5-interaction/P5.4.4-execution-context.feature`).
+
+### REQ-STATE-10 — Process conformance computed from git and the configuration
+
+* **Status:** proposed by `task-141` (2026-10-01); the approver ratifies it at the task's review.
+* **Description:** Every development run's **process conformance** — component **P** of the composite Determinism
+  Index (`dl-131-determinism-index-scope`, Decision 3) — is computed from the git history and the WingFoil
+  configuration alone, with no input from the agent that ran the process and no state stored outside git.
+* **Rationale:** P is the Index component WingFoil answers for together with the agent: WingFoil declares the process,
+  the agent follows it, and every deviation is visible in git (`REQ-SEC-02`, `REQ-STATE-01`). Computing P from those
+  two sources only keeps the measure reproducible and lets it run on every run, not only on releases. Input (I) is
+  covered by `REQ-SYS-07` and `REQ-STATE-09`; Outcome equivalence (O) is measured by the release-health metric D01
+  (`dl-089-release-health-analyses-before-retrospective`) and is not a requirement, since it depends on the customer's
+  agent and model.
+* **Fit Criterion:** For a range of commits and the configuration at its head, the computation reports, for each of the
+  checks below, the number of items checked and the number that fail, and names every failing item:
+  1. every `wf(...)` commit's subject and body are well-formed per the commit grammar (a declared verb; the
+     `[from → to]` bracket, `Approver:` line and non-blank `Reason:` block wherever the verb requires them);
+  2. every status change in the range is a legal transition of its type's state machine (`REQ-STATE-01`);
+  3. every phase recorded as complete has each of its `produces:` artifacts present at the head;
+  4. the traceability chain feature → US → BDD → REQ → task has no broken link for the elements touched in the range;
+  5. each phase was run by an actor of its declared role, and by distinct actors where the workflow requires it
+     (`dl-134-dev-loop-separation-of-duties`);
+  6. between two runs from the same base: the sequence of checkpoint and flow commits (`wf(...)` subjects with ids
+     normalized) is reported side by side, with the count of positions where they differ.
+
+  Running the computation twice on the same commit range and configuration yields byte-identical reports
+  (determinism of the measure itself), and a range containing one injected defect of each kind 1–5 reports exactly
+  that defect for each.
+* **Traceability:** `dl-131-determinism-index-scope` Decision 3 (component P) and Action 7; the P measures join the
+  release-health catalogue (`dl-089-release-health-analyses-before-retrospective`, catalogue v2). Features P1.2, P1.7,
+  P1.10 (audit trail, approval record, history), P1.13 and P4.13 (per-type state machines, deduced state), P4.1 (phase
+  `produces:`); no BDD scenario yet — the acceptance contract follows when the measure is implemented.
