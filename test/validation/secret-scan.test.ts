@@ -138,6 +138,26 @@ describe('scanText — dotenv-style-secret-line tolerates a line prefix (bug-037
     expect(blockingIds(line)).not.toContain('dotenv-style-secret-line');
   });
 
+  /**
+   * task-135 review: the cost of tolerating a prefix. An indented code assignment whose name contains
+   * a credential word now matches too — a known false-positive shape, documented in spec-007 §2's
+   * notes with its escape hatches (an `<!-- example -->` fence, a `security-ignore` entry). Pinned
+   * so the trade-off is a decision on record, not a surprise.
+   */
+  it.each([
+    ['an indented code assignment', '  token = getToken()'],
+    ['an indented counter', '    tokens_used = len(x)'],
+    ['an indented config value', '  max_tokens = 4096'],
+  ])('BLOCKS %s (known false-positive shape, spec-007 §2 notes)', (_what, line) => {
+    expect(blockingIds(line)).toContain('dotenv-style-secret-line');
+  });
+
+  it('exempts the same line inside an `<!-- example -->` fence (spec-007 §3 escape hatch)', () => {
+    const result = scanText('<!-- example -->\n```\n  token = getToken()\n```\n', 'fixture.md');
+    expect(result.blocking).toEqual([]);
+    expect(result.info.map((f) => f.exemptReason)).toContain('fenced-example');
+  });
+
   it('downgrades a prefixed placeholder value to info, as the column-0 form is (spec-007 §3)', () => {
     const result = scanText('export API_TOKEN=REDACTED\n', '.envrc.fixture');
     expect(result.blocking).toEqual([]);

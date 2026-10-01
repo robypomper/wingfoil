@@ -147,4 +147,35 @@ describe('initWingfoilStorage (P1.1, REQ-SYS-01)', () => {
       expect(existsSync(join(repo, DNA))).toBe(true);
     });
   });
+
+  /**
+   * task-135 review: a `.wingfoil` that exists but is a regular FILE. `detectInitState` calls
+   * `readdirSync` on it and throws `ENOTDIR`; once the already-initialized guard joined
+   * `initWingfoilStorage` that throw escaped it (before, `initStorage`'s own failure came back as an
+   * `IO` result), and `initWingfoilProject` has thrown there since task-029. Both now refuse with a
+   * result, exit 1, and leave the file alone.
+   */
+  describe.each([
+    ['initWingfoilStorage', (root: string) => initWingfoilStorage(root)],
+    ['initWingfoilProject', (root: string) => initWingfoilProject(root, 'Scrum')],
+  ])('Error - .wingfoil is not a directory: %s', (_name, runInit) => {
+    let repo: string;
+    afterEach(() => removeTempDir(repo));
+
+    it('returns a VALIDATION result (exit 1) instead of throwing, and writes nothing', () => {
+      repo = makeTempGitRepo();
+      writeFileSync(join(repo, '.wingfoil'), 'not a directory\n', 'utf-8');
+
+      let result: ReturnType<typeof runInit> | undefined;
+      expect(() => {
+        result = runInit(repo);
+      }).not.toThrow();
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION' } });
+      expect(result && !result.ok ? result.error.message : '').toContain('.wingfoil');
+      expect(exitCodeForResult(result!)).toBe(1);
+      expect(readFileSync(join(repo, '.wingfoil'), 'utf-8')).toBe('not a directory\n');
+      expect(git(repo, ['rev-list', '--all', '--count']).trim()).toBe('0');
+    });
+  });
 });
