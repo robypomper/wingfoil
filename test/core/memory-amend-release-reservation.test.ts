@@ -164,6 +164,21 @@ describe('memory amend — `release` is reserved only where the committed scaffo
     expect(result.ok ? null : result.error.message).toContain("frontmatter field 'release'");
   });
 
+  it.each([
+    ['declares no template at all', null],
+    ['has a scaffold whose frontmatter is not valid YAML', '---\nrelease: [unclosed\n---\n'],
+    ['has a scaffold with no frontmatter block', '## Body only\n'],
+  ])('a type that %s keeps `release` reserved (fail safe)', (_label, scaffoldText) => {
+    const serviceTemplate = '    template:\n      file: "memory/templates/service.md"\n      frontmatter:\n        required: [title]\n';
+    const yaml = scaffoldText === null ? MEMORY_YAML.replace(serviceTemplate, '') : MEMORY_YAML;
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', yaml);
+    if (scaffoldText !== null) writeFixtureFile(repo, '.wingfoil/memory/templates/service.md', scaffoldText);
+    commitAll(repo, 'unreadable service scaffold');
+    const memoryYaml = loadMemoryYamlAtHead(repo);
+    if (memoryYaml === null) throw new Error('fixture bug: no memory.yaml at HEAD');
+    expect(amendReservedFields(repo, memoryYaml, 'service')).toContain('release');
+  });
+
   it('the committed scaffold decides, not the working tree (command-baseline)', async () => {
     writeFixtureFile(repo, '.wingfoil/memory/templates/service.md', scaffold('service', 'release: ""'));
     editLine('service', 'svc-001', 'release: "v0.2"', 'set_up_in: "v0.2"');
