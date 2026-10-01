@@ -2,7 +2,7 @@
 id: "task-166-settle-reason-block-grammar-shape-rule-terminator"
 type: task
 title: "Settle the `Reason:` block's grammar: shape-rule terminator, C0 refusal and the reserved `WingFoil-Version` key"
-status: in-review
+status: approved
 release: "v0.3"
 kind: "feature"
 priority: "high"
