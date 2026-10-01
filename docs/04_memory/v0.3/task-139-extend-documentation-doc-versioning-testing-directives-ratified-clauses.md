@@ -117,9 +117,39 @@ Run with the task-173 amendment uncommitted in the tree.
   `.wingfoil/memory.yaml`.
 - Not edited: `command-baseline.md` (task-161/144), and the stand-in blockquotes (task-188).
 
+### review (independent)
+
+The verdict was "approve with fixes". Seven findings were raised, all in files this task touched,
+and all are fixed. Findings 1–6 are in `bd22d554`. Finding 7 is in the uncommitted task-173 edit.
+
+1. `doc-versioning.md` V1 had `release` among its examples. It is dropped: the `version:` of a
+   `release` or `release-line` names the release (`"v0.3"`), not a revision of the document, and the
+   text now says so.
+2. V1 also said "directives that carry a `**Version:**` line". That named a form, and the approver
+   ruled on 2026-10-01 that a directive's version is the frontmatter key (task-144 AC, `6ae8e57a`).
+   It was also a transient fact with no remover (D3). It now reads "directives that declare one".
+3. V1's second bullet now adds that an `adr` is not edited in place: it is `amendable: false`, and a
+   changed decision is a new ADR (`dl-108` A3).
+4. In `testing.md`, the coverage pointer implied that the gate asserts non-regression. It now reads
+   "Gate (80% floor only)", names `jest.config.js` `coverageThreshold`, and states that
+   non-regression is checked by hand at `refactor`.
+5. In `claim-evidence.md`, the durable-prose bullet now pins the commit only "when the cited state
+   may move", matching D1 and `dl-075` (A)+(B).
+6. In V1, `<element>` is now "e.g. the decision-log, bug or task, an approver ruling or a plan".
+7. The task-173 amendment also says the rewritten pointer does not claim that `refactor` declares
+   `typecheck.clean` before task-221 lands.
+
+Re-run after `bd22d554`:
+- `node dist/cli.js directives list --role developer`: exit `0`, stdout and stderr identical to the
+  pre-task run;
+- `npx jest test/core/directives-list.test.ts test/core/context.test.ts test/core/loaders.test.ts
+  test/core/project-directives.test.ts test/directives` → `7 passed` suites, `188 passed` tests;
+- `npm run lint`, `npx tsc --noEmit -p tsconfig.json` and `npx tsc -p tsconfig.build.json --noEmit`
+  → exit `0`.
+
 ### Pending amendments (approver)
 
 - `task-173-add-whole-project-typecheck-clean-gate-control-character`: one AC is added. When the gate
   runs, task-173 rewrites `testing.md`'s `typecheck.clean` pointer, which task-139 wrote naming
   task-173. Proposed `--reason`:
-  "task-139 wrote a pointer in the testing directive naming this task as the deliverer of the typecheck.clean gate. Under dl-120 D3 the element that ends a transient fact must carry its rewrite, so this task gains the acceptance criterion that rewrites the pointer once the gate runs."
+  "task-139 wrote a pointer in the testing directive naming this task as the deliverer of the typecheck.clean gate. Under dl-120 D3 the element that ends a transient fact must carry its rewrite, so this task gains the acceptance criterion that rewrites the pointer once the gate runs, without claiming that refactor declares the gate before task-221 lands."
