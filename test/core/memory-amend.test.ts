@@ -30,6 +30,10 @@ types:
   tech-spec:
     path: "docs/memory/specs/{id}.md"
     amendable: true
+    template:
+      file: "memory/templates/tech-spec.md"
+      frontmatter:
+        required: [title, scope]
     states:
       sequence: [draft, pending, approved, superseded]
       gates:
@@ -77,13 +81,14 @@ const SPEC = 'docs/memory/specs/spec-001.md';
 const ADR = 'docs/memory/adrs/adr-001.md';
 const NOTE = 'docs/memory/note/note-1.md';
 
-function doc(fields: { id: string; type: string; status: string; title?: string }, body = 'Original body.\n'): string {
+function doc(fields: { id: string; type: string; status: string; title?: string; scope?: string | null }, body = 'Original body.\n'): string {
+  const scope = fields.scope === null ? '' : `scope: "${fields.scope ?? 'src/x'}"\n`;
   return `---
 id: "${fields.id}"
 type: ${fields.type}
 title: "${fields.title ?? 'A title'}"
 status: ${fields.status}          # auto-set by wingfoil
-tmpl_version: 260703
+${scope}tmpl_version: 260703
 ---
 
 ## Specification
@@ -236,6 +241,33 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       expect(exitCodeForResult(result)).toBe(1);
       expect(result.error.message).toContain("frontmatter field 'type'");
       expectNothingWritten(before, NOTE, edited);
+    });
+
+    it.each([
+      ['a required field removed', { scope: null }, 'scope'],
+      ['the title blanked', { title: '' }, 'title'],
+      ['a required field blanked', { scope: '  ' }, 'scope'],
+    ])(
+      'review F1 — spec-010 validation rules: %s on a non-draft document → exit 1 naming the field',
+      async (_label, change, field) => {
+        const edited = doc({ id: 'spec-001', type: 'tech-spec', status: 'approved', ...change });
+        writeFixtureFile(repo, SPEC, edited);
+        const before = head(repo);
+        const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(exitCodeForResult(result)).toBe(1);
+        expect(result.error.message).toBe(`missing required field on amend: ${field}`);
+        expectNothingWritten(before, SPEC, edited);
+      },
+    );
+
+    it('review F1 — a document still in its initial state (draft) may leave a required field empty, as submit allows', async () => {
+      writeFixtureFile(repo, 'docs/memory/specs/spec-002.md', doc({ id: 'spec-002', type: 'tech-spec', status: 'draft' }));
+      commitAll(repo, 'seed a draft spec');
+      writeFixtureFile(repo, 'docs/memory/specs/spec-002.md', doc({ id: 'spec-002', type: 'tech-spec', status: 'draft', scope: null }));
+      const result = await amend()({ root: repo, positional: 'spec-002', options: { reason: 'r' } });
+      expect(result.ok).toBe(true);
     });
 
     it('a caller without approval authority → the same refusal `approve` gives (REQ-SEC-03)', async () => {
