@@ -2,7 +2,7 @@
 id: "bug-142-memory-verb-preamble-duplicated-four-times"
 type: bug
 title: "The identity → prepare-transition preamble is copy-pasted across `memorySubmitFn`/`memoryApproveFn`/`memoryRejectFn`/`memoryDeprecateFn` instead of being shared"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
