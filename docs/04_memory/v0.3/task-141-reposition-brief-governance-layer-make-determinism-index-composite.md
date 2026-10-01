@@ -110,29 +110,27 @@ same script reports **42** mismatches. A deliberately broken range (`L22–37` f
 | AC | Status | Evidence |
 |---|---|---|
 | 1 — brief | met | diff of `5cb10729` on `01_product-brief.md`; `grep -n 'Determinism Index reported (I, P, O)' docs/01_vision/01_product-brief.md` |
-| 2 — vision, canvas, is-isnot, features, sequencer | met **except `minor-v1.0.md`** | `grep -rn 'Determinism Index validated\|Determinism validation' docs/01_vision` → nothing; minor-v1.0 is not amendable (design) |
-| 3 — REQ-STATE-10 proposed | met, **awaits ratification** | `grep -n 'REQ-STATE-10' docs/02_requirements/03_sard/*.md` |
+| 2 — vision, canvas, is-isnot, features, sequencer, minor-v1.0 | met; `minor-v1.0` as a pending amendment (uncommitted) | `grep -rn 'Determinism Index validated\|Determinism validation' docs/01_vision docs/04_memory/planning` → nothing, with the uncommitted edit |
+| 3 — REQ-STATE-10 | met, **ratified** 2026-10-01 | `grep -n 'REQ-STATE-10' docs/02_requirements/03_sard/*.md` |
 | 4 — bug-160 | met | one-line script above → `mismatches: []` |
 
-### Approver ruling needed
+### Approver rulings (Roberto, 2026-10-01)
 
-- **`minor-v1.0.md`** (`release`, `planning`, `amendable: false`) still says "validates the Determinism Index
-  (two independent runs … produce equivalent outputs)" (line 16, Scope) and "Determinism validation: two
-  independent runs from same specs produce equivalent outputs" (line 33, Success Criteria). Line 20, Pillar
-  Focus, says "maintaining the determinism guarantee". Proposed wording, for whatever channel the approver
-  rules (a hand commit by the approver, or `amendable: true` for releases in `planning`):
-  - line 16: "… and reports the Determinism Index (I, P, O): Input at its 100% target, Process conformance and
-    Outcome equivalence with their trend (`dl-131`)";
-  - line 33: "Determinism Index reported (I, P, O): Input at its 100% target; Process conformance and Outcome
-    equivalence published with their trend; Outcome does not gate the release";
-  - line 20: "… while keeping the context it assembles deterministic (Input, `REQ-SYS-07`)".
-- **REQ-STATE-10** is proposed. The approver ratifies it at review, or the row and the counts are reverted.
-- **Confirm:** the "Brute-force context" row sits under *Replaces*, although Q2 (c)'s list did not name it.
-  dl-112's Q1 (B) rationale says the context-window row survives in Key Differentiators.
+- **`minor-v1.0.md`:** the proposed wording is applied as an edit **left uncommitted** in the worktree (Scope
+  line 16, Pillar Focus line 20, Success Criteria line 33). `release` is `amendable: false`, so the coordinator
+  records it at the gate as a one-off hand commit (below).
+- **REQ-STATE-10 ratified.** Its `Status:` line and the SARD index row no longer say "proposed" (`0e08ea41` commit
+  below; `grep -rn proposed docs/02_requirements/03_sard | grep STATE-10` → nothing).
+- **"Brute-force context" under *Replaces*** is confirmed. The three phrases left unchanged on purpose (problem
+  description, v0.1 go-to-market, input-side value language) stay as they are.
 
 ### Pending amendments (approver)
 
-None: no amendable Memory element was edited.
+- `minor-v1.0` (release, `amendable: false`, one-off hand commit `wf(release): amend minor-v1.0 [planning → planning]`).
+  Proposed `--reason`: "dl-131 Q1 (b), ruling R1: the Determinism Index becomes a reported metric (Input,
+  Process conformance, Outcome equivalence) instead of a v1.0 validation objective, so the Scope, Pillar
+  Focus and Success Criteria lines stop promising equivalent outputs, as task-141 did for the vision
+  documents."
 
 ### review follow-up — same-class drift (coordinator, 2026-10-01)
 
