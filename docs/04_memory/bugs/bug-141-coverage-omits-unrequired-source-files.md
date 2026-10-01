@@ -2,7 +2,7 @@
 id: "bug-141-coverage-omits-unrequired-source-files"
 type: bug
 title: "A source file no test requires never appears in the coverage report, not even at 0%, because `roots` limits coverage discovery to what the tests load"
-status: in-progress
+status: in-review
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
