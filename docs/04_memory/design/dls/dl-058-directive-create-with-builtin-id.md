@@ -43,6 +43,16 @@ What the authorities say:
 - **REQ-SEC-07** protects built-ins against **removal** ("built-in … cannot be removed"), not against
   being overridden.
 
+**Related question (2026-10-01, from `task-133`'s independent review).** The reverse direction,
+removing a custom file that shadows a built-in, is refused while the id is bound:
+`checkUnreferenced` (`src/core/directive-assign.ts`) checks only that the id is bound, not whether the
+binding would still resolve after the removal. After the removal the id resolves to the built-in
+(`dl-037`), so REQ-SEC-07 (b)'s "still referenced" arguably does not apply. Since `task-133` binds
+`security` globally, every shipped built-in is bound in a fresh `init` project, so a user can no
+longer delete a customisation of any built-in without first unbinding it. The workaround is unbind,
+commit, remove, rebind. `test/core/directive-remove.test.ts` pins today's refusal. The ruling on this
+decision should settle both directions of shadowing together.
+
 ## Decision
 
 *Approver to choose.*
