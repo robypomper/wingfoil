@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.5"
+version: "1.6"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -281,3 +281,14 @@ commit, right after the task's transition and on the task branch:
     of ci.yml.
   - **Fix share:** 34 open fix tasks of 109 open tasks (31%).
   - **Next:** batch B2.
+- **2026-10-01 — `ci.yml` first run on `main`** (<https://github.com/wingfoil/wingfoil/actions/runs/36862116823>,
+  head `e257e9b6`): success.
+- **2026-10-01 — B1 follow-up triage** (approver):
+  - `bug-183` → `task-196`;
+  - `bug-184` → `task-174`;
+  - `bug-185` → `task-173`, with the ruling to extend the refusal past C0 (DEL, C1, U+2028, U+2029),
+    recorded in `dl-078` by `memory amend` (`7cd76166`);
+  - `bug-186` → `task-197`.
+- **2026-10-01 — batch B2 started:** `task-132`, `134`, `135`, `137`, `138`, `141`, `161`, `167`.
+  Every task's `depends_on` is `done`. Bugs synced to `in-progress`: `bug-142`, `bug-149`, `bug-153`,
+  `bug-141`, `bug-037`, `bug-038`, `bug-088`, `bug-160`. One developer agent per task, as in B1.
