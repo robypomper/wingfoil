@@ -33,4 +33,37 @@ Custom stand-in directive. Applies to all roles.
   examples, and `CHANGELOG` are written/aligned before `release-submit` — enforced by the `user-docs`
   phase in `release-cycle.yaml` (between `implementation` and `submit`).
 
+## WingFoil-specific clauses (`dl-120`)
+
+The five clauses in this section are WingFoil's own. They are not part of the generic P3.8 template
+that this stand-in mirrors. They were ratified in `dl-120-documentation-directive-extensions`
+(`ready`, Q1 (a)). When this stand-in is reconciled with the shipped built-in template, this section
+is kept as a `custom` rule and is not dropped with the generic rules above. Each clause cites the
+element that argued it.
+
+- **D1 — Citations (`dl-075`).** A durable citation names something the file carries: an exported
+  symbol, a heading, a YAML key path, or a verbatim quotation. When the cited state may move, the
+  citation also pins the commit it was read at. A bare `path:line` offset is legal only in Execution
+  Notes, Steps to Reproduce and triage notes, where a stale offset is a true record of what somebody
+  read. Existing citations are fixed on touch: when a document is opened for another reason, its bare
+  offsets are converted in that same change (`dl-075`, the approve `Reason:` of `0cf643ff`). The
+  `claim-evidence` directive keeps its own restatement under *How a claim is recorded*.
+- **D2 — Resolvable references.** A repository document references only what a reader of the
+  repository can open: a versioned file, an element, a commit or ref, or a command that runs against
+  them. When a document depends on something outside the repository, it integrates the needed
+  content and drops the reference (approver ruling of 2026-09-28, `retrospective-rel-v0.2-plan` §2.2).
+- **D3 — Transient facts name their remover.** Some sentences are true only until a known event: a
+  merge, a fix, a release, a tool upgrade. Such a sentence names that event's element, and that
+  element's Actions or acceptance criteria include removing or rewriting the sentence. A deferred
+  step ("added when X ships") names the element that adds it, and that element's `depends_on` or
+  acceptance criteria say so (precedents: `bug-040`, `bug-045`, `bug-062`, `bug-029`).
+- **D4 — Premises carry their conditions.** A triage grade, a decision-log conclusion or a fix
+  guidance states what it was measured under: the commit, and the tool version when a tool's
+  behaviour decides the result. Whoever picks the element up re-checks the premise before acting on
+  it (precedents: `dl-069`, `bug-062`, `bug-010`).
+- **D5 — A gate names its rule, and the rule names its gate.** A decision-log that adds a gate for a
+  rule a directive already states cites that directive in its Actions. The directive then points at
+  the gate that enforces it (precedents: `dl-034`, `dl-044`). The pointers are in the `code-quality`
+  and `testing` directives.
+
 > Source: Features §P3.8 (Documentation).
