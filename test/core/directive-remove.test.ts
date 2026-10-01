@@ -71,13 +71,22 @@ function bind(repo: string, role: string, id: string): void {
   commitAll(repo, `fixture: bind ${id} to ${role}`);
 }
 
-/** Drop `id` from the scaffold's `roles.yaml` `global:` list (a fixture edit), so nothing binds it. */
+/**
+ * Drop `id` from the scaffold's `roles.yaml` `global:` block (a fixture edit), so nothing binds it.
+ * Only the lines after `global:` are searched: the same `  - <id>` shape can appear in an
+ * `assignments` list, and that one must stay.
+ */
 function unbindGlobal(repo: string, id: string): void {
   const file = join(repo, ROLES);
-  const text = readFileSync(file, 'utf-8');
-  const line = `\n  - ${id}\n`;
-  if (!text.includes(line)) throw new Error(`fixture bug: '${id}' is not in the scaffold's global list`);
-  writeFileSync(file, text.replace(line, '\n'), 'utf-8');
+  const lines = readFileSync(file, 'utf-8').split('\n');
+  const header = lines.indexOf('global:');
+  if (header === -1) throw new Error('fixture bug: no top-level global: block in the scaffold roles.yaml');
+  let end = lines.findIndex((l, i) => i > header && /^\S/.test(l));
+  if (end === -1) end = lines.length;
+  const at = lines.findIndex((l, i) => i > header && i < end && l === `  - ${id}`);
+  if (at === -1) throw new Error(`fixture bug: '${id}' is not in the scaffold's global block`);
+  lines.splice(at, 1);
+  writeFileSync(file, lines.join('\n'), 'utf-8');
   commitAll(repo, `fixture: unbind global ${id}`);
 }
 
@@ -347,6 +356,29 @@ describe('CORE_MODULES directive.directiveRemove — dl-037 / spec-012 §5.1: re
     expect(after.entries.filter((e) => e.frontmatter.id === 'security').map((e) => e.path)).toEqual([
       'directives/built-in/security.md',
     ]);
+  });
+  it('characterization: in the default scaffold a custom shadow of the now-global security is refused', async () => {
+    // A separate repo: this suite's beforeEach unbinds `security` first. Here the scaffold is left as
+    // `init` wrote it, so `security` is global (task-133, dl-059) and the referrer check refuses the
+    // removal of its custom shadow, although the binding would still resolve to the built-in after it
+    // (dl-037). Pins today's behaviour; whether that refusal is wanted is a policy question for the
+    // coordinator, not settled here.
+    const fresh = makeInitializedRepo();
+    try {
+      addCustomDirective(fresh, 'security');
+      const before = head(fresh);
+      const result = await directiveRemoveFn()({ root: fresh, positional: 'security' });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toEqual({
+        code: 'CONFLICT',
+        message: "cannot remove 'security': still assigned to every role via roles.yaml 'global'",
+      });
+      expect(existsSync(join(fresh, CUSTOM_DIR, 'security.md'))).toBe(true);
+      expect(head(fresh)).toBe(before);
+    } finally {
+      removeTempDir(fresh);
+    }
   });
 });
 
