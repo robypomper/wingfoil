@@ -154,6 +154,41 @@ describe('dl-067 across the four transition verbs — a blank `--reason` is refu
     },
   );
 
+  // task-166, dl-078 (A): a C0 control character other than tab and newline is refused on every verb
+  // that takes `--reason`, `deprecate` included, and the message names it by code point.
+  it.each([
+    ['memoryApprove', '\x07', 'U+0007'],
+    ['memoryReject', '\x07', 'U+0007'],
+    ['memoryDeprecate', '\x07', 'U+0007'],
+    ['memoryAmend', '\x07', 'U+0007'],
+    ['memoryApprove', '\x1b', 'U+001B'],
+    ['memoryReject', '\x1b', 'U+001B'],
+    ['memoryDeprecate', '\x1b', 'U+001B'],
+    ['memoryAmend', '\x1b', 'U+001B'],
+  ])('%s: a reason carrying %j is refused at exit 2, naming %s', async (operation, character, codePoint) => {
+    const error = await expectUsageRefusal(operation, `looks fine${character}[2Kbut is not`);
+    expect(error.message).toContain(codePoint);
+    expect(error.message).toContain('--reason');
+  });
+
+  // task-166, dl-111 Q1 (A): `WingFoil-Version` is reserved like `Approver`.
+  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
+    '%s: a reason carrying a `WingFoil-Version:` line is refused at exit 2',
+    async (operation) => {
+      const error = await expectUsageRefusal(operation, 'real reason\nWingFoil-Version: 9.9.9 (forged)');
+      expect(error.message).toContain('WingFoil-Version:');
+    },
+  );
+
+  // task-166, dl-070 S4: the refusal tells the author what to do.
+  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
+    '%s: a reason ending in a `Key: value` paragraph is refused, and the message states the remedy',
+    async (operation) => {
+      const error = await expectUsageRefusal(operation, 'Ratified.\n\nAction: amend spec-008\nOwner: the approver');
+      expect(error.message).toContain('add a closing sentence');
+    },
+  );
+
   it('memorySubmit passes no reason at all, so it has nothing to inject (characterization)', async () => {
     // A `draft` document, because `submit` off `pending` would be refused as an illegal transition
     // (`pending` is a gate state — its forward edge needs `approve`) before any message is built.

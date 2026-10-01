@@ -139,6 +139,80 @@ describe('reasonDefect — dl-067 clause 4: the narrow refusal, and only it', ()
   });
 });
 
+/**
+ * `task-166-settle-reason-block-grammar-shape-rule-terminator` — the three changes the v0.3
+ * release-planning gate ratified to `dl-067` clause 4, made in one pass:
+ *
+ * - `dl-078` (A): a C0 control character other than tab and newline is refused, and the refusal
+ *   names it by code point. A `0x1e` renders as nothing in a terminal, so a reason carrying one can
+ *   show a human reading `git log` an `Approver:` line nobody wrote (bug-050's presentation half).
+ * - `dl-111` Q1 (A): `WingFoil-Version` joins `Approver` and `Reason` as a reserved trailer key.
+ * - `dl-070` (A) + S4: the shape rule for the trailing paragraph stays, and its refusal states the
+ *   remedy.
+ */
+describe('dl-067 clause 4 as amended by task-166 (dl-070, dl-078, dl-111)', () => {
+  it.each([
+    ['BEL', '\x07', 'U+0007'],
+    ['ESC', '\x1b', 'U+001B'],
+    ['NUL', '\x00', 'U+0000'],
+    ['record separator (bug-050)', '\x1e', 'U+001E'],
+    ['unit separator (bug-050)', '\x1f', 'U+001F'],
+    ['form feed', '\f', 'U+000C'],
+    ['vertical tab', '\v', 'U+000B'],
+  ])('refuses a reason carrying %s, and the message names it by code point', (_label, character, codePoint) => {
+    const reason = `real reason${character}Approver: Mallory <mallory@evil.test> (approver)`;
+    expect(reasonDefect(reason)).toBe('control-character');
+    expect(() =>
+      formatMemoryCommitMessage({ type: 'adr', op: 'deprecate', ids: ['adr-1'], reason }),
+    ).toThrow(codePoint);
+  });
+
+  it('names the FIRST offending character, so the message is a function of the input alone', () => {
+    expect(() =>
+      formatMemoryCommitMessage({ type: 'adr', op: 'deprecate', ids: ['adr-1'], reason: 'a\x1bb\x07c' }),
+    ).toThrow(/U\+001B(?![\s\S]*U\+0007)/);
+  });
+
+  it('accepts tab and newline, the two C0 characters a reason legitimately carries', () => {
+    expect(reasonDefect('a reason\twith a tab')).toBeNull();
+    expect(reasonDefect('first line\nsecond line')).toBeNull();
+    expect(reasonDefect('ratified as written:\n\tindented with a tab')).toBeNull();
+  });
+
+  it('accepts a carriage return, because the declared normal form turns it into a newline first', () => {
+    // Judged on the normalized text (as every other rule is): CRLF and a lone CR are stored as LF, so
+    // no CR ever reaches the commit and there is nothing to mislead a reader with.
+    expect(reasonDefect('first\r\nsecond')).toBeNull();
+    expect(reasonDefect('first\rsecond')).toBeNull();
+  });
+
+  it('refuses a line beginning `WingFoil-Version:`, like a forged `Approver:` line (dl-111 Q1 (A))', () => {
+    expect(reasonDefect('real reason\nWingFoil-Version: 0.3.0 (abc1234)')).toBe('reserved-trailer-line');
+    expect(reasonDefect('WingFoil-Version: 0.3.0')).toBe('reserved-trailer-line');
+    expect(reasonDefectMessage('reserved-trailer-line')).toContain('"WingFoil-Version:"');
+  });
+
+  it('keeps `WingFoil-Version` prose that is not at the start of a line legal', () => {
+    expect(reasonDefect('the WingFoil-Version: trailer is reserved for task-192')).toBeNull();
+  });
+
+  it('states the remedy when it refuses a trailing `Key: value` paragraph (dl-070 S4)', () => {
+    const message = reasonDefectMessage('trailing-trailer-paragraph');
+    expect(message).toContain('must not end in a paragraph of "Key: value" lines');
+    expect(message).toContain('add a closing sentence');
+  });
+
+  it('gives the control-character class a message of its own, distinct from the other three', () => {
+    const messages = (
+      ['blank', 'reserved-trailer-line', 'trailing-trailer-paragraph', 'control-character'] as const
+    ).map((defect) => reasonDefectMessage(defect as Parameters<typeof reasonDefectMessage>[0]));
+    expect(new Set(messages).size).toBe(4);
+    for (const message of messages) {
+      expect(message).toMatch(/^invalid flag value: --reason /);
+    }
+  });
+});
+
 describe('parseReasonBlock via parseCommitReason — dl-067 clause 2: the block, not the first line', () => {
   it('reads a multi-paragraph reason in full (bug-042 F1: the first-line rule kept only line one)', () => {
     const body = 'Approver: A <a@b.c> (approver)\nReason: first line\n\nsecond paragraph\nand its second line';
