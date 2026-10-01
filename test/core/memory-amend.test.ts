@@ -223,6 +223,18 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       expectNothingWritten(before, SPEC, edited);
     });
 
+    it('a working-tree edit that changes `type` → exit 1 naming the field (a new type is a new element)', async () => {
+      const edited = doc({ id: 'note-1', type: 'tech-spec', status: 'approved' }, 'Corrected body.\n');
+      writeFixtureFile(repo, NOTE, edited);
+      const before = head(repo);
+      const result = await amend()({ root: repo, positional: 'note-1', options: { reason: 'r' } });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(result.error.message).toContain("frontmatter field 'type'");
+      expectNothingWritten(before, NOTE, edited);
+    });
+
     it('a caller without approval authority → the same refusal `approve` gives (REQ-SEC-03)', async () => {
       writeFixtureFile(repo, '.wingfoil/dna.yaml', REVIEWER_ONLY_DNA);
       commitAll(repo, 'reviewer-only dna');
