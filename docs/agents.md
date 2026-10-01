@@ -71,7 +71,8 @@ Run every `wingfoil` command **from the repository root**. Use `--format json` t
 4. **Read before you write.** Check `dna show`, `paths` and existing Memory before creating anything;
    do not invent paths, types or roles that the configuration does not declare.
 5. **`--reason` text** (approve, reject, deprecate): never blank; no line may begin with `Approver:` or
-   `Reason:`; do not end it with a paragraph made only of `Key: value` lines.
+   `Reason:`; do not end it with a paragraph made only of `Key: value` lines. From v0.3 (`amend` too):
+   no line may begin with `WingFoil-Version:`, and no control character other than tab and newline.
 6. **Commit configuration edits before relying on them**, one logical change per commit.
 7. **Do not bypass a refusal.** An exit `1` from a verb is a rule speaking (illegal transition, not
    authorized, uncommitted changes). Report it; do not work around it by editing files directly.

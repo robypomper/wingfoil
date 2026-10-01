@@ -94,6 +94,7 @@ export {
   parseReasonBlock,
   reasonDefect,
   reasonDefectMessage,
+  reasonRefusalMessage,
 } from './commit-message';
 export type { CommitApprover, MemoryCommitMessageInput, ReasonDefect } from './commit-message';
 export {

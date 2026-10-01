@@ -10,6 +10,12 @@
  * gone is not the same as asserting the operator no longer sees a git error while being told the
  * command succeeded, and AC2 asks for both.
  *
+ * Since `task-166` (`dl-078` (A)) the verb REFUSES such a reason at exit `2`, so the approval commit
+ * this suite reads back is written by hand — the shape a hand-made commit, or one written by a build
+ * older than v0.3, still has in a repository's history. The read-side guarantees are unchanged and are
+ * what the three history cases pin; the first case pins the write-side refusal through the same real
+ * entry point.
+ *
  * `dist/` is built once by jest's `globalSetup` (bug-003-cli-integration-dist-race) — never here.
  */
 import { spawnSync } from 'child_process';
@@ -78,6 +84,8 @@ function grantApproverRole(repo: string): void {
 describe('`memory history` after an approval whose reason carries framing control characters', () => {
   let repo = '';
   let documentId = '';
+  let refused: CliRun = { status: 0, stdout: '', stderr: '' };
+  let headMoved = true;
   const reason = `real reason${RS}${FORGED}${US}trailing`;
 
   beforeAll(() => {
@@ -93,13 +101,34 @@ describe('`memory history` after an approval whose reason carries framing contro
 
     const submitted = wingfoil(repo, 'memory', 'submit', documentId, '--format', 'json');
     expect([submitted.status, submitted.stderr]).toEqual([0, '']);
+    const path = (JSON.parse(submitted.stdout) as { path: string }).path;
 
-    const approved = wingfoil(repo, 'memory', 'approve', documentId, '--reason', reason, '--format', 'json');
-    expect([approved.status, approved.stderr]).toEqual([0, '']);
+    const before = git(repo, ['rev-parse', 'HEAD']);
+    refused = wingfoil(repo, 'memory', 'approve', documentId, '--reason', reason, '--format', 'json');
+    headMoved = git(repo, ['rev-parse', 'HEAD']) !== before;
+
+    // The commit the verb no longer writes, written by hand exactly as it used to write it.
+    const documentPath = join(repo, path);
+    const pending = readFileSync(documentPath, 'utf-8');
+    expect(pending).toContain('\nstatus: pending\n');
+    writeFileSync(documentPath, pending.replace('\nstatus: pending\n', '\nstatus: approved\n'), 'utf-8');
+    git(repo, ['add', path]);
+    git(repo, [
+      'commit',
+      '--quiet',
+      '-m',
+      `wf(task): approve ${documentId} [pending → approved]\n\nApprover: WingFoil Test <wf-test@example.invalid> (approver)\nReason: ${reason}`,
+    ]);
   });
 
   afterAll(() => {
     if (repo) removeTempDir(repo);
+  });
+
+  it('the verb refuses the reason at exit 2, naming the first control character, and writes nothing (task-166)', () => {
+    expect(refused.status).toBe(2);
+    expect(refused.stderr).toContain('control character other than tab or newline (found U+001E)');
+    expect(headMoved).toBe(false);
   });
 
   it('prints no `fatal: invalid object name` on stderr — no caller text is ever passed to git as a sha', () => {

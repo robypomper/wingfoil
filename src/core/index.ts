@@ -1258,8 +1258,8 @@ export interface MemoryDeprecateResult {
  * Order, every refusal before the single write:
  *
  * 1. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`; so is a
- *    `--reason` that is given but blank or trailer-shaped (`optionalReason`). Both precede the
- *    identity check (task-125, `bug-172`).
+ *    `--reason` that is given but blank, carrying a control character other than tab or newline, or
+ *    trailer-shaped (`optionalReason`). Both precede the identity check (task-125, `bug-172`).
  * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
  * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` committed at
  *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
@@ -1291,8 +1291,9 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
     throw new UsageError('missing required argument: memory deprecate <id>');
   }
   // `--reason` is optional here (`dl-027`), but a reason that IS given must be recordable in the
-  // trailer — blank or trailer-shaped is a usage error at exit 2, before anything is read or written
-  // (`dl-067` clauses 1 and 4; `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
+  // trailer — blank, carrying a control character other than tab or newline, or trailer-shaped is a
+  // usage error at exit 2, before anything is read or written (`dl-067` clauses 1 and 4 as amended;
+  // `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
   const reason = optionalReason(options);
 
   const identity = requireGitIdentity(root);

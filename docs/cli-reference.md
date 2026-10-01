@@ -509,7 +509,14 @@ Other modified or staged files are left as they are and are not committed.
 
 - It may span several lines, but it may not be blank.
 - No line of it may begin with `Approver:` or `Reason:` — those keys are reserved for the commit trailer.
+  Unreleased (v0.3): `WingFoil-Version:` is reserved too, and all three keys are matched in any letter
+  case.
 - It may not end with a paragraph made only of `Key: value` lines; end with a sentence instead.
+  Unreleased (v0.3): the refusal says so (`… add a closing sentence after it, or fold those lines into
+  prose`).
+- Unreleased (v0.3): it may not contain a control character other than tab and newline. The refusal
+  exits `2` and names the first one by code point, e.g. `error: invalid flag value: --reason must not
+  contain a control character other than tab or newline (found U+001B)`.
 - Trailing whitespace is stripped, runs of blank lines collapse to one, and leading/trailing blank lines
   are dropped.
 

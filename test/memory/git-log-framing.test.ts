@@ -263,13 +263,14 @@ describe('the guarantee the framing rests on — git refuses a NUL in a commit m
   });
 });
 
-describe('dl-067 is not widened by this fix (AC7)', () => {
-  it('a reason carrying 0x1e is still accepted content — clause 4 refuses exactly what it always did', () => {
-    // This fix is read-side only. Whether a control character should ALSO be refused as content is a
-    // new clause in a `ready` decision-log, not an implementer's call; pinned here so a future
-    // widening is a deliberate, visible change rather than a silent one.
-    expect(reasonDefect(`real reason${RS}${FORGED}`)).toBeNull();
-    expect(reasonDefect(`ok${US}injected`)).toBeNull();
+describe('dl-067 clause 4 and control characters (task-086 AC7, widened deliberately by task-166)', () => {
+  it('a reason carrying 0x1e or 0x1f is refused as content since dl-078 (A) — the read-side fix above stands', () => {
+    // task-086's fix was read-side only, and this case pinned that 0x1e/0x1f stayed legal content so
+    // that any widening would be deliberate. It was: `dl-078` (A), ratified 2026-09-29, refuses every
+    // C0 character but tab and newline, and `task-166` changed this expectation with it. The reader
+    // still recovers hand-made commits that carry one (the cases above).
+    expect(reasonDefect(`real reason${RS}${FORGED}`)).toBe('control-character');
+    expect(reasonDefect(`ok${US}injected`)).toBe('control-character');
     // And the two rules clause 4 does declare still bite.
     expect(reasonDefect('   ')).toBe('blank');
     expect(reasonDefect(`real reason\n${FORGED}`)).toBe('reserved-trailer-line');
