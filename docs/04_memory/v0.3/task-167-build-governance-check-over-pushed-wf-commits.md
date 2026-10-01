@@ -73,15 +73,16 @@ after jest's `globalSetup` build.
 | bracket | a bracket on `add`/`submit`/`assign`; none on the other verbs; any bracket other than `[a → b]` with U+2192, single spaces, at the end (the ASCII `->` included); a chain on any verb but `sync`; `deprecate` not into `deprecated`; `amend` not `[s → s]`; `park` not `[in-progress → backlog]` | `DEPRECATED_STATE` |
 | body | `approve`/`reject`/`amend` without `Approver: Name <email> (role)` as the first body line, or with a role other than `approver`; any of them without `Reason:`; `Approver:` on `assign`; more than one `Approver:` or `Reason:` key line (any case); a `Reason:` key not written `Reason:`; a reason `reasonRefusalMessage` refuses | `parseApprovalMetadata`, `parseCommitReason`, `reasonRefusalMessage`, `APPROVER_ROLE` |
 | authority | an approval whose author holds no `approver` role in the `dna.yaml` committed at its **first parent**, or none is committed there; an `Approver:` line naming someone other than the author (`dl-094`) | `hasApproverRole`, `DnaYaml` |
-| state | `verifyTransitionConsistency` with the type's machine **from the `memory.yaml` at the checked commit** (`mismatch`, `unparseable`, `illegal-hop`); a single hop that is not an edge (`isMachineEdge`); a touched document the subject does not name whose status the commit changed | `verifyTransitionConsistency`, `reconstructMemoryTransitions`, `resolveStateMachine`, `isMachineEdge`, `parseBracketHops` (now exported) |
+| state | on every Memory `wf()` commit, whatever its verb. **Bracketed**: `verifyTransitionConsistency` on each named document, with the type's machine **from the `memory.yaml` at the checked commit** (`mismatch`, `unparseable`, `illegal-hop`), plus a single hop that is not an edge (`isMachineEdge`; `amend` and `park` exempt). **Bracketless**, from the frontmatter: `submit` must move a named document along an edge, `add` must leave it in the initial state (`sequence[0]`), and `assign` must leave its status unchanged. **Every commit**: a touched document the subject does not name, whose status the commit changed. **Gated commit** whose `memory.yaml` is missing or does not validate: a finding (history: *state not checked*) | `verifyTransitionConsistency`, `reconstructMemoryTransitions`, `resolveStateMachine`, `isMachineEdge`, `parseBracketHops` (now exported) |
 
 **Design decisions** (to confirm at review):
-1. **Introduction commit.** By default it is the oldest commit of `HEAD`'s history that added
-   `scripts/check-governance.cjs` (`0bdf4ce4` on this branch). `--introduced-at <rev>` overrides it.
-   *History* means that commit and its ancestors, and only findings outside that set fail. One
-   consequence follows once this merges. Commits on `main` since `5b885fd5` are not ancestors of
-   `0bdf4ce4`, so they count as gated even though they predate the merge. `task-208` can pin
-   `--introduced-at` to this task's merge commit if that is not wanted.
+1. **Introduction commit.** By default it is the commit on `HEAD`'s first-parent line that added
+   `scripts/check-governance.cjs` (`git log --first-parent --diff-filter=A`). On this branch that is
+   `0bdf4ce4`. On `main` it is the merge that lands the file, so the commits merged with it are
+   history. `--introduced-at <rev>` overrides it, and `task-208` does not need to. *History* means the
+   introduction commit and its ancestors, and only findings outside that set fail. (Amended at
+   review: the first version took the oldest adding commit, which made `main`'s parallel commits
+   gated.)
 2. **Authority is read at the first parent.** That is the `dna.yaml` the approval rested on
    (`requireApprovalAuthority` reads `HEAD` before the commit). A commit cannot grant itself the role.
    This is tested: a grant made in the approving commit is a finding.
@@ -170,8 +171,12 @@ load average of ~80).
   - 13 documents moved without being named (`6f5795aa`, `f7cd7b15`, `720d36b3`, …).
   - Every drift the handover lists is in the report.
 - **body 1**: `1ce90aea`'s blank `Reason:` (`dl-103`).
-- **state not checked: 817.** 810 bracketed commits have no machine at their commit (before
-  `16fd0f02`), and 7 are on documents with a revision that does not parse.
+- **state not checked: 817 entries on 810 distinct commits.** All 810 have no machine at their
+  commit (bracketed, before `16fd0f02`). The 7 parse-error entries fall on commits already among
+  them. That is the independent reviewer's count, and the run below confirms the shape:
+  1203 commits = 1203 no-machine entries, plus 9 parse-error entries on those same commits.
+- After the review fixes (§ review (independent)), the same run gives the same 795 findings, and
+  *state not checked* rises to 1212 entries on 1203 commits.
 
 ### refactor (developer)
 
@@ -219,3 +224,54 @@ Same-class search in the files touched:
   bug, not a fix here.
 
 Pending amendments (approver): none.
+
+### review (independent)
+
+A separate review of `20422c6a` (coordinator, 2026-10-01) returned **APPROVE WITH FIXES**. The task
+stays `in-review`. Red `4c515e89`: `npx jest test/cli/check-governance.test.ts` → **4 failed, 32
+passed** (the two conforming and lenient cases pass, which is characterization). Green `c521030f`:
+36 passed.
+
+1. **Exit 1 was not only "a gated finding".** `main` rethrew every error that was not a
+   `UsageError`, and Node exits 1 on an uncaught throw. Run from a directory that is not a
+   repository, with no `--root`, it exited 1. Now every failure to run exits 2 with `error: <message>`,
+   and the header documents that. An empty repository says `… is not a git repository, or has no
+   commit at HEAD` instead of `HEAD HEAD is not a commit`.
+2. **A gated commit without a readable `memory.yaml` was silently unchecked.** The reviewer's probe
+   was `types: [` plus `wf(task): start a [in-progress → done]` → exit 0. On a gated commit, a missing
+   or invalid `memory.yaml` is now a `state` finding. An unknown type under a valid `memory.yaml` was
+   already a `subject` finding. History keeps the leniency (*state not checked*).
+3. **Bracketless commits were never state-checked.** Now covered:
+   - `submit` must move a named document along an edge.
+   - `add` must leave it in `sequence[0]`.
+   - `assign` must not change its status.
+   - The unnamed-document check runs on every commit.
+
+   The reviewer's probe (`submit task-1` draft → done; `add task-2` moving `task-1`) gives exit 1 with
+   both findings. The rule table above matches the code.
+4. **Decision 1:** the introduction commit is taken on the first-parent line. A merge simulation shows
+   it. In a clone, `main` (`050c938c`) was merged `--no-ff` with this branch, then
+   `node scripts/check-governance.cjs --root <clone> --base 5b885fd5` ran: the introduction is the
+   merge commit, the 13 `wf()` commits in the range are history, 0 findings, exit 0. On this branch,
+   `--base 5b885fd5` gives 2 `wf()` commits, 0 findings, exit 0. The fixture test merges a side branch
+   that adds the script.
+5. The *state not checked* wording above has been corrected.
+
+Re-run on `c521030f` (`npm run build` by jest's `globalSetup`):
+
+| Command | Result |
+|---|---|
+| `node scripts/check-governance.cjs --json` (full history) | exit 0, 386 s; 1953 `wf()` commits (1 gated: `20422c6a`, no finding); 795 findings, all history, same counts by rule as above |
+| `npm run test:coverage` | exit 0; 178 suites / 3006 tests; 98.82 / 95.06 / 94.44 / 99.52, equal to `main` `5b885fd5` |
+| `npm run -s lint`, `npm run -s docs:api`, both `tsc` | exit 0 |
+
+**Follow-ups for the coordinator to file** (not fixed here, at the reviewer's direction):
+- Pairing the verb with the kind of edge: `reject` on a forward edge, `approve` on a reject edge,
+  `finalize` not into the last state, and a `sync` across a reject edge that cites no reject sha
+  (`dl-061` B.1).
+- Status changes made in non-`wf()` commits are invisible to the check (decision-log material).
+- Documents deleted at `HEAD` are only partly checked (*state not checked*).
+- `task-208` needs `fetch-depth: 0` and a build step in CI.
+- `readStatusAt` crashes `memory history` on a revision whose YAML is bad (separate bug,
+  `task-070-license-file`).
+
