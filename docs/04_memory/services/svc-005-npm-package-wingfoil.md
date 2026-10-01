@@ -12,7 +12,7 @@ account: "wingfoil (maintainer: robypomper)"
 renews: ""
 repo_refs: ["package.json", ".github/workflows/publish.yml", "server.json"]
 decision: "adr-009-npm-publishing-pipeline"
-release: "v0.2"
+set_up_in: "v0.2"
 tmpl_version: 260929
 ---
 

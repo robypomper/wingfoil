@@ -82,7 +82,7 @@ import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
-import { requireAmendableEdit, requireAmendableType, requireRequiredFieldsKept } from './memory-amend';
+import { amendReservedFields, requireAmendableEdit, requireAmendableType, requireRequiredFieldsKept } from './memory-amend';
 import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
@@ -1357,8 +1357,9 @@ export interface MemoryAmendResult {
  * 5. **{@link requireAmendableType}** — the committed entry must declare `amendable: true`
  *    (`dl-108` A3, `spec-001`); exit `1`.
  * 6. **{@link requireAmendableEdit}** — the document must be committed at `HEAD`, carry a change, and
- *    leave every field in `AMEND_RESERVED_FIELDS` as committed (`spec-010` § Field-write
- *    ownership); exit `1`, naming the field. Then {@link requireRequiredFieldsKept}: past the initial
+ *    leave every field the type's {@link amendReservedFields} lists as committed (`spec-010` §
+ *    Field-write ownership: `release` only where the committed scaffold declares it, task-170);
+ *    exit `1`, naming the field. Then {@link requireRequiredFieldsKept}: past the initial
  *    state, `title` and the type's required fields must stay non-empty (`spec-010` § Validation
  *    rules); exit `1`, naming the field.
  * 7. **Commit** — {@link commitMemoryTransition} under `carries-content`, the scope `memory submit`
@@ -1394,7 +1395,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
 
   const amendable = requireAmendableType(memoryYaml, type);
   if (!amendable.ok) return amendable;
-  const edit = requireAmendableEdit(root, id, path, content);
+  const edit = requireAmendableEdit(root, id, path, content, amendReservedFields(root, memoryYaml, type));
   if (!edit.ok) return edit;
   const filled = requireRequiredFieldsKept(memoryYaml, type, from, frontmatter);
   if (!filled.ok) return filled;

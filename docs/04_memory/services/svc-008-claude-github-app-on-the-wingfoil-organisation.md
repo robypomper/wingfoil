@@ -12,7 +12,7 @@ account: "wingfoil (organisation installation 166199613)"
 renews: ""
 repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
 decision: "release-planning-rel-v0.2.2-plan §C"
-release: "v0.2.2"
+set_up_in: "v0.2.2"
 tmpl_version: 260929   # Original template version
 ---
 

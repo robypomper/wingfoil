@@ -55,7 +55,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.7                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.8                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -232,6 +232,8 @@ types:
       frontmatter:
         required: [ title, provider, kind, owner_role, verify ]
       file: "memory/templates/service.md"       # relative to the configuration root (spec-001, bug-156), not dl-088's `.wingfoil/…` spelling
+    # A service carries no `release`: build-backlog never stamps one (traceability directive), and the
+    # release in which it was set up is the scaffold's `set_up_in` (task-170, bug-166).
     amendable: true      # key [SPEC: spec-001, dl-108 A3]; value: approver ruling 2026-10-01 (task-127)
     states: # [AUTHORING] dl-088 option 1 (a) — ratified e6074c94
       sequence: [ draft, pending, active ]

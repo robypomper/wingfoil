@@ -9,8 +9,10 @@
  * what an amendment owns (`spec-010` § Field-write ownership: the body and every frontmatter field
  * except those in {@link AMEND_RESERVED_FIELDS}).
  */
+import { load } from 'js-yaml';
+
 import { describeDocumentChanges, missingRequiredFields, resolveStateMachine, type MemoryYaml } from '../memory';
-import { readPathAtRev } from '../storage';
+import { extractFrontmatter, readPathAtRev, WINGFOIL_DIR } from '../storage';
 
 import { coreErr, coreOk, type CoreResult } from './types';
 
@@ -20,12 +22,53 @@ import { coreErr, coreOk, type CoreResult } from './types';
  * - `status` belongs to the transition verbs;
  * - `id` and `type` locate the element and select its path and machine, so changing either is a new
  *   element, not a correction to this one;
- * - `release` belongs to `assign` (`element.set_release`, approver ruling 2026-10-01);
+ * - `release` belongs to `assign` (`element.set_release`, approver ruling 2026-10-01) — but only on a
+ *   type whose committed scaffold declares it; see {@link amendReservedFields};
  * - `rejection_reason` belongs to `reject` (and is cleared by `submit`);
  * - `supersedes` is the trigger of the future `superseded` edge (`task-162`).
- * The last three are the approver's ruling (b) at `task-127`'s review, 2026-10-01.
+ * The last three are the approver's ruling (b) at `task-127`'s review, 2026-10-01; the condition on
+ * `release` is the approver's ruling of 2026-10-01 at `task-170` (`bug-166`, option (A)).
  */
 export const AMEND_RESERVED_FIELDS: readonly string[] = ['id', 'rejection_reason', 'release', 'status', 'supersedes', 'type'];
+
+/** The one reserved field whose reservation depends on the type: see {@link amendReservedFields}. */
+const ASSIGN_OWNED_FIELD = 'release';
+
+/**
+ * Whether the type's scaffold, as committed at `HEAD`, declares a `release` frontmatter field. `null`
+ * when there is no scaffold to read — no `template.file`, not committed, or no parseable frontmatter.
+ */
+function committedScaffoldDeclaresRelease(root: string, memoryYaml: MemoryYaml, type: string): boolean | null {
+  const file = memoryYaml.types[type]?.template?.file;
+  if (file === undefined) return null;
+  const scaffold = readPathAtRev(root, 'HEAD', `${WINGFOIL_DIR}/${file}`);
+  if (scaffold === null) return null;
+  try {
+    const fields: unknown = load(extractFrontmatter(scaffold) ?? '');
+    if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) return null;
+    return Object.prototype.hasOwnProperty.call(fields, ASSIGN_OWNED_FIELD);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The fields an amendment of a `type` document may not change: {@link AMEND_RESERVED_FIELDS}, except
+ * `release` when the type's scaffold committed at `HEAD` (`template.file` of the committed
+ * `memory.yaml`, `command-baseline`) does not declare a `release` field.
+ *
+ * `release` is reserved because `assign` owns it, and `assign` owns it only on the types that carry it
+ * with the `traceability` directive's meaning, the release the element's implementation is assigned
+ * to. The scaffold is where a type declares the fields its documents carry. A type whose scaffold has
+ * no `release` (`service`, since `task-170` named its set-up release `set_up_in`) has no assign-owned
+ * `release`, so a `release` key left on one of its documents is a leftover an amendment may remove.
+ * With no readable committed scaffold nothing shows the field is unowned, and it stays reserved.
+ * Sorted, as {@link AMEND_RESERVED_FIELDS} is (REQ-SYS-07).
+ */
+export function amendReservedFields(root: string, memoryYaml: MemoryYaml, type: string): readonly string[] {
+  if (committedScaffoldDeclaresRelease(root, memoryYaml, type) !== false) return AMEND_RESERVED_FIELDS;
+  return AMEND_RESERVED_FIELDS.filter((field) => field !== ASSIGN_OWNED_FIELD);
+}
 
 /**
  * Refuse a type whose committed `memory.yaml` entry does not declare `amendable: true` (`dl-108` A3,
@@ -41,14 +84,21 @@ export function requireAmendableType(memoryYaml: MemoryYaml, type: string): Core
 
 /**
  * Refuse a working-tree document that is not an amendment of its committed self: no commit holds it,
- * it carries no change, or the change touches a field in {@link AMEND_RESERVED_FIELDS}. `content` is
- * the document as read from the working tree, which is what the commit will record.
+ * it carries no change, or the change touches a field in `reserved` (the type's
+ * {@link amendReservedFields}). `content` is the document as read from the working tree, which is
+ * what the commit will record.
  *
  * The comparison is against `HEAD`, the committed baseline. That is also what keeps the subject's
  * `[s → s]` bracket true: `status` is the same on both sides, so the state the bracket names is the
  * committed one.
  */
-export function requireAmendableEdit(root: string, id: string, path: string, content: string): CoreResult<undefined> {
+export function requireAmendableEdit(
+  root: string,
+  id: string,
+  path: string,
+  content: string,
+  reserved: readonly string[],
+): CoreResult<undefined> {
   const committed = readPathAtRev(root, 'HEAD', path);
   if (committed === null) {
     return coreErr({
@@ -61,8 +111,8 @@ export function requireAmendableEdit(root: string, id: string, path: string, con
   if (committed === content) {
     return coreErr({ code: 'VALIDATION', message: `nothing to amend: ${path} carries no uncommitted change` });
   }
-  const reserved = new Set(AMEND_RESERVED_FIELDS.map((field) => `frontmatter field '${field}'`));
-  const touched = describeDocumentChanges(committed, content).filter((change) => reserved.has(change));
+  const owned = new Set(reserved.map((field) => `frontmatter field '${field}'`));
+  const touched = describeDocumentChanges(committed, content).filter((change) => owned.has(change));
   if (touched.length > 0) {
     return coreErr({
       code: 'VALIDATION',

@@ -12,7 +12,7 @@ account: "GitHub Actions: wingfoil/wingfoil, workflow publish.yml, environment n
 renews: ""
 repo_refs: [".github/workflows/publish.yml"]
 decision: "adr-011-npm-staged-publishing-with-oidc"
-release: "v0.2.2"
+set_up_in: "v0.2.2"
 tmpl_version: 260929   # Original template version
 ---
 

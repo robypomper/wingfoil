@@ -12,7 +12,7 @@ account: "wingfoil (owner: robypomper)"
 renews: ""
 repo_refs: []
 decision: "dl-091-package-name-and-mcp-namespace"
-release: "v0.2.2"
+set_up_in: "v0.2.2"
 tmpl_version: 260929
 ---
 

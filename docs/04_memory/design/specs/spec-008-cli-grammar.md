@@ -172,7 +172,7 @@ uncommitted edit of one document, as that one path, and moves no state, so its b
 self-loop of the state committed at `HEAD`. It is an approval: the body carries `Approver:` and
 `Reason:` exactly as `approve` writes them, and the caller needs the same authority (REQ-SEC-03). What
 an amendment may change is `spec-010`'s § Field-write ownership row: the body and every frontmatter
-field except `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, each of which another operation owns. Past the type's initial state, the edit must
+field except `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, each of which another operation owns (`release` only on a type whose scaffold committed at `HEAD` declares it, `task-170`). Past the type's initial state, the edit must
 also keep `title` and every `template.frontmatter.required` field non-empty (`spec-010` § Validation
 rules). Which types may be amended is the type's `amendable` key
 (`spec-001`), read from the committed `memory.yaml`; absent means not amendable. Its refusals: a
@@ -787,3 +787,9 @@ fourth case (a C0 control character other than tab and newline, named by code po
 task's review), and gives the trailing-paragraph refusal its remedy. A new note states the
 terminator rule the `--reason` row had left to the implementation, and where it differs from git's.
 Edited in place without a supersede or a state change (`dl-047`); recorded with `memory amend`.
+
+**Revision (2026-10-01, `task-170-give-service-set-up-release-field-name-own`) — `release` is
+reserved where the scaffold declares it.** Per the approver's ruling of 2026-10-01 (`bug-166`, option
+(A)), §2's amend paragraph says that `release` is reserved only on a type whose scaffold committed at
+`HEAD` declares a `release` field (`spec-010` § Field-write ownership). Edited in place without a
+supersede or a state change (`dl-047`).

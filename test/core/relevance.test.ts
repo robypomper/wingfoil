@@ -614,4 +614,28 @@ describe('filterRelevantMemoryDocuments (task-035-bounded-context-relevance, REQ
     });
   });
 
+
+  describe('task-170 (bug-166) — a service\'s `set_up_in` is not a release scope (spec-012 §6 T2)', () => {
+    const SERVICE_YAML: MemoryYaml = { ...MEMORY_YAML, types: { ...MEMORY_YAML.types, service: { path: 'docs/04_memory/services/{id}.md' } } };
+    const SERVICE = (id: string, releaseLine: string): string =>
+      ['---', `id: ${id}`, 'type: service', `title: "${id}"`, 'status: active', releaseLine, '---', '', fillerBody(0), ''].join('\n');
+
+    it('T2 reads `release` only: a service carrying `set_up_in` no longer scores the same-release tier', () => {
+      const root = makeTempGitRepo();
+      try {
+        // Before the rename (svc-001/002/004/008/009 carried `release: "v0.2.2"`), a service scored T2
+        // for every v0.2.2 element. After it, the field is `set_up_in` and the service is no release's work.
+        writeFixtureFile(root, 'docs/04_memory/services/svc-901-renamed.md', SERVICE('svc-901-renamed', 'set_up_in: "v0.2.2"'));
+        writeFixtureFile(root, 'docs/04_memory/services/svc-902-legacy.md', SERVICE('svc-902-legacy', 'release: "v0.2.2"'));
+        commitAll(root, 'seed service release-scope fixture');
+
+        const element = { type: 'task', id: 'task-host', frontmatter: { release: 'v0.2.2' } };
+        const ids = filterRelevantMemoryDocuments(root, SERVICE_YAML, element).documents.map((doc) => doc.id);
+
+        expect(ids).toEqual(['svc-902-legacy']);
+      } finally {
+        removeTempDir(root);
+      }
+    });
+  });
 });

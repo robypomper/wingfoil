@@ -12,7 +12,7 @@ account: "environment npm-publish of wingfoil/wingfoil"
 renews: "2026-12-27"
 repo_refs: []
 decision: "dl-087-publish-through-npm-staged-publishing"
-release: "v0.2"
+set_up_in: "v0.2"
 tmpl_version: 260929
 ---
 

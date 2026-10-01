@@ -120,7 +120,7 @@ configuration moves there (v0.2.2 step 2, closing `bug-075`). The states mean:
 | `renews` | no | ISO date on which it expires or must be renewed; `""` if never |
 | `repo_refs` | no | repository paths that depend on it (e.g. `.github/workflows/publish.yml`) |
 | `decision` | no | the decision-log or ADR that motivated it |
-| `release` | no | the release in which it was set up |
+| `set_up_in` | no | the release in which it was set up (not `release`, which a service never carries — `bug-166`) |
 
 ### Body
 
