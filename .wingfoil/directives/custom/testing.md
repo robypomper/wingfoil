@@ -22,8 +22,10 @@ Custom stand-in directive. Applies to developers and QA.
   or **characterization** (behavior already exists — pin it with a test that passes on first run).
   Characterization is legitimate for verification/infra tasks; **never fabricate a red or add dead
   code to force one**. Record the per-AC classification in the task's Execution Notes.
-- Maintain >80% coverage (Jest); coverage must not regress on merge. Gate: the `dev-loop` `refactor`
-  phase's `checks.post` entry `tests.coverage(min: 80)`, run as `npm run test:coverage`.
+- Maintain >80% coverage (Jest); coverage must not regress on merge. Gate (80% floor only): the
+  `dev-loop` `refactor` phase's `checks.post` entry `tests.coverage(min: 80)`, run as
+  `npm run test:coverage` against `jest.config.js` `coverageThreshold` (80). Non-regression is not
+  asserted by any gate: it is checked by hand at `refactor`, against `main`'s figures.
 - Each behavior has at least one happy-path and one edge/error-path test (mirrors the BDD suite).
 - Tests are deterministic and isolated; no reliance on external services or wall-clock/random.
 - Test sources typecheck as cleanly as production sources (`dl-044`). Gate: `typecheck.clean`, the

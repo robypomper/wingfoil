@@ -44,8 +44,8 @@ The citation rule is stated in full in the `documentation` directive, clause D1 
   A bare `path:line` offset is legal only here (`dl-075`, `ready`).
 - **In durable prose** — a comment or TSDoc, an acceptance criterion, a bug `Summary`/`Expected`/
   `Actual`, a spec sentence, a decision: name a symbol, heading, YAML key path or verbatim
-  quotation, plus the commit you read it at (`dl-075`). An offset rots; a symbol plus a sha does
-  not.
+  quotation, plus the commit you read it at when the cited state may move (`dl-075`). An offset
+  rots; a symbol plus a sha does not.
 - **When it cannot be run**, write the expectation as an expectation — "intended to", "not
   verified here" — never as a measurement. An honest gap is reviewable; a confident sentence is not.
 
