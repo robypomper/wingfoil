@@ -163,7 +163,7 @@ The Index is **composite**, and each component states who controls it and what i
 | Component                     | What it measures                                                                                     | Controlled by                  | Promise                         |
 |-------------------------------|------------------------------------------------------------------------------------------------------|--------------------------------|---------------------------------|
 | **I — Input**                 | The assembled context is identical for identical inputs                                              | WingFoil                       | Guaranteed: 100%, by tests      |
-| **P — Process conformance**   | The run followed the workflow: well-formed commits, legal transitions, phase outputs present, traceability complete, each phase run by its declared role | WingFoil + the agent | Measured on every run           |
+| **P — Process conformance**   | The run followed the workflow: well-formed commits, legal transitions, phase outputs present, traceability complete, each phase run by its declared role (by distinct actors where the workflow requires it); between two runs, similar git trees (the same checkpoint and flow commits) | WingFoil + the agent | Measured on every run           |
 | **O — Outcome equivalence**   | Behavioural equivalence of two independent runs' software                                            | The customer's agent and model | Measured periodically, never promised |
 
 Textual or structural similarity of the code is out of scope.
@@ -340,8 +340,8 @@ This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). 
   week-by-week plan; Definition of Done
 - [`08_mvp-canvas.md`](08_mvp-canvas.md) — MVP canvas and success criteria
 
-**Other tools:** *Key Differentiators* names categories of tools, not products, so this brief states
-no fact about a specific third-party tool. An edit that names one cites its source and the date it was read here
+**Other tools:** *Key Differentiators* names categories of tools, not products, so this brief states no
+fact about what a specific third-party tool does. An edit that states one cites its source and the date it was read here
 (`dl-112-positioning-as-a-governance-layer`, ratified with that condition).
 
 All documents are versioned in git and open for refinement as development progresses.
