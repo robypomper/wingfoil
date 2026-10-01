@@ -2,7 +2,7 @@
 id: "task-141-reposition-brief-governance-layer-make-determinism-index-composite"
 type: task
 title: "Reposition the brief as a governance layer and make the Determinism Index composite"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "feature"
 priority: "high"
