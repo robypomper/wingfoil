@@ -38,6 +38,8 @@ Claims that need a command, in practice:
 
 ## How a claim is recorded
 
+The citation rule is stated in full in the `documentation` directive, clause D1 (`dl-120`).
+
 - **In Execution Notes, Steps to Reproduce and triage notes:** the command and its output, pasted.
   A bare `path:line` offset is legal only here (`dl-075`, `ready`).
 - **In durable prose** — a comment or TSDoc, an acceptance criterion, a bug `Summary`/`Expected`/

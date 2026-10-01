@@ -16,7 +16,9 @@ Custom stand-in directive (TypeScript / Node.js). Applies to anyone writing code
 > until they ship, this generic rule (adapted to the project methodology/tech-stack in `dna.yaml`) is
 > kept as `custom`. `ref: [P3.8]` records the built-in template it becomes once those exist.
 
-- Lint clean: no errors; warnings triaged before merge.
+- Lint clean: no errors; warnings triaged before merge. Gate (`dl-034`, `dl-120` D5): the
+  `dev-loop` `refactor` phase's `checks.post` entry `lint.clean`, run as `npm run lint` and asserted
+  by `test/lint/lint-clean.test.ts`.
 - Respect complexity limits; prefer small, single-responsibility functions.
 - No dead code, no commented-out blocks, no `any` without justification (TypeScript).
 - Match surrounding code style, naming, and idioms.
