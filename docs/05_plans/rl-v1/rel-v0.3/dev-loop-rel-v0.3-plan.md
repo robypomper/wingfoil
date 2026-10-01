@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.4"
+version: "1.5"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -243,3 +243,41 @@ commit, right after the task's transition and on the task branch:
   follow-ups `bug-181` → `task-146` and `bug-182` → `task-131` were triaged into v0.3 by the
   approver. **Wave 0 closed.**
 - **2026-10-01 — wave 1 opened**, with batch B1 (§3).
+- **2026-10-01 — batch B1 `done`** (`task-130`, `131`, `133`, `136`, `139`, `140`, `166`,
+  `170`).
+  - **Review.** Each task had an independent review: `131` approve; the other seven approve with
+    fixes, all applied in-task. The approver ruled `task-170` option (A): `release` is reserved for
+    `amend` only where the committed scaffold declares it.
+  - **Amendments.** The first run of the W1 amendment rule (§3): **22 `memory amend`**, one commit
+    and one file each, run on the task branches before `approve`.
+    - `task-130`: spec-005, spec-004, spec-008.
+    - `task-136`: spec-003.
+    - `task-139`: task-173.
+    - `task-166`: spec-008, dl-067.
+    - `task-170`: dl-088, svc-001 … svc-012, spec-010, spec-008.
+  - **task-140's AC 3.** The approver authorised the push of its branch. CI run
+    <https://github.com/wingfoil/wingfoil/actions/runs/36858971902> was green (167 suites, 2771
+    tests), and the remote branch was deleted after the merge.
+  - **Bugs closed:** bug-112, bug-114, bug-118, bug-122, bug-123, bug-124, bug-144, bug-145, bug-166,
+    bug-182.
+  - **Merges** (`--no-ff`, plan order 131 → 130 → 133 → 136 → 139 → 140 → 166 → 170): 84305032 b0c194d9 09b61d5a 1f5b314c 0ed6394d 937f5755 c670ff38 876f3d4e.
+    Only `spec-008`'s Revision notes conflicted, twice; both sides were kept in date order.
+  - **Integration fix** `c6e56ac6` (branch `fix/error-details-reads-diagnostics`). task-130's
+    `errorDetails` read only `details.issues`, and task-136's loader refusal carries
+    `details.diagnostics`. Each further diagnostic is now one detail in the reason form, red-first,
+    with CLI and in-process tests.
+  - **Gates on `main` at `c6e56ac6`:** 177 suites, 2969 tests, coverage 98.82 / 95.06 / 94.44 /
+    99.52; lint, `docs:api` and both `tsc` exit 0.
+  - **Under parallel load** `resource-latency`, `query-latency` and `publish-secrets` (`bug-181`)
+    flaked and passed alone. That is `task-146`'s class.
+  - **Follow-ups.** `bug-183` … `bug-186` are open, with triage proposals in
+    `bug-ingest-rel-v0.3-w1b1-review-findings-plan`. Amendments: `dl-058` (`fd0b263c`) and
+    `bug-040` (`5d8d2fe2`).
+  - **For `user-docs`:**
+    - `docs/user-guide.md` §7 and `docs/cli-reference.md` still describe workflows only by `kind`;
+    - CHANGELOG entries for the error details, ci.yml, the reason grammar and `set_up_in`.
+
+    **For `align-agent-docs`:** CLAUDE.md §5.1 (control characters, reserved keys) and the mention
+    of ci.yml.
+  - **Fix share:** 34 open fix tasks of 109 open tasks (31%).
+  - **Next:** batch B2.
