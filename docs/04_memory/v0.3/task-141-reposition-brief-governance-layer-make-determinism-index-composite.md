@@ -134,14 +134,28 @@ same script reports **42** mismatches. A deliberately broken range (`L22–37` f
 
 None: no amendable Memory element was edited.
 
+### review follow-up — same-class drift (coordinator, 2026-10-01)
+
+Fixed in `e7deb40b`, in files this task already touched (the fix-same-class rule):
+- `08_mvp-canvas.md` *Competitive Advantage* (now L124–142) follows the brief's **Replaces / Works with**: it names
+  categories, has no product rows and no "Deterministic + cheaper". No second bump, because v1.6 is not yet on main.
+- `02_product-vision.md` *Key Decisions*: "Differentiator vs. CLAUDE.md / .cursorrules" becomes "vs. flat
+  agent-rule files". No second bump (v1.2 is not on main).
+- `05_journeys.md` 1.2 → **1.3**, 2026-10-01: the last edit was `0927f5df`, so this edit bumps it. Journey 1's
+  success line says the agent receives the same context for the same inputs (the Index's *Input*), instead of
+  saying "deterministic".
+- `00_index.md`: document-map rows for both files and every range of `05_journeys` / `08_mvp-canvas`. The bug-160
+  one-line script above re-run → `mismatches: []`.
+- Check: `grep -rn -iE "cursorrules|Deterministic \+ cheaper|Why WingFoil Wins" docs/01_vision` → only
+  `X_lean-inception-plan.md:28`, the workshop's session log (a historical record with no version header),
+  left as it is.
+- Left as they are, outside what the coordinator named: "Impact: Reduced determinism" (`01_product-brief.md:35`,
+  `08_mvp-canvas.md:20`), "Focus: Determinism for memory + architecture" (`01_product-brief.md:201`, v0.1 GTM)
+  and "Core value language: Deterministic" (`02_product-vision.md:26`, a workshop decision). The first two
+  describe the problem, and the third is the input side; none of them promises equivalent code.
+
 ### Candidate findings (not filed)
 
-- `08_mvp-canvas.md` *Competitive Advantage* (L124–135) still has the old "vs. / Why WingFoil Wins" table,
-  with "CLAUDE.md / .cursorrules — Single flat file" and "Deterministic + cheaper". dl-112 named only the
-  brief and the vision, so the table was left as it is; it now disagrees with the brief.
-- `02_product-vision.md` *Key Decisions* keeps the workshop row "Differentiator vs. CLAUDE.md / .cursorrules …
-  not a single flat config file". This is an unsourced fact about a product (dl-112's condition).
-- `05_journeys.md:100` and `00_index.md`'s one-sentence summary still say "deterministic" without the I/P/O
-  qualification (the summary was reworded here to the governance-layer positioning).
+- The canvas, product-vision and journeys findings first listed here are fixed (follow-up above).
 - The vision index has no test. The one-line script above could become a `test/docs/` check, as bug-160's
   Notes suggest; until then every vision edit can re-open the drift.
