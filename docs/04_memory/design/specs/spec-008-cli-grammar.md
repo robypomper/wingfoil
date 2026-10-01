@@ -305,8 +305,14 @@ error: unknown memory type 'unicorn' (not defined in memory.yaml)
 For `--format json` / `--format yaml`, the same `<reason>` is carried as a structured field:
 
 ```json
-{"error": "<reason>"}
+{"error": "<reason>", "hint": "<optional suggestion>", "details": [{"file": "…", "detail": "…"}]}
 ```
+
+`hint` and `details` are optional and omitted when empty. In console format a `details` entry is an
+indented line after the `error:` line (and after the `hint:` line, when there is one). The shape
+applies to every refusal, the argument parser's own (unknown command or option, missing option
+argument, missing verb) included. The rules for both fields are `spec-005-cli-command-contract`
+§3.1–§3.2's.
 
 `--verbose` appends diagnostic lines (stack trace, underlying git output) to stderr after the error line;
 it never changes the error line itself or the exit code.
@@ -753,3 +759,10 @@ At the review (2026-10-01): an amendment may not change `release`, `rejection_re
 either (approver ruling (b)). It must keep `spec-010`'s required fields non-empty past the initial
 state (review F1). Authority is checked as soon as the document is located (review F6). The
 paragraph above states all three.
+
+**Revision (2026-10-01) — §6 defines the `hint` and `details` slots and says the shape covers the
+argument parser's refusals, per `task-130` (`dl-055` option 1, ratified `b410c09f`, whose Actions name
+this section; `bug-114`).** §6 defined only `{"error": "<reason>"}`. `spec-005` §3 now owns the
+details rule and the parse-path rule, so §6 names the two optional fields and points there rather than
+restating them. Edited in place without a supersede or a state change, per
+`dl-047-tech-specs-carry-no-version-field`.
