@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.3-w1b1-review-findings-plan
 type: plan
 title: "Bug-ingest — rel-v0.3 wave 1 B1 review findings"
-status: active
+status: done
 version: "1.0"
 workflow: "bug-ingest"
 phase: "rel-v0.3-w1b1-review-findings"
@@ -52,3 +52,12 @@ The Memory verbs run with the code version (`node dist/cli.js`) on `main` after 
 - **Completion criteria:** every captured bug `triaged` or `closed`; this plan `active → done`.
 
 ## Execution Notes
+- **triage done (2026-10-01)**, on the approver's instruction: every proposal was accepted.
+  - `bug-183` → `task-196`.
+  - `bug-184` → `task-174`.
+  - `bug-185` → `task-173`. The approver ruled to **extend the refusal past C0** (DEL, C1, U+2028,
+    U+2029), recorded in `dl-078` by `memory amend`.
+  - `bug-186` → `task-197` (the directive states what a plan's `release` means).
+
+  For each bug: `approve [open → triaged]`, then `assign release v0.3`, the task's `bug:` list, and
+  `sync [triaged → planned]`. Plan complete.
