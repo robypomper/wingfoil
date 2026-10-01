@@ -64,8 +64,9 @@ WingFoil workflows), so no BDD change.
 - Q2 (a red gate is a CI failure): no `continue-on-error`, pinned by the test.
 - Concurrency (not in the ACs, added): `group: ci-${{ github.ref }}`, cancelling an older run only off
   `main` (`cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`). This answers adr-009's
-  push-cost concern for branch iteration, and every commit on `main` still gets its own result.
-  **The approver should confirm this.**
+  push-cost concern for branch iteration. *Corrected at the independent review (below): the claim
+  that every commit on `main` still gets its own result was false.* **The approver should confirm
+  the corrected rule.**
 
 **AC classification (T1).**
 
@@ -117,6 +118,47 @@ Run sequentially, in the worktree, after `npm ci`. Local Node v22.21.0 / npm 11.
   table). They ran under Node 22.21.0 / npm 11.6.2, not under the job's 22.12.0, so this does not
   replace the run.
 - Same-class sweep: `publish.yml` is the only other workflow, and it is unchanged.
+
+### review (independent)
+
+Verdict: **approve with fixes**. Three findings, fixed in ``b45ded21``:
+
+1. **The `ci.yml` "Concurrency:" header claimed something false.** A push of several commits runs once,
+   on its tip. With `cancel-in-progress: false`, GitHub keeps one running and one pending run per
+   group, and a third push cancels the pending one, so `main` did not get one result per commit.
+   - Fix: on `main` the group is now the commit SHA, unique per push:
+     `group: ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}`, with
+     `cancel-in-progress: true`. Branch and PR groups are still the ref.
+   - The header now states the actual guarantee: "every push to `main` gets its own run of its tip
+     commit", and intermediate commits of a multi-commit push are not tested.
+   - `ci-workflow.test.ts` pins the group and the cancel rule.
+2. **The header said a test pins `fetch-depth: 0`, but none did.** The reviewer set `fetch-depth: 1`
+   and all 9 tests still passed.
+   - Fix: a new assertion requires `fetch-depth: 0`, equal to the value in `publish.yml`'s gate
+     checkout.
+   - Re-checked here: with `fetch-depth: 1`, `npx jest test/cli/ci-workflow.test.ts` gives `Tests: 1
+     failed, 10 passed, 11 total`. Restored to 0, both files together give `33 passed, 33 total`.
+3. **Accepted cost, now recorded in the header:** a branch with an open PR into `main` runs twice per
+   push, once for `push` and once for `pull_request`.
+
+**Reviewer's environment evidence for AC 3.**
+- Command: `npm ci && npm run prepublishOnly`, run in Docker `node:22-bookworm` (Node 22.23.3,
+  npm 10.9.9), with no git identity and `CI=true`.
+- Result: `npm ci` exit 0; 167 suites / 2769 tests green.
+- Output file: `scratchpad/task-140/docker-gate.out`, re-read here with `grep -E "Tests:|Test
+  Suites:|v22"`.
+- This is the closest stand-in for the runner. It is not the run itself. **AC 3 stays open until the
+  approver decides the push.**
+
+Gates after the fixes, run one after another in the worktree:
+
+| Command | Result |
+|---|---|
+| `npm run prepublishOnly` | exit 0; 167 suites / 2771 tests (2 new) passed; eslint clean |
+| `npm run test:coverage` | exit 0; 167 / 2771; 98.73 / 94.58 / 94.01 / 99.49, unchanged (no `src/` change) |
+| `npm run docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
 
 ### Pending amendments (approver)
 
