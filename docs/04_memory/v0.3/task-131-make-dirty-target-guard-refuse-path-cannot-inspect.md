@@ -2,7 +2,7 @@
 id: "task-131-make-dirty-target-guard-refuse-path-cannot-inspect"
 type: task
 title: "Make the dirty-target guard refuse a path it cannot inspect, and stop exporting the unconfined resolver"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "fix"
 priority: "high"
