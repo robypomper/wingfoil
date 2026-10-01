@@ -578,7 +578,8 @@ describe('verifyTransitionConsistency — a multi-hop bracket is a chain (task-1
 });
 
 // task-126 (dl-079 (A)): the closed `wf()` operation list — the five CLI verbs plus `start`,
-// `finalize`, `sync`, `amend`, `park` — and the scopes and subjects that are not Memory operations.
+// `finalize`, `sync`, `amend`, `park`, `assign` — and the scopes and subjects that are not Memory
+// operations.
 describe('reconstructMemoryTransitions — the declared operation list (task-126, dl-079 (A))', () => {
   let repo: string;
 
@@ -616,10 +617,33 @@ describe('reconstructMemoryTransitions — the declared operation list (task-126
         'wf(bug): schedule task-901-doc into v0.2',
         'wf(release): enter-releasing minor-v0.2 [in-development → releasing]',
         'wf(task): start-fix task-901-doc [backlog → in-progress]',
-        'wf(adr): assign release v0.2 to task-901-doc',
         'wf(task): task-901-doc [backlog → in-progress]',
       ]),
-    ).toEqual([null, null, null, null, null]);
+    ).toEqual([null, null, null, null]);
+  });
+
+  // Approver ruling 2026-10-01 (reverses release-planning R20/Q6 on this point): `assign` joins the
+  // list as `element.set_release`'s verb, in the canonical form history already carries.
+  it('reports `assign` for the canonical `assign release {version} to {id}, …` subject, the four practised ones included', () => {
+    expect(
+      operationsOf([
+        'wf(adr): assign release v0.3 to task-901-doc',
+        'wf(bug): assign release v0.2.2 to task-901-doc, bug-092-dna-set-and-dna-update-are-indistinguishable',
+        'wf(tech-spec): assign release v0.2 to spec-015',
+        'wf(decision-log): assign release v0.2.2 to dl-026-repo-versioned-mcp-server-config',
+      ]),
+    ).toEqual(['assign', 'assign', 'assign', 'assign']);
+  });
+
+  it('an `assign` subject outside the canonical form reads `operation: null`', () => {
+    expect(
+      operationsOf([
+        'wf(task): assign task-901-doc',
+        'wf(task): assign release v0.3',
+        'wf(task): assign owner bob to task-901-doc',
+        'wf(task): assign release v0.3 to task-901-doc [backlog → backlog]',
+      ]),
+    ).toEqual([null, null, null, null]);
   });
 
   it('AC3: `wf(workflow): create|remove` and `wf(directive): …` commits touching a Memory path are not Memory operations', () => {
