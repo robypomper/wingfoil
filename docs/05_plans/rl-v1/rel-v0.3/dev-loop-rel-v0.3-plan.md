@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.3"
+version: "1.4"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -128,7 +128,35 @@ Wave-0 handovers from the planning session:
   `finalize` 132 = 112 task + 20 plan, `start` 113).
 - `submit` keeps no transition bracket (`dl-054` over `dl-106` W1 (a), R20).
 
-**Waves 1–3**: opened by a revision of this plan when wave 0 closes.
+**Wave 0 closed 2026-10-01**: the four tasks are `done` (§Execution Notes).
+
+**Wave 1** (opened 2026-10-01, the approver's choice of batches): `task-130` … `task-170`, 41 tasks,
+in six batches. They were built from a read-only analysis of the files each task will write. A
+batch starts when the previous one is merged; a task may start earlier if no open task writes its
+files. Each of the five `memory.yaml` writers is in a different batch. The tasks that unblock the
+most later work go first (`task-136` → 40 later tasks, `task-130` → 26, `task-137` → 23,
+`task-166` → 19, `task-161` → 15, `task-138` → 14, transitive counts over `depends_on`).
+
+| Batch | Tasks | Merge order on shared files |
+|---|---|---|
+| **B1** | 130, 131, 133, 136, 139, 140, 166, 170 | `133` → `136` (`src/storage/templates.ts`); `131` → `130` (refusal paths of `memory add` and the transition verbs) |
+| **B2** | 132, 134, 135, 137, 138, 141, 161, 167 | `137` after `136`; `138` → `132` (`src/core/index.ts`); `138` → `161` (`docs/cli-reference.md`); `161` → `132` (`spec-006`) |
+| **B3** | 142, 143, 144, 145, 147, 150, 169 | `143` → `144` (`src/core/directives-list.ts`); `144` after `161` (`command-baseline.md`) |
+| **B4** | 146, 148, 149, 151, 152, 155, 168 | `146` → `152` (`jest.config.js`) |
+| **B5** | 153, 154, 158, 159, 162, 163 | `162` → `163` (`spec-001`) |
+| **B6** | 156, 157, 160, 164, 165 | `165` → `156` (`spec-008`, `docs/cli-reference.md`); `164` after `163` |
+
+Fix share (`dl-133`, tracked by hand until `task-221`'s `start` check): at the opening of W1, 38
+open fix tasks of 117 open tasks (32%); B1 holds 4 fixes of 8.
+
+**Amending approved Memory elements during a task (from W1 on).** `memory amend` exists since
+`task-127`, so an edit to an element past its first state (a spec's Revision note, a ready
+decision-log, a `service`, another task) is an `amend` commit, not a hand commit (`dl-108`). The
+verb needs approver authority, so the developer agent does not run it. It leaves such edits
+**uncommitted** in the task worktree and lists each one in the Execution Notes, with its proposed
+`--reason`. At the review gate, on the approver's instruction, the coordinator runs one
+`memory amend` per element on the task branch, then `approve`. Code, tests, directives,
+configuration and non-Memory docs are committed by the developer as before.
 
 ### 4. `bug.sync_state` — linked bugs (wave 0)
 
@@ -202,3 +230,16 @@ commit, right after the task's transition and on the task branch:
   - `CLAUDE.md` §5.1: `dl-079` is still called `in-discussion`, five verbs are listed, and
     `{id1}, {id2}` is not marked historical;
   - `CLAUDE.md` §3: its `memory add` limits are lifted once the pin passes `task-128`.
+- **2026-10-01 — `task-127` `done`.** Approved after an independent review: F1 (required fields
+  stay non-empty past `draft`) and F6 (authority checked right after confinement) were fixed
+  in-task. The approver's rulings were applied:
+  - `amendable` is true for tech-spec, decision-log, service, task, bug and plan, and false for
+    adr, release and release-line;
+  - `amend` also refuses `release`, `rejection_reason` and `supersedes`;
+  - the `init` scaffold declares `amendable`.
+
+  Approve `ed2de6f1`, merge `15fa712a`. Gates on `main` at `15fa712a`: 166 suites, 2759 tests,
+  coverage 98.73 / 94.58 / 94.01 / 99.49; lint, `docs:api` and both `tsc` runs exit 0. The review
+  follow-ups `bug-181` → `task-146` and `bug-182` → `task-131` were triaged into v0.3 by the
+  approver. **Wave 0 closed.**
+- **2026-10-01 — wave 1 opened**, with batch B1 (§3).
