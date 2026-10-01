@@ -439,6 +439,20 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it('`init` outside a WingFoil project honours `--format json` (task-130, `bug-114`)', async () => {
+    const program = await buildProgram(FIXTURE_MODULES, {
+      resolveRoot: () => {
+        throw new Error('E_NO_GIT_ROOT: not inside a git repository');
+      },
+      buildParams: (ctx) => ({ root: ctx.root }),
+    });
+    program.exitOverride();
+    await program.parseAsync(['node', 'wingfoil', '--format', 'json', 'init']);
+
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: 'E_NO_GIT_ROOT: not inside a git repository' })}\n`);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it('`init` stringifies a non-Error thrown by `resolveRoot` rather than printing `undefined`', async () => {
     const program = await buildProgram(FIXTURE_MODULES, {
       resolveRoot: () => {
@@ -503,9 +517,28 @@ describe("buildProgram — the exit callback's own behaviour (task-103, `bug-103
     // removed — so the callback never re-parses argv. `--format json` before the noun proves it: a
     // naive `process.argv.slice(2)` would name `--format` as the unknown command here.
     const program = await buildFixtureProgramWithRealExitCallback();
+    // Since task-130 (`bug-114`) the line honours that `--format json`, so it is the JSON object.
     await parseIgnoringFallout(program, '--format', 'json', 'help', 'nosuchnoun');
-    expect(written(stderrSpy)).toContain("error: unknown command 'nosuchnoun'");
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: "unknown command 'nosuchnoun'" })}\n`);
     expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it("a commander refusal under `--format json` is WingFoil's `{error}` object (task-130, `bug-114`)", async () => {
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, '--format', 'json', 'dna', 'show', '--bogus');
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: "unknown option '--bogus'" })}\n`);
+    expect(exitSpy).toHaveBeenCalledWith(2);
+  });
+
+  it("commander's suggestion becomes `hint`, and the help of an incomplete invocation is not written (task-130)", async () => {
+    const program = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(program, '--format', 'yaml', 'dnaa');
+    expect(written(stderrSpy)).toBe("error: unknown command 'dnaa'\nhint: Did you mean dna?\n");
+
+    stderrSpy.mockClear();
+    const incomplete = await buildFixtureProgramWithRealExitCallback();
+    await parseIgnoringFallout(incomplete, '--format', 'json', 'dna');
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: 'missing required argument: wingfoil dna <command>' })}\n`);
   });
 
   it('an explicit `help` writes NO error line and asks for exit 0 — the trap, at the callback level', async () => {

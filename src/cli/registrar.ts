@@ -19,6 +19,7 @@ import type { CoreFlag, CoreModule, CoreOption, CorePositional, ParamsBuilder } 
 import { enumerateOperations, deriveVerb, extraOperandsReason } from '../core/registry';
 import type { CoreResult } from '../core/types';
 import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
+import { errorDetails } from '../core/error-details';
 
 import { emitError } from './error';
 import { exitWith } from './exit';
@@ -162,7 +163,8 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
         if (result.ok) {
           process.stdout.write(renderSuccess(result.value, format));
         } else {
-          emitError(result.error.message, { format });
+          // `details` too (task-130, `dl-055` option 1): the file and the explanation core recorded.
+          emitError(result.error.message, { format, details: errorDetails(result.error) });
         }
         exitWith(exitCodeForResult(result));
       },

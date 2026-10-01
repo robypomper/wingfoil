@@ -193,6 +193,13 @@ Each Tool's input schema mirrors its CLI's required flags one-to-one (e.g. `memo
    transitions except by author.
 3. On an illegal transition, is **rejected identically to the CLI path** (REQ-INT-03 fit criterion):
    same error message, same exit-equivalent status, no partial write.
+4. On any refusal, carries the same operator-facing **details** the CLI prints (`dl-055` option 1;
+   `spec-005` §3 defines the entries, `{file?, detail?}` per issue, selected once in
+   `src/core/error-details.ts`, which leaves out a file the reason already names). A tool refusal is an `isError: true` result rather than a JSON-RPC
+   error, so it has no `error.data`: its text content stays the bare reason (item 3), and the details
+   ride as `structuredContent: {"error": "<reason>", "details": [...]}` — the CLI's `--format json`
+   error object. A failed Resource read *is* a JSON-RPC error, and carries them as
+   `error.data.details`. A refusal with no details carries neither field.
 
 **The `[{from} → {to}]` bracket belongs to the verbs of the `spec-003` verb table that carry one**
 (`dl-079` (A); the list and each verb's bracket rule are `spec-008-cli-grammar` §2's). Those are the
@@ -297,3 +304,12 @@ prevails over `dl-106` W1 (a) (R20). At `task-126`'s review (2026-10-01) the app
 `status`, and the sentence says so. Item 2's format and the Tools are unchanged. Edited in place without a
 supersede or a state change, per the `spec-001` precedent `dl-041` cites (`dl-047`: no `version:`
 field).
+
+**Revision (2026-10-01) — §4.3 item 4: refusal details reach the MCP client, per `task-130`
+(`dl-055` option 1).** The registrar kept only `CoreError.message`, so `dl-032`'s explanation of the
+illegal-transition message reached no agent, and neither did the file that refusal concerns (its
+message is the bare contract string; a validation reason already embeds its file). Item 4 says where they go on each channel: `error.data.details` for a failed read,
+where JSON-RPC defines `data` for exactly this, and `structuredContent` for a tool refusal, which the SDK
+returns as a result and never as a JSON-RPC error. The text of a refusal is unchanged, so item 3's
+parity with the CLI holds. Edited in place without a supersede or a state change, per `dl-047` (no
+`version:` field).

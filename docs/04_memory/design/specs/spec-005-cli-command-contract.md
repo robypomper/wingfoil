@@ -132,6 +132,18 @@ error: <reason>
   error: unknown command "memorey"
   hint: did you mean "memory"?
   ```
+- **Details** (`dl-055` option 1): when the error carries operator-facing details — for each issue
+  in `CoreError.details.issues`, the `file` it was found in and/or the `detail` that explains a pinned
+  contract message (`dl-032` option (c)) — one line per issue follows, indented by two spaces, as
+  `<file>: <detail>` or whichever of the two the issue has; an issue with neither adds no line. A
+  `file` the reason already contains verbatim is not repeated (a validation reason usually embeds
+  `(<file>)`): the line keeps the `detail`, and an issue left with neither adds no line. The
+  `error: ` line stays first and unchanged, and a continuation line of a multi-line detail is
+  indented too, so no detail line can begin with `error: ` or `hint: `:
+  ```
+  error: illegal transition approved -> pending for type 'task'
+    docs/memory/task/task-200.md: illegal `submit` from "approved": a `waiting` state — its forward edge fires only via a Workflow action, not `submit`
+  ```
 - **Unknown-command suggestion:** when the first token after `wingfoil` (and any recognized global
   flags) does not match a known pillar or flat command, the CLI computes the closest known command by
   edit distance and — if within a small distance threshold — appends the `hint:` suggestion line shown
@@ -144,14 +156,32 @@ error: <reason>
 ```json
 {
   "error": "<reason>",
-  "hint": "<optional corrective suggestion>"
+  "hint": "<optional corrective suggestion>",
+  "details": [{ "file": "<optional path>", "detail": "<optional explanation>" }]
 }
 ```
 
 - `error` is required and carries the same reason text as the console `<reason>`.
 - `hint` is present only when a suggestion applies (same condition as §3.1); otherwise the field is
   omitted rather than set to `null`.
-- The `yaml` variant is the same two-field structure serialized as YAML instead of JSON.
+- `details` is present only when at least one issue names a `file` or a `detail` (same condition as
+  §3.1's detail lines, same order, the same rule for a file the reason already names); each entry
+  carries only the fields left to it. The field is
+  **additive**: a consumer that reads only `error` is unaffected.
+- The `yaml` variant is the same structure serialized as YAML instead of JSON.
+- **Every refusal has this shape, whichever layer raises it.** The argument parser's own refusals —
+  an unknown command or option, a missing option argument, a missing verb — are written in the active
+  `--format` exactly like a refusal raised by WingFoil's core, at the same exit codes (§1). Under
+  `json`/`yaml` stderr carries the one object and nothing else: the usage text a parser prints for an
+  incomplete invocation is not written (an explicit `--help` still prints it, to stdout). An
+  unrecognised `--format` value cannot select a format, so that refusal, and any refusal raised before
+  a valid value is known, is console text.
+- **One rule, one code.** The structured shape carries no code, but a surface that does expose
+  `CoreError.code` (the MCP Tools, a caller of `src/core`) must see one code per rule. The project-root
+  confinement refusal (REQ-SEC-06) — a target that resolves outside the project root, or a write target
+  that is itself a symbolic link — is `VALIDATION` from every verb that raises it (`memory add`, the
+  Memory transition verbs, `directive remove`): the request named a target the rule forbids. `IO` is
+  reserved for a failure of the storage itself.
 - This structured error object is written to **stderr**, not stdout, even under `--format json` /
   `--format yaml` — the success payload contract in §2 reserves stdout for the command's own result
   shape; keeping errors on stderr lets a caller distinguish "parse stdout for a result" from "parse
@@ -161,18 +191,33 @@ error: <reason>
 // src/cli/error.ts
 export function emitError(
   reason: string,
-  opts: { format: OutputFormat; hint?: string }
+  opts: { format: OutputFormat; hint?: string; details?: readonly ErrorDetail[] }
 ): void {
+  const details = opts.details ?? [];
+  const payload = {
+    error: reason,
+    ...(opts.hint ? { hint: opts.hint } : {}),
+    ...(details.length > 0 ? { details } : {}),
+  };
   if (opts.format === 'json') {
-    process.stderr.write(JSON.stringify({ error: reason, ...(opts.hint ? { hint: opts.hint } : {}) }) + '\n');
+    process.stderr.write(JSON.stringify(payload) + '\n');
   } else if (opts.format === 'yaml') {
-    process.stderr.write(yamlDump({ error: reason, ...(opts.hint ? { hint: opts.hint } : {}) }));
+    process.stderr.write(yamlDump(payload));
   } else {
     process.stderr.write(`error: ${reason}\n`);
     if (opts.hint) process.stderr.write(`hint: ${opts.hint}\n`);
+    for (const detail of details) process.stderr.write(`  ${detailLine(detail).replace(/\n/g, '\n    ')}\n`);
   }
 }
+
+function detailLine(detail: ErrorDetail): string {
+  if (detail.file !== undefined && detail.detail !== undefined) return `${detail.file}: ${detail.detail}`;
+  return detail.file ?? detail.detail ?? '';
+}
 ```
+
+`ErrorDetail` (`{ file?, detail? }`) and the selection of entries from `CoreError.details.issues` live
+in `src/core/error-details.ts`, so the CLI and the MCP surface (`spec-004`) show the same entries.
 
 ### 4. Worked examples
 
@@ -256,6 +301,23 @@ first, at exit `1` (`spec-008-cli-grammar` §1 states the ordering). The row enu
 invocations, so the new one is named there rather than left to be read into "missing required
 argument", its opposite. No other row or rule changed. Edited in place without a supersede or a state
 change, per `dl-047-tech-specs-carry-no-version-field`.
+
+**Revision (2026-10-01) — §3 gives refusal details a slot, makes every refusal one shape under
+`--format`, and names one code for the confinement refusal, per `task-130` (`dl-055` option 1,
+`bug-114`, `bug-123`).** Three gaps in the error contract, all measured on `main` before the change.
+First, `CoreError.details` had no place in §3, so `dl-032`'s explanation of the pinned
+illegal-transition message reached no operator, and neither did the file that refusal concerns — its
+message is the bare contract string. (A validation reason already embeds `(<file>)`, so for most
+refusals the file was visible; the rule therefore does not repeat a file the reason names.) §3.1 now
+adds indented detail lines after the `error:` line and §3.2 an additive `details` array, and the code
+listing follows.
+Second, §2 already said error payloads follow §3.2 "regardless of which command raised the error", yet
+the argument parser's refusals were console text under `--format json`: §3.2 now says the shape holds
+whichever layer refuses, and that under a machine format the usage text of an incomplete invocation is
+not written, so stderr is parseable as one object. Third, the confinement refusal was `IO` from
+`memory add` and `VALIDATION` from the transition verbs; §3.2 now names `VALIDATION` as its one code.
+No exit code changed, and the console `error:` line of every existing refusal is unchanged. Edited in
+place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field`.
 
 ## Process Notes
 

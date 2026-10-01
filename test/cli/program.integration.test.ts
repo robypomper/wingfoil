@@ -651,7 +651,12 @@ types:
     it('sc.2 `memory submit task-200` (approved) exits 1 with "illegal transition approved -> pending for type \'task\'", state unchanged', () => {
       const result = runCliInRoot(repo, 'memory', 'submit', 'task-200');
       expect(result.status).toBe(1);
-      expect(result.stderr).toBe("error: illegal transition approved -> pending for type 'task'\n");
+      // The contract line is the first line, byte-exact; since task-130 (`dl-055` option 1) the engine's
+      // `dl-032` explanation follows it, indented, naming the document.
+      expect(result.stderr).toBe(
+        "error: illegal transition approved -> pending for type 'task'\n" +
+          '  docs/memory/task/task-200.md: illegal `submit` from "approved": a `waiting` state — its forward edge fires only via a Workflow action, not `submit`\n',
+      );
       expect(readFileSync(join(repo, 'docs/memory/task/task-200.md'), 'utf-8')).toContain('status: approved');
     });
 
@@ -811,7 +816,8 @@ paths:
       const result = runCliInRoot(repo, 'memory', 'reject', 'task-200', '--reason', 'x');
       expect(result.status).toBe(1);
       // dl-032's contract message; `<to>` is dl-053's rule, owned by task-046 (see Execution Notes).
-      expect(result.stderr).toMatch(/^error: illegal transition draft -> \S+ for type 'task'\n$/);
+      // Contract line first (task-130 appends the indented `dl-032` detail line after it).
+      expect(result.stderr).toMatch(/^error: illegal transition draft -> \S+ for type 'task'\n {2}docs\/memory\/task\/task-200\.md: illegal `reject` from "draft": .+\n$/);
       expect(readFileSync(join(repo, 'docs/memory/task/task-200.md'), 'utf-8')).toContain('status: draft');
     });
 

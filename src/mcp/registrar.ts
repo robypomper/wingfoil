@@ -23,6 +23,8 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+import type { ErrorDetail } from '../core/error-details';
+import { errorDetails } from '../core/error-details';
 import type { CoreModule, ParamsBuilder } from '../core/registry';
 import { deriveVerb, enumerateOperations } from '../core/registry';
 
@@ -59,6 +61,8 @@ export function deriveMcpResourceUri(moduleName: string, verb: string): string {
  * response (spec-004 §4.3's "rejected identically to the CLI path") or, for a Resource read (which
  * has no `isError` flag in the MCP protocol), a thrown error surfaced as a protocol-level read
  * failure (spec-004 §2.2's "resource not found"-style refusal, generalized to any read failure).
+ * Either way the error's operator-facing details (`../core/error-details.ts`) travel with it — as the
+ * read error's JSON-RPC `error.data.details`, or as the tool result's `structuredContent` (task-130).
  */
 export function registerCoreModules(
   server: McpServer,
@@ -76,23 +80,33 @@ export function registerCoreModules(
   for (const { module, operation } of enumerateOperations(modules)) {
     const verb = deriveVerb(module.name, operation.name);
 
-    const callCore = async (): Promise<{ ok: true; text: string } | { ok: false; message: string }> => {
+    const callCore = async (): Promise<
+      { ok: true; text: string } | { ok: false; message: string; details: readonly ErrorDetail[] }
+    > => {
       const params = options.buildParams({
         moduleName: module.name,
         operationName: operation.name,
         root: options.resolveRoot(),
       });
       const result = await operation.fn(params);
-      return result.ok ? { ok: true, text: JSON.stringify(result.value) } : { ok: false, message: result.error.message };
+      return result.ok
+        ? { ok: true, text: JSON.stringify(result.value) }
+        : { ok: false, message: result.error.message, details: errorDetails(result.error) };
     };
 
     if (operation.mutates) {
       const toolName = deriveMcpToolName(module.name, verb);
       server.registerTool(toolName, { description: `${module.name} ${verb} (mutating)` }, async () => {
         const outcome = await callCore();
-        return outcome.ok
-          ? { content: [{ type: 'text', text: outcome.text }] }
-          : { content: [{ type: 'text', text: outcome.message }], isError: true };
+        if (outcome.ok) return { content: [{ type: 'text', text: outcome.text }] };
+        // A tool error is a RESULT, not a JSON-RPC error, so it has no `error.data`: the details ride as
+        // `structuredContent`, in the CLI's `--format json` error shape (task-130, `dl-055` option 1).
+        // The text stays the bare reason, identical to the CLI's (spec-004 §4.3).
+        return {
+          content: [{ type: 'text', text: outcome.message }],
+          isError: true,
+          ...(outcome.details.length > 0 ? { structuredContent: { error: outcome.message, details: outcome.details } } : {}),
+        };
       });
     } else {
       const uri = deriveMcpResourceUri(module.name, verb);
@@ -106,7 +120,11 @@ export function registerCoreModules(
           if (outcome.ok) {
             return { contents: [{ uri: readUri.toString(), mimeType: 'application/json', text: outcome.text }] };
           }
-          throw new Error(outcome.message);
+          // A failed read IS a JSON-RPC error; the SDK forwards an `Error`'s `data` as `error.data`
+          // (task-130, `dl-055` option 1). No details, no `data` — the shape it always had.
+          throw outcome.details.length > 0
+            ? Object.assign(new Error(outcome.message), { data: { details: outcome.details } })
+            : new Error(outcome.message);
         },
       );
     }

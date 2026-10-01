@@ -60,7 +60,10 @@ Every invocation ends with exactly one of three codes:
 | `2` | The command line itself is wrong: unknown command, missing or blank argument, invalid value | `wingfoil memory add --type task` → `error: missing required argument: --title` |
 
 A non-zero exit always prints one `error: <reason>` line to stderr — or, under `--format json`/`yaml`,
-the object `{"error": "<reason>"}`.
+the object `{"error": "<reason>"}`, whichever part of the CLI refused (an unknown command or option too).
+When the refusal names a file or explains itself, indented lines follow the `error:` line, one per
+finding (`<file>: <detail>`); under `--format json`/`yaml` they are a `details` array of
+`{"file", "detail"}` entries beside `error`.
 
 ### Git side effects
 

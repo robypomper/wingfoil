@@ -50,7 +50,7 @@ import { runInit, createReadlinePrompt } from './init-command';
 import { runMcp } from './mcp-command';
 import { emitError } from './error';
 import { exitWith } from './exit';
-import { isValidFormat } from './output';
+import { isValidFormat, type OutputFormat } from './output';
 
 /**
  * The CLI version, read from `package.json` deterministically (REQ-SYS-07 — no wall-clock, no
@@ -83,8 +83,9 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // and the process ends through `exitWith`, the single exit seam of `./exit.ts`, like every other
   // outcome.
   //
-  // COMMANDER'S OWN MESSAGES ARE UNAFFECTED: for every error it raises, Commander has already written
-  // its `error: …` line before calling this, so nothing is added on top of it. The ONE outcome where
+  // COMMANDER'S OWN MESSAGES ARE NOT REPEATED: for every error it raises, Commander has already written
+  // its message before calling this — in the active `--format` since task-130, through the
+  // `configureOutput` hooks below — so nothing is added on top of it. The ONE outcome where
   // it writes no error message at all is an invocation it found incomplete — a noun with no verb —
   // where it prints help to stderr and nothing else; `spec-005` §1 requires a non-zero exit to carry
   // an error message *always*, so that outcome (and only that one, flagged by `needsErrorLine`) gets
@@ -100,8 +101,30 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // set before it dispatches) with the global options removed.
   program.exitOverride((error) => {
     const termination = classifyParseOutcome(error);
-    if (termination.needsErrorLine) emitError(incompleteInvocationReason(program.args), { format: 'console' });
+    if (termination.needsErrorLine) emitError(incompleteInvocationReason(program.args), { format: activeFormat(program) });
     exitWith(termination.exitCode);
+  });
+  // Commander's own refusals in the active `--format` (task-130, `bug-114`, spec-005 §3.2). Commander
+  // writes an error through `outputError` and the help it prints for an incomplete invocation through
+  // `writeErr`, so these two hooks are the whole parse path's stderr. Under `console` both are what
+  // Commander would do anyway, byte for byte. Under `json`/`yaml` the message becomes the same
+  // `{error, hint?}` object a WingFoil refusal is (`commanderRefusal`), and the help text — which would
+  // bury that object — is not written: `--help` itself writes to stdout and is unaffected.
+  // `--format` is read when the error fires; Commander has parsed the root program's options by then,
+  // wherever on the command line they stand. Installed before the first `.command()`, like the callback
+  // above, because `copyInheritedSettings` copies the output configuration at registration time.
+  program.configureOutput({
+    writeErr: (text) => {
+      if (activeFormat(program) === 'console') process.stderr.write(text);
+    },
+    outputError: (text, write) => {
+      const format = activeFormat(program);
+      if (format === 'console') {
+        write(text);
+        return;
+      }
+      emitError(...commanderRefusal(text, format));
+    },
   });
   // How a command is listed under its parent (task-120, `bug-128`). Commander's own `subcommandTerm`
   // renders each registered argument from the flag Commander ENFORCES, which is why every derived verb
@@ -141,7 +164,7 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
       try {
         root = options.resolveRoot();
       } catch (error) {
-        emitError(error instanceof Error ? error.message : String(error), { format: 'console' });
+        emitError(error instanceof Error ? error.message : String(error), { format: activeFormat(program) });
         exitWith(1);
         return;
       }
@@ -276,6 +299,32 @@ function leafHelpFooter(example: string): string {
     '  1  the command line was valid, but the operation failed',
     '  2  the command line is wrong: unknown command or option, missing or invalid argument',
   ].join('\n');
+}
+
+/**
+ * The `--format` an error is rendered in: the parsed global option when it is a valid format, else
+ * `console` — an invalid value is itself refused in console text by the registrar (spec-005 §2), and a
+ * parse error can fire before `--format` has a usable value at all (task-130, `bug-114`).
+ */
+function activeFormat(program: Command): OutputFormat {
+  const value: unknown = program.getOptionValue('format');
+  return typeof value === 'string' && isValidFormat(value) ? value : 'console';
+}
+
+/**
+ * Commander's error text as {@link emitError} arguments (task-130, `bug-114`). Commander writes
+ * `error: <reason>\n`, and for an unknown command or option the closest match on a line of its own,
+ * `(Did you mean <name>?)`. The first line without its `error: ` prefix is the reason; the suggestion,
+ * without its parentheses, is the `hint` spec-005 §3.2 gives it a field for. Its WORDING stays
+ * Commander's — reconciling it with spec-005 §3.1's `did you mean "<name>"?` is `bug-104`'s. Any other
+ * line is kept, joined to the reason, so nothing Commander said is dropped.
+ */
+function commanderRefusal(text: string, format: OutputFormat): Parameters<typeof emitError> {
+  const [first = '', ...rest] = text.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+  const suggestion = /^\((Did you mean .*)\)$/;
+  const hint = rest.map((line) => suggestion.exec(line)?.[1]).find((match) => match !== undefined);
+  const reason = [first.replace(/^error: /, ''), ...rest.filter((line) => !suggestion.test(line))].join(' ');
+  return [reason, { format, ...(hint !== undefined ? { hint } : {}) }];
 }
 
 /**
