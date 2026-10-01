@@ -25,10 +25,19 @@ export interface Diagnostic extends ValidationIssue {
 }
 
 /**
+ * One diagnostic as a reason line: `<code> <path> (<file>): <message>` — the shape every
+ * {@link ValidationError} reason has always had, so the reason names where to look even on a surface
+ * that renders no `details`.
+ */
+export function formatDiagnostic(diagnostic: Diagnostic): string {
+  return `${diagnostic.code} ${diagnostic.path ? `${diagnostic.path} ` : ''}(${diagnostic.file}): ${diagnostic.message}`;
+}
+
+/**
  * The failure of a load whose {@link diagnostics} hold at least one error (spec-003 § "Diagnostics"):
- * `VALIDATION`, exit `1` ({@link EXIT_VALIDATION}). Its `message` is the **first error's** message —
- * the reason the operation reports — and {@link diagnostics} is the whole ordered list, warnings
- * included, for the caller to carry in `details` (`dl-055`).
+ * `VALIDATION`, exit `1` ({@link EXIT_VALIDATION}). Its `message` — the reason the operation reports —
+ * is the **first error** in {@link formatDiagnostic}'s form, and {@link diagnostics} is the whole
+ * ordered list, warnings included, for the caller to carry in `details` (`dl-055`).
  */
 export class DiagnosticsError extends ValidationError {
   readonly diagnostics: readonly Diagnostic[];
@@ -36,7 +45,7 @@ export class DiagnosticsError extends ValidationError {
   constructor(diagnostics: readonly Diagnostic[]) {
     super([...diagnostics], EXIT_VALIDATION);
     const first = diagnostics.find((d) => d.severity === 'error') ?? diagnostics[0];
-    this.message = first?.message ?? 'validation failed';
+    this.message = first ? formatDiagnostic(first) : 'validation failed';
     this.name = 'DiagnosticsError';
     this.diagnostics = diagnostics;
     Object.setPrototypeOf(this, DiagnosticsError.prototype);

@@ -225,12 +225,34 @@ function parseWorkflowFile(
     emitUnknownFieldWarning(data as Record<string, unknown>, Workflow as unknown as HasShape, filePath);
     return { workflow: result.data, diagnostics: [] };
   }
-  const diagnostics = result.error.issues.map((issue): Diagnostic => {
-    const path = diagnosticPath(issue.path);
-    const code = path === 'kind' ? 'E_WORKFLOW_INVALID_KIND' : E_VALIDATION;
-    return { code, severity: 'error', file, path, message: issue.message };
-  });
+  const diagnostics = zodDiagnostics(result.error.issues, file).map((diagnostic) =>
+    diagnostic.path === 'kind' ? { ...diagnostic, code: 'E_WORKFLOW_INVALID_KIND' } : diagnostic,
+  );
   return { workflow: null, diagnostics };
+}
+
+/** Zod issues as `E_VALIDATION` diagnostics of `file` (spec-009's structural code). */
+function zodDiagnostics(issues: readonly { path: readonly PropertyKey[]; message: string }[], file: string): Diagnostic[] {
+  return issues.map((issue) => ({ code: E_VALIDATION, severity: 'error', file, path: diagnosticPath(issue.path), message: issue.message }));
+}
+
+/**
+ * Parse `raw` as YAML; a parse failure becomes one `E_YAML_PARSE_ERROR` diagnostic of `file` (the
+ * spec-009 code, with the parser's message) instead of a throw, so it takes its place in the array.
+ */
+function parseYamlOrDiagnostic(
+  raw: string,
+  filePath: string,
+  file: string,
+): { data: unknown; diagnostic: null } | { data: null; diagnostic: Diagnostic } {
+  try {
+    return { data: parseYaml(raw, filePath), diagnostic: null };
+  } catch (err) {
+    if (err instanceof ValidationError && err.issues[0]?.code === E_YAML_PARSE_ERROR) {
+      return { data: null, diagnostic: { code: E_YAML_PARSE_ERROR, severity: 'error', file, path: '', message: err.issues[0].message } };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -241,10 +263,12 @@ function parseWorkflowFile(
  * than in the schema module (`./workflow-diagnostics.ts`, task-136).
  *
  * - An **absent** manifest is an empty registry, with no diagnostic (spec-003 Layer 1).
- * - A manifest that fails to parse or to validate structurally throws as every pillar loader does.
+ * - A manifest that is not YAML, or fails its structural pass, is the whole array: one
+ *   `E_YAML_PARSE_ERROR`, or its Zod issues as `E_VALIDATION`, on `workflows.yaml`.
  * - Everything else is collected into one ordered `diagnostics` array (REQ-SYS-07): the manifest's
  *   (`E_WORKFLOW_FILE_NOT_FOUND`, `E_NO_MAIN_WORKFLOW`), then each file in `include` order —
- *   structural first, then workflow-level, then phase-level. If it holds an error, the load throws a
+ *   a YAML parse failure (`E_YAML_PARSE_ERROR`) or the structural (Zod) issues, then
+ *   workflow-level, then phase-level. If it holds an error, the load throws a
  *   {@link DiagnosticsError}: `VALIDATION`, exit `1`, the first error as the reason and the whole array
  *   attached.
  */
@@ -252,9 +276,14 @@ export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
   const configDir = join(root, '.wingfoil');
   const manifestPath = join(configDir, WORKFLOWS_MANIFEST_FILE);
   if (!documentExists(manifestPath)) return { manifest: null, workflows: [] };
-  const manifestRaw = readDocument(manifestPath);
-  const manifestData = parseYaml(manifestRaw, manifestPath);
-  const manifest = runValidation(WorkflowsYaml, manifestData, manifestPath);
+  // A manifest that cannot be read as YAML, or fails its structural pass, names no file to load: its
+  // diagnostics are the whole array.
+  const manifestData = parseYamlOrDiagnostic(readDocument(manifestPath), manifestPath, WORKFLOWS_MANIFEST_FILE);
+  if (manifestData.diagnostic) throw new DiagnosticsError([manifestData.diagnostic]);
+  const manifestResult = WorkflowsYaml.safeParse(manifestData.data);
+  if (!manifestResult.success) throw new DiagnosticsError(zodDiagnostics(manifestResult.error.issues, WORKFLOWS_MANIFEST_FILE));
+  emitUnknownFieldWarning(manifestData.data as Record<string, unknown>, WorkflowsYaml as unknown as HasShape, manifestPath);
+  const manifest = manifestResult.data;
 
   const manifestDiagnostics: Diagnostic[] = [];
   const files: LoadedWorkflowFile[] = [];
@@ -271,7 +300,13 @@ export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
       });
       return;
     }
-    const data = parseYaml(readDocument(workflowPath), workflowPath);
+    const yaml = parseYamlOrDiagnostic(readDocument(workflowPath), workflowPath, includePath);
+    if (yaml.diagnostic) {
+      files.push({ file: includePath, workflow: null, rawName: null });
+      structural.push([yaml.diagnostic]);
+      return;
+    }
+    const data = yaml.data;
     const parsed = parseWorkflowFile(data, includePath, workflowPath);
     const rawName = (data as { name?: unknown } | null)?.name;
     files.push({ file: includePath, workflow: parsed.workflow, rawName: typeof rawName === 'string' ? rawName : null });
