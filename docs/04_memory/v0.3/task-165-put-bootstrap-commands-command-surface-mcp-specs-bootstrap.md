@@ -8,7 +8,7 @@ kind: "fix"
 priority: "low"
 tags: ["v0.3", "core", "docs", "specs"]
 ref: "dl-046"
-bug: ["bug-028"]
+bug: ["bug-028", "bug-179-init-and-mcp-refuse-a-surplus-operand-in-commander-s-wording-not-the-shared-refusal"]
 depends_on: ["task-129-refuse-operand-beyond-command-declares-exit-2-before"]
 tmpl_version: 260703
 ---
