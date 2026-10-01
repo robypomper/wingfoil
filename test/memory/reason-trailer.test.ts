@@ -205,7 +205,7 @@ describe('dl-067 clause 4 as amended by task-166 (dl-070, dl-078, dl-111)', () =
   it('gives the control-character class a message of its own, distinct from the other three', () => {
     const messages = (
       ['blank', 'reserved-trailer-line', 'trailing-trailer-paragraph', 'control-character'] as const
-    ).map((defect) => reasonDefectMessage(defect as Parameters<typeof reasonDefectMessage>[0]));
+    ).map((defect) => reasonDefectMessage(defect));
     expect(new Set(messages).size).toBe(4);
     for (const message of messages) {
       expect(message).toMatch(/^invalid flag value: --reason /);
@@ -337,6 +337,14 @@ describe('round trip through a real `git commit` — what the writer declares is
       approverRole: APPROVER.role,
       reason: normalizeReason(reason),
     });
+  });
+
+  it('a reason carrying an interior tab is accepted and round-trips (task-166: tab is one of the two legal C0 characters)', () => {
+    const reason = 'ratified as written:\n\tdirective not found\tsee spec-008';
+    const body = commitWithMessage(
+      formatMemoryCommitMessage({ type: 'adr', op: 'deprecate', ids: ['adr-1'], reason }),
+    );
+    expect(parseCommitReason(body)).toBe(reason);
   });
 
   it('the first-line trim is OURS, not git\'s: git keeps that whitespace, and the writer is what removes it', () => {

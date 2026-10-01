@@ -10,8 +10,8 @@
  * message in one place is what keeps writer and reader from drifting apart.
  *
  * Since `task-072-fix-reason-trailer-contract` this module also owns the **reason grammar** —
- * {@link normalizeReason}, {@link reasonDefect}, {@link parseReasonBlock} and
- * {@link parseApproverTrailerLine} — ratified by `dl-067-reason-trailer-contract` and fixing
+ * {@link normalizeReason}, {@link reasonDefect}, {@link reasonRefusalMessage}, {@link parseReasonBlock}
+ * and {@link parseApproverTrailerLine} — ratified by `dl-067-reason-trailer-contract` and fixing
  * `bug-042-reason-text-has-no-contract-against-commit-trailer`. `--reason <text>` is arbitrary free
  * text and the trailer is line-oriented; before dl-067 no rule said what happened when the two met, so
  * a blank reason was recorded as a bare `Reason:` that destroyed the whole approval record, a
@@ -38,13 +38,33 @@ const ARROW = '→';
 const TRAILER_LINE_RE = /^[A-Za-z][A-Za-z0-9-]*:[ \t]\S/;
 
 /**
- * The two trailer keys THIS project's reader acts on. A reason may not contain a line starting with
- * either, because such a line is indistinguishable from the trailer itself. Deliberately narrow: on
- * `main`, 8 approve/reject commits carry a generic `Key: value` line inside their reason (ordinary
- * prose — `Action: amend spec-015 §3`, `A: before the v0.2 …`) and **0** carry a reserved one, so a
- * broader rule would outlaw the approver's own writing style (dl-067 E5).
+ * The trailer keys THIS project's tooling acts on. A reason may not contain a line starting with any
+ * of them, because such a line is indistinguishable from the trailer itself. `Approver` and `Reason`
+ * are `dl-067` clause 4's; `WingFoil-Version` is reserved by `dl-111` Q1 (A) for the build signature
+ * a later task stamps on every commit, so a reason cannot forge a build record any more than it can
+ * forge an approval. Deliberately narrow: on `main`, 8 approve/reject commits carry a generic
+ * `Key: value` line inside their reason (ordinary prose — `Action: amend spec-015 §3`, `A: before the
+ * v0.2 …`) and **0** carry a reserved one, so a broader rule would outlaw the approver's own writing
+ * style (dl-067 E5).
  */
-const RESERVED_TRAILER_LINE_RE = /^(?:Approver|Reason):/;
+const RESERVED_TRAILER_LINE_RE = /^(?:Approver|Reason|WingFoil-Version):/;
+
+/**
+ * The first C0 control character in `text` other than tab (`U+0009`) and newline (`U+000A`) — the two
+ * a reason legitimately carries (`dl-078` (A)) — or `null` when there is none. Such a character
+ * renders as nothing, or moves the cursor, in a terminal, so a reason carrying one can show a human
+ * reading `git log` a line nobody wrote: the presentation half of `bug-050`, which no read-side fix
+ * can reach. A carriage return never gets this far, because {@link normalizeReason} turns it into a
+ * newline before any rule is judged. A scan rather than a character-class regex, which the
+ * `no-control-regex` lint rule forbids.
+ */
+function firstControlCharacter(text: string): string | null {
+  for (const character of text) {
+    const code = character.charCodeAt(0);
+    if (code < 0x20 && character !== '\t' && character !== '\n') return character;
+  }
+  return null;
+}
 
 /** The `Reason:` key, at the start of a line. */
 const REASON_KEY_RE = /^Reason:[ \t]*/;
@@ -56,32 +76,65 @@ const APPROVER_KEY_RE = /^Approver:/;
 export type ReasonDefect =
   /** Empty, or nothing but whitespace: git would store a bare `Reason:` and both parsers would fail. */
   | 'blank'
-  /** Carries a line starting `Approver:` or `Reason:` — a forged trailer line (bug-042 F3). */
+  /**
+   * Carries a C0 control character other than tab and newline (`dl-078` (A)). The refusal names the
+   * first one by code point ({@link reasonRefusalMessage}).
+   */
+  | 'control-character'
+  /**
+   * Carries a line starting `Approver:`, `Reason:` or `WingFoil-Version:` — a forged trailer line
+   * (bug-042 F3; `dl-111` Q1 (A)).
+   */
   | 'reserved-trailer-line'
   /**
    * Ends in a paragraph made entirely of trailer-shaped lines, which {@link parseReasonBlock} would
    * read as git's own trailer block and drop. The corollary of the block's termination rule: without
    * it, the round-trip equality dl-067 clause 3 promises would be false for this one input shape. 0 of
-   * `main`'s 172 reason blocks end this way, so the refusal costs the existing corpus nothing.
+   * `main`'s 172 reason blocks end this way, so the refusal costs the existing corpus nothing. The
+   * rule is judged by SHAPE, git's own heuristic, not against a list of known trailer keys: `dl-070`
+   * (A) kept it, and its S4 put the remedy into the message.
    */
   | 'trailing-trailer-paragraph';
 
 /** The exact refusal message for each defect — `spec-008-cli-grammar` §2's "invalid flag value" class (exit 2). */
 const REASON_DEFECT_MESSAGES: Readonly<Record<ReasonDefect, string>> = {
   blank: 'invalid flag value: --reason must not be blank',
+  'control-character': 'invalid flag value: --reason must not contain a control character other than tab or newline',
   'reserved-trailer-line':
-    'invalid flag value: --reason must not contain a line starting with "Approver:" or "Reason:"',
-  'trailing-trailer-paragraph': 'invalid flag value: --reason must not end in a paragraph of "Key: value" lines',
+    'invalid flag value: --reason must not contain a line starting with "Approver:", "Reason:" or "WingFoil-Version:"',
+  'trailing-trailer-paragraph':
+    'invalid flag value: --reason must not end in a paragraph of "Key: value" lines; add a closing sentence after it, or fold those lines into prose',
 };
 
 /**
- * The refusal message for `defect` — the single source of the wording the CLI prints and
- * `spec-008-cli-grammar` §2 pins. Deliberately distinct from `missing required argument: --reason`
- * (`src/core/require-reason.ts`), which answers the *omitted* case that spec-008 §2 and the P1.7/P1.8
- * BDD features already quote verbatim (dl-067 S1).
+ * The refusal message for the class `defect` — the wording `spec-008-cli-grammar` §2 pins.
+ * Deliberately distinct from `missing required argument: --reason` (`src/core/require-reason.ts`),
+ * which answers the *omitted* case that spec-008 §2 and the P1.7/P1.8 BDD features already quote
+ * verbatim (dl-067 S1). For `control-character` this is the class alone; the message the CLI prints
+ * also names the character, and comes from {@link reasonRefusalMessage}.
  */
 export function reasonDefectMessage(defect: ReasonDefect): string {
   return REASON_DEFECT_MESSAGES[defect];
+}
+
+/** `U+XXXX` for a character, the way the control-character refusal names it. */
+function codePointOf(character: string): string {
+  return `U+${(character.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, '0')}`;
+}
+
+/**
+ * The exact message `reason` is refused with, or `null` when it can be recorded — the single source
+ * of the wording the CLI prints (`src/core/require-reason.ts`) and {@link formatMemoryCommitMessage}
+ * throws. It is {@link reasonDefectMessage}'s class message, plus, for a control character, the FIRST
+ * offending one by code point (`dl-078` (A): "naming the character"), so the message is a function of
+ * the input alone (REQ-SYS-07).
+ */
+export function reasonRefusalMessage(reason: string): string | null {
+  const defect = reasonDefect(reason);
+  if (defect === null) return null;
+  const message = reasonDefectMessage(defect);
+  const control = defect === 'control-character' ? firstControlCharacter(normalizeReason(reason)) : null;
+  return control === null ? message : `${message} (found ${codePointOf(control)})`;
 }
 
 /**
@@ -138,6 +191,7 @@ function paragraphsOf(normalized: string): string[][] {
 export function reasonDefect(reason: string): ReasonDefect | null {
   const normalized = normalizeReason(reason);
   if (normalized === '') return 'blank';
+  if (firstControlCharacter(normalized) !== null) return 'control-character';
 
   const lines = normalized.split('\n');
   if (lines.some((line) => RESERVED_TRAILER_LINE_RE.test(line))) return 'reserved-trailer-line';
@@ -261,9 +315,9 @@ export function formatMemoryCommitMessage(input: MemoryCommitMessageInput): stri
   if (input.ids.length === 0) {
     throw new Error('a Memory transition commit must name at least one id');
   }
-  const defect = input.reason === undefined ? null : reasonDefect(input.reason);
-  if (defect !== null) {
-    throw new Error(reasonDefectMessage(defect));
+  const refusal = input.reason === undefined ? null : reasonRefusalMessage(input.reason);
+  if (refusal !== null) {
+    throw new Error(refusal);
   }
   const bracket = input.transition ? ` [${input.transition.from} ${ARROW} ${input.transition.to}]` : '';
   const subject = `wf(${input.type}): ${input.op} ${input.ids.join(', ')}${bracket}`;
