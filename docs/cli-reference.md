@@ -88,8 +88,10 @@ Which state a command reads depends on whether that state can stop it:
   example, whether a path leads outside the project through a symbolic link — because that is what
   the write will follow.
 
-`directive remove` is the one exception today: it looks up the directive to delete in the working
-tree (a known defect, `bug-108`).
+Two known defects break this today: `directive remove` looks up the directive to delete in the
+working tree (`bug-108`), and the Memory transition verbs (`submit`, `approve`, `reject`,
+`deprecate`, `amend`) find the document their `<id>` names in the working tree — `memory submit`
+also reads its current status there — so an uncommitted or hand-made document can be acted on.
 
 ### Git identity
 

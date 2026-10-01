@@ -103,7 +103,11 @@ The test in (B) is mechanical — *can this read change whether the command refu
 writes?* — and that is its whole value. If it can, the read resolves at `HEAD`, unless its purpose
 is to predict an imminent filesystem effect.
 
-**The one place the shipped code still deviates — and it has an owner.** `directiveRemoveFn`
+**Where the shipped code still deviates — and each has an owner.** The Memory transition verbs
+find the document their `<id>` names by scanning the working tree (`findMemoryDocumentById`, called
+from `prepareMemoryTransition`), and `memory submit` also takes the current `status` from the
+working-tree frontmatter; both are gating reads owed to `HEAD`, recorded as a bug from `task-161`'s
+independent review. The older case, argued in full here, is `directive remove`. `directiveRemoveFn`
 (`src/core/index.ts`, step 3 of its TSDoc: "This read stays on the **working tree**, deliberately")
 resolves the directive it is asked to delete from the working tree, on exactly the "this read only
 resolves a name" argument refused above — and that read returns a domain `NOT_FOUND` at exit `1`,
@@ -158,11 +162,14 @@ baselines would themselves be the defect. Only this section names such a read.
 
 | Read | Declared baseline | Why `HEAD` and not the working tree | Source |
 |------|-------------------|-------------------------------------|--------|
-| `workflow status`, `workflow next`, `workflow list`, `workflow show`, `agent list`, `agent show`, and the two v0.3 workflow Resources `wingfoil://workflows/-/next` and `wingfoil://workflows/-/status` | `HEAD`; when the working tree differs under the paths the deduction reads (Memory, `.wingfoil/workflows*`, a `produces:` pattern, the run logs), the operation still answers from `HEAD` and emits the diagnostic `W_UNCOMMITTED_INPUTS` naming those paths | determinism: one deduction function answers `next`, `status`, the agent commands and the Resources, and it must not answer from two baselines; the working tree explains the answer, never decides it | approver ruling R15 (2026-09-30, `release-planning-rel-v0.3-plan`); `spec-006` §6; `spec-017` §1.1–§1.2; `spec-016` §5.1 |
+| `workflow status`, `workflow list`, `workflow show`, `agent list`, `agent show`, and the two v0.3 workflow Resources `wingfoil://workflows/-/next` and `wingfoil://workflows/-/status` | `HEAD`; when the working tree differs under the paths the deduction reads (Memory, `.wingfoil/workflows*`, a `produces:` pattern, the run logs), the operation still answers from `HEAD` and emits the diagnostic `W_UNCOMMITTED_INPUTS` naming those paths | determinism: one deduction function answers `next`, `status`, the agent commands and the Resources, and it must not answer from two baselines; the working tree explains the answer, never decides it | approver ruling R15 (2026-09-30, `release-planning-rel-v0.3-plan`); `spec-006` §6; `spec-017` §1.1–§1.2; `spec-016` §5.1 |
 
 This is an exception to `dl-084` (A)'s default for read-only verbs, not to the read half: none of
-these reads can refuse an operation or change a write. The shipped `wingfoil://workflows` and
-`wingfoil://workflows/{name}` Resources keep the working tree in v0.3 (`spec-006` §3).
+these reads decides from the working tree. `workflow next` is not in the table because it needs no
+exception: it refuses an unresolvable `<ref>` and its first step is what `agent execute --next`
+launches, so it gates and resolves at `HEAD` under the read half (`spec-017` §1.1); R15 and
+`spec-006` §6 item 6 name it only for completeness. The shipped `wingfoil://workflows` and
+`wingfoil://workflows/{name}` Resources keep the working tree in v0.3 (`spec-017` §9).
 
 ## Declared baselines — a read wider than `HEAD`, by name
 
