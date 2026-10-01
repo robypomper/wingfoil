@@ -8,7 +8,7 @@ kind: "fix"
 priority: "high"
 tags: ["v0.3", "core", "security", "storage"]
 ref: "dl-086"
-bug: ["bug-118", "bug-122", "bug-124"]
+bug: ["bug-118", "bug-122", "bug-124", "bug-182-a-memory-verb-commits-the-working-tree-bytes-of-its-document-and-silently-drops-a-different-staged-version"]
 depends_on: []
 tmpl_version: 260703
 ---
