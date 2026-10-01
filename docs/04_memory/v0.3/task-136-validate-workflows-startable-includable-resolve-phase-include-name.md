@@ -68,8 +68,8 @@ the code.
   keeps `src/core/loaders.ts`'s diff small for `task-137` / `task-143`. The loader collects instead
   of throwing at the first failure. Order: the manifest's diagnostics (`E_WORKFLOW_FILE_NOT_FOUND`,
   then `E_NO_MAIN_WORKFLOW`), then each file in `include` order (structural, workflow-level,
-  phase-level, rows in table order). A YAML parse failure, or a manifest that fails its own
-  structural pass, still throws as before (spec-009).
+  phase-level, rows in table order). *(Superseded at review, finding 5: YAML parse failures and
+  manifest failures now join the array; see "review (independent)".)*
 - Absent `workflows.yaml`: `{ manifest: null, workflows: [] }`. On success the payload keeps its
   `{ manifest, workflows }` shape. No warning row is owned here, so no `diagnostics` key is added to
   it; `task-204` reshapes the payload.
@@ -112,9 +112,11 @@ too, which had the same path include. Two existing tests read `manifest.include`
 startable and includable workflows.
 
 Changes in behaviour beyond the ACs:
-- `E_WORKFLOW_FILE_NOT_FOUND` and `E_NO_MAIN_WORKFLOW` used to be `ValidationError.semantic`
-  (exit `2`). They now exit `1` with every other spec-003 error (spec-003 § Diagnostics: "an error
-  makes the operation fail with `VALIDATION` (exit `1`)"; spec-017 §10).
+- `E_WORKFLOW_FILE_NOT_FOUND` and `E_NO_MAIN_WORKFLOW` used to be thrown as
+  `ValidationError.semantic`, whose internal `exitCode` is `2`. Only that internal field changed (it
+  is now `1`). At the CLI and MCP surface nothing changed: `loadOrError` (`src/core/index.ts`) maps
+  every `ValidationError` to `VALIDATION`, exit `1`, before and after this task. *(Corrected at
+  review, finding 1.)*
 - A missing manifest used to be `NOT_FOUND` (exit `1`); it is now an empty registry (exit `0`).
 
 ### refactor (developer)
@@ -164,17 +166,96 @@ failure) is `task-225`'s AC, so it is not edited here.
 - `spec-003-workflows-yaml-schema` (uncommitted in the worktree). Proposed `--reason`:
   "task-136 implemented the loader rows of § Diagnostics. Two line citations into
   src/core/loaders.ts stopped resolving and now name the files. A paragraph states where a
-  cross-file diagnostic is reported and which diagnostics are not decided while an included file is
-  missing or structurally invalid, so that every implementation emits the same array. No code,
-  severity or message changes."
+  cross-file diagnostic is reported, the guarantee for include cycles, which diagnostics are not
+  decided while an included file is missing or structurally invalid, that a YAML parse failure joins
+  the array, and that an error's reason is its code, path and file followed by its message. Every
+  implementation then emits the same array and the same reason. No code, severity or diagnostic
+  message changes."
 
 ### Decisions for the approver
 
 1. Spec-003 says commands carry the array as `diagnostics`. `details` here is `{ diagnostics }`,
    not the `{ issues }` every other `VALIDATION` carries. `DiagnosticsError.issues` holds the same
    array for code that reads `issues`.
-2. `E_WORKFLOW_FILE_NOT_FOUND` / `E_NO_MAIN_WORKFLOW` now exit `1`, not `2` (spec-003, spec-017 §10).
-3. A YAML parse error in an included workflow file still throws `E_YAML_PARSE_ERROR` (exit `2`)
-   instead of joining the array, as in every other pillar loader.
+2. `E_WORKFLOW_FILE_NOT_FOUND` / `E_NO_MAIN_WORKFLOW`: only the internal `ValidationError.exitCode`
+   changed (`2` → `1`). At the CLI and MCP surface this is a no-op: they exited `1` (`VALIDATION`)
+   before and after. *(Corrected at review, finding 1.)*
+3. *(Reversed at review, finding 5.)* A YAML parse failure, in a workflow file or in the manifest,
+   is an `E_YAML_PARSE_ERROR` diagnostic in the array. A manifest that fails its structural pass is
+   reported as its Zod issues (`E_VALIDATION` on `workflows.yaml`). spec-003 does not say that a
+   manifest failure must be thrown outside the array (§ Layer 1 and § Diagnostics say nothing about
+   it), so every failure now has the one `details` shape.
+5. *(Review, finding 4.)* The reason is `<code> <path> (<file>): <message>` of the first error,
+   which is the form a `ValidationError` reason always had. A BDD "the message is …" (P4.1 sc. 3,
+   P4.15 sc. 3) therefore matches the diagnostic's `message` and is contained in the reason.
 4. A structurally invalid file contributes its Zod issues as `E_VALIDATION` diagnostics, with paths
    in spec-003's `phases[3].include` form.
+
+### review (independent)
+
+Verdict: APPROVE WITH FIXES (coordinator, 2026-10-01). The task stays `in-review`; the fixes are on
+the branch.
+
+1. **Exit-code claim.** The notes said `E_WORKFLOW_FILE_NOT_FOUND` / `E_NO_MAIN_WORKFLOW` "used to
+   be exit 2" and that YAML parse "still throws (exit 2)". At the CLI both were and are exit 1:
+   `loadOrError` maps every `ValidationError` to `VALIDATION`. Restated in green and in decision 2.
+2. **`06_features.md`, same class.** The P4.1 row, the MVP summary line "Workflow kinds (main/sub)"
+   and the "Kinds" bullet still described every workflow as `kind: main` or `kind: sub`. The
+   "Active context" bullet said "multiple main workflows". All four now speak of startable and
+   includable workflows, with `kind` as an alias (`f5a25fca`). The file stays at v1.6, the version
+   this task already bumped to.
+3. **Cycle wording.** The pending spec-003 paragraph claimed every cycle is reported. The code
+   (`src/core/workflow-diagnostics.ts`, the `cycle.every((member) => member >= i)` test) guarantees
+   less. Kept the code and restated the guarantee in the amendment: a cycle is reported at an
+   `include` of W when the shortest path back to W stays among W and later-listed workflows. Every
+   cyclic set therefore gets at least one diagnostic, at its first-listed member, and further cycles
+   inside it may surface only after a fix. Reporting every elementary cycle can be exponential in
+   the number of workflows (Johnson's algorithm enumerates them all). One diagnostic per cyclic set
+   is enough to make the load fail with the user pointed at the set. Pinned by `E_WORKFLOW_INCLUDE_CYCLE
+   — every cyclic component is reported, at its first member` (fixture a→b→c→a plus c→d→b: one
+   diagnostic at `a`; with c→a removed, `b -> c -> d -> b` at `b`). That test passed on first run
+   (characterization of the existing behaviour, as the review asked for a pin, not a change).
+4. **Regression: the reason lost its code and file.** On `main` the reason was the joined
+   `ValidationError` text (`<code> <path> (<file>): <message>`). This task made it the bare message
+   (`Invalid input: expected string, received undefined` names no file), and no renderer reads
+   `details.diagnostics`. Red: `test/cli/workflow-list-diagnostics.integration.test.ts` (compiled
+   `dist/cli.js`, console and `--format json`) plus the reason assertions in
+   `workflow-diagnostics.test.ts` / `test/validation/diagnostic.test.ts`. 8 failed out of 44 in
+   those three files (`214a1c85`). Fix (`d99167d5`): `formatDiagnostic` in
+   `src/validation/diagnostic.ts`. `DiagnosticsError.message` is the first error in that form.
+5. **YAML and manifest failures bypassed the array.** With a manifest [missing, m (bad fallback), p
+   (bad YAML)], the load threw only `E_YAML_PARSE_ERROR` on p. Red: three tests in
+   `workflow-diagnostics.test.ts`, "YAML and manifest failures join the one array" (`214a1c85`).
+   Fix (`d99167d5`): `parseYamlOrDiagnostic` in `src/core/loaders.ts`. A workflow file that is not
+   YAML is one `E_YAML_PARSE_ERROR` diagnostic at its place in the order. Its name is unknown, so
+   `E_WORKFLOW_INCLUDE_UNRESOLVED` and `E_NO_MAIN_WORKFLOW` are not decided. A manifest parse or
+   structural failure is the whole array. `node dist/cli.js workflow list` on a scratch repository
+   with a bad `p.yaml`: `error: E_YAML_PARSE_ERROR (workflows/custom/p.yaml): unexpected end of the
+   stream within a flow collection (3:1)` followed by the parser's snippet, exit 1.
+6. **Noted, not fixed (follow-up for the coordinator to file).**
+   - `src/core/builtin-integrity.ts` (`isValidWorkflowSource`) checks built-in workflow templates
+     against the `Workflow` schema only. With `kind` now optional, a template that declares neither
+     `kind` nor a boolean passes P4.17's integrity check and fails the loader
+     (`E_WORKFLOW_NEITHER_STARTABLE_NOR_INCLUDABLE`). The built-in workflow list is empty today
+     (`workflows/built-in/` holds only `.gitkeep`), so nothing fires yet.
+   - A manifest that lists one file twice reports `E_WORKFLOW_DUPLICATE_NAME` on the second entry,
+     naming the same file as the first declaration. Accepted as is.
+
+Coverage follow-up (`ad7de779`, `c2b04812`): two commits close the lines the review fixes left uncovered. A
+test now shows that the cycle search skips a structurally invalid file. Two branches that cannot be
+reached are gone: `includeEdges` only ever sees valid workflows, and `parseYaml` throws only
+`ValidationError.yamlParse`.
+
+Gates after the review fixes, with the pending spec-003 amendment in the working tree:
+
+| Command | Result |
+|---|---|
+| `npx jest --coverage` | exit 0; 169 suites / 2807 tests; 98.78 / 94.9 / 94.26 / 99.51 (`main` `c43221c4`: 98.73 / 94.58 / 94.01 / 99.49, no regression) |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+
+Merge note: `task-130`'s `errorDetails` reads `details.issues` only. The coordinator will have it
+read `details.diagnostics` when it merges after this task. Whatever the merge order, the reason
+alone now names the code, path and file.
