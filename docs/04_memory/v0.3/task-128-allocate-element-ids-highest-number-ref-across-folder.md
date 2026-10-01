@@ -155,8 +155,13 @@ task (98.27 branches on the base).
 
 **On this repository** (`npm run -s build`, then `nextSequenceNumber` from `dist/memory` at the
 repository root): `task` → **247** (`task-246` is the highest, in `v0.3/`), `decision-log` →
-**137** (`dl-136` is the highest on any ref), `bug` → **176**, all three in 438 ms. The same
-all-refs scan `dl-101` §1 gives by hand agrees on `dl-136`.
+**137** (`dl-136` is the highest on any ref), `bug` → **176**. The same all-refs scan `dl-101` §1
+gives by hand agrees on `dl-136`. Cost, corrected at the independent review: **about 430–640 ms per
+call, 1.4–1.7 s for the three**, measured with three runs of
+`node -e 'const m=require("./dist/memory"); … process.hrtime.bigint() around each m.nextSequenceNumber(".", path, id) …'`
+over the three types (runs: 635/503/545, 488/514/536, 529/429/465 ms), with
+`git for-each-ref --format='%(objectname)' refs/heads refs/remotes | sort -u | wc -l` → 38 distinct
+ref commits. The first version of this note said "all three in 438 ms", which was wrong.
 
 ### review (reviewer)
 
@@ -177,3 +182,30 @@ For the approver:
 - `docs/cli-reference.md` still says "a per-type counter". It documents 0.2.2 and belongs to
   `user-docs`; it was left unchanged.
 - The four design choices under *design*.
+
+### review (independent)
+
+An independent review (2026-09-30) returned **approve with fixes**. Four findings, all applied on
+this branch with the task still `in-review`:
+
+1. **False rationale about ignored files.** The symlink test's header said a `{n}` id "can no longer
+   be aimed at a planted file". That is not true for a **git-ignored** file. The counter reads the
+   working tree as git sees it, so an ignored file reserves no number. The reviewer planted an
+   ignored `bug-013-x.md`, and `memory add` refused through `requireAbsentTarget` ("something already
+   exists there", exit 1). The header now says "a planted file that git does not ignore". The same
+   correction is made in `src/core/write-guard.ts` (`requireAbsentTarget`'s TSDoc), in the comment
+   before the guard in `memoryAddFn` (`src/core/index.ts`) and in the header of
+   `test/core/write-guard-dirty-target.test.ts`. Each now names the ignored-file case and states the
+   guard's job: refuse, never overwrite.
+2. **Wrong timing.** "All three in 438 ms" is corrected in *refactor* above, with the command used to
+   measure it. The cost is linear in the number of distinct ref commits (one `git ls-tree` spawn
+   each). Reducing it, for example by listing the prefix's tree object once per distinct tree, is left
+   as a follow-up for `task-142`, which unifies the git-read helper.
+3. **`{n:N}` in spec-001.** The rewritten counter step 3 named `{n:N}`, which the code does not
+   implement (`idPatternIssues('task-{n:3}-{slug}')` reports a malformed token; only `{n}`, `{nn}`
+   and `{nnn}` are accepted). Step 3 now names only the tokens the code accepts, and the
+   *Revision (2026-09-30)* note records it. The placeholder table's `{n:N}` row is unchanged. That
+   gap predates this task, and the coordinator is filing it separately.
+4. **AC 5.** The `version:` bump the AC names is a body line, `**Version:** 1.1 · **Date:**
+   2026-09-30`, because a frontmatter `version:` key makes `directives list` warn about an unknown
+   field. **The approver should accept or overrule this.**
