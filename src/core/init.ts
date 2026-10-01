@@ -22,7 +22,7 @@
  * `CORE_MODULES` yet — there is no distinct verb beyond `init`, and wiring the surface belongs with
  * task-029 (keeping the REQ-SYS-05 parity test's "0 mutating ops" invariant until a surface exists).
  */
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -55,6 +55,28 @@ const NOT_A_GIT_REPO = "not a git repository: run 'git init' first";
 export const WINGFOIL_ALREADY_INITIALIZED =
   'WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)';
 
+/**
+ * The already-initialized refusal both init entry points run, or `null` when `root` may be
+ * initialized. A `.wingfoil` that exists but is not a directory is refused too: spec-011's
+ * `detectInitState` reads it with `readdirSync`, which throws `ENOTDIR` on a file, and that throw
+ * escaped both entry points as an exception instead of a result (task-135 review). Checked here,
+ * in `core`, so `detectInitState` keeps spec-011's three states. `statSync` follows a symlink, as
+ * `detectInitState`'s `existsSync` does; a dangling one counts as absent for both.
+ */
+function refuseInitializedProject(root: string): CoreResult<never> | null {
+  const wingfoilDir = join(root, '.wingfoil');
+  if (existsSync(wingfoilDir) && !statSync(wingfoilDir).isDirectory()) {
+    return coreErr({
+      code: 'VALIDATION',
+      message: '.wingfoil exists but is not a directory: move or remove it, then run init again',
+    });
+  }
+  if (detectInitState(root) === 'initialized') {
+    return coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
+  }
+  return null;
+}
+
 /** What a successful init reports: the resolved root and the root-relative paths it created. */
 export interface InitStorageValue {
   readonly root: string;
@@ -71,7 +93,8 @@ export interface InitStorageValue {
  * (dl-080 (B), task-092, task-131) and, last, the already-initialized refusal
  * ({@link WINGFOIL_ALREADY_INITIALIZED}, task-135 / bug-088), which {@link initWingfoilProject} runs
  * second. It runs last here so the two target guards before it keep their more specific messages;
- * either way nothing is written. There is no `force` parameter: no caller re-scaffolds on purpose.
+ * either way nothing is written. The message is shared; the order is not, so on a project that is
+ * both initialized and dirty the two entry points refuse with different messages. There is no `force` parameter: no caller re-scaffolds on purpose.
  *
  * The third one arrived with `task-054-project-directives` / `bug-018-init-storage-bypasses-integrity-guard`.
  * `scaffoldFiles()` now reserves `.wingfoil/directives/built-in/` (P3.5), which makes this a write path
@@ -125,12 +148,13 @@ export function initWingfoilStorage(
   const unmodified = requireUnmodifiedTargets(root, files.map((file) => file.path));
   if (!unmodified.ok) return unmodified as CoreResult<InitStorageValue>;
 
-  // Guard 5 — task-135 / bug-088: an initialized project is not re-initialized, the same refusal
-  // and message as {@link initWingfoilProject}. Guard 4 only catches a target with modifications
+  // Guard 5 — task-135 / bug-088: an initialized project is not re-initialized. The message is
+  // {@link initWingfoilProject}'s, but this path runs it fifth rather than second, so the two give
+  // the same answer only where no earlier guard fires first (a dirty or uninspectable target is
+  // refused by guard 4 here, by this check there). Guard 4 only catches a target with modifications
   // it does not own; a CLEAN, committed `.wingfoil/dna.yaml` passed it and was overwritten.
-  if (detectInitState(root) === 'initialized') {
-    return coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
-  }
+  const initialized = refuseInitializedProject(root);
+  if (initialized) return initialized;
 
   try {
     const sha = initStorage(root, files);
@@ -188,9 +212,8 @@ export function initWingfoilProject(
   if (!existsSync(join(root, '.git'))) {
     return coreErr({ code: 'VALIDATION', message: NOT_A_GIT_REPO });
   }
-  if (detectInitState(root) === 'initialized') {
-    return coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
-  }
+  const initialized = refuseInitializedProject(root);
+  if (initialized) return initialized;
   const template = resolveTemplate(templateName);
   if (!template) {
     return coreErr({ code: 'VALIDATION', message: `unknown template "${templateName}"` });
