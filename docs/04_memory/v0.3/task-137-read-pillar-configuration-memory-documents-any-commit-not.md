@@ -183,10 +183,51 @@ Reading at a commit leaves the tree alone: both suites compare `git status --por
 after.
 
 **For the dependants (`task-198`, `task-194`, `task-176`).** Resolve once with `resolveRevision(root,
-'HEAD')`, then pass the sha to every reader so they all see one commit; feed the Memory readers the
+'HEAD')` (which throws `RevisionError` for a bad rev and `StorageError` `E_GIT_READ_FAILED` when git
+cannot answer), then pass the sha to every reader so they all see one commit; feed the Memory readers the
 `memoryYaml` from `loadMemoryYamlAtRev` at the same sha. Parse failures still throw
 (`ValidationError`), as in the working tree: `spec-017` §1.4's tolerant read is `task-171`'s, through
 `parseMemoryDocument`, which both baselines share. A symlink committed under a scan root is listed as a
-blob and read as its target path; the working-tree scan follows it instead (not changed here, reported).
+blob and read as its target path; the working-tree scan follows it instead (see the independent review).
 
 No spec edit, no pending amendment.
+
+### review (independent)
+
+Verdict: approve with fixes, six points. All were fixed on the branch while the task stayed
+`in-review`. Red `853c662b`, fix `fa43d757`.
+
+1. **`readPathsAtRev` put `rev` into the batch request unchecked.** It is a public storage export.
+   A rev holding a newline split the request line, so `'HEAD:target.txt\nHEAD'` returned
+   `target.txt`'s bytes for another path; a `:` changed which path was read. It now refuses a rev
+   holding `\n`, `\r`, `:` or NUL with the new `StorageError` `E_INVALID_REVISION` (`src/storage/errors.ts`).
+   The TSDoc no longer says "any revision git accepts".
+2. **A path ending in `\r` read `null` in the batch.** `cat-file` strips the trailing CR, while
+   `readPathAtRev` returns the content. Paths holding `\r` now take the per-path fallback, as `\n` did.
+3. **`resolveCommitAtRev` reported every git failure as "no such commit"**: a root that is not a
+   repository, or no runnable `git`, became `NOT_FOUND`. It now reads `git rev-parse --verify --quiet`'s
+   exit status: `1` → `null` (→ `NOT_FOUND`); `128` or a spawn error → `StorageError` `E_GIT_READ_FAILED`,
+   which `resolveRevision` and every `…AtRev` propagate. The `…AtHead` readers still answer `null` / `[]`
+   there, because `atHeadOr` also maps that error to the fallback. That is the answer they gave through
+   `readPathAtRev` before this task. Exit codes checked by hand on git 2.43: unborn `HEAD` 1, a tree 1, an
+   unknown name 1, `-C <not a repo>` 128.
+4. **Whitespace revs.** `master@{1 day ago}` and `HEAD^{/fix bug}` are refused as `VALIDATION` by the
+   whitespace rule; `HEAD@{1.day.ago}` resolves. This is now in `isWellFormedRevision`'s TSDoc and is
+   pinned by a test.
+5. **Coverage, re-measured** at `fa43d757`, one jest in this worktree (another worktree, `task-135`,
+   was running its own): 180 suites / 3023 tests, 98.83 / **95.10** / 94.96 / 99.54. `main` `5b885fd5`:
+   98.82 / 95.06 / 94.44 / 99.52. Branches are not below `main`. The reviewer's 95.03 was measured at
+   `cc227232` under load; this run includes the 5 review tests. Remaining uncovered new branches:
+   `commit.ts:319` (the truncated-batch guard, unreachable after exit 0) and `loaders.ts:327`. `npm run
+   lint`, `npm run docs:api` (0 warnings), `npx tsc --noEmit -p tsconfig.json`, `npx tsc -p
+   tsconfig.build.json --noEmit`: exit 0.
+6. **Recorded findings.**
+   - *Symlinks and gitlinks diverge between baselines.* The coordinator files this as a bug. At a
+     commit, the Memory scan lists a committed symlink as a blob, so the at-rev read returns the link
+     text, while the working-tree scan follows the link. `listPathsAtRev` filters gitlinks (submodules)
+     out, while the working-tree walk enters a submodule directory. Not changed here.
+   - *Layering.* `src/memory/query.ts` now imports `src/core/revision.ts` (memory → core) for
+     `resolveRevision` / `listPathsAtCommit`, while `src/core` imports `src/memory`. There is no
+     load-time cycle: the import names the module, not the `../core` barrel, and `revision.ts` depends
+     on `../storage` alone. There is a precedent, `src/memory/audit.ts` importing `../core`. If the
+     direction should be clean, the resolver belongs in `src/storage` with a storage-level error type.
