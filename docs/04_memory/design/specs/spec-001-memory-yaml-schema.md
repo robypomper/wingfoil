@@ -116,6 +116,7 @@ const MemoryTypeEntry = z.object({
   tags:        z.array(z.string()).optional(),
   template:    TemplateConfig.optional(),
   states:      StateMachine.optional(),          // absent ⇒ defaults.states applies (REQ-STATE-08)
+  amendable:   z.boolean().optional(),           // absent ⇒ false: `memory amend` refuses the type (dl-108 A3)
 }).passthrough();
 
 const TemplateConfig = z.object({
@@ -127,6 +128,14 @@ const TemplateConfig = z.object({
 `path` MAY contain named placeholders **besides** `{id}` (e.g. `task`'s `{release}`,
 `release`'s `{release-line}`). Those are resolved by the Workflow pillar from the active
 `element:` chain **before** the ID engine runs; the ID engine only ever substitutes `{id}` → `*`.
+
+**`amendable` — which types `memory amend` may correct** (`dl-108` A3, `task-127`). `true` lets
+`memory amend` record a content correction on the type's documents in any state, with no state
+change (`spec-008` §2, `spec-010` § Field-write ownership). Absent or `false`, the verb refuses the
+type at exit `1`. Absent means `false` so that amending is a choice made per type: a type whose
+content is a decision, such as `adr`, is corrected by a new element and declares `false` explicitly.
+The key is read from the `memory.yaml` committed at `HEAD`, like the state machine (`dl-080` (B)).
+There is no `defaults.amendable`: the choice is never inherited.
 
 ### `id_pattern` placeholder notation
 
@@ -183,8 +192,8 @@ prerequisite, and until it lands only undotted tokens are defined. There is no f
 ### Worked examples — every current type in the new format
 
 The `defaults` machine and the types below reproduce **exactly** the legal transition set of
-`memory.yaml` (1.6: the `dl-123` `triaged`/`planned` reject edges landed with `task-114`, the
-`service` type with `task-124`); only the encoding changes (except the deliberate default-machine collapse called
+`memory.yaml` (1.7: the `dl-123` `triaged`/`planned` reject edges landed with `task-114`, the
+`service` type with `task-124`, the `amendable` keys with `task-127`); only the encoding changes (except the deliberate default-machine collapse called
 out in Consequences). The first seven were written with this spec; `plan`, `service`, the `release`
 id pattern and the two `bug` decline edges were added later (see the *Revision (2026-09-29)* note
 below).
@@ -201,6 +210,7 @@ types:
   release-line:
     path: "docs/04_memory/planning/{id}.md"
     id_pattern: "rl-{version}"
+    amendable: false
     states:
       sequence: [ draft, planning, active, done ]
       gates:
@@ -210,6 +220,7 @@ types:
   release:
     path: "docs/04_memory/planning/{release-line}/{id}.md"
     id_pattern: "{kind}-{version}"      # dl-092: minor-v0.3, patch-v0.2.2 (ids added earlier are immutable)
+    amendable: false
     states:
       sequence: [ draft, planning, in-development, releasing, released ]
       # draft→planning: memory.submit; the rest are workflow-phase transitions (no CLI verb)
@@ -218,6 +229,7 @@ types:
   task:
     path: "docs/04_memory/{release}/{id}.md"
     id_pattern: "task-{n}-{slug}"
+    amendable: false
     states:
       sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
       gates:
@@ -229,6 +241,7 @@ types:
   adr:
     path: "docs/04_memory/design/adrs/{id}.md"
     id_pattern: "adr-{n}-{slug}"
+    amendable: false   # dl-108 A3: a change to the decision is a new ADR
     states:
       sequence: [ draft, pending, accepted, superseded ]
       gates:
@@ -238,6 +251,7 @@ types:
   decision-log:
     path: "docs/04_memory/design/dls/{id}.md"
     id_pattern: "dl-{n}-{slug}"
+    amendable: true
     states:
       sequence: [ draft, in-discussion, ready ]
       gates:
@@ -248,6 +262,7 @@ types:
   tech-spec:
     path: "docs/04_memory/design/specs/{id}.md"
     id_pattern: "spec-{n}-{slug}"
+    amendable: true
     states:
       sequence: [ draft, pending, approved, superseded ]
       gates:
@@ -257,6 +272,7 @@ types:
   bug:
     path: "docs/04_memory/bugs/{id}.md"
     id_pattern: "bug-{n}-{slug}"
+    amendable: false
     states:
       sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
       gates:
@@ -271,6 +287,7 @@ types:
   plan:                                      # dl-019
     path: "docs/05_plans/{scope}/{id}.md"
     id_pattern: "{workflow}-{phase}-plan"
+    amendable: false
     states:
       sequence: [ draft, active, done ]
       waiting: [ active ]                    # active→done: fires once the phase's produces:/checks hold
@@ -278,6 +295,7 @@ types:
   service:                                   # dl-088
     path: "docs/04_memory/services/{id}.md"
     id_pattern: "svc-{n}-{slug}"
+    amendable: true
     states:
       sequence: [ draft, pending, active ]
       gates:
@@ -386,3 +404,14 @@ tokens the code accepts (`{n}`, `{nn}`, `{nnn}`). `{n:N}` stays in the placehold
 `idPatternIssues('task-{n:3}-{slug}')` reports it as a malformed token, a gap that predates this
 revision. Edited in place, as the revisions
 above, with no `version:` bump (`dl-047`); **pending the approver's sign-off at `task-128`'s review.**
+
+**Revision (2026-10-01, `task-127-add-memory-amend-id-reason-approver-gated-verb`) — the per-type
+`amendable` key.** `dl-108` (`ready`) adds `memory amend`, and its A3 leaves the choice of which
+types may be amended to the approver, per type, in `memory.yaml`; its Action 2 asks this spec for the
+key. `MemoryTypeEntry` gains `amendable: z.boolean().optional()`, absent meaning `false`, described in
+the paragraph after the Zod block. The worked examples carry `memory.yaml` 1.7's values: `true` for
+`tech-spec`, `decision-log` and `service`, the three types whose approved or terminal documents this
+repository already corrects by hand (`dl-108` Context, `dl-088`); `false` for every other type, `adr`
+by `dl-108` A3 and the rest because no amendment practice exists for them yet. Those values are a
+`task-127` design decision, to be confirmed at its review. Edited in place, with no `version:` bump
+(`dl-047`); pending the approver's sign-off at `task-127`'s review.

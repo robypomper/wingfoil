@@ -4,6 +4,11 @@
 # There is NO global state machine — a release and a task move through different
 # lifecycles. CLI verbs (submit/approve/reject/deprecate) and workflow
 # element.set_state actions are validated against the type's graph.
+# `amendable` (dl-108 A3, spec-001, task-127) says whether `memory amend` may record a content
+# correction on a type's documents without a state change; absent means false. Values:
+# true for tech-spec, decision-log and service (corrected by hand after approval until the verb
+# shipped — dl-108 Context, dl-088); false for adr (a change to the decision is a new ADR, dl-108 A3)
+# and for every other type (no amendment practice yet).
 # Source: docs/01_vision/06_features.md, docs/02_requirements/.../P1.13-memory-element-schema.feature
 #          docs/02_requirements/03_sard/03_state-context.md (REQ-STATE-01, REQ-STATE-08)
 #
@@ -50,7 +55,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.6                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 1.7                     # [AUTHORING] config-file format version (WingFoil convention)
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -83,6 +88,7 @@ types:
       frontmatter:
         required: [ title, version ]
       file: "memory/templates/release-line.md"
+    amendable: false     # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [AUTHORING] structure + vocabulary (release-line is not itself named by P1.13; modeled on the same shape)
       sequence: [ draft, planning, active, done ]
       gates:
@@ -99,6 +105,7 @@ types:
       frontmatter:
         required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
       file: "memory/templates/release.md"
+    amendable: false     # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding
       sequence: [ draft, planning, in-development, releasing, released ]  # [SPEC] (BDD P1.13: release exposes initial state 'draft' = sequence[0])
       # draft->planning: memory.submit; the rest are workflow-phase transitions (no CLI verb)
@@ -114,6 +121,7 @@ types:
       frontmatter:
         required: [ title, release ]
       file: "memory/templates/task.md"
+    amendable: false     # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states:
       sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
       gates:
@@ -132,6 +140,7 @@ types:
       frontmatter:
         required: [ title, sard_ref ]
       file: "memory/templates/adr.md"
+    amendable: false     # [SPEC: dl-108 A3] a change to the decision is a new ADR
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] ADR vocabulary+encoding (accepted/superseded lifecycle)
       sequence: [ draft, pending, accepted, superseded ]
       gates:
@@ -148,6 +157,7 @@ types:
       frontmatter:
         required: [ title ]
       file: "memory/templates/decision-log.md"
+    amendable: true      # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] vocabulary+encoding (record-with-approval lifecycle, per dl-012 + dl-017-decision-log-remove-delivery-states)
       sequence: [ draft, in-discussion, ready ]
       gates:
@@ -166,6 +176,7 @@ types:
       frontmatter:
         required: [ title, scope ]
       file: "memory/templates/tech-spec.md"
+    amendable: true      # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] tech-spec vocabulary+encoding (approved/superseded lifecycle, mirrors adr)
       sequence: [ draft, pending, approved, superseded ]
       gates:
@@ -182,6 +193,7 @@ types:
       frontmatter:
         required: [ title, severity ]
       file: "memory/templates/bug.md"
+    amendable: false     # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); [AUTHORING] bug vocabulary+encoding (open -> triaged -> planned -> in-progress -> in-review -> resolved -> closed)
       sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
       gates:
@@ -205,6 +217,7 @@ types:
       frontmatter:
         required: [ title, workflow, phase ]
       file: "memory/templates/plan.md"
+    amendable: false     # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [AUTHORING] dl-019 — no spec mandates a plan type; simple author->execute->complete lifecycle
       sequence: [ draft, active, done ]
       waiting: [ active ]        # active->done: fires once the phase's produces:/checks are satisfied. deprecated/superseded via memory.deprecate.
@@ -219,6 +232,7 @@ types:
       frontmatter:
         required: [ title, provider, kind, owner_role, verify ]
       file: "memory/templates/service.md"       # relative to the configuration root (spec-001, bug-156), not dl-088's `.wingfoil/…` spelling
+    amendable: true      # key [SPEC: spec-001, dl-108 A3]; value [AUTHORING]
     states: # [AUTHORING] dl-088 option 1 (a) — ratified e6074c94
       sequence: [ draft, pending, active ]
       gates:

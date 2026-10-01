@@ -61,8 +61,8 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
   resolve the root fails on that first, at exit `1`: `E_NOT_AT_GIT_ROOT` from a subdirectory, and
   `E_NO_GIT_ROOT` outside a repository. Their surplus message adds the migration hint
   `the value travels in --value`. They still write nothing.
-- **One id per call.** The Memory transition verbs (`memory submit`, `approve`, `reject`, `deprecate`)
-  and `memory history` act on exactly one document per invocation; transitioning several documents
+- **One id per call.** The Memory transition verbs (`memory submit`, `approve`, `reject`, `deprecate`),
+  `memory amend` and `memory history` act on exactly one document per invocation; transitioning several documents
   takes one invocation, and one commit, each. The multi-id commit subject `wf({type}): {verb} {id1},
   {id2}, ...` is **historical only**: it records batch operations written by hand before the verbs
   shipped, and no command produces it.
@@ -76,7 +76,7 @@ Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08
 | `--help`, `-h`    | flag                   | —         | Print context-sensitive help (synopsis, args, flags, example) and exit `0`. Takes precedence over all other flags. |
 | `--version`       | flag                   | —         | Print CLI version and exit `0`. Takes precedence over all other flags except `--help`.                |
 | `--format <fmt>`  | `console\|json\|yaml`  | `console` | Output encoding. `console` for humans (colour, `✓`/`⚠`/`✗` prefixes); `json`/`yaml` for scripting/CI (REQ-INT-05). An unsupported value exits `2` with `error: invalid --format value "<value>"`. |
-| `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`); optional elsewhere (e.g. `memory deprecate`). Recorded in the resulting git commit body (P1.7) as a `Reason:` **block** — the remainder of the `Reason:` line plus every following body line, up to (exclusive) git's trailing trailer paragraph or the end of the body — in the **declared normal form**, not as the raw argument (`dl-067-reason-trailer-contract`; see the Notes). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
+| `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`, `memory amend`); optional elsewhere (e.g. `memory deprecate`). Recorded in the resulting git commit body (P1.7) as a `Reason:` **block** — the remainder of the `Reason:` line plus every following body line, up to (exclusive) git's trailing trailer paragraph or the end of the body — in the **declared normal form**, not as the raw argument (`dl-067-reason-trailer-contract`; see the Notes). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
 | `--reason` (unrecordable value) | —        | —         | A reason that cannot be recorded faithfully in the trailer is refused at the CLI boundary with exit `2`, before anything is read or written, on **every** verb that takes the flag — `memory deprecate` included, where the flag is optional but a declared-and-empty value is still a usage error (`dl-067` S2). Three cases, each with its own message, none of them `missing required argument: --reason` (which answers the *omitted* case above): blank or whitespace-only → `error: invalid flag value: --reason must not be blank`; a line starting `Approver:` or `Reason:` → `error: invalid flag value: --reason must not contain a line starting with "Approver:" or "Reason:"`; a final paragraph made entirely of `Key: value` lines → `error: invalid flag value: --reason must not end in a paragraph of "Key: value" lines`. |
 | `--verbose`       | flag                   | `false`   | Emit diagnostic logs to stderr in plain text, even under `--format json`/`yaml`. Never alters stdout.  |
 | `--color` (negatable) | boolean flag        | `true`    | ANSI colour on stdout. Pass `--no-color` to disable; also disabled automatically when `NO_COLOR` is set to any non-empty string (https://no-color.org/) — an explicitly empty `NO_COLOR=` does **not** disable colour. |
@@ -155,6 +155,25 @@ wf({type}): assign release {version} to {id1}, {id2}
 Because `status` does not change, the subject has no bracket. `memory history` reads `assign` only
 in this form. Any other `assign` subject reads `operation: null`. `amend` stays as `dl-108` defines
 it: approver-gated, with per-type amendability. It is not what `set_release` emits.
+
+**`memory amend` emits `amend`** (`dl-108` A1 (a), A2 (i), A3; `task-127`). It commits the author's
+uncommitted edit of one document, as that one path, and moves no state, so its bracket is the
+self-loop of the state committed at `HEAD`. It is an approval: the body carries `Approver:` and
+`Reason:` exactly as `approve` writes them, and the caller needs the same authority (REQ-SEC-03). What
+an amendment may change is `spec-010`'s § Field-write ownership row: the body and every frontmatter
+field except `status`, `id` and `type`. Which types may be amended is the type's `amendable` key
+(`spec-001`), read from the committed `memory.yaml`; absent means not amendable. Its refusals: a
+missing or blank `--reason` exits `2` (§2 above); a type that is not amendable, a document that no
+commit holds, a document with no uncommitted change, and an edit that changes `status`, `id` or
+`type` (the message names the field) exit `1`, as does a caller without approval authority, with
+`approve`'s own message. Other modified or staged files are not committed and are left as they were.
+
+```
+wf({type}): amend {id} [{s} → {s}]
+
+Approver: {name} <{email}> (approver)
+Reason: {reason}
+```
 
 **A chained bracket** is read from its first state to its last. Those two states are compared with
 the frontmatter before and after the commit. Given the type's machine, every hop must be one of its
@@ -719,3 +738,11 @@ therefore joins the closed list as the eleventh verb. It writes only `release`, 
 type, never changes `status`, carries no `Approver:` and has no bracket. Its subject is the canonical
 form history already has. The `amend` row loses `element.set_release`, and `assign` leaves the list of
 undeclared practised verbs. Edited in place without a supersede or a state change (`dl-047`).
+
+**Revision (2026-10-01) — `memory amend` ships, per `dl-108` (`ready`; A1 (a), A2 (i), A3) and
+`task-127-add-memory-amend-id-reason-approver-gated-verb`.** §2's `amend` row already named the verb
+and its `[s → s]` bracket (`task-126`). §2 now also states what the command does, its commit, and its
+refusals, in the paragraph after the `set_release` rule. The `--reason` row lists `memory amend` among
+the commands that require it, and §1's one-id rule names it. The per-type key is `spec-001`'s, and
+the fields the verb owns are `spec-010`'s. No other section changed. Edited in place without a
+supersede or a state change (`dl-047`); pending the approver's sign-off at `task-127`'s review.
