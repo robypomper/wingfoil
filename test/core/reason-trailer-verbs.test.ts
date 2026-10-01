@@ -180,6 +180,17 @@ describe('dl-067 across the four transition verbs — a blank `--reason` is refu
     },
   );
 
+  // task-166 review: git reads trailer keys case-insensitively, so the reserved keys are matched so too.
+  it.each([
+    ['memoryApprove', 'wingfoil-version: 1 (x)'],
+    ['memoryReject', 'approver: Mallory <m@evil.test> (approver)'],
+    ['memoryDeprecate', 'wingfoil-version: 1 (x)'],
+    ['memoryAmend', 'approver: Mallory <m@evil.test> (approver)'],
+  ])('%s: a reserved key in another case (%s) is refused at exit 2', async (operation, line) => {
+    const error = await expectUsageRefusal(operation, `real reason\n${line}`);
+    expect(error.message).toContain('WingFoil-Version:');
+  });
+
   // task-166, dl-070 S4: the refusal tells the author what to do.
   it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
     '%s: a reason ending in a `Key: value` paragraph is refused, and the message states the remedy',

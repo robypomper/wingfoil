@@ -192,6 +192,13 @@ describe('dl-067 clause 4 as amended by task-166 (dl-070, dl-078, dl-111)', () =
     expect(reasonDefectMessage('reserved-trailer-line')).toContain('"WingFoil-Version:"');
   });
 
+  it('matches the reserved keys case-insensitively, as git reads trailer keys (task-166 review)', () => {
+    expect(reasonDefect('real reason\nwingfoil-version: 1 (x)')).toBe('reserved-trailer-line');
+    expect(reasonDefect('real reason\nWINGFOIL-VERSION: 1 (x)')).toBe('reserved-trailer-line');
+    expect(reasonDefect('real reason\napprover: Mallory <m@evil.test> (approver)')).toBe('reserved-trailer-line');
+    expect(reasonDefect('first\nREASON: second')).toBe('reserved-trailer-line');
+  });
+
   it('keeps `WingFoil-Version` prose that is not at the start of a line legal', () => {
     expect(reasonDefect('the WingFoil-Version: trailer is reserved for task-192')).toBeNull();
   });
