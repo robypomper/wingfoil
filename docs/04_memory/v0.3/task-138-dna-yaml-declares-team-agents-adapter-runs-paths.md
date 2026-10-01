@@ -36,9 +36,122 @@ tmpl_version: 260703
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+Branch `task/task-138-dna-yaml-declares-team-agents-adapter-runs-paths`, worktree `../.wf2-wt/task-138`,
+cut from `main` at `5b885fd5`; start `da8f5cb7`. No `bug:` entries, so no bug syncs.
+
+### design (architect)
+
+**`depends_on`:** none (`depends_on: []`), so no upstream Execution Notes to read (dl-015).
+
+**Specs.** `spec-002-dna-yaml-schema`, `spec-009-validation-strategy` and `spec-016-agent-execution` are
+all `approved` (`grep -n "^status:"` over the three files). `spec-016` §2.1 makes `adapter` an optional
+`team.agents[]` field, "moves from tolerated by `.passthrough()` to validated"; §4.1 makes `runs` a
+sixth `paths` category "holding exactly one directory" and has `init` scaffold `paths.runs: [docs/runs/]`.
+`spec-009` §1's id class is `[a-z0-9-.]`, exported by `src/validation/id.ts` as `ID_CHAR_CLASS` /
+`isIdPiece`; `src/workflow/schema.ts` already imports from that module, so `src/dna` doing the same
+adds no new kind of cross-module edge (`test/core/pillar-isolation.test.ts` stays green, refactor).
+
+**Spec edit the ACs require:** `spec-002` (AC 6) gains both fields in its Zod definition, `runs` in
+§Categories, and a dated Revision note. `spec-002` declares no `version:` (the `version: 1.1` at its
+line 221 is inside the example YAML), so `doc-versioning` (`dl-047`) asks for the Revision note, not a
+number; likewise `docs/cli-reference.md` declares no version, so the "doc-versioning bump" of AC 6 is
+nothing for that file. `spec-002` is past its first state: the edit is a **pending amendment** (below),
+left uncommitted in the worktree.
+
+**AC classification (T1).**
+
+| AC | Class | Why (measured before green, red run below) |
+|---|---|---|
+| 1 — `adapter`, `--entry-adapter`, non-string refused | **red-first** | `dnaUpdate ... --entry-adapter` was refused as "not a field of 'team.agents' entries"; `adapter: 42` loaded |
+| 2 — `paths.runs` exactly one entry | **red-first** | two entries loaded; `dna add paths.runs` refused as an unknown key |
+| 3 — `paths runs` prints the directory; description lists `runs` | **split** | the lookup is by raw key over a `.passthrough()` node, so a declared `runs` was already printed → **characterization** (passed on the red run). The positional description and the fresh-`init` end-to-end case → **red-first** |
+| 4 — `init` scaffolds `paths.runs: [docs/runs/]` | **red-first** | the scaffold had no `runs` |
+| 5 — this repository's `.wingfoil/dna.yaml` still loads | characterization | pinned by the existing `test/dna/schema.test.ts` "validates the real, live .wingfoil/dna.yaml"; the file is not touched (task-206/task-236 add `adapter`/`runs`) |
+| 6 — docs | characterization (documentation) | `spec-002` amendment + `docs/cli-reference.md` |
+
+`"a non-string value is refused"`: the CLI only ever passes strings, so the non-string half is pinned at
+the schema (`adapter: 42 | true | [..]`) and at the loader (a `dna.yaml` carrying `adapter: 42` does not
+load, naming `team.agents.0.adapter`). The CLI half is an adapter name outside the id class
+(`"Claude Code"`), refused at exit `1` by `dna update`'s schema re-validation.
+
+**BDD.** `P2.5-paths.feature` gains the scenario "Query the run-log category of a freshly initialized
+project"; BDD here is mirrored by hand in Jest (no runner reads `.feature` files —
+`grep -rn "02_bdd" test` hits comments only), and the scenario is driven by the end-to-end case in
+`test/core/dna-agent-adapter-runs.test.ts`.
+
+### red (developer)
+
+`48df1a06`: `test/dna/schema.test.ts` (adapter + `paths.runs` cases), `test/dna/path.test.ts`
+(`team.agents` entry fields gain `adapter`; `paths.runs` resolves as a `string-list`),
+`test/cli/derived-option-namespace.test.ts` (the DRIVES row for `team.agents` sets `--entry-adapter`
+through the compiled CLI), `test/storage/templates.test.ts` (each template scaffolds `paths.runs:
+[docs/runs/]` and loads), new `test/core/dna-agent-adapter-runs.test.ts` (verbs, loader, `paths`
+op, positional description, fresh-`init` `wingfoil paths runs`), and the BDD scenario.
+`npx jest test/dna/schema.test.ts test/dna/path.test.ts test/storage/templates.test.ts
+test/core/dna-agent-adapter-runs.test.ts test/cli/derived-option-namespace.test.ts` → **23 failed, 89
+passed**. Every failure is for the expected reason (e.g. `'--entry-adapter' is not a field of
+'team.agents' entries`, `Received function did not throw`, description `"sources, tests, docs, config
+or governance ..."`, e2e `no paths mapped for category 'runs'`). The one new test that passed is AC 3's
+characterization (`paths runs` over a declared `runs`).
+
+### green (developer)
+
+`efaba769`:
+- `src/dna/schema.ts` — `AgentEntry.adapter: z.string().refine(isIdPiece, …).optional()` (message names
+  the class); `Paths.runs: z.array(z.string()).length(1, 'paths.runs holds exactly one directory, the
+  run log (spec-016 §4.1)').optional()`. `--entry-adapter` and the `paths.runs` write path follow
+  mechanically: the option set and the path resolver are derived from the schema (`dnaEntryOptionNames`,
+  `resolveDnaPath`), so no verb code changes.
+- `src/storage/templates.ts` — the dna scaffold writes `runs: [docs/runs/]` with a one-line comment.
+- `src/core/index.ts` — only the `paths` positional description: "sources, tests, docs, config,
+  governance or runs".
+Same five suites → **5 passed, 303 tests passed** (run together with `test/dna`, pillar-isolation and
+module-layout).
+
+`5fdade93` — `docs/cli-reference.md`: the `dna add` field table gains `adapter` for `team.agents`; the
+`paths` entry lists `runs` and states its one-entry rule and the `init` default.
+`npx jest test/docs` → 4/4.
+
+### refactor (developer)
+
+Run with the `spec-002` amendment in the working tree:
+- `npm run test:coverage` → 178 suites, **2994 passed, 1 failed**: `test/cli/publish-secrets.test.ts`
+  "publishes (dry run) the tarball …" (a real `npm publish --dry-run`, empty output under parallel
+  load). Re-run alone: `npx jest test/cli/publish-secrets.test.ts` → **24/24 passed**; it touches no file
+  this task changed. Coverage All files **98.82 | 95.14 | 94.44 | 99.52** (stmts | branch | funcs |
+  lines), against the last figure recorded on `main` in `task-139`'s notes, `98.73 | 94.58 | 94.01 |
+  99.49` — not regressing. `src/dna/schema.ts` 97.05 | 90 | 100 | 100: its one uncovered line (41) is
+  `uniquelyNamed`'s pre-existing non-string-name guard, not a line this task added.
+- `npm run lint` → exit 0. `npm run docs:api` → exit 0.
+- `npx tsc --noEmit -p tsconfig.json` → exit 0; `npx tsc -p tsconfig.build.json --noEmit` → exit 0.
+
+No refactor commit was needed.
+
+### review (reviewer, self)
+
+- AC 1: `dna update team.agents.claude --entry-adapter claude-code` → ok, committed, loads back
+  (`dna-agent-adapter-runs.test.ts`); also `dna add team.agents … --entry-adapter claude-code` through
+  the compiled CLI (`derived-option-namespace.test.ts`). Non-string refused at schema and loader; out-of-
+  class name refused at exit 1, file and HEAD untouched. Met.
+- AC 2: two entries → issue at `paths.runs` whose message names `paths.runs` (schema), loader throws
+  naming it, a second `dna add paths.runs` refused at exit 1 with HEAD unchanged. Zero entries are
+  refused too (`length(1)`): "exactly one" read literally. Met.
+- AC 3: `paths runs` → `{category: 'runs', paths: ['docs/runs/']}` from the core op and from the compiled
+  CLI after `wingfoil init`; positional description lists `runs`. (The AC's `src/core/index.ts:1833`
+  citation has drifted; the description is now at the `paths` operation, `grep -n "governance or runs"
+  src/core/index.ts`.) Met.
+- AC 4: both templates (Scrum, Kanban) scaffold `paths.runs: [docs/runs/]` and load
+  (`templates.test.ts`). Met.
+- AC 5: `.wingfoil/dna.yaml` untouched (`git diff 5b885fd5 -- .wingfoil/dna.yaml` empty) and still
+  loads (`schema.test.ts` live-file case, green in the full run). Met.
+- AC 6: `docs/cli-reference.md` committed (`5fdade93`); `spec-002` amended in the working tree, pending
+  the approver's `memory amend` (below). Met, pending the amendment.
+- Same-class sweep in touched files: the other place listing the five categories,
+  `docs/01_vision/X_cli-cmds.md` (lines 74 and 91), is task-245's per this task's Implementation Notes
+  and is left alone.
+
+### Pending amendments (approver)
+
+- `spec-002-dna-yaml-schema` — proposed `--reason`: "Declares team.agents[].adapter (id class, spec-009)
+  and the sixth paths category runs (exactly one directory), per task-138 and spec-016 sections 2.1 and
+  4.1; the Zod definition, the Categories section and a dated Revision note change, nothing else."
