@@ -111,9 +111,11 @@ export const SECRET_PATTERNS: readonly SecretPattern[] = [
     // promoted warn → block by dl-036-secret-scan-warn-severity-vs-req-sec-08 (spec-007 §2 amended)
     severity: 'block',
     // spec-007 §2 (case-insensitive per its `(?im)` marker; the `m` is a no-op here because the
-    // scan procedure already evaluates one line at a time, so `^`/`$` anchor to that line either way):
-    // '^[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
-    regex: /^[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+/i,
+    // scan procedure already evaluates one line at a time, so `^`/`$` anchor to that line either way).
+    // The optional prefix — indentation, an `export` keyword, a `-`/`*` list marker — is
+    // bug-037's amendment (task-135): a column-0 anchor let those lines through.
+    // '^\s*(?:export\s+|[-*]\s+)?[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
+    regex: /^\s*(?:export\s+|[-*]\s+)?[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+/i,
   },
 ];
 
@@ -233,8 +235,9 @@ function matchLine(
 /**
  * Scan one file's already-decoded text content (spec-007 §4): evaluate {@link SECRET_PATTERNS} in
  * declared order against every line, apply the §3 exclusions, and classify each surviving finding by
- * severity. This is the seam a future commit-time gate or `task-044`'s `init` integrity check calls
- * per file-about-to-be-written/committed (spec-007 §4 step 5).
+ * severity. This is the seam spec-007 §4 step 5's callers use per file about to be written or
+ * committed: `init`'s pre-write pass over the built-in templates calls it (`verifyBuiltinTemplates`,
+ * `src/core/builtin-integrity.ts`, task-135), and a future commit-time gate would.
  */
 export function scanText(content: string, filePath: string, options: ScanTextOptions = {}): ScanResult {
   const lines = content.split(/\r\n|\r|\n/);

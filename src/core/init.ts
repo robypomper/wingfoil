@@ -12,8 +12,8 @@
  *      with no attributable author is refused before any file is written.
  *
  * Both write paths below — {@link initWingfoilStorage} and {@link initWingfoilProject} — additionally
- * run the REQ-SEC-10 built-in template schema check over the very `ScaffoldFile[]` they are about to
- * write, before writing it. The symmetry is deliberate and is pinned by a shared test table
+ * run the REQ-SEC-10 built-in template schema check, and the spec-007 §4 step 5 secret scan (task-135),
+ * over the very `ScaffoldFile[]` they are about to write, before writing it. The symmetry is deliberate and is pinned by a shared test table
  * (`test/core/project-directives.test.ts`); it closed
  * `bug-018-init-storage-bypasses-integrity-guard`, the last asymmetry `task-044` left behind.
  *
@@ -66,7 +66,12 @@ export interface InitStorageValue {
  * by the current git user.
  *
  * Guards, in the order their message must win: git repository → git identity (REQ-SEC-01) → built-in
- * template integrity (REQ-SEC-10) — the same three, in the same order, as {@link initWingfoilProject}.
+ * template integrity (REQ-SEC-10 schema check and spec-007 §4 step 5 secret scan) — the same three,
+ * in the same order, as {@link initWingfoilProject} — then the dirty/uninspectable-target guard
+ * (dl-080 (B), task-092, task-131) and, last, the already-initialized refusal
+ * ({@link WINGFOIL_ALREADY_INITIALIZED}, task-135 / bug-088), which {@link initWingfoilProject} runs
+ * second. It runs last here so the two target guards before it keep their more specific messages;
+ * either way nothing is written. There is no `force` parameter: no caller re-scaffolds on purpose.
  *
  * The third one arrived with `task-054-project-directives` / `bug-018-init-storage-bypasses-integrity-guard`.
  * `scaffoldFiles()` now reserves `.wingfoil/directives/built-in/` (P3.5), which makes this a write path
@@ -87,7 +92,8 @@ export interface InitStorageValue {
  * @returns `ok` carrying the created paths and the produced `{sha, message}` commit; or a
  *   `CoreResult.error` (code `VALIDATION` → exit 1) when `root` is not a git repository, when git
  *   identity is unconfigured (REQ-SEC-01), when a built-in template fails its schema check
- *   (REQ-SEC-10), or (code `IO`) when the git commit itself fails.
+ *   (REQ-SEC-10) or its secret scan (spec-007 §4 step 5), when a target is dirty or uninspectable,
+ *   when `root` is already initialized, or (code `IO`) when the git commit itself fails.
  */
 export function initWingfoilStorage(
   root: string,
@@ -103,23 +109,28 @@ export function initWingfoilStorage(
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity as CoreResult<InitStorageValue>;
 
-  // Guard 3 — REQ-SEC-10, over the very list this call is about to write.
+  // Guard 3 — REQ-SEC-10 schema check plus the spec-007 §4 step 5 secret scan, over the very list
+  // this call is about to write.
   const files = scaffoldFiles();
   const integrityFailure = verifyBuiltinTemplates(builtinTemplates ?? builtinTemplateSources(files));
   if (integrityFailure) {
     return coreErr({ code: 'VALIDATION', message: integrityFailure.message });
   }
 
-  // Guard 4 — dl-080 (B) / bug-078 / task-092. This is the ONE `initStorage` caller with no
-  // already-initialized check: {@link initWingfoilProject} refuses before any write when `.wingfoil/`
-  // holds any entry at all (`detectInitState`), and every path it writes is under `.wingfoil/`, so no
-  // target of that flow can pre-exist and a guard there would be unreachable code. Here a target CAN
-  // pre-exist, and its uncommitted content would be overwritten and the diff committed under a
-  // subject saying "initialize". What this does NOT repair is the asymmetry itself — a CLEAN,
-  // committed `.wingfoil/dna.yaml` is still overwritten, because the target is clean; that is the
-  // missing already-initialized check, a distinct defect, raised rather than fixed here.
+  // Guard 4 — dl-080 (B) / bug-078 / task-092, with task-131's inspectability check inside it.
+  // Here a target CAN pre-exist, and its uncommitted content would be overwritten and the diff
+  // committed under a subject saying "initialize"; behind a symlink it cannot even be inspected. It
+  // runs BEFORE guard 5 so a dirty or uninspectable target is refused with the message that names
+  // that target, not with the generic one below.
   const unmodified = requireUnmodifiedTargets(root, files.map((file) => file.path));
   if (!unmodified.ok) return unmodified as CoreResult<InitStorageValue>;
+
+  // Guard 5 — task-135 / bug-088: an initialized project is not re-initialized, the same refusal
+  // and message as {@link initWingfoilProject}. Guard 4 only catches a target with modifications
+  // it does not own; a CLEAN, committed `.wingfoil/dna.yaml` passed it and was overwritten.
+  if (detectInitState(root) === 'initialized') {
+    return coreErr({ code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED });
+  }
 
   try {
     const sha = initStorage(root, files);
@@ -157,7 +168,9 @@ export interface InitProjectValue {
  *   5. every built-in template source passes {@link verifyBuiltinTemplates} (REQ-SEC-10,
  *      task-044-builtin-template-integrity) — a corrupted/schema-invalid built-in directive or
  *      workflow template aborts before the scaffold write, naming the failing template (P3.8/P4.17
- *      BDD "Error - a built-in template fails its integrity check" / "... is structurally invalid").
+ *      BDD "Error - a built-in template fails its integrity check" / "... is structurally invalid"),
+ *      and so does one carrying a blocking secret-scan finding, naming the template and the
+ *      `pattern_id` (spec-007 §4 step 5, task-135; P3.8 "Error - a built-in template carries a secret").
  *      The sources are DERIVED from this very run's `templateScaffold(template)` output via
  *      {@link builtinTemplateSources}, so the checked set and the written set cannot drift apart
  *      (there is no separate registry to forget to update). `templateScaffold` is pure and writes

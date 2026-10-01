@@ -13,6 +13,11 @@
  * ordering determinism surface against REQ-SYS-07. Distribution-channel assurance lives in `adr-009`
  * / `spec-015` (npm provenance) instead. Do not "strengthen" this module with hashing.
  *
+ * The same pre-write pass also runs the spec-007 §4 step 5 secret scan over each source (task-135,
+ * `bug-038`), which is a separate gate from the REQ-SEC-10 schema check, serving REQ-SEC-08: a
+ * secret in a shipped template would be installed into every new project. It is a regex scan of
+ * the content, not a digest, so the paragraph above still holds.
+ *
  * A cross-pillar concern by construction — checking a directive source needs the Directives pillar's
  * `DirectiveFrontmatter` schema, checking a workflow source needs the Workflow pillar's `Workflow`
  * schema — so, per `src/core/loaders.ts`'s own precedent ("Cross-file concerns ... need the caller to
@@ -29,7 +34,7 @@
  */
 import { DirectiveFrontmatter } from '../directives/schema';
 import { extractFrontmatter, type BuiltinTemplateKind, type BuiltinTemplateSource } from '../storage';
-import { parseYaml, runValidation } from '../validation';
+import { parseYaml, runValidation, scanText } from '../validation';
 import { Workflow } from '../workflow/schema';
 
 export type { BuiltinTemplateKind, BuiltinTemplateSource } from '../storage';
@@ -43,6 +48,11 @@ export interface BuiltinIntegrityFailure {
   readonly name: string;
   readonly kind: BuiltinTemplateKind;
   readonly message: string;
+  /**
+   * The spec-007 §2 `pattern_id` of the blocking finding, present only when the source failed the
+   * secret scan ({@link secretScanFailure}) rather than its schema check.
+   */
+  readonly patternId?: string;
 }
 
 /**
@@ -131,8 +141,33 @@ function policyFor(kind: BuiltinTemplateKind): IntegrityPolicy | undefined {
 }
 
 /**
- * Schema-check every `sources` entry, in list order (REQ-SYS-07: deterministic, no unordered
- * iteration), and return the FIRST one that fails — or `null` when every source is valid (including
+ * The spec-007 §4 step 5 secret scan of one built-in source (task-135, `bug-038`): `null` when the
+ * content carries no `blocking` finding, otherwise a failure naming the template and the FIRST
+ * blocking finding's `pattern_id` and line (`scanText` reports findings in line order, then in the
+ * declared pattern order, so the choice is deterministic, REQ-SYS-07).
+ *
+ * The scan runs on the source's content exactly as it would be written, with the §3 exclusions
+ * `scanText` applies (fenced examples, placeholder values) and no `security-ignore` list: an ignore
+ * file belongs to the project being initialized, which does not exist yet. `warn` findings never
+ * fail it (§4 step 6), and they are not surfaced: `init` has no warning channel, and a built-in
+ * template is not the operator's to review.
+ */
+function secretScanFailure(source: BuiltinTemplateSource): BuiltinIntegrityFailure | null {
+  const [finding] = scanText(source.content, source.name).blocking;
+  if (finding === undefined) return null;
+  return {
+    name: source.name,
+    kind: source.kind,
+    patternId: finding.patternId,
+    message:
+      `built-in ${source.kind} template secret scan failed: ${source.name} ` +
+      `(${finding.patternId}, line ${finding.line})`,
+  };
+}
+
+/**
+ * Schema-check, then secret-scan, every `sources` entry, in list order (REQ-SYS-07: deterministic,
+ * no unordered iteration), and return the FIRST one that fails — or `null` when every source is valid (including
  * the trivial, always-passing case of an empty list, which is what `src/storage/templates.ts`'s
  * `builtinTemplateSources` derives from the P1.1 minimal skeleton, whose built-in directory holds only
  * a `.gitkeep`; `templateScaffold` yields the six P3.8 built-in directives since
@@ -141,6 +176,11 @@ function policyFor(kind: BuiltinTemplateKind): IntegrityPolicy | undefined {
  * FAILS CLOSED on an unrecognized `kind`: a source whose kind has no {@link INTEGRITY_POLICY} entry is
  * reported as a failure ({@link unknownKindMessage}) rather than skipped or thrown on — it cannot be
  * checked, so it must not be installed.
+ *
+ * The secret scan ({@link secretScanFailure}) is spec-007 §4 step 5's "additional integrity gate run
+ * in the same pre-write pass" (task-135, `bug-038`): a source that passes its schema check but
+ * carries a `blocking` spec-007 §2 finding fails too, naming the template and the `pattern_id`. A
+ * source is scanned only once its schema check has passed, so each source reports one failure.
  *
  * Callers — `initWingfoilProject` AND `initWingfoilStorage`, both in `src/core/init.ts`; every
  * `initStorage` write path there is one — MUST run this before writing any file: REQ-SEC-10's fit
@@ -163,6 +203,8 @@ export function verifyBuiltinTemplates(
     if (!policy.isValid(source)) {
       return { name: source.name, kind: source.kind, message: policy.message(source.name) };
     }
+    const secret = secretScanFailure(source);
+    if (secret !== null) return secret;
   }
   return null;
 }
