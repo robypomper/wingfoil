@@ -71,6 +71,16 @@ function bind(repo: string, role: string, id: string): void {
   commitAll(repo, `fixture: bind ${id} to ${role}`);
 }
 
+/** Drop `id` from the scaffold's `roles.yaml` `global:` list (a fixture edit), so nothing binds it. */
+function unbindGlobal(repo: string, id: string): void {
+  const file = join(repo, ROLES);
+  const text = readFileSync(file, 'utf-8');
+  const line = `\n  - ${id}\n`;
+  if (!text.includes(line)) throw new Error(`fixture bug: '${id}' is not in the scaffold's global list`);
+  writeFileSync(file, text.replace(line, '\n'), 'utf-8');
+  commitAll(repo, `fixture: unbind global ${id}`);
+}
+
 async function thrownBy(call: Promise<unknown>): Promise<unknown> {
   try {
     await call;
@@ -280,7 +290,7 @@ describe('CORE_MODULES directive.directiveRemove — REQ-SEC-07 clause (b): ever
   });
 
   it('a directive bound by NO role and not global is removable even though other ids are bound', async () => {
-    // The scaffold binds nine ids across six roles plus three globals; none of them is `legacy-rule`,
+    // The scaffold binds six ids across six roles plus four globals; none of them is `legacy-rule`,
     // so the referrer check must not refuse on the mere presence of other bindings.
     addCustomDirective(repo, 'legacy-rule');
     const result = await directiveRemoveFn()({ root: repo, positional: 'legacy-rule' });
@@ -298,8 +308,10 @@ describe('CORE_MODULES directive.directiveRemove — dl-037 / spec-012 §5.1: re
 
   beforeEach(() => {
     repo = makeInitializedRepo();
-    // `security` is the shipped built-in that the scaffold's roles.yaml binds to NO role and does not
-    // carry in `global`, so a custom shadow of it is genuinely removable.
+    // The scaffold binds every shipped built-in, `security` through `global` (task-133, dl-059), and a
+    // bound id is refused for removal. Unbinding `security` first makes its custom shadow genuinely
+    // removable, which is the case this suite is about.
+    unbindGlobal(repo, 'security');
     addCustomDirective(repo, 'security');
   });
 
