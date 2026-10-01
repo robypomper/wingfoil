@@ -156,3 +156,42 @@ verbs in the sweep, the two DNA characterizations, the vacuity guard, and the tw
   operand\|allowExcessArguments\|refuses an extra one itself" src test docs/*.md` shows no other
   stale claim.
 - The MCP surface is unaffected, because its `buildParams` never sets `positionals`.
+
+### review (independent)
+
+Verdict: **approve with fixes**, while the task is `in-review`. Fixed in `0ae170ec`; behaviour is
+unchanged.
+
+1. **`spec-008` §5 was out of step.** §5 calls itself the single source of truth for exit codes, and
+   its exit-`2` row did not list the surplus operand. The row now names it, and the 2026-09-30
+   Revision note mentions §5. This keeps it in step with `spec-005` §1, the pairing `task-103` /
+   `bug-103` kept.
+2. **Overclaim about where and when the refusal happens.** §1's new bullet and the comment in
+   `src/cli/registrar.ts` said the rule is "enforced once, where commands are registered" and runs
+   "before anything is read". That is false for the four DNA path verbs. They refuse inside the
+   operation, after `resolveRoot()` and their `<path>` check. Measured on `dist/` in a throwaway
+   repository:
+   - from a subdirectory, `dna set project.name bogus --value y` → `E_NOT_AT_GIT_ROOT`, exit `1`;
+   - outside a repository → `E_NO_GIT_ROOT`, exit `1`;
+   - from the same subdirectory, `memory approve a b --reason x` → the surplus message, exit `2`.
+
+   §1, the registrar comment, the `program.ts` comment and `spec-005`'s Revision note now state the
+   exception and the DNA verbs' order: root, then path, then surplus.
+
+Gates after the fixes:
+- `npm test` → 163 suites / 2669 tests, exit `0`.
+- `npm run lint`, `npm run docs:api`, `npx tsc --noEmit -p tsconfig.json` and
+  `npx tsc -p tsconfig.build.json --noEmit` → exit `0`.
+
+Follow-ups the coordinator will file, not this task's:
+- `init extra` and `mcp extra` exit `2` with Commander's wording (`too many arguments for 'init'`),
+  not `extraOperandsReason`'s.
+- The `refusesExtraItself` exception could go away if `P2.1-dna-set.feature`'s two-positional
+  scenario moves to `--value` and the hint becomes a declared `surplusHint`. That needs an approver
+  ruling.
+- user-docs:
+  - `docs/cli-reference.md` still says release 0.2.2;
+  - the CHANGELOG entry for this behaviour change;
+  - a note that `memory search a b` is now refused, so a keyword with spaces must be quoted.
+- `CorePositional.refusesExtraItself` is a registry-shape addition that `spec-006` §2 does not
+  record.
