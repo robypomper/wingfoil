@@ -2,7 +2,7 @@
 id: "task-128-allocate-element-ids-highest-number-ref-across-folder"
 type: task
 title: "Allocate element ids from the highest number on every ref, across every folder the type's path can resolve to"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "high"
