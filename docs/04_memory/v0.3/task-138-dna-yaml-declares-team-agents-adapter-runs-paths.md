@@ -2,7 +2,7 @@
 id: "task-138-dna-yaml-declares-team-agents-adapter-runs-paths"
 type: task
 title: "`dna.yaml` declares `team.agents[].adapter` and the `runs` paths category"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "feature"
 priority: "high"
