@@ -248,10 +248,9 @@ function parseYamlOrDiagnostic(
   try {
     return { data: parseYaml(raw, filePath), diagnostic: null };
   } catch (err) {
-    if (err instanceof ValidationError && err.issues[0]?.code === E_YAML_PARSE_ERROR) {
-      return { data: null, diagnostic: { code: E_YAML_PARSE_ERROR, severity: 'error', file, path: '', message: err.issues[0].message } };
-    }
-    throw err;
+    // `parseYaml` throws nothing but `ValidationError.yamlParse`: one issue, the parser's message.
+    const { message } = (err as ValidationError).issues[0]!;
+    return { data: null, diagnostic: { code: E_YAML_PARSE_ERROR, severity: 'error', file, path: '', message } };
   }
 }
 
