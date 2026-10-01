@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.2"
+version: "1.3"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -170,3 +170,35 @@ commit, right after the task's transition and on the task branch:
   by `task-126`.
 - Merge trial of the three branches on `main` (`6a28d281`): `task-126` and `task-128` merge clean;
   `task-129` conflicts on `spec-008`'s Revision notes only (both append), resolved by keeping both.
+- **2026-10-01 — `task-126`, `task-128`, `task-129` `done`.** The approver approved all three at the
+  review gate. `approve [in-review → approved]` used the code version (`e1c90887`, `68796cc5`,
+  `ad0f8f78`) and `finalize [approved → done]` was done by hand. Bugs `bug-155`, `bug-087`, `bug-162`,
+  `bug-131` and `bug-171` went `[in-review → resolved → closed]`. Merged `--no-ff` in plan order:
+  `eafd2384` (126), `ba8b5ba6` (128), `bd60a7a3` (129). `task-129`'s merge conflicted only on
+  `spec-008`'s Revision notes, which were kept in date order. Worktrees and branches were removed.
+  Gates on `main` at `bd60a7a3`: `npx jest --coverage` → 165 suites, 2715 tests, coverage 98.71 /
+  94.54 / 93.96 / 99.48; lint, `docs:api` and both `tsc` runs exit 0.
+- **Approver rulings at the gate.** `command-baseline`'s version stays a body line for now: the
+  directive frontmatter has no `version` key, and `spec-013`/`schema.ts` warn on unknown keys.
+  `task-144` gains an AC to declare `version` in the directive frontmatter and move the line there
+  (`6ae8e57a`). The developers' other proposals were accepted: `assign` is read only in its
+  canonical form; refuse rather than batch; the refusal message names the count.
+- **`task-127` started** (`a0564ae6`, worktree `../.wf2-wt/task-127`, cut from `bd60a7a3`).
+- **Review follow-ups.** `bug-176` … `bug-180`, `open`, are captured by
+  `bug-ingest-rel-v0.3-wave0-review-findings-plan` with the code version's `memory add`. Their ids
+  were the highest on every ref + 1, `task-128`'s first real use. A handover note is on `task-167`
+  (`6315a290`).
+- **For v0.3's `user-docs` phase** (from the wave-0 reviews):
+  - `docs/cli-reference.md`'s 0.2.2 page label, now carrying "Unreleased (v0.3)" paragraphs;
+  - CHANGELOG entries:
+    - a surplus operand is refused (exit 2);
+    - `memory search a b` now needs quoting;
+    - `memory history` reads eleven verbs;
+    - ids are allocated from the highest number on every ref;
+    - `resolveTypeDirectory` and the old `nextSequenceNumber` signature are removed from `dist/memory`;
+  - the "per-type counter" wording in `docs/user-guide.md:196` and `docs/cli-reference.md:312`.
+
+  **For `align-agent-docs`:**
+  - `CLAUDE.md` §5.1: `dl-079` is still called `in-discussion`, five verbs are listed, and
+    `{id1}, {id2}` is not marked historical;
+  - `CLAUDE.md` §3: its `memory add` limits are lifted once the pin passes `task-128`.
