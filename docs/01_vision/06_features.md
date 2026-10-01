@@ -77,7 +77,7 @@ Unified tracking of project progress, blockers, and deliverables (main config in
 
 | ID    | Feature                                     | Journey            | User          | Description                                                                                                                                                                                                                         | Type           |
 |-------|---------------------------------------------|--------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); workflows are classified `kind: main` (independently startable) or `kind: sub` (include-only); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows | Infrastructure |
+| P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); each workflow is **startable**, **includable** or both (`kind: main`/`sub` are aliases); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows       | Infrastructure |
 | P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open a **startable** workflow and set it as the active workflow context; initialize first step (a workflow that is only includable is not started — it runs when a phase includes it)                                               | Command        |
 | P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close the active (or named) main workflow; clear/restore the active context                                                                                                                                                         | Command        |
 | P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step of the active workflow, its **element**, directives for the role + instructions                                                                                                                                      | Command        |
@@ -327,7 +327,7 @@ Notifications and alerts across all features.
 **Pillar 4 — Project Workflow:**
 
 - ✓ Project Workflow (P4.1) — `.wingfoil/workflows.yaml` (main file + `include()` of built-in/custom workflows)
-- ✓ Workflow kinds (main/sub), active context, context-aware list (P4.1–P4.6)
+- ✓ Startable/includable workflows (`kind: main`/`sub` as aliases), active context, context-aware list (P4.1–P4.6)
 - ✓ State deduced from Memory, validated per-type (P4.13) — no separate state file
 - ✓ All workflow commands (P4.2–P4.9)
 - ✓ Deliverables, Routing, Fallback (step+state), iterate_over (P4.11, P4.13–P4.16) — v0.3
@@ -398,11 +398,12 @@ approving it after review → `approved`), avoiding the "approved twice" ambigui
 
 ### Workflow Kinds, Active Context & Composition (P4.1, P4.2, P4.6, P4.16)
 
-- **Kinds:** every workflow declares `kind: main` (independently startable, e.g. `release-cycle`, `report-bug`,
-  `create-rfc`) or `kind: sub` (include-only, e.g. a TDD `dev-loop`). Subs are never started with `workflow start`; they
-  run when a phase `include()`s them.
+- **Startable and includable:** every workflow declares `startable: true` (started with `workflow start`, e.g.
+  `release-cycle`, `report-bug`, `create-rfc`), `includable: true` (run when a phase `include:`s it by name, e.g. a TDD
+  `dev-loop`), or both. `kind: main` (startable only) and `kind: sub` (includable only) stay as aliases. A workflow that
+  is only includable is never started with `workflow start`.
 - **Active context:** `wingfoil workflow start <name>` sets the **active workflow**; subsequent commands target it
-  unless `--name` is given. Multiple main workflows can be open at once (e.g. start `report-bug` during a
+  unless `--name` is given. Multiple startable workflows can be open at once (e.g. start `report-bug` during a
   `release-cycle` phase); commands reference the **last** started.
 - **Context-aware `list`:** `workflow list` shows only what is **executable now** — startable workflows plus an includable one when it
   is the next step. `--all` lists every defined workflow.
