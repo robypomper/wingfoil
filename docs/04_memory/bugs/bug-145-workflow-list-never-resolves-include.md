@@ -2,7 +2,7 @@
 id: "bug-145-workflow-list-never-resolves-include"
 type: bug
 title: "`workflow list` never checks that a phase's `include` resolves to a known workflow name, so an unresolvable path is echoed back with no warning"
-status: in-review
+status: closed
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
