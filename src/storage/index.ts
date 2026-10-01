@@ -11,7 +11,9 @@ export { StorageError, E_GIT_READ_FAILED, E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, E_MI
 export { findGitRoot, resolveProjectRoot } from './git-root';
 export { detectInitState } from './init-state';
 export type { InitState } from './init-state';
-export { renderMemoryPath, resolveMemoryPath } from './memory-path';
+// `resolveMemoryPath` (the unconfined resolver) is deliberately NOT re-exported (task-131, `bug-122`):
+// the barrel must not offer the unguarded path next to the guarded `resolveConfinedMemoryPath`.
+export { renderMemoryPath } from './memory-path';
 export { escapesRoot, resolveRealPathInRoot } from './confinement';
 export type { RealPathResolution } from './confinement';
 export { extractFrontmatter, splitFrontmatter } from './frontmatter';
