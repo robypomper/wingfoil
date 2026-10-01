@@ -2,7 +2,7 @@
 id: "task-130-show-coreerror-details-surface-give-refusal-shape-under"
 type: task
 title: "Show `CoreError.details` on every surface and give every refusal one shape under `--format`"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "fix"
 priority: "high"
