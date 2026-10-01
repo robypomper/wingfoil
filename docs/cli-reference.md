@@ -473,6 +473,9 @@ correction to an element no other verb can move, such as an `approved` tech-spec
 requirement as `approve`. The type must declare `amendable: true` in the committed `memory.yaml`;
 absent means not amendable. A project created by `wingfoil init` declares it for `tech-spec`,
 `decision-log`, `task` and `bug`, and declares `false` for `adr`, `release` and `release-line`.
+`release` is fixed only on a type whose scaffold, as committed, declares a `release` field. On any
+other type an amendment may remove a `release` key, as when a `service`'s set-up release moves to
+`set_up_in`.
 
 ```console
 $ wingfoil memory amend spec-001-storage-layout --reason "Later measurements corrected the §2 figures."
