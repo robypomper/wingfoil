@@ -124,8 +124,8 @@ methodology packs, whose source this decides.
 
 - **Related:**
   - `minor-v0.4` (P4.18–P4.20 and the methodology packs);
-  - REQ-SEC-07 (immutable built-in assets) and REQ-SEC-10 (built-in template integrity);
-  - `spec-011` (built-in assets);
+  - REQ-SEC-07 (immutable built-in assets) and REQ-SEC-10 (schema checks on built-in templates);
+  - `spec-011` (the `.wingfoil/` layout, where a `remote` asset folder would be declared);
   - `dl-137` (AGENTS.md: the agent instruction file could itself be generated from, or shipped by,
     a template);
   - `bug-040` (the built-in vs stand-in directives in this repository);
