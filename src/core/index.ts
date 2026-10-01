@@ -77,7 +77,7 @@ import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './dir
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
-import { requireConfinedTarget } from './confinement';
+import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
@@ -1334,7 +1334,9 @@ export interface MemoryAmendResult {
  * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
  * 3. **{@link prepareMemoryTransition}** with op `amend` — the document located, its type and state
  *    resolved against the `memory.yaml` committed at `HEAD` (`dl-080` (B)); its target is its own
- *    state, so no illegal-transition refusal exists for this verb.
+ *    state, so no illegal-transition refusal exists for this verb. Then
+ *    {@link requireConfinedWriteTarget} (REQ-SEC-06): a document outside the project, or one that is
+ *    itself a symbolic link, is refused before any question about its content.
  * 4. **{@link requireAmendableType}** — the committed entry must declare `amendable: true`
  *    (`dl-108` A3, `spec-001`); exit `1`.
  * 5. **{@link requireAmendableEdit}** — the document must be committed at `HEAD`, carry a change, and
@@ -1365,6 +1367,12 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   if (!prepared.ok) return prepared;
   const { memoryYaml, type, path, content, from, to } = prepared.value;
 
+  // Before any question about the edit: is this file the project's to write at all (REQ-SEC-06,
+  // `bug-117`/`bug-120`)? The other verbs ask it first inside `commitMemoryTransition`; `amend` asks
+  // it here too, because its own checks read the document against `HEAD`, and a symlinked document
+  // would otherwise be refused for a field change it never made.
+  const confined = requireConfinedWriteTarget(root, path, 'write');
+  if (!confined.ok) return confined;
   const amendable = requireAmendableType(memoryYaml, type);
   if (!amendable.ok) return amendable;
   const edit = requireAmendableEdit(root, id, path, content);

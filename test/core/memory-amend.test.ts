@@ -12,13 +12,16 @@
  * an ADR's decision is a new element), and `note` declares nothing — absent means not amendable.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { buildProgram } from '../../src/cli/program';
 import { CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
+import * as transition from '../../src/core/memory-transition';
+import { coreErr } from '../../src/core/types';
 import { UsageError } from '../../src/core/usage-error';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -298,6 +301,27 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       await expect(amend()({ root: repo, options: { reason: 'r' } })).rejects.toBeInstanceOf(UsageError);
     });
 
+    it('a failed commit post-condition is returned as the error, never reported as success', async () => {
+      writeFixtureFile(repo, SPEC, doc({ id: 'spec-001', type: 'tech-spec', status: 'approved' }, 'Corrected body.\n'));
+      const failure = coreErr({ code: 'VALIDATION', message: 'commit abc carries more than the change it declares: probe' });
+      const spy = jest.spyOn(transition, 'commitMemoryTransition').mockReturnValue(failure);
+      try {
+        const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+        expect(result).toBe(failure);
+        expect(spy).toHaveBeenCalledWith(repo, expect.objectContaining({ id: 'spec-001' }), expect.any(String), expect.any(String), {}, 'carries-content');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('a document no file carries → exit 1 with `document not found`', async () => {
+      const result = await amend()({ root: repo, positional: 'spec-404', options: { reason: 'r' } });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(result.error.message).toBe('document not found: spec-404');
+    });
+
     it('a document no commit contains → exit 1 (a new document is recorded by add and submit)', async () => {
       const path = 'docs/memory/specs/spec-009.md';
       const fresh = doc({ id: 'spec-009', type: 'tech-spec', status: 'approved' });
@@ -329,6 +353,41 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       reason: 'later evidence corrected §2',
       subject: 'wf(tech-spec): amend spec-001 [approved → approved]',
     });
+  });
+});
+
+describe('CORE_MODULES memory.memoryAmend — REQ-SEC-01 git-identity pre-flight (no configured identity)', () => {
+  const ISOLATION_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_NOSYSTEM'] as const;
+  const saved: Record<string, string | undefined> = {};
+  let repo: string;
+
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), 'wf-memamend-noid-'));
+    execFileSync('git', ['-C', repo, 'init', '-q', '--initial-branch=main'], { encoding: 'utf-8' });
+    const emptyConfig = join(repo, 'empty.gitconfig');
+    writeFileSync(emptyConfig, '');
+    for (const key of ISOLATION_KEYS) saved[key] = process.env[key];
+    process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+    process.env.GIT_CONFIG_SYSTEM = emptyConfig;
+    process.env.GIT_CONFIG_NOSYSTEM = '1';
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', MEMORY_YAML);
+    writeFixtureFile(repo, SPEC, doc({ id: 'spec-001', type: 'tech-spec', status: 'approved' }));
+  });
+
+  afterEach(() => {
+    for (const key of ISOLATION_KEYS) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('refuses with the exact REQ-SEC-01 message (exit 1), after the usage checks and before any read', async () => {
+    const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('git identity not configured (user.name/user.email)');
+    expect(exitCodeForResult(result)).toBe(1);
   });
 });
 
