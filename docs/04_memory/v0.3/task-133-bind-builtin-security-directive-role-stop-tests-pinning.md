@@ -41,10 +41,13 @@ Branch `task/task-133-bind-builtin-security-directive-role-stop-tests-pinning`, 
 
 **`depends_on` read (dl-015).** `depends_on: []`, nothing to read.
 
-**Decision and specs.** `dl-059` is `ready` (`awk '/^status:/{print $2;exit}'` → `ready`). Its option is
-not recorded in the DL itself (its Decision reads "Approver to choose"). The choice comes from
-`release-planning-rel-v0.3-plan` (dl-059 row, `grep -n "dl-059" docs/05_plans/rl-v1/rel-v0.3/release-planning-rel-v0.3-plan.md`
-→ line 595): **option 1**, bind `security` globally in the scaffold, and bind it in the dogfood too.
+**Decision and specs.** `dl-059` is `ready` (`awk '/^status:/{print $2;exit}'` → `ready`). Its body
+still reads "Approver to choose"; the choice is recorded in its approve commit `551ab524`
+(`wf(decision-log): approve dl-059-… [in-discussion → ready]`), whose `Reason:` ratifies **option 1**
+(bind `security` globally in the scaffold) and "dogfood: also bind it"
+(`git log -1 --format=%b 551ab524`). The same ruling is the dl-059 row of
+`release-planning-rel-v0.3-plan` (`grep -n "dl-059" docs/05_plans/rl-v1/rel-v0.3/release-planning-rel-v0.3-plan.md`
+→ line 595).
 `spec-012-context-loader-relevance-filtering` (globals are unconditional, deduplicated by id) and
 `spec-011-storage-layout` are `approved`. No spec is missing or needs revision: the binding is data in
 the scaffold, and `resolveRoleDirectives` (`src/core/context.ts`) already resolves globals for every
@@ -156,3 +159,29 @@ No CLI command or help text changed, so `docs/cli-reference.md` is untouched.
   (dl-037). Since this task every shipped built-in id is bound in a fresh project, so a user who
   customized `security` (or any built-in) cannot remove the customization without first unbinding the
   id. Pre-existing for the five assigned built-ins; this task extends it to `security`.
+
+### review (independent)
+
+Verdict: approve with fixes, five findings, all applied (task stays `in-review`):
+
+1. `CLAUDE.md` §7 said `task-133` bound "the built-in `security`" — false here: this repository's
+   `directives/built-in/` holds only `.gitkeep`, so the id resolves to the P3.8 stand-in
+   `custom/security.md`. Reworded (stand-in here, built-in in an `init` scaffold); the §7 table,
+   misaligned by the wider global row, is realigned. `b9db06a6`.
+2. `docs/user-guide.md` §6.2's example `--directive api-style,security` now taught a redundant binding
+   (`security` is global after `init`); it is `api-style,architecture`. `b9db06a6`.
+3. `.wingfoil/roles.yaml` said "resolution deduplicates by id, so binding both loads each once" —
+   vacuous, `security` and `security-secrets` are different ids. Now: both load for every role, their
+   credential rules overlap but do not conflict. No further `version:` bump: 1.2 is not yet on `main`.
+   `b9db06a6`.
+4. `test/core/directive-remove.test.ts` `unbindGlobal` replaced the first `\n  - <id>\n` anywhere; it
+   now searches only the top-level `global:` block. New characterization test: in the default
+   scaffold a custom shadow of the now-global `security` is refused (`CONFLICT`, "cannot remove
+   'security': still assigned to every role via roles.yaml 'global'", file kept, HEAD unchanged) —
+   it pins the behaviour the self-review flagged; the policy question is the coordinator's follow-up.
+   `npx jest test/core/directive-remove.test.ts` → 18 passed. `8912cab1`.
+5. Design now cites `dl-059`'s approve commit `551ab524` as the source of option 1 (above).
+
+Gates after the fixes: `npm run test:coverage` → exit 0, 166 suites / 2768 tests all passed, coverage
+98.73 / 94.58 / 94.01 / 99.49 (unchanged); `npm run lint`, `npm run docs:api`,
+`npx tsc --noEmit -p tsconfig.json`, `npx tsc -p tsconfig.build.json --noEmit` → exit 0.
