@@ -506,7 +506,8 @@ Other modified or staged files are left as they are and are not committed.
 
 - It may span several lines, but it may not be blank.
 - No line of it may begin with `Approver:` or `Reason:` — those keys are reserved for the commit trailer.
-  Unreleased (v0.3): `WingFoil-Version:` is reserved too.
+  Unreleased (v0.3): `WingFoil-Version:` is reserved too, and all three keys are matched in any letter
+  case.
 - It may not end with a paragraph made only of `Key: value` lines; end with a sentence instead.
   Unreleased (v0.3): the refusal says so (`… add a closing sentence after it, or fold those lines into
   prose`).
