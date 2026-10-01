@@ -24,6 +24,8 @@ tmpl_version: 260703
 - (characterization) the `schema.ts` TSDoc cites `spec-013` as approved.
 - (red-first) `version` is a declared optional key (string) of the directive frontmatter, in `spec-013`'s field table and `src/directives/schema.ts`, with a Revision note; a directive carrying `version:` produces no unknown-field warning. `command-baseline.md`'s body `**Version:** 1.1 · **Date:** 2026-09-30` line (written by `task-128` because the key was undeclared) moves into its frontmatter as `version: "1.1"`, and the `doc-versioning` reading for directives is the frontmatter key (approver ruling 2026-10-01, at `task-128`'s review).
 
+- (characterization) `doc-versioning.md` states the committed baseline the bump rule counts from: a document's version is bumped on the first edit after the file was last committed **to `main`**, so a task branch bumps it once, and further edits on the same branch (review fixes) do not bump again (approver ruling 2026-10-01, the practice of every v0.3 task so far).
+
 ## Implementation Notes
 
 - **Size:** S · **wave:** 1 · **kind:** fix (`dl-133` Q1 (b)).
