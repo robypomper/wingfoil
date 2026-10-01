@@ -8,7 +8,7 @@ kind: "fix"
 priority: "medium"
 tags: ["v0.3", "core", "tests", "reliability"]
 ref: "dl-121"
-bug: ["bug-095", "bug-167"]
+bug: ["bug-095", "bug-167", "bug-181-publish-secrets-dry-run-test-fails-when-npm-config-loglevel-is-inherited-from-the-caller"]
 depends_on: []
 tmpl_version: 260703
 ---
