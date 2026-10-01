@@ -12,7 +12,7 @@ account: "wingfoil/wingfoil (created by robypomper)"
 renews: ""
 repo_refs: ["CHANGELOG.md"]
 decision: "dl-130-visibility-steps-in-the-release-flow"
-release: "v0.2"
+set_up_in: "v0.2"
 tmpl_version: 260929
 ---
 
