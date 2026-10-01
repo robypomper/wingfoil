@@ -154,6 +154,48 @@ describe('P3.8 Scenario 2 — installed independently of the selected methodolog
   );
 });
 
+/**
+ * task-133 (dl-059 option 1, REQ-SEC-08) — the built-in `security` directive is not only PRESENT after
+ * `init` (Scenario 1, REQ-SEC-08 clause (a)) but BOUND: the scaffolded `roles.yaml` lists it under
+ * `global:`, so every role's resolution loads it — REQ-SEC-08's Description ("handled per the built-in
+ * Security directive"). Asserted over a real `init` for every registered methodology (Scrum, Kanban),
+ * through the production `loadRolesYaml` + `resolveRoleDirectives`, for every role of the scaffolded
+ * catalogue plus a role the project never declared (globals are unconditional, spec-012 §5).
+ */
+describe('REQ-SEC-08 — init binds the built-in security directive to every role (dl-059, task-133)', () => {
+  it.each(TEMPLATE_NAMES.map((n) => [n]))('%s: roles.yaml lists `security` under global, once', (name) => {
+    const repo = makeTempGitRepo();
+    try {
+      initOk(repo, name);
+      const roles = loadRolesYaml(repo);
+      expect(roles.global.filter((id) => id === 'security')).toEqual(['security']);
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+
+  it.each(TEMPLATE_NAMES.map((n) => [n]))('%s: every role resolves the built-in security directive exactly once', (name) => {
+    const repo = makeTempGitRepo();
+    try {
+      initOk(repo, name);
+      const files = loadDirectives(repo);
+      const roles = loadRolesYaml(repo);
+      const catalogue = loadDnaYaml(repo).team.roles.map((r) => r.name);
+      expect(catalogue.length).toBeGreaterThan(0);
+      for (const role of [...catalogue, 'role-never-declared']) {
+        const resolution = resolveRoleDirectives(files, roles, role);
+        const security = resolution.directives.filter((d) => d.frontmatter.id === 'security');
+        expect([role, security.map((d) => d.path.replace(/\\/g, '/'))]).toEqual([
+          role,
+          ['directives/built-in/security.md'],
+        ]);
+      }
+    } finally {
+      removeTempDir(repo);
+    }
+  });
+});
+
 describe('P3.8 Scenario 3 — a corrupted REAL built-in template aborts init before writing', () => {
   it('aborts with the exact message, exit 1, and writes nothing', () => {
     const repo = makeTempGitRepo();
