@@ -194,8 +194,9 @@ export function parseApprovalMetadata(body: string): ApprovalMetadata | null {
 /**
  * The closed, declared list of Memory operation verbs a `wf({type}): {verb} …` subject may carry
  * (`dl-079` (A), `spec-008-cli-grammar` §2, `spec-003` verb table): the five CLI verbs, the three
- * workflow verbs of practice (`start`, `finalize`, `sync`), and `amend` (`dl-108`) and `park`
- * (`dl-110`). No other verb is a Memory operation. Ordered as `spec-008` §2 lists them (REQ-SYS-07).
+ * workflow verbs of practice (`start`, `finalize`, `sync`), `amend` (`dl-108`), `park` (`dl-110`),
+ * and `assign` (`element.set_release`, approver ruling 2026-10-01). No other verb is a Memory
+ * operation. Ordered as `spec-008` §2 lists them (REQ-SYS-07).
  */
 export const MEMORY_OPERATIONS = [
   'add',
@@ -208,6 +209,7 @@ export const MEMORY_OPERATIONS = [
   'sync',
   'amend',
   'park',
+  'assign',
 ] as const;
 
 /** One verb of {@link MEMORY_OPERATIONS}. */
@@ -232,11 +234,19 @@ export const CONFIGURATION_SCOPES: readonly string[] = Object.freeze(['directive
 const WF_SUBJECT_RE = /^wf\(([^)]*)\):\s*(\S+)/;
 
 /**
+ * `assign`'s one canonical subject (`spec-008` §2): `wf({type}): assign release {version} to {id1},
+ * {id2}…`, with no bracket — the form the four practised `assign` commits already have. `assign` writes
+ * only the `release` field, so a subject that names anything else, or carries a bracket, is not one.
+ */
+const ASSIGN_SUBJECT_RE = /^wf\([^)]*\):\s*assign release \S+ to [^[\]\s][^[\]]*$/;
+
+/**
  * The Memory operation a commit subject declares, or `null` — for a subject outside the `wf()`
  * grammar (`workflow: finalize …`, `agent: record …`, `docs(…): …`), a configuration scope
  * ({@link CONFIGURATION_SCOPES}), or a verb outside {@link MEMORY_OPERATIONS}. The practised verbs the
  * declared list leaves out (`start-fix`, `schedule`, `plan`, `enter-releasing`, `mark-released`,
- * `assign`, `deferred`, and the early verbless `wf(task): {id} [a → b]`) keep reading as `null`: the
+ * `deferred`, and the early verbless `wf(task): {id} [a → b]`), and an `assign` subject outside its
+ * canonical form, keep reading as `null`: the
  * history is not rewritten, and the reader does not guess (`dl-035`, `dl-079`).
  */
 export function parseMemoryOperation(subject: string): MemoryOperation | null {
@@ -246,6 +256,7 @@ export function parseMemoryOperation(subject: string): MemoryOperation | null {
   const scope = match[1]!;
   const verb = match[2]!;
   if (CONFIGURATION_SCOPES.includes(scope)) return null;
+  if (verb === 'assign' && !ASSIGN_SUBJECT_RE.test(subject)) return null;
   return (MEMORY_OPERATIONS as readonly string[]).includes(verb) ? (verb as MemoryOperation) : null;
 }
 
