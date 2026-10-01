@@ -77,7 +77,7 @@ Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08
 | `--version`       | flag                   | —         | Print CLI version and exit `0`. Takes precedence over all other flags except `--help`.                |
 | `--format <fmt>`  | `console\|json\|yaml`  | `console` | Output encoding. `console` for humans (colour, `✓`/`⚠`/`✗` prefixes); `json`/`yaml` for scripting/CI (REQ-INT-05). An unsupported value exits `2` with `error: invalid --format value "<value>"`. |
 | `--reason <text>` | string                 | —         | **Required** on approval-gate commands (`memory approve`, `memory reject`, `memory amend`); optional elsewhere (e.g. `memory deprecate`). Recorded in the resulting git commit body (P1.7) as a `Reason:` **block** — the remainder of the `Reason:` line plus every following body line, up to (exclusive) git's trailing trailer paragraph or the end of the body — in the **declared normal form**, not as the raw argument (`dl-067-reason-trailer-contract`; see the Notes). Omitted where required exits `2` with `error: missing required argument: --reason` (ground-truth BDD `P1.7-memory-approve.feature`). |
-| `--reason` (unrecordable value) | —        | —         | A reason that cannot be recorded faithfully in the trailer is refused at the CLI boundary with exit `2`, before anything is read or written, on **every** verb that takes the flag — `memory deprecate` included, where the flag is optional but a declared-and-empty value is still a usage error (`dl-067` S2). Three cases, each with its own message, none of them `missing required argument: --reason` (which answers the *omitted* case above): blank or whitespace-only → `error: invalid flag value: --reason must not be blank`; a line starting `Approver:` or `Reason:` → `error: invalid flag value: --reason must not contain a line starting with "Approver:" or "Reason:"`; a final paragraph made entirely of `Key: value` lines → `error: invalid flag value: --reason must not end in a paragraph of "Key: value" lines`. |
+| `--reason` (unrecordable value) | —        | —         | A reason that cannot be recorded faithfully in the trailer is refused at the CLI boundary with exit `2`, before anything is read or written, on **every** verb that takes the flag — `memory deprecate` included, where the flag is optional but a declared-and-empty value is still a usage error (`dl-067` S2). Four cases, judged in this order on the declared normal form, each with its own message, none of them `missing required argument: --reason` (which answers the *omitted* case above): blank or whitespace-only → `error: invalid flag value: --reason must not be blank`; a C0 control character other than tab (`U+0009`) and newline (`U+000A`) → `error: invalid flag value: --reason must not contain a control character other than tab or newline (found U+XXXX)`, naming the first one by code point (`dl-078` (A); a carriage return is not refused, because the normal form has already turned it into a newline); a line starting with one of the **reserved trailer keys** `Approver:`, `Reason:` or `WingFoil-Version:`, in any letter case (git reads trailer keys case-insensitively) → `error: invalid flag value: --reason must not contain a line starting with "Approver:", "Reason:" or "WingFoil-Version:"` (`dl-111` Q1 (A) reserves the third); a final paragraph made entirely of `Key: value` lines → `error: invalid flag value: --reason must not end in a paragraph of "Key: value" lines; add a closing sentence after it, or fold those lines into prose` (`dl-070` S4). |
 | `--verbose`       | flag                   | `false`   | Emit diagnostic logs to stderr in plain text, even under `--format json`/`yaml`. Never alters stdout.  |
 | `--color` (negatable) | boolean flag        | `true`    | ANSI colour on stdout. Pass `--no-color` to disable; also disabled automatically when `NO_COLOR` is set to any non-empty string (https://no-color.org/) — an explicitly empty `NO_COLOR=` does **not** disable colour. |
 | `--interactive` (negatable) | boolean flag  | `true`    | Whether missing required args may trigger a readline prompt in a TTY (§4). Pass `--no-interactive` to force immediate failure instead. |
@@ -102,6 +102,17 @@ Notes:
   Interior indentation is preserved by both parts. The rule is enforced once, where the trailer is
   built, and the reader consumes the same grammar, so what is read back out of the commit equals what
   the writer declared rather than approximately equalling what the caller typed.
+- **Where the `Reason:` block ends — the terminator rule** (`dl-070-narrow-reason-block-terminator`
+  (A), S3). "git's trailing trailer paragraph" is recognised by a **shape rule modelled on git's**,
+  not against a list of known trailer keys: it is the body's final paragraph when every line of it
+  has the form `Token: value` (a token of letters, digits and `-` starting with a letter, a colon, a
+  space or tab, then a non-space character). It is not identical to git's: git also takes a mixed
+  final paragraph for trailers when at least a quarter of its lines are trailers and one of them is
+  git-generated or configured (e.g. `Signed-off-by:`), which this rule does not. That is why the
+  reserved keys are refused on every line of a reason, not only in its final paragraph. The `Reason:` line itself always belongs to the block,
+  even when it is alone in such a paragraph. The writer-side refusal of a trailing `Key: value`
+  paragraph (the row above) is the corollary: without it, the reader would take that paragraph for
+  the trailer and drop it. A `Key: value` line *inside* the block is ordinary prose and ends nothing.
 - **Why not "verbatim".** This row said "Recorded verbatim in the resulting git commit body" until
   `dl-067`. That was never achievable for multi-line text — git normalizes on the way in — and the gap
   between the promise and the behaviour was `bug-042`: a blank reason was accepted at exit `0` and
@@ -753,3 +764,13 @@ At the review (2026-10-01): an amendment may not change `release`, `rejection_re
 either (approver ruling (b)). It must keep `spec-010`'s required fields non-empty past the initial
 state (review F1). Authority is checked as soon as the document is located (review F6). The
 paragraph above states all three.
+
+**Revision (2026-10-01) — §2's `--reason` grammar, per `dl-070-narrow-reason-block-terminator` (A)
+with S3 and S4, `dl-078-should-reason-refuse-c0-control-characters` (A) and
+`dl-111-tool-signature-in-commits` Q1 (A), all `ready`, carried out by
+`task-166-settle-reason-block-grammar-shape-rule-terminator`.** The unrecordable-value row gains a
+fourth case (a C0 control character other than tab and newline, named by code point), names
+`WingFoil-Version:` among the reserved trailer keys and matches all three in any letter case (the
+task's review), and gives the trailing-paragraph refusal its remedy. A new note states the
+terminator rule the `--reason` row had left to the implementation, and where it differs from git's.
+Edited in place without a supersede or a state change (`dl-047`); recorded with `memory amend`.
