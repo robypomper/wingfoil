@@ -14,6 +14,10 @@
  * - **AC 3 (red-first).** A `service-ingest` main is loaded: `capture` (`memory.add` +
  *   `memory.submit`, the P4.12 required-field check and the `spec-007` scan among `checks.post`),
  *   then `approve` by the `approver`.
+ * - **task-170 (red-first, `bug-166`).** The release a service was set up in is `set_up_in`, not
+ *   `release`: `release` has one meaning on every element that carries it (the `traceability`
+ *   directive — the release the element's implementation is assigned to, stamped by `build-backlog`),
+ *   and a service is never stamped.
  * - **AC 4 (red-first).** `service` resolves its scaffold, and its machine is
  *   `draft → pending → active`: `reject` from `pending` lands on `draft`, `approve` from `active` is
  *   illegal, `deprecate` is legal everywhere.
@@ -35,7 +39,7 @@ import { ValidationError } from '../../src/validation';
 const REPO_ROOT = join(__dirname, '..', '..');
 
 const REQUIRED = ['title', 'provider', 'kind', 'owner_role', 'verify'];
-const OPTIONAL = ['url', 'account', 'renews', 'repo_refs', 'decision', 'release'];
+const OPTIONAL = ['url', 'account', 'renews', 'repo_refs', 'decision', 'set_up_in'];
 const SECTIONS = ['Purpose', 'Configuration', 'Verification', 'Management'];
 
 function committedMemoryYaml(): NonNullable<ReturnType<typeof loadMemoryYamlAtHead>> {
@@ -77,6 +81,15 @@ describe('the committed `service` type (task-124, dl-088)', () => {
       for (const field of OPTIONAL) {
         expect(lines.find((line) => line.startsWith(`${field}:`))).toMatch(/# optional/);
       }
+    });
+
+    it('names the set-up release `set_up_in` and carries no `release` field (task-170, bug-166)', () => {
+      const { frontmatter } = splitFrontmatter(scaffold());
+      const fields = load(frontmatter ?? '') as Record<string, unknown>;
+      expect(Object.keys(fields)).not.toContain('release');
+      const line = (frontmatter ?? '').split('\n').find((candidate) => candidate.startsWith('set_up_in:'));
+      expect(line).toMatch(/the release in which it was set up/);
+      expect(line).toMatch(/never stamped/);
     });
 
     it('has the four body sections, in dl-088\'s order', () => {
