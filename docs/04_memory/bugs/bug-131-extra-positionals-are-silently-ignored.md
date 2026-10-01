@@ -2,7 +2,7 @@
 id: "bug-131-extra-positionals-are-silently-ignored"
 type: bug
 title: "Extra or unsupported positionals are silently ignored — `dna show a b` acts on `a`, `workflow list <name>` prints every workflow"
-status: in-review
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
