@@ -41,7 +41,8 @@ const MODULES: CoreModule[] = [
             details: { issues: [{ code: 'E_INVALID_TRANSITION', path: 'status', file: FILE, message: CONTRACT, detail: DETAIL }] },
           }),
       },
-      // A file-only issue (the `bug-031` case: which document failed) and an issue with neither.
+      // A file-only issue (the `bug-031` case: which document failed), an issue with neither, and a
+      // malformed entry — `details` is an open record, so its contents are checked, not trusted.
       memorySearch: {
         name: 'memorySearch',
         mutates: false,
@@ -53,6 +54,7 @@ const MODULES: CoreModule[] = [
               issues: [
                 { code: 'E_YAML_PARSE_ERROR', path: '', file: FILE, message: 'bad indentation' },
                 { code: 'E_VALIDATION', path: '', file: '', message: 'unlocated' },
+                null,
               ],
             },
           }),
@@ -100,7 +102,7 @@ describe('AC1 — CoreError.details on the CLI surface (dl-055 option 1)', () =>
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('console: a file-only issue is a line naming the file; an issue with neither adds no line', async () => {
+  it('console: a file-only issue is a line naming the file; an issue with neither, or no issue at all, adds none', async () => {
     await command('search').run('console');
     expect(stderr()).toBe(`error: cannot parse a memory document\n  ${FILE}\n`);
   });

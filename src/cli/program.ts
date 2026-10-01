@@ -83,8 +83,9 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
   // and the process ends through `exitWith`, the single exit seam of `./exit.ts`, like every other
   // outcome.
   //
-  // COMMANDER'S OWN MESSAGES ARE UNAFFECTED: for every error it raises, Commander has already written
-  // its `error: …` line before calling this, so nothing is added on top of it. The ONE outcome where
+  // COMMANDER'S OWN MESSAGES ARE NOT REPEATED: for every error it raises, Commander has already written
+  // its message before calling this — in the active `--format` since task-130, through the
+  // `configureOutput` hooks below — so nothing is added on top of it. The ONE outcome where
   // it writes no error message at all is an invocation it found incomplete — a noun with no verb —
   // where it prints help to stderr and nothing else; `spec-005` §1 requires a non-zero exit to carry
   // an error message *always*, so that outcome (and only that one, flagged by `needsErrorLine`) gets
