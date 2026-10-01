@@ -267,6 +267,15 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
   const slugged = (status: string): string => `---\nid: "t-8-slug"\ntype: task\ntitle: "T8"\nstatus: ${status}\n---\n\n${status}.\n`;
   f.commit('wf(task): add t-8', { 'docs/memory/task/t-8-slug.md': slugged('draft') });
   const shortId = f.commit('wf(task): sync t-8 [backlog → in-progress]', { 'docs/memory/task/t-8-slug.md': slugged('pending') });
+  f.pending('t-9');
+  f.pending('t-10');
+  const doc = (id: string, status: string): string => `---\nid: "${id}"\ntype: task\ntitle: "T"\nstatus: ${status}\n---\n\n${id} ${status}.\n`;
+  const sideEffect = f.commit('wf(task): approve t-9 [pending → backlog]' + approval(), {
+    'docs/memory/task/t-9.md': doc('t-9', 'backlog'),
+    'docs/memory/task/t-10.md': doc('t-10', 'backlog'),
+    'README.md': 'not a Memory document\n',
+  }, APPROVER);
+  const undeclaredVerbDrift = f.task('t-9', 'in-progress', 'wf(task): schedule t-9 [pending → in-progress]');
   const unreadableIdList = f.task('t-6', 'backlog', 'wf(task): sync t-6 [pending -> in-review] and t-7 [-> backlog]');
   f.pending('t-5');
   const legalChainThen = f.task('t-5', 'in-progress', 'wf(task): sync t-5 [pending → backlog → in-progress]');
@@ -282,6 +291,12 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
     expect(rulesOf(report, illegalHop)).toEqual(['state']);
     expect(messagesOf(report, illegalHop, 'state').join()).toMatch(/pending → in-progress/);
     expect(rulesOf(report, illegalEdge)).toEqual(['state']);
+  });
+
+  it('reports a document the commit moves without naming it, and a bracket under an undeclared verb', () => {
+    expect(messagesOf(report, sideEffect, 'state').join()).toMatch(/t-10\.md/);
+    expect(messagesOf(report, sideEffect, 'state').join()).not.toMatch(/README/);
+    expect(rulesOf(report, undeclaredVerbDrift)).toEqual(['subject', 'state']);
   });
 
   it('still checks the state of a document its subject names by the short id (the slug left out)', () => {

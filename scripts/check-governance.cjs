@@ -21,10 +21,12 @@
  *   verb carrying an `Approver:` line), its author holds the `approver` role in `team.members` of the
  *   `dna.yaml` committed BEFORE it (its first parent: a commit cannot grant itself), and the
  *   `Approver:` line names that same author (`dl-094`: one identity per act).
- * - **state** — `verifyTransitionConsistency` (`src/memory/audit.ts`) on every document the commit
- *   touches and names, given the type's machine as the `memory.yaml` at the checked commit declares
- *   it, so a chain's hops are judged (`illegal-hop`) and the bracket is compared with the frontmatter
- *   (`mismatch`, `unparseable`). A single hop, which that function leaves to the write-time engine, is
+ * - **state** — on every bracketed `wf()` subject, the verb declared or not: `verifyTransitionConsistency`
+ *   (`src/memory/audit.ts`) on every document the commit touches and names (by full or short id),
+ *   given the type's machine as the `memory.yaml` at the checked commit declares it, so a chain's hops
+ *   are judged (`illegal-hop`) and the bracket is compared with the frontmatter (`mismatch`,
+ *   `unparseable`). A touched document the subject does not name is a finding only when the commit
+ *   changed its status — an element moved without being recorded. A single hop, which that function leaves to the write-time engine, is
  *   judged here with `isMachineEdge` too, because a hand-written commit never met the engine; `amend`
  *   and `park` are exempt, their brackets being fixed by the bracket rule.
  *
@@ -382,10 +384,9 @@ function checkGovernance(root, options = {}) {
 
     const { findings: subjectFindings, op, ids } = checkSubjectAndBracket(commit, memoryYaml, dist);
     subjectFindings.forEach(push);
-    if (op === null) return;
-    checkBodyAndAuthority(commit, op, dna, dist).forEach(push);
+    if (op !== null) checkBodyAndAuthority(commit, op, dna, dist).forEach(push);
 
-    if (!ANY_BRACKET_RE.test(commit.subject)) return;
+    if (!WF_HEAD_RE.test(commit.subject) || !ANY_BRACKET_RE.test(commit.subject)) return;
     const unchecked = (reason) => stateUnchecked.push({ sha: commit.sha, subject: commit.subject, reason });
     const type = WF_HEAD_RE.exec(commit.subject)[1];
     const machine =
@@ -395,7 +396,7 @@ function checkGovernance(root, options = {}) {
     if (machine === undefined) unchecked(`no machine for '${type}' in the memory.yaml at this commit: hops not judged`);
 
     const hops = dist.memory.parseBracketHops(commit.subject);
-    if (machine && hops && hops.length === 1 && !EDGE_EXEMPT_VERBS.has(op) && !dist.memory.isMachineEdge(machine, hops[0].from, hops[0].to)) {
+    if (op !== null && machine && hops && hops.length === 1 && !EDGE_EXEMPT_VERBS.has(op) && !dist.memory.isMachineEdge(machine, hops[0].from, hops[0].to)) {
       push({ rule: 'state', message: `${hops[0].from} → ${hops[0].to} is not an edge of the '${type}' machine at this commit` });
     }
 
@@ -408,48 +409,67 @@ function checkGovernance(root, options = {}) {
       const id = basename(path, '.md');
       return named.has(id) || [...named].some((token) => token !== '' && id.startsWith(`${token}-`));
     };
-    const documents = [...new Set((touched.get(commit.sha) ?? []).filter((path) => path.endsWith('.md') && isNamed(path)).map(renamed))];
-    if (documents.length === 0) unchecked('no document it touches is named by its subject');
-    for (const path of documents) {
+    // Every Markdown document the commit touches is checked: those its subject names in full, and the
+    // others for one thing only — a status the commit changed without naming the element (below).
+    const documents = new Map();
+    for (const path of (touched.get(commit.sha) ?? []).filter((candidate) => candidate.endsWith('.md'))) {
+      const atHeadPath = renamed(path);
+      documents.set(atHeadPath, documents.get(atHeadPath) === true || isNamed(path));
+    }
+    if (![...documents.values()].some(Boolean)) unchecked('no document it touches is named by its subject');
+    for (const [path, isNamedDocument] of documents) {
       if (!atHead.has(path)) {
-        unchecked(`${path} does not exist at HEAD`);
+        if (isNamedDocument) unchecked(`${path} does not exist at HEAD`);
         continue;
       }
       const key = machine === undefined ? '' : `${memoryOid}:${type}`;
       if (!stateGroups.has(path)) stateGroups.set(path, new Map());
       const groups = stateGroups.get(path);
-      if (!groups.has(key)) groups.set(key, { machine, type, shas: new Set() });
-      groups.get(key).shas.add(commit.sha);
+      if (!groups.has(key)) groups.set(key, { machine, type, shas: new Map() });
+      groups.get(key).shas.set(commit.sha, isNamedDocument);
     }
   });
 
   const subjects = new Map(memoryCommits.map((commit) => [commit.sha, commit.subject]));
+  const byOrder = (a, b) => order.get(a) - order.get(b);
+  /** Run `read`; on a revision whose frontmatter does not parse, report `shas` as not checked instead. */
+  const readOrReport = (path, shas, read) => {
+    try {
+      return read();
+    } catch (error) {
+      // The reconstruction reads every revision's `status`, and throws on a revision whose frontmatter
+      // does not parse. The document's commits are reported as not checked, naming the error, rather
+      // than stopping the whole check.
+      if (!(error instanceof dist.validation.ValidationError)) throw error;
+      const first = error.message.split('\n')[0];
+      for (const sha of [...shas].sort(byOrder)) {
+        stateUnchecked.push({ sha, subject: subjects.get(sha), reason: `${path}: a revision's frontmatter does not parse (${first})` });
+      }
+      return null;
+    }
+  };
+  const stateFinding = (sha, message) =>
+    findings.push({ sha, subject: subjects.get(sha), rule: 'state', message, gated: !history.has(sha) });
+
   for (const path of [...stateGroups.keys()].sort()) {
+    const unnamed = new Set();
     for (const key of [...stateGroups.get(path).keys()].sort()) {
       const { machine, type, shas } = stateGroups.get(path).get(key);
-      let transitionFindings;
-      try {
-        transitionFindings = dist.memory.verifyTransitionConsistency(root, path, machine);
-      } catch (error) {
-        // A historical revision whose frontmatter does not parse makes the reconstruction throw (it
-        // reads every revision's `status`). The document's commits are then reported as not checked,
-        // naming the error, rather than stopping the whole check.
-        if (!(error instanceof dist.validation.ValidationError)) throw error;
-        const first = error.message.split('\n')[0];
-        for (const sha of [...shas].sort((a, b) => order.get(a) - order.get(b))) {
-          stateUnchecked.push({ sha, subject: subjects.get(sha), reason: `${path}: a revision's frontmatter does not parse (${first})` });
-        }
-        continue;
+      const named = [...shas.keys()].filter((sha) => shas.get(sha));
+      [...shas.keys()].filter((sha) => !shas.get(sha)).forEach((sha) => unnamed.add(sha));
+      if (named.length === 0) continue;
+      const transitionFindings = readOrReport(path, named, () => dist.memory.verifyTransitionConsistency(root, path, machine));
+      for (const finding of transitionFindings ?? []) {
+        if (shas.get(finding.sha) === true) stateFinding(finding.sha, describeTransitionFinding(finding, path, type));
       }
-      for (const finding of transitionFindings) {
-        if (!shas.has(finding.sha)) continue;
-        findings.push({
-          sha: finding.sha,
-          subject: subjects.get(finding.sha),
-          rule: 'state',
-          message: describeTransitionFinding(finding, path, type),
-          gated: !history.has(finding.sha),
-        });
+    }
+    // A document the subject does not name has no bracket of its own to agree with: what is wrong is
+    // only a status the commit changed without recording it (`dl-103` §1, "each touched element").
+    if (unnamed.size === 0) continue;
+    const transitions = readOrReport(path, [], () => dist.memory.reconstructMemoryTransitions(root, path));
+    for (const transition of transitions ?? []) {
+      if (unnamed.has(transition.sha) && transition.fromState !== transition.toState) {
+        stateFinding(transition.sha, `${path}: the subject does not name it, yet its status went ${transition.fromState} → ${transition.toState}`);
       }
     }
   }
