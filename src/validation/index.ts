@@ -12,6 +12,8 @@ export {
   ValidationError,
 } from './errors';
 export type { ValidationIssue } from './errors';
+export { DiagnosticsError } from './diagnostic';
+export type { Diagnostic, DiagnosticSeverity } from './diagnostic';
 export { toValidationError } from './error-mapper';
 export { emitUnknownFieldWarning } from './warning';
 export type { HasShape } from './warning';

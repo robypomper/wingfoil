@@ -15,7 +15,7 @@ import { join, relative, sep } from 'path';
 
 import { dump } from 'js-yaml';
 
-import { generateId, parseYaml, toValidationError, ValidationError } from '../validation';
+import { DiagnosticsError, generateId, parseYaml, toValidationError, ValidationError } from '../validation';
 import type { Paths } from '../dna/schema';
 import { DnaYaml } from '../dna/schema';
 import { applyDnaEditInText } from '../dna/edit';
@@ -184,6 +184,11 @@ function loadOrError<R>(loader: () => R): CoreResult<R> {
   try {
     return coreOk(loader());
   } catch (error) {
+    // A loader that collects spec-003 diagnostics (task-136): the first error is the reason, the whole
+    // ordered array rides `details` under spec-003's own name for it, `diagnostics`.
+    if (error instanceof DiagnosticsError) {
+      return coreErr({ code: 'VALIDATION', message: error.message, details: { diagnostics: error.diagnostics } });
+    }
     if (error instanceof ValidationError) {
       return coreErr({ code: 'VALIDATION', message: error.message, details: { issues: error.issues } });
     }

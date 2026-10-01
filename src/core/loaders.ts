@@ -16,8 +16,20 @@ import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
 import { documentExists, extractFrontmatter, listPathsAtRev, readDocument, readPathAtRev } from '../storage';
-import { E_YAML_PARSE_ERROR, parseYaml, runValidation, ValidationError } from '../validation';
+import {
+  Diagnostic,
+  DiagnosticsError,
+  E_VALIDATION,
+  E_YAML_PARSE_ERROR,
+  emitUnknownFieldWarning,
+  HasShape,
+  parseYaml,
+  runValidation,
+  ValidationError,
+} from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
+
+import { indexWorkflowFiles, LoadedWorkflowFile, noStartableDiagnostic, workflowFileDiagnostics } from './workflow-diagnostics';
 
 /**
  * Recursively list every `.md` file under `dir`, as paths relative to `dir`, sorted
@@ -179,57 +191,105 @@ export function loadDnaYamlAtHead(root: string): DnaYaml | null {
 
 /** The result of loading the Workflow pillar: the Layer-1 manifest plus every Layer-2 file it includes. */
 export interface WorkflowsLoadResult {
-  readonly manifest: WorkflowsYaml;
+  /** `null` when `.wingfoil/workflows.yaml` is absent — an empty registry (spec-003 Layer 1). */
+  readonly manifest: WorkflowsYaml | null;
   readonly workflows: readonly Workflow[];
+}
+
+/** The manifest's path relative to `.wingfoil/` — the `file` of its diagnostics (spec-003). */
+const WORKFLOWS_MANIFEST_FILE = 'workflows.yaml';
+
+/** A Zod issue path as spec-003 spells a diagnostic `path`: `phases[3].include`. */
+function diagnosticPath(path: readonly PropertyKey[]): string {
+  let out = '';
+  for (const segment of path) {
+    if (typeof segment === 'number') out += `[${segment}]`;
+    else out += out === '' ? String(segment) : `.${String(segment)}`;
+  }
+  return out;
+}
+
+/**
+ * One included file's structural (Zod) pass, as diagnostics (spec-003 § "Diagnostics": structural
+ * failures keep spec-009's structural codes, except the named `kind` refusal). An empty list means the
+ * file is valid and `workflow` is set.
+ */
+function parseWorkflowFile(
+  data: unknown,
+  file: string,
+  filePath: string,
+): { workflow: Workflow | null; diagnostics: Diagnostic[] } {
+  const result = Workflow.safeParse(data);
+  if (result.success) {
+    // The same once-per-file unknown-field warning `runValidation` fires (spec-009 §2).
+    emitUnknownFieldWarning(data as Record<string, unknown>, Workflow as unknown as HasShape, filePath);
+    return { workflow: result.data, diagnostics: [] };
+  }
+  const diagnostics = result.error.issues.map((issue): Diagnostic => {
+    const path = diagnosticPath(issue.path);
+    const code = path === 'kind' ? 'E_WORKFLOW_INVALID_KIND' : E_VALIDATION;
+    return { code, severity: 'error', file, path, message: issue.message };
+  });
+  return { workflow: null, diagnostics };
 }
 
 /**
  * Load and validate the Workflow pillar in isolation (spec-003-workflows-yaml-schema): Layer 1
  * (`.wingfoil/workflows.yaml`), then every file its `include` list names (Layer 2), resolved
- * relative to `.wingfoil/` per spec-003. Two cross-file Pass-2 checks that need the loaded files
- * themselves (spec-009 §1 "Cross-file" category) run here, not in the schema module:
+ * relative to `.wingfoil/` per spec-003, then the **loader** rows of spec-003 § "Diagnostics" — the
+ * checks that need the loaded files themselves (spec-009 §1 "Cross-file" category), run here rather
+ * than in the schema module (`./workflow-diagnostics.ts`, task-136).
  *
- * - every `include` path must resolve to a file that actually exists
- *   (`E_WORKFLOW_FILE_NOT_FOUND`, spec-003);
- * - at least one loaded workflow must be `kind: main` (REQ-STATE-03 / spec-003 Layer 1 step 3).
+ * - An **absent** manifest is an empty registry, with no diagnostic (spec-003 Layer 1).
+ * - A manifest that fails to parse or to validate structurally throws as every pillar loader does.
+ * - Everything else is collected into one ordered `diagnostics` array (REQ-SYS-07): the manifest's
+ *   (`E_WORKFLOW_FILE_NOT_FOUND`, `E_NO_MAIN_WORKFLOW`), then each file in `include` order —
+ *   structural first, then workflow-level, then phase-level. If it holds an error, the load throws a
+ *   {@link DiagnosticsError}: `VALIDATION`, exit `1`, the first error as the reason and the whole array
+ *   attached.
  */
 export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
   const configDir = join(root, '.wingfoil');
-  const manifestPath = join(configDir, 'workflows.yaml');
+  const manifestPath = join(configDir, WORKFLOWS_MANIFEST_FILE);
+  if (!documentExists(manifestPath)) return { manifest: null, workflows: [] };
   const manifestRaw = readDocument(manifestPath);
   const manifestData = parseYaml(manifestRaw, manifestPath);
   const manifest = runValidation(WorkflowsYaml, manifestData, manifestPath);
 
-  const workflows: Workflow[] = [];
-  for (const includePath of manifest.include) {
+  const manifestDiagnostics: Diagnostic[] = [];
+  const files: LoadedWorkflowFile[] = [];
+  const structural: Diagnostic[][] = [];
+  manifest.include.forEach((includePath, position) => {
     const workflowPath = join(configDir, includePath);
     if (!documentExists(workflowPath)) {
-      throw ValidationError.semantic([
-        {
-          code: 'E_WORKFLOW_FILE_NOT_FOUND',
-          path: 'include',
-          file: manifestPath,
-          message: `included workflow file not found: ${includePath}`,
-        },
-      ]);
+      manifestDiagnostics.push({
+        code: 'E_WORKFLOW_FILE_NOT_FOUND',
+        severity: 'error',
+        file: WORKFLOWS_MANIFEST_FILE,
+        path: `include[${position}]`,
+        message: `included workflow file not found: ${includePath}`,
+      });
+      return;
     }
-    const raw = readDocument(workflowPath);
-    const data = parseYaml(raw, workflowPath);
-    workflows.push(runValidation(Workflow, data, workflowPath));
-  }
+    const data = parseYaml(readDocument(workflowPath), workflowPath);
+    const parsed = parseWorkflowFile(data, includePath, workflowPath);
+    const rawName = (data as { name?: unknown } | null)?.name;
+    files.push({ file: includePath, workflow: parsed.workflow, rawName: typeof rawName === 'string' ? rawName : null });
+    structural.push(parsed.diagnostics);
+  });
 
-  if (!workflows.some((workflow) => workflow.kind === 'main')) {
-    throw ValidationError.semantic([
-      {
-        code: 'E_NO_MAIN_WORKFLOW',
-        path: 'include',
-        file: manifestPath,
-        message: 'at least one included workflow must be `kind: main` (REQ-STATE-03)',
-      },
-    ]);
-  }
+  const index = indexWorkflowFiles(files, manifest.include.length - files.length);
+  const noStartable = noStartableDiagnostic(files, index);
+  if (noStartable) manifestDiagnostics.push(noStartable);
 
-  return { manifest, workflows };
+  const diagnostics: Diagnostic[] = [...manifestDiagnostics];
+  files.forEach((_, i) => {
+    diagnostics.push(...structural[i]!, ...workflowFileDiagnostics(files, index, i));
+  });
+  if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) throw new DiagnosticsError(diagnostics);
+
+  // Every file is structurally valid once no error was reported.
+  return { manifest, workflows: files.map((loaded) => loaded.workflow!) };
 }
 
 /** One Directives pillar file: its root-relative path and its validated frontmatter. */
