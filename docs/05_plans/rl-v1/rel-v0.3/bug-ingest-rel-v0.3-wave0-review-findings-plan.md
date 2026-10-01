@@ -3,7 +3,7 @@ id: bug-ingest-rel-v0.3-wave0-review-findings-plan
 type: plan
 title: "Bug-ingest — rel-v0.3 wave 0 review findings"
 status: active
-version: "1.0"            # optional — plan version
+version: "1.1"            # optional — plan version
 workflow: "bug-ingest"
 phase: "rel-v0.3-wave0-review-findings"
 element: "minor-v0.3"            # optional — the Memory element this phase iterates (e.g. a release id)
@@ -78,3 +78,18 @@ from the highest number on every ref (`bug-087`, `bug-162` closed). This plan wa
   | `bug-178` | low | `triaged`, v0.3, absorbed into `task-142` (shared git-read helper) |
   | `bug-179` | low | `triaged`, v0.3, absorbed into `task-165` (bootstrap commands on the surface) |
   | `bug-180` | low | `triaged`, v0.3 or v0.4. Needs the approver's ruling on rewriting the P2.1 scenario with `--value`; could join `task-179` (one shape for missing-operand errors) |
+- **triage done (2026-10-01)**, on the approver's instruction (proposals accepted; for `bug-177`
+  and `bug-180` the absorbing option was taken). For each bug:
+  - `memory approve [open → triaged]` with the code version;
+  - `wf(bug): assign release v0.3 to <id>` by hand, the canonical `assign` form `task-126`
+    declared, its first use;
+  - the absorbing task names the bug in `bug:` (`dl-045`);
+  - `wf(bug): sync [triaged → planned]`.
+
+  Absorbed as follows: `bug-176` → `task-163`, `bug-177` → `task-153`, `bug-178` → `task-142`,
+  `bug-179` → `task-165`, `bug-180` → `task-179`. For `bug-180`, the P2.1 scenario is rewritten
+  with `--value`.
+
+  **Correction of record:** the five absorption commits (bbe9dd07 31a76763 347657fe 023e1107 8d64066e) name the bug as
+  `bug-NNN-NNN` in their subject because of a scripting slip; read `bug-NNN`. They are not
+  rewritten (`dl-035`).
