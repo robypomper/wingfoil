@@ -2,7 +2,7 @@
 id: "task-140-run-packaging-gate-push-pull-request-separate"
 type: task
 title: "Run the packaging gate on every push and pull request in a separate ci.yml"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "high"
