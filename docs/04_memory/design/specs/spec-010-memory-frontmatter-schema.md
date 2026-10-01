@@ -124,7 +124,7 @@ grounds for the departure:
 | `memory.approve`     | `status` only (frontmatter); approver identity + reason live in the commit message, not frontmatter |
 | `memory.reject`      | `status` (frontmatter) and `rejection_reason` (set to the `--reason` text); approver identity + reason also live in the commit message per P1.7 — the frontmatter copy is a convenience, not a replacement |
 | `memory.deprecate`   | `status: deprecated` (or a type-specific deprecate-adjacent state first, e.g. `accepted → superseded`) |
-| `memory.amend`       | the body and every frontmatter field **except** `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, as the author edited them in the working tree; those six stay as committed, and past the type's initial state `title` and the required fields must stay non-empty (§ Validation rules). Only on a type whose `memory.yaml` entry declares `amendable: true` (`spec-001`); approver identity + reason live in the commit message, as for `memory.approve` (`dl-108`) |
+| `memory.amend`       | the body and every frontmatter field **except** `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, as the author edited them in the working tree; those six stay as committed (`release` only on a type whose scaffold committed at `HEAD` declares a `release` field), and past the type's initial state `title` and the required fields must stay non-empty (§ Validation rules). Only on a type whose `memory.yaml` entry declares `amendable: true` (`spec-001`); approver identity + reason live in the commit message, as for `memory.approve` (`dl-108`) |
 
 `memory.approve` changes **only** the `status` field and no other frontmatter field. `memory.reject`
 changes `status` plus `rejection_reason` — the one exception to "status only" among the transition
@@ -132,7 +132,12 @@ verbs, matching the field-write ownership table above. `memory.amend` is not a t
 the content and never `status`. It also leaves alone the fields other operations own:
 - `id` and `type` locate the element and select its path and machine, so a change to either is a
   new element rather than a correction to this one;
-- `release` is written by `assign` (`element.set_release`);
+- `release` is written by `assign` (`element.set_release`), on the types whose scaffold declares it
+  with the `traceability` directive's meaning. The scaffold committed at `HEAD` (`template.file` of
+  the committed `memory.yaml`) decides: a type whose scaffold has no `release` field has no
+  assign-owned `release`, so an amendment may remove a `release` key left on one of its documents
+  (`service`, whose set-up release is `set_up_in` since `task-170`). With no readable committed
+  scaffold, `release` stays reserved;
 - `rejection_reason` is written by `memory.reject` and cleared by `memory.submit`;
 - `supersedes` is the trigger of the `superseded` edge.
 
@@ -196,3 +201,11 @@ Edited in place, with no supersede, no state change and no `version:` field (`dl
 approver's sign-off at `task-127`'s review.
 At the review (2026-10-01) the approver ruled that `release`, `rejection_reason` and `supersedes` are
 also outside an amendment (ruling (b)). Review F1 added the § Validation rules clause to the row.
+
+**Revision (2026-10-01, `task-170-give-service-set-up-release-field-name-own`) — `release` is
+reserved where the scaffold declares it.** `bug-166`: a `service`'s `release` meant the release it was
+set up in, not the assigned release. `task-170` renamed it `set_up_in`, and the approver's ruling of
+2026-10-01 (option (A)) narrowed ruling (b): `release` is outside an amendment only on a type that
+carries the assign-owned field, keyed on the type's scaffold committed at `HEAD`. The row and the
+`release` bullet say so. Edited in place, with no supersede, no state change and no `version:` field
+(`dl-047`).
