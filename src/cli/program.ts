@@ -180,8 +180,9 @@ export async function buildProgram(modules: readonly CoreModule[], options: Buil
     // decides what to refuse, with its own message — `dl-082-cli-parameter-shape` gives each command at
     // most ONE positional, the identity of its target, and `./registrar.ts` refuses a surplus operand
     // at exit `2` before anything is read (task-129, `bug-171`, `bug-131`; the DNA path verbs refuse it
-    // themselves, after their own path check — `CorePositional.refusesExtraItself`), rather than leave
-    // it to a Commander arity error, whose wording would differ from command to command. A declared
+    // themselves, after `resolveRoot()` and their own path check — `CorePositional.refusesExtraItself`),
+    // rather than leave it to a Commander arity error, whose wording would differ from command to
+    // command. A declared
     // positional is registered as an OPTIONAL variadic argument under its declared name: marking it
     // required to Commander would replace core's `missing required argument: memory submit <id>` with
     // Commander's own refusal, so required-ness is RENDERED (the usage line below, `subcommandTerm`)
