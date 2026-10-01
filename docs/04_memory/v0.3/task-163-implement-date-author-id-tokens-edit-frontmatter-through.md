@@ -8,7 +8,7 @@ kind: "fix"
 priority: "low"
 tags: ["v0.3", "core", "memory"]
 ref: "spec-001"
-bug: ["bug-033", "bug-157", "bug-158", "bug-176-spec-001-declares-the-n-n-id-token-which-the-id-engine-rejects-as-malformed"]
+bug: ["bug-033", "bug-157", "bug-158", "bug-176"]
 depends_on: ["task-128-allocate-element-ids-highest-number-ref-across-folder"]
 tmpl_version: 260703
 ---

@@ -8,7 +8,7 @@ kind: "fix"
 priority: "medium"
 tags: ["v0.3", "core", "cli", "errors"]
 ref: "spec-005"
-bug: ["bug-104", "bug-168", "bug-180-the-dna-path-verbs-keep-a-surplus-operand-exception-that-the-two-positional-p2.1-scenario-forces"]
+bug: ["bug-104", "bug-168", "bug-180"]
 depends_on: ["task-129-refuse-operand-beyond-command-declares-exit-2-before", "task-130-show-coreerror-details-surface-give-refusal-shape-under"]
 tmpl_version: 260703
 ---
