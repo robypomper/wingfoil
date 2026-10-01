@@ -33,7 +33,12 @@ import { ValidationError } from '../validation';
 import { requireConfinedWriteTarget } from './confinement';
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
-import { requireUnmodifiedTarget, undeclaredCommittedPaths, type WriteTargetContract } from './write-guard';
+import {
+  requireNoDivergentStage,
+  requireUnmodifiedTarget,
+  undeclaredCommittedPaths,
+  type WriteTargetContract,
+} from './write-guard';
 
 /** A document located and cleared for one transition — everything the verb needs to finish it. */
 export interface PreparedMemoryTransition {
@@ -265,7 +270,10 @@ export function verifyCommittedScope(
  *    --porcelain` reports a path beyond a symbolic link as clean, which is `bug-118`).
  * 2. **The working tree is unmodified** ({@link requireUnmodifiedDocument}, `declared-fields-only`
  *    only) — catches a wrong *baseline*: content that was already on disk before the verb ran
- *    (`bug-076`).
+ *    (`bug-076`). Under `carries-content` the working tree IS the content, so the check narrows to
+ *    `requireNoDivergentStage`: a staged version differing from both `HEAD` and the working tree,
+ *    which `git add` would silently discard, is refused (task-131, `bug-182`). Both shapes first
+ *    refuse a document behind a symlinked directory, which git cannot report on (`bug-118`).
  * 3. **The rendering is in scope** ({@link verifyDocumentEdit} against the prepared document) —
  *    catches a defect in the *editor*: `status` must be the prepared target, every field in `expected`
  *    must have its value (`undefined` = absent), and no other field and no byte of the body may have
@@ -298,10 +306,11 @@ export function commitMemoryTransition(
   const owned = { status: prepared.to, ...expected };
   const confined = requireConfinedWriteTarget(root, prepared.path, 'write');
   if (!confined.ok) return confined;
-  if (scope === 'declared-fields-only') {
-    const unmodified = requireUnmodifiedDocument(root, prepared);
-    if (!unmodified.ok) return unmodified;
-  }
+  const unmodified =
+    scope === 'declared-fields-only'
+      ? requireUnmodifiedDocument(root, prepared)
+      : requireNoDivergentStage(root, prepared.path, TRANSITION_CONTRACT);
+  if (!unmodified.ok) return unmodified;
 
   const problems = verifyDocumentEdit(prepared.content, content, owned, 'declared-fields-only');
   if (problems.length > 0) {

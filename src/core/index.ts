@@ -157,6 +157,8 @@ export {
   CONFIG_WRITE_CONTRACT,
   committedScopeError,
   requireAbsentTarget,
+  requireInspectableTarget,
+  requireNoDivergentStage,
   requireUnmodifiedTarget,
   requireUnmodifiedTargets,
   undeclaredCommittedPaths,

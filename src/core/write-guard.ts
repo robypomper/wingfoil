@@ -34,12 +34,19 @@
  * rejected: "an unrelated uncommitted edit blocks a verb, so designing a new type in `memory.yaml`
  * would prevent approving an element that has nothing to do with it".
  *
+ * **What git cannot see, the guard refuses** (task-131, `bug-118`). `git status --porcelain` prints
+ * nothing for a path that lies beyond a symbolic link — `git ls-files` carries the link blob and never
+ * what it points at — so "no output" there means *invisible*, not *clean*. Every guard here therefore
+ * asks {@link requireInspectableTarget} first, on the filesystem (`dl-086`: a guard over an imminent
+ * syscall resolves where the syscall will land), and refuses a target git cannot report on, whether
+ * the link points inside the project (`bug-124`) or out of it.
+ *
  * **Exit code.** Every refusal here is a `CoreResult.error` with `code: 'VALIDATION'`, which
  * `exitCodeForError` maps to **1**. `spec-005-cli-command-contract` § "1. Exit-code contract
  * (REQ-INT-04)" reserves `2` for a malformed *invocation*; a dirty target is a repository-state
  * precondition, and re-typing the command cannot help. That is the ruling recorded on `bug-076`.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describeDocumentChanges } from '../memory';
@@ -97,6 +104,97 @@ function readWorktree(root: string, path: string): string | null {
 }
 
 /**
+ * Why git cannot report on `path`, or `null` when it can: the first proper ancestor of `path` — a
+ * directory on the way to it, never `path` itself — that is a symbolic link, or that the filesystem
+ * refuses to `lstat` (a directory without search permission). Stops at the first missing segment: a
+ * path whose parent does not exist yet is not beyond anything (the creating verbs `mkdir` it).
+ *
+ * The leaf is deliberately excluded. A target that is ITSELF a symlink is one git does track (as a
+ * mode-120000 blob) and reports on, which is what keeps `directive remove` of a symlinked directive
+ * file working (`bug-044`'s benign case); whether a *write* may follow such a leaf is the confinement
+ * module's question (`requireConfinedWriteTarget`, `bug-120`), not this guard's.
+ */
+function uninspectableAncestor(root: string, path: string): string | null {
+  const segments = path.split('/').filter((segment) => segment.length > 0);
+  for (let end = 1; end < segments.length; end += 1) {
+    const ancestor = segments.slice(0, end).join('/');
+    try {
+      if (lstatSync(join(root, ancestor)).isSymbolicLink()) return `'${ancestor}' is a symbolic link`;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ENOTDIR') return null;
+      return `'${ancestor}' cannot be read (${String(code)})`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Refuse, before anything is written, a target git **cannot report on** because a directory on the
+ * way to it is a symbolic link (task-131, `bug-118`, `bug-124`) — or cannot be read at all.
+ *
+ * For a path behind a symlink `git status --porcelain` is empty whether the file is modified or not,
+ * and the `git add` that `commitPaths` runs afterwards fails ("beyond a symbolic link") — after the
+ * write or the unlink has already happened. "I have nothing to report about this path" is not "this
+ * path is clean"; this is the check that keeps the two apart, so the guards below never read silence
+ * as consent. Exit `1` (`VALIDATION`), naming the path and the reason.
+ */
+export function requireInspectableTarget(
+  root: string,
+  path: string,
+  contract: WriteTargetContract = CONFIG_WRITE_CONTRACT,
+): CoreResult<undefined> {
+  const reason = uninspectableAncestor(root, path);
+  if (reason === null) return coreOk(undefined);
+  return coreErr({
+    code: 'VALIDATION',
+    message:
+      `refusing to commit ${path}: ${reason}, and git cannot stage or inspect a path beyond a symbolic link or an ` +
+      `unreadable directory, so whether this ${contract.noun} carries modifications this ${contract.owner} does not ` +
+      'own cannot be inspected. Nothing has been written; replace a symbolic link with the directory it points ' +
+      'to, then retry.',
+  });
+}
+
+/**
+ * Refuse, before anything is written, a target whose **index** holds a version that differs from both
+ * `HEAD` and the working tree (task-131, `bug-182`) — the one loss a content-carrying verb can still
+ * cause.
+ *
+ * `memory submit` and `memory amend` own the whole document: its working-tree bytes are the content of
+ * record, so {@link requireUnmodifiedTarget} cannot apply to them. But `commitPaths` runs
+ * `git add -- <path>` before committing, and that silently overwrites a staged version the user
+ * prepared separately. When the staged version equals `HEAD` (nothing staged) or the working tree
+ * (the user staged what is about to be committed) nothing is lost and the verb proceeds; only the
+ * three-way divergence — git's own `XY` with both columns set — is refused. The answer is git's
+ * (`pathPorcelainStatus`), for the reason the module header gives. Also asks
+ * {@link requireInspectableTarget} first, since an empty porcelain is not an answer behind a symlink.
+ *
+ * @param path - Root-relative POSIX path of the document the verb is about to commit.
+ */
+export function requireNoDivergentStage(
+  root: string,
+  path: string,
+  contract: WriteTargetContract = CONFIG_WRITE_CONTRACT,
+): CoreResult<undefined> {
+  const inspectable = requireInspectableTarget(root, path, contract);
+  if (!inspectable.ok) return inspectable;
+
+  // Porcelain `XY`: X is index vs HEAD, Y is working tree vs index. Both set (and X not the
+  // untracked/ignored marker) is the three-way divergence; '' (clean) has neither.
+  const porcelain = pathPorcelainStatus(root, path);
+  if (' ?!'.includes(porcelain.charAt(0)) || porcelain.charAt(1) === ' ') return coreOk(undefined);
+  return coreErr({
+    code: 'VALIDATION',
+    message:
+      `refusing to commit ${path}: the index holds a staged version that differs from both HEAD and the working ` +
+      `tree [git status '${porcelain}']. This ${contract.owner} commits the working-tree ${contract.noun}, so staging ` +
+      `it would silently discard the staged version; run 'git restore --staged -- ${path}' to drop it, or ` +
+      `'git add -- ${path}' to keep the working tree, then retry.`,
+  });
+}
+
+/**
  * Refuse, before anything is written, a target that already carries modifications this operation
  * does not own — `dl-080`'s ratified write rule for a command that **edits a file in place**.
  *
@@ -120,6 +218,9 @@ export function requireUnmodifiedTarget(
   contract: WriteTargetContract = CONFIG_WRITE_CONTRACT,
   worktree?: string,
 ): CoreResult<undefined> {
+  const inspectable = requireInspectableTarget(root, path, contract);
+  if (!inspectable.ok) return inspectable;
+  // Empty porcelain means clean only for a path git can see — guaranteed by the check above.
   const porcelain = pathPorcelainStatus(root, path);
   if (porcelain === '') return coreOk(undefined);
 
@@ -180,6 +281,10 @@ export function requireUnmodifiedTargets(
  * @param path - Root-relative POSIX path of the file about to be created.
  */
 export function requireAbsentTarget(root: string, path: string): CoreResult<undefined> {
+  // Beyond a symlink, `HEAD` and the index report nothing and `git add` refuses after the write
+  // (task-131, the `bug-124` order in `memory add`'s shape).
+  const inspectable = requireInspectableTarget(root, path);
+  if (!inspectable.ok) return inspectable;
   const occupied: string[] = [];
   if (readPathAtRev(root, 'HEAD', path) !== null) occupied.push('at HEAD');
   if (readPathAtRev(root, ':0', path) !== null) occupied.push('in the index');

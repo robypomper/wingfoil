@@ -2,7 +2,7 @@
 id: "bug-124-an-in-root-symlinked-custom-directory-still-deletes-then-fails"
 type: bug
 title: "A `directives/custom` symlinked to somewhere else *inside* the project still unlinks the file first and fails afterwards — `bug-044`'s order of operations, below its confinement boundary"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
