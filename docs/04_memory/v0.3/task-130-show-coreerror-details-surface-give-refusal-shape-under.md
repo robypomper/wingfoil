@@ -44,9 +44,10 @@ in-progress]` `4adb9e58`; `bug-123` `[planned → in-progress]` `4756dd53`. Batc
 **`depends_on`.** Empty; no upstream Execution Notes to read (dl-015).
 
 **Specs.** `spec-005-cli-command-contract` and `spec-004-mcp-surface-contract` are `approved`
-(`grep -n "^status:"` on both). `dl-055` is `ready`, but its Decision still reads "*Approver to
-choose.*". The option is taken from this task's own Implementation Notes ("Implements: dl-055 option 1"),
-set by `release-planning-rel-v0.3-plan`. `spec-005` §3 had no slot for details and no statement on
+(`grep -n "^status:"` on both). `dl-055` is `ready`. Option 1 was ratified by its approve commit
+`b410c09f` (`git show b410c09f`: "Options: 1 (detail lines after the contract line; additive `details`
+array in json/yaml; MCP `error.data`)"), although the body's Decision section still reads "*Approver to
+choose.*". `spec-005` §3 had no slot for details and no statement on
 parse-path errors or on the confinement code. `spec-004` had no error-details rule. Both need a
 revision, which is made in place and left uncommitted (see "Pending amendments" below).
 `.wingfoil/memory.yaml` declares `tech-spec` `amendable: true`.
@@ -68,7 +69,9 @@ memory-transition ×2. `src/cli/registrar.ts` and `src/mcp/registrar.ts` never r
 
 1. **What is shown.** Per issue, `file` and `detail` when non-empty, as `dl-055` option 1 lists. An
    issue with neither is left out. `code`, `path` and `message` are not shown, because
-   `ValidationError.message` already joins them into the reason. The selection is done once, in
+   `ValidationError.message` already joins them into the reason. For the same reason, after the
+   independent review, a `file` the reason already contains verbatim is not repeated either (see
+   review (independent)). The selection is done once, in
    `src/core/error-details.ts` (`errorDetails`), and the CLI and MCP surfaces use the same function
    (REQ-SYS-05).
 2. **Console order.** `error:`, then `hint:` (spec-005 §3.1 calls it the "second line"), then the
@@ -115,8 +118,9 @@ memory-transition ×2. `src/cli/registrar.ts` and `src/mcp/registrar.ts` never r
 - `test/cli/error-details.test.ts`: the CLI through `buildCliCommands`, with a synthetic registry.
 - `test/mcp/error-details.test.ts`: the registrar over the SDK's in-memory transport, with a real `Client`.
 - `test/cli/parse-error-format.integration.test.ts`: spawns the compiled `dist/`.
-- `test/core/confinement-error-code.test.ts`: both refusals (path out of root, symlinked leaf), for
-  `memory add` and the five `commitMemoryTransition` verbs.
+- `test/core/confinement-error-code.test.ts`: 7 cases. The path-out-of-root refusal for `memory add`
+  and the five `commitMemoryTransition` verbs (1 + 5), and the symlinked-leaf refusal for `memory add`
+  only (1). The review added the symlinked-leaf case for the five verbs (now 12).
 
 `npx jest` on the four → **19 failed, 12 passed, 31 total**. The 12 that pass are the
 characterizations:
@@ -175,14 +179,15 @@ Gates, run with the two pending spec amendments in the working tree:
 
 Checked against the code-review directive:
 
-- **AC1.** Console, json and yaml are covered by `test/cli/error-details.test.ts` (6/6). A real
+- **AC1.** Console, json and yaml are covered by `test/cli/error-details.test.ts` (6/6 at first
+  submit, 8/8 after the review). A real
   `memory submit` illegal transition is covered end to end by `program.integration.test.ts` sc.2.
   MCP is covered by `test/mcp/error-details.test.ts` (4/4).
 - **AC2.** Unknown command, unknown option, missing option argument and missing verb are each one
   JSON object at exit 2, with `--format` before or after the failing token. The keys match a core
   refusal's (`parse-error-format.integration.test.ts`, 14/14).
 - **AC3.** `VALIDATION` from `memory add` (both refusals) and from submit/approve/reject/deprecate/amend
-  (`confinement-error-code.test.ts`, 7/7).
+  (`confinement-error-code.test.ts`, 7/7 at first submit, 12/12 after the review).
 - **AC4.** The `spec-005` §3 text and its Revision note are a pending amendment.
 
 Same-class sweep in the files I touched: `grep -n "format: 'console'" src/cli/*.ts` now finds no
@@ -190,22 +195,70 @@ hard-coded format at an error site. The remaining console-only refusal is the re
 `--format` value, which is deliberate (spec-005 §2).
 
 Out of scope, not filed (for the coordinator):
-- `spec-008-cli-grammar` §6 still defines only `{"error": "<reason>"}`. `dl-055` lists it among
-  the specs to amend, but this task's Implementation Notes name only spec-005 and spec-004. It is
-  incomplete rather than contradictory.
+- `spec-008-cli-grammar` §6 still defines only `{"error": "<reason>"}`. Addressed at the review: a
+  third pending amendment.
 - `dl-055`'s Decision section still reads "Approver to choose", although the task implements option 1.
 - A thrown `ValidationError` on the CLI's throw path (`exitCodeForThrow`) still drops its issues.
   Only `CoreError.details` is in this task's scope.
 
+### review (independent)
+
+The coordinator's independent review returned **approve with fixes**. Each finding and what was done:
+
+1. **`spec-008` §6 was not amended**, although `dl-055`'s Actions name it and `b410c09f` ratified
+   them. §6 now shows `hint?` and `details?`, says the shape covers the parser's refusals, and points
+   to `spec-005` §3.1–§3.2 for the rules. A dated Revision note was added. This is a third pending
+   amendment.
+2. **Detail lines repeated the file the reason already names.** `ValidationError.message` embeds
+   `(<file>)`, so `dna show` on a broken `dna.yaml` printed the path twice.
+   - Red: `f41603ba`, `error-details.test.ts` "a file the reason already names is not repeated" fails.
+   - Green: `d5455452`. `errorDetails` leaves out a `file` that `error.message` contains verbatim,
+     keeps the `detail`, and drops an entry left empty.
+   - Measured after the change on a scratch repo with `modules: [` in `.wingfoil/dna.yaml`: `node
+     dist/cli.js dna show` prints the path once, and `--format json` prints `{"error": …}` with no
+     `details`.
+   - The spec-005 and spec-004 Revision notes no longer say "the file … reached no operator". That
+     was true only for the illegal-transition refusal, whose message is the bare contract string.
+3. **The BDD scenario pinned Commander's wording** (`"Did you mean memory?"`), which `bug-104` owns.
+   It now asks for a `hint` that names `memory` (`397601dc`).
+4. **`src/cli/init-command.ts` emitted without details.** It now passes `errorDetails(result.error)`.
+   - Red: `f41603ba`, an `init-command.test.ts` case fails.
+   - Green: `d5455452`.
+5. **Tests.**
+   - Added a multi-line continuation-indent case, which backs "no detail line can begin with `error:`".
+     It is characterization and passed on first run.
+   - Corrected the red section's confinement count (7 = 1 + 5 + 1).
+   - Added the symlinked-leaf case for the five transition verbs. It is characterization: they were
+     already `VALIDATION`.
+6. **The spec-005 §3.2 listing called `detailLine` without showing it.** The listing now includes
+   it, so `src/cli/error.ts`'s "written from the spec's own code listing" holds.
+7. **Ratification.** The design section now cites `b410c09f`.
+
+Recorded, no fix: the production `wingfoil mcp` server (`src/mcp/server.ts`) does not use
+`registerCoreModules`, so its Resources carry no `error.data`. The coordinator files a follow-up.
+
+Gates re-run after the fixes, with the three pending amendments in the working tree:
+
+| command | result |
+|---|---|
+| `npm test` | exit 0; 170 suites / 2805 tests |
+| `npm run test:coverage` | exit 0; 98.74 / 94.65 / 94.1 / 99.49 (`main` `c43221c4`: 98.73 / 94.58 / 94.01 / 99.49) |
+| `npm run lint`, `npm run docs:api`, both `tsc --noEmit` | exit 0 |
+
 ### Pending amendments (approver)
 
 Edits left uncommitted in the worktree for `memory amend` (tech-spec is `amendable: true`). The gates
-above ran with both edits in the working tree.
+above ran with all three edits in the working tree.
 
-- `spec-005-cli-command-contract`: `--reason "§3 gives refusal details a slot (console detail lines,
-  an additive details array), states that every refusal has the §3.2 shape under --format whichever
-  layer raises it, and names VALIDATION as the one code of the confinement refusal, per task-130
-  (dl-055 option 1, bug-114, bug-123). Dated Revision note added."`
+- `spec-005-cli-command-contract`: `--reason "§3 gives refusal details a slot (indented console
+  detail lines, an additive details array, a file the reason already names not repeated), states that
+  every refusal has the §3.2 shape under --format whichever layer raises it, shows detailLine in the
+  code listing, and names VALIDATION as the one code of the confinement refusal, per task-130
+  (dl-055 option 1 as ratified in b410c09f, bug-114, bug-123). Dated Revision note added."`
 - `spec-004-mcp-surface-contract`: `--reason "§4.3 item 4 states where a refusal's details reach an
   MCP client: error.data.details on a failed read, structuredContent on a tool refusal, per task-130
-  (dl-055 option 1). Dated Revision note added."`
+  (dl-055 option 1 as ratified in b410c09f). Dated Revision note added."`
+- `spec-008-cli-grammar`: `--reason "§6 shows the optional hint and details fields, states that the
+  shape covers the argument parser's refusals, and points to spec-005 §3.1-§3.2 for their rules, per
+  task-130 (dl-055 option 1 as ratified in b410c09f, whose Actions name this section; bug-114). Dated
+  Revision note added."`
