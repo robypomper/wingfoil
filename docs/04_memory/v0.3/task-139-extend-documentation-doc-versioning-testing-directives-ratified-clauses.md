@@ -2,7 +2,7 @@
 id: "task-139-extend-documentation-doc-versioning-testing-directives-ratified-clauses"
 type: task
 title: "Extend the documentation, doc-versioning and testing directives with the ratified clauses"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "high"
