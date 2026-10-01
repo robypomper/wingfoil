@@ -7,7 +7,7 @@
  */
 export const MODULE_NAME = 'storage' as const;
 
-export { StorageError, E_GIT_READ_FAILED, E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, E_MISSING_PATH_VALUE } from './errors';
+export { StorageError, E_GIT_READ_FAILED, E_INVALID_REVISION, E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, E_MISSING_PATH_VALUE } from './errors';
 export { findGitRoot, resolveProjectRoot } from './git-root';
 export { detectInitState } from './init-state';
 export type { InitState } from './init-state';

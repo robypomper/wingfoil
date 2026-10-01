@@ -52,3 +52,10 @@ export const E_TARGET_IS_SYMLINK = 'E_TARGET_IS_SYMLINK';
  * failed read must not pass for an empty answer: a counter that saw nothing would reissue `1`.
  */
 export const E_GIT_READ_FAILED = 'E_GIT_READ_FAILED';
+
+/**
+ * Raised by `readPathsAtRev` (`./commit.ts`, task-137 review) for a revision that would change the
+ * batch request itself: a newline or carriage return ends the request line early, so the answers shift
+ * onto the wrong paths; a `:` changes which path is read; a NUL cannot travel at all.
+ */
+export const E_INVALID_REVISION = 'E_INVALID_REVISION';

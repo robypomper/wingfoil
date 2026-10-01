@@ -52,6 +52,10 @@ export class RevisionError extends Error implements CoreError {
  * and a newline would split a batch request); `:` (that is `<rev>:<path>`, a blob, never a commit);
  * `..` (a range, two commits). Everything else — `HEAD`, `HEAD~2`, a sha or its prefix, a branch, a tag,
  * `main@{1}` — is left for git to resolve.
+ *
+ * The whitespace rule also refuses the revision forms that spell a phrase with spaces —
+ * `master@{1 day ago}`, `HEAD^{/fix bug}` — as `VALIDATION`. git's dotted spelling of an approxidate
+ * (`HEAD@{1.day.ago}`) has no space and resolves.
  */
 export function isWellFormedRevision(rev: string): boolean {
   // eslint-disable-next-line no-control-regex
@@ -64,7 +68,9 @@ export function isWellFormedRevision(rev: string): boolean {
  * @param root - Project root (the git repository).
  * @param rev - A revision naming one commit: `HEAD`, a sha, a branch, a tag.
  * @returns The commit's full sha.
- * @throws {@link RevisionError} `VALIDATION` for a malformed rev, `NOT_FOUND` for one naming no commit.
+ * @throws {@link RevisionError} `VALIDATION` for a malformed rev, `NOT_FOUND` for one naming no commit;
+ *   `StorageError` `E_GIT_READ_FAILED` when git cannot answer at all (a `root` that is not a
+ *   repository, a `git` that cannot run) — a broken environment is not a missing revision.
  */
 export function resolveRevision(root: string, rev: string): string {
   if (!isWellFormedRevision(rev)) throw new RevisionError('VALIDATION', rev);
@@ -92,16 +98,19 @@ export function listPathsAtCommit(root: string, sha: string, prefix: string): st
 
 /**
  * Run a `…AtRev(root, 'HEAD')` read with the answer the `…AtHead` readers have always given when there
- * is no `HEAD` to read — `fallback` (`null`, or `[]` for a directory) — rather than a
- * {@link RevisionError}. `HEAD` is a constant there, so the only refusal it can meet is `NOT_FOUND`: a
- * repository with no commit yet, which those readers' callers already treat as "nothing committed"
- * (task-090, task-091, task-096). Any other error propagates.
+ * is no `HEAD` to read — `fallback` (`null`, or `[]` for a directory) — rather than an error. Two
+ * refusals mean that: {@link RevisionError} `NOT_FOUND` (a repository with no commit yet; `HEAD` is a
+ * constant, so `VALIDATION` cannot occur) and `StorageError` `E_GIT_READ_FAILED` from resolving it (a
+ * `root` that is not a repository, or no runnable `git`). Before task-137 those readers read through
+ * `readPathAtRev`, which answers `null` for every git failure, and their callers treat that as
+ * "nothing committed" (task-090, task-091, task-096); this keeps it so. Any other error propagates.
  */
 export function atHeadOr<T, F>(read: () => T, fallback: F): T | F {
   try {
     return read();
   } catch (error) {
     if (error instanceof RevisionError && error.code === 'NOT_FOUND') return fallback;
+    if (error instanceof StorageError && error.code === E_GIT_READ_FAILED) return fallback;
     throw error;
   }
 }

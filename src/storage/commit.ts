@@ -18,7 +18,7 @@
  */
 import { execFileSync, spawnSync } from 'child_process';
 
-import { E_GIT_READ_FAILED, StorageError } from './errors';
+import { E_GIT_READ_FAILED, E_INVALID_REVISION, StorageError } from './errors';
 
 /** Options for {@link commitPaths} — carries the git-author/env override used by callers (e.g. task-029's wizard). */
 export interface CommitOptions {
@@ -221,23 +221,37 @@ export function listPathsAtRev(
 
 /**
  * The full 40-hex sha of the **commit** `rev` names, or `null` when it names none: an unknown name, an
- * unborn `HEAD` in a repository with no commits, a tree or a blob, or a `root` git cannot read.
+ * unborn `HEAD` in a repository with no commits, a tree or a blob (`git rev-parse --verify --quiet`
+ * exits `1` for all of them).
  *
  * The `…AtRev` readers (`src/core/loaders.ts`, `src/memory/query.ts`) resolve their revision through
  * this **once**, then read every byte at the sha, so one read cannot mix two commits when a ref moves
  * while it runs. `^{commit}` peels a tag to its commit and refuses anything that is not one.
  *
- * A thin probe, like {@link readPathAtRev}: the syntax of `rev` is the caller's to check — the core
- * resolver (`resolveRevision`, `src/core/revision.ts`) refuses a malformed one before it gets here, so
- * that nothing shaped like a flag ever reaches git's argument list.
+ * **A failure is not "no such commit"** (task-137 review): a `root` git cannot read as a repository
+ * (exit `128`) or a `git` that cannot be spawned throws {@link StorageError} `E_GIT_READ_FAILED`, so a
+ * caller never reports a broken environment as a missing revision.
+ *
+ * The syntax of `rev` is the caller's to check — the core resolver (`resolveRevision`,
+ * `src/core/revision.ts`) refuses a malformed one before it gets here, so that nothing shaped like a
+ * flag ever reaches git's argument list.
+ *
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot answer at all.
  */
 export function resolveCommitAtRev(root: string, rev: string, options: CommitOptions = {}): string | null {
-  try {
-    // `--verify` prints exactly one object name or fails, so a success is the sha.
-    return probeGit(root, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], options).trim();
-  } catch {
-    return null;
+  const run = spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${rev}^{commit}`], {
+    encoding: 'utf-8',
+    env: options.env ? { ...process.env, ...options.env } : process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  // `--verify --quiet` exits 1, printing nothing on stdout, for a name that resolves to no commit.
+  if (run.status === 1) return null;
+  if (run.error !== undefined || run.status !== 0) {
+    const detail = run.error !== undefined ? run.error.message : run.stderr.trim();
+    throw new StorageError(E_GIT_READ_FAILED, `git rev-parse ${rev} failed in ${root}: ${detail}`);
   }
+  // `--verify` prints exactly one object name on success: the sha.
+  return run.stdout.trim();
 }
 
 /** Large enough for every Memory document of a repository; a larger answer fails loudly, never truncates. */
@@ -261,15 +275,20 @@ const CAT_FILE_HEADER = /^[0-9a-f]+ ([a-z]+) (\d+)$/;
  * {@link BATCH_READ_MAX_BUFFER} throws {@link StorageError} `E_GIT_READ_FAILED`: a failed read must not
  * pass for "every path is absent". `null` is reserved for a path the revision really does not hold.
  *
- * A path holding a newline cannot travel on the line-based batch protocol; it is read on its own with
+ * A path holding a newline or a carriage return cannot travel on the line-based batch protocol (git
+ * ends the request at the newline and strips a trailing CR); it is read on its own with
  * {@link readPathAtRev}, which gives the same answer. Pass a resolved sha as `rev` when several calls
  * must see one commit.
  *
  * @param root - Project root (the git repository).
- * @param rev - Any revision git accepts before a `:` (a sha, `HEAD`).
+ * @param rev - A revision naming one commit — best a sha already resolved (`resolveCommitAtRev`). It
+ *   travels inside each request line, so a rev holding a newline, a carriage return, a `:` or a NUL is
+ *   refused with {@link StorageError} `E_INVALID_REVISION`: a newline would shift every answer onto
+ *   the wrong path, and a `:` would change which path is read.
  * @param paths - Root-relative POSIX paths.
  * @returns One entry per path, in the same order.
- * @throws {@link StorageError} `E_GIT_READ_FAILED` when the batch read fails.
+ * @throws {@link StorageError} `E_INVALID_REVISION` for such a rev; `E_GIT_READ_FAILED` when the
+ *   batch read fails.
  */
 export function readPathsAtRev(
   root: string,
@@ -277,7 +296,10 @@ export function readPathsAtRev(
   paths: readonly string[],
   options: CommitOptions = {},
 ): (string | null)[] {
-  const batched = paths.filter((path) => !path.includes('\n'));
+  if (/[\n\r:\0]/.test(rev)) {
+    throw new StorageError(E_INVALID_REVISION, `revision ${JSON.stringify(rev)} cannot be read in a batch: it holds a newline, a carriage return, a ':' or a NUL`);
+  }
+  const batched = paths.filter((path) => !/[\n\r]/.test(path));
   const answers = new Map<string, string | null>();
   if (batched.length > 0) {
     const run = spawnSync('git', ['-C', root, 'cat-file', '--batch'], {
