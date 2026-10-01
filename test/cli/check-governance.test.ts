@@ -325,7 +325,8 @@ describe('state rule — commits without a bracket (review)', () => {
     'docs/memory/task/t-2.md': doc('t-2', 'backlog'),
   });
   const addNotInitial = f.task('t-4', 'pending', 'wf(task): add t-4');
-  const assignMoving = f.task('t-3', 'pending', 'wf(task): assign release v0.3 to t-3');
+  f.task('t-5', 'draft', 'wf(task): add t-5');
+  const assignMoving = f.task('t-5', 'pending', 'wf(task): assign release v0.3 to t-5');
   const conformingSubmit = f.task('t-3', 'pending', 'wf(task): submit t-3');
   const report = checkGovernance(f.root);
 

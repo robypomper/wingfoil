@@ -21,19 +21,27 @@
  *   verb carrying an `Approver:` line), its author holds the `approver` role in `team.members` of the
  *   `dna.yaml` committed BEFORE it (its first parent: a commit cannot grant itself), and the
  *   `Approver:` line names that same author (`dl-094`: one identity per act).
- * - **state** — on every bracketed `wf()` subject, the verb declared or not: `verifyTransitionConsistency`
- *   (`src/memory/audit.ts`) on every document the commit touches and names (by full or short id),
- *   given the type's machine as the `memory.yaml` at the checked commit declares it, so a chain's hops
- *   are judged (`illegal-hop`) and the bracket is compared with the frontmatter (`mismatch`,
- *   `unparseable`). A touched document the subject does not name is a finding only when the commit
- *   changed its status — an element moved without being recorded. A single hop, which that function leaves to the write-time engine, is
- *   judged here with `isMachineEdge` too, because a hand-written commit never met the engine; `amend`
- *   and `park` are exempt, their brackets being fixed by the bracket rule.
- *
+ * - **state** — on every Memory `wf()` commit, whatever its verb:
+ *   - a bracketed subject: `verifyTransitionConsistency` (`src/memory/audit.ts`) on every document the
+ *     commit touches and names (by full or short id), given the type's machine as the `memory.yaml` at
+ *     the checked commit declares it, so a chain's hops are judged (`illegal-hop`) and the bracket is
+ *     compared with the frontmatter (`mismatch`, `unparseable`). A single hop, which that function
+ *     leaves to the write-time engine, is judged here with `isMachineEdge` too, because a hand-written
+ *     commit never met the engine; `amend` and `park` are exempt, their brackets being fixed by the
+ *     bracket rule;
+ *   - a bracketless subject, from the frontmatter (`reconstructMemoryTransitions`): `submit` moves a
+ *     named document along an edge of the machine; `add` leaves it in the machine's initial state;
+ *     `assign` leaves its status unchanged (`spec-008` §2);
+ *   - every commit: a touched document the subject does not name is a finding when the commit changed
+ *     its status — an element moved without being recorded;
+ *   - a gated commit whose `memory.yaml` is missing or does not validate is a finding: its state cannot
+ *     be checked. History before `.wingfoil/` existed is listed as "state not checked" instead.
+
  * **Starting mode** (`dl-103` §1). A finding on a commit that is not the introduction commit nor one
  * of its ancestors is gated, and fails the check (exit 1). A finding on history — the introduction
  * commit and its ancestors — is reported and does not fail it (exit 0). The introduction commit is
- * the oldest commit of `HEAD`'s history that added this file, unless `--introduced-at` names one.
+ * the commit of `HEAD`'s first-parent line that added this file — on `main`, the merge that landed it
+ * — unless `--introduced-at` names one.
  *
  * The parsers are `src/memory`'s, read from the compiled `dist/` (`npm run build` first): the verb
  * list and subject reader (`parseMemoryOperation`), the bracket reader (`parseBracketHops`), the
@@ -45,9 +53,10 @@
  * Usage: node scripts/check-governance.cjs [--root <dir>] [--base <rev>] [--introduced-at <rev>] [--json]
  *   --root           the repository to check (default: the git top level of the working directory)
  *   --base           check `<rev>..HEAD` only (default: the whole history of HEAD)
- *   --introduced-at  the introduction commit (default: the commit that added this file)
+ *   --introduced-at  the introduction commit (default: the first-parent commit that added this file)
  *   --json           print the report as JSON instead of lines
- * Exit: 0 no gated finding · 1 a gated finding · 2 bad usage, or `dist/` not built.
+ * Exit: 0 no gated finding · 1 a gated finding · 2 the check could not run (bad usage, no repository
+ * or no commit, `dist/` not built, a git failure), with the message on stderr.
  */
 'use strict';
 
@@ -55,7 +64,7 @@ const { execFileSync } = require('node:child_process');
 const { existsSync } = require('node:fs');
 const { basename, join } = require('node:path');
 
-/** This file's path inside the repository it governs: its introduction is the oldest commit adding it. */
+/** This file's path inside the repository it governs: its introduction is the first-parent commit adding it. */
 const SCRIPT_PATH = 'scripts/check-governance.cjs';
 const MEMORY_YAML = '.wingfoil/memory.yaml';
 const DNA_YAML = '.wingfoil/dna.yaml';
@@ -122,7 +131,7 @@ function resolveCommit(root, rev, flag) {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`]).trim();
   } catch {
-    throw new UsageError(`${flag} ${rev} is not a commit of ${root}`);
+    throw new UsageError(flag === null ? `${root} is not a git repository, or has no commit at HEAD` : `${flag} ${rev} is not a commit of ${root}`);
   }
 }
 
@@ -342,7 +351,7 @@ function describeTransitionFinding(finding, path, type) {
  */
 function checkGovernance(root, options = {}) {
   const dist = loadDist();
-  const head = resolveCommit(root, 'HEAD', 'HEAD');
+  const head = resolveCommit(root, 'HEAD', null);
   const base = options.base === undefined ? null : resolveCommit(root, options.base, '--base');
   const range = base === null ? ['HEAD'] : [`${base}..HEAD`];
 
@@ -350,7 +359,13 @@ function checkGovernance(root, options = {}) {
   if (options.introducedAt !== undefined) {
     introducedAt = resolveCommit(root, options.introducedAt, '--introduced-at');
   } else {
-    const adding = git(root, ['log', '--diff-filter=A', '--format=%H', 'HEAD', '--', SCRIPT_PATH]).trim().split('\n').filter(Boolean);
+    // On the first-parent line, the commit that added the file is where it landed — on `main`, the
+    // merge of the branch that wrote it — so every commit merged with it is history, not only those
+    // older than the branch's own commit.
+    const adding = git(root, ['log', '--first-parent', '--diff-filter=A', '--format=%H', 'HEAD', '--', SCRIPT_PATH])
+      .trim()
+      .split('\n')
+      .filter(Boolean);
     introducedAt = adding.length === 0 ? null : adding[adding.length - 1];
   }
   const history = new Set(introducedAt === null ? [] : git(root, ['rev-list', introducedAt]).trim().split('\n'));
@@ -373,8 +388,8 @@ function checkGovernance(root, options = {}) {
   const findings = [];
   const stateUnchecked = [];
   const order = new Map(memoryCommits.map((commit, index) => [commit.sha, index]));
-  /** headPath → machine key → { machine, type, shas } */
-  const stateGroups = new Map();
+  /** headPath → sha → how that commit touched the document: { named, op, bracketed, machine, type, key } */
+  const stateDocuments = new Map();
 
   memoryCommits.forEach((commit, index) => {
     const memoryOid = blobs[index * 2];
@@ -386,16 +401,26 @@ function checkGovernance(root, options = {}) {
     subjectFindings.forEach(push);
     if (op !== null) checkBodyAndAuthority(commit, op, dna, dist).forEach(push);
 
-    if (!WF_HEAD_RE.test(commit.subject) || !ANY_BRACKET_RE.test(commit.subject)) return;
+    if (!WF_HEAD_RE.test(commit.subject)) return;
+    const gated = !history.has(commit.sha);
     const unchecked = (reason) => stateUnchecked.push({ sha: commit.sha, subject: commit.subject, reason });
     const type = WF_HEAD_RE.exec(commit.subject)[1];
-    const machine =
-      memoryYaml && memoryYaml.ok && Object.prototype.hasOwnProperty.call(memoryYaml.value.types, type)
-        ? dist.memory.resolveStateMachine(memoryYaml.value, type)
-        : undefined;
-    if (machine === undefined) unchecked(`no machine for '${type}' in the memory.yaml at this commit: hops not judged`);
+    const typeKnown = Boolean(memoryYaml && memoryYaml.ok && Object.prototype.hasOwnProperty.call(memoryYaml.value.types, type));
+    const machine = typeKnown ? dist.memory.resolveStateMachine(memoryYaml.value, type) : undefined;
+    if (machine === undefined) {
+      // An unknown type under a readable memory.yaml is already a subject finding.
+      const why =
+        memoryYaml === null
+          ? `no ${MEMORY_YAML} is committed at this commit`
+          : !memoryYaml.ok
+            ? `the ${MEMORY_YAML} committed at this commit does not validate (${memoryYaml.error})`
+            : `no machine for '${type}' in the ${MEMORY_YAML} at this commit`;
+      if (gated && (memoryYaml === null || !memoryYaml.ok)) push({ rule: 'state', message: `${why}: its state cannot be checked` });
+      else unchecked(`${why}: transitions not judged`);
+    }
+    const bracketed = ANY_BRACKET_RE.test(commit.subject);
 
-    const hops = dist.memory.parseBracketHops(commit.subject);
+    const hops = bracketed ? dist.memory.parseBracketHops(commit.subject) : null;
     if (op !== null && machine && hops && hops.length === 1 && !EDGE_EXEMPT_VERBS.has(op) && !dist.memory.isMachineEdge(machine, hops[0].from, hops[0].to)) {
       push({ rule: 'state', message: `${hops[0].from} → ${hops[0].to} is not an edge of the '${type}' machine at this commit` });
     }
@@ -409,8 +434,8 @@ function checkGovernance(root, options = {}) {
       const id = basename(path, '.md');
       return named.has(id) || [...named].some((token) => token !== '' && id.startsWith(`${token}-`));
     };
-    // Every Markdown document the commit touches is checked: those its subject names in full, and the
-    // others for one thing only — a status the commit changed without naming the element (below).
+    // Every Markdown document the commit touches is checked: those its subject names, and the others
+    // for one thing only — a status the commit changed without naming the element.
     const documents = new Map();
     for (const path of (touched.get(commit.sha) ?? []).filter((candidate) => candidate.endsWith('.md'))) {
       const atHeadPath = renamed(path);
@@ -422,11 +447,15 @@ function checkGovernance(root, options = {}) {
         if (isNamedDocument) unchecked(`${path} does not exist at HEAD`);
         continue;
       }
-      const key = machine === undefined ? '' : `${memoryOid}:${type}`;
-      if (!stateGroups.has(path)) stateGroups.set(path, new Map());
-      const groups = stateGroups.get(path);
-      if (!groups.has(key)) groups.set(key, { machine, type, shas: new Map() });
-      groups.get(key).shas.set(commit.sha, isNamedDocument);
+      if (!stateDocuments.has(path)) stateDocuments.set(path, new Map());
+      stateDocuments.get(path).set(commit.sha, {
+        named: isNamedDocument,
+        op,
+        bracketed,
+        machine,
+        type,
+        key: machine === undefined ? '' : `${memoryOid}:${type}`,
+      });
     }
   });
 
@@ -451,25 +480,44 @@ function checkGovernance(root, options = {}) {
   const stateFinding = (sha, message) =>
     findings.push({ sha, subject: subjects.get(sha), rule: 'state', message, gated: !history.has(sha) });
 
-  for (const path of [...stateGroups.keys()].sort()) {
-    const unnamed = new Set();
-    for (const key of [...stateGroups.get(path).keys()].sort()) {
-      const { machine, type, shas } = stateGroups.get(path).get(key);
-      const named = [...shas.keys()].filter((sha) => shas.get(sha));
-      [...shas.keys()].filter((sha) => !shas.get(sha)).forEach((sha) => unnamed.add(sha));
-      if (named.length === 0) continue;
-      const transitionFindings = readOrReport(path, named, () => dist.memory.verifyTransitionConsistency(root, path, machine));
+  for (const path of [...stateDocuments.keys()].sort()) {
+    const touches = stateDocuments.get(path);
+
+    // Bracketed subjects that name the document: the consistency check, once per machine.
+    const byKey = new Map();
+    for (const [sha, touch] of touches) {
+      if (!touch.named || !touch.bracketed) continue;
+      if (!byKey.has(touch.key)) byKey.set(touch.key, { machine: touch.machine, type: touch.type, shas: [] });
+      byKey.get(touch.key).shas.push(sha);
+    }
+    for (const key of [...byKey.keys()].sort()) {
+      const { machine, type, shas } = byKey.get(key);
+      const transitionFindings = readOrReport(path, shas, () => dist.memory.verifyTransitionConsistency(root, path, machine));
       for (const finding of transitionFindings ?? []) {
-        if (shas.get(finding.sha) === true) stateFinding(finding.sha, describeTransitionFinding(finding, path, type));
+        if (shas.includes(finding.sha)) stateFinding(finding.sha, describeTransitionFinding(finding, path, type));
       }
     }
-    // A document the subject does not name has no bracket of its own to agree with: what is wrong is
-    // only a status the commit changed without recording it (`dl-103` §1, "each touched element").
-    if (unnamed.size === 0) continue;
-    const transitions = readOrReport(path, [], () => dist.memory.reconstructMemoryTransitions(root, path));
+
+    // Everything else is read from the frontmatter, before and after each commit.
+    const fromFrontmatter = [...touches].filter(([, touch]) => !touch.named || (!touch.bracketed && BRACKETLESS_VERBS.has(touch.op)));
+    if (fromFrontmatter.length === 0) continue;
+    const reportable = fromFrontmatter.filter(([, touch]) => touch.named).map(([sha]) => sha);
+    const transitions = readOrReport(path, reportable, () => dist.memory.reconstructMemoryTransitions(root, path));
     for (const transition of transitions ?? []) {
-      if (unnamed.has(transition.sha) && transition.fromState !== transition.toState) {
-        stateFinding(transition.sha, `${path}: the subject does not name it, yet its status went ${transition.fromState} → ${transition.toState}`);
+      const touch = touches.get(transition.sha);
+      if (touch === undefined) continue;
+      const { fromState: from, toState: to } = transition;
+      if (!touch.named) {
+        // A document the subject does not name has no record of its own: what is wrong is only a
+        // status the commit changed without recording it (`dl-103` §1, "each touched element").
+        if (from !== to) stateFinding(transition.sha, `${path}: the subject does not name it, yet its status went ${from} → ${to}`);
+      } else if (touch.op === 'assign') {
+        if (from !== to) stateFinding(transition.sha, `${path}: 'assign' never changes status, yet it went ${from} → ${to}`);
+      } else if (touch.op === 'add') {
+        const initial = touch.machine?.sequence[0];
+        if (initial !== undefined && to !== initial) stateFinding(transition.sha, `${path}: 'add' leaves it in the initial state '${initial}', not '${to}'`);
+      } else if (touch.op === 'submit' && touch.machine && from !== null && to !== null && !dist.memory.isMachineEdge(touch.machine, from, to)) {
+        stateFinding(transition.sha, `${path}: 'submit' moved it ${from} → ${to}, not an edge of the '${touch.type}' machine at this commit`);
       }
     }
   }
@@ -522,7 +570,8 @@ function formatReport(report) {
   lines.push(
     `gated: ${gated.length} findings on ${commitsWith(gated)} commits${gated.length ? ` (${countByRule(gated)})` : ''}`,
     `history: ${history.length} findings on ${commitsWith(history)} commits${history.length ? ` (${countByRule(history)})` : ''}`,
-    `state not checked: ${report.stateUnchecked.length} (bracketed commits with no machine, no named document, or a document gone at HEAD)`,
+    `state not checked: ${report.stateUnchecked.length} entries on ${commitsWith(report.stateUnchecked)} commits ` +
+      '(history with no machine, no named document, a document gone at HEAD, or a revision that does not parse)',
   );
   return lines.join('\n');
 }
@@ -552,8 +601,10 @@ function main(argv) {
     process.stdout.write(`${options.json ? JSON.stringify(report, null, 2) : formatReport(report)}\n`);
     return exitCodeFor(report);
   } catch (error) {
-    if (!(error instanceof UsageError)) throw error;
-    process.stderr.write(`error: ${error.message}\n`);
+    // Exit 1 means a gated finding and nothing else: any failure to run — bad usage, no repository,
+    // no build, a git error — is exit 2, with its message.
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`error: ${message.split('\n')[0]}\n`);
     return 2;
   }
 }

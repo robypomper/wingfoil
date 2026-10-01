@@ -20,7 +20,7 @@ export interface GovernanceFinding {
   readonly gated: boolean;
 }
 
-/** A bracketed commit whose state could not be checked, and why. */
+/** A commit whose state could not be checked, and why. A commit may have several entries. */
 export interface UncheckedState {
   readonly sha: string;
   readonly subject: string;
@@ -41,7 +41,10 @@ export interface GovernanceReport {
   readonly gatedCommits: number;
   /** Every finding, oldest commit first, then by rule. */
   readonly findings: readonly GovernanceFinding[];
-  /** Bracketed commits whose state was not checked. */
+  /**
+   * Commits whose state was not fully checked, and why. On a gated commit, a missing or invalid
+   * `memory.yaml` is a finding instead of an entry here.
+   */
   readonly stateUnchecked: readonly UncheckedState[];
 }
 
@@ -50,8 +53,8 @@ export interface GovernanceOptions {
   /** Check `base..HEAD` instead of the whole history. */
   readonly base?: string;
   /**
-   * The introduction commit. Defaults to the oldest commit of `HEAD`'s history that added
-   * `scripts/check-governance.cjs`.
+   * The introduction commit. Defaults to the commit of `HEAD`'s first-parent line that added
+   * `scripts/check-governance.cjs` — on `main`, the merge that landed it.
    */
   readonly introducedAt?: string;
 }
