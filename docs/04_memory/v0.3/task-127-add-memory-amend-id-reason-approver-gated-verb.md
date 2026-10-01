@@ -215,3 +215,75 @@ subject does mention the content. The other hits describe the transition engine
 transition of the engine, so they were left. `CLAUDE.md` §1/§5.1 (command count "20", verb list) is owned by `align-agent-docs` (`dl-025`)
 and left for the coordinator. So are `README.md`, `docs/user-guide.md` and `docs/agents.md` (the
 `user-docs` phase).
+
+### review (independent)
+
+A separate review on `bd5419cb` (coordinator, 2026-10-01) returned **APPROVE WITH FIXES**. The task
+stays `in-review`; nothing was resubmitted. The approver's rulings came during that review.
+
+**F1 (should-fix): an amendment could break `spec-010` § Validation rules.** The reviewer
+reproduced it: on an `approved` tech-spec with `required: [title, scope]`, deleting `scope:` or
+blanking `title` and running `memory amend` → exit 0, committed.
+- **red** `b4189d5f`: three cases (required field removed, title blanked, required field blanked) on
+  a non-draft document, expecting exit 1 and `missing required field on amend: <field>`.
+  `npx jest test/core/memory-amend.test.ts` → **3 failed, 22 passed** (`Expected: false, Received:
+  true`, the amend succeeded). A draft-document case that may leave a field empty passed already
+  (characterization, as `submit` allows it).
+- **green** `8a288e2f`: `requireRequiredFieldsKept` (`src/core/memory-amend.ts`) runs `submit`'s
+  own `missingRequiredFields` on the edited frontmatter whenever the state is not the machine's
+  initial state (`sequence[0]`, which is `draft` for every declared type).
+
+**F6 (nit): the authority-order rationale was false.** The type is known after step 3. Resolved by
+**moving** the check, not by rewording: `requireApprovalAuthority` now runs right after
+locate + confinement, as `approve` does, before amendability and the edit checks (`8a288e2f`; TSDoc
+renumbered). This supersedes design decision 6's order. No test needed changing: no test relied on
+a document refusal preceding the authority one.
+
+**Approver rulings (Roberto, 2026-10-01), superseding design decisions 2 and 3:**
+- **(a) Amendable types in this repository:** `true` for `tech-spec`, `decision-log`, `service`,
+  `task`, `bug` and `plan`; `false` for `adr` (`dl-108` A3), `release` and `release-line`. This is
+  in `.wingfoil/memory.yaml`, which was already 1.7 on this branch and is not yet on `main`, so it
+  gets no further bump. Practice from now on: the approver's hand corrections of backlog tasks and
+  bugs, and revisions of plans, become `amend` commits. A developer's own Execution Notes stay plain
+  commits.
+- **(b) Fields amend may not change** now include `release` (owned by `assign`), `rejection_reason`
+  (owned by `reject`) and `supersedes` (the future trigger, `task-162`), besides `id`, `status` and
+  `type`. That is `AMEND_RESERVED_FIELDS`; the refusal names the field.
+  - **red** `6e9d2490`: three cases. `release` and `supersedes` failed on the missing refusal. The
+    `rejection_reason` case failed on a fixture defect instead (`git commit` with nothing to commit,
+    when the committed line is empty). The fix (seed only when there is something to seed) is in
+    `259fd5c7`. Re-checked against the pre-fix list (`AMEND_RESERVED_FIELDS` temporarily set back to
+    `['id', 'status', 'type']`): `-t "ruling"` → **3 failed**, all on the missing refusal.
+  - **green** `259fd5c7`.
+- **(c) The `wingfoil init` scaffold** (`src/storage/templates.ts`, `MEMORY_AMENDABLE`) declares
+  `amendable` on its seven types, consistent with (a): `true` for `tech-spec`, `decision-log`,
+  `task` and `bug`; `false` for `adr`, `release` and `release-line`. The scaffold has no `service`
+  or `plan` type. A header comment line says what the key is.
+  - **red** `6e9d2490`: a new block in `test/cli/fresh-init-transitions.test.ts` runs, per template,
+    a real `init`, then tech-spec add → submit → approve, a body edit, then `amend`: exit 0, one
+    commit with the `[approved → approved]` subject, clean tree. The same steps on an `adr` give
+    exit 1 `declares amendable: false`. Result: **2 failed** (Scrum, Kanban), with `type
+    'tech-spec' is not amendable: … does not declare amendable: true`.
+  - **green** `259fd5c7`. No test pins the scaffold bytes: the full suite stays green, including
+    `test/storage` and the built-in template checks.
+
+**Docs** (`85f508fc`):
+- `spec-008` §2's amend paragraph: the six reserved fields, the required-field rule, the
+  authority order.
+- `spec-010`: the ownership row and the paragraph list the six fields and their owners.
+- `spec-001`'s worked examples: `task`, `bug`, `plan` are `true`.
+- Each of those specs gains a sentence in its `task-127` Revision note. Those notes were not on
+  `main` yet, so they were extended rather than given a second note.
+- `docs/cli-reference.md`: the six fields, the required-field error, and what `init` declares.
+- `src/memory/frontmatter-edit.ts`'s `DocumentScope` comment points to `AMEND_RESERVED_FIELDS`.
+
+**Gates** (on `85f508fc`, `npm run build` first):
+
+| Command | Result |
+|---|---|
+| `npm run test:coverage` | exit 0; 166 suites / 2759 tests; 98.73 / 94.58 / 94.01 / 99.49 (`main` `bd60a7a3`: 98.71 / 94.54 / 93.96 / 99.48) |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+| `npm run -s wingfoil -- memory search --type task` (pinned 0.2.2 reads `memory.yaml` 1.7) | exit 0 |
