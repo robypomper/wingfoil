@@ -187,3 +187,38 @@ For the approver:
 - The three `dl-086` sites without a status word were left as they are; the test forbids
   `in-discussion` only, so a later `(`ready`)` would pass — dropping the word is the convention, not
   a gate.
+
+### review (independent)
+
+Verdict: approve with fixes (text only). Applied in `cda1e5df` (directive, cli-reference) and in the
+pending amendments:
+
+1. **The tables said the transition verbs read `HEAD`; the code decides on the working tree.**
+   `prepareMemoryTransition` finds the document with `findMemoryDocumentById` (a working-tree scan),
+   and `memory submit` takes the current `status` from the working-tree frontmatter
+   (`grep -n "prepareMemoryTransition(root, id" src/core/index.ts` → submit, approve, reject,
+   deprecate, amend). The reviewer reproduced it (HEAD `pending` + working tree `draft` → a second
+   submit at exit 0). My design read `memory-transition.ts`'s `loadMemoryYamlAtHead` and took it for
+   the whole verb; that was the claim-evidence slip. Now a "working tree, deviating" row in `spec-006`
+   §6 and `spec-008` §11, a paragraph in `command-baseline` ("Where the shipped code still
+   deviates"), and the cli-reference names both defects. The code defect is filed by the coordinator;
+   no code changed here.
+2. **`workflow next` gates** (`spec-017` §1.1): moved to the item-1 `HEAD` row and named in item 6 for
+   completeness only; "none of these reads can refuse an operation" → "none decides from the working
+   tree"; `spec-008` "never read" → "never decides the answer".
+3. The source for the shipped workflow Resources keeping the working tree is `spec-017` §9, not
+   `spec-006` §3.
+4. `command-baseline.md:94` / `:75` offsets in `spec-016` (§5.1, Q9) and `spec-017` (§1.1, §1.2,
+   OQ-10) replaced by section/bullet names, each spec with a dated Revision note (pending amendments).
+   `grep -rn "command-baseline.md:[0-9]" docs/04_memory/design/specs/` → only `spec-006`'s
+   2026-09-30 historical note, left as instructed. The offsets had already drifted with 1.1:
+   `git show 8e8943e7:.wingfoil/directives/custom/command-baseline.md | sed -n '75p;94p'` shows
+   neither quoted text.
+5. `directive remove`'s referrer check (`roles.yaml` at `HEAD`) listed under `HEAD` reads; the
+   lowercase "when" after a full stop in `spec-008` §11 fixed.
+
+Re-run after the fixes: `npx jest test/docs` → 3 suites / 6 tests passed; `npm run -s lint`,
+`npx tsc --noEmit -p tsconfig.json`, `npx tsc -p tsconfig.build.json --noEmit` → exit 0.
+
+Pending amendments now: `spec-006`, `spec-008`, `spec-016`, `spec-017` (reasons in the report to
+the coordinator; `spec-006`/`spec-008` as listed above, extended by points 1, 2 and 5).
