@@ -1968,7 +1968,7 @@ export const CORE_MODULES: readonly CoreModule[] = [
         name: 'paths',
         mutates: false,
         description: 'print the resource paths declared in dna.yaml paths:',
-        positional: { name: 'category', description: 'sources, tests, docs, config or governance (omit it for the whole map)' },
+        positional: { name: 'category', description: 'sources, tests, docs, config, governance or runs (omit it for the whole map)' },
         flags: [{ name: 'list', description: 'accepted for the planned drill-down view; it does not change the output yet' }],
         example: 'wingfoil paths sources',
         fn: pathsFn,
