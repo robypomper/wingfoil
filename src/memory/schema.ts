@@ -110,6 +110,12 @@ export const MemoryTypeEntry = z
     tags: z.array(z.string()).optional(),
     template: TemplateConfig.optional(),
     states: StateMachine.optional(), // absent ⇒ `defaults.states` applies (REQ-STATE-08)
+    /**
+     * Whether `memory amend` may record a content correction on this type's documents (`dl-108` A3,
+     * `spec-001`, task-127). Absent means **not** amendable: amending is opted into per type, so a
+     * type whose content is a decision (`adr`) stays correctable only by a new element.
+     */
+    amendable: z.boolean().optional(),
   })
   .passthrough();
 export type MemoryTypeEntry = z.infer<typeof MemoryTypeEntry>;

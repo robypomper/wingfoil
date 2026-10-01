@@ -35,6 +35,8 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaShow',
       'dna.dnaUpdate',
       'memory.memoryAdd',
+      // task-127 (`dl-108`): the approver-gated amendment verb.
+      'memory.memoryAmend',
       'memory.memoryApprove',
       'memory.memoryDeprecate',
       'memory.memoryHistory',
@@ -46,7 +48,7 @@ describe('CORE_MODULES — production registry', () => {
     ]);
   });
 
-  it('twelve operations mutate today — the nine before task-093 plus `dna.dnaAdd`, `dna.dnaRemove` and `dna.dnaUpdate` (P2.1, dl-081); the rest are read-only', () => {
+  it('thirteen operations mutate today — the nine before task-093, `dna.dnaAdd`, `dna.dnaRemove` and `dna.dnaUpdate` (P2.1, dl-081), and `memory.memoryAmend` (task-127, dl-108); the rest are read-only', () => {
     const mutating = enumerateOperations(CORE_MODULES).filter(({ operation }) => operation.mutates);
     expect(mutating.map(({ module, operation }) => `${module.name}.${operation.name}`)).toEqual([
       'directive.directiveAssign',
@@ -57,6 +59,7 @@ describe('CORE_MODULES — production registry', () => {
       'dna.dnaSet',
       'dna.dnaUpdate',
       'memory.memoryAdd',
+      'memory.memoryAmend',
       'memory.memoryApprove',
       'memory.memoryDeprecate',
       'memory.memoryReject',

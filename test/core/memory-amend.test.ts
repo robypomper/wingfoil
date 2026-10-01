@@ -182,7 +182,9 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
 
       expect(result.ok).toBe(true);
       expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(SPEC);
-      expect(gitOut(repo, ['status', '--porcelain']).split('\n').sort()).toEqual([' M src/other.ts', 'A  src/staged.ts']);
+      // Read untrimmed: the leading column of `git status --porcelain` is the index state.
+      const status = execFileSync('git', ['-C', repo, 'status', '--porcelain'], { encoding: 'utf-8' });
+      expect(status.split('\n').filter(Boolean).sort()).toEqual([' M src/other.ts', 'A  src/staged.ts']);
     });
   });
 
