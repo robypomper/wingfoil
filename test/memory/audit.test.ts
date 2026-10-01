@@ -73,6 +73,9 @@ describe('isValidAttribution — pure predicate, no git involved', () => {
     ['.localhost', 'scratch@example.localhost'],
     ['.invalid, upper case', 'scratch@EXAMPLE.INVALID'],
     ['.test, bare second level', 'scratch@build.test'],
+    // task-132 review, finding 6: a fully-qualified domain's trailing dot names the same domain.
+    ['.test, trailing dot', 'scratch@foo.test.'],
+    ['.invalid, trailing dots', 'scratch@foo.invalid..'],
   ])('rejects an email on the RFC 2606 reserved domain %s', (_label, email) => {
     expect(isValidAttribution('Scratch User', email)).toBe(false);
   });
@@ -114,12 +117,14 @@ describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ 
 
 /**
  * A fixture repository whose configured author is NOT a placeholder. `makeTempGitRepo`'s identity is on
- * `example.invalid`, an RFC 2606 reserved domain the audit itself counts as unattributed since
- * task-132 (`bug-153`), so the "every commit is valid" baseline needs an ordinary domain.
+ * `example.invalid`, an RFC 2606 reserved top-level domain the audit itself counts as unattributed
+ * since task-132 (`bug-153`), so the "every commit is valid" baseline needs another domain.
+ * `example.org` is IANA-reserved too, but at the second level, which the top-level-only rule accepts
+ * — so no registrable name is used; a future second-level rule would have to move it.
  */
 function makeAttributedRepo(): string {
   const dir = makeTempGitRepo();
-  git(dir, ['config', 'user.email', 'wf-test@wingfoil-fixture.org']);
+  git(dir, ['config', 'user.email', 'wf-test@example.org']);
   return dir;
 }
 

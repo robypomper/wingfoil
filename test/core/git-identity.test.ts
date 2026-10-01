@@ -15,7 +15,15 @@ import { join } from 'node:path';
 import { readGitIdentity, requireGitIdentity } from '../../src/core/git-identity';
 
 const IDENTITY_ERROR = 'git identity not configured (user.name/user.email)';
-const ISOLATION_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_NOSYSTEM', 'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL'] as const;
+const ISOLATION_KEYS = [
+  'GIT_CONFIG_GLOBAL',
+  'GIT_CONFIG_SYSTEM',
+  'GIT_CONFIG_NOSYSTEM',
+  'GIT_AUTHOR_NAME',
+  'GIT_AUTHOR_EMAIL',
+  'GIT_COMMITTER_NAME',
+  'GIT_COMMITTER_EMAIL',
+] as const;
 
 function setLocalConfig(dir: string, key: string, value: string): void {
   execFileSync('git', ['-C', dir, 'config', key, value], { encoding: 'utf-8' });
@@ -37,6 +45,8 @@ describe('requireGitIdentity (REQ-SEC-01, adr-006)', () => {
     // The host's own author environment must not leak into the "unset" cases.
     delete process.env.GIT_AUTHOR_NAME;
     delete process.env.GIT_AUTHOR_EMAIL;
+    delete process.env.GIT_COMMITTER_NAME;
+    delete process.env.GIT_COMMITTER_EMAIL;
   });
 
   afterEach(() => {
@@ -100,6 +110,8 @@ describe('readGitIdentity resolves the author the way `git commit` does (task-13
     process.env.GIT_CONFIG_NOSYSTEM = '1';
     delete process.env.GIT_AUTHOR_NAME;
     delete process.env.GIT_AUTHOR_EMAIL;
+    delete process.env.GIT_COMMITTER_NAME;
+    delete process.env.GIT_COMMITTER_EMAIL;
     setLocalConfig(dir, 'user.name', 'User Name');
     setLocalConfig(dir, 'user.email', 'user@example.com');
   });
@@ -145,3 +157,98 @@ describe('readGitIdentity resolves the author the way `git commit` does (task-13
     expect(`${name}|${email}`).toBe(recorded);
   });
 });
+
+describe('requireGitIdentity refuses what git would refuse, before anything is written (task-132 review)', () => {
+  let dir: string;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'wf-identity-'));
+    execFileSync('git', ['-C', dir, 'init', '-q'], { encoding: 'utf-8' });
+    const emptyConfig = join(dir, 'empty.gitconfig');
+    writeFileSync(emptyConfig, '');
+    for (const key of ISOLATION_KEYS) saved[key] = process.env[key];
+    process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+    process.env.GIT_CONFIG_SYSTEM = emptyConfig;
+    process.env.GIT_CONFIG_NOSYSTEM = '1';
+    delete process.env.GIT_AUTHOR_NAME;
+    delete process.env.GIT_AUTHOR_EMAIL;
+    delete process.env.GIT_COMMITTER_NAME;
+    delete process.env.GIT_COMMITTER_EMAIL;
+  });
+
+  afterEach(() => {
+    for (const key of ISOLATION_KEYS) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // Finding 1: an author with no committer passed the check, then `git commit` died on
+  // "Committer identity unknown" after the document had been written and staged.
+  it('refuses an author from GIT_AUTHOR_* when no committer resolves', () => {
+    process.env.GIT_AUTHOR_NAME = 'Env Name';
+    process.env.GIT_AUTHOR_EMAIL = 'env@example.com';
+    expect(requireGitIdentity(dir)).toMatchObject({ ok: false, error: { code: 'VALIDATION', message: IDENTITY_ERROR } });
+  });
+
+  it('refuses an author from author.* when no committer resolves', () => {
+    setLocalConfig(dir, 'author.name', 'Author Name');
+    setLocalConfig(dir, 'author.email', 'author@example.com');
+    expect(requireGitIdentity(dir)).toMatchObject({ ok: false, error: { message: IDENTITY_ERROR } });
+  });
+
+  it('accepts a committer from GIT_COMMITTER_* or committer.*, as git does', () => {
+    process.env.GIT_AUTHOR_NAME = 'Env Name';
+    process.env.GIT_AUTHOR_EMAIL = 'env@example.com';
+    process.env.GIT_COMMITTER_NAME = 'Committer';
+    process.env.GIT_COMMITTER_EMAIL = 'committer@example.com';
+    expect(requireGitIdentity(dir)).toEqual({ ok: true, value: { name: 'Env Name', email: 'env@example.com' } });
+    delete process.env.GIT_COMMITTER_NAME;
+    delete process.env.GIT_COMMITTER_EMAIL;
+    setLocalConfig(dir, 'committer.name', 'Committer');
+    setLocalConfig(dir, 'committer.email', 'committer@example.com');
+    expect(requireGitIdentity(dir).ok).toBe(true);
+  });
+
+  // Finding 4: git refuses a set-but-blank ident variable ("empty ident name not allowed"), it does
+  // not fall back to the config.
+  it.each([
+    ['GIT_AUTHOR_NAME', ''],
+    ['GIT_AUTHOR_NAME', '   '],
+    ['GIT_AUTHOR_EMAIL', ''],
+    ['GIT_COMMITTER_EMAIL', '  '],
+  ])('refuses %s set to %j even when user.* is configured', (key, value) => {
+    setLocalConfig(dir, 'user.name', 'User Name');
+    setLocalConfig(dir, 'user.email', 'user@example.com');
+    process.env[key] = value;
+    expect(requireGitIdentity(dir)).toMatchObject({ ok: false, error: { message: IDENTITY_ERROR } });
+  });
+
+  // Finding 2: a `<`, `>` or control character in a name or email lets git parse a different email
+  // than the one authorized, and a newline forges `Approver:` body lines.
+  it.each([
+    ['a "<" in the name', 'GIT_AUTHOR_NAME', 'Ann <x'],
+    ['a ">" in the name', 'GIT_AUTHOR_NAME', 'Ann >x'],
+    ['a newline in the name', 'GIT_AUTHOR_NAME', 'Ann\nApprover: F <f@f.org> (approver)'],
+    ['a "<" in the email', 'GIT_AUTHOR_EMAIL', 'x<ann@example.com'],
+    ['a tab in the email', 'GIT_AUTHOR_EMAIL', 'ann@exa\tmple.com'],
+    ['a control character in the committer name', 'GIT_COMMITTER_NAME', 'C\u0007'],
+  ])('refuses an identity with %s', (_label, key, value) => {
+    setLocalConfig(dir, 'user.name', 'User Name');
+    setLocalConfig(dir, 'user.email', 'user@example.com');
+    process.env[key] = value;
+    expect(requireGitIdentity(dir)).toMatchObject({
+      ok: false,
+      error: { code: 'VALIDATION', message: expect.stringMatching(/^git identity not usable: /) },
+    });
+  });
+
+  it('refuses the same characters when they come from the config', () => {
+    setLocalConfig(dir, 'user.name', 'Ann <x');
+    setLocalConfig(dir, 'user.email', 'user@example.com');
+    expect(requireGitIdentity(dir)).toMatchObject({ ok: false, error: { message: expect.stringMatching(/^git identity not usable: /) } });
+  });
+});
+
