@@ -152,6 +152,26 @@ Fixed in `e7deb40b`, in files this task already touched (the fix-same-class rule
   and "Core value language: Deterministic" (`02_product-vision.md:26`, a workshop decision). The first two
   describe the problem, and the third is the input side; none of them promises equivalent code.
 
+### review (independent, 2026-10-01): approve with fixes
+
+Fixed, with no version re-bump (the coordinator's reading is one bump per branch; the approver will rule on
+clarifying `doc-versioning`):
+- `dfa2d13c`: REQ-STATE-10's `Status:` line is removed. It was the only requirement with one
+  (`grep -c '^\* \*\*Status' docs/02_requirements/03_sard/*.md` → 0 in every file). The ratification is
+  recorded in *Approver rulings* above and in `0e08ea41`. The SARD index note no longer says "ratified".
+- `7e2ddf57`: the brief's **P** row now carries all of dl-131 Decision 3, adding "by distinct actors where the
+  workflow requires it" and "between two runs, similar git trees". The References note now says the brief
+  states no fact about **what a specific third-party tool does**. Products are named elsewhere in the brief, as
+  personas' tools (Alex's profile) and GTM partners, but nothing is said about their behaviour.
+- The bug-160 index script, re-run → `mismatches: []`. Both edits kept the brief's line count.
+
+Follow-ups for the coordinator (not in this task's scope, not filed):
+- The North Star wording in `README.md`, `docs/agents.md` and `CLAUDE.md` still says "produce substantially
+  equivalent software" without the I/P/O qualification. Owner: `user-docs` (`align-user-docs`, dl-112 Action 4;
+  `align-agent-docs`, dl-025).
+- `task-222` (release-health catalogue v2) should add the P entries that REQ-STATE-10's fit criterion lists.
+  REQ-STATE-10 still needs a user story and a BDD scenario (its Traceability says "no BDD scenario yet").
+
 ### Candidate findings (not filed)
 
 - The canvas, product-vision and journeys findings first listed here are fixed (follow-up above).
