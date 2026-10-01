@@ -153,9 +153,46 @@ surface still has zero blocking findings under the widened pattern (`secret-scan
 - Same class: `grep -rn "no already-initialized\|already-initialized check" src test` → only the new
   task-135 / bug-088 lines; `grep -rn "task-044's \`init\` integrity check calls" src` → none left.
 
+### review (independent)
+
+Verdict: approve with fixes. All three were applied while the task stays `in-review`.
+
+1. **The widened dotenv pattern also blocks indented code assignments** whose name contains a
+   credential word (a `token` variable assigned a function call, a `max_tokens` setting, a CI step
+   reading a token from a secrets store). Nothing in this repository's scan surface matches today (the
+   surface test still passes), but the trade-off was not written down, and the negative
+   `const token = getToken()` stepped around it. `a7bb4b64` pins the shape as blocking (3 cases,
+   characterization: they pass on first run) and pins the `<!-- example -->` fence exemption. The
+   pending spec-007 amendment now names the shape in §2's notes, along with its escape hatches
+   (`<!-- example -->`, `security-ignore`), and §4 step 6 no longer calls the trigger "near-unambiguous".
+2. **A regression from this task:** with `.wingfoil` a regular file, `initWingfoilStorage` threw
+   `ENOTDIR` from `detectInitState`'s `readdirSync`. Before this task it returned an `IO` result.
+   `initWingfoilProject` already threw there. Red-first: `a7bb4b64` adds a two-path table to
+   `init.test.ts`; `npx jest test/core/init.test.ts -t "not a directory"` → 2 failed,
+   `Error message: "ENOTDIR: not a directory, scandir …"`. Fixed in `8bc7f1b7` with one helper in
+   `src/core/init.ts`, `refuseInitializedProject`, which both entry points call. It refuses a
+   non-directory `.wingfoil` (VALIDATION, exit 1, the file left alone, no commit), then runs the
+   already-initialized check. `detectInitState` (`src/storage/init-state.ts`) is unchanged, so it
+   keeps spec-011's three states.
+3. **Comment wording:** the guard-5 comment said "the same refusal and message as
+   `initWingfoilProject`". The message is shared but the order is not (fifth here, second there).
+   The comment and the function doc now say so (`8bc7f1b7`).
+
+Gates after the fixes, with the amendment in the working tree:
+- `npx jest --coverage --maxWorkers=4`: 178 suites, **3001 passed**; All files `98.82 / 95.08 / 94.45 / 99.52`.
+- `npm run lint`, `npm run docs:api` and both `tsc` runs exit 0.
+- `node scripts/e2e-smoke.cjs -- node "$PWD/dist/cli.js"` exits 0, with 19 `ok` lines and 0 failures.
+- `docs/examples` 01–05 all exit 0.
+
+**Follow-up the coordinator files (not fixed here; out of `bug-037`'s scope).** The dotenv pattern
+still misses these forms: a commented `.env` line (a `#` before the key), a list item that is also
+`export`-ed, `readonly` / `declare -x` assignments, and PowerShell `$env:` assignments.
+
 ### Pending amendments (approver)
 
 - `spec-007-secret-hygiene-patterns` — proposed `--reason`: "task-135 (bug-037, bug-038): §2's
-  dotenv-style-secret-line regex tolerates leading whitespace, an export keyword or a list marker;
-  the stale note calling jwt-like a warn pattern is corrected; §4 step 5 names the failing template
-  rather than a path, since a built-in template source has none. A dated Revision note records it."
+  dotenv-style-secret-line regex tolerates leading whitespace, an export keyword or a list marker, and
+  its notes name indented code assignments as the known false-positive shape with the example-fence
+  and security-ignore escape hatches; the stale note calling jwt-like a warn pattern is corrected; §4
+  step 5 names the failing template rather than a path, since a built-in template source has none; §4
+  step 6 no longer calls the dotenv trigger near-unambiguous. A dated Revision note records it."
