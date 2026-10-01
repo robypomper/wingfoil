@@ -97,7 +97,7 @@ export function requireAmendableEdit(
   id: string,
   path: string,
   content: string,
-  reserved: readonly string[] = AMEND_RESERVED_FIELDS,
+  reserved: readonly string[],
 ): CoreResult<undefined> {
   const committed = readPathAtRev(root, 'HEAD', path);
   if (committed === null) {
