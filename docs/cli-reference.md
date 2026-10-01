@@ -466,11 +466,13 @@ Record an uncommitted correction to a document as an amendment, leaving its stat
 wingfoil memory amend <id> --reason <text>
 ```
 
-Edit the document first (its body, or any frontmatter field except `status`, `id` and `type`), then
+Edit the document first (its body, or any frontmatter field except `status`, `id`, `type`, `release`,
+`rejection_reason` and `supersedes`), then
 run `amend`: it commits that edit, and only that file, as one recorded operation. It is the verb for a
 correction to an element no other verb can move, such as an `approved` tech-spec. Same approver
 requirement as `approve`. The type must declare `amendable: true` in the committed `memory.yaml`;
-absent means not amendable.
+absent means not amendable. A project created by `wingfoil init` declares it for `tech-spec`,
+`decision-log`, `task` and `bug`, and declares `false` for `adr`, `release` and `release-line`.
 
 ```console
 $ wingfoil memory amend spec-001-storage-layout --reason "Later measurements corrected the §2 figures."
@@ -494,7 +496,9 @@ $ wingfoil memory amend spec-001-storage-layout --reason "Later measurements cor
 Other modified or staged files are left as they are and are not committed.
 
 - **Errors:** missing or blank `--reason` → exit `2`; the document has no uncommitted change, or is not
-  committed at all → exit `1`; the edit changes `status`, `id` or `type` → exit `1`, naming the field;
+  committed at all → exit `1`; the edit changes one of those six fields → exit `1`, naming the field;
+  past `draft`, the edit empties `title` or a required field → exit `1`
+  (`error: missing required field on amend: <fields>`);
   the type is not amendable → exit `1` (`error: type 'adr' is not amendable: …`); not an approver →
   exit `1` (`error: user not authorized to approve type 'tech-spec'`).
 

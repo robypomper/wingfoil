@@ -161,12 +161,15 @@ uncommitted edit of one document, as that one path, and moves no state, so its b
 self-loop of the state committed at `HEAD`. It is an approval: the body carries `Approver:` and
 `Reason:` exactly as `approve` writes them, and the caller needs the same authority (REQ-SEC-03). What
 an amendment may change is `spec-010`'s § Field-write ownership row: the body and every frontmatter
-field except `status`, `id` and `type`. Which types may be amended is the type's `amendable` key
+field except `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, each of which another operation owns. Past the type's initial state, the edit must
+also keep `title` and every `template.frontmatter.required` field non-empty (`spec-010` § Validation
+rules). Which types may be amended is the type's `amendable` key
 (`spec-001`), read from the committed `memory.yaml`; absent means not amendable. Its refusals: a
 missing or blank `--reason` exits `2` (§2 above); a type that is not amendable, a document that no
-commit holds, a document with no uncommitted change, and an edit that changes `status`, `id` or
-`type` (the message names the field) exit `1`, as does a caller without approval authority, with
-`approve`'s own message. Other modified or staged files are not committed and are left as they were.
+commit holds, a document with no uncommitted change, an edit that changes one of those six fields
+(the message names the field), and an edit that empties a required field past the initial state
+(`missing required field on amend: <fields>`) exit `1`, as does a caller without approval authority,
+with `approve`'s own message, checked as soon as the document is located. Other modified or staged files are not committed and are left as they were.
 
 ```
 wf({type}): amend {id} [{s} → {s}]
@@ -746,3 +749,7 @@ refusals, in the paragraph after the `set_release` rule. The `--reason` row list
 the commands that require it, and §1's one-id rule names it. The per-type key is `spec-001`'s, and
 the fields the verb owns are `spec-010`'s. No other section changed. Edited in place without a
 supersede or a state change (`dl-047`); pending the approver's sign-off at `task-127`'s review.
+At the review (2026-10-01): an amendment may not change `release`, `rejection_reason` or `supersedes`
+either (approver ruling (b)). It must keep `spec-010`'s required fields non-empty past the initial
+state (review F1). Authority is checked as soon as the document is located (review F6). The
+paragraph above states all three.

@@ -289,8 +289,8 @@ function unownedFieldProblems(
  *   *and* the state move) and `memory.amend` (task-127, `dl-108`: content and no state move). The
  *   asymmetry with the gates is deliberate rather than an oversight: an `approve` that carried a body
  *   would attest, under an approver's name, to content no commit subject mentions. `amend` is the
- *   approval whose subject says exactly that, and it still may not move `status`, `id` or `type`
- *   (`src/core/memory-amend.ts`).
+ *   approval whose subject says exactly that, and it still may not move the fields other operations
+ *   own (`AMEND_RESERVED_FIELDS`, `src/core/memory-amend.ts`).
  */
 export type DocumentScope = 'declared-fields-only' | 'carries-content';
 

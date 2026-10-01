@@ -229,7 +229,7 @@ types:
   task:
     path: "docs/04_memory/{release}/{id}.md"
     id_pattern: "task-{n}-{slug}"
-    amendable: false
+    amendable: true
     states:
       sequence: [ draft, pending, backlog, in-progress, in-review, approved, done ]
       gates:
@@ -272,7 +272,7 @@ types:
   bug:
     path: "docs/04_memory/bugs/{id}.md"
     id_pattern: "bug-{n}-{slug}"
-    amendable: false
+    amendable: true
     states:
       sequence: [ draft, open, triaged, planned, in-progress, in-review, resolved, closed ]
       gates:
@@ -287,7 +287,7 @@ types:
   plan:                                      # dl-019
     path: "docs/05_plans/{scope}/{id}.md"
     id_pattern: "{workflow}-{phase}-plan"
-    amendable: false
+    amendable: true
     states:
       sequence: [ draft, active, done ]
       waiting: [ active ]                    # active→done: fires once the phase's produces:/checks hold
@@ -409,9 +409,8 @@ above, with no `version:` bump (`dl-047`); **pending the approver's sign-off at 
 `amendable` key.** `dl-108` (`ready`) adds `memory amend`, and its A3 leaves the choice of which
 types may be amended to the approver, per type, in `memory.yaml`; its Action 2 asks this spec for the
 key. `MemoryTypeEntry` gains `amendable: z.boolean().optional()`, absent meaning `false`, described in
-the paragraph after the Zod block. The worked examples carry `memory.yaml` 1.7's values: `true` for
-`tech-spec`, `decision-log` and `service`, the three types whose approved or terminal documents this
-repository already corrects by hand (`dl-108` Context, `dl-088`); `false` for every other type, `adr`
-by `dl-108` A3 and the rest because no amendment practice exists for them yet. Those values are a
-`task-127` design decision, to be confirmed at its review. Edited in place, with no `version:` bump
+the paragraph after the Zod block. The worked examples carry `memory.yaml` 1.7's values, as the approver ruled
+at `task-127`'s review (2026-10-01, ruling (a)): `true` for `tech-spec`, `decision-log`, `service`,
+`task`, `bug` and `plan`; `false` for `adr` (`dl-108` A3), `release` and `release-line`. The
+`wingfoil init` scaffold follows the same rule for the types it declares (ruling (c)). Edited in place, with no `version:` bump
 (`dl-047`); pending the approver's sign-off at `task-127`'s review.
