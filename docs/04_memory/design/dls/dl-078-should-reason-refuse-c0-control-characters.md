@@ -101,3 +101,18 @@ output is trustworthy is a real reduction in what P1.10 offers.
   not absorbed; `dl-027` (`deprecate` writes no `Approver:` line and runs no authority check).
 - **Traceability:** P1.7 (approver identity and reason), P1.10 (`memory history` as the audit trail's
   reader).
+
+## Amendments
+
+**Amendment (2026-10-01) — the refusal extends past C0, per the approver's ruling at the triage of
+`bug-185`.** Option (A) refused only the C0 controls other than tab and newline (`task-166`). On
+`bug-185`'s evidence the approver extended it. A `Reason:` block is also refused when it contains:
+- DEL (U+007F);
+- the C1 controls (U+0080 to U+009F), e.g. CSI U+009B and NEL U+0085;
+- the Unicode line and paragraph separators (U+2028, U+2029).
+
+These are as invisible or misleading in a terminal or a log viewer as the C0 characters. Each is
+refused like the others, after normalization, naming the first one by code point. The checks run
+by `task-173`, which absorbs `bug-185` and builds the control-character gate. No `wf()` commit on
+`main` contains any of these characters (`task-166`'s independent review), so no history reading
+changes.
