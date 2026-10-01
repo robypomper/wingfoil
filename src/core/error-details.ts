@@ -5,10 +5,12 @@
  * Every core refusal built from a `ValidationError` carries `details: { issues }`, and two fields of
  * an issue are for the operator: the `file` it was found in (`bug-031`'s missing file name) and the
  * `detail` that explains a pinned contract message (`dl-032` option (c)). Until this module no surface
- * read either. Deciding *which* fields are shown once, here, is what keeps the CLI (`src/cli/error.ts`)
+ * read either. A spec-003 loader refusal (task-136) carries `details: { diagnostics }` instead; each
+ * diagnostic is shown in the reason form (see `diagnosticDetails`). Deciding *which* fields are shown once, here, is what keeps the CLI (`src/cli/error.ts`)
  * and the MCP registrar (`src/mcp/registrar.ts`) from drifting apart (REQ-SYS-05); each surface only
  * decides how to write the list in its own format.
  */
+import { formatDiagnostic, type Diagnostic } from '../validation';
 import type { CoreError } from './types';
 
 /** One operator-facing entry of a refusal: the file an issue names and/or its explanation. */
@@ -30,6 +32,8 @@ export interface ErrorDetail {
  * the bare `dl-032` contract string, both the file and the explanation.
  */
 export function errorDetails(error: CoreError): readonly ErrorDetail[] {
+  const diagnostics = error.details?.diagnostics;
+  if (Array.isArray(diagnostics)) return diagnosticDetails(error.message, diagnostics as readonly Diagnostic[]);
   const issues = error.details?.issues;
   if (!Array.isArray(issues)) return [];
   const entries: ErrorDetail[] = [];
@@ -41,6 +45,21 @@ export function errorDetails(error: CoreError): readonly ErrorDetail[] {
       ...(typeof detail === 'string' && detail !== '' ? { detail } : {}),
     };
     if (entry.file !== undefined || entry.detail !== undefined) entries.push(entry);
+  }
+  return entries;
+}
+
+/**
+ * The details of a refusal that carries spec-003 `diagnostics` (task-136) rather than `issues`: one
+ * entry per diagnostic, in the loader's order, its `detail` the diagnostic in the reason form
+ * (`formatDiagnostic`: code, path, file and message), so every further error and every warning reaches
+ * the operator. The diagnostic the reason already is — the first error — is not repeated.
+ */
+function diagnosticDetails(reason: string, diagnostics: readonly Diagnostic[]): readonly ErrorDetail[] {
+  const entries: ErrorDetail[] = [];
+  for (const diagnostic of diagnostics) {
+    const line = formatDiagnostic(diagnostic);
+    if (line !== reason) entries.push({ detail: line });
   }
   return entries;
 }
