@@ -2,7 +2,7 @@
 id: "task-133-bind-builtin-security-directive-role-stop-tests-pinning"
 type: task
 title: "Bind the built-in `security` directive to every role, and stop tests pinning live bindings by exact array"
-status: in-review
+status: approved
 release: "v0.3"
 kind: "fix"
 priority: "high"
