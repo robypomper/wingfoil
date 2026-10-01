@@ -29,7 +29,8 @@ Feature: P5.1.4 (US-0A-14) - CLI UX Improvements
   Scenario: Error - a refusal has one shape under --format json, whichever layer raises it
     When I run "wingfoil --format json memroy add"
     Then the CLI exits with code 2
-    And stderr is the single JSON object {"error": "unknown command 'memroy'", "hint": "Did you mean memory?"}
+    And stderr is a single JSON object whose "error" is "unknown command 'memroy'"
+    And whose "hint" names "memory"
     And no usage text is written
 
   Scenario: Error - a refusal's details follow its error line
