@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.1"
+version: "1.2"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -154,3 +154,19 @@ commit, right after the task's transition and on the task branch:
   `npm test` green with coverage > 80%; this plan `active → done`. Next phase: `user-docs`.
 
 ## Execution Notes
+
+- **2026-09-30 — wave 0 opened.** `task-126`, `task-128`, `task-129` started (branches and worktrees
+  per §1); each ran design → submit through a developer agent and is `in-review`, its bugs synced
+  `[in-progress → in-review]`. `task-127` waits for `task-126`'s merge.
+- **2026-10-01 — independent review** of the three branches (a separate reviewer agent per task,
+  read-only, before the approver's gate, as `task-125` did): all three "approve with fixes". Fixes
+  inside each task are applied on its branch; the follow-ups become elements once `task-128` is
+  merged, so that `memory add` (code version) allocates their ids.
+- **2026-10-01 — approver ruling on `element.set_release`.** Raised by `task-126`'s review: binding
+  it to `amend` (the reading of R20/Q6) collides with `dl-108` (approver-gated, `adr` not amendable)
+  and with `build-backlog` (product-owner, no approval, stamps `adr` too). The approver **reverses
+  `release-planning-rel-v0.3-plan` R20/Q6 on this point**: `assign` joins the closed verb list, needs
+  no approver, and changes only `release`, on every type. Written into `spec-008` §2 and `spec-003`
+  by `task-126`.
+- Merge trial of the three branches on `main` (`6a28d281`): `task-126` and `task-128` merge clean;
+  `task-129` conflicts on `spec-008`'s Revision notes only (both append), resolved by keeping both.
