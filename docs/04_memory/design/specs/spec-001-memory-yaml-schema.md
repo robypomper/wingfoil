@@ -170,8 +170,9 @@ prerequisite, and until it lands only undotted tokens are defined. There is no f
    the working tree as git sees it (the index and the untracked, non-ignored files). No network is
    used: what the remotes hold is what was last fetched (`git fetch` stays the operator's step,
    `dl-101` §1.1).
-3. Keep the paths the pattern matches, and from each capture the numeric group at the `{n}` /
-   `{n:N}` position (e.g. `docs/04_memory/{release}/{id}.md` with `task-{n}-{slug}` →
+3. Keep the paths the pattern matches, and from each capture the numeric group at the `{n}`-family
+   token's position (`{n}`, `{nn}`, `{nnn}`: the tokens the implementation accepts; `{n:N}`, defined
+   in the placeholder table above, is not implemented) (e.g. `docs/04_memory/{release}/{id}.md` with `task-{n}-{slug}` →
    `^docs/04_memory/<any>/task-(\d+)-<slug>\.md$`).
 4. `next_n = max(captured) + 1`, defaulting to `1` when nothing matches. The **highest** number, not
    a count, so a gap left by a removed element never reissues a number (`bug-087`); and a maximum is
@@ -380,5 +381,8 @@ other `path` placeholders as literal values: they are wildcards, which is the fi
 `task`'s counter restarted at `1` in every `{release}` folder). The code had also never followed the
 old step 5: it counted the matching files rather than taking their maximum (`bug-087`). This baseline
 reads more than `HEAD`, so it is declared in the `command-baseline` directive (`dl-080`, `dl-101`
-Action 3). Remote reservation (`dl-101` §2 (b)) is not part of it. Edited in place, as the revisions
+Action 3). Remote reservation (`dl-101` §2 (b)) is not part of it. Step 3 names only the `{n}`-family
+tokens the code accepts (`{n}`, `{nn}`, `{nnn}`). `{n:N}` stays in the placeholder table, but
+`idPatternIssues('task-{n:3}-{slug}')` reports it as a malformed token, a gap that predates this
+revision. Edited in place, as the revisions
 above, with no `version:` bump (`dl-047`); **pending the approver's sign-off at `task-128`'s review.**
