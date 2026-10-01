@@ -2,7 +2,7 @@
 id: "task-170-give-service-set-up-release-field-name-own"
 type: task
 title: "Give a `service`'s set-up release a field name of its own"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "fix"
 priority: "low"
