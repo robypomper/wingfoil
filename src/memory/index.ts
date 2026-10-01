@@ -58,9 +58,13 @@ export {
   E_EMPTY_SEARCH_QUERY,
   findMemoryDocumentById,
   findMemoryDocumentByTypeAndId,
+  findMemoryDocumentByTypeAndIdAtRev,
   listMemoryDocumentPaths,
+  listMemoryDocumentPathsAtRev,
   listMemoryDocumentsByType,
+  loadMemoryDocumentsAtRev,
   loadMemoryDocumentSummary,
+  loadMemoryDocumentSummaryAtRev,
   searchMemoryDocuments,
   validateSearchQuery,
 } from './query';

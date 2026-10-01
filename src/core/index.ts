@@ -104,14 +104,22 @@ export {
   // task-090 kept `loadDnaYamlAtHead` private while that rule was undecided; it is decided now, and a
   // facility the ruling tells the next implementer to use has to be reachable (task-091, D3).
   loadDirectivesAtHead,
+  // The same readers at any commit (task-137, `spec-012` §2 `stateRef`); each `…AtHead` is its
+  // `…AtRev` at `'HEAD'`.
+  loadDirectivesAtRev,
   loadDnaYaml,
   loadDnaYamlAtHead,
+  loadDnaYamlAtRev,
   loadMemoryYaml,
   loadMemoryYamlAtHead,
+  loadMemoryYamlAtRev,
   loadRolesYaml,
   loadRolesYamlAtHead,
+  loadRolesYamlAtRev,
   loadWorkflowsYaml,
+  loadWorkflowsYamlAtRev,
 } from './loaders';
+export { isWellFormedRevision, resolveRevision, RevisionError } from './revision';
 export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
 export { assembleExecutionContext, resolveRoleDirectives, selectDirectivesById } from './context';
 export {

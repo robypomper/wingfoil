@@ -50,7 +50,10 @@ import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
 import { isArchivedStatus } from './state-machine';
-import { readDocument, splitFrontmatter } from '../storage';
+import { listPathsAtRev, readDocument, readPathsAtRev, splitFrontmatter } from '../storage';
+// The module, not the `../core` barrel: `src/core` imports this module, and `./revision` depends on
+// `../storage` alone, so nothing here closes a load-time cycle.
+import { resolveRevision } from '../core/revision';
 
 /**
  * The static (placeholder-free) directory prefix of a `memory.yaml` type `path` pattern — e.g.
@@ -130,16 +133,90 @@ export interface MemoryDocumentSummary {
  */
 export function loadMemoryDocumentSummary(root: string, relativePath: string): MemoryDocumentSummary {
   const absolute = join(root, relativePath);
-  const raw = readDocument(absolute);
+  return parseMemoryDocument(readDocument(absolute), relativePath, absolute);
+}
+
+/**
+ * A Memory document's bytes split into parsed frontmatter and body — the one parse both baselines use
+ * ({@link loadMemoryDocumentSummary} for the working tree, {@link loadMemoryDocumentsAtRev} and its
+ * siblings for a commit), so they cannot drift on what a document *is*. `label` is what a parse error
+ * names: the absolute path, or `<rev>:<path>`.
+ */
+function parseMemoryDocument(raw: string, relativePath: string, label: string): MemoryDocumentSummary {
   const { frontmatter: frontmatterText, body } = splitFrontmatter(raw);
 
   let frontmatter: Record<string, unknown> = {};
   if (frontmatterText) {
-    const parsed = parseYaml(frontmatterText, absolute);
+    const parsed = parseYaml(frontmatterText, label);
     if (parsed !== null && typeof parsed === 'object') frontmatter = parsed as Record<string, unknown>;
   }
 
   return { path: relativePath, frontmatter, body };
+}
+
+// --- The same scan at a revision (task-137) -----------------------------------------------------
+//
+// `spec-012` §2 pins an agent context to `stateRef`, a commit sha, and `spec-017` §1.1/§1.3 deduce
+// workflow state from every Memory document "enumerated from `HEAD`'s tree in sorted path order". The
+// four readers below are the working-tree scan above, read at one commit instead: the same scan roots
+// ({@link computeMemoryContentRoots}), the same `.md` filter, the same sort, the same parse. Each
+// resolves `rev` once (`resolveRevision`) and reads every byte at that sha; an unknown or malformed rev
+// throws `RevisionError` rather than answering with an empty scan. Pass the `memoryYaml` loaded at the
+// same rev (`loadMemoryYamlAtRev`), and a resolved sha when several calls must see one commit.
+
+/** {@link listMemoryDocumentPathsAtRev} over an already-resolved commit sha. */
+function listMemoryDocumentPathsAtSha(root: string, sha: string, memoryYaml: MemoryYaml): string[] {
+  const out = new Set<string>();
+  for (const dir of computeMemoryContentRoots(memoryYaml)) {
+    for (const path of listPathsAtRev(root, sha, dir) ?? []) if (path.endsWith('.md')) out.add(path);
+  }
+  return [...out].sort();
+}
+
+/**
+ * Every Memory document **commit `rev` holds**, as root-relative POSIX paths sorted the way
+ * {@link listMemoryDocumentPaths} sorts the working tree's (REQ-SYS-07). A document added after `rev`,
+ * or present only in the working tree, is not listed.
+ *
+ * @throws `RevisionError` when `rev` is malformed or names no commit.
+ */
+export function listMemoryDocumentPathsAtRev(root: string, rev: string, memoryYaml: MemoryYaml): string[] {
+  return listMemoryDocumentPathsAtSha(root, resolveRevision(root, rev), memoryYaml);
+}
+
+/** Read and parse `paths` at `sha` in one batch; a path the commit does not hold is left out. */
+function loadMemoryDocumentsAtSha(root: string, sha: string, rev: string, paths: readonly string[]): MemoryDocumentSummary[] {
+  const contents = readPathsAtRev(root, sha, paths);
+  const out: MemoryDocumentSummary[] = [];
+  paths.forEach((path, i) => {
+    const raw = contents[i];
+    if (raw !== null && raw !== undefined) out.push(parseMemoryDocument(raw, path, `${rev}:${path}`));
+  });
+  return out;
+}
+
+/**
+ * Every Memory document **commit `rev` holds**, parsed — the paths of
+ * {@link listMemoryDocumentPathsAtRev}, in its order, each read in one batch (`storage.readPathsAtRev`)
+ * and split as {@link loadMemoryDocumentSummary} splits a working-tree file. This is the snapshot a
+ * reader pinned to one commit builds from (`spec-012` §6 relevance, `spec-017` §4 deduction).
+ *
+ * @throws `RevisionError` when `rev` is malformed or names no commit; `ValidationError` when a
+ *   document's frontmatter does not parse, as {@link loadMemoryDocumentSummary} does.
+ */
+export function loadMemoryDocumentsAtRev(root: string, rev: string, memoryYaml: MemoryYaml): MemoryDocumentSummary[] {
+  const sha = resolveRevision(root, rev);
+  return loadMemoryDocumentsAtSha(root, sha, rev, listMemoryDocumentPathsAtSha(root, sha, memoryYaml));
+}
+
+/**
+ * One Memory document **as commit `rev` holds it** — {@link loadMemoryDocumentSummary} at a commit.
+ * `null` when that commit does not hold `relativePath` as a file.
+ *
+ * @throws `RevisionError` when `rev` is malformed or names no commit.
+ */
+export function loadMemoryDocumentSummaryAtRev(root: string, rev: string, relativePath: string): MemoryDocumentSummary | null {
+  return loadMemoryDocumentsAtSha(root, resolveRevision(root, rev), rev, [relativePath])[0] ?? null;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -246,6 +323,35 @@ export function findMemoryDocumentByTypeAndId(
 ): MemoryDocumentSummary | undefined {
   for (const path of listMemoryDocumentPaths(root, memoryYaml)) {
     const summary = loadMemoryDocumentSummary(root, path);
+    if (asString(summary.frontmatter.type) === type && asString(summary.frontmatter.id) === id) return summary;
+  }
+  return undefined;
+}
+
+/**
+ * {@link findMemoryDocumentByTypeAndId} **at commit `rev`**: the document whose own frontmatter `type`
+ * and `id` match, with its frontmatter and body as `rev` holds them; `undefined` when that commit holds
+ * none.
+ *
+ * @throws `RevisionError` when `rev` is malformed or names no commit.
+ */
+export function findMemoryDocumentByTypeAndIdAtRev(
+  root: string,
+  rev: string,
+  memoryYaml: MemoryYaml,
+  type: string,
+  id: string,
+): MemoryDocumentSummary | undefined {
+  const sha = resolveRevision(root, rev);
+  const paths = listMemoryDocumentPathsAtSha(root, sha, memoryYaml);
+  const contents = readPathsAtRev(root, sha, paths);
+  // Parsed in path order and stopped at the first match, as the working-tree lookup does: a document
+  // whose frontmatter does not parse fails the lookup only if the scan reaches it (`task-171` makes
+  // both baselines tolerant together, through `parseMemoryDocument`).
+  for (let i = 0; i < paths.length; i += 1) {
+    const raw = contents[i];
+    if (raw === null || raw === undefined) continue;
+    const summary = parseMemoryDocument(raw, paths[i]!, `${rev}:${paths[i]!}`);
     if (asString(summary.frontmatter.type) === type && asString(summary.frontmatter.id) === id) return summary;
   }
   return undefined;

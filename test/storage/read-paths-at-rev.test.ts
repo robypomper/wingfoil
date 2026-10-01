@@ -36,7 +36,10 @@ describe('readPathsAtRev — many paths at one revision, one git process (task-1
 
   it('answers each path as readPathAtRev does, in input order', () => {
     const paths = ['dir/caffè.md', 'a.md', 'later.md', 'empty.md', 'dir/b c.md', 'no-newline.md', 'dir', 'missing.md'];
-    expect(readPathsAtRev(repo, first, paths)).toEqual(paths.map((path) => readPathAtRev(repo, first, path)));
+    // A file or an absent path: the same answer as `readPathAtRev`. A tree is the one deliberate
+    // difference — `git show <rev>:<dir>` prints a listing, which is not a file's content.
+    const files = paths.filter((path) => path !== 'dir');
+    expect(readPathsAtRev(repo, first, files)).toEqual(files.map((path) => readPathAtRev(repo, first, path)));
     expect(readPathsAtRev(repo, first, paths)).toEqual([
       'non-ASCII name, multi-byte body: àèìòù €\n',
       'A first\n',

@@ -10,12 +10,12 @@
  * test in `test/core/pillar-isolation.test.ts` exercises.
  */
 import { existsSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, posix } from 'path';
 
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
-import { documentExists, extractFrontmatter, listPathsAtRev, readDocument, readPathAtRev } from '../storage';
+import { documentExists, extractFrontmatter, listPathsAtRev, readDocument, readPathAtRev, readPathsAtRev } from '../storage';
 import {
   Diagnostic,
   DiagnosticsError,
@@ -29,6 +29,7 @@ import {
 } from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
 
+import { atHeadOr, resolveRevision } from './revision';
 import { indexWorkflowFiles, LoadedWorkflowFile, noStartableDiagnostic, workflowFileDiagnostics } from './workflow-diagnostics';
 
 /**
@@ -98,9 +99,21 @@ function parseMemoryYaml(raw: string, filePath: string): MemoryYaml {
  * byte-identical, and `HEAD` is the one available before that commit exists.
  */
 export function loadMemoryYamlAtHead(root: string): MemoryYaml | null {
-  const raw = readPathAtRev(root, 'HEAD', MEMORY_YAML_PATH);
+  return atHeadOr(() => loadMemoryYamlAtRev(root, 'HEAD'), null);
+}
+
+/**
+ * Load and validate `.wingfoil/memory.yaml` **as commit `rev` holds it** (task-137, `spec-012` §2
+ * `stateRef`) — the general form of {@link loadMemoryYamlAtHead}, which is this at `'HEAD'`. `null`
+ * when that commit does not hold the file; a later commit and the working tree are never read.
+ *
+ * @param rev - A revision naming one commit, resolved once (`resolveRevision`, `./revision.ts`).
+ * @throws `RevisionError` when `rev` is malformed or names no commit — never an empty answer.
+ */
+export function loadMemoryYamlAtRev(root: string, rev: string): MemoryYaml | null {
+  const raw = readPathAtRev(root, resolveRevision(root, rev), MEMORY_YAML_PATH);
   if (raw === null) return null;
-  return parseMemoryYaml(raw, `HEAD:${MEMORY_YAML_PATH}`);
+  return parseMemoryYaml(raw, `${rev}:${MEMORY_YAML_PATH}`);
 }
 
 /**
@@ -184,9 +197,21 @@ function parseDnaYaml(raw: string, filePath: string): DnaYaml {
  * a write refuses while its target carries modifications it does not own.)
  */
 export function loadDnaYamlAtHead(root: string): DnaYaml | null {
-  const raw = readPathAtRev(root, 'HEAD', DNA_YAML_PATH);
+  return atHeadOr(() => loadDnaYamlAtRev(root, 'HEAD'), null);
+}
+
+/**
+ * Load and validate `.wingfoil/dna.yaml` **as commit `rev` holds it** (task-137, `spec-012` §2
+ * `stateRef`) — the general form of {@link loadDnaYamlAtHead}, which is this at `'HEAD'`. `null` when
+ * that commit does not hold the file; a later commit and the working tree are never read.
+ *
+ * @param rev - A revision naming one commit, resolved once (`resolveRevision`, `./revision.ts`).
+ * @throws `RevisionError` when `rev` is malformed or names no commit — never an empty answer.
+ */
+export function loadDnaYamlAtRev(root: string, rev: string): DnaYaml | null {
+  const raw = readPathAtRev(root, resolveRevision(root, rev), DNA_YAML_PATH);
   if (raw === null) return null;
-  return parseDnaYaml(raw, `HEAD:${DNA_YAML_PATH}`);
+  return parseDnaYaml(raw, `${rev}:${DNA_YAML_PATH}`);
 }
 
 /** The result of loading the Workflow pillar: the Layer-1 manifest plus every Layer-2 file it includes. */
@@ -273,11 +298,58 @@ function parseYamlOrDiagnostic(
  */
 export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
   const configDir = join(root, '.wingfoil');
-  const manifestPath = join(configDir, WORKFLOWS_MANIFEST_FILE);
-  if (!documentExists(manifestPath)) return { manifest: null, workflows: [] };
+  return loadWorkflowsFrom({
+    read: (file) => {
+      const path = join(configDir, file);
+      return documentExists(path) ? readDocument(path) : null;
+    },
+    label: (file) => join(configDir, file),
+  });
+}
+
+/**
+ * Load and validate the Workflow pillar **as commit `rev` holds it** (task-137, `spec-017` §1.1: the
+ * registry is read at `HEAD`): the manifest and every file it includes, read at that commit. It runs
+ * the same body as {@link loadWorkflowsYaml} over the committed bytes, so the result — or the
+ * {@link DiagnosticsError} and its ordered `diagnostics` array (task-136) — is the one the working-tree
+ * loader gives for the same bytes. Only the parse-error labels differ (`<rev>:.wingfoil/<file>`); every
+ * diagnostic's `file` stays relative to `.wingfoil/`. A path the commit holds as a directory counts as
+ * absent (`E_WORKFLOW_FILE_NOT_FOUND`).
+ *
+ * @param rev - A revision naming one commit, resolved once (`resolveRevision`, `./revision.ts`).
+ * @throws `RevisionError` when `rev` is malformed or names no commit — never an empty registry.
+ */
+export function loadWorkflowsYamlAtRev(root: string, rev: string): WorkflowsLoadResult {
+  const sha = resolveRevision(root, rev);
+  const committedPath = (file: string): string => posix.normalize(`.wingfoil/${file}`);
+  return loadWorkflowsFrom({
+    read: (file) => readPathsAtRev(root, sha, [committedPath(file)])[0] ?? null,
+    label: (file) => `${rev}:${committedPath(file)}`,
+  });
+}
+
+/**
+ * Where the Workflow pillar's bytes come from: the working tree or one commit. `file` is relative to
+ * `.wingfoil/` (the manifest's own `include` spelling); `read` answers `null` for a file that is not
+ * there, and `label` is the name parse errors and unknown-field warnings carry.
+ */
+interface WorkflowSource {
+  read(file: string): string | null;
+  label(file: string): string;
+}
+
+/**
+ * The Workflow pillar's load (spec-003 Layers 1–2 and the loader rows of § "Diagnostics"), over a
+ * {@link WorkflowSource} — the one body {@link loadWorkflowsYaml} and {@link loadWorkflowsYamlAtRev}
+ * share, so the two baselines cannot drift on what a registry or a diagnostic is.
+ */
+function loadWorkflowsFrom(source: WorkflowSource): WorkflowsLoadResult {
+  const manifestRaw = source.read(WORKFLOWS_MANIFEST_FILE);
+  if (manifestRaw === null) return { manifest: null, workflows: [] };
+  const manifestPath = source.label(WORKFLOWS_MANIFEST_FILE);
   // A manifest that cannot be read as YAML, or fails its structural pass, names no file to load: its
   // diagnostics are the whole array.
-  const manifestData = parseYamlOrDiagnostic(readDocument(manifestPath), manifestPath, WORKFLOWS_MANIFEST_FILE);
+  const manifestData = parseYamlOrDiagnostic(manifestRaw, manifestPath, WORKFLOWS_MANIFEST_FILE);
   if (manifestData.diagnostic) throw new DiagnosticsError([manifestData.diagnostic]);
   const manifestResult = WorkflowsYaml.safeParse(manifestData.data);
   if (!manifestResult.success) throw new DiagnosticsError(zodDiagnostics(manifestResult.error.issues, WORKFLOWS_MANIFEST_FILE));
@@ -288,8 +360,8 @@ export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
   const files: LoadedWorkflowFile[] = [];
   const structural: Diagnostic[][] = [];
   manifest.include.forEach((includePath, position) => {
-    const workflowPath = join(configDir, includePath);
-    if (!documentExists(workflowPath)) {
+    const raw = source.read(includePath);
+    if (raw === null) {
       manifestDiagnostics.push({
         code: 'E_WORKFLOW_FILE_NOT_FOUND',
         severity: 'error',
@@ -299,7 +371,8 @@ export function loadWorkflowsYaml(root: string): WorkflowsLoadResult {
       });
       return;
     }
-    const yaml = parseYamlOrDiagnostic(readDocument(workflowPath), workflowPath, includePath);
+    const workflowPath = source.label(includePath);
+    const yaml = parseYamlOrDiagnostic(raw, workflowPath, includePath);
     if (yaml.diagnostic) {
       files.push({ file: includePath, workflow: null, rawName: null });
       structural.push([yaml.diagnostic]);
@@ -411,16 +484,32 @@ export function loadDirectives(root: string): DirectiveFile[] {
  * unknown). `listPathsAtRev` keeps the distinction for callers that do need it.
  */
 export function loadDirectivesAtHead(root: string): DirectiveFile[] {
-  const paths = listPathsAtRev(root, 'HEAD', DIRECTIVES_DIR_PATH) ?? [];
+  return atHeadOr(() => loadDirectivesAtRev(root, 'HEAD'), []);
+}
+
+/**
+ * Load and validate every Directives file **as commit `rev` holds it** (task-137, `spec-012` §2
+ * `stateRef`) — the general form of {@link loadDirectivesAtHead}, which is this at `'HEAD'`: the
+ * `.md` files `storage.listPathsAtRev` lists under `.wingfoil/directives/` at that commit, in its
+ * sorted order, each read with `storage.readPathAtRev` at the resolved sha. An empty array when the commit holds no
+ * directive file; a later commit and the working tree are never read.
+ *
+ * @param rev - A revision naming one commit, resolved once (`resolveRevision`, `./revision.ts`).
+ * @throws `RevisionError` when `rev` is malformed or names no commit — never an empty array.
+ */
+export function loadDirectivesAtRev(root: string, rev: string): DirectiveFile[] {
+  const sha = resolveRevision(root, rev);
   const files: DirectiveFile[] = [];
-  for (const path of paths) {
+  for (const path of listPathsAtRev(root, sha, DIRECTIVES_DIR_PATH) ?? []) {
     if (!path.endsWith('.md')) continue;
-    const raw = readPathAtRev(root, 'HEAD', path);
-    // Unreachable by construction — git has just listed this blob. Reachable only if the ref moved
-    // between the two calls, and skipping is the fail-closed answer there: a directive nobody can read
-    // is a directive that does not exist, so a binding to it is refused rather than committed.
+    // One read per file, not the batched `readPathsAtRev`: a project holds a handful of directives,
+    // and task-096's suite pins this read (`readPathAtRev`) by name.
+    const raw = readPathAtRev(root, sha, path);
+    // Unreachable by construction — git has just listed this blob at the same sha. Skipping is still
+    // the fail-closed answer: a directive nobody can read is a directive that does not exist, so a
+    // binding to it is refused rather than committed.
     if (raw === null) continue;
-    files.push(parseDirectiveFile(raw, `HEAD:${path}`, path.slice(DIRECTIVES_DIR_PATH.length + 1)));
+    files.push(parseDirectiveFile(raw, `${rev}:${path}`, path.slice(DIRECTIVES_DIR_PATH.length + 1)));
   }
   return files;
 }
@@ -466,8 +555,20 @@ export function loadRolesYaml(root: string): RolesYaml {
  * committed `roles.yaml` that does not **validate** is the different case, and that one does refuse.
  */
 export function loadRolesYamlAtHead(root: string): RolesYaml | null {
-  const raw = readPathAtRev(root, 'HEAD', ROLES_YAML_PATH);
+  return atHeadOr(() => loadRolesYamlAtRev(root, 'HEAD'), null);
+}
+
+/**
+ * Load and validate `.wingfoil/roles.yaml` **as commit `rev` holds it** (task-137, `spec-012` §2
+ * `stateRef`) — the general form of {@link loadRolesYamlAtHead}, which is this at `'HEAD'`. `null` when
+ * that commit does not hold the file; a later commit and the working tree are never read.
+ *
+ * @param rev - A revision naming one commit, resolved once (`resolveRevision`, `./revision.ts`).
+ * @throws `RevisionError` when `rev` is malformed or names no commit — never an empty answer.
+ */
+export function loadRolesYamlAtRev(root: string, rev: string): RolesYaml | null {
+  const raw = readPathAtRev(root, resolveRevision(root, rev), ROLES_YAML_PATH);
   if (raw === null) return null;
-  const label = `HEAD:${ROLES_YAML_PATH}`;
+  const label = `${rev}:${ROLES_YAML_PATH}`;
   return runValidation(RolesYaml, parseYaml(raw, label), label);
 }
