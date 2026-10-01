@@ -45,6 +45,7 @@ export {
   E_INVALID_STATE,
   E_INVALID_TRANSITION,
   isArchivedStatus,
+  isMachineEdge,
   resolveStateMachine,
   resolveTransitionTarget,
   resolveTypeTransition,
@@ -107,9 +108,12 @@ export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } f
 export { renderRejectDocument } from './reject';
 export {
   auditAttribution,
+  CONFIGURATION_SCOPES,
   isValidAttribution,
+  MEMORY_OPERATIONS,
   parseApprovalMetadata,
   parseCommitReason,
+  parseMemoryOperation,
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
 } from './audit';
@@ -118,6 +122,8 @@ export type {
   ApprovalMetadata,
   MemoryTransition,
   ConsistencyMismatch,
+  IllegalHop,
+  MemoryOperation,
   TransitionFinding,
   UnparseableTransition,
 } from './audit';

@@ -36,6 +36,8 @@ import { parseYaml } from '../validation';
 
 import { parseApproverTrailerLine, parseReasonBlock } from './commit-message';
 import { getMemoryHistory } from './history';
+import type { StateMachine } from './schema';
+import { isMachineEdge } from './state-machine';
 import { walkGitLogFields } from './git-log';
 import { splitFrontmatter } from '../storage';
 
@@ -189,10 +191,74 @@ export function parseApprovalMetadata(body: string): ApprovalMetadata | null {
 
 // --- Full transition reconstruction (`memory history`, P1.10) --------------------------------
 
-/** The CLAUDE.md §5.1 verb a commit's subject declares, when it matches the `wf({type}): {verb} ...` shape. */
-type MemoryOperation = 'add' | 'submit' | 'approve' | 'reject' | 'deprecate';
+/**
+ * The closed, declared list of Memory operation verbs a `wf({type}): {verb} …` subject may carry
+ * (`dl-079` (A), `spec-008-cli-grammar` §2, `spec-003` verb table): the five CLI verbs, the three
+ * workflow verbs of practice (`start`, `finalize`, `sync`), `amend` (`dl-108`), `park` (`dl-110`),
+ * and `assign` (`element.set_release`, approver ruling 2026-10-01). No other verb is a Memory
+ * operation. Ordered as `spec-008` §2 lists them (REQ-SYS-07).
+ */
+export const MEMORY_OPERATIONS = [
+  'add',
+  'submit',
+  'approve',
+  'reject',
+  'deprecate',
+  'start',
+  'finalize',
+  'sync',
+  'amend',
+  'park',
+  'assign',
+] as const;
 
-const OPERATION_RE = /^wf\([^)]+\):\s*(add|submit|approve|reject|deprecate)\b/;
+/** One verb of {@link MEMORY_OPERATIONS}. */
+export type MemoryOperation = (typeof MEMORY_OPERATIONS)[number];
+
+/**
+ * The `wf({scope})` scopes that record a change to **configuration**, not to a Memory element
+ * (`spec-008` §2): `wf(dna): set|add|update|remove …` (`dna` mutations), `wf(directive):
+ * create|assign|remove …` and `wf(workflow): create|remove …` (`spec-017` §7.7–7.8). Their verbs are
+ * not Memory operations even where the token coincides with one (`wf(dna): add <field>`), and their
+ * subjects carry no transition. By convention no `memory.yaml` type takes one of these names. Nothing
+ * enforces that yet (`src/memory/schema.ts` reserves no type name); a type that did would have
+ * every commit of its own read as configuration.
+ */
+export const CONFIGURATION_SCOPES: readonly string[] = Object.freeze(['directive', 'dna', 'workflow']);
+
+/**
+ * A `wf({scope}): {token}` subject: the scope, and the verb token — everything after `: ` up to the
+ * first whitespace. Taking the whole token, rather than a declared verb followed by a word boundary,
+ * is what keeps a practised compound verb such as `start-fix` from reading as `start`.
+ */
+const WF_SUBJECT_RE = /^wf\(([^)]*)\):\s*(\S+)/;
+
+/**
+ * `assign`'s one canonical subject (`spec-008` §2): `wf({type}): assign release {version} to {id1},
+ * {id2}…`, with no bracket — the form the four practised `assign` commits already have. `assign` writes
+ * only the `release` field, so a subject that names anything else, or carries a bracket, is not one.
+ */
+const ASSIGN_SUBJECT_RE = /^wf\([^)]*\):\s*assign release \S+ to [^[\]\s][^[\]]*$/;
+
+/**
+ * The Memory operation a commit subject declares, or `null` — for a subject outside the `wf()`
+ * grammar (`workflow: finalize …`, `agent: record …`, `docs(…): …`), a configuration scope
+ * ({@link CONFIGURATION_SCOPES}), or a verb outside {@link MEMORY_OPERATIONS}. The practised verbs the
+ * declared list leaves out (`start-fix`, `schedule`, `plan`, `enter-releasing`, `mark-released`,
+ * `deferred`, and the early verbless `wf(task): {id} [a → b]`), and an `assign` subject outside its
+ * canonical form, keep reading as `null`: the
+ * history is not rewritten, and the reader does not guess (`dl-035`, `dl-079`).
+ */
+export function parseMemoryOperation(subject: string): MemoryOperation | null {
+  const match = WF_SUBJECT_RE.exec(subject);
+  if (!match) return null;
+  // Both groups always participate in a match of WF_SUBJECT_RE.
+  const scope = match[1]!;
+  const verb = match[2]!;
+  if (CONFIGURATION_SCOPES.includes(scope)) return null;
+  if (verb === 'assign' && !ASSIGN_SUBJECT_RE.test(subject)) return null;
+  return (MEMORY_OPERATIONS as readonly string[]).includes(verb) ? (verb as MemoryOperation) : null;
+}
 
 /**
  * One reconstructed transition in a Memory element's history — author/timestamp from git itself,
@@ -300,14 +366,13 @@ export function reconstructMemoryTransitions(root: string, relativePath: string)
   let previousState: string | null = null;
   for (const entry of history) {
     const toState = readStatusAt(root, entry.sha, entry.path);
-    const operationMatch = OPERATION_RE.exec(entry.subject);
     transitions.push({
       sha: entry.sha,
       authorName: entry.authorName,
       authorEmail: entry.authorEmail,
       date: entry.date,
       subject: entry.subject,
-      operation: (operationMatch?.[1] as MemoryOperation | undefined) ?? null,
+      operation: parseMemoryOperation(entry.subject),
       fromState: previousState,
       toState,
       approval: parseApprovalMetadata(entry.body),
@@ -320,7 +385,10 @@ export function reconstructMemoryTransitions(root: string, relativePath: string)
 
 // --- Frontmatter-vs-commit-message consistency (no drift) -----------------------------------
 
-/** One disagreement between the commit subject's `[old → new]` bracket and the frontmatter actually committed. */
+/**
+ * One disagreement between the commit subject's `[old → new]` bracket and the frontmatter actually
+ * committed. For a chained bracket `[a → b → c]`, `declared` is its first and last state.
+ */
 export interface ConsistencyMismatch {
   readonly kind: 'mismatch';
   readonly sha: string;
@@ -332,9 +400,9 @@ export interface ConsistencyMismatch {
 /**
  * A `wf(…)` commit subject that carries a bracket (a `[` or a `]`) which reads as a transition in
  * neither arrow form — an unknown arrow (`[triaged => planned]`), an unbalanced bracket, a bracket with
- * no from-state, or a trailing bracket that is not a transition. It is reported rather than skipped so
- * that an empty result from {@link verifyTransitionConsistency} means "checked", never "passed over"
- * (`task-109`, `bug-137`).
+ * no from-state, an empty state anywhere in a chain, or a trailing bracket that is not a transition.
+ * It is reported rather than skipped so that an empty result from {@link verifyTransitionConsistency}
+ * means "checked", never "passed over" (`task-109`, `bug-137`).
  */
 export interface UnparseableTransition {
   readonly kind: 'unparseable';
@@ -342,59 +410,118 @@ export interface UnparseableTransition {
   readonly subject: string;
 }
 
-/** One finding of {@link verifyTransitionConsistency}, discriminated by `kind`. */
-export type TransitionFinding = ConsistencyMismatch | UnparseableTransition;
+/**
+ * One hop of a chained bracket (`[a → b → c]`) that is not an edge of the element type's state machine
+ * ({@link isMachineEdge}) — reported by {@link verifyTransitionConsistency} when it is given that
+ * machine (`task-126`, `bug-155`). A chain with two illegal hops yields two findings, in hop order.
+ */
+export interface IllegalHop {
+  readonly kind: 'illegal-hop';
+  readonly sha: string;
+  readonly subject: string;
+  readonly hop: { readonly from: string; readonly to: string };
+}
 
-// Matches the `[old-state → new-state]` bracket CLAUDE.md §5.1 mandates on approve/reject/deprecate
-// subjects. The canonical arrow is U+2192 (`./commit-message.ts` writes only that one); the ASCII
-// `->` is read as its equivalent, because hand-written history carries it (`bug-137`). The lazy first
-// group stops at the FIRST arrow, so a multi-hop `[a → b → c]` keeps its historical reading:
-// from `a`, to `b → c`.
-const BRACKET_RE = /\[([^[\]]+?)\s*(?:→|->)\s*([^[\]]+?)\]\s*$/;
+/** One finding of {@link verifyTransitionConsistency}, discriminated by `kind`. */
+export type TransitionFinding = ConsistencyMismatch | UnparseableTransition | IllegalHop;
+
+// The trailing `[…]` bracket of a subject — the transition bracket `spec-008` §2 declares, written at
+// the end of the subject. Its content is split into states by {@link BRACKET_ARROW_RE}.
+const TRAILING_BRACKET_RE = /\[([^[\]]*)\]\s*$/;
+
+// The arrows a bracket's states are separated by: the canonical U+2192, which `./commit-message.ts`
+// writes, and the ASCII `->`, read as its equivalent because hand-written history carries it
+// (`bug-137`). Surrounding whitespace belongs to the arrow.
+const BRACKET_ARROW_RE = /\s*(?:→|->)\s*/;
 
 // A subject in the Memory commit grammar (`wf({type}): …`) that contains any bracket character — the
-// set of subjects that must either parse with {@link BRACKET_RE} or be reported as unparseable.
+// set of subjects whose trailing bracket must either parse as a transition or be reported as
+// unparseable.
 const WF_SUBJECT_WITH_BRACKET_RE = /^wf\([^)]*\):.*[[\]]/;
 
+/** One hop of a transition bracket: `[a → b]` has one, the chain `[a → b → c]` has two. */
+interface BracketHop {
+  readonly from: string;
+  readonly to: string;
+}
+
 /**
- * Cross-check, for every transition that carries a `[old → new]` bracket in its subject (`approve`/
- * `reject`/`deprecate`, per CLAUDE.md §5.1 — a plain `add`/`submit` subject has no bracket and is
- * skipped), that the bracket's declared states agree with the states independently derived from the
- * document's own frontmatter at that commit ({@link reconstructMemoryTransitions}).
- *
- * The bracket is read in either arrow form, `→` or `->`, with the same result. A `wf(…)` subject that
- * carries a bracket readable in neither form is reported as an {@link UnparseableTransition} instead
- * of being passed over; a subject outside the `wf(…)` grammar that merely quotes a bracket in prose is
- * not. Returns `[]` when every bracketed transition was parsed and agrees — REQ-SEC-02/REQ-STATE-02's
- * "no drift between the two views"; any entry is either a genuine inconsistency (e.g. a hand-edited
- * commit message that doesn't match what was actually written to disk) or a bracket the check could
- * not read.
+ * The hops a subject's trailing bracket names, in order — one for `[a → b]`, more for a chain
+ * (`[a → b → c]`, `spec-008` §2: `sync` may chain) — or `null` when there is no trailing bracket, or
+ * it is not a transition: fewer than two states, or an empty one anywhere. Never an empty array.
  */
-export function verifyTransitionConsistency(root: string, relativePath: string): TransitionFinding[] {
+function parseBracketHops(subject: string): BracketHop[] | null {
+  const match = TRAILING_BRACKET_RE.exec(subject);
+  if (!match) return null;
+  // The group always participates in a match of TRAILING_BRACKET_RE.
+  const states = match[1]!.split(BRACKET_ARROW_RE).map((state) => state.trim());
+  if (states.length < 2 || states.some((state) => state === '')) return null;
+  return states.slice(1).map((to, index) => ({ from: states[index]!, to }));
+}
+
+/**
+ * Cross-check, for every transition that carries a `[old → new]` bracket in its subject, that the
+ * bracket's declared states agree with the states independently derived from the document's own
+ * frontmatter at that commit ({@link reconstructMemoryTransitions}). A plain `add`/`submit` subject has
+ * no bracket and is skipped; so is every subject of a configuration scope
+ * ({@link CONFIGURATION_SCOPES}), which records no Memory transition.
+ *
+ * The bracket is read in either arrow form, `→` or `->`, with the same result, and may **chain**
+ * states (`spec-008` §2, `dl-079` (A)): `[a → b → c]` is declared from `a`, to `c` — the only two states
+ * the frontmatter can confirm — and, when `machine` (the element type's state machine, resolved by the
+ * caller from `memory.yaml`, REQ-STATE-08) is given, every hop of the chain must be an edge of it
+ * ({@link isMachineEdge}), or it is an {@link IllegalHop}. Without `machine` the hops cannot be judged
+ * and are not: the endpoints are still checked. A single-hop bracket's edge is not re-judged here — it
+ * is the write-time engine's to refuse (REQ-STATE-01), and `amend`'s `[s → s]` is a declared self-loop
+ * no machine contains.
+ *
+ * A `wf(…)` subject that carries a bracket readable in neither form is reported as an
+ * {@link UnparseableTransition} instead of being passed over; a subject outside the `wf(…)` grammar
+ * that merely quotes a bracket in prose is not. Returns `[]` when every bracketed transition was parsed
+ * and agrees — REQ-SEC-02/REQ-STATE-02's "no drift between the two views"; any entry is either a
+ * genuine inconsistency (e.g. a hand-edited commit message that doesn't match what was actually written
+ * to disk), a chain through a non-edge, or a bracket the check could not read.
+ */
+export function verifyTransitionConsistency(
+  root: string,
+  relativePath: string,
+  machine?: StateMachine,
+): TransitionFinding[] {
   const transitions = reconstructMemoryTransitions(root, relativePath);
   const findings: TransitionFinding[] = [];
 
   for (const transition of transitions) {
-    const match = BRACKET_RE.exec(transition.subject);
-    if (!match) {
-      if (WF_SUBJECT_WITH_BRACKET_RE.test(transition.subject)) {
-        findings.push({ kind: 'unparseable', sha: transition.sha, subject: transition.subject });
+    const { sha, subject } = transition;
+    const scope = WF_SUBJECT_RE.exec(subject)?.[1];
+    if (scope !== undefined && CONFIGURATION_SCOPES.includes(scope)) continue;
+
+    const hops = parseBracketHops(subject);
+    if (!hops) {
+      if (WF_SUBJECT_WITH_BRACKET_RE.test(subject)) {
+        findings.push({ kind: 'unparseable', sha, subject });
       }
       continue;
     }
 
-    const [, declaredFromRaw = '', declaredToRaw = ''] = match;
-    const declaredFrom = declaredFromRaw.trim();
-    const declaredTo = declaredToRaw.trim();
-
+    // parseBracketHops never returns an empty array.
+    const declaredFrom = hops[0]!.from;
+    const declaredTo = hops[hops.length - 1]!.to;
     if (declaredFrom !== transition.fromState || declaredTo !== transition.toState) {
       findings.push({
         kind: 'mismatch',
-        sha: transition.sha,
-        subject: transition.subject,
+        sha,
+        subject,
         declared: { from: declaredFrom, to: declaredTo },
         derived: { from: transition.fromState, to: transition.toState },
       });
+    }
+
+    if (machine && hops.length > 1) {
+      for (const hop of hops) {
+        if (!isMachineEdge(machine, hop.from, hop.to)) {
+          findings.push({ kind: 'illegal-hop', sha, subject, hop: { from: hop.from, to: hop.to } });
+        }
+      }
     }
   }
 

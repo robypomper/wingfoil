@@ -13,6 +13,7 @@ import {
   verifyTransitionConsistency,
 } from '../../src/memory/audit';
 import { isConfiguredIdentity } from '../../src/core/git-identity';
+import type { StateMachine } from '../../src/memory/schema';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -417,7 +418,8 @@ describe('verifyTransitionConsistency — frontmatter-derived state agrees with 
 // Unicode arrow, so an ASCII `[from -> to]` bracket — a form this repository's own history carries —
 // was passed over in silence, and so was any bracket that parsed in neither form. AC classification
 // (T1) is recorded in the task's Execution Notes: the `→` rows and the multi-hop pin are
-// characterization, the `->` rows and the unparseable cases are red-first.
+// characterization, the `->` rows and the unparseable cases are red-first. The multi-hop pin (its AC4)
+// was replaced by task-126's chain reading (bug-155), in the describe block after this one.
 describe('verifyTransitionConsistency — both arrow forms, and brackets that parse in neither (task-109)', () => {
   let repo: string;
 
@@ -490,19 +492,188 @@ describe('verifyTransitionConsistency — both arrow forms, and brackets that pa
 
     expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([]);
   });
+});
 
-  it.each(['→', '->'])('AC4: a multi-hop `[in-review → resolved → closed]` bracket, written with `%s`, keeps today\'s reading — split at the first arrow, so a mismatch', (arrow) => {
+// task-126-declare-closed-wf-operation-grammar-bracket-set-state (dl-079 (A), bug-155). A bracket may
+// chain states: `[a → b → c]` is read as from `a`, to `c`, and — given the type's machine — every hop
+// must be a legal edge of it. This REPLACES task-109's AC4 pin, which read the chain as from `a`, to
+// `b → c`, and therefore reported every multi-hop `sync` as drift (bug-155).
+describe('verifyTransitionConsistency — a multi-hop bracket is a chain (task-126, bug-155)', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  /** The `bug` machine of `.wingfoil/memory.yaml`, inline so the fixture needs no config file. */
+  const BUG_MACHINE: StateMachine = {
+    sequence: ['draft', 'open', 'triaged', 'planned', 'in-progress', 'in-review', 'resolved', 'closed'],
+    gates: {
+      open: { reject: 'closed' },
+      triaged: { reject: 'closed' },
+      planned: { reject: 'closed' },
+      'in-review': { reject: 'in-progress' },
+      resolved: { reject: 'in-progress' },
+    },
+    waiting: ['triaged', 'planned'],
+  };
+
+  /** `in-review` via add, then one `sync` commit carrying `bracket` and writing `writtenStatus`. */
+  function chainHistory(bracket: string, writtenStatus: string): string {
     repo = makeTempGitRepo();
     writeDoc(repo, DOC_PATH, 'in-review');
     commitAll(repo, 'wf(bug): add task-901-doc');
-    writeDoc(repo, DOC_PATH, 'closed');
-    commitAll(repo, `wf(bug): sync task-901-doc [in-review ${arrow} resolved ${arrow} closed]`);
+    writeDoc(repo, DOC_PATH, writtenStatus);
+    const subject = `wf(bug): sync task-901-doc ${bracket}`;
+    commitAll(repo, subject);
+    return subject;
+  }
 
-    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([
+  it.each(['→', '->'])('AC2: a `[in-review %s resolved … closed]` chain that ends where the frontmatter does is no finding — from the first state, to the last', (arrow) => {
+    chainHistory(`[in-review ${arrow} resolved ${arrow} closed]`, 'closed');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([]);
+    expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([]);
+  });
+
+  it.each(['→', '->'])('AC2: a chain written with `%s` whose last state disagrees with the frontmatter is a mismatch declared from the first state to the last', (arrow) => {
+    chainHistory(`[in-review ${arrow} resolved ${arrow} closed]`, 'resolved');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([
       expect.objectContaining({
-        declared: { from: 'in-review', to: `resolved ${arrow} closed` },
-        derived: { from: 'in-review', to: 'closed' },
+        kind: 'mismatch',
+        declared: { from: 'in-review', to: 'closed' },
+        derived: { from: 'in-review', to: 'resolved' },
       }),
     ]);
+  });
+
+  it.each(['→', '->'])('AC2: a chain written with `%s` whose intermediate hop is not an edge of the machine is an `illegal-hop` finding naming that hop', (arrow) => {
+    // in-review → draft is no edge of the bug machine (neither the forward edge nor a reject target),
+    // and neither is draft → closed; draft → open → closed would be (forward, then open's reject).
+    const subject = chainHistory(`[in-review ${arrow} draft ${arrow} closed]`, 'closed');
+    const sha = reconstructMemoryTransitions(repo, DOC_PATH)[1]?.sha;
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([
+      { kind: 'illegal-hop', sha, subject, hop: { from: 'in-review', to: 'draft' } },
+      { kind: 'illegal-hop', sha, subject, hop: { from: 'draft', to: 'closed' } },
+    ]);
+  });
+
+  it('AC2: a reject edge and the implicit `deprecated` edge are legal hops of a chain', () => {
+    chainHistory('[in-review → in-progress → deprecated]', 'deprecated');
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([]);
+  });
+
+  it.each([
+    ['an empty middle state', '[in-review →  → closed]'],
+    ['an empty last state', '[in-review → resolved →]'],
+  ])('AC2: a chain with %s is reported as unparseable', (_label, bracket) => {
+    const subject = chainHistory(bracket, 'closed');
+    const sha = reconstructMemoryTransitions(repo, DOC_PATH)[1]?.sha;
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH, BUG_MACHINE)).toEqual([
+      { kind: 'unparseable', sha, subject },
+    ]);
+  });
+});
+
+// task-126 (dl-079 (A)): the closed `wf()` operation list — the five CLI verbs plus `start`,
+// `finalize`, `sync`, `amend`, `park`, `assign` — and the scopes and subjects that are not Memory
+// operations.
+describe('reconstructMemoryTransitions — the declared operation list (task-126, dl-079 (A))', () => {
+  let repo: string;
+
+  afterEach(() => removeTempDir(repo));
+
+  /** One `add`, then one commit per subject, each writing a fresh status so git has a change to record. */
+  function operationsOf(subjects: readonly string[]): (string | null)[] {
+    repo = makeTempGitRepo();
+    writeDoc(repo, DOC_PATH, 'draft');
+    commitAll(repo, 'wf(task): add task-901-doc');
+    subjects.forEach((subject, index) => {
+      writeDoc(repo, DOC_PATH, `state-${index}`);
+      commitAll(repo, subject);
+    });
+    return reconstructMemoryTransitions(repo, DOC_PATH)
+      .slice(1)
+      .map((t) => t.operation);
+  }
+
+  it('AC1: reports `start`, `finalize`, `sync`, `amend` and `park` for subjects of those verbs', () => {
+    expect(
+      operationsOf([
+        'wf(task): start task-901-doc [backlog → in-progress]',
+        'wf(task): park task-901-doc [in-progress → backlog]',
+        'wf(task): amend task-901-doc [backlog → backlog]',
+        'wf(task): finalize task-901-doc [approved → done]',
+        'wf(bug): sync task-901-doc [in-review -> resolved -> closed]',
+      ]),
+    ).toEqual(['start', 'park', 'amend', 'finalize', 'sync']);
+  });
+
+  it('AC1: an undeclared verb still reports `operation: null` — history is not rewritten (dl-035)', () => {
+    expect(
+      operationsOf([
+        'wf(bug): schedule task-901-doc into v0.2',
+        'wf(release): enter-releasing minor-v0.2 [in-development → releasing]',
+        'wf(task): start-fix task-901-doc [backlog → in-progress]',
+        'wf(task): task-901-doc [backlog → in-progress]',
+      ]),
+    ).toEqual([null, null, null, null]);
+  });
+
+  // Approver ruling 2026-10-01 (reverses release-planning R20/Q6 on this point): `assign` joins the
+  // list as `element.set_release`'s verb, in the canonical form history already carries.
+  it('reports `assign` for the canonical `assign release {version} to {id}, …` subject, the four practised ones included', () => {
+    expect(
+      operationsOf([
+        'wf(adr): assign release v0.3 to task-901-doc',
+        'wf(bug): assign release v0.2.2 to task-901-doc, bug-092-dna-set-and-dna-update-are-indistinguishable',
+        'wf(tech-spec): assign release v0.2 to spec-015',
+        'wf(decision-log): assign release v0.2.2 to dl-026-repo-versioned-mcp-server-config',
+      ]),
+    ).toEqual(['assign', 'assign', 'assign', 'assign']);
+  });
+
+  it('an `assign` subject outside the canonical form reads `operation: null`', () => {
+    expect(
+      operationsOf([
+        'wf(task): assign task-901-doc',
+        'wf(task): assign release v0.3',
+        'wf(task): assign owner bob to task-901-doc',
+        'wf(task): assign release v0.3 to task-901-doc [backlog → backlog]',
+      ]),
+    ).toEqual([null, null, null, null]);
+  });
+
+  it('AC3: `wf(workflow): create|remove` and `wf(directive): …` commits touching a Memory path are not Memory operations', () => {
+    expect(
+      operationsOf([
+        'wf(workflow): create x',
+        'wf(workflow): remove x',
+        'wf(directive): create x',
+        'wf(directive): assign x to developer',
+      ]),
+    ).toEqual([null, null, null, null]);
+  });
+
+  it('AC3: a configuration scope is not a Memory operation even when its verb token is a declared one (`wf(dna): add`, as `dna add` writes it)', () => {
+    expect(
+      operationsOf([
+        'wf(dna): add stacks.technologies.cli Commander',
+        'wf(workflow): finalize x',
+        'wf(directive): sync x',
+      ]),
+    ).toEqual([null, null, null]);
+  });
+
+  it('AC6: the non-`wf()` records `workflow: finalize …` (spec-017) and `agent: record …` (spec-016) are not Memory operations', () => {
+    expect(operationsOf(['workflow: finalize dev-loop-1 red', 'agent: record run-0001'])).toEqual([null, null]);
+  });
+
+  it('a bracket on a configuration scope is not a Memory transition to check', () => {
+    operationsOf(['wf(workflow): create x [a → b]']);
+
+    expect(verifyTransitionConsistency(repo, DOC_PATH)).toEqual([]);
   });
 });
