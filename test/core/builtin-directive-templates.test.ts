@@ -7,6 +7,7 @@
  *   Scenario: Built-in templates are installed during init
  *     Then ".wingfoil/directives/built-in/" contains exactly 6 templates
  *     And the set is: code-quality, testing, code-review, architecture, security, documentation
+ *     And ".wingfoil/roles.yaml" binds "security" under "global", so every role loads it  (task-133)
  *   Scenario: Built-in templates are selected by methodology
  *     Then the 6 built-in templates are installed and available for assignment
  *   Scenario: Error - a built-in template fails its integrity check
