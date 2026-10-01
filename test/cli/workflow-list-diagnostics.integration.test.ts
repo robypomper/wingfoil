@@ -56,6 +56,6 @@ describe('`wingfoil workflow list` — a spec-003 error names its code and file'
     expect(result.status).toBe(1);
     const lines = result.stderr.split('\n').filter(Boolean);
     expect(lines[0]).toMatch(/^error: E_WORKFLOW_FILE_NOT_FOUND /);
-    expect(lines.some((line) => /^  E_VALIDATION phases\[0\]\.name \(workflows\/custom\/bad\.yaml\): /.test(line))).toBe(true);
+    expect(lines.some((line) => /^ {2}E_VALIDATION phases\[0\]\.name \(workflows\/custom\/bad\.yaml\): /.test(line))).toBe(true);
   });
 });
