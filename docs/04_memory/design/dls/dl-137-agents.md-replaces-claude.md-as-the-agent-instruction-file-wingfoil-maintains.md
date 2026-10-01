@@ -30,8 +30,9 @@ file). The one agent-facing file it keeps aligned is `CLAUDE.md`:
   "… role-directive bindings match roles.yaml").
 
 `CLAUDE.md` is the file name of one vendor's agent, so WingFoil's own agent-facing contract depends
-on one vendor. That contradicts the product's agent-agnostic position: the vision states that
-WingFoil works with any coding agent (`docs/01_vision/01_product-brief.md`, *Works with*), and
+on one vendor. That contradicts the product's agent-agnostic position: the North Star is defined
+over runs "using different AI agents" (`docs/01_vision/01_product-brief.md`, North Star), `task-141`
+adds a *Works with* list of coding agents to the brief, and
 `dl-131`/`spec-016` design agent execution around per-agent adapters.
 
 The gap has two independent parts:
