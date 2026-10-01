@@ -328,6 +328,29 @@ describe('spec-003 § Diagnostics — each loader row owned by task-136 fires on
     ]);
   });
 
+  it('E_WORKFLOW_INCLUDE_CYCLE — every cyclic component is reported, at its first member (review finding 3)', () => {
+    // One component {a, b, c, d}: cycles a->b->c->a and b->c->d->b. The guarantee is one diagnostic at
+    // the component's first member in manifest order (a), on each of its includes that enters the
+    // component, naming the shortest cycle through that include; b->c->d->b is not reported from b,
+    // whose shortest cycle passes through the earlier a.
+    writeWorkflows(repo, [
+      ['main', MAIN],
+      ['a', 'name: a\nkind: sub\nphases:\n  - name: to-b\n    include: b\n'],
+      ['b', 'name: b\nkind: sub\nphases:\n  - name: to-c\n    include: c\n'],
+      ['c', 'name: c\nkind: sub\nphases:\n  - name: to-a\n    include: a\n  - name: to-d\n    include: d\n'],
+      ['d', 'name: d\nkind: sub\nphases:\n  - name: to-b\n    include: b\n'],
+    ]);
+    expect(diagnosticsOf(repo).diagnostics.map((d) => [d.file, d.path, d.message])).toEqual([
+      ['workflows/custom/a.yaml', 'phases[0].include', 'include cycle: a -> b -> c -> a'],
+    ]);
+
+    // With a->b->c->a removed, the remaining cycle is reported at its own first member, b.
+    writeFixtureFile(repo, '.wingfoil/workflows/custom/c.yaml', 'name: c\nkind: sub\nphases:\n  - name: to-d\n    include: d\n');
+    expect(diagnosticsOf(repo).diagnostics.map((d) => [d.file, d.path, d.message])).toEqual([
+      ['workflows/custom/b.yaml', 'phases[0].include', 'include cycle: b -> c -> d -> b'],
+    ]);
+  });
+
   it('E_PHASE_FALLBACK_STEP_UNKNOWN — BDD P4.15 sc. 3 message (spec-017 Consequences)', () => {
     writeWorkflows(repo, [
       ['main', 'name: main\nkind: main\nphases:\n  - name: red\n  - name: review\n    fallback: { step: ghost }\n'],
@@ -385,6 +408,41 @@ describe('structural (Zod) failures keep spec-009 codes and do not cascade', () 
     ]);
     const { diagnostics } = diagnosticsOf(repo);
     expect(diagnostics.map((d) => [d.code, d.file, d.path])).toEqual([['E_VALIDATION', 'workflows/custom/nameless.yaml', 'name']]);
+  });
+});
+
+describe('YAML and manifest failures join the one array (review finding 5)', () => {
+  let repo: string;
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+  });
+  afterEach(() => removeTempDir(repo));
+
+  it('a workflow file that is not YAML is an E_YAML_PARSE_ERROR diagnostic, after the earlier ones', () => {
+    writeFixtureFile(
+      repo,
+      '.wingfoil/workflows.yaml',
+      'version: 1.0\ninclude:\n  - workflows/custom/missing.yaml\n  - workflows/custom/m.yaml\n  - workflows/custom/p.yaml\n',
+    );
+    writeFixtureFile(repo, '.wingfoil/workflows/custom/m.yaml', 'name: m\nkind: main\nphases:\n  - name: go\n    fallback: { step: ghost }\n');
+    writeFixtureFile(repo, '.wingfoil/workflows/custom/p.yaml', 'name: p\nphases: [\n');
+    const { error, diagnostics } = diagnosticsOf(repo);
+    expect(diagnostics.map((d) => [d.code, d.severity, d.file, d.path])).toEqual([
+      ['E_WORKFLOW_FILE_NOT_FOUND', 'error', 'workflows.yaml', 'include[0]'],
+      ['E_PHASE_FALLBACK_STEP_UNKNOWN', 'error', 'workflows/custom/m.yaml', 'phases[0].fallback.step'],
+      ['E_YAML_PARSE_ERROR', 'error', 'workflows/custom/p.yaml', ''],
+    ]);
+    expect(error.message).toMatch(/^E_WORKFLOW_FILE_NOT_FOUND include\[0\] \(workflows\.yaml\): /);
+  });
+
+  it('a manifest that is not YAML is one E_YAML_PARSE_ERROR diagnostic of workflows.yaml', () => {
+    writeFixtureFile(repo, '.wingfoil/workflows.yaml', 'include: [\n');
+    expect(diagnosticsOf(repo).diagnostics.map((d) => [d.code, d.file, d.path])).toEqual([['E_YAML_PARSE_ERROR', 'workflows.yaml', '']]);
+  });
+
+  it('a structurally invalid manifest reports its Zod issues as diagnostics of workflows.yaml', () => {
+    writeFixtureFile(repo, '.wingfoil/workflows.yaml', 'version: 1.0\ninclude: []\n');
+    expect(diagnosticsOf(repo).diagnostics.map((d) => [d.code, d.file, d.path])).toEqual([['E_VALIDATION', 'workflows.yaml', 'include']]);
   });
 });
 
@@ -488,7 +546,8 @@ describe('spec-003 § Diagnostics — one deterministic order (REQ-SYS-07)', () 
   it('fails with VALIDATION (exit 1): the first error is the reason, every diagnostic is in details', async () => {
     const { error, diagnostics } = diagnosticsOf(repo);
     expect(error.exitCode).toBe(EXIT_VALIDATION);
-    expect(error.message).toBe('included workflow file not found: workflows/custom/missing.yaml');
+    const reason = 'E_WORKFLOW_FILE_NOT_FOUND include[1] (workflows.yaml): included workflow file not found: workflows/custom/missing.yaml';
+    expect(error.message).toBe(reason);
 
     const workflowList = CORE_MODULES.find((m) => m.name === 'workflow')?.operations.workflowList;
     if (!workflowList) throw new Error('fixture bug: workflow.workflowList not registered');
@@ -496,7 +555,7 @@ describe('spec-003 § Diagnostics — one deterministic order (REQ-SYS-07)', () 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('VALIDATION');
-      expect(result.error.message).toBe('included workflow file not found: workflows/custom/missing.yaml');
+      expect(result.error.message).toBe(reason);
       expect(result.error.details).toEqual({ diagnostics });
     }
   });
