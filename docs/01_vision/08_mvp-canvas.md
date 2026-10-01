@@ -1,7 +1,7 @@
 # MVP Canvas — WingFoil v1.0 (MVP Complete)
 
-**Version:** 1.5
-**Date:** 2026-09-30
+**Version:** 1.6
+**Date:** 2026-10-01
 **Status:** Approved
 
 ---
@@ -14,7 +14,8 @@ As projects grow and teams adopt AI agents for development, they lose consistenc
 - **Decision Drift:** Conventions and decisions diverge across sessions and team members
 - **No Shared Source of Truth:** Agents and developers operate independently
 - **Governance Breakdown:** Rules are manual, leaky, and constantly need re-explaining
-- **Reduced Determinism:** Even identical specs with different agents produce divergent codebases
+- **Ungoverned Process:** Even identical specs with different agents follow different processes, so their
+  codebases diverge and nobody can say where; WingFoil governs the process and measures the outcome
 
 **Impact:** Reduced determinism, increased governance overhead, constant rework, team friction.
 
@@ -101,6 +102,12 @@ project:
 **Determinism Index:** Two independent development runs from the same base (specs + WingFoil config) using different AI
 agents should produce substantially equivalent software.
 
+*Substantially equivalent* means **behaviourally equivalent**: both codebases pass the same acceptance contracts,
+derived from the specifications and written before either run. Form, style, structure and textual similarity are not
+part of it. The Index is composite — **I**nput (WingFoil, guaranteed), **P**rocess conformance (WingFoil + the agent,
+measured on every run), **O**utcome equivalence (the customer's agent and model, measured, never promised); see the
+product brief's *Success Metrics* (`dl-131-determinism-index-scope`).
+
 ### Supporting Indicators
 
 | Metric                       | Target                                                   | How Measured            |
@@ -158,7 +165,8 @@ agents should produce substantially equivalent software.
 
 ### If v1.0 MVP Succeeds
 
-- Validate Determinism Index: two independent runs from same specs produce equivalent outputs
+- Report the Determinism Index (I, P, O): Input at its 100% target; Process conformance and Outcome equivalence
+  published with their trend, Outcome informing the retrospective rather than gating a release
 - Gather feedback from early adopters (the first four weeks after the v1.0 release; its forecast date is in
   [`07_sequencer.md`](07_sequencer.md))
 - Secure ≥1 real team using WingFoil in production by the v0.4 milestone (budget and forecast in
@@ -178,19 +186,21 @@ agents should produce substantially equivalent software.
 
 ## Appendix: Documentation Reference
 
-This MVP Canvas is part of a comprehensive product specification created via Lean Inception workshop (June 2026):
+This MVP Canvas is part of a comprehensive product specification created via Lean Inception workshop (June 2026).
+Each document's version, date and status are listed in one place, the document map of
+[`00_index.md`](00_index.md), which reads them from each file's header; this appendix does not repeat them.
 
-| Document                   | Version | Status   | Content                                                    |
-|----------------------------|---------|----------|------------------------------------------------------------|
-| `01_product-brief.md`      | 1.4     | Approved | Executive summary, vision, success metrics, timeline, GTM  |
-| `02_product-vision.md`     | 1.1     | Approved | Vision statement, key decisions, reference workflows       |
-| `03_is-isnot.md`           | 1.2     | Approved | What WingFoil is/isn't, does/doesn't do                    |
-| `04_personas.md`           | 1.0     | Approved | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
-| `05_journeys.md`           | 1.2     | Approved | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
-| `06_features.md`           | 1.5     | Approved | 63 features across 5 pillars, organized by release version |
-| `07_sequencer.md`          | 1.7     | Approved | Active-day budgets, actuals, forecast; original plan       |
-| `08_mvp-canvas.md`         | 1.2     | Approved | This file — MVP canvas with success criteria               |
-| `X_cli-cmds.md`            | 1.3     | Approved | CLI commands reference (all pillars)                       |
-| `X_lean-inception-plan.md` | —       | —        | Lean Inception workshop plan and session log               |
+| Document                   | Content                                                    |
+|----------------------------|------------------------------------------------------------|
+| `01_product-brief.md`      | Executive summary, vision, success metrics, timeline, GTM  |
+| `02_product-vision.md`     | Vision statement, key decisions, reference workflows       |
+| `03_is-isnot.md`           | What WingFoil is/isn't, does/doesn't do                    |
+| `04_personas.md`           | 6 personas: Alex, Sam, Jordan, Morgan, Casey, Taylor       |
+| `05_journeys.md`           | 8 user journeys (0a, 0b, 1–6) with scenarios and obstacles |
+| `06_features.md`           | 63 features across 5 pillars, organized by release version |
+| `07_sequencer.md`          | Active-day budgets, actuals, forecast; original plan       |
+| `08_mvp-canvas.md`         | This file — MVP canvas with success criteria               |
+| `X_cli-cmds.md`            | CLI commands reference (all pillars)                       |
+| `X_lean-inception-plan.md` | Lean Inception workshop plan and session log               |
 
 **All outputs are versioned in git and open for refinement as development progresses.**

@@ -1,7 +1,7 @@
 # Sequencer — WingFoil MVP (v0.1 → v1.0)
 
-**Version:** 1.7
-**Date:** 2026-09-30
+**Version:** 1.8
+**Date:** 2026-10-01
 **Status:** Approved
 
 ---
@@ -427,7 +427,8 @@ Workflow, Interaction) are integrated progressively across 5 weeks, with weekly 
 - ✓ All 8 user journeys (0a, 0b, 1–6) executable and tested
 - ✓ Comprehensive documentation (API guide, workflow examples, troubleshooting)
 - ✓ Integration testing (end-to-end for all journeys) passing
-- ✓ Determinism validation: two independent runs produce equivalent outputs
+- ✓ Determinism Index reported (I, P, O): Input at its 100% target; Process conformance and Outcome equivalence
+  published with their trend; Outcome informs the retrospective and does not gate the release (`dl-131`)
 - ✓ Audit trail verified (all changes tracked to author + timestamp)
 - ✓ npm package v1.0.0 published with release notes
 - ✓ Security review completed (no secrets in repo, audit trail works)

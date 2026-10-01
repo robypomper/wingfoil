@@ -1,7 +1,7 @@
 # Product Brief — WingFoil
 
-**Version:** 1.5
-**Date:** 2026-09-29  
+**Version:** 1.6
+**Date:** 2026-10-01  
 **Status:** Approved
 
 ---
@@ -13,9 +13,9 @@
 **WingFoil is** an open-source harness for AI-assisted software development  
 **that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to
 the project
-**Unlike** relying on large context windows or full codebase scans  
-**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all
-actors in the development process
+**Unlike** tools that generate specifications, plans or code  
+**our product** governs the process around them — decisions, rules, roles and workflow state — versioned in git and
+shared by every human and agent
 
 ---
 
@@ -65,22 +65,41 @@ a **structured, authoritative interface** to any software project:
     - CLI for humans (init, dna, memory, directive, audit, workflow, etc.)
     - MCP Server for agents (read-only Resources, role-based Prompts, workflow commands)
 
-This architecture ensures **determinism**: two independent development runs from the same specs + WingFoil config using
-different AI agents produce substantially equivalent software. Even though code may diverge in form and style, its
-substance remains identical. Additionally, two projects built from the same base configuration will generate similar
-git tree (same checkpoint or flow commits), ensuring consistency across independent development efforts.
+This architecture is designed to make the process **deterministic**: two independent development runs from the same
+specs + WingFoil config, using different AI agents, should produce substantially equivalent software, and two projects
+built from the same base configuration should produce similar git trees (the same checkpoint and flow commits). The
+claim is measured by the Determinism Index (*Success Metrics*), whose first value is expected from v0.3's
+release-health run (`dl-089-release-health-analyses-before-retrospective`, metric D01).
+
+**Who controls what.** WingFoil controls the context it assembles for each agent and the process it governs, and it
+measures the rest. The code is written by the agents and models the customer chooses, so whether two runs' code agrees
+is not under WingFoil's control: it is measured, never promised (`dl-131-determinism-index-scope`).
 
 ---
 
 ## Key Differentiators
 
-| vs.                      | WingFoil                                                       | Them                     | Why WingFoil Wins                  |
-|--------------------------|----------------------------------------------------------------|--------------------------|------------------------------------|
-| CLAUDE.md / .cursorrules | Structured, queryable, multi-layer (Memory + DNA + Directives) | Single flat file         | Scales with project complexity     |
-| README + scattered docs  | Centralized, versioned, indexed                                | Scattered + hard to find | One source of truth                |
-| Large context windows    | Selective + curated (only relevant docs)                       | Load everything          | Deterministic + cheaper            |
-| Manual governance        | Rule binding + auto-load                                       | Manual per session       | Agents respect rules automatically |
-| Implicit workflow state  | Explicit workflow management + shared state                    | Informal updates         | All actors aligned on progress     |
+WingFoil is the **governance layer** around AI-assisted development: it records who decided what, under which rules,
+in which state. It replaces the informal ways a project keeps that record today, and it works alongside the tools that
+produce specifications, plans and code rather than competing with them (`dl-112-positioning-as-a-governance-layer`).
+
+### Replaces
+
+| Instead of                                      | WingFoil                                                                 | What it adds                         |
+|-------------------------------------------------|--------------------------------------------------------------------------|--------------------------------------|
+| Flat agent-rule files                           | Structured, queryable, multi-layer (Memory + DNA + Directives)           | Scales with project complexity       |
+| README + scattered docs                         | Centralized, versioned, indexed                                          | One source of truth                  |
+| Brute-force context (large windows, full scans) | Selected by role and task; the same inputs assemble the same context     | Reproducible context, fewer tokens   |
+| Manual governance                               | Rule binding by role + auto-load                                         | Agents receive the rules every time  |
+| Implicit workflow state                         | Explicit workflow state, deduced from Memory and shared by every actor   | All actors aligned on progress       |
+
+### Works with
+
+| Alongside                     | What they do                                        | What WingFoil adds                                                          |
+|-------------------------------|-----------------------------------------------------|-----------------------------------------------------------------------------|
+| Spec-driven development tools | Turn a specification into plans, tasks and code     | Governs the lifecycle around the spec: approvals, state machines, role-bound rules, audit trail |
+| Coding agents                 | Write and change the code, with the model chosen    | Launches them with their role's directives and context; records every state change in git |
+| IDEs                          | Editing, navigation, running the code               | Reaches them through MCP and the CLI, with no IDE plugin                    |
 
 ---
 
@@ -133,6 +152,21 @@ git tree (same checkpoint or flow commits), ensuring consistency across independ
 **Determinism Index:** Two independent development runs from the same base (specs + WingFoil config) using different AI
 agents should produce substantially equivalent software, with shared understanding of project workflow state and
 progress alignment across all team members and agents.
+
+*Substantially equivalent* means **behaviourally equivalent**: both codebases pass the same acceptance contracts,
+derived from the specifications and written before either run. Form, style, structure and textual similarity are not
+part of it.
+
+The Index is **composite**, and each component states who controls it and what is promised
+(`dl-131-determinism-index-scope`):
+
+| Component                     | What it measures                                                                                     | Controlled by                  | Promise                         |
+|-------------------------------|------------------------------------------------------------------------------------------------------|--------------------------------|---------------------------------|
+| **I — Input**                 | The assembled context is identical for identical inputs                                              | WingFoil                       | Guaranteed: 100%, by tests      |
+| **P — Process conformance**   | The run followed the workflow: well-formed commits, legal transitions, phase outputs present, traceability complete, each phase run by its declared role | WingFoil + the agent | Measured on every run           |
+| **O — Outcome equivalence**   | Behavioural equivalence of two independent runs' software                                            | The customer's agent and model | Measured periodically, never promised |
+
+Textual or structural similarity of the code is out of scope.
 
 ### Supporting Indicators
 
@@ -249,7 +283,8 @@ development and v0.2's scope growth; it is kept in the sequencer, next to the ac
 
 - ✓ All five pillars integrated and stable
 - ✓ ≥3 teams actively using WingFoil
-- ✓ Determinism Index validated: two independent runs produce equivalent outputs
+- ✓ Determinism Index reported (I, P, O): Input at its 100% target; Process conformance and Outcome equivalence
+  published with their trend (Outcome informs the retrospective and does not gate the release)
 - ✓ Audit trail complete for all decisions and state changes
 
 ### If Initial Validation (v0.1) Fails
@@ -304,5 +339,9 @@ This brief summarizes outputs from a 2-day Lean Inception workshop (June 2026). 
 - [`07_sequencer.md`](07_sequencer.md) — Active-day budgets, actuals and calendar forecast; the original
   week-by-week plan; Definition of Done
 - [`08_mvp-canvas.md`](08_mvp-canvas.md) — MVP canvas and success criteria
+
+**Other tools:** *Key Differentiators* names categories of tools, not products, so this brief states
+no fact about a specific third-party tool. An edit that names one cites its source and the date it was read here
+(`dl-112-positioning-as-a-governance-layer`, ratified with that condition).
 
 All documents are versioned in git and open for refinement as development progresses.

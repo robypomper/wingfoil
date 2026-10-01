@@ -1,7 +1,7 @@
 # Is / Is Not / Does / Does Not — WingFoil
 
-**Version:** 1.2
-**Date:** 2026-06-24
+**Version:** 1.3
+**Date:** 2026-10-01
 **Status:** Approved
 
 ---
@@ -26,6 +26,7 @@
   not a verification that the executed task is correct
 - A real-time collaboration platform
 - A spec or requirements validator
+- A guarantee of identical code across agents or models
 
 ## DOES
 
@@ -42,7 +43,9 @@
 - Auto-syncs built-in Directives and Workflow templates when DNA (tech-stack/methodology) changes
 - Runs shallow workflow checks (frontmatter state/field values, file/section existence) pre/post step to keep the
   workflow and its files aligned — run as a separate command after the agent runs, not a correctness review of the work
-- Makes independent development runs produce substantially equivalent output (Determinism)
+- Makes the process of independent development runs deterministic — the same context for the same inputs, and the
+  same workflow followed — and measures how far their software agrees (Determinism Index: Input, Process conformance,
+  Outcome equivalence; the outcome is measured, never promised)
 - Notifies users when human intervention is required (human-on-the-loop supervision)
 
 ## DOES NOT

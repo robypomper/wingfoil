@@ -1,7 +1,7 @@
 # Product Vision — WingFoil
 
-**Version:** 1.1
-**Date:** 2026-06-24
+**Version:** 1.2
+**Date:** 2026-10-01
 **Status:** Approved
 
 ---
@@ -12,8 +12,8 @@
 **who** lose consistency and control over the development process as the project grows  
 **WingFoil is** an open-source harness for AI-assisted software development  
 **that** makes the process deterministic by giving both humans and AI agents a structured, authoritative interface to the project  
-**Unlike** relying on large context windows or full codebase scans  
-**our product** centralizes memory, conventions, directives and workflow state — keeping them synchronized across all actors in the development process
+**Unlike** tools that generate specifications, plans or code  
+**our product** governs the process around them — decisions, rules, roles and workflow state — versioned in git and shared by every human and agent
 
 ---
 

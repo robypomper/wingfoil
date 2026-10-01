@@ -1,6 +1,6 @@
 # Features — WingFoil
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-10-01  
 **Status:** Approved
 
@@ -277,7 +277,7 @@ Notifications and alerts across all features.
 | P4.12      | Workflow Checks (pre/post)                  | High       | High     | Critical | Enforce quality gates (file/git/test checks)    |
 | P4.17      | Built-in Workflow Templates (Task, Release) | Low        | Low      | High     | Common workflow patterns (Task + Release)       |
 | —          | All v0.4 features stable                     | —          | Low      | Critical | Production-ready; battle-tested                 |
-| —          | Determinism Index validated                 | —          | Medium   | Critical | Two independent runs produce equivalent outputs |
+| —          | Determinism Index reported (I, P, O)        | —          | Medium   | Critical | Input at its 100% target; Process conformance and Outcome equivalence published with their trend (dl-131) |
 | —          | ≥1 real team using WingFoil                 | —          | High     | Critical | Early adopter validation                        |
 
 ---
