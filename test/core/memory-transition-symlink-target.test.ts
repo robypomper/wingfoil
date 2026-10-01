@@ -121,6 +121,9 @@ describe('memory transition verbs — a symlinked document is refused before the
     { operation: 'memoryApprove', from: 'pending', params: { options: { reason: 'probe' } } },
     { operation: 'memoryReject', from: 'pending', params: { options: { reason: 'probe' } } },
     { operation: 'memoryDeprecate', from: 'draft', params: { options: { reason: 'probe' } } },
+    // task-127: `amend` writes the same file through the same `commitMemoryTransition`, and asks the
+    // confinement question before its own content checks.
+    { operation: 'memoryAmend', from: 'approved', params: { options: { reason: 'probe' } } },
   ];
 
   describe.each(verbs)('$operation', ({ operation, from, params }) => {

@@ -17,6 +17,10 @@
  *   `mutates: true`, i.e. reachable by an **agent** through an MCP Tool, which is exactly the
  *   principal REQ-SEC-03 and `adr-006` deny approval authority.
  *
+ * - `memory amend` (`task-127`, `dl-108`) requires one, like `approve`: it is approver-gated and
+ *   writes an `Approver:` line. It joins the three refusal cases below, which it reaches through the
+ *   same `requireReason`.
+ *
  * dl-067 S2 is ratified here too: a **declared-but-empty** `--reason` is a usage error on `deprecate`
  * as well, even though the flag is optional there. That changes a merged verb's behaviour; no test
  * pinned the old one.
@@ -125,7 +129,7 @@ describe('dl-067 across the four transition verbs — a blank `--reason` is refu
     return thrown as UsageError;
   }
 
-  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate'])(
+  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
     '%s: `--reason ""` is a usage error at exit 2, not an exit-0 commit with a bare `Reason:` (bug-042 F2)',
     async (operation) => {
       const error = await expectUsageRefusal(operation, '');
@@ -136,14 +140,14 @@ describe('dl-067 across the four transition verbs — a blank `--reason` is refu
     },
   );
 
-  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate'])(
+  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
     '%s: a whitespace-only `--reason` is refused the same way',
     async (operation) => {
       await expectUsageRefusal(operation, '   \n\t ');
     },
   );
 
-  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate'])(
+  it.each(['memoryApprove', 'memoryReject', 'memoryDeprecate', 'memoryAmend'])(
     '%s: a reason carrying a forged `Approver:` line is refused (bug-042 F3)',
     async (operation) => {
       await expectUsageRefusal(operation, FORGED);

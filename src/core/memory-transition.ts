@@ -1,6 +1,7 @@
 /**
  * The shared skeleton of every Memory state-transition verb (task-045-memory-submit; reused by
- * `memory approve`/`reject`/`deprecate`, task-046/047/048).
+ * `memory approve`/`reject`/`deprecate`, task-046/047/048, and by `memory amend`, task-127, whose
+ * edge is the self-loop of the current state).
  *
  * A transition verb always does the same two things around its own verb-specific rules:
  *
@@ -101,12 +102,17 @@ function uncommittedMachineNote(root: string): string {
  * - its `status` is not a state of the type → `VALIDATION` `invalid state '<s>' for type '<t>'`
  *   (task-036's `validateFrontmatterState`);
  * - the verb is illegal from that state → `INVALID_TRANSITION` with the `dl-032` contract message
- *   (`resolveTypeTransition`), the engine's explanation in `details.issues[0].detail`.
+ *   (`resolveTypeTransition`), the engine's explanation in `details.issues[0].detail`. `amend`
+ *   (task-127) never takes this branch: its target is the current state.
  *
  * The last four keep their pinned messages verbatim as the first sentence;
  * {@link uncommittedMachineNote} may append a second one.
  */
-export function prepareMemoryTransition(root: string, id: string, op: TransitionOp): CoreResult<PreparedMemoryTransition> {
+export function prepareMemoryTransition(
+  root: string,
+  id: string,
+  op: TransitionOp | 'amend',
+): CoreResult<PreparedMemoryTransition> {
   let memoryYaml: MemoryYaml | null;
   try {
     memoryYaml = loadMemoryYamlAtHead(root);
@@ -156,7 +162,9 @@ export function prepareMemoryTransition(root: string, id: string, op: Transition
   const from = typeof status === 'string' ? status : String(status ?? '');
   try {
     validateFrontmatterState(machine, type, from, found.path);
-    const to = resolveTypeTransition(memoryYaml, type, from, op, found.path);
+    // `amend` moves no state (`dl-108`): its edge is the self-loop `[s → s]` in every state, so no
+    // machine lookup can refuse it. Whether the TYPE may be amended is the verb's own check.
+    const to = op === 'amend' ? from : resolveTypeTransition(memoryYaml, type, from, op, found.path);
     const content = readDocument(join(root, found.path));
     return coreOk({ memoryYaml, id, type, path: found.path, frontmatter: found.frontmatter, content, from, to });
   } catch (error) {

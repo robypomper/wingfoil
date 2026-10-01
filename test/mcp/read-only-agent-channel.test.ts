@@ -78,8 +78,8 @@ describe('REQ-SEC-05 — Tools is the only channel a mutation is registered unde
   });
 });
 
-describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign|create|remove, dna.add|remove|set|update, memory.add|approve|deprecate|reject|submit — task-051/050/052/093/025/020/046/048/047/045)', () => {
-  it('the Tools write-channel is advertised, and the real registry contributes all twelve mutating ops — `directive.assign|create|remove`, `dna.add|remove|set|update` + `memory.add|approve|deprecate|reject|submit`', async () => {
+describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (directive.assign|create|remove, dna.add|remove|set|update, memory.add|amend|approve|deprecate|reject|submit — task-051/050/052/093/025/020/046/048/047/045/127)', () => {
+  it('the Tools write-channel is advertised, and the real registry contributes all thirteen mutating ops — `directive.assign|create|remove`, `dna.add|remove|set|update` + `memory.add|amend|approve|deprecate|reject|submit`', async () => {
     const { client } = await connectCoreModuleSurface(CORE_MODULES, UNUSED_ROOT);
 
     // The sole write channel (Tools) is structurally present/advertised...
@@ -107,6 +107,8 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'dnaSet',
       'dnaUpdate',
       'memoryAdd',
+      // task-127 (`dl-108`) — the approver-gated amendment verb, a Tool like `memoryApprove`.
+      'memoryAmend',
       'memoryApprove',
       'memoryDeprecate',
       'memoryReject',
@@ -122,6 +124,7 @@ describe('REQ-SEC-05 — the real surface exposes the mutating Tools today (dire
       'dna.set',
       'dna.update',
       'memory.add',
+      'memory.amend',
       'memory.approve',
       'memory.deprecate',
       'memory.reject',

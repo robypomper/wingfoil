@@ -77,10 +77,11 @@ import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './dir
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity, readGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
-import { requireConfinedTarget } from './confinement';
+import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
 import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+import { requireAmendableEdit, requireAmendableType, requireRequiredFieldsKept } from './memory-amend';
 import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
 import { UsageError } from './usage-error';
@@ -1300,6 +1301,106 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
 };
 
 /**
+ * `wingfoil memory amend <id> --reason <text>` params (task-127, `dl-108`). The id rides the bare
+ * `ParamsContext.positional` seam (`spec-008-cli-grammar` §7) and `--reason` the value-bearing
+ * `options` seam, as on `memory approve`. Both are optional only because the seams are;
+ * {@link memoryAmendFn} refuses either absent.
+ */
+export interface MemoryAmendParams {
+  readonly root: string;
+  readonly positional?: string;
+  readonly options?: Readonly<Record<string, string>>;
+}
+
+/** `memory amend` success shape: the document and its unchanged state, as the `[s → s]` bracket records it. */
+export interface MemoryAmendResult {
+  readonly id: string;
+  /** Root-relative path of the amended document. */
+  readonly path: string;
+  readonly from: string;
+  /** Always equal to `from`: an amendment moves no state. */
+  readonly to: string;
+}
+
+/**
+ * `memory amend` `CoreOperation.fn` (task-127, `mutates: true`; `dl-108` A1 (a), A2 (i), A3). It
+ * records the author's uncommitted edit of one document as an amendment: one commit, that file only,
+ * `status` untouched, under an approver's name. It is the verb for a correction to an element no
+ * transition verb can move (an `approved` tech-spec, a `ready` decision-log). Order, every refusal
+ * before the single write:
+ *
+ * 1. **`<id>`** absent or blank, then **`requireReason`** (`dl-067`) → `UsageError` (exit `2`), before
+ *    anything is read. Both precede the identity check (task-125, `bug-172`), as on `approve`.
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 3. **{@link prepareMemoryTransition}** with op `amend` — the document located, its type and state
+ *    resolved against the `memory.yaml` committed at `HEAD` (`dl-080` (B)); its target is its own
+ *    state, so no illegal-transition refusal exists for this verb. Then
+ *    {@link requireConfinedWriteTarget} (REQ-SEC-06): a document outside the project, or one that is
+ *    itself a symbolic link, is refused before any question about its content.
+ * 4. **{@link requireApprovalAuthority}** (REQ-SEC-03, `dl-108` A2 (i)) — the same check and message
+ *    as `approve`, from the committed `dna.yaml`; exit `1`. It runs as soon as the type is known
+ *    (step 3), the same place `approve` runs it, so a caller without authority learns nothing about
+ *    the edit (task-127 review F6).
+ * 5. **{@link requireAmendableType}** — the committed entry must declare `amendable: true`
+ *    (`dl-108` A3, `spec-001`); exit `1`.
+ * 6. **{@link requireAmendableEdit}** — the document must be committed at `HEAD`, carry a change, and
+ *    leave every field in `AMEND_RESERVED_FIELDS` as committed (`spec-010` § Field-write
+ *    ownership); exit `1`, naming the field. Then {@link requireRequiredFieldsKept}: past the initial
+ *    state, `title` and the type's required fields must stay non-empty (`spec-010` § Validation
+ *    rules); exit `1`, naming the field.
+ * 7. **Commit** — {@link commitMemoryTransition} under `carries-content`, the scope `memory submit`
+ *    uses: the working-tree bytes are the content of record, so they are written back unchanged and
+ *    committed as that one path. `commitPaths` stages only that path, so other modified or staged
+ *    files stay where they are (`bug-027`); the post-condition checks that the commit holds only that
+ *    path and that `status` is the unchanged state (`bug-076`). Subject
+ *    `wf(<type>): amend <id> [<s> → <s>]` with the `Approver:` / `Reason:` body (`spec-008` §2).
+ */
+const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
+  const { root, positional: id, options } = params as MemoryAmendParams;
+
+  if (id === undefined || id.trim().length === 0) {
+    throw new UsageError('missing required argument: memory amend <id>');
+  }
+  const reason = requireReason(options);
+
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+
+  const prepared = prepareMemoryTransition(root, id, 'amend');
+  if (!prepared.ok) return prepared;
+  const { memoryYaml, type, path, content, frontmatter, from, to } = prepared.value;
+
+  // Before any question about the edit: is this file the project's to write at all (REQ-SEC-06,
+  // `bug-117`/`bug-120`)? The other verbs ask it first inside `commitMemoryTransition`; `amend` asks
+  // it here too, because its own checks read the document against `HEAD`, and a symlinked document
+  // would otherwise be refused for a field change it never made.
+  const confined = requireConfinedWriteTarget(root, path, 'write');
+  if (!confined.ok) return confined;
+  const authorized = requireApprovalAuthority(root, type);
+  if (!authorized.ok) return authorized;
+
+  const amendable = requireAmendableType(memoryYaml, type);
+  if (!amendable.ok) return amendable;
+  const edit = requireAmendableEdit(root, id, path, content);
+  if (!edit.ok) return edit;
+  const filled = requireRequiredFieldsKept(memoryYaml, type, from, frontmatter);
+  if (!filled.ok) return filled;
+
+  const { name, email } = readGitIdentity(root);
+  const message = formatMemoryCommitMessage({
+    type,
+    op: 'amend',
+    ids: [id],
+    transition: { from, to },
+    approver: { name, email, role: APPROVER_ROLE },
+    reason,
+  });
+  const committed = commitMemoryTransition(root, prepared.value, content, message, {}, 'carries-content');
+  if (!committed.ok) return committed;
+  return coreOk({ id, path, from, to }, { sha: committed.value, message });
+};
+
+/**
  * `wingfoil directive create --name <name>` params (P3.1, task-050-directive-create). The name rides
  * task-020's value-bearing `ParamsContext.options` seam (`core/registry.ts`), read as `--name` —
  * NOT the bare positional seam: `X_cli-cmds.md` and the P3.1 BDD both spell the invocation
@@ -1806,6 +1907,26 @@ export const CORE_MODULES: readonly CoreModule[] = [
         options: [{ name: 'reason', valueName: 'text', description: "why the document is retired, recorded as the commit's Reason: (not blank when given)" }],
         example: 'wingfoil memory deprecate dl-001-use-postgresql --reason "Superseded by the hosted-DB decision."',
         fn: memoryDeprecateFn,
+      },
+      // task-127 (`dl-108`) — `mutates: true`: CLI `wingfoil memory amend <id> --reason <text>` + MCP
+      // Tool `memory.amend`. Approver-gated like `memoryApprove`, so `--reason` is `required`
+      // (metadata; `memoryAmendFn` enforces it via `requireReason`). The id rides the bare
+      // `positional` seam (spec-008 §7), which also gives it task-129's surplus-operand refusal.
+      memoryAmend: {
+        name: 'memoryAmend',
+        mutates: true,
+        description: 'record an uncommitted correction to a document as an amendment, leaving its state unchanged',
+        positional: { name: 'id', required: true, description: 'the document id, e.g. spec-001-storage-layout' },
+        options: [
+          {
+            name: 'reason',
+            required: true,
+            valueName: 'text',
+            description: "why the document is corrected, recorded as the commit's Reason:; needs the approver role",
+          },
+        ],
+        example: 'wingfoil memory amend spec-001-storage-layout --reason "Later measurements corrected the §2 figures."',
+        fn: memoryAmendFn,
       },
     },
   },

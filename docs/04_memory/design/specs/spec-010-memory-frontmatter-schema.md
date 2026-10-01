@@ -124,10 +124,17 @@ grounds for the departure:
 | `memory.approve`     | `status` only (frontmatter); approver identity + reason live in the commit message, not frontmatter |
 | `memory.reject`      | `status` (frontmatter) and `rejection_reason` (set to the `--reason` text); approver identity + reason also live in the commit message per P1.7 — the frontmatter copy is a convenience, not a replacement |
 | `memory.deprecate`   | `status: deprecated` (or a type-specific deprecate-adjacent state first, e.g. `accepted → superseded`) |
+| `memory.amend`       | the body and every frontmatter field **except** `status`, `id`, `type`, `release`, `rejection_reason` and `supersedes`, as the author edited them in the working tree; those six stay as committed, and past the type's initial state `title` and the required fields must stay non-empty (§ Validation rules). Only on a type whose `memory.yaml` entry declares `amendable: true` (`spec-001`); approver identity + reason live in the commit message, as for `memory.approve` (`dl-108`) |
 
 `memory.approve` changes **only** the `status` field and no other frontmatter field. `memory.reject`
 changes `status` plus `rejection_reason` — the one exception to "status only" among the transition
-verbs, matching the field-write ownership table above.
+verbs, matching the field-write ownership table above. `memory.amend` is not a transition: it owns
+the content and never `status`. It also leaves alone the fields other operations own:
+- `id` and `type` locate the element and select its path and machine, so a change to either is a
+  new element rather than a correction to this one;
+- `release` is written by `assign` (`element.set_release`);
+- `rejection_reason` is written by `memory.reject` and cleared by `memory.submit`;
+- `supersedes` is the trigger of the `superseded` edge.
 
 ### Validation rules
 
@@ -179,3 +186,13 @@ supersede, no state change, no `version:` field (`dl-047`) — per the precedent
 lands", and `.wingfoil/memory/templates/service.md` carries the five base fields
 (`id`, `type`, `title`, `status`, `tmpl_version`) the revision above requires of it. Edited in place,
 as above; pending the approver's sign-off at `task-124`'s review.
+
+**Revision (2026-10-01, `task-127-add-memory-amend-id-reason-approver-gated-verb`) — the
+`memory.amend` row.** `dl-108` (`ready`, A1 (a), A2 (i), A3) adds a verb that records a content
+correction without a state change, and its Action 1 asks this section to say what it owns: the body
+and the non-status fields. The row and the paragraph after the table say so, and add `id` and `type`
+to the fields it may not change (a design decision of `task-127`, to be confirmed at its review).
+Edited in place, with no supersede, no state change and no `version:` field (`dl-047`); pending the
+approver's sign-off at `task-127`'s review.
+At the review (2026-10-01) the approver ruled that `release`, `rejection_reason` and `supersedes` are
+also outside an amendment (ruling (b)). Review F1 added the § Validation rules clause to the row.

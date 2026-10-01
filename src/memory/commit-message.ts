@@ -1,7 +1,7 @@
 /**
  * The one commit-message formatter for Memory state-transition verbs (task-045-memory-submit).
  *
- * Every verb — `submit` today, `approve`/`reject`/`deprecate` next — produces exactly one commit whose
+ * Every verb — `submit`, `approve`, `reject`, `deprecate` and `amend` (task-127) — produces exactly one commit whose
  * subject is `wf({type}): {verb} {id1}, {id2}` (`spec-004-mcp-surface-contract` §4.3), optionally
  * followed by a ` [from → to]` bracket and an `Approver:` / `Reason:` body for the verbs whose
  * evidence rules require them (P1.7/P1.8, REQ-SEC-04). Those are exactly the shapes
@@ -225,8 +225,11 @@ export interface CommitApprover {
 export interface MemoryCommitMessageInput {
   /** The Memory element type all `ids` belong to — one commit is scoped to one type. */
   readonly type: string;
-  /** The verb, which is also the subject's operation word. `add` is included for completeness. */
-  readonly op: TransitionOp | 'add';
+  /**
+   * The verb, which is also the subject's operation word. `add` is included for completeness;
+   * `amend` (task-127, `dl-108`) moves no state, so its `transition` is the self-loop `[s → s]`.
+   */
+  readonly op: TransitionOp | 'add' | 'amend';
   /** The element ids moved by this commit, in the order they are listed in the subject. */
   readonly ids: readonly string[];
   /** When given, appended to the subject as ` [from → to]`. Omitted for `add`/`submit` (spec-004 §4.3). */
