@@ -163,3 +163,11 @@ Gates after the fixes, run one after another in the worktree:
 ### Pending amendments (approver)
 
 None.
+
+### AC 3 — first run on the task branch (coordinator, 2026-10-01)
+
+The approver authorised the push of this branch at the review gate. Run
+<https://github.com/wingfoil/wingfoil/actions/runs/36858971902> (workflow `ci`, event `push`, head
+`f0d37268`) concluded **success**. The `packaging-gate` job passed every step (checkout, setup-node
+22.12.0, `npm ci`, `prepublishOnly`), and its log reports `Test Suites: 167 passed, 167 total` and
+`Tests: 2771 passed, 2771 total` (`gh run view 36858971902 --log`). AC 3 is met.
