@@ -204,3 +204,48 @@ describe('a freshly `wingfoil init`-ed project runs every Memory transition verb
     });
   }
 });
+
+/**
+ * task-127, approver ruling (c) of 2026-10-01: the `init` scaffold declares `amendable` per type —
+ * `true` for `tech-spec`, `decision-log`, `task` and `bug`, `false` for `adr` (`dl-108` A3),
+ * `release` and `release-line` — so `memory amend` works on a fresh project without hand edits.
+ * Driven through the real `dist/cli.js`, like the suite above.
+ */
+describe('a freshly `wingfoil init`-ed project can amend an approved tech-spec, and not an adr (task-127)', () => {
+  for (const def of TEMPLATES) {
+    it(`template ${def.name}`, () => {
+      const repo = makeTempGitRepo();
+      try {
+        expect(wingfoil(repo, 'init', '--template', def.name).status).toBe(0);
+        grantApproverRole(repo);
+
+        const drive = (type: string, gateVerb: string): { id: string; path: string } => {
+          const added = wingfoil(repo, 'memory', 'add', '--type', type, '--title', `A ${type}`, '--format', 'json');
+          expect([added.status, added.stderr]).toEqual([0, '']);
+          const value = JSON.parse(added.stdout) as { id: string; path: string };
+          expect(wingfoil(repo, 'memory', 'submit', value.id).status).toBe(0);
+          expect(wingfoil(repo, 'memory', gateVerb, value.id, '--reason', 'ok').status).toBe(0);
+          return value;
+        };
+
+        const spec = drive('tech-spec', 'approve');
+        writeFileSync(join(repo, spec.path), `${readFileSync(join(repo, spec.path), 'utf-8')}\nA correction.\n`, 'utf-8');
+        const before = commitCount(repo);
+        const amended = wingfoil(repo, 'memory', 'amend', spec.id, '--reason', 'a correction');
+        expect([amended.status, amended.stderr]).toEqual([0, '']);
+        expect(commitCount(repo) - before).toBe(1);
+        expect(git(repo, ['log', '-1', '--format=%s']).trim()).toBe(`wf(tech-spec): amend ${spec.id} [approved → approved]`);
+        expect(git(repo, ['status', '--porcelain']).trim()).toBe('');
+
+        const adr = drive('adr', 'approve');
+        writeFileSync(join(repo, adr.path), `${readFileSync(join(repo, adr.path), 'utf-8')}\nA change.\n`, 'utf-8');
+        const refused = wingfoil(repo, 'memory', 'amend', adr.id, '--reason', 'a change');
+        expect(refused.status).toBe(1);
+        expect(refused.stderr).toContain("type 'adr' is not amendable: its memory.yaml entry declares amendable: false");
+      } finally {
+        removeTempDir(repo);
+      }
+    });
+  }
+});
+

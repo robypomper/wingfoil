@@ -270,6 +270,29 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       expect(result.ok).toBe(true);
     });
 
+    it.each([
+      ['release', 'release: "v0.2"', 'release: "v0.3"', 'owned by assign'],
+      ['rejection_reason', '', 'rejection_reason: "a reason"', 'owned by reject'],
+      ['supersedes', 'supersedes: ""', 'supersedes: "spec-000"', 'a future engine trigger'],
+    ])(
+      'approver ruling (b): a working-tree edit that changes `%s` → exit 1 naming the field',
+      async (field, committedLine, editedLine) => {
+        const withLine = (line: string): string =>
+          doc({ id: 'spec-001', type: 'tech-spec', status: 'approved' }).replace('tmpl_version:', `${line ? `${line}\n` : ''}tmpl_version:`);
+        writeFixtureFile(repo, SPEC, withLine(committedLine));
+        commitAll(repo, 'seed the field');
+        const edited = withLine(editedLine);
+        writeFixtureFile(repo, SPEC, edited);
+        const before = head(repo);
+        const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(exitCodeForResult(result)).toBe(1);
+        expect(result.error.message).toContain(`frontmatter field '${field}'`);
+        expectNothingWritten(before, SPEC, edited);
+      },
+    );
+
     it('a caller without approval authority → the same refusal `approve` gives (REQ-SEC-03)', async () => {
       writeFixtureFile(repo, '.wingfoil/dna.yaml', REVIEWER_ONLY_DNA);
       commitAll(repo, 'reviewer-only dna');
