@@ -1,15 +1,18 @@
 # WingFoil — Directive role assignments (P3.2, P3.7)
 # Binds directives to roles defined in .wingfoil/dna.yaml. One directive may bind to many roles.
-# NOTE: WingFoil's official built-in templates (P3.8) are not yet implemented, so there are no
-# `built-in/` directives; the P3.8 templates currently live in `custom/` as stand-ins. The generic
-# `security` stand-in is left unassigned here; its WingFoil elaboration `security-secrets` is assigned
-# globally. Approval/directives bind to roles, never to people (REQ-SYS-08).
+# NOTE: this hand-authored configuration predates the P3.8 built-in templates `wingfoil init` now
+# installs, so the P3.8 templates live in `custom/` as stand-ins (bug-040). Approval/directives bind to
+# roles, never to people (REQ-SYS-08).
+#
+# `security` (the P3.8 Security template, REQ-SEC-08) is global since task-133 (dl-059 option 1), as
+# the `init` scaffold binds it; its WingFoil elaboration `security-secrets` stays global beside it.
+# Both load for every role: their credential rules overlap but do not conflict.
 #
 # `command-baseline` (dl-080 option (B), task-094) binds to the three roles that write or gate a
 # command: it must be loaded before a read is written, and before a review lets one through.
 # `claim-evidence` is global — its measured instances are acceptance criteria and bug fields as
 # often as TSDoc, so binding it to the coding roles alone would miss most of them.
-version: 1.1
+version: 1.2
 
 assignments:
   developer:
@@ -38,5 +41,6 @@ assignments:
 global:
   - doc-versioning
   - documentation
+  - security
   - security-secrets
   - claim-evidence

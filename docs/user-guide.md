@@ -271,6 +271,7 @@ assignments:
 global:      # every role
   - doc-versioning
   - documentation
+  - security
   - security-secrets
 ```
 
@@ -283,8 +284,8 @@ wingfoil directives list --role developer
 ### 6.1 Built-in and custom directives
 
 - **Built-in** (`directives/built-in/`) ship with WingFoil: `architecture`, `code-quality`,
-  `code-review`, `documentation`, `security`, `testing`. They cannot be removed. Note that `init` binds
-  `security` to no role — assign it if you want it loaded.
+  `code-review`, `documentation`, `security`, `testing`. They cannot be removed. `init` binds `security`
+  globally, so every role loads it.
 - **Custom** (`directives/custom/`) are yours. `init` adds four starters you can edit or delete.
 - To **adapt a built-in**, create a custom directive with the same id: it takes precedence, and
   `directives list` reports the override.
@@ -297,7 +298,7 @@ wingfoil directive create --name api-style          # scaffolds directives/custo
 wingfoil directive assign --directive api-style --role developer
 ```
 
-`--directive` accepts several names: `--directive api-style,security`.
+`--directive` accepts several names: `--directive api-style,architecture`.
 
 To retire a directive, first remove it from `roles.yaml` by hand (there is no unassign command in
 0.2.2), commit, then:

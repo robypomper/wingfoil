@@ -190,18 +190,32 @@ describe('per-pillar loaders — validate the real, live .wingfoil config', () =
     expect(directives.length).toBeGreaterThanOrEqual(10);
   });
 
+  // The live bindings are asserted by property, not by exact array (task-133, bug-112): a new binding
+  // in roles.yaml is a configuration change, not a loader regression, and must not fail here. What a
+  // loader regression would do — drop a binding, duplicate one, or lose the link to its file — is
+  // what these assert.
   it('loadRolesYaml parses the real, live .wingfoil/roles.yaml', () => {
     expect(() => loadRolesYaml(liveRoot)).not.toThrow();
     const roles = loadRolesYaml(liveRoot);
     // task-094 added `command-baseline` (dl-080 option (B)) to the three code-writing roles.
-    expect(roles.assignments.developer).toEqual([
-      'code-quality',
-      'testing',
-      'determinism',
-      'command-baseline',
-    ]);
+    expect(roles.assignments.developer).toEqual(
+      expect.arrayContaining(['code-quality', 'testing', 'determinism', 'command-baseline']),
+    );
     expect(roles.assignments.reviewer).toContain('command-baseline');
     expect(roles.assignments.architect).toContain('command-baseline');
+    // task-133 (dl-059): the built-in security directive is global, beside security-secrets.
+    expect(roles.global).toEqual(expect.arrayContaining(['security', 'security-secrets']));
+    for (const ids of [...Object.values(roles.assignments), roles.global]) {
+      expect(ids.length).toBe(new Set(ids).size);
+    }
+  });
+
+  it('every id the live roles.yaml binds resolves to a directive loadDirectives finds', () => {
+    const roles = loadRolesYaml(liveRoot);
+    const known = new Set(loadDirectives(liveRoot).map((d) => d.frontmatter.id));
+    const bound = [...Object.values(roles.assignments).flat(), ...roles.global];
+    expect(bound.length).toBeGreaterThan(0);
+    expect(bound.filter((id) => !known.has(id))).toEqual([]);
   });
 });
 

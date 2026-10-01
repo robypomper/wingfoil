@@ -10,6 +10,7 @@ Feature: P3.8 (US-0A-09) - Built-in Directive Templates
     When initialization completes
     Then ".wingfoil/directives/built-in/" contains exactly 6 templates
     And the set is: code-quality, testing, code-review, architecture, security, documentation
+    And ".wingfoil/roles.yaml" binds "security" under "global", so every role loads it
 
   Scenario: Built-in templates are selected by methodology
     Given the selected methodology is "Trunk-Based"

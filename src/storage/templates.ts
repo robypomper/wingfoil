@@ -352,10 +352,12 @@ assignments:
     - architecture
     - code-review
 
-# Global directives apply to every role.
+# Global directives apply to every role. \`security\` is the built-in Security directive (REQ-SEC-08):
+# bound here so every role loads it; \`security-secrets\` is this project's secret-hygiene rule.
 global:
   - doc-versioning
   - documentation
+  - security
   - security-secrets
 `;
 }
