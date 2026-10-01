@@ -41,10 +41,10 @@ line count (`awk 'END{print NR}'`).
 | [`02_product-vision.md`](02_product-vision.md)         | 1.2 | 2026-10-01 | Approved | 103   | Vision statement, key decisions, and the reference-workflow/methodology-template model                                  |
 | [`03_is-isnot.md`](03_is-isnot.md)                     | 1.3 | 2026-10-01 | Approved | 59    | Scope boundaries: what WingFoil IS / IS NOT / DOES / DOES NOT                                                           |
 | [`04_personas.md`](04_personas.md)                     | 1.0 | 2026-06-15 | Approved | 113   | The 6 personas (Alex, Sam, Jordan, Morgan, Casey, Taylor) with pains and goals                                          |
-| [`05_journeys.md`](05_journeys.md)                     | 1.2 | 2026-06-24 | Approved | 285   | 8 end-to-end user journeys (0a, 0b, 1–6): steps, obstacles, success                                                     |
+| [`05_journeys.md`](05_journeys.md)                     | 1.3 | 2026-10-01 | Approved | 286   | 8 end-to-end user journeys (0a, 0b, 1–6): steps, obstacles, success                                                     |
 | [`06_features.md`](06_features.md)                     | 1.7 | 2026-10-01 | Approved | 518   | 63 features (by pillar + by release) and the data-model / implementation notes                                          |
 | [`07_sequencer.md`](07_sequencer.md)                   | 1.8 | 2026-10-01 | Approved | 471   | Active-day budgets, actuals and calendar forecast; the original 5-week plan; per-release Definition of Done, risks      |
-| [`08_mvp-canvas.md`](08_mvp-canvas.md)                 | 1.6 | 2026-10-01 | Approved | 206   | MVP canvas: problem/solution/value, target users, metrics, success criteria                                             |
+| [`08_mvp-canvas.md`](08_mvp-canvas.md)                 | 1.6 | 2026-10-01 | Approved | 213   | MVP canvas: problem/solution/value, target users, metrics, success criteria                                             |
 | [`X_cli-cmds.md`](X_cli-cmds.md)                       | 1.3 | 2026-09-24 | Approved | 393   | CLI command reference: signatures, parameters, release timeline, per-persona usage                                      |
 | [`X_lean-inception-plan.md`](X_lean-inception-plan.md) | —   | 2026-06-11 | —        | 42    | Workshop plan: sessions, key decisions, output list                                                                     |
 
@@ -67,9 +67,9 @@ line count (`awk 'END{print NR}'`).
 | Reference workflow templates (Scrum/Kanban/Lean/Trunk-Based)        | `02_product-vision` L31–103 · `06_features` P4.18–P4.20 (L102–104)                                     |
 | Schedule: active-day budgets, actuals, forecast                     | `07_sequencer` L9–133 · original plan L134–145 · `01_product-brief` L234–250                           |
 | Definition of Done per release                                      | `07_sequencer` L369–438                                                                                |
-| Success metrics & criteria                                          | `01_product-brief` L148–183 & L251–297 · `08_mvp-canvas` L98–123 & L147–186                            |
+| Success metrics & criteria                                          | `01_product-brief` L148–183 & L251–297 · `08_mvp-canvas` L98–123 & L154–193                            |
 | The Determinism Index (I, P, O) and who controls each component     | `01_product-brief` North Star L150–170 and Solution L39–79 · `08_mvp-canvas` L100–110 · `03_is-isnot`  |
-| Competitive differentiators (Replaces / Works with)                 | `01_product-brief` L80–105 · `08_mvp-canvas` L124–135                                                  |
+| Competitive differentiators (Replaces / Works with)                 | `01_product-brief` L80–105 · `08_mvp-canvas` L124–142                                                  |
 | Tech stack & constraints                                            | `01_product-brief` L298–322                                                                            |
 
 ---
@@ -118,13 +118,13 @@ line count (`awk 'END{print NR}'`).
 
 - Journey 0a — Initialize on a new project — L9–38
 - Journey 0b — Migrate to an existing project — L39–72
-- Journey 1 — Alex: new session with full context — L73–103
-- Journey 2 — Sam: review workflow + AI review agent — L104–137
-- Journey 3 — Jordan: team task with auto-loaded directives — L138–172
-- Journey 4 — Morgan: enforce conventions / detect violations — L173–205
-- Journey 5 — Casey: decisions & alignment notifications — L206–241
-- Journey 6 — Morgan: define & evolve workflow — L242–273
-- Key Observations across journeys — L274–285
+- Journey 1 — Alex: new session with full context — L73–104
+- Journey 2 — Sam: review workflow + AI review agent — L105–138
+- Journey 3 — Jordan: team task with auto-loaded directives — L139–173
+- Journey 4 — Morgan: enforce conventions / detect violations — L174–206
+- Journey 5 — Casey: decisions & alignment notifications — L207–242
+- Journey 6 — Morgan: define & evolve workflow — L243–274
+- Key Observations across journeys — L275–286
 
 ### `06_features.md`
 
@@ -161,10 +161,10 @@ line count (`awk 'END{print NR}'`).
 - Target Users — L46–57
 - Key Features (all 5 pillars) — L58–97
 - Metrics of Success (North Star L100, Supporting Indicators L111) — L98–123
-- Competitive Advantage — L124–135
-- Risks & Mitigations — L136–146
-- Success & Next Steps (criteria L149, if succeeds L166, if stalls L177) — L147–186
-- Appendix: Documentation Reference — L187–206
+- Competitive Advantage (Replaces / Works with) — L124–142
+- Risks & Mitigations — L143–153
+- Success & Next Steps (criteria L156, if succeeds L173, if stalls L184) — L154–193
+- Appendix: Documentation Reference — L194–213
 
 ### `X_cli-cmds.md`
 

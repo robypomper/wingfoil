@@ -24,7 +24,7 @@
 | Unified or per-persona vision?              | Unified — the core value proposition applies across all user types                                                                              |
 | Primary target                              | Developers and teams **already using** AI agents                                                                                                |
 | Core value language                         | "Deterministic" — correct and intentional                                                                                                       |
-| Differentiator vs. CLAUDE.md / .cursorrules | Distinct: WingFoil provides structured DNA, role-based Directives, a Project Workflow engine, and an MCP server — not a single flat config file |
+| Differentiator vs. flat agent-rule files    | Distinct: WingFoil provides structured DNA, role-based Directives, a Project Workflow engine, and an MCP server — not a single flat config file |
 
 ---
 

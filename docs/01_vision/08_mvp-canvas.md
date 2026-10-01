@@ -123,13 +123,20 @@ product brief's *Success Metrics* (`dl-131-determinism-index-scope`).
 
 ## Competitive Advantage
 
-| vs.                      | WingFoil                                                                  | Them                     | Why WingFoil Wins                                            |
-|--------------------------|---------------------------------------------------------------------------|--------------------------|--------------------------------------------------------------|
-| CLAUDE.md / .cursorrules | Structured, queryable, multi-layer (Memory + DNA + Directives + Workflow) | Single flat file         | Scales with project growth; workflow state is explicit       |
-| README + scattered docs  | Centralized, versioned, indexed, queryable                                | Scattered + hard to find | One source of truth; audit trail on changes                  |
-| Large context windows    | Selective + curated (only relevant docs + role-based)                     | Load everything          | Deterministic + cheaper (fewer tokens); faster session start |
-| Manual governance        | Rule binding + auto-load by role                                          | Manual per session       | Agents respect rules automatically; no re-explaining         |
-| Implicit workflow state  | Explicit state management via Memory frontmatter                          | Informal updates         | All actors (human + AI) see shared project state             |
+WingFoil is the governance layer around AI-assisted development. It replaces the informal ways a project records
+decisions, rules and state, and works alongside the tools that produce specifications, plans and code; the product
+brief's *Key Differentiators* is the reference (`dl-112-positioning-as-a-governance-layer`).
+
+| Relation   | Category                                        | What WingFoil adds                                                                     |
+|------------|-------------------------------------------------|----------------------------------------------------------------------------------------|
+| Replaces   | Flat agent-rule files                           | Structured, queryable, multi-layer (Memory + DNA + Directives + Workflow)              |
+| Replaces   | README + scattered docs                         | One versioned, indexed source of truth, with an audit trail on changes                 |
+| Replaces   | Brute-force context (large windows, full scans) | Context selected by role and task; the same inputs assemble the same context            |
+| Replaces   | Manual governance                               | Rules bound to roles and auto-loaded; no re-explaining                                 |
+| Replaces   | Implicit workflow state                         | Explicit state in Memory frontmatter, shared by every human and agent                  |
+| Works with | Spec-driven development tools                   | Governs the lifecycle around the spec: approvals, state machines, role-bound rules, audit trail |
+| Works with | Coding agents                                   | Launches them with their role's directives and context; records every state change in git |
+| Works with | IDEs                                            | Reaches them through MCP and the CLI, with no IDE plugin                               |
 
 ---
 
