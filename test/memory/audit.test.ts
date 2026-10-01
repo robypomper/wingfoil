@@ -61,6 +61,28 @@ describe('isValidAttribution — pure predicate, no git involved', () => {
   it('rejects git\'s own guessed-identity domain marker "user@host.(none)"', () => {
     expect(isValidAttribution('root', 'root@buildhost.(none)')).toBe(false);
   });
+
+  // task-132 AC3 (`bug-153`): RFC 2606 reserves these four top-level domains for testing,
+  // documentation and invalid addresses. An author on one of them is a placeholder, the same class
+  // of "not a deliberately-configured identity" as git's own `.(none)` marker.
+  it.each([
+    ['.invalid', 'scratch@example.invalid'],
+    ['.example', 'scratch@acme.example'],
+    ['.test', 'scratch@example.test'],
+    ['.localhost', 'scratch@example.localhost'],
+    ['.invalid, upper case', 'scratch@EXAMPLE.INVALID'],
+    ['.test, bare second level', 'scratch@build.test'],
+  ])('rejects an email on the RFC 2606 reserved domain %s', (_label, email) => {
+    expect(isValidAttribution('Scratch User', email)).toBe(false);
+  });
+
+  it.each([
+    ['a domain that merely contains a reserved label', 'dev@test.example.com'],
+    ['a domain ending in a longer label', 'dev@contest.org'],
+    ['a domain whose TLD starts like a reserved one', 'dev@company.testing'],
+  ])('still accepts %s', (_label, email) => {
+    expect(isValidAttribution('Dev', email)).toBe(true);
+  });
 });
 
 describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ task-015, REQ-SEC-01/REQ-SEC-02)', () => {
