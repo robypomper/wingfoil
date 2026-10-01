@@ -85,11 +85,11 @@ export function resolveMemoryPath(
  *    yet created: `resolveRealPathInRoot` resolves as far as the filesystem goes and keeps the
  *    missing tail verbatim, which is exactly this case — the document is about to be created.
  *
- * The second read resolves against the **working tree** rather than `HEAD`, deliberately and against
- * `command-baseline`'s general rule for a gating read. The argument is `task-102`'s, recorded in
- * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` (`in-discussion`) and not
- * re-derived here: what this predicts is where `writeFileSync` will land, and it follows the symlinks
- * that are on disk, not the ones a commit records.
+ * The second read resolves against the **working tree** rather than `HEAD`, deliberately: it is the
+ * filesystem-effect read `command-baseline` and `spec-006-core-domain-api` §6 declare, ratified in
+ * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` from `task-102`'s argument,
+ * which is not re-derived here: what this predicts is where `writeFileSync` will land, and it follows
+ * the symlinks that are on disk, not the ones a commit records.
  *
  * **The target's parent is resolved; its own name is not** — the asymmetry is
  * {@link resolveRealPathInRoot}'s contract (see that function), and it is the reason this returns a
