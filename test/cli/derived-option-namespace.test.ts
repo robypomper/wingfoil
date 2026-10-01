@@ -159,13 +159,14 @@ describe('the drive: every declared entry-field option lands, through the real c
       value: { name: 'Ada', email: 'ada@example.it', roles: ['developer', 'reviewer'] },
     },
     {
-      fields: ['executes_as', 'approval_authority'],
+      fields: ['executes_as', 'approval_authority', 'adapter'],
       args: [
         'dna', 'add', 'team.agents', '--value', 'agent',
         '--entry-executes_as', 'developer,qa', '--entry-approval_authority', 'false',
+        '--entry-adapter', 'claude-code',
       ],
       expect: (document) => (document.team as unknown as { agents: unknown[] }).agents[0],
-      value: { name: 'agent', executes_as: ['developer', 'qa'], approval_authority: false },
+      value: { name: 'agent', executes_as: ['developer', 'qa'], approval_authority: false, adapter: 'claude-code' },
     },
   ];
 
