@@ -2,7 +2,7 @@
 id: bug-182-a-memory-verb-commits-the-working-tree-bytes-of-its-document-and-silently-drops-a-different-staged-version
 type: bug
 title: "A Memory verb commits the working-tree bytes of its document and silently drops a different staged version"
-status: open
+status: triaged
 severity: "low"           # REQUIRED — critical | high | medium | low
 release-origin: "v0.3"     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
 release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
