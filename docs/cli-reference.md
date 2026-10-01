@@ -468,11 +468,14 @@ wingfoil memory history <id>
 ```
 
 Each entry carries `sha`, `author`, `timestamp` (ISO-8601), `operation`, `from`, `to`, `approver`,
-`reason` and the commit `subject`. `operation` is one of the ten declared verbs: `add`, `submit`,
-`approve`, `reject`, `deprecate`, `start`, `finalize`, `sync`, `amend`, `park`. A commit that
-touched the document without being one of them appears too, with `"operation": null`. That covers a
-hand edit you committed yourself, a subject with any other verb, and a configuration commit such as
-`wf(dna): …`, `wf(directive): …` or `wf(workflow): …`.
+`reason` and the commit `subject`. In 0.2.2, `operation` is one of `add`, `submit`, `approve`,
+`reject`, `deprecate`. A commit that touched the document without being one of them appears too,
+with `"operation": null` (a hand edit you committed yourself, for example).
+
+Unreleased (v0.3): `operation` is one of ten declared verbs, the five above plus `start`,
+`finalize`, `sync`, `amend` and `park`. A subject with any other verb reads as `null`, and so does a
+configuration commit such as `wf(dna): …`, `wf(directive): …` or `wf(workflow): …`, whatever its
+verb.
 
 ```console
 $ wingfoil memory history task-001-my-first-task

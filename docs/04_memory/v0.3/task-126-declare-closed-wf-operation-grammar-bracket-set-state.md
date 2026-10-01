@@ -196,3 +196,33 @@ only `TRAILING_BRACKET_RE` and `WF_SUBJECT_WITH_BRACKET_RE`, both current. No st
 old readers is left.
 Outside this task's files: `CLAUDE.md` §5.1 still calls `dl-079` "`in-discussion`" and lists five
 verbs. It is owned by `align-agent-docs` (`dl-025`), so it was left for the coordinator.
+
+### review (independent)
+
+A separate review on `cf4f54d3` (coordinator, 2026-10-01) returned **APPROVE WITH FIXES**. The task
+stays `in-review`. Findings and fixes:
+
+1. **`docs/cli-reference.md` mixed releases.** The page documents release 0.2.2, but the `memory
+   history` paragraph described the ten-verb reader, which 0.2.2 does not have. Fixed: the paragraph
+   now gives the 0.2.2 behaviour, and a separate "Unreleased (v0.3)" paragraph gives the ten verbs
+   and the configuration scopes. The page's own precedent is "New in 0.2.2". `npx jest test/docs`
+   stays green.
+2. **`spec-008` §2 overstated the chain rule.** It said "Only `sync` emits a chain", but the reader
+   accepts and checks a chain on any verb. Fixed: `sync` is the only verb that emits a chain, and the
+   reader reads a chain, checking its hops, whatever the verb.
+3. **The `CONFIGURATION_SCOPES` comment claimed a rule nothing enforces.** It said no `memory.yaml`
+   type may take one of those names, but `src/memory/schema.ts` reserves no type name (`grep -n -i
+   reserved src/memory/schema.ts` → only the `deprecated` state). Reworded as a convention not yet
+   enforced. The coordinator files the enforcement as a follow-up; it is not implemented here.
+4. **Scope of AC2.** `verifyTransitionConsistency` has no product caller (`grep -rn
+   verifyTransitionConsistency src` → its definition and the `src/memory/index.ts` re-export). AC2
+   is therefore met at function level, and a command that consumes the check end to end is a
+   follow-up element.
+5. **Historical findings the check reports.** The coordinator files these: the 3 real chain drifts
+   (`6437dbc4`, `50e57a04`, `28e41379`), the 7 single-hop mismatches, and the 11 unparseable
+   brackets (green, above).
+
+**Held:** `element.set_release` → `amend`. It conflicts with `task-127`, which makes `adr` not
+amendable and requires approver authority, while `release-planning`'s `build-backlog` is run by
+`product-owner` with no approval and stamps `adr` elements too. The approver is ruling on it. The
+ruling goes into `spec-008` §2 when it arrives.

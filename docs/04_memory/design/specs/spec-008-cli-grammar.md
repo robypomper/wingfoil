@@ -135,7 +135,8 @@ unchanged `status` read as a transition.
 the frontmatter before and after the commit. Given the type's machine, every hop must be one of its
 edges: the forward edge `sequence[i] → sequence[i+1]`, a `gates` reject target, or the implicit edge to
 `deprecated`. A hop that is none of these is an `illegal-hop` finding of
-`verifyTransitionConsistency` (`src/memory/audit.ts`, `bug-155`). Only `sync` emits a chain.
+`verifyTransitionConsistency` (`src/memory/audit.ts`, `bug-155`). `sync` is the only verb that
+emits a chain. The reader reads a chain, and checks its hops, whatever the verb.
 
 **A `sync` that crosses a `gates` reject edge** cites the approver's reject commit by sha in its body.
 It carries no `Approver:` line of its own, because the decision is recorded once, on the host task's

@@ -218,8 +218,9 @@ export type MemoryOperation = (typeof MEMORY_OPERATIONS)[number];
  * (`spec-008` §2): `wf(dna): set|add|update|remove …` (`dna` mutations), `wf(directive):
  * create|assign|remove …` and `wf(workflow): create|remove …` (`spec-017` §7.7–7.8). Their verbs are
  * not Memory operations even where the token coincides with one (`wf(dna): add <field>`), and their
- * subjects carry no transition. No `memory.yaml` type may take one of these names for its commits to
- * be read.
+ * subjects carry no transition. By convention no `memory.yaml` type takes one of these names. Nothing
+ * enforces that yet (`src/memory/schema.ts` reserves no type name); a type that did would have
+ * every commit of its own read as configuration.
  */
 export const CONFIGURATION_SCOPES: readonly string[] = Object.freeze(['directive', 'dna', 'workflow']);
 
