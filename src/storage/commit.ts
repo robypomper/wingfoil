@@ -23,9 +23,11 @@ export interface CommitOptions {
   /** Additional environment for the git invocations (merged over `process.env`). */
   readonly env?: NodeJS.ProcessEnv;
   /**
-   * The commit's author, passed to git as `--author "<name> <<email>>"`, which outranks both
-   * `GIT_AUTHOR_*` and the config. Set by a caller that has already checked an identity and must
-   * record exactly that one (task-132, `bug-149`); absent, git resolves the author itself.
+   * The commit's author, passed to git as `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` in its environment,
+   * over `process.env` and over any `GIT_AUTHOR_*` in {@link CommitOptions.env}. Set by a caller that
+   * has already checked an identity and must record exactly that one (task-132, `bug-149`); absent,
+   * git resolves the author itself. The environment, not `--author "<name> <<email>>"`: git re-parses
+   * that string, so a `<` in the name moved the email it recorded (task-132 review, finding 2).
    */
   readonly author?: { readonly name: string; readonly email: string };
 }
@@ -83,8 +85,10 @@ export function commitPaths(
   // `--only -- <paths>` records exactly these paths, whatever else is staged: anything a caller or
   // another tool already staged stays staged and uncommitted (bug-027). A plain `git commit` would
   // commit the whole index under a subject that names only this operation.
-  const author = options.author ? [`--author=${options.author.name} <${options.author.email}>`] : [];
-  runGit(root, ['commit', '--only', '--quiet', ...author, '-m', message, '--', ...paths], options);
+  const commitOptions: CommitOptions = options.author
+    ? { ...options, env: { ...options.env, GIT_AUTHOR_NAME: options.author.name, GIT_AUTHOR_EMAIL: options.author.email } }
+    : options;
+  runGit(root, ['commit', '--only', '--quiet', '-m', message, '--', ...paths], commitOptions);
   return runGit(root, ['rev-parse', 'HEAD'], options).trim();
 }
 

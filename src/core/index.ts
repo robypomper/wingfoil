@@ -150,7 +150,10 @@ export type {
   RelevantMemoryDocument,
   RelevantMemoryResult,
 } from './relevance';
-export { beginMemoryTransition, commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
+// `prepareMemoryTransition` is deliberately not re-exported: outside `./memory-transition` a transition
+// starts at `beginMemoryTransition`, which runs the identity pre-flight first (task-132 review).
+export { beginMemoryTransition, commitMemoryTransition, verifyCommittedScope } from './memory-transition';
+export type { BegunMemoryTransition } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
 export { resolveAddType } from './memory-add-type';
 export type { ResolvedAddType } from './memory-add-type';

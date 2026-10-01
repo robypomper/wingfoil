@@ -67,7 +67,8 @@ const RFC2606_RESERVED_TLDS: readonly string[] = ['invalid', 'example', 'test', 
 
 /** Whether `email`'s domain is, or ends in, an RFC 2606 reserved top-level domain (case-insensitive). */
 function hasReservedDomain(email: string): boolean {
-  const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
+  // A trailing dot is the fully-qualified spelling of the same domain (`foo.test.` is `foo.test`).
+  const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase().replace(/\.+$/, '');
   const tld = domain.slice(domain.lastIndexOf('.') + 1);
   return RFC2606_RESERVED_TLDS.includes(tld);
 }
