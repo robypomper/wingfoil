@@ -69,3 +69,8 @@ The texts above state that the templates are not implemented.
 
 - capture: raised by the implementation of `task-057-builtin-directive-templates` (Wave 2, 2026-09-17),
   filed under `bug-ingest-rel-v0.2-wave2-review-findings-plan`. Severity `low`: documentation only.
+
+- **2026-10-01 (`task-133`'s independent review).** Since `task-133` bound `security` globally, the
+  stand-in `.wingfoil/directives/custom/security.md` reaches every role's context in this
+  repository, together with its stale stand-in note saying the built-in P3.8 templates are not yet
+  implemented. That raises this bug's visibility. The fix is unchanged: `task-188`.
