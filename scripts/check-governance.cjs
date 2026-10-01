@@ -85,8 +85,8 @@ const APPROVER_KEY_RE = /^approver:/i;
 const REASON_KEY_RE = /^reason:/i;
 
 /**
- * The compiled `src` modules the check reuses. Loaded lazily so that `--help`-less usage errors and a
- * missing build are reported as such (exit 2) rather than as a stack trace.
+ * The compiled `src` modules the check reuses, loaded when a check runs, so that a missing build is
+ * reported as a usage error (exit 2, "run `npm run build` first") rather than as a stack trace.
  */
 function loadDist() {
   if (!existsSync(join(DIST, 'memory', 'index.js'))) {
