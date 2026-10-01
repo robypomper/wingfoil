@@ -2,7 +2,7 @@
 id: "task-135-make-init-scan-builtin-templates-secrets-refuse-reinitialize"
 type: task
 title: "Make `init` scan the built-in templates for secrets and refuse to re-initialize storage"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "fix"
 priority: "high"
