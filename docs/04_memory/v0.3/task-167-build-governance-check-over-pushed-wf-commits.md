@@ -31,6 +31,7 @@ Governance rules on `wf()` commits are checked by nobody. A read-only script che
 - **Planning ruling:** Approver ruling 2026-09-30 (plan R19): `dl-103` §2 (iii), signed approvals, is out of v0.3 (v0.4 at the earliest, possibly v1.0).
 - **Notes:** Proposal key: D21.
 - Planned by `release-planning-rel-v0.3-plan` step 6 (build-backlog), 2026-09-30.
+- **Handover from wave 0 (2026-10-01, `task-126`'s independent review).** `verifyTransitionConsistency(root, path, machine?)` (`src/memory/audit.ts`) has no product caller yet; this check is its first. Pass the type's machine (loaded from `memory.yaml` at the checked commit) so `illegal-hop` findings fire, because without it only a chain's endpoints are compared. Known historical drift the "report older history without failing" mode will list: `6437dbc4`, `50e57a04`, `28e41379` (a multi-hop `sync` whose bracket starts at `in-review` while the frontmatter was `planned`), 7 single-hop mismatches and 11 unparseable multi-bracket `sync` subjects (e.g. `02b77f97`, `764eb2a6`). Since the approver's 2026-10-01 ruling, the verb set is eleven, with `assign` (no bracket, no `Approver:`).
 
 ## Execution Notes
 
