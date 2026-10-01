@@ -86,8 +86,8 @@ commit carries resolve, the way git itself resolves them:
 - the **committer** from `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL`, then `committer.name` /
   `committer.email`, then `user.name` / `user.email`.
 
-A variable that is set but blank does not fall back to the config: git refuses it, and so does the
-check. Git's `EMAIL` variable and its hostname guess are not used. If any of the four values is missing, the command exits `1` with
+A variable that is set but blank does not fall back to the config: git refuses a blank name and
+records a blank email as `<>`; the check refuses both. Git's `EMAIL` variable and its hostname guess are not used. If any of the four values is missing, the command exits `1` with
 `git identity not configured (user.name/user.email)`; if one contains `<`, `>` or a control character,
 it exits `1` with `git identity not usable: …`. Either way nothing is written.
 

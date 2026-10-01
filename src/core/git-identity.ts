@@ -80,9 +80,9 @@ type IdentityRole = 'author' | 'committer';
 /**
  * One field of the `role` identity, resolved in `git commit`'s own order: the `GIT_AUTHOR_*` /
  * `GIT_COMMITTER_*` environment variable, then the `author.*` / `committer.*` config key, then
- * `user.*`. A variable that is SET wins even when blank — git refuses it ("empty ident name not
- * allowed") rather than falling back, so a blank one resolves to `''` and the check refuses too
- * (task-132 review, finding 4). A blank config value falls through to the next key.
+ * `user.*`. A variable that is SET wins even when blank, never falling back: git refuses a blank name
+ * ("empty ident name not allowed") and records a blank email as `<>`; a blank one resolves to `''`
+ * and the check refuses both (task-132 review, finding 4). A blank config value falls through to the next key.
  *
  * Deliberately NOT followed further down git's chain: the `EMAIL` environment variable and git's
  * hostname guess. Both are what REQ-SEC-01 exists to refuse — an identity nobody configured — and the
