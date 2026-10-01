@@ -22,9 +22,13 @@
 #     the test of this file requires each line here to be one publish.yml already has.
 #   - `package-manager-cache: false` and `persist-credentials: false`, for the same reasons as there.
 #   - `fetch-depth: 0`, as in publish.yml's gate, so the suite runs on the same full-history checkout.
+#   Also pinned there, though publish.yml has no counterpart: the concurrency group and its cancel rule.
 #
-# Concurrency: a newer push to the same branch or PR cancels the older run; on `main` every push runs
-# to completion, so each commit that reaches `main` gets its own result.
+# Concurrency: off `main`, the group is the ref, so a newer push to the same branch or PR cancels the
+# run still in progress (or pending) for it. On `main` the group is the pushed commit's SHA, unique per
+# push, so no run on `main` is ever cancelled: every push to `main` gets its own run of its tip commit.
+# A push of several commits runs once, on the tip — no workflow tests the intermediate commits.
+# A branch with an open PR into `main` runs twice per push (`push` and `pull_request`): accepted cost.
 #
 # Read-only: `contents: read` and no job-level `permissions`. No secret, no registry credential, no OIDC.
 #
@@ -43,8 +47,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: '22.12.0'

@@ -120,6 +120,23 @@ describe('ci workflow (task-140) — dl-076 (D): the packaging gate on every pus
     }
   });
 
+  it('checks out the same full history as publish.yml’s gate (`fetch-depth: 0`)', () => {
+    const checkoutOf = (wf: Workflow, job: string): WorkflowStep | undefined =>
+      wf.jobs[job]?.steps.find((s) => s.uses?.startsWith('actions/checkout@'));
+    const ci = checkoutOf(read(CI_PATH).parsed, 'packaging-gate');
+    const gate = checkoutOf(read(PUBLISH_PATH).parsed, 'gate');
+    expect(ci?.with?.['fetch-depth']).toBe(0);
+    expect(ci?.with?.['fetch-depth']).toBe(gate?.with?.['fetch-depth']);
+  });
+
+  it('cancels superseded runs per branch or PR, but never a run on main (one group per main commit)', () => {
+    const { parsed } = read(CI_PATH);
+    expect(parsed.concurrency).toEqual({
+      group: "ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}",
+      'cancel-in-progress': true,
+    });
+  });
+
   it('checks out without persisting credentials, and carries no registry credential', () => {
     const { raw, parsed } = read(CI_PATH);
     const checkout = parsed.jobs['packaging-gate']?.steps.find((s) => s.uses?.startsWith('actions/checkout@'));
