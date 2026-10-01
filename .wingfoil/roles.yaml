@@ -5,8 +5,8 @@
 # roles, never to people (REQ-SYS-08).
 #
 # `security` (the P3.8 Security template, REQ-SEC-08) is global since task-133 (dl-059 option 1), as
-# the `init` scaffold binds it; its WingFoil elaboration `security-secrets` stays global beside it —
-# resolution deduplicates by id, so binding both loads each once.
+# the `init` scaffold binds it; its WingFoil elaboration `security-secrets` stays global beside it.
+# Both load for every role: their credential rules overlap but do not conflict.
 #
 # `command-baseline` (dl-080 option (B), task-094) binds to the three roles that write or gate a
 # command: it must be loaded before a read is written, and before a review lets one through.

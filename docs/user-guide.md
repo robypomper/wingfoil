@@ -298,7 +298,7 @@ wingfoil directive create --name api-style          # scaffolds directives/custo
 wingfoil directive assign --directive api-style --role developer
 ```
 
-`--directive` accepts several names: `--directive api-style,security`.
+`--directive` accepts several names: `--directive api-style,architecture`.
 
 To retire a directive, first remove it from `roles.yaml` by hand (there is no unassign command in
 0.2.2), commit, then:
