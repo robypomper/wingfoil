@@ -10,7 +10,11 @@
  *
  * Throwaway temp git repositories throughout (`bug-075`). Deterministic (REQ-SYS-07).
  */
-import { readPathAtRev, readPathsAtRev, resolveCommitAtRev, StorageError } from '../../src/storage';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
+import { E_GIT_READ_FAILED, E_INVALID_REVISION, readPathAtRev, readPathsAtRev, resolveCommitAtRev, StorageError } from '../../src/storage';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from './helpers/git-fixture';
 
 describe('readPathsAtRev — many paths at one revision, one git process (task-137)', () => {
@@ -66,6 +70,29 @@ describe('readPathsAtRev — many paths at one revision, one git process (task-1
     expect(() => readPathsAtRev(`${repo}/does-not-exist`, 'HEAD', ['a.md'])).toThrow(StorageError);
   });
 
+  it('refuses a rev that would change the batch request: a newline, a carriage return or a colon (review)', () => {
+    writeFixtureFile(repo, 'target.txt', 'TARGET\n');
+    commitAll(repo, 'target');
+    // Unchecked, `HEAD:target.txt\nHEAD` made the batch answer target.txt's bytes for `a.md`.
+    for (const rev of ['HEAD:target.txt\nHEAD', 'HEAD\r', 'HEAD:dir', 'HEAD\0']) {
+      let thrown: unknown;
+      try {
+        readPathsAtRev(repo, rev, ['a.md']);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(StorageError);
+      expect((thrown as StorageError).code).toBe(E_INVALID_REVISION);
+    }
+  });
+
+  it('a path ending in a carriage return is read like readPathAtRev reads it (review)', () => {
+    writeFixtureFile(repo, 'cr\r', 'carriage return in the name\n');
+    commitAll(repo, 'cr');
+    expect(readPathsAtRev(repo, 'HEAD', ['cr\r', 'a.md'])).toEqual([readPathAtRev(repo, 'HEAD', 'cr\r'), 'A DIRTY\n']);
+    expect(readPathsAtRev(repo, 'HEAD', ['cr\r'])).toEqual(['carriage return in the name\n']);
+  });
+
   it('fails loudly when git cannot even be spawned (the options.env override reaches the spawn)', () => {
     expect(() => readPathsAtRev(repo, 'HEAD', ['a.md'], { env: { PATH: '' } })).toThrow(/E_GIT_READ_FAILED/);
   });
@@ -89,5 +116,16 @@ describe('resolveCommitAtRev — a revision to the full sha of a commit (task-13
     expect(resolveCommitAtRev(repo, sha.slice(0, 10))).toBe(sha);
     expect(resolveCommitAtRev(repo, git(repo, ['rev-parse', 'HEAD^{tree}']).trim())).toBeNull();
     expect(resolveCommitAtRev(repo, 'no-such-ref')).toBeNull();
+  });
+
+  it('a root git cannot read is a failed read, not "no such commit" (review)', () => {
+    const notARepo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+    try {
+      expect(() => resolveCommitAtRev(notARepo, 'HEAD')).toThrow(StorageError);
+      expect(() => resolveCommitAtRev(notARepo, 'HEAD')).toThrow(E_GIT_READ_FAILED);
+      expect(() => resolveCommitAtRev(repo, 'HEAD', { env: { PATH: '' } })).toThrow(E_GIT_READ_FAILED);
+    } finally {
+      removeTempDir(notARepo);
+    }
   });
 });

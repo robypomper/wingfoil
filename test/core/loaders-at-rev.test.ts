@@ -14,6 +14,10 @@ import {
   loadWorkflowsYamlAtRev,
 } from '../../src/core/loaders';
 import { RevisionError, resolveRevision } from '../../src/core/revision';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 import * as core from '../../src/core';
 import * as memory from '../../src/memory';
 import * as storage from '../../src/storage';
@@ -280,6 +284,25 @@ describe('an unknown or malformed rev is a CoreError naming the rev, never an em
   it('resolveRevision returns the full 40-hex sha of the commit', () => {
     expect(resolveRevision(repo, 'HEAD')).toBe(git(repo, ['rev-parse', 'HEAD']).trim());
     expect(resolveRevision(repo, 'HEAD')).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it('a root that is not a repository is a StorageError, not NOT_FOUND; the …AtHead readers still answer null (review)', () => {
+    const notARepo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+    try {
+      expect(() => resolveRevision(notARepo, 'HEAD')).toThrow(storage.StorageError);
+      expect(() => loadDnaYamlAtRev(notARepo, 'HEAD')).toThrow(/E_GIT_READ_FAILED/);
+      expect(core.loadDnaYamlAtHead(notARepo)).toBeNull();
+      expect(core.loadDirectivesAtHead(notARepo)).toEqual([]);
+    } finally {
+      removeTempDir(notARepo);
+    }
+  });
+
+  it('a rev with whitespace is refused as malformed; git\'s dotted spelling of the same rev works (review)', () => {
+    for (const rev of ['master@{1 day ago}', 'HEAD^{/fix bug}']) {
+      expect(() => resolveRevision(repo, rev)).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
+    }
+    expect(resolveRevision(repo, 'HEAD@{1.day.ago}')).toMatch(/^[0-9a-f]{40}$/);
   });
 
   it('an unborn HEAD (no commit yet) is NOT_FOUND at the …AtRev level', () => {
