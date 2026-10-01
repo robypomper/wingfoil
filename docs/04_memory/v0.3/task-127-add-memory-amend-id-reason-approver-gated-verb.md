@@ -204,9 +204,14 @@ Evidence per AC:
 - AC4: the "`wingfoil memory --help` lists amend" test, and `test/docs/cli-reference.test.ts`.
 - AC5: `8c0858c8`.
 
-Same-class search in the files touched: `grep -rn "approve/reject/deprecate\|approve\`/\`reject\`/\`deprecate" src`.
-The two module comments were fixed. `src/memory/state-machine.ts` and `src/core/require-reason.ts`
-describe the transition engine and `--reason`. `amend` uses neither as a transition, so they were
-left. `CLAUDE.md` §1/§5.1 (command count "20", verb list) is owned by `align-agent-docs` (`dl-025`)
+Same-class search in the files touched: `grep -rln 'reject.*deprecate' src/core src/memory` lists
+the verb enumerations. The two module comments that describe every Memory commit or every user of
+the shared skeleton (`src/memory/commit-message.ts`, `src/core/memory-transition.ts`) now name
+`amend`. So does the `DocumentScope` comment (`src/memory/frontmatter-edit.ts`). It said
+`carries-content` was "`memory.submit` alone" because an approval carrying a body would attest to
+content no subject mentions, and that was no longer true. It now names `amend` and says why its
+subject does mention the content. The other hits describe the transition engine
+(`src/memory/state-machine.ts`) or a single verb's own steps (`src/core/index.ts`). `amend` is not a
+transition of the engine, so they were left. `CLAUDE.md` §1/§5.1 (command count "20", verb list) is owned by `align-agent-docs` (`dl-025`)
 and left for the coordinator. So are `README.md`, `docs/user-guide.md` and `docs/agents.md` (the
 `user-docs` phase).
