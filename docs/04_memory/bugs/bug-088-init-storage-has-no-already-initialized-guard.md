@@ -2,7 +2,7 @@
 id: "bug-088-init-storage-has-no-already-initialized-guard"
 type: bug
 title: "`initWingfoilStorage` has no already-initialized check, so it overwrites a clean committed `dna.yaml` and commits the diff"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
