@@ -46,6 +46,26 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
   closest-match suggestion when Levenshtein distance ≤ 2 (ground-truth BDD:
   `p5-interaction/P5.1.4-cli-ux.feature` — `wingfoil memroy add` → `"unknown command 'memroy'"` suggests
   `"memory"`, exit `2`).
+- `[args]` is **at most one positional**: the identity of the command's target
+  (`dl-082-cli-parameter-shape` — a positional identifies the target, an option carries an attribute).
+  An operand beyond the one a command declares — any operand at all, for a command that declares none
+  (`workflow list`, `directives list`, `memory add`) — is a malformed invocation: exit `2`, with a
+  message naming the command, what it takes, and how many operands it got
+  (`error: wingfoil memory approve takes one positional <id> (got 2 positionals)`,
+  `error: wingfoil workflow list takes no positional (got 1 positional)`). The rule holds for every
+  command, present and future. For every command except the four DNA path verbs it is enforced where
+  commands are registered, before the project root is resolved, so before anything is read or
+  written. **The exception:** `dna set`, `dna add`, `dna update` and `dna remove` refuse the surplus
+  inside the operation, after the project root is resolved and after their own `<path>` check. A
+  malformed `<path>` is therefore reported before the surplus (§9). An invocation that fails to
+  resolve the root fails on that first, at exit `1`: `E_NOT_AT_GIT_ROOT` from a subdirectory, and
+  `E_NO_GIT_ROOT` outside a repository. Their surplus message adds the migration hint
+  `the value travels in --value`. They still write nothing.
+- **One id per call.** The Memory transition verbs (`memory submit`, `approve`, `reject`, `deprecate`)
+  and `memory history` act on exactly one document per invocation; transitioning several documents
+  takes one invocation, and one commit, each. The multi-id commit subject `wf({type}): {verb} {id1},
+  {id2}, ...` is **historical only**: it records batch operations written by hand before the verbs
+  shipped, and no command produces it.
 
 ### 2. Global flags
 
@@ -219,7 +239,7 @@ Optional flags never trigger a prompt — an omitted optional flag simply keeps 
 |------|-------------------|-------------------------------------------------------------------------------------------|
 | `0`  | Success            | Command completed (including a no-op `--dry-run` simulation)                             |
 | `1`  | User/logic error   | Valid invocation, but the operation itself failed: unknown Memory type, illegal state transition, document not found, unauthorized approver |
-| `2`  | Usage/argument error | Malformed invocation: unknown command/flag, missing required argument, invalid `--format` value |
+| `2`  | Usage/argument error | Malformed invocation: unknown command/flag, missing required argument, an operand beyond the one the command declares (§1), invalid `--format` value |
 
 This table is the single source of truth for exit codes; ground-truth BDD scenarios (`P1.3-memory-add`,
 `P1.6-memory-submit`, `P1.7-memory-approve`, `P5.1.4-cli-ux`) exercise exactly these three codes and no
@@ -669,6 +689,25 @@ approver's confirmation at its review. `src/memory/audit.ts` reads the grammar
 (`parseMemoryOperation`, `verifyTransitionConsistency`). No section outside §2 changes. Edited in
 place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` (there is
 no `version:` field to bump) and the `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-09-30) — §1 states that `[args]` is at most one positional, that a surplus operand is
+exit `2`, and that the transition verbs take one id per call, per `dl-082-cli-parameter-shape`
+(`ready`) and `task-129-refuse-operand-beyond-command-declares-exit-2-before` (`bug-171`,
+`bug-131`).** `dl-082` gave each command at most one positional, but only `dna set` refused a second;
+every other command acted on the first operand and dropped the rest at exit `0`, and a command
+declaring none accepted any. On this repository `memory approve <bug-169> <bug-170> --reason …`
+approved the first, left the second `open`, and exited `0`. §1 now records the refusal and its two
+message shapes. Every command except the four DNA path verbs refuses at command registration, before
+the root is resolved. The DNA path verbs refuse inside the operation and keep their own ordering:
+root resolution first, then §9's malformed-path rule (`P2.1-dna-set.feature`), then the surplus.
+Their migration wording is unchanged. §1 states that exception precisely. The independent review
+found the first wording overclaimed "enforced once, before anything is read". §5's exit-`2` row, the
+single source of truth for exit codes, names the new case, so that it stays in step with
+`spec-005-cli-command-contract` §1 (the same pairing `task-103`/`bug-103` kept). The multi-id subject
+form is marked historical because the choice `bug-171` put — refuse or batch — was taken as refuse;
+the commit grammar itself is `dl-079`'s. No other section changed.
+Edited in place without a supersede or a state change, per the same `spec-001` precedent the
+2026-09-17 revision cites.
 
 **Revision (2026-10-01) — `element.set_release` emits `assign`, per the approver's ruling of
 2026-10-01, carried out by `task-126` at its review.** The ruling reverses `release-planning`'s R20/Q6

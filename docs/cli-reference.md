@@ -24,6 +24,11 @@ subdirectory it fails with `error: E_NOT_AT_GIT_ROOT: run wingfoil from the proj
 - **The positional argument is the target** — the thing the command acts on: a document id
   (`memory submit task-001-my-first-task`), a DNA path (`dna set project.name`), a section or category
   (`dna show project`, `paths sources`), a directive name (`directive remove api-style`).
+- **A command takes at most one positional**, and one document per call: to approve two documents, run
+  `memory approve` twice. An operand beyond the one a command declares — or any operand, on a command
+  that declares none — is refused with exit `2` before anything is written:
+  `wingfoil memory approve task-001 task-002 --reason ok` →
+  `error: wingfoil memory approve takes one positional <id> (got 2 positionals)`.
 - **Options are attributes** — the values the command writes or filters by (`--value`, `--reason`,
   `--type`, `--role`, …).
 - A **DNA path** is dotted: `project.name`, `modules.api`, `stacks.technologies.TypeScript`. A segment

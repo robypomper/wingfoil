@@ -16,7 +16,7 @@
  * thin, mechanical concern.
  */
 import type { CoreFlag, CoreModule, CoreOption, CorePositional, ParamsBuilder } from '../core/registry';
-import { enumerateOperations, deriveVerb } from '../core/registry';
+import { enumerateOperations, deriveVerb, extraOperandsReason } from '../core/registry';
 import type { CoreResult } from '../core/types';
 import { exitCodeForResult, exitCodeForThrow } from '../core/exit-code';
 
@@ -106,6 +106,25 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
           return;
         }
         const format = formatValue;
+
+        // An operand beyond the one the command declares (`dl-082-cli-parameter-shape`: at most one
+        // positional per command) is a malformed invocation: exit `2` (spec-005 §1). For every derived
+        // command, present and future, it is refused HERE, before `resolveRoot()`. That is before
+        // anything is read or written, and before any check the operation runs, the git-identity
+        // pre-flight included (task-129, `bug-171`, `bug-131`).
+        // EXCEPTION: an operation that declares `refusesExtraItself` (today the four DNA path verbs)
+        // is NOT refused here. It receives the full list and refuses the surplus itself, in the same
+        // words, AFTER `resolveRoot()` and after its own `<path>` check. So a root-resolution failure
+        // comes first (`E_NOT_AT_GIT_ROOT` / `E_NO_GIT_ROOT`, exit 1), then a malformed path (exit 2),
+        // then the surplus (exit 2) (spec-008 §1).
+        const given = positionals?.length ?? 0;
+        const declared = operation.positional === undefined ? 0 : 1;
+        if (given > declared && operation.positional?.refusesExtraItself !== true) {
+          const commandName = verb ? `${module.name} ${verb}` : module.name;
+          emitError(extraOperandsReason(commandName, operation.positional?.name, given), { format });
+          exitWith(2);
+          return;
+        }
 
         let result: CoreResult<unknown>;
         try {
