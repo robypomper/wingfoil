@@ -315,6 +315,19 @@ describe('spec-003 § Diagnostics — each loader row owned by task-136 fires on
     expect(diagnostics.map((d) => [d.code, d.message])).toEqual([['E_WORKFLOW_INCLUDE_CYCLE', 'include cycle: self -> self']]);
   });
 
+  it('E_WORKFLOW_INCLUDE_CYCLE — a three-workflow cycle is named in include order, from its first member', () => {
+    writeWorkflows(repo, [
+      ['main', 'name: main\nkind: main\nphases:\n  - name: go\n    include: a\n'],
+      ['a', 'name: a\nkind: sub\nphases:\n  - name: to-b\n    include: b\n'],
+      ['b', 'name: b\nkind: sub\nphases:\n  - name: to-c\n    include: c\n'],
+      ['c', 'name: c\nkind: sub\nphases:\n  - name: to-a\n    include: a\n'],
+    ]);
+    const { diagnostics } = diagnosticsOf(repo);
+    expect(diagnostics.map((d) => [d.file, d.path, d.message])).toEqual([
+      ['workflows/custom/a.yaml', 'phases[0].include', 'include cycle: a -> b -> c -> a'],
+    ]);
+  });
+
   it('E_PHASE_FALLBACK_STEP_UNKNOWN — BDD P4.15 sc. 3 message (spec-017 Consequences)', () => {
     writeWorkflows(repo, [
       ['main', 'name: main\nkind: main\nphases:\n  - name: red\n  - name: review\n    fallback: { step: ghost }\n'],
@@ -344,6 +357,34 @@ describe('spec-003 § Diagnostics — each loader row owned by task-136 fires on
         message: 'included workflow file not found: workflows/custom/missing.yaml',
       },
     ]);
+  });
+});
+
+describe('structural (Zod) failures keep spec-009 codes and do not cascade', () => {
+  let repo: string;
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+  });
+  afterEach(() => removeTempDir(repo));
+
+  it('a structurally invalid file reports E_VALIDATION at spec-003 paths; an include naming it is not unresolved', () => {
+    writeWorkflows(repo, [
+      ['main', 'name: main\nkind: main\nphases:\n  - name: go\n    include: broken\n'],
+      ['broken', 'name: broken\nkind: sub\nphases:\n  - name: p\n    optional: maybe\n'],
+    ]);
+    const { diagnostics } = diagnosticsOf(repo);
+    expect(diagnostics.map((d) => [d.code, d.file, d.path])).toEqual([
+      ['E_VALIDATION', 'workflows/custom/broken.yaml', 'phases[0].optional'],
+    ]);
+  });
+
+  it('a file with no readable name leaves include resolution and the startable rule undecided', () => {
+    writeWorkflows(repo, [
+      ['loop', 'name: loop\nkind: sub\nphases:\n  - name: q\n    include: somewhere\n'],
+      ['nameless', 'kind: main\nphases:\n  - name: p\n'],
+    ]);
+    const { diagnostics } = diagnosticsOf(repo);
+    expect(diagnostics.map((d) => [d.code, d.file, d.path])).toEqual([['E_VALIDATION', 'workflows/custom/nameless.yaml', 'name']]);
   });
 });
 
