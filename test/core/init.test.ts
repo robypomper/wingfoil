@@ -9,13 +9,13 @@
  * The user-facing `wingfoil init` CLI command/wizard is task-029's scope, not this task's.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { exitCodeForResult } from '../../src/core';
-import { initWingfoilStorage } from '../../src/core/init';
-import { makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
+import { WINGFOIL_ALREADY_INITIALIZED, initWingfoilProject, initWingfoilStorage } from '../../src/core/init';
+import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const NOT_A_GIT_REPO = "not a git repository: run 'git init' first";
 const ISOLATION_KEYS = ['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_NOSYSTEM'] as const;
@@ -84,6 +84,67 @@ describe('initWingfoilStorage (P1.1, REQ-SYS-01)', () => {
       }
       expect(existsSync(join(repo, '.wingfoil', 'dna.yaml'))).toBe(true);
       expect(exitCodeForResult(result)).toBe(0);
+    });
+  });
+
+  /**
+   * task-135 / `bug-088-init-storage-has-no-already-initialized-guard`: the two init entry points
+   * agree that an initialized project is not re-initialized. `initWingfoilProject` refuses on
+   * `detectInitState(root) === 'initialized'`; `initWingfoilStorage` used to overwrite a clean,
+   * committed `dna.yaml` with the scaffold's and commit the diff under "initialize".
+   */
+  describe('Error - re-initializing an initialized project (bug-088)', () => {
+    let repo: string;
+    afterEach(() => removeTempDir(repo));
+
+    const DNA = '.wingfoil/dna.yaml';
+    const HAND_AUTHORED = '# a hand-authored dna.yaml, committed\nproject:\n  name: kept\n';
+    const head = (): string => git(repo, ['rev-parse', 'HEAD']).trim();
+
+    it('refuses like initWingfoilProject, exit 1, and leaves the committed dna.yaml unchanged', () => {
+      repo = makeTempGitRepo();
+      writeFixtureFile(repo, DNA, HAND_AUTHORED);
+      commitAll(repo, 'seed: a committed, hand-authored dna.yaml');
+      const before = head();
+
+      const result = initWingfoilStorage(repo);
+
+      expect(result).toMatchObject({ ok: false, error: { code: 'VALIDATION', message: WINGFOIL_ALREADY_INITIALIZED } });
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(readFileSync(join(repo, DNA), 'utf-8')).toBe(HAND_AUTHORED);
+      expect(head()).toBe(before);
+      expect(git(repo, ['status', '--porcelain']).trim()).toBe('');
+    });
+
+    it('refuses a project initialized by its own earlier run — the second call commits nothing', () => {
+      repo = makeTempGitRepo();
+      expect(initWingfoilStorage(repo).ok).toBe(true);
+      const before = head();
+
+      const result = initWingfoilStorage(repo);
+
+      expect(result).toMatchObject({ ok: false, error: { message: WINGFOIL_ALREADY_INITIALIZED } });
+      expect(head()).toBe(before);
+    });
+
+    it('gives the same answer as initWingfoilProject on the same initialized project', () => {
+      repo = makeTempGitRepo();
+      expect(initWingfoilProject(repo, 'Scrum').ok).toBe(true);
+
+      const storage = initWingfoilStorage(repo);
+      const project = initWingfoilProject(repo, 'Scrum');
+
+      expect(storage.ok).toBe(false);
+      expect(project.ok).toBe(false);
+      expect(storage.ok ? '' : storage.error.message).toBe(project.ok ? '' : project.error.message);
+    });
+
+    it('still initializes an INCOMPLETE project (an empty .wingfoil/), as initWingfoilProject does', () => {
+      repo = makeTempGitRepo();
+      mkdirSync(join(repo, '.wingfoil'));
+
+      expect(initWingfoilStorage(repo).ok).toBe(true);
+      expect(existsSync(join(repo, DNA))).toBe(true);
     });
   });
 });

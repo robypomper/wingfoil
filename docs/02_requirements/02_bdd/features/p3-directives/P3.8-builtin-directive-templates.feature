@@ -22,3 +22,9 @@ Feature: P3.8 (US-0A-09) - Built-in Directive Templates
     When initialization runs
     Then init aborts before writing partial directives
     And the message is "built-in directive template integrity check failed: <name>"
+
+  Scenario: Error - a built-in template carries a secret
+    Given a built-in template source contains a line matching a blocking secret pattern
+    When initialization runs
+    Then init aborts before writing partial directives, with exit code 1
+    And the message is "built-in directive template secret scan failed: <name> (<pattern_id>, line <line>)"
