@@ -2,7 +2,7 @@
 id: "bug-144-kanban-template-includes-by-path"
 type: bug
 title: "The Kanban template's `sw-life-cycle.yaml` includes its delivery sub-workflow by file path, where a workflow `include` is documented to take a name"
-status: planned
+status: in-progress
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
