@@ -8,7 +8,7 @@ kind: "fix"
 priority: "low"
 tags: ["v0.3", "core", "docs", "memory", "init"]
 ref: "dl-072"
-bug: ["bug-052", "bug-053"]
+bug: ["bug-052", "bug-053", "bug-177-no-memory.yaml-type-name-is-refused-for-colliding-with-a-configuration-commit-scope"]
 depends_on: []
 tmpl_version: 260703
 ---
