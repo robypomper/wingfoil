@@ -246,3 +246,36 @@ both written above, and it cannot claim "verbatim" — but E3 shows nothing can.
   decision pins actually reach the operator).
 - **Traceability:** P1.7 (approver identity + timestamp + reason), P1.8 (reject), P1.9 (deprecate),
   REQ-SEC-02 (git history is the audit trail), REQ-SEC-04 (mandatory justification on decision verbs).
+
+## Amendments (2026-10-01)
+
+**Clause 4, widened by three later decisions** (`ready`, ratified at v0.3 `release-planning`'s
+reconcile-governance gate, 2026-09-29, and the v0.2 retrospective), carried out by
+`task-166-settle-reason-block-grammar-shape-rule-terminator`. The rest of this decision stands as
+written. Clause 4 now reads:
+
+> **Narrow anti-injection.** Judged on the declared normal form (clause 3), a reason is refused at exit
+> `2`, with a message of its own and nothing written, when it:
+> - carries a C0 control character other than tab (`U+0009`) and newline (`U+000A`); the message names
+>   the first one by code point (`dl-078-should-reason-refuse-c0-control-characters` (A)). A carriage
+>   return is not refused, because the normal form has already made it a newline;
+> - carries a line beginning, at column 0, with a reserved trailer key: `Approver:`, `Reason:` or
+>   `WingFoil-Version:`, in any letter case, because git reads trailer keys case-insensitively
+>   (`dl-111-tool-signature-in-commits` Q1 (A) reserves the third, for the build signature a later
+>   task stamps on every commit). Generic `Key: value` prose stays legal (E5);
+> - ends in a paragraph made entirely of `Key: value` lines, the corollary of clause 2's terminator.
+>   That terminator is recognised by a shape rule modelled on git's (every line `Token: value`), not
+>   against a list of known keys (`dl-070-narrow-reason-block-terminator` (A)). It is not identical
+>   to git's, which also accepts a mixed final paragraph when a quarter of its lines are trailers and
+>   one is git-generated or configured; the reserved keys are refused on every line for that reason.
+>   The refusal message states the remedy: add a closing sentence, or fold those lines into prose
+>   (`dl-070` S4).
+
+`spec-008-cli-grammar` §2 states the same rules, the terminator included (`dl-070` S3).
+
+**Measured before choosing (`dl-078` action 2).** No `wf(` commit body on `main` carries a C0
+character other than tab and newline, so the refusal invalidates no recorded reason: 0 of 1471 at
+`release-planning-rel-v0.3-plan`'s count, and 0 of 1841 at `c43221c4`, re-measured by `task-166`. On
+the same commit, the 581 `approve`/`reject`/`deprecate`/`amend` commits carry 580 reasons (one
+`deprecate` has none), and none is refused by the amended clause. No commit body carries a
+`WingFoil-Version:` line, and no reserved key appears in another letter case.
