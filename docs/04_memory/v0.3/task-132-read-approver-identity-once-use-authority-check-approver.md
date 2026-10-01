@@ -50,6 +50,8 @@ tmpl_version: 260703
   identity even when `user.email` is not an approver. This follows `bug-149`'s Expected Behavior/Fix.
   The committer stays git's own (the audit reads the author). `--author` outranks `GIT_AUTHOR_*`
   (verified on git 2.43: `GIT_AUTHOR_EMAIL=env@y.org git commit --author "Pin <pin@z.org>"` → `%an <%ae>` = `Pin <pin@z.org>`).
+  *Superseded at the independent review:* the author is pinned through `GIT_AUTHOR_*` in the commit's
+  environment, not `--author`, and the committer must resolve too (finding 1, 2 below).
 - Order kept from task-125: usage checks → identity → transition legality → authority (approve,
   reject); amend's authority check stays right after its confinement check.
 - `requireApprovalAuthority` takes the identity as a parameter (`dl-064` B.1: "a pure predicate"
@@ -93,9 +95,10 @@ tmpl_version: 260703
   no longer imported (`grep -n "readGitIdentity" src/core/index.ts` → nothing).
   `src/memory/audit.ts`: `hasReservedDomain` (top-level label only, case-insensitive).
 - Same-class fixes: `makeTempGitRepo` commits as `wf-test@example.invalid`, so three audit tests that
-  assert "every commit is valid" now configure `wf-test@wingfoil-fixture.org`
+  assert "every commit is valid" now configure their own author email
   (`test/memory/audit.test.ts`, `versioning-audit-trail.test.ts`, `git-log-framing.test.ts`); the
   global fixture identity is left as is (it is used as the approver email in dozens of fixtures).
+  First pass used `wf-test@wingfoil-fixture.org`; the review pass switched it to `example.org` (see below).
 - `docs/cli-reference.md` § Git identity: names `memory amend` among the approver-gated commands and
   states the resolution order and the one-identity rule.
 
@@ -124,13 +127,47 @@ tmpl_version: 260703
 - AC4: `spec-006` §7 + Revision (2026-10-01) written — a pending amendment, uncommitted (below).
 - Unasserted (testing T1): nothing in the ACs; the committer identity is deliberately not asserted.
 
+### review (independent) — reject → fix in-task
+
+The coordinator's independent review found two defects and five same-class items; the task stayed
+`in-review` and was fixed on this branch, red first.
+
+| # | Finding | Red (`00b8a65f`) | Fix (`08c2b6bb`) |
+|---|---------|------------------|------------------|
+| 1 | BLOCKER, REQ-SEC-01 regression vs 0.2.1: author from `GIT_AUTHOR_*`/`author.*` with no `user.*` passed the check, then `git commit` died on "Committer identity unknown" after the write, leaving the document modified and staged | `test/core/identity-preflight-committer.test.ts`: `memory approve`, `memory submit`, `memory add`, `dna set` → exit 1, REQ-SEC-01 message, HEAD unmoved, `git status --porcelain` empty; failed with `Committer identity unknown` from `git commit` | `requireGitIdentity` resolves the committer too (`GIT_COMMITTER_*` → `committer.*` → `user.*`) and refuses with the REQ-SEC-01 message; shared by every mutating op |
+| 2 | `--author "<name> <<email>>"` is re-parsed by git: `Ann <x` recorded `ae=x ann@…`; a newline in the name forged `Approver:` lines | `test/storage/commit.test.ts` (recorded `%ae` equals the given email; `author` outranks `env`); `test/core/git-identity.test.ts` (`<`, `>`, newline, tab, BEL in name/email, from env or config) | `commitPaths` pins `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL` in the commit's env; `requireGitIdentity` refuses `<`, `>`, C0/DEL in any of the four values: `git identity not usable: the <role> <field> contains '<', '>' or a control character` (exit 1) |
+| 3 | `docs/cli-reference.md` § Git identity said `user.*` only | — (docs) | states author and committer sources, the blank-variable rule and both refusal messages |
+| 4 | a set-but-blank `GIT_AUTHOR_*` fell through to `user.*`; git refuses it | `git-identity.test.ts`: `''`/whitespace in `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` → refused | a defined variable wins even when blank (resolves to `''`) |
+| 5 | `src/core` re-exported `prepareMemoryTransition`, a bypass of the identity preamble | — (structural; `grep -rn "prepareMemoryTransition" test src --include=*.ts` → no importer outside `src/core/memory-transition.ts`) | re-export dropped; `export type { BegunMemoryTransition }` added |
+| 6 | `a@foo.test.` passed the reserved-TLD check | `audit.test.ts`: `foo.test.`, `foo.invalid..` | trailing dots stripped before taking the top-level label |
+| 7 | fixture domain `wingfoil-fixture.org` is registrable | — | switched to `example.org` (IANA-reserved at the second level, which the top-level-only rule accepts; a future RFC 2606 second-level rule would have to move it again) |
+
+- Red run: `npx jest test/core/identity-preflight-committer.test.ts test/core/git-identity.test.ts test/storage/commit.test.ts test/memory/audit.test.ts test/memory/versioning-audit-trail.test.ts test/memory/git-log-framing.test.ts`
+  → `Tests: 20 failed, 121 passed, 141 total`.
+- **Audit impact** (finding 7), measured with this build (`npm run build`, then
+  `node -e "require('./dist/memory/audit.js').auditAttribution('/home/robypomper/Workspaces/WingFoil2', ['.'])…"`)
+  on the main working tree at `69eeef3f`: **1177/3290** commits invalid, every one
+  `Probe <probe@example.invalid>` (the `dl-094` contamination); over
+  `docs/04_memory`, `docs/05_plans`, `.wingfoil`: **69/1141**, same author. The reviewer measured
+  1177/3285 at `58342a45`. `auditAttribution` is wired to no CLI command
+  (`grep -rn auditAttribution src --include=*.ts` → only `src/memory/audit.ts`, `src/memory/index.ts`
+  and a doc comment in `src/memory/git-log.ts`), so no user-visible output changes today.
+- Gates after the fix: full `npx jest --coverage` → `Test Suites: 180 passed`, `Tests: 3032 passed`;
+  coverage Statements 98.83% (4393/4445), Branches 95.10% (2349/2470), Functions 94.48% (736/779),
+  Lines 99.53% (3820/3838) — all at or above the baseline (98.82 / 95.06 / 94.44 / 99.52); the
+  function dip of the first pass is gone with the re-export. `npm run lint` clean, `npm run docs:api`
+  exit 0, both `tsc --noEmit` clean.
+
 ### Pending amendments (approver)
 
-- `spec-006-core-domain-api` — new §7 (pre-flight order of the memory transition verbs; one identity)
-  and Revision note (2026-10-01). Proposed `--reason`: "task-132: adds section 7, the pre-flight order
-  usage checks, identity, transition legality, authority, scoped to approve and reject (dl-064 A.1 as
-  corrected by its Review and Code addenda), and the one-identity rule of dl-064 B.1 that bug-149
-  needed, as implemented by beginMemoryTransition."
+- `spec-006-core-domain-api` — new §7 (pre-flight order of the memory transition verbs; one identity;
+  what the identity check refuses) and Revision note (2026-10-01), updated after the independent
+  review. Proposed `--reason`: "task-132: adds section 7, the pre-flight order usage checks, identity,
+  transition legality, authority, scoped to approve and reject (dl-064 A.1 as corrected by its Review
+  and Code addenda), and the one-identity rule of dl-064 B.1 that bug-149 needed: the author is
+  resolved once in git's order and pinned through the commit's environment, and the check also
+  requires a committer and refuses angle brackets and control characters, as implemented by
+  beginMemoryTransition and requireGitIdentity."
 - Merge order: `task-161` also edits `spec-006` (its §6) and merges first; this amendment adds §7 and
   appends a Revision note at the end of Process Notes — rebase onto 161 before running the amend.
   `task-138` edits `src/core/index.ts` (paths description) and merges first.
