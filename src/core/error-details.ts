@@ -22,6 +22,12 @@ export interface ErrorDetail {
  * re-sorted). An issue contributes an entry only when it names a non-empty `file` or `detail`, and the
  * entry carries only the fields it has. Anything else in `details` is ignored: the list is empty for
  * an error with no `details.issues`, which is the case for every error that carried no details before.
+ *
+ * A `file` the error's `message` already contains, verbatim, is not repeated (task-130 review):
+ * `ValidationError`'s message embeds `(<file>)` for every issue, so repeating it would print the path
+ * twice. The entry keeps its `detail`, and an entry left with neither field is dropped. What remains is
+ * exactly what the reason does not already say — for the illegal-transition refusal, whose message is
+ * the bare `dl-032` contract string, both the file and the explanation.
  */
 export function errorDetails(error: CoreError): readonly ErrorDetail[] {
   const issues = error.details?.issues;
@@ -31,7 +37,7 @@ export function errorDetails(error: CoreError): readonly ErrorDetail[] {
     if (typeof issue !== 'object' || issue === null) continue;
     const { file, detail } = issue as { file?: unknown; detail?: unknown };
     const entry: ErrorDetail = {
-      ...(typeof file === 'string' && file !== '' ? { file } : {}),
+      ...(typeof file === 'string' && file !== '' && !error.message.includes(file) ? { file } : {}),
       ...(typeof detail === 'string' && detail !== '' ? { detail } : {}),
     };
     if (entry.file !== undefined || entry.detail !== undefined) entries.push(entry);

@@ -14,6 +14,7 @@
 import { createInterface } from 'node:readline';
 
 import { exitCodeForResult, initWingfoilProject, type InitProjectValue } from '../core';
+import { errorDetails } from '../core/error-details';
 import type { CoreResult } from '../core/types';
 import {
   DEFAULT_TEMPLATE,
@@ -110,7 +111,8 @@ export async function runInit(options: InitCliOptions, deps: InitCliDeps): Promi
   if (result.ok) {
     process.stdout.write(renderSuccess(result.value, format));
   } else {
-    emitError(result.error.message, { format });
+    // `details` too, as every derived command does (task-130 review, spec-005 §3.1).
+    emitError(result.error.message, { format, details: errorDetails(result.error) });
   }
   exitWith(exitCodeForResult(result));
 }
