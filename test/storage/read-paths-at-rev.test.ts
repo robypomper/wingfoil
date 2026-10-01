@@ -65,6 +65,10 @@ describe('readPathsAtRev — many paths at one revision, one git process (task-1
   it('fails loudly, rather than answering null, when git itself cannot run in root', () => {
     expect(() => readPathsAtRev(`${repo}/does-not-exist`, 'HEAD', ['a.md'])).toThrow(StorageError);
   });
+
+  it('fails loudly when git cannot even be spawned (the options.env override reaches the spawn)', () => {
+    expect(() => readPathsAtRev(repo, 'HEAD', ['a.md'], { env: { PATH: '' } })).toThrow(/E_GIT_READ_FAILED/);
+  });
 });
 
 describe('resolveCommitAtRev — a revision to the full sha of a commit (task-137)', () => {

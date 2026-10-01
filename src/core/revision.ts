@@ -8,7 +8,7 @@
  * directive list or Memory scan is a legitimate answer for a commit that holds nothing, so handing it
  * back for a mistyped rev would build an agent a wrong context that looks right.
  */
-import { resolveCommitAtRev } from '../storage';
+import { E_GIT_READ_FAILED, listPathsAtRev, resolveCommitAtRev, StorageError } from '../storage';
 
 import type { CoreError, CoreErrorCode } from './types';
 
@@ -71,6 +71,23 @@ export function resolveRevision(root: string, rev: string): string {
   const sha = resolveCommitAtRev(root, rev);
   if (sha === null) throw new RevisionError('NOT_FOUND', rev);
   return sha;
+}
+
+/**
+ * Every file commit `sha` holds under `prefix` (`storage.listPathsAtRev`), for a sha
+ * {@link resolveRevision} has just resolved. `listPathsAtRev` answers `null` only for a revision that
+ * does not resolve, so a `null` here means git could not list a commit it had just resolved; that is a
+ * failed read, and it throws rather than passing for "the commit holds nothing" (the empty answer this
+ * module exists to keep away from an agent's context).
+ *
+ * @throws `StorageError` `E_GIT_READ_FAILED` when the listing fails.
+ */
+export function listPathsAtCommit(root: string, sha: string, prefix: string): string[] {
+  const listed = listPathsAtRev(root, sha, prefix);
+  if (listed === null) {
+    throw new StorageError(E_GIT_READ_FAILED, `git ls-tree ${sha} -- ${prefix} failed in ${root}: the commit could not be listed`);
+  }
+  return listed;
 }
 
 /**

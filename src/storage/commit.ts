@@ -233,8 +233,8 @@ export function listPathsAtRev(
  */
 export function resolveCommitAtRev(root: string, rev: string, options: CommitOptions = {}): string | null {
   try {
-    const sha = probeGit(root, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], options).trim();
-    return /^[0-9a-f]{40,64}$/.test(sha) ? sha : null;
+    // `--verify` prints exactly one object name or fails, so a success is the sha.
+    return probeGit(root, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], options).trim();
   } catch {
     return null;
   }

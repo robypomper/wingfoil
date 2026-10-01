@@ -15,7 +15,7 @@ import { join, posix } from 'path';
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
-import { documentExists, extractFrontmatter, listPathsAtRev, readDocument, readPathAtRev, readPathsAtRev } from '../storage';
+import { documentExists, extractFrontmatter, readDocument, readPathAtRev, readPathsAtRev } from '../storage';
 import {
   Diagnostic,
   DiagnosticsError,
@@ -29,7 +29,7 @@ import {
 } from '../validation';
 import { Workflow, WorkflowsYaml } from '../workflow/schema';
 
-import { atHeadOr, resolveRevision } from './revision';
+import { atHeadOr, listPathsAtCommit, resolveRevision } from './revision';
 import { indexWorkflowFiles, LoadedWorkflowFile, noStartableDiagnostic, workflowFileDiagnostics } from './workflow-diagnostics';
 
 /**
@@ -323,7 +323,10 @@ export function loadWorkflowsYamlAtRev(root: string, rev: string): WorkflowsLoad
   const sha = resolveRevision(root, rev);
   const committedPath = (file: string): string => posix.normalize(`.wingfoil/${file}`);
   return loadWorkflowsFrom({
-    read: (file) => readPathsAtRev(root, sha, [committedPath(file)])[0] ?? null,
+    read: (file) => {
+      const [raw = null] = readPathsAtRev(root, sha, [committedPath(file)]);
+      return raw;
+    },
     label: (file) => `${rev}:${committedPath(file)}`,
   });
 }
@@ -500,7 +503,7 @@ export function loadDirectivesAtHead(root: string): DirectiveFile[] {
 export function loadDirectivesAtRev(root: string, rev: string): DirectiveFile[] {
   const sha = resolveRevision(root, rev);
   const files: DirectiveFile[] = [];
-  for (const path of listPathsAtRev(root, sha, DIRECTIVES_DIR_PATH) ?? []) {
+  for (const path of listPathsAtCommit(root, sha, DIRECTIVES_DIR_PATH)) {
     if (!path.endsWith('.md')) continue;
     // One read per file, not the batched `readPathsAtRev`: a project holds a handful of directives,
     // and task-096's suite pins this read (`readPathAtRev`) by name.

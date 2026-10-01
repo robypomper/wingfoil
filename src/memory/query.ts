@@ -50,10 +50,10 @@ import { parseYaml, ValidationError } from '../validation';
 
 import type { MemoryYaml } from './schema';
 import { isArchivedStatus } from './state-machine';
-import { listPathsAtRev, readDocument, readPathsAtRev, splitFrontmatter } from '../storage';
+import { readDocument, readPathsAtRev, splitFrontmatter } from '../storage';
 // The module, not the `../core` barrel: `src/core` imports this module, and `./revision` depends on
 // `../storage` alone, so nothing here closes a load-time cycle.
-import { resolveRevision } from '../core/revision';
+import { listPathsAtCommit, resolveRevision } from '../core/revision';
 
 /**
  * The static (placeholder-free) directory prefix of a `memory.yaml` type `path` pattern — e.g.
@@ -168,7 +168,7 @@ function parseMemoryDocument(raw: string, relativePath: string, label: string): 
 function listMemoryDocumentPathsAtSha(root: string, sha: string, memoryYaml: MemoryYaml): string[] {
   const out = new Set<string>();
   for (const dir of computeMemoryContentRoots(memoryYaml)) {
-    for (const path of listPathsAtRev(root, sha, dir) ?? []) if (path.endsWith('.md')) out.add(path);
+    for (const path of listPathsAtCommit(root, sha, dir)) if (path.endsWith('.md')) out.add(path);
   }
   return [...out].sort();
 }
@@ -184,15 +184,14 @@ export function listMemoryDocumentPathsAtRev(root: string, rev: string, memoryYa
   return listMemoryDocumentPathsAtSha(root, resolveRevision(root, rev), memoryYaml);
 }
 
-/** Read and parse `paths` at `sha` in one batch; a path the commit does not hold is left out. */
-function loadMemoryDocumentsAtSha(root: string, sha: string, rev: string, paths: readonly string[]): MemoryDocumentSummary[] {
-  const contents = readPathsAtRev(root, sha, paths);
-  const out: MemoryDocumentSummary[] = [];
-  paths.forEach((path, i) => {
-    const raw = contents[i];
-    if (raw !== null && raw !== undefined) out.push(parseMemoryDocument(raw, path, `${rev}:${path}`));
-  });
-  return out;
+/**
+ * Read `paths` at `sha` in one batch and parse them **lazily**, in path order; a path the commit does
+ * not hold is left out. Lazy so that a lookup can stop at its match, as the working-tree lookup does.
+ */
+function* parseMemoryDocumentsAtSha(root: string, sha: string, rev: string, paths: readonly string[]): Generator<MemoryDocumentSummary> {
+  for (const [i, raw] of readPathsAtRev(root, sha, paths).entries()) {
+    if (raw !== null) yield parseMemoryDocument(raw, paths[i]!, `${rev}:${paths[i]!}`);
+  }
 }
 
 /**
@@ -206,7 +205,7 @@ function loadMemoryDocumentsAtSha(root: string, sha: string, rev: string, paths:
  */
 export function loadMemoryDocumentsAtRev(root: string, rev: string, memoryYaml: MemoryYaml): MemoryDocumentSummary[] {
   const sha = resolveRevision(root, rev);
-  return loadMemoryDocumentsAtSha(root, sha, rev, listMemoryDocumentPathsAtSha(root, sha, memoryYaml));
+  return [...parseMemoryDocumentsAtSha(root, sha, rev, listMemoryDocumentPathsAtSha(root, sha, memoryYaml))];
 }
 
 /**
@@ -216,7 +215,8 @@ export function loadMemoryDocumentsAtRev(root: string, rev: string, memoryYaml: 
  * @throws `RevisionError` when `rev` is malformed or names no commit.
  */
 export function loadMemoryDocumentSummaryAtRev(root: string, rev: string, relativePath: string): MemoryDocumentSummary | null {
-  return loadMemoryDocumentsAtSha(root, resolveRevision(root, rev), rev, [relativePath])[0] ?? null;
+  const [summary = null] = parseMemoryDocumentsAtSha(root, resolveRevision(root, rev), rev, [relativePath]);
+  return summary;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -343,15 +343,10 @@ export function findMemoryDocumentByTypeAndIdAtRev(
   id: string,
 ): MemoryDocumentSummary | undefined {
   const sha = resolveRevision(root, rev);
-  const paths = listMemoryDocumentPathsAtSha(root, sha, memoryYaml);
-  const contents = readPathsAtRev(root, sha, paths);
   // Parsed in path order and stopped at the first match, as the working-tree lookup does: a document
   // whose frontmatter does not parse fails the lookup only if the scan reaches it (`task-171` makes
   // both baselines tolerant together, through `parseMemoryDocument`).
-  for (let i = 0; i < paths.length; i += 1) {
-    const raw = contents[i];
-    if (raw === null || raw === undefined) continue;
-    const summary = parseMemoryDocument(raw, paths[i]!, `${rev}:${paths[i]!}`);
+  for (const summary of parseMemoryDocumentsAtSha(root, sha, rev, listMemoryDocumentPathsAtSha(root, sha, memoryYaml))) {
     if (asString(summary.frontmatter.type) === type && asString(summary.frontmatter.id) === id) return summary;
   }
   return undefined;

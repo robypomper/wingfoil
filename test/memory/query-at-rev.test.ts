@@ -15,6 +15,7 @@ import {
   loadMemoryDocumentSummary,
   loadMemoryDocumentSummaryAtRev,
 } from '../../src/memory/query';
+import * as storage from '../../src/storage';
 import { parseYaml } from '../../src/validation';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -160,6 +161,24 @@ describe('Memory scan at a revision (task-137)', () => {
       expect(thrown).toBeInstanceOf(RevisionError);
       expect((thrown as RevisionError).code).toBe(code);
       expect((thrown as RevisionError).message).toContain(JSON.stringify(rev));
+    }
+  });
+});
+
+describe('a commit git resolved but cannot list is a failed read, not an empty scan (task-137)', () => {
+  it('listMemoryDocumentPathsAtRev throws E_GIT_READ_FAILED instead of answering []', () => {
+    const repo = makeTempGitRepo();
+    try {
+      writeFixtureFile(repo, 'docs/04_memory/v0.1/task-1-a.md', doc('task', 'task-1-a', 'draft', 'A'));
+      commitAll(repo, 'seed');
+      const spy = jest.spyOn(storage, 'listPathsAtRev').mockReturnValue(null);
+      try {
+        expect(() => listMemoryDocumentPathsAtRev(repo, 'HEAD', MEMORY_YAML)).toThrow(/E_GIT_READ_FAILED/);
+      } finally {
+        spy.mockRestore();
+      }
+    } finally {
+      removeTempDir(repo);
     }
   });
 });

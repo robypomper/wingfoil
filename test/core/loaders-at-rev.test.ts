@@ -14,6 +14,9 @@ import {
   loadWorkflowsYamlAtRev,
 } from '../../src/core/loaders';
 import { RevisionError, resolveRevision } from '../../src/core/revision';
+import * as core from '../../src/core';
+import * as memory from '../../src/memory';
+import * as storage from '../../src/storage';
 import { DiagnosticsError } from '../../src/validation';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -285,6 +288,51 @@ describe('an unknown or malformed rev is a CoreError naming the rev, never an em
       expect(() => loadDnaYamlAtRev(empty, 'HEAD')).toThrow(RevisionError);
     } finally {
       removeTempDir(empty);
+    }
+  });
+});
+
+describe('the readers at a revision are public API (task-137)', () => {
+  it('the core, memory and storage barrels export them', () => {
+    const exported = [
+      core.loadDirectivesAtRev,
+      core.loadDnaYamlAtRev,
+      core.loadMemoryYamlAtRev,
+      core.loadRolesYamlAtRev,
+      core.loadWorkflowsYamlAtRev,
+      core.resolveRevision,
+      core.isWellFormedRevision,
+      core.RevisionError,
+      memory.listMemoryDocumentPathsAtRev,
+      memory.loadMemoryDocumentsAtRev,
+      memory.loadMemoryDocumentSummaryAtRev,
+      memory.findMemoryDocumentByTypeAndIdAtRev,
+      storage.readPathsAtRev,
+      storage.resolveCommitAtRev,
+    ];
+    for (const fn of exported) expect(typeof fn).toBe('function');
+    expect(core.isWellFormedRevision('HEAD~1')).toBe(true);
+  });
+});
+
+describe('a commit git resolved but cannot list is a failed read, not an empty one (task-137)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/custom/alpha.md', directiveMd('alpha'));
+    commitAll(repo, 'seed');
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('loadDirectivesAtRev throws E_GIT_READ_FAILED instead of answering []', () => {
+    const spy = jest.spyOn(storage, 'listPathsAtRev').mockReturnValue(null);
+    try {
+      expect(() => loadDirectivesAtRev(repo, 'HEAD')).toThrow(storage.StorageError);
+      expect(() => loadDirectivesAtRev(repo, 'HEAD')).toThrow(/E_GIT_READ_FAILED/);
+    } finally {
+      spy.mockRestore();
     }
   });
 });
