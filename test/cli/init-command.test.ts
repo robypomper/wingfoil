@@ -129,6 +129,21 @@ describe('runInit — wizard + --template (P5.1.1)', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("a refusal's details follow its error line, as on every other command (task-130 review, spec-005 §3.1)", async () => {
+    const init: InitCliDeps['init'] = () =>
+      coreErr({
+        code: 'VALIDATION',
+        message: 'cannot scaffold the project',
+        details: { issues: [{ code: 'E_VALIDATION', path: '', file: '.wingfoil/dna.yaml', message: 'x', detail: 'why' }] },
+      });
+    await runInit({ template: 'Scrum', interactive: true, format: 'json' }, deps({ init }));
+    const written = stderrSpy.mock.calls.map((c) => c[0]).join('');
+    expect(JSON.parse(written)).toEqual({
+      error: 'cannot scaffold the project',
+      details: [{ file: '.wingfoil/dna.yaml', detail: 'why' }],
+    });
+  });
+
   it('a successful init renders the result payload on stdout (spec-005 §2)', async () => {
     await runInit({ template: 'Kanban', interactive: true, format: 'json' }, deps());
     const written = stdoutSpy.mock.calls.map((c) => c[0]).join('');

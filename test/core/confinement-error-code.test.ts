@@ -12,6 +12,7 @@
  * Both of the rule's refusals are covered — a path that resolves outside the project root, and (on
  * the write path) a target that is itself a symlink — for `memory add` and for every verb that writes
  * through `commitMemoryTransition`: the four of AC3 plus `amend` (task-127), which shares the guard.
+ * 2 refusals × 6 verbs = 12 cases.
  *
  * The outside directory is a SECOND `mkdtemp`, so a wrong boundary writes only into a temp dir.
  */
@@ -158,6 +159,17 @@ describe('AC3 — the confinement refusal has one CoreError.code on every Memory
     it(`memory add refuses with ${CONFINEMENT_CODE}`, async () => {
       symlinkSync(join(outside, 'leaked.md'), join(repo, TYPE_DIR, 'note-escape-probe.md'));
       const error = await refusal('memoryAdd', { root: repo, options: { type: 'note', title: 'escape probe' } });
+      expect(error.message).toContain('symbolic link');
+      expect(error.code).toBe(CONFINEMENT_CODE);
+    });
+
+    // The link is committed (mode 120000), as `bug-120` D2 plants it, so the verb finds the document.
+    it.each(TRANSITION_VERBS)(`$operation refuses with ${CONFINEMENT_CODE}`, async ({ operation, from, options }) => {
+      const target = join(outside, 'leafy.md');
+      writeFileSync(target, noteDoc(from), 'utf-8');
+      symlinkSync(target, join(repo, TYPE_DIR, 'note-planted.md'));
+      commitAll(repo, 'fixture: link one note at a document outside the project');
+      const error = await refusal(operation, { root: repo, positional: 'note-planted', ...(options ? { options } : {}) });
       expect(error.message).toContain('symbolic link');
       expect(error.code).toBe(CONFINEMENT_CODE);
     });

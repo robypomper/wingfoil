@@ -59,6 +59,34 @@ const MODULES: CoreModule[] = [
             },
           }),
       },
+      // The usual `ValidationError` shape: its message already embeds `(<file>)`, so repeating the
+      // file in a detail would print it twice (task-130 review, finding 2).
+      memoryHistory: {
+        name: 'memoryHistory',
+        mutates: false,
+        fn: async () =>
+          coreErr({
+            code: 'VALIDATION',
+            message: `E_VALIDATION status (${FILE}): bad`,
+            details: {
+              issues: [
+                { code: 'E_VALIDATION', path: 'status', file: FILE, message: 'bad', detail: DETAIL },
+                { code: 'E_VALIDATION', path: 'title', file: FILE, message: 'worse' },
+              ],
+            },
+          }),
+      },
+      // A multi-line detail: every continuation line is indented, so none can begin with `error: `.
+      memoryDeprecate: {
+        name: 'memoryDeprecate',
+        mutates: true,
+        fn: async () =>
+          coreErr({
+            code: 'VALIDATION',
+            message: 'refused',
+            details: { issues: [{ code: 'E_VALIDATION', path: '', file: '', message: 'm', detail: 'first\nerror: second' }] },
+          }),
+      },
       // No `details` at all — the shape every pre-existing consumer sees, which must not change.
       memorySubmit: {
         name: 'memorySubmit',
@@ -121,6 +149,21 @@ describe('AC1 — CoreError.details on the CLI surface (dl-055 option 1)', () =>
   it('yaml: the same object, serialized as YAML', async () => {
     await command('approve').run('yaml');
     expect(yamlLoad(stderr())).toEqual({ error: CONTRACT, details: [{ file: FILE, detail: DETAIL }] });
+  });
+
+  it('a file the reason already names is not repeated: the detail stays, a file-only entry is dropped', async () => {
+    await command('history').run('console');
+    await command('history').run('json');
+    const reason = `E_VALIDATION status (${FILE}): bad`;
+    expect(stderr()).toBe(
+      `error: ${reason}\n  ${DETAIL}\n${JSON.stringify({ error: reason, details: [{ detail: DETAIL }] })}\n`,
+    );
+  });
+
+  it('console: a multi-line detail indents every continuation line, so no line begins with `error: `', async () => {
+    await command('deprecate').run('console');
+    expect(stderr()).toBe('error: refused\n  first\n    error: second\n');
+    expect(stderr().split('\n').filter((line) => line.startsWith('error: '))).toHaveLength(1);
   });
 
   it('characterization: an error with no details renders exactly as before, in every format', async () => {
