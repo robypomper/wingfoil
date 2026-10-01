@@ -42,12 +42,15 @@ const TRAILER_LINE_RE = /^[A-Za-z][A-Za-z0-9-]*:[ \t]\S/;
  * of them, because such a line is indistinguishable from the trailer itself. `Approver` and `Reason`
  * are `dl-067` clause 4's; `WingFoil-Version` is reserved by `dl-111` Q1 (A) for the build signature
  * a later task stamps on every commit, so a reason cannot forge a build record any more than it can
- * forge an approval. Deliberately narrow: on `main`, 8 approve/reject commits carry a generic
+ * forge an approval. Matched case-insensitively, because git reads trailer keys that way
+ * (`git log --format='%(trailers:key=WingFoil-Version)'` also returns a `wingfoil-version:` line);
+ * no commit on `main` carries a reserved key in another case, so no existing reason is affected
+ * (task-166 review). Deliberately narrow: on `main`, 8 approve/reject commits carry a generic
  * `Key: value` line inside their reason (ordinary prose — `Action: amend spec-015 §3`, `A: before the
  * v0.2 …`) and **0** carry a reserved one, so a broader rule would outlaw the approver's own writing
  * style (dl-067 E5).
  */
-const RESERVED_TRAILER_LINE_RE = /^(?:Approver|Reason|WingFoil-Version):/;
+const RESERVED_TRAILER_LINE_RE = /^(?:Approver|Reason|WingFoil-Version):/i;
 
 /**
  * The first C0 control character in `text` other than tab (`U+0009`) and newline (`U+000A`) — the two
@@ -82,8 +85,8 @@ export type ReasonDefect =
    */
   | 'control-character'
   /**
-   * Carries a line starting `Approver:`, `Reason:` or `WingFoil-Version:` — a forged trailer line
-   * (bug-042 F3; `dl-111` Q1 (A)).
+   * Carries a line starting `Approver:`, `Reason:` or `WingFoil-Version:`, in any letter case — a
+   * forged trailer line (bug-042 F3; `dl-111` Q1 (A)).
    */
   | 'reserved-trailer-line'
   /**
