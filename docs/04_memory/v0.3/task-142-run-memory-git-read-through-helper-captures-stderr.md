@@ -8,7 +8,7 @@ kind: "fix"
 priority: "medium"
 tags: ["v0.3", "core", "memory", "git"]
 ref: "spec-006"
-bug: ["bug-072", "bug-093", "bug-097"]
+bug: ["bug-072", "bug-093", "bug-097", "bug-178-id-allocation-spawns-one-git-ls-tree-per-distinct-ref-commit"]
 depends_on: []
 tmpl_version: 260703
 ---
