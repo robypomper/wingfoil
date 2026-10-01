@@ -11,7 +11,8 @@
  * are passed per command (`GIT_AUTHOR_*`), never through `git config` (`dl-094` (ii)).
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { checkGovernance, exitCodeFor } from '../../scripts/check-governance.cjs';
@@ -313,6 +314,58 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
   });
 });
 
+describe('state rule — commits without a bracket (review)', () => {
+  const f = fixture();
+  f.task('t-1', 'draft', 'wf(task): add t-1');
+  const submitToDone = f.task('t-1', 'done', 'wf(task): submit t-1');
+  f.pending('t-2');
+  const doc = (id: string, status: string): string => `---\nid: "${id}"\ntype: task\ntitle: "T"\nstatus: ${status}\n---\n\n${id} ${status}.\n`;
+  const addMovingAnother = f.commit('wf(task): add t-3', {
+    'docs/memory/task/t-3.md': doc('t-3', 'draft'),
+    'docs/memory/task/t-2.md': doc('t-2', 'backlog'),
+  });
+  const addNotInitial = f.task('t-4', 'pending', 'wf(task): add t-4');
+  const assignMoving = f.task('t-3', 'pending', 'wf(task): assign release v0.3 to t-3');
+  const conformingSubmit = f.task('t-3', 'pending', 'wf(task): submit t-3');
+  const report = checkGovernance(f.root);
+
+  it('reports a submit that is not an edge, an add that moves another element, an add not into the initial state, and an assign that changes status', () => {
+    expect(rulesOf(report, submitToDone)).toEqual(['state']);
+    expect(messagesOf(report, addMovingAnother, 'state').join()).toMatch(/t-2\.md/);
+    expect(rulesOf(report, addNotInitial)).toEqual(['state']);
+    expect(rulesOf(report, assignMoving)).toEqual(['state']);
+  });
+
+  it('accepts a submit along an edge', () => {
+    expect(rulesOf(report, conformingSubmit)).toEqual([]);
+  });
+});
+
+describe('configuration a gated commit cannot be checked without (review)', () => {
+  const f = fixture();
+  f.pending('t-1');
+  const historyWithoutConfig = (() => {
+    git(f.root, ['rm', '--quiet', '.wingfoil/memory.yaml']);
+    return f.task('t-1', 'backlog', 'wf(task): approve t-1 [pending → backlog]' + approval(), APPROVER);
+  })();
+  const introduction = f.commit('chore: introduce the check', { 'scripts/check-governance.cjs': '// placeholder\n' });
+  const gatedWithoutConfig = f.task('t-1', 'in-progress', 'wf(task): start t-1 [backlog → in-progress]');
+  f.commit('chore: broken memory.yaml', { '.wingfoil/memory.yaml': 'types: [\n' });
+  const gatedInvalidConfig = f.task('t-1', 'done', 'wf(task): start t-1 [in-progress → done]');
+  const report = checkGovernance(f.root, { introducedAt: introduction });
+
+  it('reports a gated commit with no memory.yaml, or one that does not parse, and fails', () => {
+    expect(rulesOf(report, gatedWithoutConfig)).toEqual(['state']);
+    expect(rulesOf(report, gatedInvalidConfig)).toEqual(['state']);
+    expect(exitCodeFor(report)).toBe(1);
+  });
+
+  it('keeps history lenient: no finding, listed as state not checked', () => {
+    expect(rulesOf(report, historyWithoutConfig)).toEqual([]);
+    expect(report.stateUnchecked.some((entry) => entry.sha === historyWithoutConfig)).toBe(true);
+  });
+});
+
 describe('a document whose frontmatter does not parse at some commit', () => {
   const f = fixture();
   f.pending('t-1');
@@ -352,6 +405,38 @@ describe('starting mode — hard-fail after the introduction commit, report hist
     const report = checkGovernance(f.root);
     expect(report.introducedAt).toBe(introduction);
     expect(exitCodeFor(report)).toBe(1);
+  });
+
+  it('takes the introduction where the script landed on the first-parent line (the merge), so commits merged with it are history', () => {
+    const g = fixture();
+    git(g.root, ['checkout', '--quiet', '-b', 'side']);
+    g.commit('chore: add the check', { 'scripts/check-governance.cjs': '// placeholder\n' });
+    git(g.root, ['checkout', '--quiet', 'main']);
+    const parallel = g.task('t-1', 'draft', 'wf(task): schedule t-1');
+    execFileSync('git', ['merge', '--quiet', '--no-ff', '-m', 'Merge branch side', 'side'], {
+      cwd: g.root,
+      env: { ...process.env, GIT_AUTHOR_NAME: DEVELOPER.name, GIT_AUTHOR_EMAIL: DEVELOPER.email, GIT_COMMITTER_NAME: DEVELOPER.name, GIT_COMMITTER_EMAIL: DEVELOPER.email },
+    });
+    const merge = git(g.root, ['rev-parse', 'HEAD']).trim();
+    const after = g.task('t-1', 'draft', 'wf(task): schedule t-1 again');
+    const report = checkGovernance(g.root);
+    expect(report.introducedAt).toBe(merge);
+    const gated = new Map(report.findings.map((finding) => [finding.sha, finding.gated]));
+    expect(gated.get(parallel)).toBe(false);
+    expect(gated.get(after)).toBe(true);
+  });
+
+  it('as a command: exit 2 with a message, never 1, when it cannot run', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'wf-governance-outside-'));
+    fixtures.push(outside);
+    const notARepository = spawnSync('node', [SCRIPT], { cwd: outside, encoding: 'utf-8' });
+    expect(notARepository.status).toBe(2);
+    expect(notARepository.stderr).toMatch(/^error: /);
+    const empty = makeTempGitRepo();
+    fixtures.push(empty);
+    const noCommit = spawnSync('node', [SCRIPT, '--root', empty], { encoding: 'utf-8' });
+    expect(noCommit.status).toBe(2);
+    expect(noCommit.stderr).toMatch(/has no commit/);
   });
 
   it('checks only the commits after --base when one is given', () => {
