@@ -12,7 +12,7 @@ account: "wingfoil/wingfoil"
 renews: ""
 repo_refs: ["package.json", ".github/workflows/publish.yml", "server.json"]
 decision: "dl-068-publishing-requires-public-repository"
-release: "v0.2"
+set_up_in: "v0.2"
 tmpl_version: 260929
 ---
 
