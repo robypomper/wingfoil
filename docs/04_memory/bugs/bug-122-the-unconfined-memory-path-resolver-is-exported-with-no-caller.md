@@ -2,7 +2,7 @@
 id: "bug-122-the-unconfined-memory-path-resolver-is-exported-with-no-caller"
 type: bug
 title: "`resolveMemoryPath` — the unconfined sibling of `resolveConfinedMemoryPath` — is exported from the storage barrel, has no caller in `src/`, and is the shorter name of the two"
-status: in-progress
+status: in-review
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
