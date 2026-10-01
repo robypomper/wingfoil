@@ -114,6 +114,7 @@ export {
   MEMORY_OPERATIONS,
   parseApprovalMetadata,
   parseCommitReason,
+  parseBracketHops,
   parseMemoryOperation,
   reconstructMemoryTransitions,
   verifyTransitionConsistency,
@@ -121,6 +122,7 @@ export {
 export type {
   AttributionEntry,
   ApprovalMetadata,
+  BracketHop,
   MemoryTransition,
   ConsistencyMismatch,
   IllegalHop,

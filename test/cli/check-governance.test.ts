@@ -11,6 +11,7 @@
  * are passed per command (`GIT_AUTHOR_*`), never through `git config` (`dl-094` (ii)).
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { checkGovernance, exitCodeFor } from '../../scripts/check-governance.cjs';
@@ -332,6 +333,11 @@ describe('starting mode — hard-fail after the introduction commit, report hist
 });
 
 describe('packaging — the check is not shipped (spec-015)', () => {
+  it('is wired as `npm run check:governance`', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { scripts?: Record<string, string> };
+    expect(pkg.scripts?.['check:governance']).toBe('node scripts/check-governance.cjs');
+  });
+
   it('`npm pack --dry-run` lists nothing under scripts/', () => {
     const raw = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: REPO_ROOT, encoding: 'utf-8' });
     const [result] = JSON.parse(raw) as { files: { path: string }[] }[];
