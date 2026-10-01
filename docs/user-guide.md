@@ -454,7 +454,8 @@ Tell the agent which role it acts in, and have it load that role's rules — thr
 ## 10. CI and scripting
 
 - `--format json` prints compact JSON and nothing else; `--format yaml` prints YAML. Errors become
-  `{"error": "<reason>"}`.
+  `{"error": "<reason>"}` on stderr — every error, a mistyped command or option included — with a
+  `hint` when a suggestion applies and a `details` array (`file`, `detail`) when the error names one.
 - Exit codes: `0` success (an empty search included), `1` the request cannot be carried out, `2` the
   command line is wrong.
 

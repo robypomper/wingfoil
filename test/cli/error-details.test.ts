@@ -10,6 +10,9 @@
  * - json/yaml: an additive `details` array of `{file?, detail?}`, absent when no issue has either, so
  *   a consumer that reads only `error` keeps parsing.
  *
+ * BDD: `P5.1.4-cli-ux.feature`, "Error - a refusal's details follow its error line" — measured end to
+ * end on a real illegal transition by `./program.integration.test.ts` (`memory submit` sc.2).
+ *
  * Driven through `buildCliCommands`, the same seam `./registrar.test.ts` uses, against a synthetic
  * registry whose failures are fixed values — the rendering is what is measured, not a domain rule.
  */

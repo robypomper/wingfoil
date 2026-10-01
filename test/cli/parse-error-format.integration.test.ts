@@ -12,6 +12,9 @@
  * shape change that broke a code cannot pass. Console output stays byte-for-byte what it was — the
  * suggestion's wording and spelling are `bug-104`'s, not this task's.
  *
+ * BDD: `P5.1.4-cli-ux.feature`, "Error - a refusal has one shape under --format json, whichever layer
+ * raises it" (the `memroy` cases below).
+ *
  * Every case spawns `fixtures/cli-harness.cjs` against the COMPILED `dist/` (built once by jest's
  * `globalSetup`), so the real ESM `commander` and the real process exit are what is measured.
  */
