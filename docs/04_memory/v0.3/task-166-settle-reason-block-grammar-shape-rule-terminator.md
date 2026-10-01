@@ -59,8 +59,9 @@ newline at exit 2, naming the character; `dl-111` Q1 (A), extend the reserved-ke
    line, trailing paragraph, on the NORMALIZED text like every other rule. Consequence: a carriage
    return is accepted, because `normalizeReason` already turns CRLF and a lone CR into LF, so no CR
    ever reaches the commit. The set is exactly C0 (`U+0000`-`U+001F`) minus `U+0009` and `U+000A`, so
-   form feed and vertical tab are refused. DEL (`U+007F`) and C1 are not C0 and stay legal (candidate
-   finding below).
+   form feed and vertical tab are refused. DEL (`U+007F`), the C1 controls (e.g. CSI `U+009B`, NEL
+   `U+0085`) and LS (`U+2028`) are outside `dl-078` (A)'s C0 scope and are still accepted; the
+   coordinator files that as a follow-up.
 2. **The message names the FIRST offending character**, as `(found U+001B)` after the class message,
    so it is a function of the input alone (REQ-SYS-07). Because the class message is static and the
    full one is not, a new export `reasonRefusalMessage(reason)` returns the exact text, and both
@@ -69,8 +70,9 @@ newline at exit 2, naming the character; `dl-111` Q1 (A), extend the reserved-ke
 3. **Scan instead of a regex** for the control characters: the `no-control-regex` lint rule refuses a
    character class over `\x00-\x1f` (`npx eslint src/memory/commit-message.ts` reported it on the
    first version).
-4. **`WingFoil-Version` is matched case-sensitively**, like `Approver` and `Reason` (the existing
-   regex is case-sensitive; `dl-111` Q1 (A) says "extend").
+4. **The reserved keys are matched case-insensitively** — all three, since the independent review
+   (below). The first pass kept the existing case-sensitive regex; git reads trailer keys
+   case-insensitively, and `dl-111` names git's trailer reader.
 5. **Remedy text** (S4): `…; add a closing sentence after it, or fold those lines into prose` — the
    wording CLAUDE.md §5.1 already gives the author.
 6. **Deliberate change to a pinned test.** `test/memory/git-log-framing.test.ts` pinned that `0x1e`/
@@ -80,8 +82,9 @@ newline at exit 2, naming the character; `dl-111` Q1 (A), extend the reserved-ke
 **Measurement before refusing** (`dl-078` action 2), on `main` at `c43221c4` with this branch's build
 (`npm run build`, then a script over `git log main --format='%H%x00%B%x00%x01'` calling
 `parseCommitReason` and `reasonDefect` from `dist/`): 1841 `wf(` commit bodies, **0** carry a C0
-character other than tab/newline; of the 581 `approve`/`reject`/`deprecate`/`amend` commits, **0**
-reasons are refused by the amended rules. `git log main --format=%B | grep -c '^WingFoil-Version:'` → 0.
+character other than tab/newline; the 581 `approve`/`reject`/`deprecate`/`amend` commits carry 580
+reasons (one `deprecate` has none), and **0** are refused by the amended rules (re-run after the
+review's case-insensitive change: still 0). `git log main --format=%B | grep -c '^WingFoil-Version:'` → 0.
 
 **AC classification (T1).**
 
@@ -151,13 +154,15 @@ Edited in this worktree and left uncommitted, for `memory amend` at the review g
 
 - `spec-008-cli-grammar` — proposed `--reason`: "Section 2's --reason grammar, per dl-070 (A) with S3
   and S4, dl-078 (A) and dl-111 Q1 (A), carried out by task-166: the unrecordable-value row gains the
-  control-character case named by code point, lists WingFoil-Version among the reserved trailer keys
-  and gives the trailing-paragraph refusal its remedy, and a new note states the terminator rule. The
+  control-character case named by code point, lists WingFoil-Version among the reserved trailer keys,
+  matched in any letter case, and gives the trailing-paragraph refusal its remedy; a new note states
+  the terminator rule as a shape rule modelled on git's, and where it differs from git's. The
   Revision note dated 2026-10-01 records it."
 - `dl-067-reason-trailer-contract` — proposed `--reason`: "Clause 4 amended as dl-070 (A) with S4,
   dl-078 (A) and dl-111 Q1 (A) ratified, carried out by task-166: a dated Amendments section restates
-  the clause with the control-character refusal, the reserved WingFoil-Version key and the shape-rule
-  terminator with its remedy, and records the corpus measurement."
+  the clause with the control-character refusal, the reserved WingFoil-Version key with all reserved
+  keys matched in any letter case, and the shape-rule terminator modelled on git's with its remedy,
+  and records the corpus measurement."
 
 ### review (reviewer)
 
@@ -169,10 +174,45 @@ Evidence per AC:
 - AC2: `reason-trailer-verbs.test.ts` "`WingFoil-Version:` line is refused at exit 2" (four verbs);
   `reason-trailer.test.ts` reserved-key case and the prose-not-at-column-0 case.
 - AC3: `reason-trailer-verbs.test.ts` "states the remedy" (four verbs); unit message case.
-- AC4: the existing normal-form, block and corpus cases unchanged and green; 0 refused of 581 on `main`.
+- AC4: the existing normal-form, block and corpus cases unchanged and green; 0 of the 580 reasons in
+  `main`'s 581 governance commits refused (one `deprecate` has no reason).
 - AC5: `spec-008` §2 row and the terminator note, `dl-067` Amendments (2026-10-01), pending above.
 
 Same class in touched files: every place that states the reason rules was checked
 (`grep -rn "Approver:. or .Reason:" src docs/*.md README.md .wingfoil`) and the three user documents
 updated. CLAUDE.md §5.1 states them too and is not edited here (it belongs to `user-docs`'
 `align-agent-docs` phase, `dl-025`); reported to the coordinator.
+
+### review (independent)
+
+Verdict: approve with fixes. Each fix, and what changed:
+
+1. **"The heuristic git itself uses" was false.** git also takes a mixed final paragraph for trailers
+   when at least 25% of its lines are trailers and one key is git-generated or configured (the
+   reviewer read a forged `wingfoil-version: 9.9.9` through `%(trailers:key=WingFoil-Version)` beside a
+   `Signed-off-by:` line). The pending `spec-008` §2 note and the `dl-067` amendment now say "a shape
+   rule modelled on git's", state the difference, and give it as the reason the reserved keys are
+   refused on every line.
+2. **Reserved keys were case-sensitive.** Red `fd902f53`: `npx jest test/memory/reason-trailer.test.ts
+   test/core/reason-trailer-verbs.test.ts` → **5 failed, 78 passed** (`wingfoil-version: 1 (x)`,
+   `approver: …`, `REASON:` on the unit, four verb rows). Green `aa29439e`: `/i` on
+   `RESERVED_TRAILER_LINE_RE`. No history reading changes: `git log main --format=%B | grep -ciE
+   '^(approver|reason|wingfoil-version):'` and the case-sensitive `grep -cE` both give 1183, and the
+   reader regexes are untouched. Stated in both pending texts and in `docs/cli-reference.md`
+   (`ab79a603`).
+3. **Dangling "candidate finding below".** Design decision 1 now says what stays accepted and that the
+   coordinator files it.
+4. **`src/core/index.ts`** (`memoryDeprecateFn`'s order list and its inline comment) described the
+   refusal as "blank or trailer-shaped". Both now name the control-character case (`aa29439e`).
+   `grep -rn -i "trailer-shaped" src` finds no other description of the rule.
+5. **581 vs 580.** The `dl-067` amendment and these notes now say 581 commits carry 580 reasons.
+
+Gates after the fixes, with the two pending amendments in the working tree:
+
+| Command | Result |
+|---|---|
+| `npm run test:coverage` | exit 0; 166 suites / 2796 tests; 98.73 / 94.61 / 94.03 / 99.49; `commit-message.ts` 100 |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
