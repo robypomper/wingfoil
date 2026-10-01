@@ -112,7 +112,7 @@
 
 ### REQ-STATE-10 — Process conformance computed from git and the configuration
 
-* **Status:** proposed by `task-141` (2026-10-01); the approver ratifies it at the task's review.
+* **Status:** ratified by the approver, 2026-10-01 (`task-141` review).
 * **Description:** Every development run's **process conformance** — component **P** of the composite Determinism
   Index (`dl-131-determinism-index-scope`, Decision 3) — is computed from the git history and the WingFoil
   configuration alone, with no input from the agent that ran the process and no state stored outside git.

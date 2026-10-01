@@ -69,7 +69,7 @@ chain is recorded in each requirement's `Traceability` field in the part files 0
 | REQ-STATE-07 | include() iteration state                 | N matches → N sub runs                       | P4.16                |
 | REQ-STATE-08 | Default state-machine fallback            | Type w/o states uses default graph           | P1.13                |
 | REQ-STATE-09 | Context determinism                       | Cross-ref REQ-SYS-07                         | P5.4.4               |
-| REQ-STATE-10 | Process conformance (proposed)            | P computed from git + config; byte-identical reruns | P1.2, P1.7, P1.10, P1.13, P4.1, P4.13 |
+| REQ-STATE-10 | Process conformance                       | P computed from git + config; byte-identical reruns | P1.2, P1.7, P1.10, P1.13, P4.1, P4.13 |
 
 ### Integrations (`REQ-INT-*`)
 
@@ -114,7 +114,7 @@ chain is recorded in each requirement's `Traceability` field in the part files 0
 
 ### Verification results (2026-06-26)
 
-> Recorded when the registry held 43 requirements. `REQ-STATE-10` (proposed 2026-10-01, `task-141`) carries a
+> Recorded when the registry held 43 requirements. `REQ-STATE-10` (added 2026-10-01, `task-141`, ratified by the approver) carries a
 > `Fit Criterion:` line, so the 100% coverage above still holds.
 
 | Check                                    | Result                                                                       |
