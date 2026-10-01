@@ -21,6 +21,7 @@ import { join } from 'path';
 import {
   commitAll,
   commitAllAs,
+  git,
   makeTempGitRepo,
   removeTempDir,
   writeFixtureFile,
@@ -111,13 +112,24 @@ describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ 
   });
 });
 
+/**
+ * A fixture repository whose configured author is NOT a placeholder. `makeTempGitRepo`'s identity is on
+ * `example.invalid`, an RFC 2606 reserved domain the audit itself counts as unattributed since
+ * task-132 (`bug-153`), so the "every commit is valid" baseline needs an ordinary domain.
+ */
+function makeAttributedRepo(): string {
+  const dir = makeTempGitRepo();
+  git(dir, ['config', 'user.email', 'wf-test@wingfoil-fixture.org']);
+  return dir;
+}
+
 describe('auditAttribution — git-log walk with a 0-"unknown author" attribution check', () => {
   let repo: string;
 
   afterEach(() => removeTempDir(repo));
 
   it('reports every commit as valid when every commit has a real configured identity', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -131,7 +143,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('flags a commit with a git-guessed placeholder identity as invalid ("unknown author")', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -146,7 +158,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('merges multiple pathspecs without duplicating a commit that touches more than one', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     writeDoc(repo, OTHER_DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc, task-902-doc');
@@ -157,7 +169,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('is deterministic — repeated calls over unchanged state produce the exact same result', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -169,7 +181,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('returns [] over a pathspec with no history at all', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
 

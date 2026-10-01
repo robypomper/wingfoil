@@ -22,6 +22,12 @@ import { execFileSync } from 'child_process';
 export interface CommitOptions {
   /** Additional environment for the git invocations (merged over `process.env`). */
   readonly env?: NodeJS.ProcessEnv;
+  /**
+   * The commit's author, passed to git as `--author "<name> <<email>>"`, which outranks both
+   * `GIT_AUTHOR_*` and the config. Set by a caller that has already checked an identity and must
+   * record exactly that one (task-132, `bug-149`); absent, git resolves the author itself.
+   */
+  readonly author?: { readonly name: string; readonly email: string };
 }
 
 function runGit(root: string, args: readonly string[], options: CommitOptions): string {
@@ -77,7 +83,8 @@ export function commitPaths(
   // `--only -- <paths>` records exactly these paths, whatever else is staged: anything a caller or
   // another tool already staged stays staged and uncommitted (bug-027). A plain `git commit` would
   // commit the whole index under a subject that names only this operation.
-  runGit(root, ['commit', '--only', '--quiet', '-m', message, '--', ...paths], options);
+  const author = options.author ? [`--author=${options.author.name} <${options.author.email}>`] : [];
+  runGit(root, ['commit', '--only', '--quiet', ...author, '-m', message, '--', ...paths], options);
   return runGit(root, ['rev-parse', 'HEAD'], options).trim();
 }
 

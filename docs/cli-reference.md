@@ -78,9 +78,14 @@ that depends on it — otherwise the command fails and says the change is not co
 ### Git identity
 
 Every command that commits requires `git config user.name` and `git config user.email` to be set.
-`memory approve` and `memory reject` additionally require that identity's email to belong to a
-`team.members` entry holding the `approver` role in the committed `dna.yaml` (see
+`memory approve`, `memory reject` and `memory amend` additionally require that identity's email to
+belong to a `team.members` entry holding the `approver` role in the committed `dna.yaml` (see
 [`memory approve`](#wingfoil-memory-approve)).
+
+The identity is the one git itself would author the commit with: `GIT_AUTHOR_NAME` /
+`GIT_AUTHOR_EMAIL` when set, then `author.name` / `author.email`, then `user.name` / `user.email`.
+The `memory` commands that move or amend a document read it once and use that one identity for the
+approver check, the `Approver:` line and the commit's author, so the three never disagree.
 
 ---
 

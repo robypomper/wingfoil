@@ -22,6 +22,7 @@ import { dump, load } from 'js-yaml';
 
 import { DnaYaml } from '../../src/dna/schema';
 import { hasApproverRole, requireApprovalAuthority, resolveMemberRoles } from '../../src/core/approval-authority';
+import { readGitIdentity } from '../../src/core/git-identity';
 import * as loaders from '../../src/core/loaders';
 
 const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'dna.yaml'), 'utf-8');
@@ -119,7 +120,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
     });
@@ -129,7 +130,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Stranger');
     setLocalConfig('user.email', 'stranger@example.com');
-    expect(requireApprovalAuthority(dir, 'adr')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'adr', readGitIdentity(dir))).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'adr'" },
     });
@@ -139,14 +140,14 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Approver Amy');
     setLocalConfig('user.email', 'amy@example.com');
-    expect(requireApprovalAuthority(dir, 'task').ok).toBe(true);
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir)).ok).toBe(true);
   });
 
   it('succeeds against the real dna.yaml for its configured approver (Roberto)', () => {
     commitDna(raw);
     setLocalConfig('user.name', 'Roberto Pompermaier');
     setLocalConfig('user.email', 'robypomper@gmail.com');
-    expect(requireApprovalAuthority(dir, 'release').ok).toBe(true);
+    expect(requireApprovalAuthority(dir, 'release', readGitIdentity(dir)).ok).toBe(true);
   });
 
   // task-090 / bug-079 — the baseline itself, at this function's own seam. The verbs' end-to-end
@@ -165,7 +166,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
 
-    const result = requireApprovalAuthority(dir, 'task');
+    const result = requireApprovalAuthority(dir, 'task', readGitIdentity(dir));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.message).toMatch(/^user not authorized to approve type 'task' — the working tree's /);
@@ -182,7 +183,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     );
     setLocalConfig('user.name', 'Approver Amy');
     setLocalConfig('user.email', 'amy@example.com');
-    expect(requireApprovalAuthority(dir, 'task').ok).toBe(true);
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir)).ok).toBe(true);
   });
 
   // The diagnostic is a diagnostic: an unreadable working-tree file must not change an answer that
@@ -192,13 +193,13 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     rmSync(join(dir, '.wingfoil', 'dna.yaml'));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
     });
 
     writeDna('this: [is not, a dna file\n');
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       error: { message: "user not authorized to approve type 'task'" },
     });
   });
@@ -215,7 +216,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
       throw new Error('git is not available');
     });
     try {
-      expect(() => requireApprovalAuthority(dir, 'task')).toThrow('git is not available');
+      expect(() => requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toThrow('git is not available');
     } finally {
       spy.mockRestore();
     }
@@ -225,11 +226,11 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     writeDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Approver Amy');
     setLocalConfig('user.email', 'amy@example.com');
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION' },
     });
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       error: { message: expect.stringContaining('is not committed at HEAD') },
     });
   });
@@ -260,7 +261,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     commitDna(dump(agentOnlyDna));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, 'task')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'task', readGitIdentity(dir))).toMatchObject({
       ok: false,
       error: { code: 'VALIDATION', message: "user not authorized to approve type 'task'" },
     });
@@ -270,7 +271,7 @@ describe('requireApprovalAuthority — git-identity-gated CoreResult (REQ-SEC-03
     commitDna(dump(REVIEWER_ONLY_DNA));
     setLocalConfig('user.name', 'Reviewer Ray');
     setLocalConfig('user.email', 'ray@example.com');
-    expect(requireApprovalAuthority(dir, 'decision-log')).toMatchObject({
+    expect(requireApprovalAuthority(dir, 'decision-log', readGitIdentity(dir))).toMatchObject({
       error: { message: "user not authorized to approve type 'decision-log'" },
     });
   });

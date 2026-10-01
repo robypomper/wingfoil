@@ -10,10 +10,11 @@
  * `.wingfoil/workflows/custom/*.yaml` already gates on the single `approver` role, so this module
  * does the same rather than inventing a per-type mapping no spec defines.
  *
- * "Who is asking" is resolved the same way `requireGitIdentity` (REQ-SEC-01) already establishes
- * attribution: the live git identity configured at the project root (`readGitIdentity`,
- * `./git-identity.ts`) — git identity is WingFoil's sole attribution mechanism (adr-001/adr-006), so
- * authority is checked against the exact same "who" the resulting approval commit will record. This
+ * "Who is asking" is the identity `requireGitIdentity` (REQ-SEC-01, `./git-identity.ts`) resolved and
+ * returned, handed in by the caller rather than read again here (`dl-064` B.1, task-132) — git
+ * identity is WingFoil's sole attribution mechanism (adr-001/adr-006), and the transition verbs pin
+ * that same value as the commit's author, so authority is checked against the exact "who" the
+ * resulting approval commit records (`bug-149`). This
  * is why `team.agents` is deliberately NOT consulted here: an AI agent has no git identity of its own
  * distinct from whichever human account runs the command, so there is no code-level signal this
  * git-identity-keyed check could use to single an agent out. Structurally preventing agents from
@@ -25,8 +26,8 @@
  * (task-090, `bug-079-uncommitted-dna-yaml-grants-approval-authority`). The two halves of the check
  * therefore take deliberately different baselines, and each takes the only one it can:
  *
- * - *who is asking* — the live git config, which is a local setting git never commits, and which is
- *   also exactly what the resulting commit will record as its author;
+ * - *who is asking* — the live git identity (environment, then config), a local setting git never
+ *   commits, and exactly what the resulting commit records as its author;
  * - *who may approve* — `HEAD`'s `.wingfoil/dna.yaml`, because an approval is evidence and evidence
  *   is worth what an independent reader can re-derive from the artefact of record. An uncommitted
  *   grant used to be enough to put `Approver: … (approver)` into a permanent commit that the
@@ -35,7 +36,7 @@
 import type { DnaYaml } from '../dna/schema';
 import { ValidationError } from '../validation';
 
-import { readGitIdentity } from './git-identity';
+import type { GitIdentity } from './git-identity';
 import { DNA_YAML_PATH, loadDnaYaml, loadDnaYamlAtHead } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 
@@ -46,8 +47,7 @@ export const APPROVER_ROLE = 'approver' as const;
  * The roles held by the `dna.yaml` `team.members[]` entry whose `email` matches `email`
  * (case-insensitively — git identities are free-form and casing is not semantically meaningful),
  * or `[]` when `email` is empty or matches no member. Pure lookup — no git/filesystem access; callers
- * needing the live git identity go through {@link requireApprovalAuthority} or `readGitIdentity`
- * (`./git-identity.ts`) themselves.
+ * needing the live git identity get it from `requireGitIdentity` (`./git-identity.ts`).
  */
 export function resolveMemberRoles(dna: DnaYaml, email: string): readonly string[] {
   if (email.length === 0) return [];
@@ -77,7 +77,7 @@ function workingTreeWouldGrant(root: string, email: string): boolean {
 }
 
 /**
- * Verify the principal identified by the live git identity at `root` holds the `approver` role — **as
+ * Verify the principal `identity` holds the `approver` role — **as
  * the committed `.wingfoil/dna.yaml` records it** — before an approval (`memory.approve`, P1.7) or a
  * rejection (`memory.reject`, P1.8) proceeds. Returns a `CoreResult.error` (code `VALIDATION` — a
  * failed authorization precondition, mapped to exit `1` by `exitCodeForError`, mirroring
@@ -105,12 +105,14 @@ function workingTreeWouldGrant(root: string, email: string): boolean {
  * configuration even by accident, which is what makes the committed baseline a property of the read
  * itself rather than of a precondition someone must remember to run (task-090, AC2).
  *
- * Callers run this AFTER `requireGitIdentity` (REQ-SEC-01) in the same mutating-op pre-flight
- * sequence `dnaSetFn`/`memoryAddFn` (`src/core/index.ts`) establish — an unconfigured identity should
- * surface as REQ-SEC-01's own message, not this one.
+ * It takes the `identity`, by contrast, rather than reading it: the value must be the one
+ * `requireGitIdentity` (REQ-SEC-01) validated and the one the commit will carry, and the way to
+ * guarantee that is to leave this function nothing to read (`dl-064` B.1, task-132). Callers obtain it
+ * from `beginMemoryTransition` (`./memory-transition.ts`), which runs the identity check first — an
+ * unconfigured identity surfaces as REQ-SEC-01's own message, not this one.
  */
-export function requireApprovalAuthority(root: string, typeName: string): CoreResult<void> {
-  const { email } = readGitIdentity(root);
+export function requireApprovalAuthority(root: string, typeName: string, identity: GitIdentity): CoreResult<void> {
+  const { email } = identity;
 
   let committed: DnaYaml | null;
   try {
