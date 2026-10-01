@@ -290,7 +290,7 @@ function unownedFieldProblems(
  *   asymmetry with the gates is deliberate rather than an oversight: an `approve` that carried a body
  *   would attest, under an approver's name, to content no commit subject mentions. `amend` is the
  *   approval whose subject says exactly that, and it still may not move the fields other operations
- *   own (`AMEND_RESERVED_FIELDS`, `src/core/memory-amend.ts`).
+ *   own (`amendReservedFields`, `src/core/memory-amend.ts`).
  */
 export type DocumentScope = 'declared-fields-only' | 'carries-content';
 
