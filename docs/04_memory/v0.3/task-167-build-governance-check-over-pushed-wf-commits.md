@@ -2,7 +2,7 @@
 id: "task-167-build-governance-check-over-pushed-wf-commits"
 type: task
 title: "Build the governance check over pushed wf() commits"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "feature"
 priority: "high"
