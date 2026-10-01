@@ -26,11 +26,19 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, renameSync, symlinkSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CORE_MODULES, initWingfoilProject, initWingfoilStorage } from '../../src/core';
+import {
+  CORE_MODULES,
+  initWingfoilProject,
+  initWingfoilStorage,
+  requireAbsentTarget,
+  requireInspectableTarget,
+  requireNoDivergentStage,
+  requireUnmodifiedTarget,
+} from '../../src/core';
 import { exitCodeForResult } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
 import type { CoreResult } from '../../src/core/types';
-import { requireAbsentTarget, requireUnmodifiedTarget } from '../../src/core/write-guard';
+
 import { renderCustomDirective } from '../../src/directives/create';
 import * as storage from '../../src/storage';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
@@ -137,6 +145,12 @@ describe('requireUnmodifiedTarget — a target beyond a symbolic link is refused
     }
   });
 
+  // The two new guards are public through the core barrel, next to their siblings (independent review).
+  it('requireInspectableTarget / requireNoDivergentStage — reachable from src/core; an ordinary target passes both', () => {
+    expect(requireInspectableTarget(repo, DNA).ok).toBe(true);
+    expect(requireNoDivergentStage(repo, DNA).ok).toBe(true);
+  });
+
   it('characterization: an ordinary clean target still passes', () => {
     expect(requireUnmodifiedTarget(repo, DNA).ok).toBe(true);
   });
@@ -193,9 +207,14 @@ describe('the six requireUnmodifiedTarget call sites refuse before any write (bu
 
     /**
      * `roles.yaml` sits directly under `.wingfoil/`, so it is beyond a symlink only when `.wingfoil/`
-     * itself is one — and then the committed `dna.yaml` the verb reads its role catalogue from
-     * (`dl-080` (B)) is not at `HEAD` either, so the verb is ALREADY refused, before the guard and
-     * before any write. Characterization at the verb (it must stay a refusal with nothing written);
+     * itself is one. Two cases:
+     * - the symlink is COMMITTED (this fixture): the committed `dna.yaml` the verb reads its role
+     *   catalogue from (`dl-080` (B)) is not at `HEAD` either, so the verb is ALREADY refused, before
+     *   the guard and before any write;
+     * - the symlink is in the WORKING TREE only: `.wingfoil/dna.yaml` is still at `HEAD`, the verb
+     *   reaches the guard, and git reports `roles.yaml` as ` D` — so even the old guard refused it as
+     *   dirty; the new guard now refuses it earlier, as uninspectable.
+     * Characterization at the verb (it must stay a refusal with nothing written);
      * the guard's own answer for `roles.yaml` is pinned red-first beside it.
      */
     it('directive assign — characterization: refused before any write, roles.yaml byte-identical, no commit', async () => {

@@ -149,10 +149,10 @@ export function requireInspectableTarget(
   return coreErr({
     code: 'VALIDATION',
     message:
-      `refusing to commit ${path}: ${reason}, and git reports nothing for a path it cannot reach — modified or ` +
-      `not — so whether this ${contract.noun} carries modifications this ${contract.owner} does not own cannot be ` +
-      'inspected, and git would refuse to stage it. Nothing has been written; replace a symbolic link with the ' +
-      'directory it points to, then retry.',
+      `refusing to commit ${path}: ${reason}, and git cannot stage or inspect a path beyond a symbolic link or an ` +
+      `unreadable directory, so whether this ${contract.noun} carries modifications this ${contract.owner} does not ` +
+      'own cannot be inspected. Nothing has been written; replace a symbolic link with the directory it points ' +
+      'to, then retry.',
   });
 }
 
