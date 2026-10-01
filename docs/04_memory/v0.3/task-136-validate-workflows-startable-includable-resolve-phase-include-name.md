@@ -2,7 +2,7 @@
 id: "task-136-validate-workflows-startable-includable-resolve-phase-include-name"
 type: task
 title: "Validate workflows as startable/includable, resolve phase `include` by name, and emit one ordered diagnostics array"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "high"
