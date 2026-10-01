@@ -21,10 +21,11 @@
  *
  * - **`memory add`'s target is new**, so the rule it needs is **absence**, not cleanliness: the path
  *   must not exist at `HEAD`, in the index, or in the working tree. It is reachable because a
- *   slug-only id lands on an occupied path whenever a title repeats (the `note-{slug}` type below).
- *   Until task-128 a `{n}` id could too — `nextSequenceNumber` counted the working tree's files, so
- *   a gap reissued a taken number (`bug-087`); it now takes the highest number every ref and the
- *   working tree hold.
+ *   slug-only id lands on an occupied path whenever a title repeats (the `note-{slug}` type below),
+ *   and a `{n}` id lands on a git-ignored file, which reserves no number. Until task-128 a `{n}` id
+ *   could also land on any file, because `nextSequenceNumber` counted the working tree's files, so
+ *   a gap reissued a taken number (`bug-087`). It now takes the highest number every ref and the
+ *   working tree (as git sees it) hold. Either way the guard refuses and never overwrites.
  * - **`init` is scoped out on the `wingfoil init` path and guarded on the other one.**
  *   `initWingfoilProject` refuses before any write when `.wingfoil/` holds any entry
  *   (`detectInitState`), and every path it writes is under `.wingfoil/`, so no target can pre-exist

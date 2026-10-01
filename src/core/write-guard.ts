@@ -168,10 +168,12 @@ export function requireUnmodifiedTargets(
  * absent path and for a clean, tracked one — so each of the three places a file can live is checked
  * explicitly.
  *
- * Reachable because an id can land on an occupied path: a slug-only `id_pattern` (`note-{slug}`)
- * does whenever a title repeats. (Until task-128 a `{n}` id could too: `nextSequenceNumber` counted
- * the working tree's files, so a gap reissued a taken number, `bug-087`; it now takes the highest
- * number every ref and the working tree hold.) The write that follows is unconditional, and the
+ * Reachable because an id can land on an occupied path. A slug-only `id_pattern` (`note-{slug}`)
+ * does whenever a title repeats. A `{n}` id does when the occupant is a **git-ignored** file: since
+ * task-128 `nextSequenceNumber` takes the highest number every ref and the working tree hold, but
+ * the working tree as git sees it, so an ignored file reserves no number. (Before task-128 it counted
+ * the working tree's files, so a gap reissued a taken number, `bug-087`.) The guard refuses; it never
+ * overwrites. The write that follows is unconditional, and the
  * commit's diff would then be `HEAD` → scaffold rather than absent → scaffold. A commit whose subject
  * says "add" and whose diff removes lines is `bug-078` at its sharpest.
  *

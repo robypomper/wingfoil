@@ -686,7 +686,8 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
 
     // dl-080 (B) / bug-078, AC3: this verb CREATES, so the rule is absence rather than cleanliness.
     // Since task-128 a `{n}` id is above every number any baseline holds, but a slug-only id
-    // (`note-{slug}`) still lands on an occupied path whenever the title repeats — and the write below
+    // (`note-{slug}`) still lands on an occupied path whenever the title repeats, and a `{n}` id can
+    // land on a git-ignored file (no baseline the counter reads holds it). The write below
     // is unconditional, which would turn `wf(<type>): add <id>` into a commit that overwrites (or
     // deletes lines from) an existing element. The path is resolved here rather than taken from
     // `writeMemoryEntry`'s return value because the guard must run BEFORE the write; the resolution

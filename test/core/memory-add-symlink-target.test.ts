@@ -62,8 +62,10 @@ status: draft
  * id is the title's slug and the planted link sits exactly where the write aims. `bug-120` D1 was
  * measured with a `{n}` pattern, planting the link at the number *after* the directory's file count;
  * since task-128 the counter takes the highest number any baseline holds (the untracked link
- * included), so a `{n}` id can no longer be aimed at a planted file — the slug-only pattern keeps
- * the guard reachable.
+ * included), so a `{n}` id can no longer be aimed at a planted file **that git does not ignore**.
+ * A git-ignored file is in no baseline the counter reads, so a `{n}` id can still land on one. The
+ * guard therefore keeps a real job, refusing rather than overwriting. The slug-only pattern is just
+ * the simplest way to aim the write at the link.
  */
 const TARGET_ID = 'note-escape-probe';
 const TARGET_PATH = `${TYPE_DIR}/${TARGET_ID}.md`;
