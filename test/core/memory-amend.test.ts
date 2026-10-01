@@ -279,8 +279,10 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       async (field, committedLine, editedLine) => {
         const withLine = (line: string): string =>
           doc({ id: 'spec-001', type: 'tech-spec', status: 'approved' }).replace('tmpl_version:', `${line ? `${line}\n` : ''}tmpl_version:`);
-        writeFixtureFile(repo, SPEC, withLine(committedLine));
-        commitAll(repo, 'seed the field');
+        if (committedLine) {
+          writeFixtureFile(repo, SPEC, withLine(committedLine));
+          commitAll(repo, 'seed the field');
+        }
         const edited = withLine(editedLine);
         writeFixtureFile(repo, SPEC, edited);
         const before = head(repo);

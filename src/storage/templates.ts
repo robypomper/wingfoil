@@ -178,6 +178,23 @@ const MEMORY_TYPES = ['adr', 'bug', 'decision-log', 'release', 'release-line', '
  * repository's own dogfooded `.wingfoil/memory.yaml` scheme, a sensible [AUTHORING] default
  * a user is free to change.
  */
+/**
+ * Whether `memory amend` may correct each scaffolded type (`spec-001`'s `amendable` key; `dl-108` A3;
+ * approver ruling (c) at `task-127`'s review, 2026-10-01). It follows this repository's own
+ * `.wingfoil/memory.yaml`: records whose content is routinely corrected are amendable; `adr` is not,
+ * because a change to a decision is a new ADR; `release` and `release-line` are not, because their
+ * content is the roadmap, which the release workflow phases change.
+ */
+const MEMORY_AMENDABLE: Readonly<Record<(typeof MEMORY_TYPES)[number], boolean>> = {
+  adr: false,
+  bug: true,
+  'decision-log': true,
+  release: false,
+  'release-line': false,
+  task: true,
+  'tech-spec': true,
+};
+
 const MEMORY_ID_PATTERNS: Readonly<Record<(typeof MEMORY_TYPES)[number], string>> = {
   adr: 'adr-{n}-{slug}',
   bug: 'bug-{n}-{slug}',
@@ -282,6 +299,7 @@ function memoryYaml(): string {
     (type) => `  ${type}:
     path: docs/memory/${type}/{id}.md
     id_pattern: "${MEMORY_ID_PATTERNS[type]}"
+    amendable: ${MEMORY_AMENDABLE[type]}
     template:
       file: memory/templates/${type}.md
       frontmatter:
@@ -290,7 +308,8 @@ function memoryYaml(): string {
   return `# Memory element schema (P1.13) — scaffolded by \`wingfoil init\`.
 # One entry per element type: its path pattern, its id pattern and its scaffold template. Every type
 # below shares the \`defaults\` state machine; give a type its own \`states:\` block to override it for
-# that type only (REQ-STATE-08).
+# that type only (REQ-STATE-08). \`amendable\` says whether \`memory amend\` may record a correction to
+# the type's documents without a state change; absent means false.
 version: 1
 
 # Default state machine — applies to every type that declares no \`states:\` block of its own.

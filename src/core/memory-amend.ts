@@ -7,7 +7,7 @@
  * verb: the author edits the document, then `amend` records that edit under an approver's name. So
  * the questions are about the edit — is there one, is the type open to one, and does it stay inside
  * what an amendment owns (`spec-010` § Field-write ownership: the body and every frontmatter field
- * except `status`, `id` and `type`).
+ * except those in {@link AMEND_RESERVED_FIELDS}).
  */
 import { describeDocumentChanges, missingRequiredFields, resolveStateMachine, type MemoryYaml } from '../memory';
 import { readPathAtRev } from '../storage';
@@ -15,11 +15,17 @@ import { readPathAtRev } from '../storage';
 import { coreErr, coreOk, type CoreResult } from './types';
 
 /**
- * The frontmatter fields an amendment may not change, in the order a refusal names them.
- * `status` belongs to the transition verbs. `id` and `type` locate the element and select its path
- * and machine: changing either is a new element, not a correction to this one.
+ * The frontmatter fields an amendment may not change. A refusal names them in sorted order
+ * (`describeDocumentChanges`). Each has another owner:
+ * - `status` belongs to the transition verbs;
+ * - `id` and `type` locate the element and select its path and machine, so changing either is a new
+ *   element, not a correction to this one;
+ * - `release` belongs to `assign` (`element.set_release`, approver ruling 2026-10-01);
+ * - `rejection_reason` belongs to `reject` (and is cleared by `submit`);
+ * - `supersedes` is the trigger of the future `superseded` edge (`task-162`).
+ * The last three are the approver's ruling (b) at `task-127`'s review, 2026-10-01.
  */
-export const AMEND_RESERVED_FIELDS: readonly string[] = ['id', 'status', 'type'];
+export const AMEND_RESERVED_FIELDS: readonly string[] = ['id', 'rejection_reason', 'release', 'status', 'supersedes', 'type'];
 
 /**
  * Refuse a type whose committed `memory.yaml` entry does not declare `amendable: true` (`dl-108` A3,
@@ -62,8 +68,8 @@ export function requireAmendableEdit(root: string, id: string, path: string, con
       code: 'VALIDATION',
       message:
         `refusing to amend ${id}: the working-tree edit changes ${touched.join(', ')}, which an amendment does not ` +
-        'own — a state change is a transition verb\'s (submit, approve, reject, deprecate), and a new id or type is a ' +
-        'new element; undo that change, then retry',
+        'own — status is a transition verb\'s, release is assign\'s, rejection_reason is reject\'s, supersedes is ' +
+        'the supersede trigger\'s, and a new id or type is a new element; undo that change, then retry',
     });
   }
   return coreOk(undefined);
