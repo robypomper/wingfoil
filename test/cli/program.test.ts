@@ -439,6 +439,20 @@ describe('buildProgram — the special bootstrap commands `init` and `mcp`', () 
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it('`init` outside a WingFoil project honours `--format json` (task-130, `bug-114`)', async () => {
+    const program = await buildProgram(FIXTURE_MODULES, {
+      resolveRoot: () => {
+        throw new Error('E_NO_GIT_ROOT: not inside a git repository');
+      },
+      buildParams: (ctx) => ({ root: ctx.root }),
+    });
+    program.exitOverride();
+    await program.parseAsync(['node', 'wingfoil', '--format', 'json', 'init']);
+
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: 'E_NO_GIT_ROOT: not inside a git repository' })}\n`);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it('`init` stringifies a non-Error thrown by `resolveRoot` rather than printing `undefined`', async () => {
     const program = await buildProgram(FIXTURE_MODULES, {
       resolveRoot: () => {
@@ -503,8 +517,9 @@ describe("buildProgram — the exit callback's own behaviour (task-103, `bug-103
     // removed — so the callback never re-parses argv. `--format json` before the noun proves it: a
     // naive `process.argv.slice(2)` would name `--format` as the unknown command here.
     const program = await buildFixtureProgramWithRealExitCallback();
+    // Since task-130 (`bug-114`) the line honours that `--format json`, so it is the JSON object.
     await parseIgnoringFallout(program, '--format', 'json', 'help', 'nosuchnoun');
-    expect(written(stderrSpy)).toContain("error: unknown command 'nosuchnoun'");
+    expect(written(stderrSpy)).toBe(`${JSON.stringify({ error: "unknown command 'nosuchnoun'" })}\n`);
     expect(exitSpy).toHaveBeenCalledWith(2);
   });
 
