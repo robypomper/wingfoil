@@ -22,6 +22,7 @@ tmpl_version: 260703
 - (red-first) `scope` is a declared optional key (`global`); no unknown-field warning for it.
 - (red-first) a directive declaring `scope: global` that `roles.yaml`'s `global:` omits (and the reverse) produces a named entry in `directives list`'s `warnings` array; `roles.yaml` stays the authority (stated in `spec-013` with a Revision note).
 - (characterization) the `schema.ts` TSDoc cites `spec-013` as approved.
+- (red-first) `version` is a declared optional key (string) of the directive frontmatter, in `spec-013`'s field table and `src/directives/schema.ts`, with a Revision note; a directive carrying `version:` produces no unknown-field warning. `command-baseline.md`'s body `**Version:** 1.1 · **Date:** 2026-09-30` line (written by `task-128` because the key was undeclared) moves into its frontmatter as `version: "1.1"`, and the `doc-versioning` reading for directives is the frontmatter key (approver ruling 2026-10-01, at `task-128`'s review).
 
 ## Implementation Notes
 
