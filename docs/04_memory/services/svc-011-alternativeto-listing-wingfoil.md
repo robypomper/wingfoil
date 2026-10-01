@@ -12,7 +12,7 @@ account: "RobyPomper (Google sign-in, robypomper@gmail.com), a personal account 
 renews: ""
 repo_refs: []
 decision: "dl-130-visibility-steps-in-the-release-flow"
-release: "v0.2"
+set_up_in: "v0.2"
 tmpl_version: 260929
 ---
 
