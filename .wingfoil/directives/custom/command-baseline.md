@@ -145,8 +145,8 @@ because only the filesystem can.)
   draft you have not committed is exactly what `memory search` should find. Which verb reads which
   baseline is documented once, for users, in `spec-008-cli-grammar` § "Which baseline each command
   reads" and the CLI reference's *Git side effects* (`dl-084-which-baseline-a-read-only-verb-reports-from`,
-  `ready`, option (A)); `memory add`'s refusal already says the type is not in the *committed*
-  `memory.yaml` (option (D), delivered by `task-095`). The MCP half of `dl-084` E3 waits for the MCP
+  `ready`, option (A)); when the working tree defines a type the commit does not, `memory add`'s
+  refusal already says the change is not committed (option (D), delivered by `task-095`). The MCP half of `dl-084` E3 waits for the MCP
   Tools (v0.4).
 - **Except where a non-gating read is declared to read `HEAD`** (next section): a read that gates
   nothing *may* read the working tree; it is not required to.
