@@ -456,7 +456,49 @@ $ wingfoil memory deprecate dl-001-use-postgresql --reason "Superseded by the ho
 
 - **Commit:** `wf(<type>): deprecate <id> [<from> → deprecated]`, with a `Reason:` body line when given.
 
-#### Rules for `--reason` (approve, reject, deprecate)
+### `wingfoil memory amend`
+
+Record an uncommitted correction to a document as an amendment, leaving its state unchanged.
+
+**Unreleased (v0.3)** — not in 0.2.2.
+
+```
+wingfoil memory amend <id> --reason <text>
+```
+
+Edit the document first (its body, or any frontmatter field except `status`, `id` and `type`), then
+run `amend`: it commits that edit, and only that file, as one recorded operation. It is the verb for a
+correction to an element no other verb can move, such as an `approved` tech-spec. Same approver
+requirement as `approve`. The type must declare `amendable: true` in the committed `memory.yaml`;
+absent means not amendable.
+
+```console
+$ wingfoil memory amend spec-001-storage-layout --reason "Later measurements corrected the §2 figures."
+{
+  "id": "spec-001-storage-layout",
+  "path": "docs/memory/tech-spec/spec-001-storage-layout.md",
+  "from": "approved",
+  "to": "approved"
+}
+```
+
+- **Commit:** subject plus body; `wingfoil memory history` reports it as `"operation": "amend"`
+
+  ```
+  wf(tech-spec): amend spec-001-storage-layout [approved → approved]
+
+  Approver: Ada Lovelace <ada@example.com> (approver)
+  Reason: Later measurements corrected the §2 figures.
+  ```
+
+Other modified or staged files are left as they are and are not committed.
+
+- **Errors:** missing or blank `--reason` → exit `2`; the document has no uncommitted change, or is not
+  committed at all → exit `1`; the edit changes `status`, `id` or `type` → exit `1`, naming the field;
+  the type is not amendable → exit `1` (`error: type 'adr' is not amendable: …`); not an approver →
+  exit `1` (`error: user not authorized to approve type 'tech-spec'`).
+
+#### Rules for `--reason` (approve, reject, deprecate, amend)
 
 - It may span several lines, but it may not be blank.
 - No line of it may begin with `Approver:` or `Reason:` — those keys are reserved for the commit trailer.
