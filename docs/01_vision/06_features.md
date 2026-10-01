@@ -1,7 +1,7 @@
 # Features — WingFoil
 
-**Version:** 1.5
-**Date:** 2026-09-29  
+**Version:** 1.6
+**Date:** 2026-10-01  
 **Status:** Approved
 
 ---
@@ -78,11 +78,11 @@ Unified tracking of project progress, blockers, and deliverables (main config in
 | ID    | Feature                                     | Journey            | User          | Description                                                                                                                                                                                                                         | Type           |
 |-------|---------------------------------------------|--------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
 | P4.1  | Project Workflow (configuration)            | 0a, 0b, 2, 3, 4, 6 | Morgan        | Define workflow structure (phases → steps → atomic actions); workflows are classified `kind: main` (independently startable) or `kind: sub` (include-only); main file `.wingfoil/workflows.yaml` includes built-in/custom workflows | Infrastructure |
-| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open a **main** workflow and set it as the active workflow context; initialize first step (subs are not started — they run when included)                                                                                           | Command        |
+| P4.2  | `wingfoil workflow start {workflow}`        | 0a, 0b             | Morgan, Alex  | Open a **startable** workflow and set it as the active workflow context; initialize first step (a workflow that is only includable is not started — it runs when a phase includes it)                                               | Command        |
 | P4.3  | `wingfoil workflow end {workflow}`          | 0a, 0b             | Morgan, Alex  | Close the active (or named) main workflow; clear/restore the active context                                                                                                                                                         | Command        |
 | P4.4  | `wingfoil workflow next`                    | 1, 3               | Alex, Morgan  | Show next step of the active workflow, its **element**, directives for the role + instructions                                                                                                                                      | Command        |
 | P4.5  | `wingfoil workflow status`                  | 2, 3, 4, 5, 6      | Morgan, Casey | Show state of all open (active) main workflows and pending approvals; highlights the active one. *Also called:* pending gates                                                                                                                                     | Command        |
-| P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List workflows **executable now** (startable mains + a sub when it is the next step); `--all` lists every defined workflow                                                                                                          | Command        |
+| P4.6  | `wingfoil workflow list`                    | 0a, 0b             | All           | List workflows **executable now** (startable workflows + an includable one when it is the next step); `--all` lists every defined workflow                                                                                          | Command        |
 | P4.7  | `wingfoil workflow show`                    | 0a, 0b, 6          | All           | Display details of a workflow (phases, steps, directives, Memory structure)                                                                                                                                                         | Command        |
 | P4.8  | `wingfoil workflow create`                  | 0a, 0b, 2, 4, 6    | Morgan, Alex  | Create new custom workflow file (interactive or flag-based)                                                                                                                                                                         | Command        |
 | P4.9  | `wingfoil workflow remove`                  | 2, 4, 6            | Morgan, Alex  | Remove custom workflow after verifying it's not included elsewhere                                                                                                                                                                  | Command        |
@@ -404,7 +404,7 @@ approving it after review → `approved`), avoiding the "approved twice" ambigui
 - **Active context:** `wingfoil workflow start <name>` sets the **active workflow**; subsequent commands target it
   unless `--name` is given. Multiple main workflows can be open at once (e.g. start `report-bug` during a
   `release-cycle` phase); commands reference the **last** started.
-- **Context-aware `list`:** `workflow list` shows only what is **executable now** — startable mains plus a sub when it
+- **Context-aware `list`:** `workflow list` shows only what is **executable now** — startable workflows plus an includable one when it
   is the next step. `--all` lists every defined workflow.
 - **Composition with iteration:** an `include()` runs once, or **once per element** via `iterate_over: <type>` with
   optional `where` filters by status/tags.
