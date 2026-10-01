@@ -60,3 +60,21 @@ from the highest number on every ref (`bug-087`, `bug-162` closed). This plan wa
 - **Completion criteria:** every captured bug `triaged` or `closed`; this plan `active → done`.
 
 ## Execution Notes
+
+- **capture done (2026-10-01).** `bug-176` … `bug-180` were added and submitted `open` with the
+  code version, one commit per operation (`742d72dc`, `cf54deb2`, `7a48ec6e`, `3b36018f`,
+  `99e339a8`, then one `submit` each). Ids were the highest on every ref + 1 (`bug-175` before).
+  `--set severity=…` on `add` exits 1 with nothing written; that is the declared contract
+  (`spec-008` §10), so `severity`, `release-origin` and `feature` are filled at submit. The
+  reproductions of `bug-176` and `bug-179` were re-run before submit
+  (`idPatternIssues('task-{n:3}-{slug}')` → `['malformed token {n:3}']`; `init extra` → Commander's
+  wording, exit 2). The `task-167` handover note is `6315a290`.
+- **triage pending** (approver). Proposals:
+
+  | Bug | Severity | Proposal |
+  |---|---|---|
+  | `bug-176` | low | `triaged`, v0.3, absorbed into `task-163` (same class as `bug-158`) |
+  | `bug-177` | low | `triaged`, v0.3 or v0.4, a new small task, or absorbed into `task-153` |
+  | `bug-178` | low | `triaged`, v0.3, absorbed into `task-142` (shared git-read helper) |
+  | `bug-179` | low | `triaged`, v0.3, absorbed into `task-165` (bootstrap commands on the surface) |
+  | `bug-180` | low | `triaged`, v0.3 or v0.4. Needs the approver's ruling on rewriting the P2.1 scenario with `--value`; could join `task-179` (one shape for missing-operand errors) |
