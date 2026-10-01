@@ -408,11 +408,12 @@ Bindings are by **role**, never by person (REQ-SYS-08).
 | architect              | architecture, determinism, traceability, command-baseline       |
 | product-owner          | traceability                                                    |
 | tech-lead              | architecture, code-review                                       |
-| **global (all roles)** | doc-versioning, documentation, security-secrets, claim-evidence |
+| **global (all roles)** | doc-versioning, documentation, security, security-secrets, claim-evidence |
 
 `command-baseline` states which state a command may read and write (`dl-080`, option (B));
 `claim-evidence` states that a sentence asserting a fact about the code names the command that
-establishes it. Both were written by `task-094`, which is why `roles.yaml` is at v1.1.
+establishes it. Both were written by `task-094` (`roles.yaml` v1.1). `task-133` bound the built-in `security`
+directive globally (`dl-059`), as `wingfoil init` now does, which is why `roles.yaml` is at v1.2.
 
 When executing under a role, **auto-load and obey that role's directives** (P3.6/P5.4.2).
 
