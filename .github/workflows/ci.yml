@@ -1,0 +1,67 @@
+# WingFoil — the packaging gate on every push and pull request (dl-076 option (D); built by task-140).
+#
+#   packaging-gate → `npm ci`, then `prepublishOnly` (build + test + lint, spec-015 §2): the same two
+#                    commands publish.yml's `gate` job runs, on the same runner image, at the same Node.
+#
+# Why a second workflow. publish.yml runs only on a `vX.Y.Z` tag push, so until this file existed the
+# release pipeline's environment — its runner image, its Node, the npm that Node bundles, the image's
+# git — was entered once per release, at the tag: v0.2's two blockers (bug-056, the lockfile npm 10.9
+# refused; bug-057, git 2.55's `Z` zero offset) surfaced only there (dl-076 E4–E7). This workflow enters
+# that environment on every push instead. publish.yml's own trigger is left untouched, so adr-009 is not
+# amended (dl-076 Q4); a red run here is a CI failure on the branch (dl-076 Q2), and nothing else.
+#
+# Trigger. `push` filters on `branches` only, so a tag push does NOT run this gate — the tag's gate is
+# publish.yml's. `pull_request` is limited to PRs into `main`, the one branch releases are cut from.
+#
+# Kept equal to publish.yml, and pinned by `test/cli/ci-workflow.test.ts`:
+#   - `env.NODE_VERSION` — GitHub Actions has no way to share an `env` across workflow files, so the
+#     value is written twice and the test asserts the two are equal: change both, or the suite fails.
+#     publish.yml's header explains why it is the 22.12.0 floor (adr-010, bug-023).
+#   - every `uses:` line — the same full-SHA pin with its release tag in the trailing comment
+#     (dl-057, task-113). publish.yml's `test/cli/publish-pipeline.test.ts` freezes the SHA ↔ tag table;
+#     the test of this file requires each line here to be one publish.yml already has.
+#   - `package-manager-cache: false` and `persist-credentials: false`, for the same reasons as there.
+#   - `fetch-depth: 0`, as in publish.yml's gate, so the suite runs on the same full-history checkout.
+#
+# Concurrency: a newer push to the same branch or PR cancels the older run; on `main` every push runs
+# to completion, so each commit that reaches `main` gets its own result.
+#
+# Read-only: `contents: read` and no job-level `permissions`. No secret, no registry credential, no OIDC.
+#
+# Locally, the same gate is `npm ci && npm run prepublishOnly`; with `act` (see publish.yml's header):
+#   act push -W .github/workflows/ci.yml
+
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '22.12.0'
+
+jobs:
+  packaging-gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Install
+        run: npm ci
+      - name: prepublishOnly gate — build, test, lint (spec-015 §2)
+        run: npm run prepublishOnly
