@@ -399,7 +399,9 @@ function checkGovernance(root, options = {}) {
       push({ rule: 'state', message: `${hops[0].from} → ${hops[0].to} is not an edge of the '${type}' machine at this commit` });
     }
 
-    const named = new Set(ids);
+    // Every token of the subject, not only the parsed id list: a subject whose id list does not parse
+    // (`wf(bug): sync bug-1 [a -> b] and bug-2 [-> c]`) still names the documents it touched.
+    const named = new Set([...ids, ...commit.subject.split(/[\s,[\]]+/)]);
     const documents = [...new Set((touched.get(commit.sha) ?? []).filter((path) => path.endsWith('.md') && named.has(basename(path, '.md'))).map(renamed))];
     if (documents.length === 0) unchecked('no document it touches is named by its subject');
     for (const path of documents) {

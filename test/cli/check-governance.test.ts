@@ -263,6 +263,8 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
   f.pending('t-4');
   f.task('t-4', 'backlog', 'wf(task): approve t-4 [pending → backlog]' + approval(), APPROVER);
   const illegalEdge = f.task('t-4', 'in-review', 'wf(task): start t-4 [backlog → in-review]');
+  f.pending('t-6');
+  const unreadableIdList = f.task('t-6', 'backlog', 'wf(task): sync t-6 [pending -> in-review] and t-7 [-> backlog]');
   f.pending('t-5');
   const legalChainThen = f.task('t-5', 'in-progress', 'wf(task): sync t-5 [pending → backlog → in-progress]');
   // The machine changes after t-5's chain: `backlog` leaves the sequence, so `pending → backlog` is no
@@ -277,6 +279,10 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
     expect(rulesOf(report, illegalHop)).toEqual(['state']);
     expect(messagesOf(report, illegalHop, 'state').join()).toMatch(/pending → in-progress/);
     expect(rulesOf(report, illegalEdge)).toEqual(['state']);
+  });
+
+  it('still checks the state of a document named by a subject whose id list does not parse', () => {
+    expect(rulesOf(report, unreadableIdList)).toContain('state');
   });
 
   it('accepts a legal transition, and judges a chain by the machine at its own commit', () => {
