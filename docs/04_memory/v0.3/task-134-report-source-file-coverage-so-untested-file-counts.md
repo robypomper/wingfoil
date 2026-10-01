@@ -81,3 +81,11 @@ Coverage baseline, measured with `npx jest --coverage --coverageReporters=json-s
 - AC3 met: threshold passes; baseline unchanged (table above).
 - No CLI command or help text touched, so `docs/cli-reference.md` is not concerned.
 - Pending amendments (approver): none.
+
+### review (independent, 2026-10-01)
+
+- Verdict: **approve with fixes**. The reviewer re-ran the gate against the pre-fix `jest.config.js` (1 failed: 81 files missing) and a positive control (an extra unloaded `src/` file → the gate still passes, the file listed at 0%). The approver is asked to accept AC2's probe-run reading of "after a full run" (design, above).
+- Fix 1 — the child could hang the suite: `execFileSync` blocks the event loop, so the `beforeAll` 180 s timeout could never fire on a hung child jest. The call now passes `timeout: 170_000` and `killSignal: 'SIGKILL'`, so a hung child is killed inside the hook's budget and the hook fails.
+- Fix 2 — the child inherited the default `maxWorkers` (cores − 1), and its coverage reporter transforms the 81 untested files in that many workers, on top of the parent's full run. The child now runs with `--maxWorkers=1`.
+- Measured alone in this worktree, with the machine under load from parallel sessions (`uptime` load average 39 then 26, 12 cores), so the figures are noisy. `npx jest test/lint/coverage-parity.test.ts` before the fix ran in 16.2 s and 10.8 s; after, in 37.4 s and 41.4 s. The child alone, timed back to back by a scratch script (`execFileSync` around the same child command, `process.hrtime`): default workers 14.8 s and 10.5 s, `--maxWorkers=1` 18.5 s and 13.9 s, `--maxWorkers=2` 11.3 s. One worker therefore makes the gate a few seconds slower when it runs alone; the gain is that it no longer adds a worker per core during a full run.
+- After the fixes: `npm run test:coverage` → 178 suites, 2977 tests passed in 111.9 s, `All files` 98.82 / 95.06 / 94.44 / 99.52 (baseline unchanged). `npx eslint test/lint/coverage-parity.test.ts` → exit 0; `npx tsc --noEmit -p tsconfig.json` → exit 0.

@@ -18,7 +18,8 @@
  *
  * The child differs from `npm run test:coverage` only where the measurement needs it: `testMatch`
  * selects the probe, `globalSetup` (the `dist/` build) is dropped because the probe spawns no CLI and
- * a second build would race the parent's (`bug-095`), the threshold is cleared because a run that
+ * a second build would race the parent's (`bug-095`), `--maxWorkers=1` keeps the child from adding a
+ * worker per core to the parent's run, the threshold is cleared because a run that
  * covers nothing is meant to sit at 0%, and the summary goes to a fresh temporary directory.
  *
  * Deterministic: a sorted file walk, a fixed probe, set comparison on sorted lists — no clock, no
@@ -132,8 +133,12 @@ describe('coverage report lists every source file, unloaded ones at 0% (bug-141)
     };
     execFileSync(
       process.execPath,
-      [join(REPO_ROOT, 'node_modules', 'jest', 'bin', 'jest.js'), '--config', JSON.stringify(config), '--coverage', '--ci'],
-      { cwd: REPO_ROOT, stdio: 'pipe' },
+      [join(REPO_ROOT, 'node_modules', 'jest', 'bin', 'jest.js'), '--config', JSON.stringify(config), '--coverage', '--ci', '--maxWorkers=1'],
+      // `execFileSync` blocks the event loop, so the hook's own timeout could never fire on a hung
+      // child: the child is killed inside the hook's budget instead, and the hook fails loudly.
+      // `--maxWorkers=1`: the child's coverage reporter transforms the untested files in its own
+      // workers, which would otherwise be cores-1 more processes on top of the parent's full run.
+      { cwd: REPO_ROOT, stdio: 'pipe', timeout: 170_000, killSignal: 'SIGKILL' },
     );
     summary = JSON.parse(readFileSync(join(outDir, 'coverage-summary.json'), 'utf8')) as Record<string, FileSummary>;
   }, 180_000);
