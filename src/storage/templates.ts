@@ -490,7 +490,7 @@ export function templateScaffold(def: TemplateDefinition): ScaffoldFile[] {
   - name: inception
   - name: specification
   - name: delivery
-    include: workflows/custom/${def.slug}-delivery.yaml
+    include: ${def.slug}-delivery
   - name: sunset
 `,
       ),

@@ -121,7 +121,7 @@ describe('per-pillar loaders — fixture repo', () => {
 
   it('loadWorkflowsYaml parses the manifest and every included workflow file', () => {
     const { manifest, workflows } = loadWorkflowsYaml(repo);
-    expect(manifest.include).toEqual(['workflows/custom/main.yaml']);
+    expect(manifest?.include).toEqual(['workflows/custom/main.yaml']);
     expect(workflows).toHaveLength(1);
     expect(workflows[0]?.name).toBe('main');
   });

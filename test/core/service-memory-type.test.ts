@@ -103,7 +103,7 @@ describe('the committed `service` type (task-124, dl-088)', () => {
 
     it('is included by workflows.yaml and loads as `kind: main`', () => {
       const { manifest, workflows } = loadPillar();
-      expect(manifest.include).toContain('workflows/custom/service-ingest.yaml');
+      expect(manifest?.include).toContain('workflows/custom/service-ingest.yaml');
       expect(workflows.find((workflow) => workflow.name === 'service-ingest')).toMatchObject({ kind: 'main' });
     });
 
