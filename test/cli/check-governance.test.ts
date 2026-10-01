@@ -285,6 +285,20 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
   });
 });
 
+describe('a document whose frontmatter does not parse at some commit', () => {
+  const f = fixture();
+  f.pending('t-1');
+  const broken = f.commit('wf(task): start t-1 [pending → backlog]', {
+    'docs/memory/task/t-1.md': '---\nid: "t-1"\ntitle: "a: "b"\n  bad: [\nstatus: backlog\n---\n',
+  });
+  f.task('t-1', 'backlog', 'docs: repair t-1');
+
+  it('does not stop the check: the document is reported as state not checked, with the parse error', () => {
+    const report = checkGovernance(f.root);
+    expect(report.stateUnchecked.some((entry) => entry.sha === broken && /does not parse/.test(entry.reason))).toBe(true);
+  });
+});
+
 describe('starting mode — hard-fail after the introduction commit, report history before it (dl-103 §1)', () => {
   const f = fixture();
   const before = f.task('t-1', 'draft', 'wf(task): schedule t-1');

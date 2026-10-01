@@ -419,7 +419,21 @@ function checkGovernance(root, options = {}) {
   for (const path of [...stateGroups.keys()].sort()) {
     for (const key of [...stateGroups.get(path).keys()].sort()) {
       const { machine, type, shas } = stateGroups.get(path).get(key);
-      for (const finding of dist.memory.verifyTransitionConsistency(root, path, machine)) {
+      let transitionFindings;
+      try {
+        transitionFindings = dist.memory.verifyTransitionConsistency(root, path, machine);
+      } catch (error) {
+        // A historical revision whose frontmatter does not parse makes the reconstruction throw (it
+        // reads every revision's `status`). The document's commits are then reported as not checked,
+        // naming the error, rather than stopping the whole check.
+        if (!(error instanceof dist.validation.ValidationError)) throw error;
+        const first = error.message.split('\n')[0];
+        for (const sha of [...shas].sort((a, b) => order.get(a) - order.get(b))) {
+          stateUnchecked.push({ sha, subject: subjects.get(sha), reason: `${path}: a revision's frontmatter does not parse (${first})` });
+        }
+        continue;
+      }
+      for (const finding of transitionFindings) {
         if (!shas.has(finding.sha)) continue;
         findings.push({
           sha: finding.sha,
@@ -448,7 +462,7 @@ function checkGovernance(root, options = {}) {
     checked: memoryCommits.length,
     gatedCommits: memoryCommits.filter((commit) => !history.has(commit.sha)).length,
     findings: sorted,
-    stateUnchecked,
+    stateUnchecked: stateUnchecked.sort((a, b) => order.get(a.sha) - order.get(b.sha)),
   };
 }
 
