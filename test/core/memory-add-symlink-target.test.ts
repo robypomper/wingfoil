@@ -40,7 +40,7 @@ const MEMORY_YAML = `version: 1
 types:
   note:
     path: "${TYPE_DIR}/{id}.md"
-    id_pattern: "note-{n}-{slug}"
+    id_pattern: "note-{slug}"
     template:
       file: "memory/templates/note.md"
       frontmatter:
@@ -58,11 +58,16 @@ status: draft
 `;
 
 /**
- * The id `memory add` will generate for the title below. `nextSequenceNumber` counts the type
- * directory's entries, and the planted link is one — so the link must carry the number *after* it
- * for the write to aim at the link itself, which is exactly how `bug-120` D1 was measured.
+ * The id `memory add` will generate for the title below. The type's `id_pattern` is slug-only, so the
+ * id is the title's slug and the planted link sits exactly where the write aims. `bug-120` D1 was
+ * measured with a `{n}` pattern, planting the link at the number *after* the directory's file count;
+ * since task-128 the counter takes the highest number any baseline holds (the untracked link
+ * included), so a `{n}` id can no longer be aimed at a planted file **that git does not ignore**.
+ * A git-ignored file is in no baseline the counter reads, so a `{n}` id can still land on one. The
+ * guard therefore keeps a real job, refusing rather than overwriting. The slug-only pattern is just
+ * the simplest way to aim the write at the link.
  */
-const TARGET_ID = 'note-002-escape-probe';
+const TARGET_ID = 'note-escape-probe';
 const TARGET_PATH = `${TYPE_DIR}/${TARGET_ID}.md`;
 
 /** The real, registered `memory.memoryAdd` `CoreFn` — fails loudly if it is un-registered. */
@@ -126,7 +131,7 @@ describe('memory add — a symlinked target is refused before the write (bug-120
 
     /**
      * AC4, and the assertion that carries the criterion: **no commit**. On the shipped code this
-     * fails with `wf(note): add note-002-escape-probe` — a subject in the project's own history for
+     * fails with `wf(note): add note-escape-probe` — a subject in the project's own history for
      * an element the project does not contain.
      */
     it('creates no commit', async () => {
@@ -209,8 +214,8 @@ describe('memory add — a symlinked target is refused before the write (bug-120
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(exitCodeForResult(result)).toBe(0);
-    expect(result.value.path).toBe(`${TYPE_DIR}/note-001-escape-probe.md`);
+    expect(result.value.path).toBe(`${TYPE_DIR}/note-escape-probe.md`);
     expect(head(repo)).not.toBe(before);
-    expect(result.commit?.message).toBe('wf(note): add note-001-escape-probe');
+    expect(result.commit?.message).toBe('wf(note): add note-escape-probe');
   });
 });

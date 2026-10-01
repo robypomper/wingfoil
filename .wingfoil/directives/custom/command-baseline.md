@@ -10,6 +10,8 @@ ref: [REQ-SEC-02, REQ-STATE-02, REQ-SYS-07]
 
 # Directive — Which baseline a command reads and writes
 
+**Version:** 1.1 · **Date:** 2026-09-30
+
 Custom WingFoil rule. Applies to anyone adding or changing a command, a `src/core` operation, or an
 MCP Tool — every surface, because both surfaces run the same core function (REQ-SYS-05,
 `spec-006-core-domain-api`).
@@ -98,6 +100,19 @@ uncommitted state.
   draft you have not committed is exactly what `memory search` should find. What they do **not** yet
   do is say which baseline they answered from; that gap is `dl-084`, `in-discussion`.
 
+## Declared baselines — a read wider than `HEAD`, by name
+
+A read may resolve against more than `HEAD` only where this section names it, with the baseline it
+reads and why the wider read cannot be reached by an uncommitted state to the operation's harm.
+
+| Read | Declared baseline | Why it is not `HEAD` alone | Source |
+|------|-------------------|----------------------------|--------|
+| `memory add`'s `{n}` sequence counter (`nextSequenceNumber`, `src/memory/add.ts`) | the trees of every local branch (`refs/heads/*`), every remote-tracking ref (`refs/remotes/*`) and `HEAD`, plus the working tree as git sees it (the index and the untracked, non-ignored files), over every folder the type's `path` can resolve to; no network | a number is taken wherever any of those holds it; the read takes the **highest** number and adds one, so a wider baseline can only raise the id, never lower it onto an occupied one or change whether the command refuses | `dl-101` §2 (a); `task-128` (`bug-087`, `bug-162`) |
+
+The counter's read still gates what the command writes, so it follows the rest of this directive: a
+git read that fails is an error of the operation, never an empty answer (an empty answer would
+reissue `1`). The write half is unchanged: `requireAbsentTarget` still refuses an occupied target.
+
 ## Reach for the primitive — there is no third mechanism to write
 
 Read at `9642ab5f` (`main`):
@@ -119,11 +134,18 @@ bindings yet", not a failure) and say so where you decide it.
 Four tasks — `task-091`, `task-092`, `task-093`, `task-096` — each implemented this rule and each
 restated it in its own TSDoc, because it lived only in a decision-log. `dl-080`'s own rationale calls
 that a **determinism** finding before a security one: two agents given the same defect class produced
-two different architectures. This is not a retrospective rule: two instances of the class are open
-and unfixed (`bug-087`, `bug-088`, both `release: v0.3`), and so is the deviation this directive
-names (`bug-108`).
+two different architectures. This is not a retrospective rule: two instances of the class were open
+when it was written (`bug-087`, `bug-088`, both `release: v0.3`), and so is the deviation this
+directive names (`bug-108`). `bug-087` is fixed by `task-128`, whose read is the first entry under
+*Declared baselines*.
 
 > Rationale: what the tool treats as authoritative must be what the repository records. A commit that
 > attests something no clone can re-derive is not an audit trail (`adr-006-git-identity-role-based-authz`,
 > REQ-SEC-02 / REQ-STATE-02). Source: `dl-080-which-baseline-each-command-reads` (`ready`, option (B))
 > and its approve commit `333a3c0f`.
+
+**Revision 1.1 (2026-09-30, `task-128-allocate-element-ids-highest-number-ref-across-folder`).** Adds
+*Declared baselines* with its first entry, `memory add`'s sequence counter, as `dl-101` Action 3
+requires, and records that `bug-087` is fixed by that task. Version 1.0 is the text `task-094` wrote,
+which carried no version; this revision adds a `**Version:**` line (`doc-versioning`) in the body
+rather than a `version:` frontmatter key, which the directive loader would report as an unknown field.

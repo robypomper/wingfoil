@@ -54,7 +54,6 @@ import {
   REJECTION_REASON_FIELD,
   renderRejectDocument,
   renderSubmitDocument,
-  resolveTypeDirectory,
   searchMemoryDocuments,
   setFrontmatterField,
   slugifyTitle,
@@ -626,11 +625,12 @@ function singleOption(options: MemoryAddParams['options'], name: string): string
  *    `generateId`, REQ-SYS-07), in `spec-001`'s fixed order (task-110, `dl-107` S2): first every
  *    frontmatter/context token from `--set` (a `--set` name the committed `id_pattern` and `path` do
  *    not contain is refused, exit 1; a token with no value names the option that supplies it), then
- *    the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence counter over the
- *    type's directory, matched against the already-materialized pattern (`src/memory/add.ts`; no wall-clock/random). That
- *    counter still reads the WORKING TREE: it is `bug-087` (`release: v0.3`), a different read in
- *    this verb and deliberately not task-095's. What changed is only that the directory it counts in
- *    is now derived from the committed `path` pattern.
+ *    the `{slug}` from the title, and — only for a `{n}`-token pattern — a sequence counter matched
+ *    against the already-materialized pattern (`src/memory/add.ts`; no wall-clock/random): the
+ *    highest number any local branch, remote-tracking ref, `HEAD` or the working tree holds, across
+ *    every folder the committed `path` pattern can resolve to, plus one (task-128, `dl-101` §2 (a),
+ *    `bug-087`, `bug-162`). That read is wider than `HEAD` on purpose — it can only raise the number —
+ *    and is the declared baseline `command-baseline` records for it.
  * 5. **Fill the committed scaffold's bytes** with only the `id`/`status: draft`/`--title`/`--tags`
  *    skeleton (P1.3; spec-010-memory-frontmatter-schema) plus the `--set` fields (a context token only
  *    where the scaffold declares it), then **write + commit** through task-022's
@@ -677,7 +677,7 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
     // spec-001's order: field/context tokens → {slug} → {n}, so the counter sees the materialized prefix.
     const materialized = expandFieldTokens(idPattern, set.values);
     const sequence = hasNumericToken(materialized)
-      ? nextSequenceNumber(resolveTypeDirectory(root, pathPattern, set.values), materialized)
+      ? nextSequenceNumber(root, pathPattern, materialized)
       : 0;
     const id = generateId(materialized, { slug: slugifyTitle(title), n: sequence });
     const content = renderAddDocument(scaffold, { id, title, tags, fields: writtenFields(scaffold, set.values) });
@@ -685,10 +685,11 @@ const memoryAddFn: CoreFn<unknown, { id: string; path: string }> = async (params
     const message = `wf(${type}): add ${id}`;
 
     // dl-080 (B) / bug-078, AC3: this verb CREATES, so the rule is absence rather than cleanliness.
-    // `nextSequenceNumber` counts the WORKING TREE, so a tree that disagrees with `HEAD` about how
-    // many elements exist can generate an id landing on an occupied path — and the write below is
-    // unconditional, which turns `wf(<type>): add <id>` into a commit that overwrites (or deletes
-    // lines from) an existing element. The path is resolved here rather than taken from
+    // Since task-128 a `{n}` id is above every number any baseline holds, but a slug-only id
+    // (`note-{slug}`) still lands on an occupied path whenever the title repeats, and a `{n}` id can
+    // land on a git-ignored file (no baseline the counter reads holds it). The write below
+    // is unconditional, which would turn `wf(<type>): add <id>` into a commit that overwrites (or
+    // deletes lines from) an existing element. The path is resolved here rather than taken from
     // `writeMemoryEntry`'s return value because the guard must run BEFORE the write; the resolution
     // is pure, so doing it twice is free of side effects and keeps that throwing storage primitive's
     // contract untouched. A confinement escape still throws `StorageError` from this same call.

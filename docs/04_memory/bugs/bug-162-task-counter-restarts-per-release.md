@@ -2,7 +2,7 @@
 id: bug-162-task-counter-restarts-per-release
 type: bug
 title: "`memory add --type task` numbers from 1 in every release, because the `{n}` counter only counts the type's folder and a task's folder is per release"
-status: planned
+status: closed
 severity: "medium"
 release-origin: "v0.2.2"
 release: "v0.3"

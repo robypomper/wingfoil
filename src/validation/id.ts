@@ -74,17 +74,27 @@ function escapeLiteral(literal: string): string {
  * tokens as `[0-9]+`, and every other token as a hyphen-separated `[a-z0-9.]` slug.
  */
 export function patternToRegExp(pattern: string): RegExp {
-  const segments = parsePattern(pattern);
-  let source = '^';
-  for (const segment of segments) {
+  return new RegExp(`^${patternToSource(pattern)}$`);
+}
+
+/**
+ * The unanchored RegExp source behind {@link patternToRegExp}, for embedding an id inside a longer
+ * match (`memory add`'s counter matches a whole repository path, task-128). With `captureNumeric`,
+ * each `{n}`-family token is a capturing group `([0-9]+)` and nothing else captures, so group 1 is
+ * the first numeric token's value.
+ */
+export function patternToSource(pattern: string, options: { readonly captureNumeric?: boolean } = {}): string {
+  let source = '';
+  for (const segment of parsePattern(pattern)) {
     if (segment.kind === 'literal') {
       source += escapeLiteral(segment.value);
+    } else if (isNumericToken(segment.value)) {
+      source += options.captureNumeric === true ? '([0-9]+)' : '[0-9]+';
     } else {
-      source += isNumericToken(segment.value) ? '[0-9]+' : '[a-z0-9.]+(?:-[a-z0-9.]+)*';
+      source += '[a-z0-9.]+(?:-[a-z0-9.]+)*';
     }
   }
-  source += '$';
-  return new RegExp(source);
+  return source;
 }
 
 /** Collect, in order of first appearance, the characters of `literal` outside the ID class. */
