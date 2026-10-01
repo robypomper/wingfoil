@@ -1,6 +1,7 @@
 /**
  * The shared skeleton of every Memory state-transition verb (task-045-memory-submit; reused by
- * `memory approve`/`reject`/`deprecate`, task-046/047/048).
+ * `memory approve`/`reject`/`deprecate`, task-046/047/048, and by `memory amend`, task-127, whose
+ * edge is the self-loop of the current state).
  *
  * A transition verb always does the same two things around its own verb-specific rules:
  *

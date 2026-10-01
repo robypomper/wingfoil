@@ -284,10 +284,13 @@ function unownedFieldProblems(
  * - `declared-fields-only` — the operation owns `status` (plus `rejection_reason` on `memory.reject`)
  *   and **nothing else**: no other frontmatter field, and not one byte of the body. This is
  *   `memory.approve`, `memory.reject` and `memory.deprecate`.
- * - `carries-content` — the operation is defined as filling content *and* moving state, so the body
- *   and the type's other frontmatter fields may legitimately change. This is `memory.submit` alone,
- *   and the asymmetry is deliberate rather than an oversight: an approval that carried a body would
- *   attest, under an approver's name, to content no commit subject mentions.
+ * - `carries-content` — the operation is defined as carrying the author's content, so the body and
+ *   the type's other frontmatter fields may legitimately change. This is `memory.submit` (content
+ *   *and* the state move) and `memory.amend` (task-127, `dl-108`: content and no state move). The
+ *   asymmetry with the gates is deliberate rather than an oversight: an `approve` that carried a body
+ *   would attest, under an approver's name, to content no commit subject mentions. `amend` is the
+ *   approval whose subject says exactly that, and it still may not move `status`, `id` or `type`
+ *   (`src/core/memory-amend.ts`).
  */
 export type DocumentScope = 'declared-fields-only' | 'carries-content';
 

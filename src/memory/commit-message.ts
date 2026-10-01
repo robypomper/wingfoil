@@ -1,7 +1,7 @@
 /**
  * The one commit-message formatter for Memory state-transition verbs (task-045-memory-submit).
  *
- * Every verb — `submit` today, `approve`/`reject`/`deprecate` next — produces exactly one commit whose
+ * Every verb — `submit`, `approve`, `reject`, `deprecate` and `amend` (task-127) — produces exactly one commit whose
  * subject is `wf({type}): {verb} {id1}, {id2}` (`spec-004-mcp-surface-contract` §4.3), optionally
  * followed by a ` [from → to]` bracket and an `Approver:` / `Reason:` body for the verbs whose
  * evidence rules require them (P1.7/P1.8, REQ-SEC-04). Those are exactly the shapes
