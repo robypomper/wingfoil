@@ -104,8 +104,9 @@ function readWorktree(root: string, path: string): string | null {
 }
 
 /**
- * The first proper ancestor of `path` — a directory on the way to it, never `path` itself — that is a
- * symbolic link, root-relative; `null` when there is none. Stops at the first missing segment: a
+ * Why git cannot report on `path`, or `null` when it can: the first proper ancestor of `path` — a
+ * directory on the way to it, never `path` itself — that is a symbolic link, or that the filesystem
+ * refuses to `lstat` (a directory without search permission). Stops at the first missing segment: a
  * path whose parent does not exist yet is not beyond anything (the creating verbs `mkdir` it).
  *
  * The leaf is deliberately excluded. A target that is ITSELF a symlink is one git does track (as a
@@ -113,47 +114,45 @@ function readWorktree(root: string, path: string): string | null {
  * file working (`bug-044`'s benign case); whether a *write* may follow such a leaf is the confinement
  * module's question (`requireConfinedWriteTarget`, `bug-120`), not this guard's.
  */
-function symlinkedAncestor(root: string, path: string): string | null {
+function uninspectableAncestor(root: string, path: string): string | null {
   const segments = path.split('/').filter((segment) => segment.length > 0);
   for (let end = 1; end < segments.length; end += 1) {
     const ancestor = segments.slice(0, end).join('/');
-    let isLink: boolean;
     try {
-      isLink = lstatSync(join(root, ancestor)).isSymbolicLink();
+      if (lstatSync(join(root, ancestor)).isSymbolicLink()) return `'${ancestor}' is a symbolic link`;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT' || code === 'ENOTDIR') return null;
-      throw error;
+      return `'${ancestor}' cannot be read (${String(code)})`;
     }
-    if (isLink) return ancestor;
   }
   return null;
 }
 
 /**
  * Refuse, before anything is written, a target git **cannot report on** because a directory on the
- * way to it is a symbolic link (task-131, `bug-118`, `bug-124`).
+ * way to it is a symbolic link (task-131, `bug-118`, `bug-124`) — or cannot be read at all.
  *
- * For such a path `git status --porcelain` is empty whether the file is modified or not, and the
- * `git add` that `commitPaths` runs afterwards fails ("beyond a symbolic link") — after the write or
- * the unlink has already happened. "I have nothing to report about this path" is not "this path is
- * clean"; this is the check that keeps the two apart, so the guards below never read silence as
- * consent. Exit `1` (`VALIDATION`), naming the path and the link.
+ * For a path behind a symlink `git status --porcelain` is empty whether the file is modified or not,
+ * and the `git add` that `commitPaths` runs afterwards fails ("beyond a symbolic link") — after the
+ * write or the unlink has already happened. "I have nothing to report about this path" is not "this
+ * path is clean"; this is the check that keeps the two apart, so the guards below never read silence
+ * as consent. Exit `1` (`VALIDATION`), naming the path and the reason.
  */
 export function requireInspectableTarget(
   root: string,
   path: string,
   contract: WriteTargetContract = CONFIG_WRITE_CONTRACT,
 ): CoreResult<undefined> {
-  const link = symlinkedAncestor(root, path);
-  if (link === null) return coreOk(undefined);
+  const reason = uninspectableAncestor(root, path);
+  if (reason === null) return coreOk(undefined);
   return coreErr({
     code: 'VALIDATION',
     message:
-      `refusing to commit ${path}: '${link}' is a symbolic link, and git reports nothing for a path behind one — ` +
-      `modified or not — so whether this ${contract.noun} carries modifications this ${contract.owner} does not own ` +
-      'cannot be inspected, and git would refuse to stage it. Nothing has been written; replace the symbolic link ' +
-      'with the directory it points to, then retry.',
+      `refusing to commit ${path}: ${reason}, and git reports nothing for a path it cannot reach — modified or ` +
+      `not — so whether this ${contract.noun} carries modifications this ${contract.owner} does not own cannot be ` +
+      'inspected, and git would refuse to stage it. Nothing has been written; replace a symbolic link with the ' +
+      'directory it points to, then retry.',
   });
 }
 
@@ -181,11 +180,10 @@ export function requireNoDivergentStage(
   const inspectable = requireInspectableTarget(root, path, contract);
   if (!inspectable.ok) return inspectable;
 
+  // Porcelain `XY`: X is index vs HEAD, Y is working tree vs index. Both set (and X not the
+  // untracked/ignored marker) is the three-way divergence; '' (clean) has neither.
   const porcelain = pathPorcelainStatus(root, path);
-  const index = porcelain.charAt(0);
-  const worktree = porcelain.charAt(1);
-  const staged = index !== '' && index !== ' ' && index !== '?' && index !== '!';
-  if (!staged || worktree === '' || worktree === ' ') return coreOk(undefined);
+  if (' ?!'.includes(porcelain.charAt(0)) || porcelain.charAt(1) === ' ') return coreOk(undefined);
   return coreErr({
     code: 'VALIDATION',
     message:

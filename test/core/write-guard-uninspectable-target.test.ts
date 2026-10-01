@@ -22,7 +22,7 @@
  * Deterministic (REQ-SYS-07): fixed fixture text and identity, fixed case order, no clock.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -119,6 +119,22 @@ describe('requireUnmodifiedTarget — a target beyond a symbolic link is refused
       writeFileSync(join(realDir(placement), 'legacy-rule.md'), 'modified\n', 'utf-8');
       expectUninspectableRefusal(requireUnmodifiedTarget(repo, `${CUSTOM_DIR}/legacy-rule.md`), `${CUSTOM_DIR}/legacy-rule.md`);
     });
+  });
+
+  // Added at refactor (not red-first): the same "cannot inspect" answer for an ancestor the
+  // filesystem will not let us `lstat` into. Skipped as root, where permission bits do not bind.
+  const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+  (asRoot ? it.skip : it)('refuses a target behind a directory without search permission, naming it', () => {
+    writeFixtureFile(repo, 'locked/inner/file.md', 'x\n');
+    chmodSync(join(repo, 'locked'), 0o600);
+    try {
+      const result = requireUnmodifiedTarget(repo, 'locked/inner/file.md');
+      expect(result.ok).toBe(false);
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(errorMessage(result)).toContain("'locked/inner' cannot be read (EACCES)");
+    } finally {
+      chmodSync(join(repo, 'locked'), 0o700);
+    }
   });
 
   it('characterization: an ordinary clean target still passes', () => {
