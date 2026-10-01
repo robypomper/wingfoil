@@ -75,10 +75,12 @@ function resolveInclude(
   return target;
 }
 
-/** The include edges of file `i`, in phase order, as target file indices (valid workflows only). */
+/**
+ * The include edges of file `i`, in phase order, as target file indices. `i` is always a structurally
+ * valid workflow: the search starts from one, and {@link resolveInclude} only ever yields valid ones.
+ */
 function includeEdges(files: readonly LoadedWorkflowFile[], index: WorkflowRegistryIndex, i: number): number[] {
-  const workflow = files[i]?.workflow;
-  if (!workflow) return [];
+  const workflow = files[i]!.workflow!;
   const edges: number[] = [];
   for (const phase of workflow.phases) {
     if (phase.include === undefined) continue;

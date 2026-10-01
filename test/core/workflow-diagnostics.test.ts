@@ -401,6 +401,19 @@ describe('structural (Zod) failures keep spec-009 codes and do not cascade', () 
     ]);
   });
 
+  it('the cycle search does not walk into a structurally invalid file', () => {
+    writeWorkflows(repo, [
+      ['main', 'name: main\nkind: main\nphases:\n  - name: go\n    include: a\n'],
+      ['a', 'name: a\nkind: sub\nphases:\n  - name: to-b\n    include: b\n'],
+      ['b', 'name: b\nkind: sub\nphases:\n  - name: to-broken\n    include: broken\n  - name: to-a\n    include: a\n'],
+      ['broken', 'name: broken\nkind: sub\nphases:\n  - name: p\n    optional: maybe\n'],
+    ]);
+    expect(diagnosticsOf(repo).diagnostics.map((d) => [d.code, d.file, d.message])).toEqual([
+      ['E_WORKFLOW_INCLUDE_CYCLE', 'workflows/custom/a.yaml', 'include cycle: a -> b -> a'],
+      ['E_VALIDATION', 'workflows/custom/broken.yaml', expect.any(String)],
+    ]);
+  });
+
   it('a file with no readable name leaves include resolution and the startable rule undecided', () => {
     writeWorkflows(repo, [
       ['loop', 'name: loop\nkind: sub\nphases:\n  - name: q\n    include: somewhere\n'],
