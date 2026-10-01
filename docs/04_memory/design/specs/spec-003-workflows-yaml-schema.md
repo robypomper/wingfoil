@@ -87,8 +87,8 @@ Resolution semantics for each `include` path:
 3. Parse and validate the referenced file against **Layer 2** (below). At least one loaded workflow
    must be **startable** (Layer 2 `startable: true`, or the `kind: main` alias) for the registry to
    be startable (REQ-STATE-03 allows several open mains); otherwise → `E_NO_MAIN_WORKFLOW`. The code
-   keeps its name (`src/core/loaders.ts:224` emits it today for "no `kind: main`"); only the
-   condition widens to the `startable` flag (`dl-109` Action 1).
+   keeps the name it had when its condition was "no `kind: main`"; the condition is now the
+   `startable` flag (`dl-109` Action 1).
 
 **A manifest `include` is a file path; a phase `include` (Layer 2) is a workflow name.** The two
 share a key and a string type but not a value domain (`bug-144`): the manifest names files to load,
@@ -622,8 +622,26 @@ then each workflow file in manifest `include` order, then `bindings.yaml`; withi
 workflow-level before phase-level, phases in declared order; for one field, the rows of the table
 below in table order. The same configuration yields the same list, in the same order, on every run.
 
+**Where a cross-file diagnostic is reported.** `E_WORKFLOW_FILE_NOT_FOUND` is reported on
+`workflows.yaml` at `include[<i>]`. `E_WORKFLOW_DUPLICATE_NAME` is reported on every file after the
+first that declares the name; the first declaration is the one a phase `include` resolves to.
+`E_WORKFLOW_INCLUDE_CYCLE` is reported at an `include` of a workflow W when the shortest include
+path from its target back to W passes only through W and workflows listed after W in the manifest.
+The message names that path. Every set of workflows that include one another in a cycle therefore
+gets at least one diagnostic, at the member listed first, on each of its `include`s into the set.
+Further cycles inside the set may be reported only after the reported ones are fixed. A file that
+is not YAML is one `E_YAML_PARSE_ERROR` at its place in the order, with path `''`. A manifest that is
+not YAML, or that fails its structural pass, is the whole array. An error's reason is
+`<code> <path> (<file>): <message>`. A loader diagnostic is not decided when its inputs are
+missing. While an included file is missing or has no string
+`name`, a phase `include` may name that file's workflow, so `E_WORKFLOW_INCLUDE_UNRESOLVED` is not
+reported. `E_NO_MAIN_WORKFLOW` is not reported in that case either, nor while a file fails its
+structural pass. A structurally invalid file reports only its structural diagnostics, and checks
+whose target it is are skipped. The error the user must fix first is therefore the one reported.
+
 **Where each check runs.** *Loader* checks need only the workflow files and `bindings.yaml`, and run
-in `loadWorkflowsYaml` (`src/core/loaders.ts:196-233`) as caller-supplied semantic checks
+in `loadWorkflowsYaml` (`src/core/loaders.ts`, the checks themselves in
+`src/core/workflow-diagnostics.ts`) as caller-supplied semantic checks
 (`spec-009-validation-strategy` §1), keeping the loader's pillar isolation (`src/core/loaders.ts:1-10`).
 *Core* checks also need `memory.yaml`, `dna.yaml` or `roles.yaml` at `HEAD`, and run in the workflow
 operations of `src/core` (`spec-017` §2). Structural (Zod) failures keep `spec-009`'s structural
@@ -850,3 +868,15 @@ per type (`dl-108`/`task-127`), while `build-backlog` stamps `release` on `adr` 
 to `dl-108`'s emitter alone. `assign` leaves the list of undeclared practised verbs. The
 Consequences item names the outcome. No schema field changes. Edited in place without a supersede
 or a state change (`dl-047`).
+
+**Revision (2026-10-01) — loader diagnostics implemented, carried out by
+`task-136-validate-workflows-startable-includable-resolve-phase-include-name`.** Two line
+citations into `src/core/loaders.ts` (`:224` for `E_NO_MAIN_WORKFLOW`, `:196-233` for the loader)
+stopped resolving when that task rewrote the loader. They now name the files. A paragraph under
+§ "Diagnostics", "Where a cross-file diagnostic is reported", states what the table left open:
+the file and path of `E_WORKFLOW_FILE_NOT_FOUND`, `E_WORKFLOW_DUPLICATE_NAME` and
+`E_WORKFLOW_INCLUDE_CYCLE`, and which diagnostics are not reported when a file is missing or
+structurally invalid. It also states that a YAML parse failure joins the array as
+`E_YAML_PARSE_ERROR`, and that the reason of an error is `<code> <path> (<file>): <message>`. Every
+implementation then produces the same array and the same reason. No code, severity or diagnostic
+message changes. Edited in place without a supersede or a state change (`dl-047`).
