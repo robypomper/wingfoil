@@ -275,8 +275,8 @@ map is printed. `--list` is accepted for a planned drill-down view, but in this 
 change the output.
 
 `runs` is the directory of the agent run log, and it holds exactly one entry: a `dna.yaml` that
-declares two is refused when it is loaded, naming `paths.runs`. `wingfoil init` scaffolds it as
-`docs/runs/`.
+declares none or two is refused, naming `paths.runs`. `wingfoil init` scaffolds it as `docs/runs/`;
+change it with `wingfoil dna update paths.runs --value <dir>`.
 
 ```console
 $ wingfoil paths sources

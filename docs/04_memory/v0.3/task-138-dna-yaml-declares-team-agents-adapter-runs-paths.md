@@ -150,6 +150,23 @@ No refactor commit was needed.
   `docs/01_vision/X_cli-cmds.md` (lines 74 and 91), is task-245's per this task's Implementation Notes
   and is left alone.
 
+### review (independent)
+
+**Verdict: APPROVE** (coordinator's independent review, 2026-10-01), with one wording fix applied on
+this branch: the `docs/cli-reference.md` `paths` entry said a `dna.yaml` declaring *two* run-log
+directories is refused; zero is refused too, and the way to change the directory is `dna update`.
+It now says "declares none or two" and names `wingfoil dna update paths.runs --value <dir>`. Checked
+on a fresh `init` with the built CLI: `dna remove paths.runs --value docs/runs/` → exit `1`
+(`E_VALIDATION paths.runs … holds exactly one directory`); `dna update paths.runs --value other/` →
+exit `0`, and `paths runs --format json` → `{"category":"runs","paths":["other/"]}`.
+
+Follow-ups the coordinator files (not done here):
+- the five-category text still in `docs/01_vision/06_features.md` (P2.5 row), `spec-011:111` and
+  `spec-012:97`;
+- `spec-016` §4.1's stale offsets (`src/dna/schema.ts:186-194`, "no schema change is needed");
+- for `task-206`: `paths.runs` accepts `''`, absolute and `../` paths — the schema checks only the
+  cardinality, so the run log must be confined at write time, with its file path built by `path.join`.
+
 ### Pending amendments (approver)
 
 - `spec-002-dna-yaml-schema` — proposed `--reason`: "Declares team.agents[].adapter (id class, spec-009)
