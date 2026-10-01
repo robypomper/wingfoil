@@ -12,8 +12,8 @@ account: ""            # optional — the public identifier used (a login, an or
 renews: ""             # optional — ISO date on which it expires or must be renewed; "" if never
 repo_refs: []          # optional — repository paths that depend on it, e.g. [".github/workflows/publish.yml"]
 decision: ""           # optional — the decision-log or ADR that motivated it
-release: ""            # optional — the release in which it was set up, e.g. "v0.2"
-tmpl_version: 260929   # Original template version
+set_up_in: ""          # optional — the release in which it was set up, e.g. "v0.2"; not `release`, and never stamped by build-backlog (bug-166)
+tmpl_version: 261001   # Original template version
 ---
 
 <!-- SECURITY RULE (dl-088, REQ-SEC-08, directive security-secrets):
