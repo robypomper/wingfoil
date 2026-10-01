@@ -264,6 +264,9 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
   f.task('t-4', 'backlog', 'wf(task): approve t-4 [pending → backlog]' + approval(), APPROVER);
   const illegalEdge = f.task('t-4', 'in-review', 'wf(task): start t-4 [backlog → in-review]');
   f.pending('t-6');
+  const slugged = (status: string): string => `---\nid: "t-8-slug"\ntype: task\ntitle: "T8"\nstatus: ${status}\n---\n\n${status}.\n`;
+  f.commit('wf(task): add t-8', { 'docs/memory/task/t-8-slug.md': slugged('draft') });
+  const shortId = f.commit('wf(task): sync t-8 [backlog → in-progress]', { 'docs/memory/task/t-8-slug.md': slugged('pending') });
   const unreadableIdList = f.task('t-6', 'backlog', 'wf(task): sync t-6 [pending -> in-review] and t-7 [-> backlog]');
   f.pending('t-5');
   const legalChainThen = f.task('t-5', 'in-progress', 'wf(task): sync t-5 [pending → backlog → in-progress]');
@@ -279,6 +282,10 @@ describe('state rule — verifyTransitionConsistency with the machine at the che
     expect(rulesOf(report, illegalHop)).toEqual(['state']);
     expect(messagesOf(report, illegalHop, 'state').join()).toMatch(/pending → in-progress/);
     expect(rulesOf(report, illegalEdge)).toEqual(['state']);
+  });
+
+  it('still checks the state of a document its subject names by the short id (the slug left out)', () => {
+    expect(rulesOf(report, shortId)).toContain('state');
   });
 
   it('still checks the state of a document named by a subject whose id list does not parse', () => {

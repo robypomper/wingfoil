@@ -402,7 +402,13 @@ function checkGovernance(root, options = {}) {
     // Every token of the subject, not only the parsed id list: a subject whose id list does not parse
     // (`wf(bug): sync bug-1 [a -> b] and bug-2 [-> c]`) still names the documents it touched.
     const named = new Set([...ids, ...commit.subject.split(/[\s,[\]]+/)]);
-    const documents = [...new Set((touched.get(commit.sha) ?? []).filter((path) => path.endsWith('.md') && named.has(basename(path, '.md'))).map(renamed))];
+    // A token names a document by its full id or by its short id, the slug left out (`bug-071` for
+    // `bug-071-read-status-at-leaks-git-stderr.md`), as hand-written subjects often do.
+    const isNamed = (path) => {
+      const id = basename(path, '.md');
+      return named.has(id) || [...named].some((token) => token !== '' && id.startsWith(`${token}-`));
+    };
+    const documents = [...new Set((touched.get(commit.sha) ?? []).filter((path) => path.endsWith('.md') && isNamed(path)).map(renamed))];
     if (documents.length === 0) unchecked('no document it touches is named by its subject');
     for (const path of documents) {
       if (!atHead.has(path)) {
