@@ -72,9 +72,12 @@ tmpl_version: 260703
 | 5. (added, bug-182) divergent staged version refused by submit/amend | red-first | "content-carrying verbs refuse a staged version …" + two characterization rows (staged = worktree; index = HEAD) |
 | same-class: `memory add` into an in-root symlinked type dir | red-first | "memory add — a NEW target …" (unit + verb) |
 
-`directive assign` note: `roles.yaml` is beyond a symlink only when `.wingfoil/` itself is one, and then
-the verb is already refused (exit 1, nothing written) by its HEAD role-catalogue read ("'.wingfoil/dna.yaml'
-is not committed at HEAD") before the guard is reached. The verb row is therefore **characterization**;
+`directive assign` note: `roles.yaml` is beyond a symlink only when `.wingfoil/` itself is one. When that
+symlink is **committed** (the fixture's case) the verb is already refused (exit 1, nothing written) by its
+HEAD role-catalogue read ("'.wingfoil/dna.yaml' is not committed at HEAD") before the guard is reached.
+When it exists in the **working tree only**, `dna.yaml` is still at HEAD, the verb reaches the guard, and
+git reports `roles.yaml` as ` D` — so the old guard already refused it as dirty (the new one refuses it
+first, as uninspectable). Corrected at independent review. The verb row is therefore **characterization**;
 the guard's answer for `.wingfoil/roles.yaml` is pinned red-first at unit level. Discovered at red, not
 fabricated.
 
@@ -127,3 +130,23 @@ fabricated.
   `commitMemoryTransition` (`src/core/memory-transition.ts`, the check-2 doc bullet and the
   `scope === 'declared-fields-only'` block) — a textual conflict is possible if `task-130` edits the
   same block.
+
+### review (independent) — 2026-10-01
+
+- Coordinator's independent review: **APPROVE** (a symlink above the project root verified safe — only
+  root-relative ancestors are walked; all gates reproduced), with four wording fixes, applied:
+  1. `src/storage/index.ts`: the comment no longer implies the barrel exports the guarded resolver.
+  2. `requireInspectableTarget`'s message: "git reports nothing for a path it cannot reach" was true only
+     for a committed symlink (a working-tree-only one shows ` D`); now "git cannot stage or inspect a
+     path beyond a symbolic link or an unreadable directory". Tests pin only `symbolic link` and the
+     `cannot be read (EACCES)` clause, both kept, so no test text changed.
+  3. `requireInspectableTarget` and `requireNoDivergentStage` re-exported from `src/core/index.ts` next to
+     their siblings.
+  4. The `directive assign` reasoning (notes above and the test comment) now states both the committed
+     and the working-tree-only symlink cases.
+- Item 3 first dropped function coverage to 93.78 (below the 94.01 baseline): the barrel's two new
+  re-export getters were never called. The suite now imports the guards from `src/core` and adds one
+  test calling both through it.
+- Gates after the fixes: `npm run test:coverage` → 167 suites / 2796 tests passed; 98.74 / 94.63 / 94.06
+  / 99.49 (baseline `c43221c4`: 98.73 / 94.58 / 94.01 / 99.49). `npm run lint`, `npm run docs:api`,
+  `npx tsc --noEmit -p tsconfig.json`, `npx tsc -p tsconfig.build.json --noEmit` → exit 0.
