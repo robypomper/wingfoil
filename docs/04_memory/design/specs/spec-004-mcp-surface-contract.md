@@ -202,7 +202,8 @@ the workflow verbs `start`, `finalize` and `sync` (whose bracket may chain state
 (`[s → s]`) and `park`. `add` and `submit` subjects stay **plain**
 (`wf({type}): submit {id}`, exactly the item-2 format above): their target state is derivable from the
 type's state machine in `memory.yaml`, so the bracket would add nothing a reader or `memory history`
-cannot already resolve. Ratified by `dl-054-submit-commit-subject-bracket` (option 2), which chose the
+cannot already resolve. `assign` (`element.set_release`) is plain too, because it never changes
+`status` (`spec-008` §2). Ratified by `dl-054-submit-commit-subject-bracket` (option 2), which chose the
 form already written here over the hand-made bracketed `submit` subjects that accumulated in this
 repository's history; those stay readable — `src/memory/audit.ts` parses both shapes, and its consistency check
 skips a plain `add`/`submit` subject — they simply stop being produced. The split applies to the CLI
@@ -291,6 +292,8 @@ the approver-gated verbs only". `dl-079` (A) ratified the bracketed `start`, `fi
 practice, and `amend` (`dl-108`) and `park` (`dl-110`) follow them. `spec-003`'s Consequences carried
 this amendment to the `dl-079` task. The sentence now names the table and lists the bracketed verbs.
 `add` and `submit` stay plain: `dl-054` holds, and the approver ruled at `release-planning` that it
-prevails over `dl-106` W1 (a) (R20). Item 2's format and the Tools are unchanged. Edited in place without a
+prevails over `dl-106` W1 (a) (R20). At `task-126`'s review (2026-10-01) the approver added
+`assign` to the list as `element.set_release`'s verb. It is plain, because it never changes
+`status`, and the sentence says so. Item 2's format and the Tools are unchanged. Edited in place without a
 supersede or a state change, per the `spec-001` precedent `dl-041` cites (`dl-047`: no `version:`
 field).

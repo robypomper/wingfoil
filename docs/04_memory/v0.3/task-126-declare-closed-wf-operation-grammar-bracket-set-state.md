@@ -222,7 +222,36 @@ stays `in-review`. Findings and fixes:
    (`6437dbc4`, `50e57a04`, `28e41379`), the 7 single-hop mismatches, and the 11 unparseable
    brackets (green, above).
 
-**Held:** `element.set_release` → `amend`. It conflicts with `task-127`, which makes `adr` not
-amendable and requires approver authority, while `release-planning`'s `build-backlog` is run by
-`product-owner` with no approval and stamps `adr` elements too. The approver is ruling on it. The
-ruling goes into `spec-008` §2 when it arrives.
+**Held, then ruled:** `element.set_release` → `amend` conflicts with `task-127`, which makes `adr`
+not amendable and requires approver authority, while `release-planning`'s `build-backlog` is run by
+`product-owner` with no approval and stamps `adr` elements too.
+
+**Approver ruling (Roberto, 2026-10-01).** R20/Q6 is reversed for `element.set_release`. `assign`
+joins the closed list. It carries no approver authority, changes only the `release` field, applies to
+every type (`adr` included), and never changes `status`. `amend` stays as `dl-108`/`task-127` define
+it. The ruling **supersedes design decision 1** of this task (`set_release` → `amend`). It also
+supersedes `release-planning-rel-v0.3-plan`'s R20 on this point. That plan is `done` and was not
+edited; the coordinator records the change in the dev-loop plan.
+
+Applied:
+- **red** `b2963a85`. The canonical form, `wf({type}): assign release {version} to {id}, …` with no
+  bracket, reads as `assign`; the four practised subjects (`git log main --format=%s | grep -E
+  '^wf\([a-z-]+\): assign '`) are in the test verbatim. `npx jest test/memory/audit.test.ts` → **1
+  failed, 61 passed**. The companion test, "an `assign` subject outside the canonical form reads
+  `null`", is characterization: it passed already, because `assign` was undeclared.
+- **green** `4d33f459`. `assign` is added to `MEMORY_OPERATIONS`, and `ASSIGN_SUBJECT_RE` admits
+  only the canonical form. The four historical subjects already have that form, so they now read
+  `assign`, and history is not rewritten (`dl-035`).
+- **Docs.** `spec-008` §2 has eleven verbs, an `assign` row (bracket: none), and the `set_release`
+  paragraph rewritten to `assign` (no `Approver:`, `release` only), with a Revision note dated
+  2026-10-01. In `spec-003`, the `set_release` row names `assign`, the `amend` row returns to
+  `dl-108` alone, a new `assign` row is added, the Consequences item names the outcome, and `assign`
+  leaves the undeclared list; there is a Revision note. `spec-004` §4.3 now says `assign` is plain.
+  `docs/cli-reference.md`'s unreleased paragraph lists eleven verbs.
+
+**Counts after the ruling.** `npm run build`, then `parseMemoryOperation` over `git log main
+--format=%s` gives 1772 `wf(` subjects: approve 532, submit 495, add 215, sync 197, finalize 133,
+start 113, reject 36, assign 4, deprecate 2, and `null` **45**. Before the ruling it was 49. The 45
+are 27 verbless, 7 `plan`, 3 `start-fix`, 3 `schedule`, 2 `mark-released`, 2 `enter-releasing` and
+1 `deferred`. These counts are on `main`; the design section's 1774 subjects were counted on this
+branch.

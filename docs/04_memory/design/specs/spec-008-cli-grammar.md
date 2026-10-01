@@ -99,7 +99,7 @@ wf({type}): {verb} {id1}, {id2}[ [{s0} → {s1}( → {sN})*]]
 ```
 
 - `{type}` is a `memory.yaml` type key. `{verb}` is the token after `: ` up to the first whitespace.
-- `{verb}` is one of the ten verbs below and **no other**. The list is closed and declared
+- `{verb}` is one of the eleven verbs below and **no other**. The list is closed and declared
   (`dl-079` (A)); a new verb is a change to this table and to `spec-003`'s verb table together.
 - The bracket closes the subject. `→` (U+2192) is written; `->` is read as its equal (`bug-137`).
 
@@ -113,23 +113,28 @@ wf({type}): {verb} {id1}, {id2}[ [{s0} → {s1}( → {sN})*]]
 | `start`     | a `set_state` that opens work on an element                                | `[from → to]` |
 | `finalize`  | a `set_state` into the last state of the type's `sequence`; `workflow end` for a plan | `[from → to]` |
 | `sync`      | `<type>.sync_state` (`bug.sync_state`, `dl-045`)                           | `[from → to]`, or a chain `[s0 → s1 → … → sN]` |
-| `amend`     | `memory amend` (`dl-108`); `element.set_release` (below)                   | `[s → s]` |
+| `amend`     | `memory amend` (`dl-108`)                                                  | `[s → s]` |
 | `park`      | `memory park` (`dl-110`)                                                   | `[in-progress → backlog]` |
+| `assign`    | `element.set_release` (below)                                              | none |
 
 **Which verb a `set_state` emits** (`spec-003` verb table). `approve` when the phase declares
 `approval:`. Otherwise `finalize` when the target is the last state of the type's `sequence`.
 Otherwise `start`.
 
-**`element.set_release` emits `amend`** (approver ruling R20, backlog question Q6; `assign` is not
-added to the list). The token writes the `release` field and leaves `status` as it is. That is
-`dl-108`'s definition of an amendment: a content change on an element in any state, with `status`
-untouched. `dl-108` also lists the practised `wf(tech-spec): assign release v0.2 to spec-015` among
-the amendments the verb exists to record. The subject is `wf({type}): amend {id} [{s} → {s}]`. The
-body carries what `dl-108` A2 (i) requires of an amendment: an `Approver:` line and a `Reason:` block
-that names the release stamped. The stamp records a scope the approver ruled at `release-planning`,
-so the approver's identity is the right one on it. No other listed verb fits. `sync` recomputes a
-state from linked elements, `start` and `finalize` move a state, and each of them would make an
-unchanged `status` read as a transition.
+**`element.set_release` emits `assign`** (approver ruling 2026-10-01, which reverses
+`release-planning`'s R20/Q6 on this point). `assign` writes the `release` field and nothing else.
+It may be used on every type, `adr` included, and never changes `status`. It is not an approval: the
+commit carries no `Approver:` line, and no approver authority is checked. The subject is the
+canonical form, the one the four practised `assign` commits already have
+(`git log --format=%s | grep -E '^wf\([a-z-]+\): assign '`):
+
+```
+wf({type}): assign release {version} to {id1}, {id2}
+```
+
+Because `status` does not change, the subject has no bracket. `memory history` reads `assign` only
+in this form. Any other `assign` subject reads `operation: null`. `amend` stays as `dl-108` defines
+it: approver-gated, with per-type amendability. It is not what `set_release` emits.
 
 **A chained bracket** is read from its first state to its last. Those two states are compared with
 the frontmatter before and after the commit. Given the type's machine, every hop must be one of its
@@ -149,7 +154,7 @@ the consistency check reads no bracket in them:
 - the records outside the `wf()` grammar: `workflow: finalize …` (`spec-017` §7.9) and
   `agent: record …` (`spec-016`);
 - every verb outside the list. History is not rewritten (`dl-035`), so the practised `start-fix`,
-  `schedule`, `plan`, `enter-releasing`, `mark-released`, `assign`, `deferred` and the early verbless
+  `schedule`, `plan`, `enter-releasing`, `mark-released`, `deferred` and the early verbless
   `wf(task): {id} [a → b]` stay in the record and read as `null`.
 
 ### 3. Commander.js negatable-boolean pattern (`--no-color`, `--no-interactive`)
@@ -664,3 +669,14 @@ approver's confirmation at its review. `src/memory/audit.ts` reads the grammar
 (`parseMemoryOperation`, `verifyTransitionConsistency`). No section outside §2 changes. Edited in
 place without a supersede or a state change, per `dl-047-tech-specs-carry-no-version-field` (there is
 no `version:` field to bump) and the `spec-001` precedent the 2026-09-17 revision cites.
+
+**Revision (2026-10-01) — `element.set_release` emits `assign`, per the approver's ruling of
+2026-10-01, carried out by `task-126` at its review.** The ruling reverses `release-planning`'s R20/Q6
+on this point. The 2026-09-30 revision above rebound the token to `amend`, as R20 asked, but the
+independent review found that this conflicts with `amend` as `dl-108`/`task-127` define it.
+`amend` is approver-gated and amendability is per type (no `adr`), while `release-planning`'s
+`build-backlog` runs as `product-owner`, with no approval, and stamps `adr` elements too. `assign`
+therefore joins the closed list as the eleventh verb. It writes only `release`, may be used on every
+type, never changes `status`, carries no `Approver:` and has no bracket. Its subject is the canonical
+form history already has. The `amend` row loses `element.set_release`, and `assign` leaves the list of
+undeclared practised verbs. Edited in place without a supersede or a state change (`dl-047`).
