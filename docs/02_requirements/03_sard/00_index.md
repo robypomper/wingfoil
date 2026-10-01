@@ -114,7 +114,7 @@ chain is recorded in each requirement's `Traceability` field in the part files 0
 
 ### Verification results (2026-06-26)
 
-> Recorded when the registry held 43 requirements. `REQ-STATE-10` (added 2026-10-01, `task-141`, ratified by the approver) carries a
+> Recorded when the registry held 43 requirements. `REQ-STATE-10` (added 2026-10-01, `task-141`) carries a
 > `Fit Criterion:` line, so the 100% coverage above still holds.
 
 | Check                                    | Result                                                                       |
