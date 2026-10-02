@@ -19,7 +19,8 @@
 import { execFileSync, spawnSync } from 'child_process';
 
 import { E_GIT_READ_FAILED, E_INVALID_REVISION, StorageError } from './errors';
-import { runGitReadBytes } from './git-read';
+import { runGitRead, runGitReadBytes } from './git-read';
+import type { GitReadOptions } from './git-read';
 
 /** Options for {@link commitPaths} — carries the git-author/env override used by callers (e.g. task-029's wizard). */
 export interface CommitOptions {
@@ -60,6 +61,14 @@ function probeGit(root: string, args: readonly string[], options: CommitOptions)
     env: options.env ? { ...process.env, ...options.env } : process.env,
     stdio: ['ignore', 'pipe', 'ignore'],
   });
+}
+
+/** git's exit status for `fatal:` — an absent path, an unresolvable revision, no repository. */
+const GIT_FATAL = 128;
+
+/** {@link CommitOptions} as the read helper takes them, with the exit statuses that are answers. */
+function gitReadOptions(options: CommitOptions, accepted: readonly number[]): GitReadOptions {
+  return options.env ? { accepted, env: options.env } : { accepted };
 }
 
 /**
@@ -110,20 +119,28 @@ export function commitPaths(
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 /**
- * The content of `path` at revision `rev`, or `null` when the path does not exist there (git exits
- * non-zero, which `execFileSync` raises).
+ * The content of `path` at revision `rev`, or `null` when git answers with its `fatal:` exit `128`:
+ * the path is absent there, or `rev` does not resolve (or `root` is no repository).
+ *
+ * Read through `runGitRead` (`./git-read`, task-142 review): stderr is captured, never inherited, and
+ * the buffer is `GIT_READ_MAX_BUFFER`. Before, a document past Node's 1 MiB default made
+ * `execFileSync` throw `ENOBUFS` and a blanket `catch` answered `null` — "absent" for a document that
+ * is there, which `memory amend`, the loaders and the write guard turned into a wrong refusal. A
+ * failure that is not git's answer — git that cannot be spawned, an answer past the buffer — now
+ * throws `StorageError` `E_GIT_READ_FAILED`. Exit `128` stays `null`: git gives it to an absent path
+ * and to an unreadable object alike, and this read does not tell them apart.
  *
  * `rev` is any revision git accepts before a `:` — a sha, `HEAD`, or the index stage `:0`, which is
  * how a caller reads what the user has **staged** as opposed to what is in the working tree. The two
  * can disagree, and the difference is load-bearing: `git add` would silently replace a staged version
  * with the working-tree one.
+ *
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot be spawned or its answer exceeds
+ *   the read buffer (task-142 review).
  */
 export function readPathAtRev(root: string, rev: string, path: string, options: CommitOptions = {}): string | null {
-  try {
-    return probeGit(root, ['show', `${rev}:${path}`], options);
-  } catch {
-    return null;
-  }
+  const run = runGitRead(root, ['show', `${rev}:${path}`], gitReadOptions(options, [0, GIT_FATAL]));
+  return run.status === GIT_FATAL ? null : run.stdout;
 }
 
 /**
@@ -205,7 +222,9 @@ const LS_TREE_BLOB_RECORD = /^\d+ blob [0-9a-f]+\t/;
  * @param prefix - Root-relative directory to limit the listing to; **omitted or empty lists the whole
  *   tree**, because `git ls-tree -- ''` is an error rather than a match-all. Passed verbatim after
  *   `--`, so a path that looks like a flag is never misread.
- * @returns The paths, or `null` when `rev` does not resolve.
+ * @returns The paths, or `null` when `rev` does not resolve (git's exit `128`).
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot be spawned or its answer exceeds
+ *   the read buffer (task-142 review).
  */
 export function listPathsAtRev(
   root: string,
@@ -214,15 +233,12 @@ export function listPathsAtRev(
   options: CommitOptions = {},
 ): string[] | null {
   const pathspec = prefix.length === 0 ? [] : ['--', prefix];
-  let records: string;
-  try {
-    // `probeGit`: an unresolvable revision is an expected answer here, and git's `fatal: Not a valid
-    // object name` must not reach the user's terminal beside the CLI's own message.
-    records = probeGit(root, ['ls-tree', '-r', '-z', '--full-tree', rev, ...pathspec], options);
-  } catch {
-    return null;
-  }
-  return records
+  // `runGitRead` (task-142 review): an unresolvable revision is git's exit `128`, an expected answer
+  // here, and its `fatal: Not a valid object name` stays in a captured pipe. A listing past Node's
+  // 1 MiB default no longer reads as "this revision does not resolve".
+  const run = runGitRead(root, ['ls-tree', '-r', '-z', '--full-tree', rev, ...pathspec], gitReadOptions(options, [0, GIT_FATAL]));
+  if (run.status === GIT_FATAL) return null;
+  return run.stdout
     .split('\0')
     .filter((record) => LS_TREE_BLOB_RECORD.test(record))
     .map((record) => record.slice(record.indexOf('\t') + 1))
@@ -347,10 +363,12 @@ export function readPathsAtRev(
 
 // --- Listing a directory at MANY revisions in a constant number of processes (task-142) -------
 
-/** A tree entry's mode for a subtree, as git writes it inside a tree object (no leading zero). */
-const TREE_MODE = '40000';
-/** A gitlink (submodule) entry's mode: an entry of the tree, but not a file anyone can read back. */
-const GITLINK_MODE = '160000';
+/** The object-type bits of a tree entry's mode (`S_IFMT`). */
+const MODE_TYPE_MASK = 0o170000;
+/** Type bits of a subtree. Compared as bits, not as text: a legacy writer's zero-padded `040000` is a directory too (task-142 review). */
+const MODE_TREE = 0o040000;
+/** Type bits of a gitlink (submodule): an entry of the tree, but not a file anyone can read back. */
+const MODE_GITLINK = 0o160000;
 
 /** One parsed answer of `git cat-file --batch`: the object's type and bytes, or `null` for `missing`. */
 interface BatchObject {
@@ -414,12 +432,17 @@ function treeEntries(tree: Buffer, oidBytes: number): { mode: string; name: stri
  * process count is the depth of the directory under `prefix` plus one, and branches that share a
  * subtree (most of them, most of the time) read it once.
  *
- * The same answer as {@link listPathsAtRev}, by construction: blobs only (a symbolic link is a blob,
- * a gitlink is not a file), the path bytes as UTF-8, sorted (REQ-SYS-07).
+ * It answers what {@link listPathsAtRev} answers, unioned — compared case by case in
+ * `test/storage/list-paths-at-revs.test.ts` rather than claimed by construction: blobs only (a symbolic
+ * link is a blob, a gitlink is not a file), a subtree recognised by its mode's **type bits** so a
+ * legacy zero-padded `040000` is still a directory, the path bytes as UTF-8, sorted (REQ-SYS-07). The
+ * prefix is taken in canonical spelling — leading `./` segments and trailing `/` are dropped — and a
+ * prefix naming a file lists that file unless it ends in `/`. Other non-canonical spellings (`..`,
+ * `//` inside) are not normalised, and `ls-tree`'s pathspec matching may answer them differently.
  *
  * @param root - Project root (the git repository).
  * @param revs - Revisions naming commits — best full shas. One that names no commit fails the read.
- * @param prefix - Root-relative directory (a trailing `/` is optional); empty lists whole trees.
+ * @param prefix - Root-relative directory or file, canonical spelling (see above); empty lists whole trees.
  * @returns The union of the paths, sorted.
  * @throws {@link StorageError} `E_GIT_READ_FAILED` when a revision names no commit or tree, or the
  *   batch read fails; `E_INVALID_REVISION` for a revision that cannot travel on the batch protocol.
@@ -435,7 +458,8 @@ export function listPathsAtRevs(
       throw new StorageError(E_INVALID_REVISION, `revision ${JSON.stringify(rev)} cannot be read in a batch: it holds a newline, a carriage return, a ':' or a NUL`);
     }
   }
-  const directory = prefix.replace(/\/+$/, '');
+  // Canonical spelling: `git ls-tree --full-tree -- ./docs/` reads `docs/`, and so must the batch.
+  const directory = prefix.replace(/^(?:\.\/+)+/, '').replace(/\/+$/, '');
   if (/[\n\r]/.test(directory)) {
     // Not expressible on the line-based batch protocol: read revision by revision instead.
     const paths = new Set<string>();
@@ -451,6 +475,7 @@ export function listPathsAtRevs(
   // prefix, its tree at that prefix — absent when the revision has no such directory.
   const requests = revs.flatMap((rev) => (directory.length === 0 ? [`${rev}^{tree}`] : [`${rev}^{tree}`, `${rev}:${directory}`]));
   const answers = catFileBatch(root, requests, options);
+  const paths = new Set<string>();
   const cache = new Map<string, Buffer>();
   let frontier: { oid: string; dir: string }[] = [];
   let oidBytes = 20;
@@ -463,6 +488,11 @@ export function listPathsAtRevs(
       }
       oidBytes = answer.oid.length / 2;
       if (directory.length > 0) continue;
+    } else if (answer !== null && answer.type === 'blob' && !prefix.endsWith('/')) {
+      // A prefix naming a file lists that file, as `ls-tree -- <file>` does; with a trailing `/` it
+      // names a directory, and a file there lists nothing.
+      paths.add(directory);
+      continue;
     } else if (answer === null || answer.type !== 'tree') {
       continue;
     }
@@ -472,7 +502,6 @@ export function listPathsAtRevs(
   }
 
   // Each later round reads one level deeper, fetching only the subtrees not already read.
-  const paths = new Set<string>();
   const seen = new Set<string>();
   while (frontier.length > 0) {
     const unread = [...new Set(frontier.map((node) => node.oid).filter((oid) => !cache.has(oid)))].sort();
@@ -487,8 +516,9 @@ export function listPathsAtRevs(
       seen.add(key);
       for (const entry of treeEntries(cache.get(node.oid) as Buffer, oidBytes)) {
         const path = node.dir.length === 0 ? entry.name : `${node.dir}/${entry.name}`;
-        if (entry.mode === TREE_MODE) next.push({ oid: entry.oid, dir: path });
-        else if (entry.mode !== GITLINK_MODE) paths.add(path);
+        const type = Number.parseInt(entry.mode, 8) & MODE_TYPE_MASK;
+        if (type === MODE_TREE) next.push({ oid: entry.oid, dir: path });
+        else if (type !== MODE_GITLINK) paths.add(path);
       }
     }
     frontier = next;
