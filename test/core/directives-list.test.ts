@@ -413,6 +413,7 @@ describe('directivesList — the warnings channel (dl-042 A + D)', () => {
 
 // task-143 (bug-125), RED-FIRST: a dangling symlink no longer takes the whole listing down — it is
 // skipped and named on the listing's own warnings channel (dl-042), ahead of the shadow warnings.
+// Transcribes the P3.4 feature's "Edge - a directive entry that cannot be read" scenario.
 describe('directivesList — a dangling symlink is skipped and reported (task-143, bug-125)', () => {
   let repo: string;
 
