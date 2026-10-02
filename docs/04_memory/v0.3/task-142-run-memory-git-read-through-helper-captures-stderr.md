@@ -2,7 +2,7 @@
 id: "task-142-run-memory-git-read-through-helper-captures-stderr"
 type: task
 title: "Run every Memory git read through one helper that captures stderr, sets `maxBuffer` and fails loudly"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "medium"
