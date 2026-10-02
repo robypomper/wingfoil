@@ -112,8 +112,8 @@ property; this task strengthens the evidence behind it, not the contract.
 AC 1: the helper compares status (untracked included) and `HEAD` (`002f0529`); the planted
 file-creating handlers (two) and committing handlers (two, one with an empty commit) each fail it
 (`channel-enumeration-persistence.test.ts`, red 4 failed → green 6 passed). Only test files changed.
-Same-class search outside MCP: `grep -rln "byte-for-byte\|persists nothing\|writes nothing" test/`
-lists ~20 non-MCP suites with their own "writes nothing" assertions; they are outside this task's
+Same-class search outside MCP: `grep -rln "byte-for-byte\|persists nothing\|writes nothing" test/ | grep -v "^test/mcp/" | wc -l`
+→ 26 non-MCP files with their own "writes nothing" assertions; they are outside this task's
 scope (REQ-SEC-05's read channel) and were not audited — reported to the coordinator as a candidate.
 
 Submitted for the approver's review; `bug-036` synced to `in-review`.
