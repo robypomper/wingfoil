@@ -2,7 +2,7 @@
 id: task-247-decide-every-memory-transition-from-the-element-s-committed-status-and-resolve-its-document-at-head
 type: task
 title: "Decide every memory transition from the element's committed status and resolve its document at HEAD"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "high"           # optional — high | medium | low
