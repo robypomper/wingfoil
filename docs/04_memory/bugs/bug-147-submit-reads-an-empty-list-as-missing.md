@@ -2,7 +2,7 @@
 id: "bug-147-submit-reads-an-empty-list-as-missing"
 type: bug
 title: "`memory submit`'s required-field check treats a present-but-empty required list as \"missing\", indistinguishable from an absent field"
-status: in-progress
+status: in-review
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
