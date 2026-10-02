@@ -123,6 +123,12 @@ describe('requireUnmodifiedTarget — a target beyond a symbolic link is refused
       expectUninspectableRefusal(requireUnmodifiedTarget(repo, `${CUSTOM_DIR}/legacy-rule.md`), `${CUSTOM_DIR}/legacy-rule.md`);
     });
 
+    // task-247: `memory submit`/`amend` no longer reach this guard through such a document (the HEAD
+    // preamble refuses it first), so it is pinned here directly, as the defence it still is.
+    it('requireNoDivergentStage refuses a target it cannot inspect, naming the path and the symbolic link', () => {
+      expectUninspectableRefusal(requireNoDivergentStage(repo, `${CUSTOM_DIR}/legacy-rule.md`), `${CUSTOM_DIR}/legacy-rule.md`);
+    });
+
     it('refuses a MODIFIED target it cannot inspect (bug-118 repro)', () => {
       writeFileSync(join(realDir(placement), 'legacy-rule.md'), 'modified\n', 'utf-8');
       expectUninspectableRefusal(requireUnmodifiedTarget(repo, `${CUSTOM_DIR}/legacy-rule.md`), `${CUSTOM_DIR}/legacy-rule.md`);

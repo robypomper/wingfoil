@@ -18,7 +18,8 @@
  * operations the CLI and the MCP Tools dispatch to.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { CORE_MODULES } from '../../src/core';
@@ -214,6 +215,36 @@ describe('task-247 — a transition decides from the status committed at HEAD (b
     expect(head(repo)).toBe(before);
   });
 
+  // Resolved at HEAD, the document is a regular file; the working tree swapped it for a link out of
+  // the project. The write-side confinement guard (REQ-SEC-06, bug-120) still answers on the disk.
+  it.each([
+    ['memorySubmit', 'task-001', 'docs/memory/v0.3/task-001.md', taskDoc('task-001', 'draft', 'Elsewhere.')],
+    ['memoryAmend', 'bug-001', 'docs/memory/bugs/bug-001.md', bugDoc('bug-001', 'open', 'Steps, elsewhere.')],
+  ] as const)(
+    '%s: a committed document replaced by a symbolic link out of the project in the working tree is refused before the write',
+    async (verb, id, path, planted) => {
+      const outside = mkdtempSync(join(tmpdir(), 'wf-outside-'));
+      try {
+        const target = join(outside, 'doc.md');
+        writeFileSync(target, planted);
+        unlinkSync(join(repo, path));
+        symlinkSync(target, join(repo, path));
+        const before = head(repo);
+
+        const result = await run(verb, repo, id);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(exitCodeForResult(result)).toBe(1);
+        expect(result.error.message).toContain(path);
+        expect(readFileSync(target, 'utf-8')).toBe(planted);
+        expect(head(repo)).toBe(before);
+      } finally {
+        removeTempDir(outside);
+      }
+    },
+  );
+
   it.each(VERBS)('AC3: %s on a document HEAD holds but the working tree deleted is not "document not found"', async (verb) => {
     unlinkSync(join(repo, 'docs/memory/bugs/bug-001.md'));
     const before = head(repo);
@@ -279,6 +310,29 @@ describe('task-247 — a document with no commit at HEAD is refused by every tra
     if (result.ok) return;
     expect(exitCodeForResult(result)).toBe(1);
     expect(result.error.message).toContain('memory add');
+    expect(head(repo)).toBe(before);
+  });
+
+  it('an unparsable working-tree document elsewhere cannot change the refusal: the explaining scan is best-effort', async () => {
+    writeFixtureFile(repo, 'docs/memory/bugs/bug-500.md', '---\nid: [unclosed\n---\n');
+    const result = await run('memorySubmit', repo, 'bug-404');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('NOT_FOUND');
+    expect(result.error.message).toBe('document not found: bug-404');
+  });
+
+  it('a working-tree edit that renames the id of a committed document is refused naming the field, not as a missing commit', async () => {
+    writeFixtureFile(repo, 'docs/memory/bugs/bug-001.md', bugDoc('bug-001', 'draft'));
+    commitAll(repo, 'bug-001');
+    writeFixtureFile(repo, 'docs/memory/bugs/bug-001.md', bugDoc('bug-002', 'draft'));
+    const before = head(repo);
+    const result = await run('memorySubmit', repo, 'bug-002');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toContain("frontmatter field 'id'");
+    expect(result.error.message).toContain("'bug-001'");
     expect(head(repo)).toBe(before);
   });
 

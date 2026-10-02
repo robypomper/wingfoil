@@ -114,15 +114,13 @@ function uncommittedDocumentPath(root: string, memoryYaml: MemoryYaml, id: strin
 
 /**
  * The frontmatter `id` commit `sha` records for `path`, or `undefined` when the commit does not hold
- * the path (or holds it unparsable). Like {@link uncommittedDocumentPath}, it only words a refusal.
+ * the path. Like {@link uncommittedDocumentPath}, it only words a refusal. It needs no guard against
+ * an unparsable document: it runs after a full scan at the same sha found nothing, and that scan has
+ * already parsed (or thrown on) every document the commit holds under the scan roots.
  */
 function recordedIdAt(root: string, sha: string, path: string): string | undefined {
-  try {
-    const id = loadMemoryDocumentSummaryAtRev(root, sha, path)?.frontmatter.id;
-    return id === undefined ? undefined : String(id);
-  } catch {
-    return undefined;
-  }
+  const id = loadMemoryDocumentSummaryAtRev(root, sha, path)?.frontmatter.id;
+  return id === undefined ? undefined : String(id);
 }
 
 /**
