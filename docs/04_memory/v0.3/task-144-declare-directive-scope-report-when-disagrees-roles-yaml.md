@@ -2,7 +2,7 @@
 id: "task-144-declare-directive-scope-report-when-disagrees-roles-yaml"
 type: task
 title: "Declare a directive's `scope` and report when it disagrees with `roles.yaml`'s `global:` list"
-status: in-progress
+status: in-review
 release: "v0.3"
 kind: "fix"
 priority: "medium"
