@@ -26,6 +26,7 @@
  * `resolveRoleDirectives` warnings — the dl-029 no-assignments warning and the dangling-binding
  * warning. `entries` is unchanged: this listing still does not deduplicate — see the `shadowed id` cases.
  */
+import { cpSync } from 'fs';
 import { join } from 'path';
 
 import { CORE_MODULES } from '../../src/core';
@@ -79,7 +80,7 @@ async function listOk(root: string, options?: Record<string, string>): Promise<r
   return (await listingOk(root, options)).entries;
 }
 
-function directiveDoc(id: string, name: string, scope?: 'global'): string {
+function directiveDoc(id: string, name: string, scope?: string): string {
   const scopeLine = scope === undefined ? [] : [`scope: ${scope}`];
   return [`---`, `id: ${id}`, `name: "${name}"`, `type: directive`, `kind: custom`, `title: "${name}"`, ...scopeLine, `---`, ``, `# ${name}`, ``].join('\n');
 }
@@ -446,14 +447,32 @@ global:
     expect(entry?.assignment).toBe('developer');
   });
 
-  it('a directive roles.yaml `global:` lists that does not declare `scope: global` is named in `warnings` (the reverse)', async () => {
+  // Approver ruling R3 (2026-10-02): an ABSENT scope is not a disagreement — only a declared one is.
+  it('a directive roles.yaml `global:` lists that declares no `scope` is not a disagreement', async () => {
     writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
     writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets'));
     const listing = await listingOk(repo);
+    expect(listing.warnings).toEqual([]);
+    expect(listing.entries.find((e) => e.frontmatter.id === 'security-secrets')?.global).toBe(true);
+  });
+
+  it('a directive roles.yaml `global:` lists that declares another scope is named in `warnings` (the reverse)', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets', 'team'));
+    const listing = await listingOk(repo);
     expect(listing.warnings).toEqual([
-      "directive 'security-secrets' is listed in roles.yaml 'global', but directives/custom/security-secrets.md does not declare scope: global; roles.yaml decides: global",
+      "directive 'security-secrets' declares scope: team in directives/custom/security-secrets.md, but roles.yaml 'global' lists it; roles.yaml decides: global",
     ]);
     expect(listing.entries.find((e) => e.frontmatter.id === 'security-secrets')?.global).toBe(true);
+  });
+
+  // Approver ruling R2 (2026-10-02): a value other than `global` is a listing warning, never a failure.
+  it('a `scope` spec-013 does not define is named in `warnings`, and the listing still succeeds', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'team'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets'));
+    expect((await listingOk(repo)).warnings).toEqual([
+      "directive 'testing' declares scope: team in directives/custom/testing.md, which spec-013 does not define (only global); it has no effect",
+    ]);
   });
 
   it('the two sites agreeing yields no scope warning', async () => {
@@ -488,7 +507,7 @@ global:
 
   it('under --role the warnings stay exactly resolveRoleDirectives\' (dl-042 D): the role view is not the config audit', async () => {
     writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'global'));
-    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets', 'team'));
     const expected = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer').warnings;
     expect((await listingOk(repo, { role: 'developer' })).warnings).toEqual(expected);
   });
@@ -500,5 +519,24 @@ describe('directivesList — the live configuration declares `scope` consistentl
   it('reports no warning on this repository', async () => {
     const liveRoot = join(__dirname, '..', '..');
     expect((await listingOk(liveRoot)).warnings).toEqual([]);
+  });
+});
+
+// Approver ruling R3 (2026-10-02): a project scaffolded by the released `wingfoil@0.2.2 init` — whose
+// directives declare no `scope` — lists with 0 warnings. The fixture is that build's output, captured
+// verbatim (`node node_modules/wingfoil-released/dist/cli.js init --template Scrum`, 0.2.2):
+// `.wingfoil/roles.yaml` and `.wingfoil/directives/**`.
+describe('directivesList — a project made by wingfoil@0.2.2 init (task-144 review, R3)', () => {
+  it('reports no warning', async () => {
+    const repo = makeTempGitRepo();
+    try {
+      const fixture = join(__dirname, 'fixtures', 'init-0.2.2');
+      cpSync(join(fixture, '.wingfoil'), join(repo, '.wingfoil'), { recursive: true });
+      const listing = await listingOk(repo);
+      expect(listing.entries).toHaveLength(10);
+      expect(listing.warnings).toEqual([]);
+    } finally {
+      removeTempDir(repo);
+    }
   });
 });

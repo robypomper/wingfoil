@@ -74,6 +74,12 @@ describe.each(rendered())('built-in directive template %s', (id, content) => {
     for (const key of Object.keys(frontmatterOf(content))) expect(DECLARED_KEYS).toContain(key);
   });
 
+  // Approver ruling R3 (2026-10-02): a shipped template must not encode one project's binding —
+  // whether a directive is global is `roles.yaml`'s to say.
+  it('declares no `scope`', () => {
+    expect(frontmatterOf(content)).not.toHaveProperty('scope');
+  });
+
   it('passes the REQ-SEC-10 built-in integrity guard', () => {
     expect(verifyBuiltinTemplates([{ name: id, kind: 'directive', content }])).toBeNull();
   });
