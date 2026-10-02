@@ -2,7 +2,7 @@
 id: bug-167-publish-secrets-dry-run-fails-under-coverage
 type: bug
 title: "`test/cli/publish-secrets.test.ts`'s \"publishes (dry run) the tarball the step names\" fails under `npx jest --coverage` and passes on its own and under plain `npm test`"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"
@@ -46,4 +46,17 @@ passes. The failure output was not captured in the report, so the fix task recor
 
 ## Triage & Execution Notes
 
-<!-- triage (bug-ingest): severity call; fix: pointer to the fix task(s). -->
+- fix (`task-146`, 2026-10-02): **not reproduced.** The baseline `npx jest --coverage` on
+  `838746fc` passed, 200 suites / 3363 tests, exit 0, at load average ~9–13. This failure is **not**
+  `bug-181`'s: only `npm run -s` exports `npm_config_loglevel=silent`. `npm run env | grep -i loglevel`
+  and `npx -c env | grep -i loglevel` print nothing (verified at `task-146`'s review). The recorded
+  commands are `npm run test:coverage` without `-s` (`task-120`'s Execution Notes) and
+  `npx jest --coverage` (this bug), and neither exports the loglevel. The cause stays unknown. What
+  guards the remaining hypothesis (a real `npm` spawn outlasting a timeout under load):
+  - the case's `beforeEach` runs a real `npm pack` under jest's default 5 s hook timeout, and now
+    declares 60 s like the cases;
+  - green full coverage runs under heavy parallel load, recorded in `task-146`: 3 consecutive
+    `npx jest --coverage` runs at load ~31–73 and one `npm run -s test:coverage` run at ~45–50.
+
+  Closed as **"not reproduced; hypothesis guarded"**. If it recurs, capture the failure output
+  first.

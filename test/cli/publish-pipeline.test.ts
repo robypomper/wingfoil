@@ -22,6 +22,8 @@ import { join } from 'node:path';
 
 import { load as yamlLoad } from 'js-yaml';
 
+import { withoutCallerNpmConfig } from './helpers/npm-env';
+
 const REPO_ROOT = join(__dirname, '..', '..');
 const WORKFLOW_PATH = join(REPO_ROOT, '.github', 'workflows', 'publish.yml');
 
@@ -97,9 +99,13 @@ describe('bin entry (bug-020) — spec-015 §1 amended: no leading `./`', () => 
     const result = spawnSync(
       'npm',
       ['publish', '--dry-run', '--offline', '--ignore-scripts', '--registry', 'http://localhost:4873/', '--provenance=false'],
-      { cwd: REPO_ROOT, encoding: 'utf-8' },
+      // None of the caller's npm configuration: `npm run -s` would silence this npm (bug-181).
+      { cwd: REPO_ROOT, encoding: 'utf-8', env: withoutCallerNpmConfig(process.env) },
     );
     expect(result.status).toBe(0);
+    // npm reported the publish at all: without this, an npm that printed nothing (a caller's
+    // `npm_config_loglevel=silent`, bug-181) would pass the two absence checks below vacuously.
+    expect(`${result.stdout}${result.stderr}`).toContain(`+ wingfoil@${pkg.version}`);
     expect(result.stderr).not.toContain('auto-corrected');
     expect(result.stderr).not.toContain('bin[wingfoil]');
   });

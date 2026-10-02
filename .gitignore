@@ -7,3 +7,4 @@ coverage/
 .claude
 .idea
 .npmrc
+.jest-dist.lock*
