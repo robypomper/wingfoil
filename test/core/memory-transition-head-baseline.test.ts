@@ -162,7 +162,7 @@ describe('task-247 — a transition decides from the status committed at HEAD (b
     if (result.ok) return;
     expect(result.error.code).toBe('INVALID_TRANSITION');
     expect(exitCodeForResult(result)).toBe(1);
-    expect(result.error.message).toContain("from 'open'");
+    expect(result.error.message).toContain('illegal transition open -> ');
     expect(head(repo)).toBe(before);
     expect(readFileSync(path, 'utf-8')).toBe(edited);
   });
@@ -210,7 +210,7 @@ describe('task-247 — a transition decides from the status committed at HEAD (b
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('INVALID_TRANSITION');
-    expect(result.error.message).toContain("from 'pending'");
+    expect(result.error.message).toContain('illegal transition pending -> ');
     expect(head(repo)).toBe(before);
   });
 

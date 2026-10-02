@@ -6,8 +6,9 @@
  * A transition verb always does the same two things around its own verb-specific rules:
  *
  * 1. {@link prepareMemoryTransition} — find the document by its bare id (spec-008-cli-grammar §7), read
- *    its declared `type` and current `status`, and resolve the legal target for the verb **against the
- *    `memory.yaml` committed at `HEAD`** (task-091, `bug-081`, `dl-080` (B)). Every expected
+ *    its declared `type` and current `status`, and resolve the legal target for the verb, **all at
+ *    `HEAD`**: the committed `memory.yaml` (task-091, `bug-081`, `dl-080` (B)) and the committed
+ *    document (task-247, `bug-187`); the working tree supplies only the content. Every expected
  *    refusal is returned as a `CoreResult.error` (exit `1`), **before anything is written**, so "the
  *    state is unchanged" (P1.6 sc.2, REQ-STATE-01) holds by construction.
  * 2. {@link commitMemoryTransition} — write the new bytes and turn them into exactly one commit scoped
@@ -16,11 +17,15 @@
  * What happens in between (required-field checks, which fields change, the commit message) is the
  * verb's own business; see `memorySubmitFn` in `./index.ts`.
  */
+import { existsSync } from 'fs';
 import { join } from 'path';
 
 import {
   E_INVALID_TRANSITION,
   findMemoryDocumentById,
+  findMemoryDocumentByIdAtRev,
+  loadMemoryDocumentSummary,
+  loadMemoryDocumentSummaryAtRev,
   resolveStateMachine,
   resolveTypeTransition,
   validateFrontmatterState,
@@ -32,9 +37,11 @@ import { ValidationError } from '../validation';
 
 import { requireConfinedWriteTarget } from './confinement';
 import { requireGitIdentity, type GitIdentity } from './git-identity';
-import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
+import { loadMemoryYamlAtRev, MEMORY_YAML_PATH } from './loaders';
+import { atHeadOr, resolveRevision } from './revision';
 import { coreErr, coreOk, type CoreResult } from './types';
 import {
+  requireInspectableTarget,
   requireNoDivergentStage,
   requireUnmodifiedTarget,
   undeclaredCommittedPaths,
@@ -55,9 +62,13 @@ export interface PreparedMemoryTransition {
   readonly type: string;
   /** Root-relative POSIX path of the document. */
   readonly path: string;
-  /** The document's parsed frontmatter as read (not schema-validated). */
+  /**
+   * The document's parsed frontmatter **in the working tree** (not schema-validated) — the content a
+   * verb checks and commits. Its `id` and `type` equal `HEAD`'s; its `status` may not, and never
+   * decides anything: `from` is the committed one (task-247).
+   */
   readonly frontmatter: Readonly<Record<string, unknown>>;
-  /** The full current file content, the base for the verb's edit. */
+  /** The full working-tree file content, the base for the verb's edit. */
   readonly content: string;
   readonly from: string;
   readonly to: string;
@@ -87,41 +98,87 @@ function uncommittedMachineNote(root: string): string {
 }
 
 /**
- * Locate document `id` and resolve verb `op` on it, **against the `memory.yaml` committed at
- * `HEAD`** (`loadMemoryYamlAtHead`).
+ * The working-tree path of a document carrying frontmatter `id`, or `undefined` — read only to
+ * **explain** a refusal already decided at `HEAD`, never to decide one (the `command-baseline`
+ * directive: "the working tree may be read to explain a refusal, never to decide one"). Any failure
+ * to scan (a document elsewhere whose frontmatter does not parse) yields `undefined`, so the
+ * refusal keeps its plain wording and no branch of this read can change an outcome.
+ */
+function uncommittedDocumentPath(root: string, memoryYaml: MemoryYaml, id: string): string | undefined {
+  try {
+    return findMemoryDocumentById(root, memoryYaml, id)?.path;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The frontmatter `id` commit `sha` records for `path`, or `undefined` when the commit does not hold
+ * the path (or holds it unparsable). Like {@link uncommittedDocumentPath}, it only words a refusal.
+ */
+function recordedIdAt(root: string, sha: string, path: string): string | undefined {
+  try {
+    const id = loadMemoryDocumentSummaryAtRev(root, sha, path)?.frontmatter.id;
+    return id === undefined ? undefined : String(id);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Locate document `id` and resolve verb `op` on it, **at `HEAD`**: the `memory.yaml`, the document
+ * the id names and its current `status` are all read from the one commit `HEAD` resolves to, once
+ * (`resolveRevision`, then `loadMemoryYamlAtRev` and `findMemoryDocumentByIdAtRev` at that sha).
  *
- * The baseline is the point (task-091, `bug-081`, `dl-080` option (B)). This function takes no
- * `MemoryYaml`: a caller cannot hand it a working-tree machine even by accident, which is what makes
- * the committed baseline a property of the read itself rather than of a precondition someone must
- * remember to run. An uncommitted edit to a type's `sequence` used to decide both the transition a
- * verb performed and the `status` it committed — through `memory submit`, which requires no
- * authority — and stranded the element in a state the committed machine rejects.
+ * The baseline is the point (`spec-006-core-domain-api` §6 item 1, `dl-080` option (B)). This
+ * function takes no `MemoryYaml` and no document: a caller cannot hand it a working-tree machine or a
+ * working-tree `status` even by accident. Two defects motivated it. An uncommitted edit to a type's
+ * `sequence` used to decide the transition a verb performed (task-091, `bug-081`); and until task-247
+ * (`bug-187`) the id was looked up by scanning the working tree and `from` was the working-tree
+ * frontmatter's `status`, so an element already past `draft` at `HEAD` but edited back to `draft` on
+ * disk was submitted again, and a hand-made document no commit holds was transitioned as if `memory
+ * add` had registered it.
+ *
+ * **Content from the working tree, state from `HEAD`.** The `content` and `frontmatter` this returns
+ * are the working tree's, because that is what `memory submit` and `memory amend` commit; `from`, the
+ * `type` and the target are `HEAD`'s. The working tree must still carry the same `id` and `type` the
+ * commit records — a verb decides on one element and writes that element.
  *
  * Refusals, all returned (never thrown) and all exit `1`:
  *
- * - `HEAD` holds no `memory.yaml` → `VALIDATION`, fail-closed: with no committed machine there is no
- *   `from → to` to record, and the only fail-open available is the working tree, which is the defect.
- *   `wingfoil init` commits the scaffold, so no legitimate flow reaches this;
+ * - `HEAD` holds no `memory.yaml` (or there is no commit) → `VALIDATION`, fail-closed: with no
+ *   committed machine there is no `from → to` to record, and the only fail-open available is the
+ *   working tree, which is the defect. `wingfoil init` commits the scaffold, so no legitimate flow
+ *   reaches this;
  * - the committed `memory.yaml` does not parse or validate → `VALIDATION`, same reasoning;
- * - no document carries that frontmatter `id` → `NOT_FOUND` `document not found: <id>` (P1.6 sc.3);
+ * - no document at `HEAD` carries that frontmatter `id` → `NOT_FOUND` `document not found: <id>`
+ *   (P1.6 sc.3); when a working-tree document carries it, the message says so and names `memory add`
+ *   (task-247), since a transition acts only on an element a commit records — or, when `HEAD` holds
+ *   that path under another id, `VALIDATION` naming the renamed `id` field;
+ * - `HEAD` holds the document but the working tree deleted it → `VALIDATION`, naming the path;
+ * - the working tree changes the document's `id` or `type` → `VALIDATION`;
  * - its `type` is not registered → `NOT_FOUND` with `memory add`'s unknown-type message;
- * - its `status` is not a state of the type → `VALIDATION` `invalid state '<s>' for type '<t>'`
- *   (task-036's `validateFrontmatterState`);
+ * - its committed `status` is not a state of the type → `VALIDATION` `invalid state '<s>' for type
+ *   '<t>'` (task-036's `validateFrontmatterState`);
  * - the verb is illegal from that state → `INVALID_TRANSITION` with the `dl-032` contract message
  *   (`resolveTypeTransition`), the engine's explanation in `details.issues[0].detail`. `amend`
  *   (task-127) never takes this branch: its target is the current state.
  *
- * The last four keep their pinned messages verbatim as the first sentence;
- * {@link uncommittedMachineNote} may append a second one.
+ * The unknown-type, invalid-state and illegal-transition refusals keep their pinned messages
+ * verbatim as the first sentence; {@link uncommittedMachineNote} may append a second one.
  */
 export function prepareMemoryTransition(
   root: string,
   id: string,
   op: TransitionOp | 'amend',
 ): CoreResult<PreparedMemoryTransition> {
+  // Resolved ONCE: every read below is at this sha, so the machine and the document cannot come from
+  // two commits even if `HEAD` moves while the verb runs (task-137). No commit at all is the same
+  // answer as a commit without `memory.yaml`.
+  const sha = atHeadOr(() => resolveRevision(root, 'HEAD'), null);
   let memoryYaml: MemoryYaml | null;
   try {
-    memoryYaml = loadMemoryYamlAtHead(root);
+    memoryYaml = sha === null ? null : loadMemoryYamlAtRev(root, sha);
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
     return coreErr({
@@ -133,7 +190,7 @@ export function prepareMemoryTransition(
       details: { issues: error.issues },
     });
   }
-  if (memoryYaml === null) {
+  if (sha === null || memoryYaml === null) {
     return coreErr({
       code: 'VALIDATION',
       message:
@@ -142,9 +199,45 @@ export function prepareMemoryTransition(
     });
   }
 
-  const found = findMemoryDocumentById(root, memoryYaml, id);
+  const found = findMemoryDocumentByIdAtRev(root, sha, memoryYaml, id);
   if (!found) {
+    const onDisk = uncommittedDocumentPath(root, memoryYaml, id);
+    if (onDisk !== undefined) {
+      // A document reached through a symbolic link (its own name, or its type directory) is not a
+      // tree entry under the scan roots at HEAD, so the HEAD lookup cannot find it; the refusal is
+      // already decided, and the filesystem guard words it truthfully (bug-117, bug-120 D2).
+      const confined = requireConfinedWriteTarget(root, onDisk, 'write');
+      if (!confined.ok) return confined;
+      const inspectable = requireInspectableTarget(root, onDisk, TRANSITION_CONTRACT);
+      if (!inspectable.ok) return inspectable;
+      const recorded = recordedIdAt(root, sha, onDisk);
+      if (recorded !== undefined) {
+        return coreErr({
+          code: 'VALIDATION',
+          message:
+            `refusing to ${op} ${id}: the working tree changes frontmatter field 'id' of ${onDisk}, which HEAD records ` +
+            `as '${recorded}'. A transition acts on the element the commit records; restore the id, then retry.`,
+        });
+      }
+      return coreErr({
+        code: 'NOT_FOUND',
+        message:
+          `document not found: ${id} — ${onDisk} is not committed at HEAD, though it carries that id in the working tree. ` +
+          'A transition is decided by the status the repository records (spec-006 §6 item 1, dl-080), so it acts only ' +
+          'on a committed element; register a new element with `memory add`, then retry.',
+      });
+    }
     return coreErr({ code: 'NOT_FOUND', message: `document not found: ${id}${uncommittedMachineNote(root)}` });
+  }
+
+  const path = found.path;
+  if (!existsSync(join(root, path))) {
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `refusing to ${op} ${id}: its document '${path}' is held by HEAD but deleted in the working tree. Restore it ` +
+        `(git restore -- ${path}) and retry.`,
+    });
   }
 
   const type = found.frontmatter.type;
@@ -167,12 +260,25 @@ export function prepareMemoryTransition(
   // A missing or non-string `status` is reported as an invalid state, never as the text 'undefined'.
   const from = typeof status === 'string' ? status : String(status ?? '');
   try {
-    validateFrontmatterState(machine, type, from, found.path);
+    validateFrontmatterState(machine, type, from, path);
     // `amend` moves no state (`dl-108`): its edge is the self-loop `[s → s]` in every state, so no
     // machine lookup can refuse it. Whether the TYPE may be amended is the verb's own check.
-    const to = op === 'amend' ? from : resolveTypeTransition(memoryYaml, type, from, op, found.path);
-    const content = readDocument(join(root, found.path));
-    return coreOk({ memoryYaml, id, type, path: found.path, frontmatter: found.frontmatter, content, from, to });
+    const to = op === 'amend' ? from : resolveTypeTransition(memoryYaml, type, from, op, path);
+    // Content from the working tree: what `submit` and `amend` commit, and what the other verbs'
+    // unmodified-document guard compares with `HEAD`.
+    const { frontmatter } = loadMemoryDocumentSummary(root, path);
+    const changed = (['id', 'type'] as const).filter((key) => frontmatter[key] !== found.frontmatter[key]);
+    if (changed.length > 0) {
+      return coreErr({
+        code: 'VALIDATION',
+        message:
+          `refusing to ${op} ${id}: the working tree changes ${changed.map((key) => `frontmatter field '${key}'`).join(' and ')} ` +
+          `of ${path}, which HEAD records as ${changed.map((key) => `'${String(found.frontmatter[key])}'`).join(' and ')}. ` +
+          'A transition acts on the element the commit records; restore the recorded value, then retry.',
+      });
+    }
+    const content = readDocument(join(root, path));
+    return coreOk({ memoryYaml, id, type, path, frontmatter, content, from, to });
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
     const code = error.issues.some((issue) => issue.code === E_INVALID_TRANSITION) ? 'INVALID_TRANSITION' : 'VALIDATION';
@@ -234,10 +340,10 @@ export function beginMemoryTransition(
  *
  * **Why refusing rather than committing only the status hunk.** Partial staging is undefined here
  * before it is difficult: there are two candidate baselines on disk (the index and the working tree)
- * and they can disagree, so "only the status hunk" does not say onto which text. Worse, the verb reads
- * `status` itself from the working tree, so a hand-edited-but-uncommitted `status` would have the
- * commit record `draft → approved` under a subject declaring `pending → approved` — the audit trail
- * asserting something that did not happen, which is the defect, not a fix for it. And the edits a
+ * and they can disagree, so "only the status hunk" does not say onto which text. Worse, a
+ * hand-edited-but-uncommitted `status` riding along would have the commit record `draft → approved`
+ * under a subject declaring `pending → approved` (the subject's `from` is `HEAD`'s since task-247) —
+ * the audit trail asserting something that did not happen, which is the defect, not a fix for it. And the edits a
  * partial commit left behind would be invisible, deferred, and swept into whatever commits next. A
  * refusal costs the user two commands, now, on a document this function has provably not touched.
  *

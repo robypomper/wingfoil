@@ -304,7 +304,7 @@ describe('memory transitions resolve their state machine at HEAD (bug-081, dl-08
   // code can produce, hence the spy (task-090 pinned the same property on the authority read).
   it('a non-ValidationError from the committed read propagates instead of becoming a refusal', async () => {
     repo = seedRepo();
-    const spy = jest.spyOn(loaders, 'loadMemoryYamlAtHead').mockImplementation(() => {
+    const spy = jest.spyOn(loaders, 'loadMemoryYamlAtRev').mockImplementation(() => {
       throw new TypeError('a defect in the read path');
     });
     try {
