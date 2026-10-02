@@ -33,8 +33,9 @@ import type { Command } from 'commander' with { 'resolution-mode': 'import' };
 
 import { buildProgram } from '../../src/cli/program';
 import { CORE_MODULES } from '../../src/core';
-import { NAME_ALLOWLIST, UNTRIAGED } from './name-resolvability.allowlist';
+import { NAME_ALLOWLIST, PLANNED, UNTRIAGED } from './name-resolvability.allowlist';
 import {
+  type AllowlistEntry,
   type Document,
   type NameIndex,
   applyAllowlist,
@@ -43,6 +44,8 @@ import {
   findingKey,
   findUnresolvedNames,
   inlineCodeSpans,
+  planProblems,
+  taskStatuses,
   trackedFiles,
 } from './support/name-resolvability';
 
@@ -139,6 +142,40 @@ describe('name resolvability — the engine, on a fixture', () => {
   });
 });
 
+// Review fix 3: a `planned` entry cites the non-done tasks that name it; once every one of them is
+// `done` and the name still does not resolve, the plan did not deliver it, and from v0.4 that fails.
+describe('name resolvability — planned entries', () => {
+  const entry = (name: string, plannedBy: readonly string[]): AllowlistEntry => ({
+    document: 'fixture.md',
+    nameClass: 'symbol',
+    name,
+    reason: PLANNED,
+    plannedBy,
+  });
+
+  it('reports a planned entry whose cited tasks are all done, and a cited task that does not exist', () => {
+    const shipped = entry('shippedName', ['task-001', 'task-002']);
+    const pending = entry('pendingName', ['task-001', 'task-003']);
+    const ghost = entry('ghostName', ['task-999']);
+    const statuses = new Map([
+      ['task-001', 'done'],
+      ['task-002', 'done'],
+      ['task-003', 'backlog'],
+    ]);
+
+    expect(planProblems([shipped, pending, ghost], statuses)).toEqual({
+      exhausted: [shipped],
+      unknownTasks: ['fixture.md|symbol|ghostName: task-999'],
+    });
+  });
+
+  it('reads every task status from the repository', () => {
+    const statuses = taskStatuses(repoRoot);
+    expect(statuses.get('task-151')).toBeDefined();
+    expect([...statuses.keys()]).toEqual([...statuses.keys()].sort());
+  });
+});
+
 describe(`name resolvability — specs, ADRs and requirements at HEAD (mode: ${MODE})`, () => {
   const documents = (): Document[] =>
     trackedFiles(repoRoot)
@@ -157,26 +194,33 @@ describe(`name resolvability — specs, ADRs and requirements at HEAD (mode: ${M
     expect(NAME_ALLOWLIST.filter((entry) => entry.reason.trim() === '').map(findingKey)).toEqual([]);
     expect(keys).toEqual([...keys].sort());
     expect(keys.filter((key, position) => keys.indexOf(key) !== position)).toEqual([]);
+    // A `planned` entry cites at least one task, and only a `planned` entry cites any.
+    expect(NAME_ALLOWLIST.filter((entry) => (entry.reason === PLANNED) !== (entry.plannedBy?.length ?? 0) > 0).map(findingKey)).toEqual([]);
   });
 
   it('finds no unresolved name the allowlist does not list', () => {
     const applied = applyAllowlist(findUnresolvedNames(documents(), index), NAME_ALLOWLIST);
 
     const untriaged = applied.listed.filter((entry) => entry.reason === UNTRIAGED);
-    if (untriaged.length > 0 || applied.stale.length > 0) {
+    const plans = planProblems(applied.listed, taskStatuses(repoRoot));
+    if (untriaged.length > 0 || applied.stale.length > 0 || plans.exhausted.length > 0) {
       const perDocument = new Map<string, number>();
       for (const entry of untriaged) perDocument.set(entry.document, (perDocument.get(entry.document) ?? 0) + 1);
       const report = [
         `name-resolvability (${MODE} mode until v0.4): ${untriaged.length} untriaged first-run finding(s), ` +
-          `${applied.stale.length} stale allowlist entr${applied.stale.length === 1 ? 'y' : 'ies'}.`,
+          `${applied.stale.length} stale allowlist entr${applied.stale.length === 1 ? 'y' : 'ies'}, ` +
+          `${plans.exhausted.length} planned entr${plans.exhausted.length === 1 ? 'y' : 'ies'} whose tasks are all done.`,
         ...[...perDocument].map(([document, count]) => `  untriaged  ${count}  ${document}`),
         ...applied.stale.map((entry) => `  stale      ${findingKey(entry)}`),
+        ...plans.exhausted.map((entry) => `  delivered? ${findingKey(entry)} (${(entry.plannedBy ?? []).join(', ')} all done)`),
       ].join('\n');
       if (MODE === 'warn') console.warn(report);
     }
 
     expect(applied.unlisted.map(findingKey)).toEqual([]);
+    expect(plans.unknownTasks).toEqual([]);
     if (MODE === 'fail') {
+      expect(plans.exhausted.map(findingKey)).toEqual([]);
       expect(untriaged.map(findingKey)).toEqual([]);
       expect(applied.stale.map(findingKey)).toEqual([]);
     }
