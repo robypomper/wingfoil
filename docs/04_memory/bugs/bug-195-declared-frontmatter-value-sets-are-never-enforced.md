@@ -2,7 +2,7 @@
 id: bug-195-declared-frontmatter-value-sets-are-never-enforced
 type: bug
 title: "Declared frontmatter value sets are never enforced"
-status: open
+status: triaged
 severity: "low"           # REQUIRED — critical | high | medium | low
 release-origin: "v0.3"     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
 release: ""            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
