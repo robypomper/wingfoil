@@ -139,3 +139,41 @@ On `ae5409dd`:
 2. Many suites still run `git`/`npm` through bare `execFileSync` for setup/readback (stdout only;
    stderr inherited). Not a fabricated value — `execFileSync` throws on a non-zero exit — so out of
    this task's class.
+
+### review (independent)
+
+Coordinator's independent review: **approve with fixes**. No assertion was lost and the helper's
+semantics match. Applied while the task stays `in-review`:
+
+- **F1 — the gate missed forms and flagged mocks.** Red `4d3e7c43`: the self-check was split into a
+  "flags" case and an "exempt" case, and gained the reviewer's variants.
+  `npx jest test/lint/no-fabricated-stderr.test.ts` → **2 failed, 2 passed**. The gate missed a quoted
+  key (`'stderr': ''`), a ternary branch, `stderr: EMPTY` with `const EMPTY = ''`, the shorthand
+  `stderr` with `const stderr = ''`, and a returned `const r = { …, stderr: '' }`. It flagged
+  `spy.mockImplementation(() => ({ stdout: 'x', stderr: '' }))`.
+
+  Fix `605ddf2a`:
+  - property names are read by `.text`, so quoted keys and shorthand properties are covered;
+  - a ternary's two branches are followed;
+  - identifiers are resolved lexically to a `const` initialiser (block and file statements; a
+    parameter, `let`/`var` or destructuring binding stops the resolution), for the value and for the
+    returned object;
+  - only a **spawn result** is checked, meaning an object that also carries a `status` key, so a mock
+    body is exempt.
+
+  The exempt cases are pinned: placeholder, comment, `run.stderr`, the mock, a parameter shadowing a
+  `const stderr = ''`, a reassigned `let`, and a destructured `stderr`. The forms the gate still does
+  not see are stated as known limits in its module doc: a call value, a spread-only `status`,
+  `Promise.resolve({…})`, a never-reassigned `let`, an imported const, and `catch`/loop shadowing.
+  After the fix: 4 passed.
+- **F2 — recorded, filed by the coordinator.** The ten local `spawnSync` helpers in other
+  `test/cli` suites still map a signal to exit `1`, for example
+  `test/cli/approval-authority-baseline.integration.test.ts:41-45` with `status: run.status ?? 1`.
+  Consolidating them onto `test/cli/helpers/spawn-cli.ts`, which throws on a signal instead, is a
+  follow-up.
+
+Re-run on `605ddf2a`:
+- the gate, `spawn-cli.test.ts` and the eight migrated suites → 10 suites, **204 tests passed**;
+- `npm run lint` → exit 0;
+- `npx tsc --noEmit -p tsconfig.json` → exit 0;
+- `npx tsc -p tsconfig.build.json --noEmit` → exit 0.
