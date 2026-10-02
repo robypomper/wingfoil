@@ -162,3 +162,59 @@ Gates on `b6b712da`:
   untouched. The no-configuration refusal is wired only into `directives list`, as the AC scopes it.
   The MCP side is `task-174`'s.
 - No spec edits. No pending amendments.
+
+### review (independent)
+
+Verdict: **approve with fixes**, four findings. Each was fixed red-first: `46888afe` holds the
+failing tests (`npx jest` on `test/core/loaders.test.ts`, `test/core/directive-remove.test.ts` and
+`test/cli/program.integration.test.ts` → **7 failed**, 118 passed) and `d5b3ef53` the fix.
+
+1. **A directory symlink to an ancestor** (`custom/loop -> ..`) made `directives list` exit 0 with
+   every directive listed about 41 times, a corrupt inventory reported as success. `main` had failed
+   with ELOOP. The walk now keeps the `realpath` of each directory on its stack. A directory whose
+   realpath is already an ancestor is skipped with `it is a symbolic link to an ancestor directory`.
+   A link to a sibling directory is still walked (characterization test). The old "symlink loop"
+   test covered only a file linked to itself and is renamed to say so. On the CLI with a dev build,
+   `ln -s .. .wingfoil/directives/custom/loop` then `directives list --format json` → one entry, that
+   warning, exit 0.
+2. **An unreadable directive file** (`chmod 000`) still failed the whole read with a raw `EACCES` and
+   an absolute path. The walk now returns entries in traversal order, and `loadDirectiveInventory`
+   reads each file itself. A read failure is a skip, `it cannot be read (EACCES)`. A file that is read
+   and fails to parse or validate stays fatal: dropping a rule an agent must obey silently is worse
+   than refusing the read. The `E_MISSING_FRONTMATTER` test still passes.
+3. **`src/core` printed.** `loadDirectives` wrote `Warning:` to stderr, so `directive remove ghost
+   --format json` put a Warning line ahead of the `{"error"}` object, against spec-005 §3.2. Now
+   `loadDirectives` returns the files only and drops the warnings. The MCP role Prompts already drop
+   `resolveRoleDirectives`' warnings (`src/mcp/prompt.ts` `buildRolePrompt` doc). `directiveRemoveFn`
+   reads the inventory and adds the skip warnings to its `unknown directive` refusal as
+   `details.issues[].detail`, which both surfaces render (task-130). The CLI test parses stderr as
+   exactly one JSON object. Its other refusals concern a directive that was found, so they carry no
+   skip warnings. **Merge note:** task-169's success-warning channel can carry these warnings on a
+   successful `remove` later.
+4. **The directives root.** If `.wingfoil/directives` is itself a dangling symlink, the inventory is
+   now empty with `directive entry '.wingfoil/directives' skipped: it is a symbolic link whose target
+   does not exist`. If it cannot be listed, the read is refused as a `ValidationError`, which the CLI
+   prints as `error: E_DIRECTIVES_UNREADABLE (.wingfoil/directives): it cannot be read (EACCES)`
+   (exit 1, no absolute path; checked on the CLI as above). A genuinely absent directory, or one
+   under a `.wingfoil` that is a file, is still "no directives", with no warning.
+
+`docs/cli-reference.md` now lists the cases that are skipped, and adds the unreadable root as an
+error.
+
+Gates on `d5b3ef53`:
+- `npm run test:coverage` → 188 suites, **3219 tests**, all passed. Coverage 98.84 / 95.25 / 95.17 /
+  99.55, against base `cac8a447` 98.84 / 95.24 / 95.01 / 99.54, so nothing regresses.
+- lint, `docs:api` and both `tsc` runs → exit 0.
+
+**Follow-ups for the coordinator (not filed):**
+- An empty `.wingfoil/` (spec-011 `incomplete`) passes `requireInitializedProject`. `directives list
+  --role x` there still warns `no directives assigned to role 'x'`, which states something nothing
+  was read to establish. spec-011 says to warn "incomplete init", but no command does that today.
+- When `.wingfoil` is a file, the advice "run 'wingfoil init' first" loops: `init` refuses with `.wingfoil
+  exists but is not a directory`. task-174's pre-flight reuses this message, so it inherits the loop.
+- Other read commands (`dna show`, `paths`, `workflow list`, `memory search`) still leak a raw
+  `ENOENT` with an absolute path when there is no `.wingfoil/`. They could adopt
+  `requireInitializedProject`.
+- Merge order: task-143 merges before task-144 (both touch `src/core/directives-list.ts`) and before
+  task-174.
+
