@@ -314,8 +314,8 @@ commit, right after the task's transition and on the task branch:
   - **Bugs closed:** bug-037, bug-038, bug-088, bug-141, bug-142, bug-149, bug-153, bug-160.
   - **Merges,** in order 134 → 135 → 141 → 138 → 137 → 161 → 132 → 167. Only `spec-006`'s Revision
     notes conflicted; both were kept. The final merge is `fcd43569`.
-  - **Gates on `main`:** 188 suites, 3192 tests, coverage 98.84 / 95.24 / 95.01 / 99.52 — 99.54
-    lines; lint, `docs:api` and both `tsc` exit 0.
+  - **Gates on `main`:** 188 suites, 3192 tests, coverage 98.84 / 95.24 / 95.01 / 99.54;
+    lint, `docs:api` and both `tsc` exit 0.
   - **Governance check.** `node scripts/check-governance.cjs --base 050c938c` over B2's 64 `wf()`
     commits gives 0 findings. Its introduction commit is `fcd43569`.
   - **Push blocked.** GitHub push protection flagged the fake AWS secret fixture in
