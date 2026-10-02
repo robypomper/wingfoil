@@ -9,7 +9,7 @@ description: >-
   Ensure the release's user-facing documentation is written and aligned before the release is
   assembled: README, user guide, CLI reference, working examples, CHANGELOG. Makes documentation a
   hard release blocker (dl-013) instead of an unenforced convention.
-version: 1.1
+version: 1.2                     # 1.1 dl-025: + align-agent-docs; 1.2 bug-170: align-agent-docs produces .wingfoil/WORKFLOW.md (task-148)
 element: release
 
 phases:
@@ -45,10 +45,12 @@ phases:
     produces:
       - "CLAUDE.md"
       - ".wingfoil/README.md"
+      - ".wingfoil/WORKFLOW.md"              # bug-170 — the workflow reference drifted while in no produces:
     checks:
       post:
         - "CLAUDE.md project status matches the shipped command surface (CORE_MODULES)"
         - "CLAUDE.md element/state tables match memory.yaml"
         - "CLAUDE.md workflow list matches workflows.yaml"
         - "CLAUDE.md role-directive bindings match roles.yaml"
+        - ".wingfoil/WORKFLOW.md names every workflow and phase workflows.yaml includes (test/docs/workflow-md.test.ts)"
     approval: { by_role: approver }
