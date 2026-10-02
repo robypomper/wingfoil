@@ -21,7 +21,7 @@ Unlike the other three pillars, the Directives pillar had **no dedicated tech-sp
 was first written: `spec-010-memory-frontmatter-schema`'s scope is explicitly
 `docs/04_memory/**/*.md` (Memory documents), **not** `.wingfoil/directives/**`. So the
 `DirectiveFrontmatter` schema shipped in `task-004` as an explicit `[AUTHORING]` shape grounded in the
-ten real files under `.wingfoil/directives/custom/*.md`, with a single field (`name`)
+ten files then under `.wingfoil/directives/custom/*.md` (twelve today), with a single field (`name`)
 traced to a BDD scenario. This spec closes that traceability gap: it is the authoritative definition
 of the Directives-pillar file shape, retroactively blessing (and where noted, constraining) the shape
 `task-004` implemented. It is deliberately **minimal** — it fixes only what the loader must enforce to
@@ -35,10 +35,11 @@ Two upstream anchors bound this shape:
   has an explicit "Error — a directive file missing required header fields" scenario: a custom
   directive file that lacks its required `name` header is reported as invalid. This is the one
   hard `[SPEC]` requirement in the schema.
-- **P3.8 (built-in directive templates)** — every `kind: custom` stand-in file cites `ref: [P3.8]`
-  (see `CLAUDE.md` §3 / `.wingfoil/README.md`): the official P3.8 built-in templates are
-  not implemented yet, so the ten current files live under `directives/custom/` as stand-ins. The
-  schema must accept both `kind` values (`custom` today; `built-in` once those ship) without change.
+- **P3.8 (built-in directive templates)** — the official P3.8 templates ship since
+  `task-057-builtin-directive-templates`: `wingfoil init` installs them under `directives/built-in/`
+  with `kind: built-in`. This repository's own configuration predates them and still keeps the six
+  as `kind: custom` stand-ins citing `ref: [P3.8]` (`.wingfoil/README.md`; reconciling the two is
+  `bug-040`). The schema accepts both `kind` values without change.
 
 > **Note on the `task-004` Acceptance Criteria wording.** REQ-SYS-02's AC (and `task-004`'s copy of
 > it) writes the fourth pillar as `directives/*.yaml`. The real files are **`.md` with YAML
@@ -67,7 +68,8 @@ surface as a warning (`spec-009` §2), never a failure, so the shape stays forwa
 | `title` | string              | required  | `[AUTHORING]` | Display title; currently identical to `name` on every file, but kept distinct to mirror the other pillars' `title`. |
 | `tags`  | string[]            | optional  | `[AUTHORING]` | Free-form classification tags. |
 | `ref`   | string[]            | optional  | `[AUTHORING]` | Upstream traceability references (feature IDs like `P3.8`, REQ codes, or requirement doc paths). May be empty (`[]`) for pure-WingFoil conventions (e.g. `doc-versioning`). |
-| `scope` | string              | optional  | `[AUTHORING]` | Present as `scope: global` on the two directives bound to every role (`doc-versioning`, `security-secrets`; `roles.yaml` "global"). Absorbed by `.passthrough()`; documented here so it is not read as an "unknown field". |
+| `scope` | string              | optional  | `[AUTHORING]` | `global` declares that the directive binds every role — the one value this spec defines. **`roles.yaml`'s `global:` list is the authority**, not this key: see *`scope` and `roles.yaml`* below. Any other value loads and is reported by `directives list`, never a validation failure (forward compatibility). |
+| `version` | string \| number  | optional  | `[AUTHORING]` | The directive's document version, where it declares one (`doc-versioning`; approver ruling 2026-10-01). A string or a number, like `memory.yaml`'s and `roles.yaml`'s `version`; never a reason to fail the pillar — see *`version`* below. |
 
 ### Reference implementation
 
@@ -83,13 +85,37 @@ export const DirectiveFrontmatter = z
     title: z.string(),
     tags: z.array(z.string()).optional(),
     ref: z.array(z.string()).optional(),
+    scope: z.string().optional(),
+    version: z.union([z.string(), z.number()]).optional(),
   })
   .passthrough();
 ```
 
-`scope` is intentionally **not** a declared key — it rides `.passthrough()`. A future revision may
-promote it to a declared optional field once more than two files use it (removing its passthrough
-warning); doing so is a pure-additive change under this spec.
+### `scope` and `roles.yaml`
+
+A directive binds every role when `roles.yaml`'s `global:` list names its `id` (`spec-012` §5). That
+list is the **authority**: context assembly and `directives list` read it, and a directive's `scope`
+never changes a binding. `scope: global` is the same fact stated in the directive file, for its
+reader. Only a **declared** `scope` is compared: a file without one claims nothing and is never
+reported, so a project that never writes `scope` lists clean. `directives list` (without a role
+filter) reports, in its own `warnings` array, at most one entry per directive id, comparing the file
+in force (`dl-037`):
+
+- the file declares `scope: global` and `global:` does not list the id — the directive is not global;
+- the file declares another value and `global:` lists the id — the directive is global;
+- the file declares another value and `global:` does not list the id — the value is undefined here
+  and has no effect.
+
+A `global:` id with no directive file is not a scope disagreement. A shipped built-in template
+declares no `scope`: whether a directive binds every role is the project's `roles.yaml` to say.
+
+### `version`
+
+A `version` never fails the Directives pillar. A quoted value loads as written. An unquoted YAML
+number loads as the number it parses to; when that number does not read back as written (`1.10` →
+`1.1`, `1.0` → `1`), loading warns the author to quote it. A value that is neither a string nor a
+number is dropped with a warning, and the rest of the file loads. These warnings are spec-009 §2
+stderr warnings (`Warning: <file>: …`), like the unknown-field one.
 
 ### Isolation obligation (REQ-SYS-02)
 
@@ -126,3 +152,17 @@ Directives pillar's files are Markdown-with-frontmatter (visually closer to Memo
 schema and deferred the spec to this fast-follow rather than halting the task. Feedback for planning:
 when a pillar is enumerated in a REQ (REQ-SYS-02 lists four), cross-check that each has either its own
 schema spec or an explicit note that it shares another's — the Directives pillar had neither.
+
+**Revision (2026-10-01) — `scope` and `version` declared, per `task-144-declare-directive-scope-report-when-disagrees-roles-yaml`
+(`bug-113`, `bug-148`; approver ruling 2026-10-01 at `task-128`'s review for `version`, and approver
+rulings R1–R3 of 2026-10-02 at `task-144`'s review).** `scope` becomes a declared optional string, so
+it no longer prints the unknown-field warning on every global directive; `global` is the one value
+defined, and any other is a `directives list` warning, never a validation failure. The new *`scope`
+and `roles.yaml`* section states that `roles.yaml` decides and that `directives list` reports a
+declared `scope` contradicting it; an absent `scope` is not reported, and built-in templates declare
+none. `version` becomes a declared optional string or number, so a directive declares its
+`doc-versioning` version in the frontmatter rather than a `**Version:**` body line; the new
+*`version`* section makes it never a reason to fail the pillar. Every directive file valid before
+stays valid, except one whose `scope` is not a string (a list, a number), which no directive in this
+repository or in the `init` scaffold carries. The Context is brought up to date: the P3.8 built-ins ship, and the custom directives
+are twelve.
