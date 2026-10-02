@@ -21,8 +21,8 @@ v0.3's dev-loop.
 
 Preconditions:
 - the decision-logs are created with the code version (`npm run build && node dist/cli.js memory
-  …`), not the pinned build: 0.2.1 cannot be trusted with `memory add` ids on this repository
-  (`bug-087`/`bug-162`, fixed by `task-128`). The pinned build stays the dl-095 declaration
+  …`), not the pinned build: the published builds allocate wrong `memory add` ids on this
+  repository (`bug-087`/`bug-162`, fixed by `task-128` after 0.2.2). The pinned build stays the dl-095 declaration
   (`npm run -s wingfoil -- --version` → `0.2.2`);
 - each decision-log carries its whole content and cites only public sources, read 2026-10-01 or
   2026-10-02. Every fact it states about a public source is checked against that source at capture;
@@ -54,3 +54,20 @@ Produces `docs/04_memory/design/dls/{id}.md` for each decision, in state `in-dis
   `active → done`.
 
 ## Execution Notes
+
+- 2026-10-02 — **capture done.** Plan `add`/`submit` `4200157c`/`29b2f3e4`. Decision-logs, each
+  `add` then `submit` (`draft → in-discussion`), code version:
+  `dl-140` `56f1289e`/`1fd2f148`, `dl-141` `e173f74c`/`af376876`, `dl-142` `4a51700c`/`a01189c8`,
+  `dl-143` `c6aec1d0`/`34a99dc2`, `dl-144` `03e70003`/`c0482904`, `dl-145` `eafd9422`/`4a878c91`
+  (hashes before the rebase onto main; `git log --grep` on the id finds them after).
+- **Fact checks.** All public sources were re-read on 2026-10-02. Corrections against the brief
+  as received:
+  - OpenSpec's monthly downloads are 2,317,591 (September 2026), not about 2.25M;
+  - its "only checks that artifacts exist" is advice in a community-schema row; the general
+    statement is the skills' "`status` is file-existence only";
+  - Spec Kit's constitution lives at `.specify/memory/constitution.md`;
+  - Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md` (relevant to `dl-137` Q1);
+  - Agent 365 has no official GA page found, so `dl-141` does not rely on its date;
+  - third-party migrators between spec tools exist, so `dl-144` says "no official converter".
+- **Next:** ⛔ approver ratification of `dl-140`…`dl-145`, plus the final tagline (`dl-140`).
+
