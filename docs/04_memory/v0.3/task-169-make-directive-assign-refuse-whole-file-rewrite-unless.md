@@ -62,13 +62,15 @@ wording as shipped by task-052).
    prints mid-run, and task-193 gets it through `coreOk` with no CLI change. The shapes are the ones
    `spec-016` §3.4 already fixed for `agent execute`, so no second convention appears: console
    `warning: <text>` (continuation lines indented, like `error.ts`'s detail lines); json one
-   `{"warning": "<text>"}` per line; yaml one document per warning opened by `---`. The `---` is needed
+   `{"warning": "<text>"}` per line; yaml one document per warning opened by `---` (and, since the
+   independent review, closed by `...`). The `---` is needed
    because two concatenated `warning:` mappings are invalid YAML (a repeated key). stderr only, under
    every `--format`, so stdout is unchanged.
 3. **MCP.** A successful Tool result carries `structuredContent: {value, warnings}` when there are
    warnings. This is the success counterpart of task-130's refusal shape `{error, details}`. The text
    content stays the payload's JSON. `value` is repeated inside `structuredContent` so a client that
-   prefers structured content still gets the payload. Resources get no field: no read-only operation
+   prefers structured content still gets the payload. (Review finding 2: only at registrar level,
+   because `wingfoil mcp` registers no Tools before v0.4.) Resources get no field: no read-only operation
    returns warnings (candidate finding, below).
 4. **The refusal wording changes.** The old text, `roles.yaml cannot be updated without discarding its
    comments; edit assignments.<role> by hand`, is false for a file with no comments, which now hits the
@@ -78,7 +80,7 @@ wording as shipped by task-052).
    no warning. The warning is emitted only when the whole-file `dump` actually rewrote an existing file.
    No `roles.yaml` means the unflagged dump and no warning (AC3). An idempotent request writes nothing
    and warns nothing.
-6. **Warning text** lists what `dl-062`'s Context measured a `dump` loses (comments, quoting, blank
+6. **Warning text** (superseded at review, finding 3) lists what `dl-062`'s Context measured a `dump` loses (comments, quoting, blank
    lines, CRLF, `1.0` becoming `1`), plus key order and flow style as the AC names them:
    `roles.yaml was rewritten as a whole file (--force): comments were dropped, and quoting, key order,
    flow style, blank lines, line endings and number formatting (1.0 becomes 1) were not preserved`.
@@ -188,10 +190,55 @@ Run notes:
   only `directive assign` produces them today. `src/dna/set.ts`'s silent fallback (`bug-019`) is
   task-193's and was left alone; that task takes the channel from here.
 
+### review (independent)
+
+The coordinator's independent review returned APPROVE WITH FIXES. Five findings and one nit, all
+applied. Red `b8d30949`, fix `805ee6ee`. The task stays `in-review`.
+
+1. **YAML stream composition.** A yaml warning followed by a yaml error parsed as one merged document
+   (`{warning, error}`). spec-016 §3.4 puts warnings and then an error on the same stderr, and
+   task-218 reuses this renderer, so that matters. Every yaml warning is now closed by `...`
+   (`---\nwarning: …\n...\n`). The error's bytes are unchanged (spec-005 §3.2), and console and json
+   are unchanged too. Red: the new `success-warnings` test (two warnings plus an error through
+   `loadAll`) failed, 1 failed / 10 passed. The json twin passed on first run. It is
+   characterization, since json is one document per line. Cross-checked with the `yaml` package's
+   `parseAllDocuments`: three documents, 0 errors.
+2. **MCP warnings are unreachable in production.** `src/mcp/server.ts` does not call
+   `registerCoreModules`, so `wingfoil mcp` registers no Tools (P5.2.3, v0.4). **AC4's MCP half is met
+   at registrar level only** (`test/mcp/success-warnings.test.ts`). The CLI-reference sentence claiming
+   a Tool result carries warnings is removed. spec-004 item 5, its Revision note and the registrar's
+   TSDoc say the field is unreachable until Tools ship. They also say that, when Tools ship, `force`
+   must become a `directive.assign` Tool input (spec-004 §4.3).
+3. **The warning text was false in two places.** js-yaml keeps key order: a new characterization test
+   rewrites a file with `global` first and `global` stays first. And "comments were dropped" is false
+   for a file that had none. The text is now `roles.yaml was rewritten as a whole file (--force):
+   comments are not kept, and neither are quoting, flow style, blank lines, line endings or number
+   formatting (1.0 becomes 1)`. It is identical in `ROLES_REWRITE_WARNING`, spec-008 §6 and
+   `docs/cli-reference.md`. **Deviation from the AC:** AC2's parenthetical "(comments, quoting, key
+   order)" names key order. The warning leaves it out, because the dump keeps it. This supersedes
+   design decision 6.
+4. **dl-062's spec-011 Action.** The approve Reason (`4cd18767`) keeps "the write contract into
+   spec-011 (merged with dl-060's and bug-040's corrections)". This task does not edit spec-011. The
+   coordinator hands that Action to task-188, which makes the dl-060/bug-040 edits to spec-011 but
+   does not cite dl-062.
+5. **spec-008 §6 and spec-005 §3.2.** §6 now says stderr can be non-empty on exit 0, and that a
+   refusal can follow warnings. It points at spec-005 §3.2's "the one object and nothing else" and
+   records that spec-005's amendment belongs to task-218, which implements spec-016 §3.4.
+
+Nit: the test accessors are typed now. `coreOk` is called directly,
+`warningsOf(result: CoreResult<unknown>)` replaces the untyped accessor, and no `as unknown as` is
+left in the four suites (`grep -n "as unknown as"` → nothing).
+
+Re-run after the fixes (`npm run build` first): the task suites plus `test/docs`, `test/lint`,
+`test/cli/{registrar,error-details,help-describes-every-command}.test.ts` and
+`test/core/{parity,production-registry}.test.ts` → 17 suites / 161 tests passed. `npm run -s lint`,
+`npm run -s docs:api`, `npx tsc --noEmit -p tsconfig.json` and `npx tsc -p tsconfig.build.json --noEmit`
+all exit 0. The full coverage run was not repeated.
+
 ### Pending amendments (approver)
 
 Uncommitted in the worktree. Proposed `memory amend` reasons:
 
-- `spec-008-cli-grammar`: `--reason "dl-062 Q1 option 3 and Q2, carried out by task-169: a new section 12 lists command-specific flags (directive assign --force, paths --list), and the section 2 lead line points there instead of claiming every flag is global. Section 6 pins the directive assign CONFLICT reason and the global-binding refusal, and declares the stderr warning format of a successful command (spec-016 section 3.4 shapes)."`
+- `spec-008-cli-grammar`: `--reason "dl-062 Q1 option 3 and Q2, carried out by task-169: a new section 12 lists command-specific flags (directive assign --force, paths --list), and the section 2 lead line points there instead of claiming every flag is global. Section 6 pins the directive assign CONFLICT reason and the global-binding refusal, and declares the stderr warning format of a successful command (spec-016 section 3.4 shapes, YAML warnings closed by an end marker). It also notes where that departs from spec-005 section 3.2 until task-218 amends it."`
 - `spec-006-core-domain-api`: `--reason "dl-062 Q1 option 3, carried out by task-169: section 2's CoreResult success arm gains the optional warnings list, the success-warning channel the --force rewrite needs, and says where each surface renders it."`
-- `spec-004-mcp-surface-contract`: `--reason "dl-062 Q1 option 3, carried out by task-169: section 4.3 item 5 says a successful Tool result carries the operation's warnings as structuredContent {value, warnings}, the success counterpart of item 4's refusal shape."`
+- `spec-004-mcp-surface-contract`: `--reason "dl-062 Q1 option 3, carried out by task-169: section 4.3 item 5 says a successful Tool result carries the operation's warnings as structuredContent {value, warnings}, the success counterpart of item 4's refusal shape. The shipped MCP server registers no Tools before P5.2.3, so the rule holds at registrar level until then."`
