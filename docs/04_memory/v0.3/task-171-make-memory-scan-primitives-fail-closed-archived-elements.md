@@ -8,7 +8,7 @@ kind: "fix"
 priority: "high"
 tags: ["v0.3", "core", "memory", "query"]
 ref: "dl-038"
-bug: ["bug-031", "bug-164", "bug-188"]
+bug: ["bug-031", "bug-164", "bug-188", "bug-189"]
 depends_on: ["task-130-show-coreerror-details-surface-give-refusal-shape-under"]
 tmpl_version: 260703
 ---
