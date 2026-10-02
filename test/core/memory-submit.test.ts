@@ -306,6 +306,96 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
 });
 
 /**
+ * task-168 — `dl-124` (Q1 (A), Q2 (a), Q3 (ii)): a required field the type declares in
+ * `template.frontmatter.not_applicable_allowed` may hold `"n/a — <reason>"`; bare `n/a`, or the value
+ * on an undeclared field, is refused naming the field. `kind` is required and NOT declared, the shape
+ * task-150 gave this repository's `task.kind`: a not-applicable value must not let it be skipped.
+ */
+describe('CORE_MODULES memory.memorySubmit — declared not-applicable values (task-168, dl-124)', () => {
+  const RELEASE_YAML = `version: 1
+types:
+  release:
+    path: "docs/memory/planning/{id}.md"
+    template:
+      file: "memory/templates/release.md"
+      frontmatter:
+        required: [title, kind, pillar, requirements]
+        not_applicable_allowed: [pillar, requirements]
+    states:
+      sequence: [draft, planning, in-development]
+      waiting: [planning]
+`;
+  const PATH = 'docs/memory/planning/patch-v0.9.1.md';
+  const release = (fields: { kind?: string; pillar?: string; requirements?: string }): string => `---
+id: "patch-v0.9.1"
+type: release
+title: "A patch"
+status: draft
+kind: "${fields.kind ?? 'patch'}"
+pillar: "${fields.pillar ?? 'n/a — patch release'}"
+requirements: "${fields.requirements ?? 'n/a — no per-release backlog for a patch'}"
+tmpl_version: 260703
+---
+
+Body.
+`;
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', RELEASE_YAML);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  async function submitWith(fields: Parameters<typeof release>[0]): ReturnType<ReturnType<typeof memorySubmitFn>> {
+    writeFixtureFile(repo, PATH, release(fields));
+    commitAll(repo, 'seed');
+    return memorySubmitFn()({ root: repo, positional: 'patch-v0.9.1' });
+  }
+
+  it('AC1: declared fields holding "n/a — <reason>" pass the submit (exit 0, draft -> planning)', async () => {
+    const result = await submitWith({});
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.to).toBe('planning');
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('wf(release): submit patch-v0.9.1');
+  });
+
+  it('AC1: bare `n/a` in a declared field is refused (exit 1) naming the field, nothing written', async () => {
+    const result = await submitWith({ pillar: 'n/a' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.code).toBe('VALIDATION');
+    expect(result.error.message).toBe(
+      'not-applicable value on submit: pillar needs a reason, written "n/a — <reason>"',
+    );
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('seed');
+    expect(readFileSync(join(repo, PATH), 'utf-8')).toContain('status: draft');
+  });
+
+  it('AC1: an undeclared required field (`kind`) holding a not-applicable value is refused (exit 1) naming the field', async () => {
+    const result = await submitWith({ kind: 'n/a — patch release' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toBe(
+      "not-applicable value on submit: kind does not accept one (type 'release' does not list it in template.frontmatter.not_applicable_allowed)",
+    );
+  });
+
+  it('a missing field and a refused not-applicable value are both reported, missing first', async () => {
+    const result = await submitWith({ kind: '', pillar: 'n/a' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      'missing required field on submit: kind; not-applicable value on submit: pillar needs a reason, written "n/a — <reason>"',
+    );
+  });
+});
+
+/**
  * bug-030-init-memory-yaml-has-no-state-machine (task-071) — **this block's expectation is inverted
  * from what task-045 wrote here.** It used to assert that a config with no per-type `states` and no
  * `defaults` block made `memory submit` fail with a `VALIDATION` error naming REQ-STATE-08 — and its
