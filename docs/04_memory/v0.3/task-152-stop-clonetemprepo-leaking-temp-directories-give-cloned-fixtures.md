@@ -70,3 +70,10 @@ tmpl_version: 260703
 
 - AC1 is met (tests plus leak measurement). AC2 is met. AC3: the auto-gc test title now names `makeTempGitRepo` only, the clone has its own test, and the bug-065 extras are done (retry budget asserted, the concurrent-writer `finally` uses `removeTempDir`, the retry TSDoc says the 300ms bounds sleep, not elapsed time). AC-197 is met (guard green).
 - For the approver: leftovers are reported, never fatal (bug-064's open sub-question). `test/global-teardown.cjs` exports one self-contained async function; task-146 adds its own teardown, so the two need chaining at merge.
+
+### review fixes (2026-10-02, approver review: APPROVE with two in-task fixes and a nit)
+
+- **Guard misses `||`** (reviewer: a file with `{ status: run.status || 1 }` left the guard green). Red `b5915954`: `npx jest test/lint/no-signal-as-exit.test.ts` → 2 failed, 2 passed (the `||` detector case, and the walk not reaching `cli/fixtures/cli-harness.cjs` / `global-setup.cjs`). Green `2b152e7d`: the regex is now `/\bstatus\s*(\?\?|\|\|)/`, and the walk covers `.ts`, `.js`, `.cjs` and `.mjs` → 4/4. Why the JavaScript files are scanned: `test/` holds JavaScript that spawns children (the CLI harness, the jest setup and teardown hooks), and the coalescing hazard does not depend on the language. `grep -rnE "status\s*(\?\?|\|\|)" test` finds no offender outside the guard itself.
+- **bug-197 wording vs. scope:** dated closing note added to bug-197 (`68252424`). It narrows the resolution to the 10 named suites, the 2 same-class files and the guard; the remaining direct-`spawnSync` suites (`status: number | null`, not hazardous) are left to the coordinator's follow-up.
+- **Nit:** double blank line in `test/cli/memory-add-set.integration.test.ts` removed. A check over every test file this branch touches finds no other occurrence.
+- Re-run: `npm run lint` clean; `npx tsc --noEmit -p tsconfig.json` clean; `npx jest test/lint test/cli/memory-add-set test/storage` → 28/28 suites, 292/292 tests.
