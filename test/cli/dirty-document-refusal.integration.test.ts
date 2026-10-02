@@ -13,33 +13,23 @@
  *   (REQ-INT-04)"), and
  * - the **stderr text** a human reads, in spec-005 §3's `error: <reason>` envelope.
  *
- * `spawnSync`, not `execFileSync` + `catch`: the latter surfaces `stderr` only on the error path, so a
+ * Spawned through `./helpers/spawn-cli` (bug-197), which throws on a signal rather than reading it as an
+ * exit, and uses `spawnSync`, not `execFileSync` + `catch`: the latter surfaces `stderr` only on the error path, so a
  * command that exits `0` while printing to fd 2 reads back as `stderr: ''` — a false green that cost
  * `task-086` a rewrite of this same helper shape. Do not "simplify" it back.
  *
  * `dist/` is built once by jest's `globalSetup` (`bug-003-cli-integration-dist-race`) — never rebuilt
  * here. Deterministic (REQ-SYS-07): fixed step list, fixed identity, fixed fixture text.
  */
-import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { git, makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
-
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
+import { runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 /** Spawn the real published entry point; captures stderr on EVERY run, including a 0-exit one. */
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 const gitOut = (repo: string, args: readonly string[]): string => git(repo, [...args]).trim();

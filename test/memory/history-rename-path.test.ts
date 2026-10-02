@@ -15,7 +15,6 @@
  * to `planning/rl-v1/*`, renaming five `release` elements at once because the `release` type's
  * `path` pattern interpolates the release-line id) rather than reading the live case itself.
  */
-import { spawnSync } from 'child_process';
 import { mkdirSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
@@ -34,6 +33,7 @@ import {
   removeTempDir,
   writeFixtureFile,
 } from '../storage/helpers/git-fixture';
+import { spawnCapture } from '../cli/helpers/spawn-cli';
 
 /** Where the element lived before the rename — the pre-`a353c12` shape. */
 const OLD_PATH = 'docs/04_memory/planning/v1/minor-v0.1.md';
@@ -228,9 +228,7 @@ describe('bug-071 — git writes to a pipe this process owns, never to the opera
       `const out = reconstructMemoryTransitions(${JSON.stringify(root)}, ${JSON.stringify(relativePath)});`,
       'process.stdout.write(JSON.stringify(out.map((t) => t.toState)));',
     ].join('\n');
-    const run = spawnSync(process.execPath, ['-e', script], { encoding: 'utf-8' });
-    if (run.error) throw run.error;
-    return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+    return spawnCapture(process.execPath, ['-e', script]);
   }
 
   it('prints nothing on stderr even when a commit in the walk legitimately has no document', () => {
@@ -278,9 +276,7 @@ describe('task-142 — no Memory git call writes to the operator\'s stderr (AC2)
       `try { m[${JSON.stringify(fn)}](...${JSON.stringify(args)}); process.stdout.write('returned'); }`,
       `catch (error) { process.stdout.write('threw: ' + error.message); }`,
     ].join('\n');
-    const run = spawnSync(process.execPath, ['-e', script], { encoding: 'utf-8' });
-    if (run.error) throw run.error;
-    return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+    return spawnCapture(process.execPath, ['-e', script]);
   }
 
   it.each([

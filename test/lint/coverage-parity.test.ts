@@ -18,7 +18,9 @@
  *
  * The child differs from `npm run test:coverage` only where the measurement needs it: `testMatch`
  * selects the probe, `globalSetup` (the `dist/` build) is dropped because the probe spawns no CLI and
- * a second build would race the parent's (`bug-095`), `--maxWorkers=1` keeps the child from adding a
+ * a second build would race the parent's (`bug-095`), `globalTeardown` is dropped with it because the
+ * child took no lock and owns no fixtures (it would otherwise run the parent's teardown with the
+ * parent's inherited fixture tag; task-146, task-152), `--maxWorkers=1` keeps the child from adding a
  * worker per core to the parent's run, the threshold is cleared because a run that
  * covers nothing is meant to sit at 0%, and the summary goes to a fresh temporary directory.
  *
@@ -127,6 +129,7 @@ describe('coverage report lists every source file, unloaded ones at 0% (bug-141)
       rootDir: REPO_ROOT,
       testMatch: [`<rootDir>/${PROBE}`],
       globalSetup: undefined,
+      globalTeardown: undefined,
       coverageReporters: ['json-summary'],
       coverageDirectory: outDir,
       coverageThreshold: {},

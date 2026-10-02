@@ -14,9 +14,27 @@ export function git(cwd: string, args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf-8' });
 }
 
+/**
+ * Environment variable naming the jest run a fixture belongs to. `test/global-setup.cjs` sets it in
+ * jest's main process before any worker is forked, so every worker inherits the same value, and
+ * `test/global-teardown.cjs` counts what this run — and only this run — left behind (bug-064).
+ * Several runs share one temp dir when agents work in parallel worktrees, so a sweep keyed on the
+ * bare prefix would count, and remove, another run's live fixtures.
+ */
+export const FIXTURE_RUN_TAG_ENV = 'WF_FIXTURE_RUN_TAG';
+
+/**
+ * The `mkdtemp` prefix every fixture directory starts with: `wf-storage-<run tag>-` inside a jest run,
+ * plain `wf-storage-` outside one (no tag set).
+ */
+export function fixtureDirPrefix(): string {
+  const tag = process.env[FIXTURE_RUN_TAG_ENV];
+  return join(tmpdir(), tag ? `wf-storage-${tag}-` : 'wf-storage-');
+}
+
 /** Create a fresh temp directory initialized as a git repo, with a local (non-global) test identity. */
 export function makeTempGitRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'wf-storage-'));
+  const dir = mkdtempSync(fixtureDirPrefix());
   git(dir, ['init', '--quiet', '--initial-branch=main']);
   git(dir, ['config', 'user.email', 'wf-test@example.invalid']);
   git(dir, ['config', 'user.name', 'WingFoil Test']);
@@ -28,8 +46,17 @@ export function makeTempGitRepo(): string {
   // not fire at today's fixture sizes (the 1,000-document REQ-PERF-05 fixture produces ~1,002 loose
   // objects against gc.auto's 6,700 default), but nothing keeps fixtures below that threshold, so
   // disable it outright rather than depend on staying under a limit.
-  git(dir, ['config', 'gc.auto', '0']);
+  disableAutoGc(dir);
   return dir;
+}
+
+/**
+ * Set `gc.auto=0` in a fixture repo's local config. Called on every repo the helper hands out —
+ * {@link makeTempGitRepo}'s and {@link cloneTempRepo}'s — because `git clone` does not copy the
+ * source's local config, so a clone would otherwise keep git's 6,700-object default (bug-065).
+ */
+function disableAutoGc(repo: string): void {
+  git(repo, ['config', 'gc.auto', '0']);
 }
 
 /** Write a file (creating parent directories) relative to a fixture repo root. */
@@ -68,16 +95,27 @@ export function commitAllAs(root: string, message: string, author: { name: strin
   });
 }
 
-/** Clone a fixture repo (local, filesystem-only) into a second fresh temp directory. */
+/**
+ * Clone a fixture repo (local, filesystem-only) into a fresh temp directory, with auto-gc disabled
+ * like every other fixture repo.
+ *
+ * The clone *is* the temp directory: `git clone` into `.` from inside the empty directory `mkdtemp`
+ * just made, so it creates exactly one directory and the caller's `removeTempDir(clone)` removes all
+ * of it (bug-064 — this used to make two directories per call, a parent for the clone and a separate
+ * working directory, and neither was reachable from the path returned).
+ */
 export function cloneTempRepo(source: string): string {
-  const dest = join(mkdtempSync(join(tmpdir(), 'wf-storage-clone-')), 'clone');
-  git(mkdtempSync(join(tmpdir(), 'wf-storage-cwd-')), ['clone', '--quiet', source, dest]);
+  const dest = mkdtempSync(fixtureDirPrefix());
+  git(dest, ['clone', '--quiet', source, '.']);
+  disableAutoGc(dest);
   return dest;
 }
 
 /**
  * Bounded retry budget for {@link removeTempDir}: 5 retries with a linear backoff of 20ms per step
- * (20+40+60+80+100), so a removal can spend at most ~300ms fighting a concurrent writer.
+ * (20+40+60+80+100), so a removal sleeps at most ~300ms between attempts. That bounds the sleeping,
+ * not the elapsed time: each attempt also walks the tree, and the helper was measured at up to
+ * ~1,021ms against a concurrent writer (task-082; bug-065).
  *
  * Deliberately small. Node's `maxRetries` does cover `ENOTEMPTY`, but retrying is not what makes
  * teardown safe — the `catch` in {@link removeTempDir} is. Measured against a directory being

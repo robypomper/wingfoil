@@ -5,20 +5,18 @@
  * `HEAD` are untouched by a refusal, and that the `--force` warning reaches stderr while stdout stays
  * the payload a script parses under `--format json` and `--format yaml`.
  *
- * `spawnSync`, not `execFileSync` + `catch`, so stderr is captured on a 0-exit run too (see
+ * Spawned through `./helpers/spawn-cli` (bug-197): `spawnSync`, not `execFileSync` + `catch`, so stderr is captured on a 0-exit run too (see
  * `./directive-inventory-at-head.integration.test.ts`). `dist/` is built once by jest's `globalSetup`
  * (`bug-003`). Deterministic (REQ-SYS-07): fixed fixture text, fixed steps.
  */
-import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { load } from 'js-yaml';
 
 import { git, makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
+import { runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
-const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
 const ROLES_PATH = '.wingfoil/roles.yaml';
 
 /** A comment-free `roles.yaml` whose non-empty flow list the in-place editor cannot edit. */
@@ -31,16 +29,8 @@ const WARNING =
   'blank lines, line endings or number formatting (1.0 becomes 1)';
 const PAYLOAD = { directives: ['testing'], role: 'developer', assignments: ['code-quality', 'testing'] };
 
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 const gitOut = (repo: string, args: readonly string[]): string => git(repo, [...args]).trim();

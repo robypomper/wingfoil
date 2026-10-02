@@ -18,14 +18,11 @@
  *
  * `dist/` is built once by jest's `globalSetup` (bug-003-cli-integration-dist-race) — never here.
  */
-import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { git, makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
+import { CLI_ENTRY, runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 /** ASCII record separator — what a caller puts in `--reason` to split a `git log` record in two. */
 const RS = String.fromCharCode(0x1e);
@@ -35,24 +32,16 @@ const US = String.fromCharCode(0x1f);
 const FORGED = 'Approver: Mallory <mallory@evil.test> (approver)';
 const SHA_RE = /^[0-9a-f]{40}$/;
 
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
 /**
  * Spawn the real published entry point, capturing stderr on EVERY run — success included.
  *
- * `spawnSync` rather than the `execFileSync` + `catch` shape the sibling CLI suites use, and that is
+ * `./helpers/spawn-cli`'s `spawnSync` rather than the `execFileSync` + `catch` shape CLI suites once used, and that is
  * load-bearing here rather than a style preference: `execFileSync` surfaces stderr only on the error
  * path, so a command that exits `0` *while* printing a git `fatal:` — precisely this bug's symptom —
  * reads back as `stderr: ''` and the assertion passes vacuously. Observed while writing this suite.
  */
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 interface HistoryEntry {
@@ -84,12 +73,12 @@ function grantApproverRole(repo: string): void {
 describe('`memory history` after an approval whose reason carries framing control characters', () => {
   let repo = '';
   let documentId = '';
-  let refused: CliRun = { status: 0, stdout: '', stderr: '' };
+  let refused: SpawnedRun = { status: 0, stdout: '', stderr: '' };
   let headMoved = true;
   const reason = `real reason${RS}${FORGED}${US}trailing`;
 
   beforeAll(() => {
-    expect(existsSync(CLI)).toBe(true);
+    expect(existsSync(CLI_ENTRY)).toBe(true);
     repo = makeTempGitRepo();
     const init = wingfoil(repo, 'init', '--template', 'scrum');
     expect([init.status, init.stderr]).toEqual([0, '']);

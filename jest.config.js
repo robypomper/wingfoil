@@ -45,6 +45,7 @@ module.exports = {
   globalSetup: '<rootDir>/test/global-setup.cjs',
   // The setup holds `.jest-dist.lock` for the whole run; the teardown releases it, so a second run in
   // the same worktree cannot delete this run's `dist/` (bug-095, task-146).
+  // It also counts, reports and removes the fixture directories this run left behind (bug-064, task-152).
   globalTeardown: '<rootDir>/test/global-teardown.cjs',
   // Coverage is opt-in (via `npm run test:coverage`), not part of the default `npm test` run — see
   // task-001's Execution Notes for why: at this scaffold stage `src/` is almost entirely stub
