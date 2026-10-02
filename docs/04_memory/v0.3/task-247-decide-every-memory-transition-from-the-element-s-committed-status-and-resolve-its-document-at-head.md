@@ -82,7 +82,8 @@ all keeps the "not committed at HEAD" refusal), loads `memory.yaml` with `loadMe
 finds the document by bare id with a new `findMemoryDocumentByIdAtRev` (`src/memory/query.ts`, the
 bare-id sibling of `task-137`'s `findMemoryDocumentByTypeAndIdAtRev`, same lazy batch parse). `type`
 and `from` come from `HEAD`; `content` and `frontmatter` from the working tree, which is what `submit`
-and `amend` commit. The working tree is otherwise read only to word a refusal (`command-baseline`:
+and `amend` commit. The working tree supplies the content to commit, is checked to be the same element
+`HEAD` records (present, same `id` and `type`), and is otherwise read only to word a refusal (`command-baseline`:
 "may be read to explain a refusal, never to decide one"):
 
 - not found at `HEAD` but a working-tree document carries the id → `NOT_FOUND` naming the path, "is
@@ -180,6 +181,40 @@ Same-class sweep in touched files: `grep -n "findMemoryDocumentById(" src/core` 
 
 **Pending amendments (approver)** — uncommitted in the worktree, gates run with them:
 
-- `spec-006-core-domain-api` — `--reason "§6's table moves the transition verbs' id lookup and status read from working tree, deviating to HEAD, per item 1 and bug-187, as task-247 implements them; the deviating row keeps directiveRemove alone (bug-108)."`
+- `spec-006-core-domain-api` — `--reason "§6's table moves the transition verbs' id lookup and status read from working tree, deviating to HEAD, per item 1 and bug-187, as task-247 implements them; the working tree supplies the content to commit and is checked to be the element HEAD records; the deviating row keeps directiveRemove alone (bug-108)."`
 - `spec-008-cli-grammar` — `--reason "§11's working tree, a defect row drops the Memory transition verbs, which find their document and read its status at HEAD since task-247 (bug-187); the HEAD row names what they read there."`
 
+### review fixes (independent review: approve with fixes)
+
+Red `97d0e596` (4 new cases in `memory-transition-head-baseline.test.ts`; `npx jest … -t "review:"` →
+4 failed: the old hint, "deleted" for a dangling link, a raw `ValidationError` throw). Fix `f4ec961c`.
+
+1. **Restore hint.** `git restore -- <path>` restores from the index, which lacks the path after `git rm`
+   or `git mv`. The refusal now names `git restore --source=HEAD --staged --worktree -- <path>`; the
+   tests run that exact command after a staged deletion and a staged rename and read the committed
+   file back. Checked by hand over a dangling link too (scratch repo: the link is replaced by the file).
+2. **Dangling link.** Presence is now `lstatSync` (a link is present even when dangling). A live link
+   reaches the write-side guards as before; a dangling one, which the content read would otherwise
+   throw on, is refused naming "a symbolic link whose target does not exist", with the same hint.
+3. **Claim precision.** "Read only to word a refusal" overstated: the presence and `id`/`type` checks
+   refuse because of the working tree. Reworded in the module header, `command-baseline` 1.4 (still
+   1.4: the bump is this task's and unreleased), the `spec-006` Revision note and table row (pending
+   amendment, reason updated above) and the design notes: the working tree supplies the content to
+   commit, is checked to be the same element `HEAD` records (present, same `id` and `type`), and is
+   otherwise read only to word a refusal. `docs/cli-reference.md` makes no such claim.
+4. **Stale TSDoc.** `src/core/index.ts`: `memorySubmitFn`/`memoryApproveFn`/`memoryRejectFn`/
+   `memoryDeprecateFn`/`memoryAmendFn` steps now say the document is read at `HEAD` too, and approve's
+   step 6 names `findMemoryDocumentByIdAtRev` at `HEAD`. `grep -rn "findMemoryDocumentById\b" src` →
+   the `memoryHistory` call (a read that gates nothing), the explaining scan, the barrels, and
+   `src/mcp/memory-resource.ts`'s history note about the bare-id primitive — none describes a transition.
+5. **Malformed committed document.** Small: one `try` around `findMemoryDocumentByIdAtRev` in
+   `prepareMemoryTransition`; `parseMemoryDocumentsAtSha` is untouched. A `ValidationError` becomes a
+   `VALIDATION` refusal at exit 1 whose message names the document as `HEAD:<path>` (the reader labels
+   it with the resolved sha; the label is rewritten). A non-`ValidationError` still propagates
+   (`memory-transition.ts:215`, uncovered, as the existing rethrow at :323 is).
+
+| Gate (worktree `f4ec961c` + pending amendments) | Result |
+|---|---|
+| `npm run test:coverage` | 201 suites / 3391 tests passed; 98.85 / 95.40 / 95.22 / 99.57 (base `903b87a6`: 98.85 / 95.39 / 95.18 / 99.56) |
+| `npm run lint` / `npm run docs:api` | exit 0 / exit 0, 0 warning lines |
+| `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
