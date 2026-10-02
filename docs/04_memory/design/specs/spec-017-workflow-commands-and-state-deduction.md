@@ -85,9 +85,9 @@ the commit history walk of §4.8. The normative rule is `spec-006` §6 (`dl-080`
   completeness.
 - `status`, `list` and `show` gate nothing beyond resolving their operand, and `spec-006` §6 item 4
   would let them read the working tree (as the `command-baseline` directive's default, "a read that
-  gates nothing keeps reporting the working tree", `.wingfoil/directives/custom/command-baseline.md:94`,
+  gates nothing keeps reporting the working tree", in its *Consequences already decided*,
   and `dl-084` (A), approve `2985b0ee`). This spec makes them read `HEAD` as well, as a **declared
-  exception** to `dl-084` (A), `spec-006` §6 item 4 and `command-baseline.md:94`, justified by
+  exception** to `dl-084` (A), `spec-006` §6 item 4 and that `command-baseline` bullet, justified by
   determinism: one deduction function answers `next`, `status` and the MCP Resources of §9, and it must
   not answer from two baselines. The exception is decided (approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`), and
   covers `agent list` and `agent show` as well (`spec-016` §5.1); `spec-006` §6 gains the sentence
@@ -99,7 +99,7 @@ Every payload carries the baseline it answered from (`dl-084` (A)).
 Memory paths, `.wingfoil/workflows*`, a `produces:` pattern or the run-log files (`dna.yaml`
 `paths.runs`, `<runs>/<element-id>.jsonl`, `spec-016` §4.1), the read-only operations emit the
 diagnostic `W_UNCOMMITTED_INPUTS` naming the paths, and still answer from `HEAD`
-(`command-baseline.md:75`; approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`). `spec-016`'s `agent list` and
+(the `command-baseline` directive's "The working tree may be read to *explain* a refusal, never to decide one"; approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`). `spec-016`'s `agent list` and
 `agent show` reuse this code and rule unchanged (`spec-016` §5, §5.1). The one exception is a guard over a filesystem effect (`dl-086`): `create`
 checks that its target file does not exist on disk.
 
@@ -834,7 +834,7 @@ either the files or the loader is caught.
 - *OQ-9, `where` on a non-iterating phase:* a selection, named in `spec-003` from `dl-016` (§4.2).
 - *OQ-10, `HEAD` for `status`, `list`, `show` and the two Resources:* Resolved: R15 (approver ruling,
   2026-09-30, `release-planning-rel-v0.3-plan`) — a declared exception to `dl-084` (A), `spec-006` §6
-  item 4 and `command-baseline.md:94`, with `W_UNCOMMITTED_INPUTS` covering the run-log paths too
+  item 4 and the `command-baseline` directive's *Consequences already decided* bullet "A read that gates nothing keeps reporting the working tree", with `W_UNCOMMITTED_INPUTS` covering the run-log paths too
   (§1.1, §1.2, §11). The rejected alternative, the working tree for those commands, would let
   `workflow status` and `workflow next` / `agent execute --next` disagree whenever the tree is dirty.
 - *OQ-11, how a created element is tied to its step:* Resolved: R16 — the `WingFoil-Instance` /
@@ -953,3 +953,10 @@ task: the `--name` spelling (P4.2/3/7/8), P4.2 sc. 1's element, P4.3's completen
 instance, P4.14 sc. 1's "recorded", P4.15 sc. 1–3, and X1.1/X1.2's hook-era scenarios. P4.2's
 example workflow `release-cycle` is `kind: main` in the BDD but a sub in this repository; the BDD is
 generic and this is not a conflict.
+
+**Revision (2026-10-01) — line-offset citations of the `command-baseline` directive replaced by
+section names, per `dl-075-no-bare-line-offsets-in-memory` and `task-161-revise-command-baseline-which-verbs-read-head-filesystem`.**
+`task-161` revised the directive to 1.2, which moved every line it had; the `command-baseline.md:<n>`
+citations in §1.1, §1.2 and OQ-10 named lines that no longer held the quoted text (they had already drifted with
+`task-128`'s 1.1). Each now names the section or bullet it meant. No rule changed. Edited in place
+without a supersede or a state change (`dl-047`); recorded with `memory amend`.
