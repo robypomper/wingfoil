@@ -216,8 +216,58 @@ Evidence per AC:
 - Same class: the `required-fields.ts` comment (above). `docs/agents.md` §119 lists only the missing-field
   error; it is owned by `user-docs` and is left for the coordinator.
 
+### Review fixes (coordinator review APPROVE WITH FIXES; approver rulings 2026-10-02)
+
+The task stays `in-review`; it was not resubmitted.
+
+| # | Fix | Class | Evidence |
+|---|---|---|---|
+| 1 | `[]` is filled **only** on a field the type's scaffold, committed at `HEAD`, declares as a list. Everywhere else (`title`, `task.kind`, …) it stays missing | **red-first** | Reviewer: `requireRequiredFields(…, 'task', {title:[], release:[], kind:[]})` returned ok, a regression vs `main` from the second pass |
+| 2 | `memory.yaml` → `2.0`, not `1.10`, asserted as a number | **red-first** (the numeric test failed on 1.10 → 1.1) | — |
+| 3 | `n/a` accepts any case and any whitespace around the em dash; another separator is refused naming the exact form | **red-first** | `N/A — x`, `n/a—x` got a false "needs a reason" |
+| 4 | spec-010: reader sentence made a non-normative note; quoting recommended, not justified as required; cli-reference softened | documentation | — |
+
+**The list-field rule (fix 1), as decided and stated in spec-010 and cli-reference.**
+`scaffoldListFields` (`src/memory/submit.ts`) reads the scaffold's top-level frontmatter fields. A
+field is a list field when its parsed value is a YAML sequence, or when it is `null` and its own line's
+inline comment matches `/#.*\bLIST\b/` (upper case, whole word). `title` is never one. With no
+`template.file`, or none committed, no field is. The scaffold is read at `HEAD`
+(`readCommittedScaffold`, `src/core/required-fields.ts`, `command-baseline`), so an uncommitted
+scaffold edit cannot change what a submit accepts. The word `LIST` was already the convention for a
+list field in `task.md` (`bug: []  # optional — LIST of bug ids`). The `release` scaffold's
+`features:` comment now carries it. `committedScaffoldDeclaresRelease` (`src/core/memory-amend.ts`)
+reuses the same reader. On this repository: release → `['features']`; task → none of
+`title, release, kind` (`test/memory/submit.test.ts` "scaffoldListFields" block).
+
+The second-pass inversion of the original `d: []` expectation was undone: with no list fields, `[]`
+is missing again, as on `main`.
+
+**red** `8b48c696`. `npx jest test/memory/submit.test.ts test/core/memory-submit.test.ts
+test/core/task-kind.test.ts` → **10 failed, 47 passed**:
+- `scaffoldListFields` ×3, not exported;
+- `[]` on title/release/kind was accepted, ×2 (pure and core);
+- no committed scaffold, ×1;
+- the n/a variants ×2, the wrong-separator message ×1;
+- the numeric version ×1.
+
+**green** `b3ef59cf`: `scaffoldListFields`, `missingRequiredFields(…, listFields)`, the
+`bad-form` problem and its message, `readCommittedScaffold`, the `root` parameter on
+`requireRequiredFields`/`requireRequiredFieldsKept`. `memory.yaml` 2.0 with a version comment, the
+release scaffold's `LIST` comment, and `docs/cli-reference.md`. The `tmpl_version` stays `261002`:
+same day, and that change is not yet on `main`.
+
+Gates on `b3ef59cf` plus the pending amendments (`npm run build` first):
+
+| Command | Result |
+|---|---|
+| `npm run test:coverage` | exit 0; 200 suites / 3395 tests; 98.85 / 95.43 / 95.25 / 99.57 (main after B3, plan v1.8: 98.85 / 95.39 / 95.18 / 99.56) |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
+| `npm run -s wingfoil -- memory search --type release` (pinned build, `memory.yaml` 2.0) | exit 0 |
+
 ### Pending amendments (approver)
 
-Uncommitted in the worktree, final text:
-- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2. TemplateConfig.frontmatter gains not_applicable_allowed, the required fields that may hold the not-applicable value; each entry must be in required and is never title. This repository's memory.yaml 1.10 declares it on release for pillar and requirements (dl-124 Action 4, approver ruling 2026-10-02). Revision note added."`
-- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. Validation rules gain the not-applicable row and the paragraph on the reserved value \"n/a — <reason>\" and how it is read, for submit and for amend past the initial state, and a paragraph on what non-empty means: an explicit [] is filled, an empty value is not (approver ruling 2026-10-02). Revision note added."`
+Uncommitted in the worktree, final text after the review fixes:
+- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2. TemplateConfig.frontmatter gains not_applicable_allowed, the required fields that may hold the not-applicable value; each entry must be in required and is never title. This repository's memory.yaml 2.0 declares it on release for pillar and requirements (dl-124 Action 4). The version rule now says version is a number compared numerically, so 1.9 is followed by 2.0, never 1.10 (approver rulings 2026-10-02). Revision note added."`
+- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. Validation rules gain the not-applicable row and the paragraph on the reserved value n/a — <reason> (any case, any spacing around the em dash; quoting recommended), for submit and for amend past the initial state. They also gain the definition of non-empty: an explicit [] is filled only on a field the committed scaffold declares as a list, by a sequence value or an empty value whose comment says LIST (approver rulings 2026-10-02). The note on readers is non-normative. Revision note added."`
