@@ -53,7 +53,7 @@
  * is `bug-104`; this task did not close it and does not claim to.
  */
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, symlinkSync } from 'fs';
 import { join } from 'path';
 
 import { load as yamlLoad } from 'js-yaml';
@@ -1172,6 +1172,47 @@ types:
       expect(value.entries.map((entry) => entry.frontmatter.id)).toEqual(['security-secrets']);
       expect(value.warnings).toEqual(["no directives assigned to role 'ghost'"]);
     });
+  });
+
+  // task-143 (bug-125, bug-154) — both halves on the real CLI: a dangling symlink is skipped and named
+  // in the payload's warnings, exit 0; a git root with no `.wingfoil/` is refused, exit 1, with the one
+  // shared not-initialized message and no absolute path.
+  describe('`directives list` robustness (task-143)', () => {
+    let repo: string;
+
+    beforeEach(() => {
+      repo = makeTempGitRepo();
+    });
+
+    afterEach(() => removeTempDir(repo));
+
+    it('a dangling symlink is skipped with a warning naming it; the other directives are listed (bug-125)', () => {
+      writeFixtureFile(
+        repo,
+        '.wingfoil/directives/custom/testing.md',
+        ['---', 'id: testing', 'name: "testing"', 'type: directive', 'kind: custom', 'title: "testing"', '---', ''].join('\n'),
+      );
+      symlinkSync(join(repo, 'gone.md'), join(repo, '.wingfoil/directives/custom/dangling.md'));
+      const result = runCliInRoot(repo, 'directives', 'list', '--format', 'json');
+      expect(result.status).toBe(0);
+      const value = JSON.parse(result.stdout) as { entries: Array<{ frontmatter: { id: string } }>; warnings: string[] };
+      expect(value.entries.map((entry) => entry.frontmatter.id)).toEqual(['testing']);
+      expect(value.warnings).toEqual([
+        "directive entry '.wingfoil/directives/custom/dangling.md' skipped: it is a symbolic link whose target does not exist",
+      ]);
+    });
+
+    it.each([[[] as string[]], [['--role', 'developer']]])(
+      'with no .wingfoil/ at the root, `directives list %j` exits 1 with the not-initialized message (bug-154)',
+      (extra) => {
+        const result = runCliInRoot(repo, 'directives', 'list', ...extra);
+        expect(result.status).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.stderr).toBe(
+          "error: WingFoil not initialized (no .wingfoil/ directory at the project root): run 'wingfoil init' first\n",
+        );
+      },
+    );
   });
 
   it('an invalid --format value exits 2 with the usage-error message on stderr, never touching stdout', () => {

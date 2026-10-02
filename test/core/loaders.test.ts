@@ -3,9 +3,11 @@
  * pillar, each independently reading its own artifact(s) through the shared two-pass validation
  * pipeline (spec-009), with no cross-pillar schema dependency.
  */
+import { symlinkSync } from 'fs';
 import { join } from 'path';
 
 import {
+  loadDirectiveInventory,
   loadDirectives,
   loadDnaYaml,
   loadDnaYamlAtHead,
@@ -161,6 +163,47 @@ describe('per-pillar loaders — fixture repo', () => {
     } catch (err) {
       expect((err as ValidationError).issues.map((i) => i.code)).toContain('E_MISSING_FRONTMATTER');
     }
+  });
+
+  // task-143 (bug-125), RED-FIRST: `statSync` follows a link, so one dangling symlink under
+  // `.wingfoil/directives/` used to throw a raw ENOENT out of every directive read.
+  describe('a dangling symlink under directives/ (task-143, bug-125)', () => {
+    const DANGLING = '.wingfoil/directives/custom/dangling.md';
+    const WARNING = `directive entry '${DANGLING}' skipped: it is a symbolic link whose target does not exist`;
+
+    beforeEach(() => {
+      symlinkSync(join(repo, 'no-such-target.md'), join(repo, DANGLING));
+    });
+
+    it('loadDirectiveInventory skips it with a warning naming it, and loads every other directive', () => {
+      const inventory = loadDirectiveInventory(repo);
+      expect(inventory.files.map((file) => file.frontmatter.id)).toEqual(['sample']);
+      expect(inventory.warnings).toEqual([WARNING]);
+    });
+
+    it('a dangling link named without `.md` is reported too — it may have been a directory of directives', () => {
+      symlinkSync(join(repo, 'no-such-dir'), join(repo, '.wingfoil/directives/custom/team'));
+      expect(loadDirectiveInventory(repo).warnings).toEqual([
+        WARNING,
+        "directive entry '.wingfoil/directives/custom/team' skipped: it is a symbolic link whose target does not exist",
+      ]);
+    });
+
+    it('loadDirectives does not throw: it returns the other directives and writes the warning to stderr', () => {
+      const stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      try {
+        expect(loadDirectives(repo).map((file) => file.frontmatter.id)).toEqual(['sample']);
+        expect(stderr.mock.calls.map(([chunk]) => String(chunk))).toEqual([`Warning: ${WARNING}\n`]);
+      } finally {
+        stderr.mockRestore();
+      }
+    });
+
+    it('a symlink whose target exists is still followed and loaded (characterization)', () => {
+      writeFixtureFile(repo, 'outside/linked.md', ['---', 'id: linked', 'name: "linked"', 'type: directive', 'kind: custom', 'title: "linked"', '---', ''].join('\n'));
+      symlinkSync(join(repo, 'outside/linked.md'), join(repo, '.wingfoil/directives/custom/linked.md'));
+      expect(loadDirectiveInventory(repo).files.map((file) => file.frontmatter.id)).toEqual(['linked', 'sample']);
+    });
   });
 
   it('loadRolesYaml parses the fixture roles.yaml (task-037, REQ-STATE-05 directive-loader)', () => {
