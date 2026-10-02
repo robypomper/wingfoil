@@ -17,6 +17,11 @@ const { execSync } = require('node:child_process');
 const { rmSync } = require('node:fs');
 const { join } = require('node:path');
 
+// Tag this run's fixture directories (bug-064, task-152). Set here, in jest's main process before
+// any worker is forked, so every worker inherits the same value; `test/storage/helpers/git-fixture.ts`
+// puts it in its `mkdtemp` prefix and `test/global-teardown.cjs` counts what carries it at the end.
+process.env.WF_FIXTURE_RUN_TAG = `r${process.pid}`;
+
 module.exports = async () => {
   const repoRoot = join(__dirname, '..');
   rmSync(join(repoRoot, 'dist'), { recursive: true, force: true });
