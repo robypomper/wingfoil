@@ -147,6 +147,11 @@ describe('P5.4.1 — Agent Role Definition', () => {
       ok: false,
       message: 'role already defined: reviewer',
     });
+    // A quoted spelling of the same path (dl-083) addresses the same collection, so it gets the same text.
+    expect(applyDnaMutation(dna, { verb: 'add', field: 'team."roles"', value: 'reviewer' })).toEqual({
+      ok: false,
+      message: 'role already defined: reviewer',
+    });
     // P5.4.1 pins the role message only; the other collections keep dl-081's generic refusal.
     const other = applyDnaMutation(dna, { verb: 'add', field: 'modules', value: 'core', fields: { path: 'src/x' } });
     expect(other.ok).toBe(false);

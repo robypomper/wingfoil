@@ -253,7 +253,13 @@ $ wingfoil dna add paths.sources --value src
 - **Commit:** `wf(dna): add <path> <value>`
 - **Errors:** a field the collection does not declare → exit `1`
   (`error: '--entry-executes_as' is not a field of 'team.members' entries; they carry --entry-email, --entry-roles`);
-  a required field missing → exit `1` (`error: an entry of 'stacks.technologies' requires --entry-category`).
+  a required field missing → exit `1` (`error: an entry of 'stacks.technologies' requires --entry-category`);
+  an entry of that name already in the collection → exit `1`, nothing written
+  (`error: 'modules' already carries an entry named 'core' — …`; for `team.roles`,
+  `error: role already defined: reviewer`).
+- A role added to `team.roles` is usable as soon as the command returns, because its commit is what
+  `directive assign` reads: `wingfoil directive assign --directive <name> --role <role>` accepts it next. A role you add to
+  `dna.yaml` by hand is refused until you commit it.
 
 ### `wingfoil dna update`
 

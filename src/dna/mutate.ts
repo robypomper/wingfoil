@@ -227,6 +227,23 @@ export function applyDnaMutation(
   }
 }
 
+/**
+ * Refusals a BDD feature pins word for word for a duplicate `add` at one collection, keyed by the
+ * collection's segments joined with `.` (so a quoted spelling such as `team."roles"` keys the same).
+ * Every collection not listed answers with dl-081's generic refusal.
+ * - `team.roles`: P5.4.1 sc. 3 ("Error - defining a duplicate role"), task-149.
+ */
+const PINNED_DUPLICATE_MESSAGES: ReadonlyMap<string, (name: string) => string> = new Map([
+  ['team.roles', (name: string) => `role already defined: ${name}`],
+]);
+
+/** The refusal for `dna add <collection> --value <name>` when the collection already carries `name`. */
+function duplicateEntryMessage(target: DnaPathTarget, name: string): string {
+  const pinned = PINNED_DUPLICATE_MESSAGES.get(target.segments.join('.'));
+  if (pinned !== undefined) return pinned(name);
+  return `'${target.path}' already carries an entry named '${name}' — entry names are unique (dl-081); use \`dna update\` to change it`;
+}
+
 /** The path ends at an array of objects: `add` creates an entry, `remove` drops one, `update` amends one. */
 function mutateCollection(
   next: Record<string, unknown>,
@@ -243,9 +260,7 @@ function mutateCollection(
   const declared = target.entryFields ?? [];
 
   if (request.verb === 'add') {
-    if (index >= 0) {
-      return refuse(`'${target.path}' already carries an entry named '${name}' — entry names are unique (dl-081); use \`dna update\` to change it`);
-    }
+    if (index >= 0) return refuse(duplicateEntryMessage(target, name));
     const entry: Record<string, unknown> = { name };
     const failure = applyFields(entry, fields, declared, target.path);
     if (failure !== undefined) return refuse(failure);
