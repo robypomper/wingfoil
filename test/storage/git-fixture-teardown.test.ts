@@ -16,7 +16,13 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { makeTempGitRepo, removeTempDir } from './helpers/git-fixture';
+import {
+  cloneTempRepo,
+  commitAll,
+  makeTempGitRepo,
+  removeTempDir,
+  writeFixtureFile,
+} from './helpers/git-fixture';
 
 // `fs.rmSync` is a non-configurable property on Node 22, so `jest.spyOn(fs, 'rmSync')` throws
 // "Cannot redefine property". Mock the module instead, wrapping the real implementation so every
@@ -24,10 +30,11 @@ import { makeTempGitRepo, removeTempDir } from './helpers/git-fixture';
 // `rmSync` is steerable per test.
 jest.mock('fs', () => {
   const actual = jest.requireActual<typeof import('fs')>('fs');
-  return { ...actual, rmSync: jest.fn(actual.rmSync) };
+  return { ...actual, rmSync: jest.fn(actual.rmSync), mkdtempSync: jest.fn(actual.mkdtempSync) };
 });
 
 const mockedRmSync = fs.rmSync as jest.MockedFunction<typeof fs.rmSync>;
+const mockedMkdtempSync = fs.mkdtempSync as jest.MockedFunction<typeof fs.mkdtempSync>;
 
 /** Build a throwaway directory shaped like a fixture repo (a `.git` with many entries). */
 function makeFixtureShapedDir(entries = 50): string {
@@ -188,6 +195,53 @@ describe('git-fixture — the race is closed at the source where it can be (bug-
       expect(autoGc).toBe('0');
     } finally {
       removeTempDir(repo);
+    }
+  });
+});
+
+describe('cloneTempRepo — a cloned fixture is a fixture like any other (bug-064, bug-065)', () => {
+  /** A committed source repo to clone from. */
+  function makeSourceRepo(): string {
+    const repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'README.md', '# source\n');
+    commitAll(repo, 'seed');
+    return repo;
+  }
+
+  // task-152 AC1 — red-first. Every directory `cloneTempRepo` creates (observed through the wrapped
+  // `mkdtempSync`, so the assertion does not depend on what else is in the shared temp dir) is gone
+  // once the caller has run the teardown it already runs: `removeTempDir(clone)`.
+  it('leaves no directory it created behind once the caller removes the clone', () => {
+    const source = makeSourceRepo();
+    try {
+      mockedMkdtempSync.mockClear();
+      const clone = cloneTempRepo(source);
+      const created = mockedMkdtempSync.mock.results.map((result) => String(result.value));
+
+      expect(created.length).toBeGreaterThan(0);
+      removeTempDir(clone);
+
+      expect(created.filter((dir) => existsSync(dir))).toEqual([]);
+    } finally {
+      removeTempDir(source);
+    }
+  });
+
+  // task-152 AC2 — red-first. `git clone` does not copy the source's local config, so the clone has
+  // to be given `gc.auto=0` itself.
+  it('disables git auto-gc in the clone it returns', () => {
+    const source = makeSourceRepo();
+    const clone = cloneTempRepo(source);
+    try {
+      const autoGc = execFileSync('git', ['config', '--get', 'gc.auto'], {
+        cwd: clone,
+        encoding: 'utf-8',
+      }).trim();
+
+      expect(autoGc).toBe('0');
+    } finally {
+      removeTempDir(clone);
+      removeTempDir(source);
     }
   });
 });
