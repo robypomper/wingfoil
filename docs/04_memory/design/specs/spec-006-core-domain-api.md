@@ -304,10 +304,14 @@ contract in `spec-016` (agent execution), whose §8 carries the same three rows)
 
 Because both surfaces call the same core function (§1, §4), the baseline a decision is made against
 is `src/core`'s property, not the CLI's or the MCP server's. It is ratified in
-`dl-080-which-baseline-each-command-reads` (`ready`, option (B), approve commit `333a3c0f`) and
-elaborated for implementers in the `command-baseline` directive
+`dl-080-which-baseline-each-command-reads` (`ready`, option (B), approve commit `333a3c0f`).
+**This section is the normative text** (`dl-085-how-tool-implementation-rules-reach-anyone-outside-this-repo`,
+`ready`, option (B)): it binds anyone implementing a `wingfoil` operation, whether or not a role
+binding hands them a directive. The `command-baseline` directive
 (`.wingfoil/directives/custom/command-baseline.md`, bound to `developer`, `architect` and
-`reviewer` in `roles.yaml`). Normatively, for every `CoreOperation`:
+`reviewer` in this repository's `roles.yaml`) is its implementer's working form — arguments,
+primitives, cases already decided — and points here; where the two disagree, this section wins.
+Normatively, for every `CoreOperation`:
 
 1. **A read that gates resolves at `HEAD`.** A read gates when its answer can change whether the
    operation fails or what it writes — authority (`dna.yaml`), the state machine and type registry
@@ -322,12 +326,44 @@ elaborated for implementers in the `command-baseline` directive
 3. **A refusal under either half is a domain failure**: it reaches the caller as a `CoreResult` error
    (§2) and exits `1` per `spec-005-cli-command-contract` §1 — never `2`, which stays for malformed
    invocations, and never a throw.
-4. **There is no third category of read.** An operation whose result gates nothing may read the
-   working tree — that is what `dna show`, `paths`, `directives list`, `memory search`,
-   `memory history` and the MCP Resources exist to do. An operation that can refuse on what it read
-   has gated, whatever the read was nominally *for*.
+4. **A read that gates nothing may read the working tree** — that is what `dna show`, `paths`,
+   `directives list`, `memory search`, `memory history` and the shipped MCP Resources exist to do
+   (`dl-084-which-baseline-a-read-only-verb-reports-from`, `ready`, option (A)), except where item 6
+   declares a `HEAD` read. An operation that can refuse on what it read has gated, whatever the read
+   was nominally *for*.
+5. **A read that predicts the target of an imminent filesystem mutation resolves on the
+   filesystem; every other gating read keeps `HEAD`** (`dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem`,
+   `ready`, adopted as proposed). `unlinkSync` and `writeFileSync` follow the symlinks on disk and
+   consult no commit, so a confinement or symlink guard in front of them (`requireConfinedTarget`,
+   `resolveConfinedMemoryPath`, `requireInspectableTarget`) asks the filesystem. The category is
+   decided by the read's purpose, not by its nearness to a mutation: resolving a directive **name**
+   before deleting it is a read about what the project declares and is owed to `HEAD`
+   (`bug-108-directive-remove-resolves-its-target-on-the-working-tree`, open). The guard leaves a
+   time-of-check-to-time-of-use window that no path-based API closes; it turns a self-inflicted loss
+   into a refusal and is not an adversarial defence. There is no further category of gating read.
+6. **Declared `HEAD` reads.** `workflowStatus`, `workflowList`, `workflowShow`, `agentList`,
+   `agentShow` and the two v0.3 workflow Resources `wingfoil://workflows/-/next` and
+   `wingfoil://workflows/-/status` resolve at `HEAD`, a declared exception to item 4 and to `dl-084`
+   (A), justified by determinism: one deduction answers all of them and must not answer from two
+   baselines. `workflowNext` resolves at `HEAD` under item 1 — it refuses an unresolvable `<ref>` and
+   its first step is what `agent execute --next` launches (`spec-017` §1.1) — and is named here only
+   for completeness (approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`;
+   `spec-017` §1.1, `spec-016` §5.1). When the working tree differs under the paths the deduction
+   reads, they still answer from `HEAD` and emit `W_UNCOMMITTED_INPUTS` naming those paths
+   (`spec-017` §1.2).
 
-Symbols in this section read at `9642ab5f`.
+Which shipped and v0.3 operation reads which baseline, by the items above (the per-command form for
+users is `spec-008-cli-grammar` §11):
+
+| Baseline | Operations |
+|----------|------------|
+| `HEAD`, gating (item 1) | `memoryAdd` (type registry and scaffold; its `{n}` counter reads the wider baseline `command-baseline` declares, which can only raise the id), `memorySubmit`, `memoryApprove`, `memoryReject`, `memoryDeprecate`, `memoryAmend` (state machine, and approver authority on the gated verbs); `dnaSet`, `dnaAdd`, `dnaUpdate`, `dnaRemove` (`dna.yaml`, read only after item 2 has refused any difference from `HEAD`); `directiveAssign` (role catalogue, directive inventory, bindings); `directiveRemove`'s referrer check (`roles.yaml`, `loadRolesYamlAtHead`); `workflowNext`, from the task that ships it in v0.3 |
+| `HEAD`, declared (item 6) | `workflowStatus`, `workflowList`, `workflowShow`, `agentList`, `agentShow`, the two v0.3 workflow Resources — each from the task that ships it in v0.3 |
+| working tree, gating nothing (item 4) | `dnaShow`, `pathsQuery`, `directivesList`, `memorySearch`, `memoryHistory` (its log is git's, its `memory.yaml` the working tree's), the shipped MCP Resources and the role Prompts; `workflowList` until its v0.3 reshape moves it to item 6 |
+| filesystem, predicting an effect (item 5) | the confinement and symlink guards of every writing or deleting operation, and `directiveCreate`'s check that its target file does not exist |
+| working tree, deviating | `directiveRemove`'s name resolution (`bug-108`); the id lookup of `memorySubmit`, `memoryApprove`, `memoryReject`, `memoryDeprecate` and `memoryAmend` (`findMemoryDocumentById`, from `prepareMemoryTransition`), and `memorySubmit`'s read of the current `status` from the working-tree frontmatter — all owed to `HEAD` |
+
+Symbols in this section read at `9642ab5f`; items 4–6 and the table at `e942e8e9`.
 
 ## Consequences
 
@@ -567,3 +603,23 @@ Tech-specs carry no `version:` field, so there is nothing to bump (`dl-047-tech-
 option 1, approve `8e7e1e44`). Edited in place without a supersede or a state change, per the same
 `spec-001` precedent the 2026-09-17 revision cites; `status` stays `approved`, pending the approver's
 sign-off at identify-specs (`dl-022` spec-review gate).
+
+**Revision (2026-10-01) — §6 is named the normative text, gains the filesystem-effect read and the
+declared `HEAD` reads, and lists which operation reads which baseline, per
+`dl-084-which-baseline-a-read-only-verb-reports-from` (A), `dl-085-how-tool-implementation-rules-reach-anyone-outside-this-repo`
+(B), `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` (adopted), all `ready`,
+approver ruling R15 and `task-161-revise-command-baseline-which-verbs-read-head-filesystem`.** The
+preamble names §6 as normative and the `command-baseline` directive as its working form (`dl-085`
+(B)). Item 4 ("There is no third category of read") contradicted the ratified `dl-086`: it becomes
+the working-tree rule for reads that gate nothing (`dl-084` (A)), item 5 states the filesystem-effect
+read with `bug-108` still owed to `HEAD` and the time-of-check-to-time-of-use residual named as a
+limit, and item 6 is the sentence declaring the R15 exception for `workflow status|list|show`,
+`agent list|show` and the two v0.3 workflow Resources, naming `workflow next` for completeness only
+since it gates (`spec-017` §1.1). The 2026-09-30 revision deferred that
+sentence to "the task that implements them"; `release-planning-rel-v0.3-plan` build-backlog gave it
+one owner instead, this task, on which `task-204` and `task-240` depend. A table lists which operation
+reads which baseline, as `dl-084` Action 2 asks, including the gating reads the shipped code still
+makes on the working tree (`directiveRemove`'s name, the transition verbs' id lookup and
+`memorySubmit`'s status read), found at the task's independent review and owed to `HEAD`. Items 1–3, §1–§5 and every other section are
+unchanged. Edited in place without a supersede or a state change (`dl-047`); recorded with
+`memory amend`.
