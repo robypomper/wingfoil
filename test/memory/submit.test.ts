@@ -14,10 +14,10 @@ describe('missingRequiredFields', () => {
     expect(missingRequiredFields({ title: 'T', release: 'v0.2' }, ['title', 'release'])).toEqual([]);
   });
 
-  it('treats absent, null and blank strings as missing; reports in declared order', () => {
+  it('treats absent, null, blank strings and (on a field no scaffold declares a list) empty lists as missing; reports in declared order', () => {
     expect(
       missingRequiredFields({ title: 'T', a: '  ', b: null, d: [], e: ['x'], f: 0 }, ['e', 'd', 'c', 'b', 'a', 'f']),
-    ).toEqual(['c', 'b', 'a']);
+    ).toEqual(['d', 'c', 'b', 'a']);
   });
 
   it('bug-147 (task-168): an explicit empty list is filled on a field the scaffold declares a list; an empty value (null) is not', () => {

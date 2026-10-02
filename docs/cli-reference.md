@@ -401,9 +401,14 @@ records the document's content **and** its state change together. A submit also 
 `rejection_reason`.
 
 Unreleased (v0.3): a required field that does not apply to this document can hold
-`"n/a — <reason>"` (quoted, with an em dash and a reason) — but only if the type lists the field in
-`template.frontmatter.not_applicable_allowed` in `memory.yaml`. An explicit empty list (`features: []`) counts as filled;
-an empty value (`features:`) does not.
+`n/a — <reason>` (`n/a`, an em dash, then the reason; any letter case; quoting the value is
+recommended) — but only if the type lists the field in `template.frontmatter.not_applicable_allowed`
+in `memory.yaml`.
+
+Unreleased (v0.3): an explicit empty list (`features: []`) counts as filled, but only on a field the
+type's committed scaffold declares as a list: its scaffold value is a list (`tags: []`), or it is
+empty and its comment contains the word `LIST` (`features:   # REQUIRED — LIST of feature IDs`). On
+any other required field, `[]` is missing, as is an empty value (`features:`).
 
 ```console
 $ wingfoil memory submit task-001-my-first-task
@@ -419,8 +424,9 @@ $ wingfoil memory submit task-001-my-first-task
 - **Errors:** unknown id → exit `1`; the current state is a **gate** (its forward step needs
   `memory approve`) or the end of the sequence → exit `1` (`error: illegal transition …`); a required
   field is empty → exit `1` (`error: missing required field on submit: <fields>`). Unreleased (v0.3):
-  a required field holds `n/a` but the type does not list it, or holds it with no reason → exit `1`,
-  naming the field (`error: not-applicable value on submit: <field> …`).
+  a required field holds `n/a` but the type does not list it, holds it with no reason, or separates
+  the reason with anything but an em dash → exit `1`, naming the field
+  (`error: not-applicable value on submit: <field> …`).
 
 ### `wingfoil memory approve`
 

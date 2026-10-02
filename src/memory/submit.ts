@@ -12,21 +12,57 @@
  *
  * Deterministic (REQ-SYS-07): results follow the declared field order, never object-key order.
  */
+import { load } from 'js-yaml';
+
+import { splitFrontmatter } from '../storage';
+
 import { removeFrontmatterField, setFrontmatterField } from './frontmatter-edit';
 
 /** The frontmatter key `memory.reject` sets and `memory.submit` removes (spec-010). */
 export const REJECTION_REASON_FIELD = 'rejection_reason';
 
 /**
- * Absent, `null` (an empty YAML value, `features:`) or a blank string count as "not filled in". An
- * explicit empty list (`features: []`) is filled: the author declared "none" (`bug-147`, approver
- * ruling 2026-10-02 at `task-168`). A scaffold that must not pass untouched leaves a list field empty
- * (`features:`) rather than `[]`.
+ * Absent, `null` (an empty YAML value, `features:`) or a blank string count as "not filled in", and so
+ * does an empty list, unless the field is one of `listFields`: there an explicit `[]` is filled, the
+ * author declared "none" (`bug-147`, approver rulings 2026-10-02 at `task-168`).
  */
-function isEmptyValue(value: unknown): boolean {
+function isEmptyValue(value: unknown, isListField: boolean): boolean {
   if (value === undefined || value === null) return true;
   if (typeof value === 'string') return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0 && !isListField;
   return false;
+}
+
+/** The word that marks an empty scaffold field as a list: upper case, a whole word, in its inline comment. */
+const LIST_MARKER = /#.*\bLIST\b/;
+
+/**
+ * The fields a type's scaffold (`template.file`) declares as lists, in scaffold order (task-168 review
+ * ruling 1, `spec-010` § Validation rules). A top-level frontmatter field is a list field when its
+ * scaffold value is a YAML sequence (`tags: []`), or when its value is empty (`features:`) and its own
+ * line's inline comment contains the word `LIST` (`# REQUIRED — LIST of feature IDs`). An empty value
+ * is how a scaffold keeps a required list from passing a submit untouched. `[]` for a scaffold with no
+ * frontmatter, or one that does not parse.
+ */
+export function scaffoldListFields(scaffold: string): string[] {
+  const text = splitFrontmatter(scaffold).frontmatter;
+  if (text === null) return [];
+  let fields: unknown;
+  try {
+    fields = load(text);
+  } catch {
+    return [];
+  }
+  if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) return [];
+  const values = fields as Record<string, unknown>;
+  return Object.keys(values).filter((field) => {
+    const value = values[field];
+    if (Array.isArray(value)) return true;
+    if (value !== null) return false;
+    const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const line = new RegExp(`^${escaped}:[ \\t]*(#.*)?$`, 'm').exec(text);
+    return line !== null && LIST_MARKER.test(line[1] ?? '');
+  });
 }
 
 /**
@@ -36,15 +72,24 @@ function isEmptyValue(value: unknown): boolean {
  */
 const NOT_APPLICABLE_SHAPE = /^n\/a(?![\w])/i;
 
-/** The one accepted form (`dl-124` Q3 (ii)): `n/a`, an em dash, then a non-blank reason. */
-const NOT_APPLICABLE_WITH_REASON = /^n\/a — \S/;
+/**
+ * The one accepted form (`dl-124` Q3 (ii)): `n/a`, an em dash, then a non-blank reason. Case, and
+ * whitespace around the em dash, do not matter (task-168 review fix 3): `N/A — x` and `n/a—x` pass.
+ */
+const NOT_APPLICABLE_WITH_REASON = /^n\/a\s*—\s*\S/i;
+
+/** Bare `n/a`, or `n/a —` with nothing after it: the form is right, the reason is missing. */
+const NOT_APPLICABLE_WITHOUT_REASON = /^n\/a\s*(—\s*)?$/i;
 
 function isNotApplicableShaped(value: unknown): value is string {
   return typeof value === 'string' && NOT_APPLICABLE_SHAPE.test(value.trim());
 }
 
-/** Why a required field's not-applicable value is refused: the type does not declare it, or it gives no reason. */
-export type NotApplicableProblem = 'undeclared' | 'no-reason';
+/**
+ * Why a required field's not-applicable value is refused: the type does not declare it, it gives no
+ * reason, or it separates the reason with something other than an em dash (`n/a - x`, `n/a: x`).
+ */
+export type NotApplicableProblem = 'undeclared' | 'no-reason' | 'bad-form';
 
 /** One refused not-applicable value, by field. */
 export interface NotApplicableRefusal {
@@ -60,11 +105,17 @@ function requiredFieldOrder(required: readonly string[]): string[] {
 /**
  * The fields that must be filled before a submit but are not: `title` first (spec-010 requires it of
  * every type), then each of `required` in its declared order, without duplicates. `[]` means no field
- * is missing. A not-applicable value counts as present here — whether it is *accepted* is
+ * is missing. `listFields` are the fields the type's scaffold declares as lists ({@link
+ * scaffoldListFields}): on those alone an explicit `[]` is filled; `title` is never one. A not-applicable value counts as present here — whether it is *accepted* is
  * {@link notApplicableRefusals}'s question, so a field is reported by one of the two, never both.
  */
-export function missingRequiredFields(frontmatter: Readonly<Record<string, unknown>>, required: readonly string[]): string[] {
-  return requiredFieldOrder(required).filter((field) => isEmptyValue(frontmatter[field]));
+export function missingRequiredFields(
+  frontmatter: Readonly<Record<string, unknown>>,
+  required: readonly string[],
+  listFields: readonly string[] = [],
+): string[] {
+  const lists = new Set(listFields.filter((field) => field !== 'title'));
+  return requiredFieldOrder(required).filter((field) => isEmptyValue(frontmatter[field], lists.has(field)));
 }
 
 /**
@@ -72,7 +123,8 @@ export function missingRequiredFields(frontmatter: Readonly<Record<string, unkno
  * same order as {@link missingRequiredFields}:
  * - `undeclared` — the type's `template.frontmatter.not_applicable_allowed` does not list the field
  *   (`title` never counts as listed: spec-010 requires it of every type);
- * - `no-reason` — the field is listed, but the value is not `"n/a — <reason>"` with a non-blank reason.
+ * - `no-reason` — the field is listed, but the value is bare `n/a` or `n/a —` with a blank reason;
+ * - `bad-form` — the field is listed, but the reason follows another separator than the em dash.
  *
  * Optional fields are not checked: what they hold is the type's own business.
  */
@@ -87,7 +139,8 @@ export function notApplicableRefusals(
     const value = frontmatter[field];
     if (!isNotApplicableShaped(value)) continue;
     if (!allowed.has(field)) refusals.push({ field, problem: 'undeclared' });
-    else if (!NOT_APPLICABLE_WITH_REASON.test(value.trim())) refusals.push({ field, problem: 'no-reason' });
+    else if (NOT_APPLICABLE_WITHOUT_REASON.test(value.trim())) refusals.push({ field, problem: 'no-reason' });
+    else if (!NOT_APPLICABLE_WITH_REASON.test(value.trim())) refusals.push({ field, problem: 'bad-form' });
   }
   return refusals;
 }
