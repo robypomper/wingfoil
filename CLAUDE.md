@@ -372,7 +372,7 @@ non-blank (`--reason` itself stays optional, `dl-027`).
           iterate_over: task; `refactor` runs coverage + API-docs + `lint.clean`; review gate runs unit
           + **BDD** tests; keeps a fix task's source `bug` in sync via `bug.sync_state`)* → `user-docs`
           *(dl-013 — `align-user-docs`, the user-facing documentation gate; dl-025 — `align-agent-docs`,
-          this file and `.wingfoil/README.md`)* → `e2e-smoke` *(dl-023 — fresh-init + CLI end-to-end
+          this file, `.wingfoil/README.md` and `.wingfoil/WORKFLOW.md`)* → `e2e-smoke` *(dl-023 — fresh-init + CLI end-to-end
           smoke gate, plus the `mcp-registration` check of `.mcp.json`)* → `release-submit` → `release-publishing` → `retrospective`.
     - `sunset` → `end-of-life`.
 - **`bug-ingest`, `decision-log-ingest`, `adr-ingest`, `service-ingest`** — capture a single element on demand. If started
