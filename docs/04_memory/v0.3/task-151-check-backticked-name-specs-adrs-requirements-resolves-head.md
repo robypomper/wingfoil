@@ -100,8 +100,9 @@ About one bug in six is a document disagreeing with the code; only the CLI refer
 At base `903b87a6`, **236 findings in 26 of the 35 scanned documents** (count:
 `grep -c "^  { document" test/docs/name-resolvability.allowlist.ts` → 236). By class
 (`grep -o "nameClass: '[a-z]*'" … | sort | uniq -c`): symbol 106, command 48, config 44, path 36,
-element 2. By reason: planned 124, UNTRIAGED 84, retired on purpose 12, ADR record 9, example id 2,
-counterexample 2, example 1, external 1, historical 1.
+element 2. By reason, as submitted: planned 124, UNTRIAGED 84, retired on purpose 12, ADR record 9,
+example id 2, counterexample 2, example 1, external 1, historical 1 (superseded by the review fixes
+below: the findings are the same 236, their reasons changed).
 
 Classification rule used to generate the entries (one-off script, not committed): a hand list for
 the names quoted on purpose (each with its own reason, after reading the sentence: e.g. "There is no
@@ -113,11 +114,11 @@ missed (`workflowNext` vs "workflow next").
 
 **Candidate stale names (not fixed here: approved specs need `memory amend`).** Each is unresolved per
 the gate; whether the spec or the code is wrong is not verified here:
-- `docs/self/…` paths (moved to the root by `task-111`; `git ls-files | grep -c "^docs/self/"` → 0):
-  `spec-002` (1), `spec-007` (2), `spec-011` (3), `spec-003` (`docs/self/`).
+- ~~`docs/self/…` paths~~ — corrected at review: every one is historical (see Review fixes, fix 1).
 - `spec-008`: `src/mcp-server` (module lives at `src/mcp`), `tech_stack.cli` (dna key retired),
-  `noColor`/`flags.noColor`/`noInteractive`, `NO_COLOR` (`grep -rln NO_COLOR src` → nothing: the
-  spec's `NO_COLOR` behaviour may be unimplemented — candidate bug), `E_UNKNOWN_COMMAND`.
+  `NO_COLOR` (`grep -rln NO_COLOR src` → nothing: the spec's `NO_COLOR` behaviour may be
+  unimplemented — candidate bug), `E_UNKNOWN_COMMAND`. (`noColor`/`flags.noColor`/`noInteractive`
+  were wrongly listed here: they are counterexamples, see Review fixes, fix 2.)
 - `spec-015`: `scripts/publish-staging` (file is `scripts/publish-staging.cjs`), `NPM_TOKEN`,
   `docs/user-docs-v0.2` (a branch name — candidate for an "external/historical" reason instead).
 - `spec-001`/`spec-009`: `E_INVALID_MEMORY_SCHEMA`, `E_INVALID_STATE_GRAPH`,
@@ -150,3 +151,63 @@ All run in the worktree, one jest process at a time:
 - Determinism: inputs from `git ls-files` (sorted), findings sorted by key, allowlist order enforced
   by the test; no wall-clock or randomness in the engine.
 - Pending amendments (approver): none — no Memory element other than this task file was edited.
+
+### Review fixes (2026-10-02, coordinator review: approve with fixes)
+
+Fixed in-task on this branch, not re-submitted. Commits: `cfaf83e9` (red, fix 4), `a212db7e` (green,
+fix 4), `de921a86` (red, fix 3), `9a9a58c6` (green, fixes 1, 2, 3, 5, 6).
+
+1. **`docs/self/` reasons (reason fix, no test).** The two `docs/self/` entries cited `task-182` by
+   literal match, which was false. I read every `docs/self/` occurrence in the scanned documents
+   (`grep -n "docs/self" docs/04_memory/design/specs/*.md`). All eight entries (spec-002 1, spec-003 1,
+   spec-007 2, spec-011 4) are historical. Each one sits either in a dated Revision or Process note
+   recording `task-111`'s move, or in a "moved from" clause. They now carry a `historical:` reason
+   rather than `UNTRIAGED`.
+2. **`noColor`, `flags.noColor`, `noInteractive` (reason fix, no test).** spec-008's Key rule says
+   to "never invent a `noColor`/`noInteractive` property", so these are counterexamples. They now
+   carry a `counterexample:` reason, and the candidate list above is corrected.
+3. **Planned entries.** This fix has two parts.
+   - *Reason (characterization).* `plannedBy` now lists **every** non-done task (other than
+     `task-151`) whose text contains the name literally. Before, it listed the first three. The
+     shared reason `PLANNED` says plainly that this is a literal match and that the implementing
+     task was not verified.
+   - *Command needles (characterization).* For a command whose path ships, the needle is now the
+     path plus each flag. Example: `memory add` + `--workflow` + `--step` now cites `task-217` and
+     `task-227` only. For a command whose path does not ship, the needle is its first two words.
+     `wingfoil agent execute` now cites 18 tasks, `task-218` among them.
+   - *Ratchet (red-first).* `planProblems` reports an entry whose cited tasks are all `done`. In fail
+     mode such an entry fails the gate, and in warn mode it is reported. A cited task that does not
+     exist fails in both modes. The test also checks that every `PLANNED` entry cites at least one
+     task, and that no other entry cites any.
+     - Red: `npx jest test/docs/name-resolvability.test.ts` → `3 failed, 8 passed, 11 total`,
+       `TypeError: (0 , name_resolvability_1.planProblems) is not a function`.
+     - Green: `11 passed`.
+     - The header's v0.4 claim now says what fail mode actually checks: every first-run finding is
+       fixed, justified, or still planned by a non-done task.
+4. **Paragraph-scoped pairing and unclosed fences (red-first).** `inlineCodeSpans` now splits the
+   text into paragraphs at blank lines and fences, and pairs backticks only within one paragraph. A
+   fence that is never closed runs to the end of the document.
+   - Red, with the reviewer's probe: `2 failed, 7 passed, 9 total`. The stray-backtick probe gave
+     `Received: []`, and the unclosed-fence probe gave `teleportAfter` and `teleportInside`.
+   - Green: `9 passed`. On the real documents the findings did not change (236, 0 stale).
+5. **Non-vacuous positive test (characterization).** "resolves a name of each class against the
+   repository" now asserts that every name in the fixture's positive section is classified, and
+   that all five classes occur. The engine header documents that `codeWords` takes words from
+   comments and string literals too, which is a heuristic.
+6. **Wording (doc fix).** The engine reads the working-tree content of the files git tracks, not
+   `HEAD`. The test header, the engine header and the `describe` title now say so: in CI's clean
+   checkout that is `HEAD`. Earlier notes in this file that say "at HEAD" mean exactly that. The
+   task title and the AC wording are left as filed.
+
+**Counts after the fixes.** Still **236 findings** (`grep -c "^  { document"
+test/docs/name-resolvability.allowlist.ts` → 236). By reason: planned 120, UNTRIAGED 77, retired on
+purpose 12, historical 9, ADR record 9, counterexample 5, example id 2, example 1, external 1. The
+warn report shows `77 untriaged first-run finding(s), 0 stale allowlist entries, 0 planned entries
+whose tasks are all done`.
+
+**Gates after the fixes:**
+- `npm run test:coverage`: `Test Suites: 201 passed`, `Tests: 3377 passed`.
+- Coverage: `All files | 98.85 | 95.39 | 95.18 | 99.56`. It is unchanged because
+  `git diff --stat main -- src` is empty.
+- `npm run lint`, `npm run docs:api` and `npx tsc --noEmit -p tsconfig.json` are clean;
+  `npx tsc -p tsconfig.build.json --noEmit` exits 0.
