@@ -2,7 +2,7 @@
 id: "bug-036-channel-enumeration-misses-created-files-and-commits"
 type: bug
 title: "The REQ-SEC-05 no-persistence check snapshots only known files, so a read handler that creates a file or commits stays green"
-status: in-progress
+status: in-review
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
