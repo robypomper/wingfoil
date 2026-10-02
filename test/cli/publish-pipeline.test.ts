@@ -29,6 +29,8 @@ interface PipelineManifest {
   readonly version: string;
   readonly bin?: Readonly<Record<string, string>>;
   readonly scripts?: Readonly<Record<string, string>>;
+  /** task-155: the declared runtime floor the gate has to run on. */
+  readonly engines?: { readonly node?: string };
 }
 
 interface WorkflowStep {
@@ -173,6 +175,17 @@ describe('publish workflow (task-060) — spec-015 §3 / adr-009', () => {
       expect(setup?.with?.['node-version']).toBe('${{ env.NODE_VERSION }}');
     }
     expect(raw).toContain('bug-023');
+  });
+
+  /**
+   * task-155 (`bug-046`/`bug-047` same class, `adr-010`): `env.NODE_VERSION` is one more copy of the
+   * floor. The case above pins it to a literal; this one ties it to `package.json`, so raising
+   * `engines.node` without moving the gate (or the reverse) fails instead of testing on a Node the
+   * manifest no longer declares as its floor. `ci-workflow.test.ts` keeps `ci.yml` equal to this file.
+   */
+  it('runs gate and stage on exactly the `engines.node` floor package.json declares', () => {
+    const { parsed } = readWorkflow();
+    expect(`>=${parsed.env?.NODE_VERSION ?? ''}`).toBe(pkg.engines?.node);
   });
 
   /**
