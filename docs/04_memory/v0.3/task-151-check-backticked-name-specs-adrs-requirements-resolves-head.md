@@ -2,7 +2,7 @@
 id: "task-151-check-backticked-name-specs-adrs-requirements-resolves-head"
 type: task
 title: "Check that every backticked name in specs, ADRs and requirements resolves at HEAD"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "medium"
