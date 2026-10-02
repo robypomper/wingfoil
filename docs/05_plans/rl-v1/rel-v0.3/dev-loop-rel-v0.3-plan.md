@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.6"
+version: "1.7"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -292,3 +292,42 @@ commit, right after the task's transition and on the task branch:
 - **2026-10-01 — batch B2 started:** `task-132`, `134`, `135`, `137`, `138`, `141`, `161`, `167`.
   Every task's `depends_on` is `done`. Bugs synced to `in-progress`: `bug-142`, `bug-149`, `bug-153`,
   `bug-141`, `bug-037`, `bug-038`, `bug-088`, `bug-160`. One developer agent per task, as in B1.
+- **2026-10-02 — batch B2 `done`** (`task-132`, `134`, `135`, `137`, `138`, `141`, `161`, `167`).
+  The process was interrupted once (a Claude Code exit). Every agent resumed from its transcript, and
+  its worktree was intact.
+  - **Review.** Every task had an independent review. `task-132`'s first pass was rejected for two
+    real defects: an identity that was only partly set left a written and staged document, and the
+    `Approver:` line could be forged through the `--author` string. It was re-reviewed after the
+    fixes and approved. The other seven were approved with fixes applied in-task.
+  - **Approver rulings at the gate:**
+    - `task-141`'s `minor-v1.0` edit was recorded as a hand amendment (`a143909e`), because `release`
+      is `amendable: false`;
+    - REQ-STATE-10 was ratified;
+    - `task-132` may read REQ-SEC-01 broadly: git's author sources, and a committer must resolve;
+    - the `doc-versioning` baseline is the last commit to `main`, so a task bumps a document once;
+      recorded as an AC of `task-144` (`050c938c`).
+  - **Amendments: 7 `memory amend`**, run on the task branches before `approve`:
+    - `task-132`: spec-006 §7;
+    - `task-135`: spec-007;
+    - `task-138`: spec-002;
+    - `task-161`: spec-006 §6, spec-008 §11, spec-016, spec-017.
+  - **Bugs closed:** bug-037, bug-038, bug-088, bug-141, bug-142, bug-149, bug-153, bug-160.
+  - **Merges,** in order 134 → 135 → 141 → 138 → 137 → 161 → 132 → 167. Only `spec-006`'s Revision
+    notes conflicted; both were kept. The final merge is `fcd43569`.
+  - **Gates on `main`:** 188 suites, 3192 tests, coverage 98.84 / 95.24 / 95.01 / 99.52 — 99.54
+    lines; lint, `docs:api` and both `tsc` exit 0.
+  - **Governance check.** `node scripts/check-governance.cjs --base 050c938c` over B2's 64 `wf()`
+    commits gives 0 findings. Its introduction commit is `fcd43569`.
+  - **Push blocked.** GitHub push protection flagged the fake AWS secret fixture in
+    `test/validation/secret-scan.test.ts:68` (commits `448e6df5`, `a7bb4b64`, `bug-055` class, owned by
+    `task-182`). Unblocking is the approver's action on GitHub, as in v0.2.2.
+  - **Follow-ups.** `bug-187` … `bug-193` and `dl-139` are open, with triage proposals in
+    `bug-ingest-rel-v0.3-w1b2-review-findings-plan`; handover notes are on `task-206`, `task-208` and
+    `task-222`.
+  - **For `user-docs` / `align-agent-docs`:**
+    - the North Star wording in `README.md`, `docs/agents.md` and `CLAUDE.md` (I/P/O);
+    - `docs/user-guide.md` lists five `paths` categories;
+    - the CHANGELOG for identity resolution, `memory amend`'s reserved fields, `init`'s re-init
+      refusal and the `ci.yml` and governance checks.
+  - **Fix share:** 31 open fix tasks of 101 open tasks (31%).
+  - **Next:** B3 (`142`, `143`, `144`, `145`, `147`, `150`, `169`).
