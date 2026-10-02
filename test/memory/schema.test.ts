@@ -190,4 +190,10 @@ describe('MemoryYaml — validates the real, live .wingfoil/memory.yaml', () => 
       console.error(result.error.issues);
     }
   });
+
+  it('task-168 (dl-124 Action 4, approver ruling Q-B): `release` declares pillar and requirements not-applicable, not features', () => {
+    const data = MemoryYaml.parse(load(readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8')));
+    expect(data.types.release?.template?.frontmatter.not_applicable_allowed).toEqual(['pillar', 'requirements']);
+    expect(data.types.task?.template?.frontmatter.not_applicable_allowed).toBeUndefined();
+  });
 });

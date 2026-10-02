@@ -11,10 +11,15 @@ describe('missingRequiredFields', () => {
     expect(missingRequiredFields({ title: 'T', release: 'v0.2' }, ['title', 'release'])).toEqual([]);
   });
 
-  it('treats absent, null, blank strings and empty lists as missing; reports in declared order', () => {
+  it('treats absent, null and blank strings as missing; reports in declared order', () => {
     expect(
       missingRequiredFields({ title: 'T', a: '  ', b: null, d: [], e: ['x'], f: 0 }, ['e', 'd', 'c', 'b', 'a', 'f']),
-    ).toEqual(['d', 'c', 'b', 'a']);
+    ).toEqual(['c', 'b', 'a']);
+  });
+
+  it('bug-147 (task-168, approver ruling Q-A (1)): an explicit empty list is filled; an empty YAML value (null) is not', () => {
+    expect(missingRequiredFields({ title: 'T', features: [] }, ['features'])).toEqual([]);
+    expect(missingRequiredFields({ title: 'T', features: null }, ['features'])).toEqual(['features']);
   });
 
   it('always requires `title`, first, even when the type does not list it (spec-010)', () => {
