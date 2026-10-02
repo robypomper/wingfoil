@@ -120,10 +120,22 @@ Three configuration-document defects that mislead an agent reading the workflows
   user-docs 1.1→1.2, initial-design/wingfoil-init 1.0→1.1); `WORKFLOW.md`, `CLAUDE.md`,
   `.wingfoil/README.md` carry no `version`.
 
+### Review fixes (independent review: approve with fixes)
+
+| Fix | What | Classification | Evidence |
+|-----|------|----------------|----------|
+| F1 | `WORKFLOW.md` claimed `plan-next-release-line` reuses `align-agent-docs`; reworded: `dl-025` leaves it open, only `user-docs` declares it | documentation (no test) | `grep -rn align-agent-docs .wingfoil/workflows/` → only `user-docs.yaml` |
+| F2 | `initial-design` `seed-releases`: action passes `kind: "minor"` (`id_pattern` `{kind}-{version}`); post-check requires `kind` with `define-scope`'s pre-`dl-092` exemption; `WORKFLOW.md` seed-releases node follows (same class). No second version bump (1.1 on this branch; its comment names bug-175 too) | red-first | `npx jest test/workflow/release-kind-rule.test.ts` before the fix → `Tests: 2 failed, 4 passed, 6 total` (commit `7ab1eea5`); after → 6 passed |
+| F4 | `CLAUDE.md` overlong user-docs line rewrapped | documentation (no test) | line widths now within the surrounding block |
+
+Gates after the fixes (with the pending spec-003 amendment in the working tree): `npm test` →
+`Test Suites: 202 passed, 202 total`, `Tests: 3374 passed, 3374 total`; `npm run lint` exit 0;
+`npm run docs:api` exit 0; `npx tsc --noEmit -p tsconfig.json` exit 0. No `src/` change.
+
 ### Pending amendments (approver)
 
 - `spec-003-workflows-yaml-schema` — § "Check expressions" lists the exemption form, plus a dated
   Revision (2026-10-02). Proposed `--reason`: "task-148 (bug-175): the frontmatter gate's exemption
   form `frontmatter.required: [...] except <field> for [<id>, ...]`, which release-planning 1.5 uses on
-  define-scope for the releases added before dl-092, is listed among the observed check forms. No
-  schema field changes."
+  define-scope and initial-design 1.1 on seed-releases for the releases added before dl-092, is listed
+  among the observed check forms. No schema field changes."
