@@ -472,6 +472,13 @@ describe('directivesList — a project with no configuration is refused (task-14
     expect(result.error.message).not.toContain(repo);
   });
 
+  it('a `.wingfoil` that is a file, not a directory, is refused the same way', async () => {
+    writeFixtureFile(repo, '.wingfoil', 'not a directory\n');
+    const result = await runList(repo);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.error.message).toBe(WINGFOIL_NOT_INITIALIZED);
+  });
+
   it('the message says the project is not initialized and how to fix it', () => {
     expect(WINGFOIL_NOT_INITIALIZED).toContain('not initialized');
     expect(WINGFOIL_NOT_INITIALIZED).toContain('wingfoil init');

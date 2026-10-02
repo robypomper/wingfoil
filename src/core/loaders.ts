@@ -48,7 +48,8 @@ function resolveEntry(full: string): Stats | { readonly reason: string } {
     try {
       isLink = lstatSync(full).isSymbolicLink();
     } catch {
-      // The entry vanished between `readdirSync` and here: report what `stat` said.
+      // `lstat` fails too — a directory listed without search permission, or an entry that vanished
+      // after `readdirSync`: report what `stat` said.
     }
     if (isLink && (code === 'ENOENT' || code === 'ENOTDIR')) {
       return { reason: 'it is a symbolic link whose target does not exist' };

@@ -225,6 +225,20 @@ describe('per-pillar loaders — fixture repo', () => {
       }
     });
 
+    (unprivileged ? it : it.skip)('an entry in a directory listed without search permission is skipped', () => {
+      const noSearch = join(repo, '.wingfoil/directives/custom/no-search');
+      writeFixtureFile(repo, '.wingfoil/directives/custom/no-search/inner.md', '');
+      chmodSync(noSearch, 0o444);
+      try {
+        expect(loadDirectiveInventory(repo).warnings).toEqual([
+          WARNING,
+          "directive entry '.wingfoil/directives/custom/no-search/inner.md' skipped: it cannot be read (EACCES)",
+        ]);
+      } finally {
+        chmodSync(noSearch, 0o755);
+      }
+    });
+
     it('a symlink whose target exists is still followed and loaded (characterization)', () => {
       writeFixtureFile(repo, 'outside/linked.md', ['---', 'id: linked', 'name: "linked"', 'type: directive', 'kind: custom', 'title: "linked"', '---', ''].join('\n'));
       symlinkSync(join(repo, 'outside/linked.md'), join(repo, '.wingfoil/directives/custom/linked.md'));
