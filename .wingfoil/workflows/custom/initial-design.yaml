@@ -23,20 +23,22 @@ description: >-
   Generate this release-line's minor-release roadmap, then record the initial Architectural
   Decision Records, Decision Logs, and Technical Specifications that formalize choices already
   implied by it — before this release-line's delivery begins.
-version: 1.1                     # 1.1 bug-169: header describes the shipped CLI/MCP (task-148)
+version: 1.1                     # 1.1 bug-169: header describes the shipped CLI/MCP; bug-175: seed-releases states the release `kind` (task-148)
 
 phases:
   - name: seed-releases
     description: "Generate the RELEASE Memory files (the roadmap) for this release-line, that delivery iterates over."
     role: product-owner
     actions:
-      - 'memory.add(type: release, release-line: "{release-line.version}")'  # one per planned minor release wave, created in draft
+      - 'memory.add(type: release, release-line: "{release-line.version}", kind: "minor")'  # one per planned minor release wave, created in draft; `kind` feeds id_pattern {kind}-{version} (dl-092)
     # No submit: the `release` machine has no `pending`; releases stay `draft` and `release-planning`
     # performs draft -> planning when delivery reaches each release.
     produces:
       - "docs/04_memory/planning/{release-line}/{id}.md"
     checks:
-      post: ["frontmatter.required: [title, version, pillar, features, requirements, release-line]"]
+      # field list mirrors memory.yaml `release` template.frontmatter.required, and the exemption
+      # release-planning's define-scope states (bug-175, release-planning-rel-v0.3-plan R20)
+      post: ["frontmatter.required: [title, kind, version, pillar, features, requirements, release-line] except kind for [minor-v0.1, minor-v0.2, minor-v0.3, minor-v0.4, minor-v1.0]"]
 
   - name: seed-adrs
     description: "Optionally record the initial Architectural Decision Records for this release-line."
