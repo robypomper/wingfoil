@@ -2,7 +2,7 @@
 id: bug-181-publish-secrets-dry-run-test-fails-when-npm-config-loglevel-is-inherited-from-the-caller
 type: bug
 title: "publish-secrets dry-run test fails when npm_config_loglevel is inherited from the caller"
-status: in-progress
+status: in-review
 severity: "low"           # REQUIRED — critical | high | medium | low
 release-origin: "v0.3"     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
 release: "v0.3"            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
