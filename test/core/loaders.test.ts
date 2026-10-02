@@ -225,6 +225,16 @@ describe('per-pillar loaders — fixture repo', () => {
       }
     });
 
+    (unprivileged ? it : it.skip)('the directives directory itself unreadable still fails the read: it is the pillar', () => {
+      const directivesDir = join(repo, '.wingfoil/directives');
+      chmodSync(directivesDir, 0o000);
+      try {
+        expect(() => loadDirectiveInventory(repo)).toThrow(/EACCES/);
+      } finally {
+        chmodSync(directivesDir, 0o755);
+      }
+    });
+
     (unprivileged ? it : it.skip)('an entry in a directory listed without search permission is skipped', () => {
       const noSearch = join(repo, '.wingfoil/directives/custom/no-search');
       writeFixtureFile(repo, '.wingfoil/directives/custom/no-search/inner.md', '');
