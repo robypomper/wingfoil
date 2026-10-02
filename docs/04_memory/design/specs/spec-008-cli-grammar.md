@@ -506,6 +506,25 @@ DNA path. A `path` token with no value keeps its existing storage refusal (exit 
 There is no free-form `--id`: an id a type's pattern cannot express is `spec-001`'s per-action
 `id_pattern` override on a workflow's `memory.add` action (`dl-107` S3 (a)), not a CLI option.
 
+### 11. Which baseline each command reads
+
+A user who is refused by one command and checks with another must be able to tell which state each
+answered from (`dl-084-which-baseline-a-read-only-verb-reports-from`, `ready`, option (A)). The rule
+is `spec-006-core-domain-api` §6, which is normative; this section is its per-command form, and the
+CLI reference's *Git side effects* says the same to users.
+
+| Baseline | Commands | Why |
+|----------|----------|-----|
+| **committed at `HEAD`** | `memory add`, `memory submit`, `memory approve`, `memory reject`, `memory deprecate`, `memory amend` (their `memory.yaml` and approver authority); `dna set`, `dna add`, `dna update`, `dna remove`; `directive assign`; `directive remove`'s referrer check; `workflow next` (v0.3) | a read that can refuse the command or change what it writes (`spec-006` §6 items 1–2). When the working tree defines a type the commit does not, `memory add`'s refusal says the change is not committed (`dl-084` (D), `task-095`); the `dna` verbs first refuse a `dna.yaml` that differs from `HEAD`, so what they then read is `HEAD`'s; `memory add`'s `{n}` counter reads the wider baseline the `command-baseline` directive declares, which can only raise the number |
+| **committed at `HEAD`, declared** (v0.3, as each ships) | `workflow status`, `workflow list`, `workflow show`, `agent list`, `agent show` | approver ruling R15: one deduction, one baseline; a working tree that differs is reported as the warning `W_UNCOMMITTED_INPUTS`, and never decides the answer (`spec-006` §6 item 6, `spec-017` §1.2) |
+| **working tree** | `dna show`, `paths`, `directives list`, `memory search`, `memory history`; `workflow list` until its v0.3 reshape | a read that gates nothing: a draft you have not committed is what `memory search` exists to find (`spec-006` §6 item 4). `memory history` reads git's log for the entries and the working tree's `memory.yaml` |
+| **filesystem** | the confinement and symlink guards of every command that writes or deletes a file; `directive create`'s check that its target does not exist | the read predicts where a syscall will land, which no commit records (`spec-006` §6 item 5, `dl-086`) |
+| **working tree, a defect** | `directive remove`'s lookup of the directive it is asked to delete (`bug-108`); the lookup of the document `memory submit`, `approve`, `reject`, `deprecate` and `amend` act on, and `memory submit`'s read of its current status | owed to `HEAD` |
+
+`init` and `mcp` read no committed configuration: `init` writes the scaffold, and `mcp` starts the
+server, whose Resources and Prompts follow `spec-006` §6 item 4 — except the two v0.3 workflow
+Resources, which follow item 6.
+
 ## Consequences
 
 - Every command implementation under `src/cli` registers global flags exactly once, on the root
@@ -793,3 +812,14 @@ reserved where the scaffold declares it.** Per the approver's ruling of 2026-10-
 (A)), §2's amend paragraph says that `release` is reserved only on a type whose scaffold committed at
 `HEAD` declares a `release` field (`spec-010` § Field-write ownership). Edited in place without a
 supersede or a state change (`dl-047`).
+
+**Revision (2026-10-01, `task-161-revise-command-baseline-which-verbs-read-head-filesystem`) — the
+new §11 lists which baseline each command reads, per `dl-084-which-baseline-a-read-only-verb-reports-from`
+(`ready`, options (A) and (D)) Action 2 and approver ruling R15.** `dl-084` asked that `spec-008` and
+the CLI reference record, once, which commands answer from `HEAD` and which from the working tree, so
+that the next command added does not rediscover it. §11 is that list, per command; `spec-006` §6,
+edited in the same task, is the normative rule it applies. Its defect row records the gating reads
+the shipped code still makes on the working tree (`directive remove`'s lookup, `bug-108`; the
+transition verbs' document lookup and `memory submit`'s status read, found at the task's
+independent review), so the list describes the code rather than the rule. No other section changed. Edited in place
+without a supersede or a state change (`dl-047`); recorded with `memory amend`.
