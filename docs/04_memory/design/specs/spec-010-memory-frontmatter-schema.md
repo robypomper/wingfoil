@@ -152,6 +152,31 @@ the content and never `status`. It also leaves alone the fields other operations
 | `tmpl_version` must be present and equal to an integer the type's template has carried  | stale/unknown template version (non-fatal — informational)   |
 | `title` must be non-empty once `status` is anything other than `draft`                  | missing title on submit                                      |
 | Every field in the type's `template.frontmatter.required` must be non-empty once `status` is anything other than `draft` | missing required field on submit                              |
+| A required field may hold a not-applicable value only if the type lists it in `template.frontmatter.not_applicable_allowed` (`spec-001`), and only as `n/a — <reason>` with a non-blank reason | not-applicable value on submit: `<field>` does not accept one / needs a reason / must be written "n/a — <reason>" |
+
+**What "non-empty" means** (`bug-147`, approver rulings 2026-10-02 at `task-168`'s reviews). A
+required field is empty when it is absent, `null` (an empty YAML value, `features:`), a blank string,
+or a mapping. A list is the field's value only on a field the type declares in
+`template.frontmatter.lists` (`spec-001`). There any list is filled, an explicit `[]` included: the
+author declared "none". On every other required field, `title` included, a list counts as missing
+(`[]`, `[""]`, `[x]` alike). A number, a boolean or a date is a value. A scaffold that must not pass a
+submit untouched leaves a list field empty (`features:`) rather than `[]`.
+
+**The not-applicable value** (`dl-124` Q1 (A), Q3 (ii), `task-168`). A required field that does not
+apply to one element of its type says so with the reserved value `n/a — <reason>`: `n/a`, an em
+dash, then the reason. Letter case and whitespace around the em dash do not matter (`N/A — x` and
+`n/a—x` are accepted). Quoting the value is recommended but not enforced: the em-dash form is a plain
+YAML string unquoted, but a mistyped unquoted `n/a: <reason>` is not valid YAML. Any string value whose text starts with `n/a` in any case, not followed by a letter,
+digit or `_` (`n/a`, `N/A`, `n/a — patch release`), is read as a not-applicable value; `n/available`
+or `P1 (n/a for docs)` are ordinary data. On a listed field the full form counts as filled. Bare
+`n/a`, or a blank reason, is refused as needing a reason. A reason after any other separator
+(`n/a - x`, `n/a: x`) is refused as the wrong form. On any other required field — `title` always included — the
+value is refused whatever its form, so a field the type does not list cannot be skipped by writing
+`n/a` in it. Optional fields are not checked. The same rule applies to `memory.amend` past the type's
+initial state (the § Field-write ownership row).
+
+*Note (non-normative):* readers of these fields, such as queries and the MCP Resources, should treat
+a value starting `n/a` as "does not apply" rather than as data. No reader does so yet.
 
 ## Consequences
 
@@ -209,3 +234,14 @@ set up in, not the assigned release. `task-170` renamed it `set_up_in`, and the 
 carries the assign-owned field, keyed on the type's scaffold committed at `HEAD`. The row and the
 `release` bullet say so. Edited in place, with no supersede, no state change and no `version:` field
 (`dl-047`).
+
+**Revision (2026-10-02, `task-168-accept-declared-not-applicable-value-required-fields-explicit`) —
+the not-applicable value.** `dl-124` (`ready`; Q1 (A), Q2 (a), Q3 (ii)) reserves `"n/a — <reason>"`
+for a required field the type declares in `template.frontmatter.not_applicable_allowed` (`spec-001`);
+its Action 2 asks this spec for the value and its reading. § Validation rules gains a row and the
+paragraph after the table. It also gains the paragraph on what "non-empty" means (`bug-147`).
+Following the approver's rulings of 2026-10-02 at `task-168`'s reviews, a list is filled only on a
+field the type declares in `template.frontmatter.lists`, `[]` included. On any other field a list or
+a mapping is missing. The `release` scaffold leaves `features:` empty, so an untouched one still
+fails. The reader note on `n/a` is non-normative. Edited in place, with no supersede, no state change and no `version:`
+field (`dl-047`); pending the approver's sign-off at `task-168`'s review.
