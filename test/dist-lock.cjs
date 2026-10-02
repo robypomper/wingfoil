@@ -16,7 +16,8 @@
  *   naming the holder. If the lock is still held when the wait ends, the run refuses with an error
  *   naming the holder and the lock path. It deletes nothing in either case.
  * - A lock whose pid is not a live process was left by a run killed before its teardown, and is
- *   taken over.
+ *   taken over. Only a run holding `<lock>.break` deletes such a lock, so runs breaking it at the
+ *   same time cannot both end up holding it.
  * - A release removes the lock only if it holds the releaser's own pid, so a nested jest (as
  *   `test/lint/coverage-parity.test.ts` spawns) or a refused run cannot free the holder's lock.
  */
@@ -73,6 +74,40 @@ function tryCreate(lockPath, pid) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Delete the lock if it is still stale, holding `<lock>.break` while doing so. Returns `false`, having
+ * done nothing, if another run holds the break lock.
+ *
+ * Why a mutex: a run reads the stale pid, then deletes the lock. Without exclusion, a second run
+ * could do its read, a third could break the lock and create its own, and the second's delete would
+ * then remove that fresh lock, leaving two holders (task-146's review measured it: 4 of 80 trials of
+ * 4 simultaneous takers). Under the break lock the lock can change only through its owner's release,
+ * and a stale lock's owner is dead, so what is read is still what is deleted. A run killed while
+ * holding the break lock (a window of a few system calls) leaves it behind. The other runs then wait
+ * and refuse, naming it, rather than guess.
+ */
+function breakStale(lockPath, pid, isAlive) {
+  const breakPath = `${lockPath}.break`;
+  if (!tryCreate(breakPath, pid)) return false;
+  try {
+    const holder = readHolder(lockPath);
+    if (holder !== null && holder !== pid && (Number.isNaN(holder) || !isAlive(holder))) {
+      try {
+        unlinkSync(lockPath);
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+    }
+  } finally {
+    releaseDistLock({ lockPath: breakPath, pid });
+  }
+  return true;
+}
+
 /**
  * Take the lock for `pid`, waiting up to `waitMs` for a live holder to release it.
  * Rejects, without touching anything, if the holder still has it when the wait ends.
@@ -93,16 +128,16 @@ async function acquireDistLock({
     if (holder === null) continue; // released between the two calls
     if (holder === pid) return; // already ours (a watch-mode re-run)
     if (Number.isNaN(holder) || !isAlive(holder)) {
-      // Left by a run killed before its teardown. Re-reading before the unlink narrows, but does not
-      // close, the window in which two runs breaking the same stale lock could both take it.
-      const again = readHolder(lockPath);
-      if (again === holder || (Number.isNaN(again) && Number.isNaN(holder))) {
-        try {
-          unlinkSync(lockPath);
-        } catch (err) {
-          if (err.code !== 'ENOENT') throw err;
-        }
+      // Left by a run killed before its teardown. Broken only under the break lock (see breakStale).
+      if (breakStale(lockPath, pid, isAlive)) continue;
+      if (waited >= waitMs) {
+        throw new Error(
+          `jest globalSetup: the stale dist/ lock ${lockPath} (pid ${holder}, not running) is being broken by another run, ` +
+            `which still holds ${lockPath}.break after ${waitMs} ms. Remove ${lockPath}.break if no jest run is starting (bug-095).`,
+        );
       }
+      await sleep(pollMs);
+      waited += pollMs;
       continue;
     }
     if (waited >= waitMs) {
@@ -116,7 +151,7 @@ async function acquireDistLock({
       log(`jest globalSetup: dist/ is in use by another jest run in this worktree (pid ${holder}, lock ${lockPath}); waiting for it to finish.`);
       announced = true;
     }
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    await sleep(pollMs);
     waited += pollMs;
   }
 }
