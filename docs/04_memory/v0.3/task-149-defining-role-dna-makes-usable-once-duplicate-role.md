@@ -2,7 +2,7 @@
 id: "task-149-defining-role-dna-makes-usable-once-duplicate-role"
 type: task
 title: "Defining a role in DNA makes it usable at once, and a duplicate role is refused with P5.4.1's message"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "medium"
