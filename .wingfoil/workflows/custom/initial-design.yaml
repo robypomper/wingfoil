@@ -10,8 +10,12 @@
 # logic, but for artefacts spanning this release-line's whole arc rather than one release's task
 # scope. identify-specs already dedupes against "not yet covered by an approved spec", so anything
 # seeded here is not re-created once a release's own delivery starts.
-# NOTE: WingFoil's CLI/MCP is not yet usable, so for THIS project these outputs are produced
-# MANUALLY, under docs/04_memory/ (resolved against the repository root).
+# NOTE: the `wingfoil` CLI and MCP server ship and read this repository's own configuration (the
+# pinned build, dl-095); `memory add/submit/approve/reject/deprecate` write these outputs' commits.
+# There is no workflow engine: the workflow commands read and name a phase's steps but run none, and
+# step execution (P4.10) is v1.0. So on THIS project a phase's actions are carried out through those
+# verbs or by hand, against a `plan` element (dl-019); the outputs land under docs/04_memory/
+# (resolved against the repository root).
 name: initial-design
 kind: sub
 element: release-line   # the active element provided by release-line-cycle
@@ -19,7 +23,7 @@ description: >-
   Generate this release-line's minor-release roadmap, then record the initial Architectural
   Decision Records, Decision Logs, and Technical Specifications that formalize choices already
   implied by it — before this release-line's delivery begins.
-version: 1.0
+version: 1.1                     # 1.1 bug-169: header describes the shipped CLI/MCP (task-148)
 
 phases:
   - name: seed-releases

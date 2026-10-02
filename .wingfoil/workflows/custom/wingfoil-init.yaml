@@ -5,21 +5,24 @@
 # seeding at all: the release roadmap moved to release-line-cycle's `initial-design`
 # (`seed-releases`, per release-line, since v2+ needs its own roadmap later); ADRs/Decision
 # Logs/tech-specs live in `initial-design` too (`seed-adrs`/`seed-dls`/`seed-specs`).
-# NOTE: WingFoil's CLI/MCP is not yet usable, so for THIS project this output is produced MANUALLY —
-# first under a nested docs/self/.wingfoil/, moved to the repository-root .wingfoil/ by task-111;
-# on any other project the tool performs this step for real (see .wingfoil/README.md).
+# NOTE: on any project `wingfoil init` performs this step (P5.1.1). THIS project's configuration
+# predates `wingfoil init` and is hand-authored — first under a nested docs/self/.wingfoil/, moved to
+# the repository-root .wingfoil/ by task-111; the CLI and MCP server now read it (see
+# .wingfoil/README.md). There is no workflow engine: the workflow commands read and name a phase's
+# steps but run none, and step execution (P4.10) is v1.0, so a phase's actions are carried out by
+# hand, against a `plan` element (dl-019).
 # Source: Features §P5.1.1 (init); composition is user-defined.
 name: wingfoil-init
 kind: sub
 description: "Initialize the WingFoil configuration: DNA, Memory schema, Directives, Workflows."
-version: 1.0
+version: 1.1                     # 1.1 bug-169: header describes the shipped CLI/MCP (task-148)
 
 phases:
   - name: init-config
     description: "Create the WingFoil configuration files (dna.yaml, memory.yaml, directives/, workflows.yaml)."
     role: tech-lead
     actions:
-      - config.init        # P5.1.1 wizard/params; here performed manually (this .wingfoil/ is hand-authored)
+      - config.init        # P5.1.1 wizard/params (`wingfoil init`); this repository's .wingfoil/ predates it and is hand-authored
     produces:
       - ".wingfoil/dna.yaml"
       - ".wingfoil/memory.yaml"
