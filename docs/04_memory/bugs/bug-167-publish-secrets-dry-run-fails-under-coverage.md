@@ -2,7 +2,7 @@
 id: bug-167-publish-secrets-dry-run-fails-under-coverage
 type: bug
 title: "`test/cli/publish-secrets.test.ts`'s \"publishes (dry run) the tarball the step names\" fails under `npx jest --coverage` and passes on its own and under plain `npm test`"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"
