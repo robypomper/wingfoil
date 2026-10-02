@@ -2,7 +2,7 @@
 id: "task-143-make-directive-loader-robust-dangling-symlinks-project"
 type: task
 title: "Make the directive loader robust to dangling symlinks and to a project with no configuration"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "fix"
 priority: "medium"
