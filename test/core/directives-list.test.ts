@@ -26,6 +26,8 @@
  * `resolveRoleDirectives` warnings — the dl-029 no-assignments warning and the dangling-binding
  * warning. `entries` is unchanged: this listing still does not deduplicate — see the `shadowed id` cases.
  */
+import { join } from 'path';
+
 import { CORE_MODULES } from '../../src/core';
 import { resolveRoleDirectives } from '../../src/core/context';
 import { loadDirectives, loadRolesYaml } from '../../src/core/loaders';
@@ -77,8 +79,9 @@ async function listOk(root: string, options?: Record<string, string>): Promise<r
   return (await listingOk(root, options)).entries;
 }
 
-function directiveDoc(id: string, name: string): string {
-  return [`---`, `id: ${id}`, `name: "${name}"`, `type: directive`, `kind: custom`, `title: "${name}"`, `---`, ``, `# ${name}`, ``].join('\n');
+function directiveDoc(id: string, name: string, scope?: 'global'): string {
+  const scopeLine = scope === undefined ? [] : [`scope: ${scope}`];
+  return [`---`, `id: ${id}`, `name: "${name}"`, `type: directive`, `kind: custom`, `title: "${name}"`, ...scopeLine, `---`, ``, `# ${name}`, ``].join('\n');
 }
 
 /**
@@ -116,7 +119,7 @@ describe('directivesList — P3.4 Scenario 1: list all directives with assignmen
     repo = makeTempGitRepo();
     seedBuiltIns(repo);
     writeFixtureFile(repo, '.wingfoil/directives/custom/no-direct-db-access.md', directiveDoc('no-direct-db-access', 'No direct DB access'));
-    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets', 'global'));
     writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
   });
 
@@ -193,7 +196,7 @@ describe('directivesList — P3.4 Scenario 2: filter the listing by role', () =>
     repo = makeTempGitRepo();
     seedBuiltIns(repo);
     writeFixtureFile(repo, '.wingfoil/directives/custom/no-direct-db-access.md', directiveDoc('no-direct-db-access', 'No direct DB access'));
-    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets', 'global'));
     writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
   });
 
@@ -346,7 +349,7 @@ describe('directivesList — the warnings channel (dl-042 A + D)', () => {
     repo = makeTempGitRepo();
     writeFixtureFile(repo, '.wingfoil/directives/built-in/testing.md', directiveDoc('testing', 'Testing (built-in)'));
     writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing (custom)'));
-    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Security & secrets', 'global'));
     writeFixtureFile(repo, '.wingfoil/directives/custom/code-review.md', directiveDoc('code-review', 'Code review'));
     writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
   });
@@ -404,5 +407,97 @@ describe('directivesList — the warnings channel (dl-042 A + D)', () => {
       const expected = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), role).warnings;
       expect((await listingOk(repo, { role })).warnings).toEqual(expected);
     }
+  });
+});
+
+// task-144 (bug-148; RED-FIRST) — a directive's `scope: global` frontmatter and `roles.yaml`'s `global:`
+// list declare the same fact twice. `roles.yaml` stays the authority (spec-013, Revision 2026-10-01): the
+// entry's `global`/`assignment` follow it alone. When the two disagree, in either direction, the
+// unfiltered listing names the disagreement in its own `warnings` array — not only on stderr.
+describe('directivesList — `scope` against roles.yaml `global:` (task-144, bug-148)', () => {
+  let repo: string;
+
+  const ROLES = `version: 1
+assignments:
+  developer:
+    - testing
+global:
+  - security-secrets
+`;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('a directive declaring `scope: global` that roles.yaml `global:` omits is named in `warnings`', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'global'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets', 'global'));
+    const listing = await listingOk(repo);
+    expect(listing.warnings).toEqual([
+      "directive 'testing' declares scope: global in directives/custom/testing.md, but roles.yaml 'global' does not list it; roles.yaml decides: not global",
+    ]);
+    // roles.yaml stays the authority: the entry is NOT global.
+    const entry = listing.entries.find((e) => e.frontmatter.id === 'testing');
+    expect(entry?.global).toBe(false);
+    expect(entry?.assignment).toBe('developer');
+  });
+
+  it('a directive roles.yaml `global:` lists that does not declare `scope: global` is named in `warnings` (the reverse)', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets'));
+    const listing = await listingOk(repo);
+    expect(listing.warnings).toEqual([
+      "directive 'security-secrets' is listed in roles.yaml 'global', but directives/custom/security-secrets.md does not declare scope: global; roles.yaml decides: global",
+    ]);
+    expect(listing.entries.find((e) => e.frontmatter.id === 'security-secrets')?.global).toBe(true);
+  });
+
+  it('the two sites agreeing yields no scope warning', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets', 'global'));
+    expect((await listingOk(repo)).warnings).toEqual([]);
+  });
+
+  it('a global id with no directive file is not a scope disagreement (nothing declares anything)', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    expect((await listingOk(repo)).warnings).toEqual([]);
+  });
+
+  it('for a shadowed id only the file in force is compared, after the shadow warning', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/built-in/security-secrets.md', directiveDoc('security-secrets', 'Secrets (built-in)'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets', 'global'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'global'));
+    expect((await listingOk(repo)).warnings).toEqual([
+      "directive 'security-secrets' defined in directives/built-in/security-secrets.md, directives/custom/security-secrets.md; using directives/custom/security-secrets.md",
+      "directive 'testing' declares scope: global in directives/custom/testing.md, but roles.yaml 'global' does not list it; roles.yaml decides: not global",
+    ]);
+  });
+
+  it('with no roles.yaml, a `scope: global` declaration is still reported — nothing makes it global', async () => {
+    removeTempDir(repo);
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'global'));
+    expect((await listingOk(repo)).warnings).toEqual([
+      "directive 'testing' declares scope: global in directives/custom/testing.md, but roles.yaml 'global' does not list it; roles.yaml decides: not global",
+    ]);
+  });
+
+  it('under --role the warnings stay exactly resolveRoleDirectives\' (dl-042 D): the role view is not the config audit', async () => {
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing', 'global'));
+    writeFixtureFile(repo, '.wingfoil/directives/custom/security-secrets.md', directiveDoc('security-secrets', 'Secrets'));
+    const expected = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), 'developer').warnings;
+    expect((await listingOk(repo, { role: 'developer' })).warnings).toEqual(expected);
+  });
+});
+
+// task-144 (bug-113, bug-148) — this repository's own configuration: every directive's `scope` agrees
+// with `roles.yaml`, so `directives list` here reports no scope warning.
+describe('directivesList — the live configuration declares `scope` consistently (task-144)', () => {
+  it('reports no warning on this repository', async () => {
+    const liveRoot = join(__dirname, '..', '..');
+    expect((await listingOk(liveRoot)).warnings).toEqual([]);
   });
 });

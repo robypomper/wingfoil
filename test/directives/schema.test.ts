@@ -1,20 +1,20 @@
 /**
  * DirectiveFrontmatter schema (task-004-decoupled-pillars, REQ-SYS-02) — the fourth pillar named by
  * the task's Acceptance Criteria ("directives/*.yaml ... validate against their own Zod schema
- * independently"). NOTE: unlike memory.yaml/dna.yaml/workflows.yaml, no dedicated tech-spec exists
- * yet for the directive file's own frontmatter shape (spec-010-memory-frontmatter-schema explicitly
- * scopes to `docs/04_memory/**\/*.md`, not `.wingfoil/directives/**`). This schema is
- * grounded directly in the fields actually present on every current directive file, plus one BDD
- * contract requirement (`name` is required per `p3-directives/P3.5-project-directives.feature`'s
- * "missing required header fields" scenario) — see this task's Execution Notes for the design-gap
- * this records.
+ * independently"). The shape is specified by the approved `spec-013-directive-frontmatter-schema`
+ * (written as task-004's fast-follow); `name` is required per
+ * `p3-directives/P3.5-project-directives.feature`'s "missing required header fields" scenario.
+ * `task-144` declares the optional `scope` and `version` keys (bug-113, bug-148; approver ruling
+ * 2026-10-01).
  */
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { load } from 'js-yaml';
 
+import { loadDirectives } from '../../src/core/loaders';
 import { DirectiveFrontmatter, RolesYaml } from '../../src/directives/schema';
 import { extractFrontmatter } from '../../src/storage/frontmatter';
+import { emitUnknownFieldWarning } from '../../src/validation/warning';
 
 describe('DirectiveFrontmatter — structural shape', () => {
   it('accepts the shape common to every current directive file', () => {
@@ -51,20 +51,79 @@ describe('DirectiveFrontmatter — structural shape', () => {
     expect(result.success).toBe(false);
   });
 
-  it('preserves unknown fields (`.passthrough()`), e.g. `scope`', () => {
+  it('preserves unknown fields (`.passthrough()`), e.g. `owner`', () => {
     const result = DirectiveFrontmatter.safeParse({
       id: 'doc-versioning',
       name: 'Documentation versioning',
       type: 'directive',
       kind: 'custom',
       title: 'Documentation versioning',
-      scope: 'global',
+      owner: 'docs-team',
       ref: [],
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect((result.data as Record<string, unknown>).scope).toBe('global');
+      expect((result.data as Record<string, unknown>).owner).toBe('docs-team');
     }
+  });
+});
+
+/**
+ * task-144 (bug-113, bug-148; approver ruling 2026-10-01) — `scope` and `version` are DECLARED optional
+ * keys of the directive frontmatter (spec-013's field table), so a directive carrying either one no
+ * longer trips spec-009's unknown-field warning. RED-FIRST: before this task both rode `.passthrough()`.
+ */
+describe('DirectiveFrontmatter — declared optional `scope` and `version` (task-144)', () => {
+  const base = { id: 'doc-versioning', name: 'Doc versioning', type: 'directive', kind: 'custom', title: 'Doc versioning' };
+
+  function stderrOf(fn: () => void): string {
+    const writes: string[] = [];
+    const spy = jest.spyOn(process.stderr, 'write').mockImplementation((chunk: string | Uint8Array) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    try {
+      fn();
+    } finally {
+      spy.mockRestore();
+    }
+    return writes.join('');
+  }
+
+  it('declares both keys in the schema shape', () => {
+    expect(Object.keys(DirectiveFrontmatter.shape)).toEqual(expect.arrayContaining(['scope', 'version']));
+  });
+
+  it('`scope: global` and `version: "1.2"` produce no unknown-field warning', () => {
+    const raw = { ...base, scope: 'global', version: '1.2' };
+    expect(DirectiveFrontmatter.safeParse(raw).success).toBe(true);
+    expect(stderrOf(() => emitUnknownFieldWarning(raw, DirectiveFrontmatter, 'x.md'))).toBe('');
+  });
+
+  it('both keys stay optional', () => {
+    expect(DirectiveFrontmatter.safeParse(base).success).toBe(true);
+  });
+
+  it('`scope` accepts only `global` — the one value spec-013 defines', () => {
+    expect(DirectiveFrontmatter.safeParse({ ...base, scope: 'global' }).success).toBe(true);
+    expect(DirectiveFrontmatter.safeParse({ ...base, scope: 'team' }).success).toBe(false);
+  });
+
+  it('`version` is a string — an unquoted YAML number is rejected, so `1.10` cannot silently read as 1.1', () => {
+    expect(DirectiveFrontmatter.safeParse({ ...base, version: '1.10' }).success).toBe(true);
+    expect(DirectiveFrontmatter.safeParse({ ...base, version: 1.1 }).success).toBe(false);
+  });
+
+  it('loading the live directives prints no unknown-field warning (bug-113 reproduced on this repository)', () => {
+    const liveRoot = join(__dirname, '..', '..');
+    expect(stderrOf(() => loadDirectives(liveRoot))).not.toMatch(/unknown field/);
+  });
+
+  it('command-baseline carries its version as the frontmatter key, not a body line (approver ruling 2026-10-01)', () => {
+    const raw = readFileSync(join(__dirname, '..', '..', '.wingfoil', 'directives', 'custom', 'command-baseline.md'), 'utf-8');
+    const fm = load(extractFrontmatter(raw) as string) as Record<string, unknown>;
+    expect(fm.version).toBe('1.2');
+    expect(raw).not.toMatch(/^\*\*Version:\*\*/m);
   });
 });
 
