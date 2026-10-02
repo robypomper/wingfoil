@@ -12,7 +12,7 @@
  *   before validation, with a warning, so the rest of the file — and every other directive — still
  *   loads.
  *
- * Pure (REQ-SYS-07): the caller decides where the warning goes (`loadDirectives` writes it to stderr,
+ * Pure (REQ-SYS-07): the caller decides where the warning goes (`loadDirectiveInventory` puts it in its `warnings`,
  * in spec-009 §2's `Warning: <file>: …` form).
  */
 
