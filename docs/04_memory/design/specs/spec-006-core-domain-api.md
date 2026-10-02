@@ -329,6 +329,59 @@ elaborated for implementers in the `command-baseline` directive
 
 Symbols in this section read at `9642ab5f`.
 
+### 7. Pre-flight of the memory transition verbs, and the one identity they use
+
+`memory submit`, `approve`, `reject`, `deprecate` and `amend` — every registered `memory` operation
+that moves or amends an existing document — run their refusals in one declared order, each before
+the single write, so "the state is unchanged" holds on every refusal by construction:
+
+1. **Usage checks** — the `<id>` operand, then `--reason` (required on `approve`, `reject` and
+   `amend` by REQ-SEC-04; optional on `deprecate`, where a given reason must still be recordable) →
+   `UsageError`, exit `2`. They read nothing, so a malformed invocation exits `2` whether or not git
+   has an identity (`task-125`, `bug-172`).
+2. **Identity** (REQ-SEC-01) → exit `1` when no name or no email resolves.
+3. **Transition legality** — the document located, its type and state resolved against the
+   `memory.yaml` committed at `HEAD` (§6), the verb's edge resolved (`dl-032`, `dl-053`) → exit `1`.
+4. **Authority** (REQ-SEC-03), on `approve` and `reject` → exit `1`,
+   `user not authorized to approve type '<type>'`, read from the `dna.yaml` committed at `HEAD`.
+5. **Write** — one commit, scoped to the document.
+
+Steps 2 and 3 are one shared function, `beginMemoryTransition` (`src/core/memory-transition.ts`);
+no verb reads the identity or prepares the transition on its own.
+
+**Legality before authority** (`dl-064` A.1). Step 4 follows step 3 because its message names the
+document's type, which is known only once step 3 has located the document. The one observable
+consequence: a caller who is unauthorized *and* attempts an illegal transition is told about the
+transition, not about authority. Both refusals exit `1` (every `CoreErrorCode` maps to `1`,
+`src/core/exit-code.ts`) and neither writes anything, which is what makes the order safe; a future
+`CoreErrorCode` mapped to another exit code would make it observable and must revisit this clause.
+The order is declared for `approve` and `reject`, the two approval gates. `deprecate` and `submit`
+have no step 4 (`dl-027`: `deprecate` is not an approval gate). `amend` runs the same authority
+check (`dl-108` A2 (i)), after step 3 and its confinement check (REQ-SEC-06), and before its own
+amendability checks.
+
+**One identity, never two** (`dl-064` B.1, `bug-149`). Step 2 resolves the identity once, the way
+`git commit` resolves its author — `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL`, then `author.name`/
+`author.email`, then `user.name`/`user.email`, each field independently; a variable that is set but
+blank does not fall back — git refuses a blank name and records a blank email as `<>`; the check
+refuses both; git's `EMAIL` variable and hostname
+guess are not followed, since REQ-SEC-01 exists to refuse an identity nobody configured. That one
+value is the principal step 4 authorizes, the `Name <email>` of the `Approver:` line, and the commit's
+author, which step 5 pins by setting `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL` in the commit's
+environment (not `--author`, a string git re-parses) so git cannot substitute another. With
+`GIT_AUTHOR_EMAIL` naming someone other than `user.email`, the environment's identity is therefore
+the one checked, recorded and authored — and refused when it holds no `approver` role.
+
+**Step 2 refuses whatever would stop the commit.** The committer must resolve too, by the same rule
+(`GIT_COMMITTER_*`, then `committer.*`, then `user.*`), because `git commit` refuses without one: an
+author alone would pass step 2 and fail in step 5, after the document was written. And no name or
+email of either identity may contain `<`, `>` or a control character (`git identity not usable: …`,
+exit `1`): `<`/`>` delimit the email in git's ident format and a newline ends a line of the commit
+body, so either could make the recorded author or the `Approver:` line differ from the principal
+authorized. The check is `requireGitIdentity` (`src/core/git-identity.ts`), shared by every mutating
+operation, not only the transition verbs. The committer is otherwise git's own and is not pinned: the
+audit record (`memory history`, REQ-SEC-02) reads the author.
+
 ## Consequences
 
 - `src/cli` and `src/mcp` become thin: no business logic to keep in sync by hand, so a bug fix or a
@@ -567,3 +620,22 @@ Tech-specs carry no `version:` field, so there is nothing to bump (`dl-047-tech-
 option 1, approve `8e7e1e44`). Edited in place without a supersede or a state change, per the same
 `spec-001` precedent the 2026-09-17 revision cites; `status` stays `approved`, pending the approver's
 sign-off at identify-specs (`dl-022` spec-review gate).
+
+**Revision (2026-10-01) — the new §7 declares the pre-flight order of the memory transition verbs and
+the one identity they use, per `dl-064-approver-gated-verb-preflight-order` (`ready`) A.1 and B.1 and
+`task-132-read-approver-identity-once-use-authority-check-approver` (`bug-142`, `bug-149`,
+`bug-153`).** Nothing above §7 changes. A.1 asked for the approver-gated pre-flight order to be
+written here; its Review addendum asked that the order be scoped to `approve` and `reject` by name,
+so that `memory deprecate`, which has no authority check, is not described as non-conformant; its
+Code addendum (2026-09-29) records that `task-125` moved the usage checks ahead of the identity
+check, and §7 states that order rather than the one in `dl-064`'s Context (i). B.1 asked for one
+identity read per operation; `task-132` makes it one shared function and pins the commit author to
+it, and §7 states which identity that is, because before `task-132` the authority check read
+`user.*` while git authored the commit from `GIT_AUTHOR_*` first (`bug-149`). §7 also states what
+the identity check must refuse so that it never passes a commit git would then refuse (a missing
+committer) or record differently (`<`, `>`, control characters), both found in `task-132`'s
+independent review. §7 is in this spec,
+rather than in `spec-008`, because the order is `src/core`'s and binds the MCP Tools as much as the
+CLI, the same reasoning the 2026-09-24 revision gives for §6. Tech-specs carry no `version:` field
+(`dl-047`). Edited in place without a supersede or a state change, per the same `spec-001` precedent
+the 2026-09-17 revision cites.
