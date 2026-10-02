@@ -135,9 +135,52 @@ also denied spec-013; all rewritten
 (`grep -rn "candidate\|no dedicated\|no approved" src/directives/ test/directives/schema.test.ts` →
 nothing).
 
+### review (independent) — APPROVE WITH FIXES, approver rulings R1–R4 (2026-10-02)
+
+The rulings supersede design decisions 1, 2, 4 and 6 above.
+
+- **R1** — `version` is `z.union([z.string(), z.number()])`. New `src/directives/version.ts`
+  (`checkDirectiveVersion`), called by `parseDirectiveFile` (`src/core/loaders.ts`). It writes a stderr
+  warning in spec-009 §2 form when an unquoted number does not read back as written (`1.10` → `1.1`,
+  `1.0` → `1`), telling the author to quote it. A value that is neither a string nor a number is
+  dropped with a warning instead of failing the pillar. The warning goes to stderr, not to the listing:
+  only the loader sees the frontmatter text it needs.
+- **R2** — `scope` is `z.string()`. `directives list` reports a value other than `global`. The
+  reviewer's compat project (`determinism.md`, `scope: team`): `node dist/cli.js directives list
+  --format json` → exit 0, one warning, "…which spec-013 does not define (only global); it has no
+  effect".
+- **R3** — only a declared `scope` is compared, and an absent one is never reported. `scope: global`
+  is removed from the built-in templates (a test asserts they carry none) and from the `init`
+  scaffold's custom directives: with absence no longer a disagreement it was redundant, and it
+  duplicated `roles.yaml`, which is `bug-148`'s complaint. This repository's `documentation.md` and
+  `security.md` keep the `scope: global` the first pass added: they agree with `roles.yaml`, as the
+  other three globals here do. The new test fixture `test/core/fixtures/init-0.2.2/` holds the
+  `.wingfoil/roles.yaml` and `.wingfoil/directives/**` output of `node
+  node_modules/wingfoil-released/dist/cli.js init --template Scrum` (`--version` → `0.2.2`), captured
+  verbatim. It lists 10 entries and 0 warnings.
+- **R4** — `command-baseline.md` is now `version: "1.3"` with `**Date:** 2026-10-02`. The
+  *Relocation* note is replaced by **Revision 1.3**.
+- **Fixes.** (3) `src/directives/index.ts` and `src/core/loaders.ts` no longer deny spec-013
+  (`grep -rn "no dedicated\|no approved tech-spec\|tech-spec yet" src | grep -i directiv` → nothing).
+  (4) The scaffold's `doc-versioning` summary (`src/storage/templates.ts`) reads "once per change
+  merged to the default branch". CLAUDE.md §8 belongs to `align-agent-docs` and is not touched here.
+  (6) The spec-013 Context no longer says "ten real files" or "built-in templates not implemented",
+  and its stray `CLAUDE.md` citation is gone. The Revision note now describes R1–R3. The amendment
+  stays uncommitted.
+- **Commits:** red `b59fb404` (`npx jest test/core/directives-list.test.ts test/directives/schema.test.ts
+  test/storage/builtin-directives.test.ts` → **14 failed, 100 passed**; the 0.2.2 fixture listed 3
+  reverse-direction warnings), green `90f39404`, `docs/cli-reference.md` `7649ecf1`.
+- **Gates**, run with the amendment in the working tree: `npm run test:coverage` → 188 suites,
+  **3221 passed**, 98.85 / 95.25 / 95.03 / 99.54 (main 98.84 / 95.24 / 95.01 / 99.54). `npm run
+  lint`, `npm run docs:api` and both `tsc` runs → exit 0. `npm run build && node
+  scripts/e2e-smoke.cjs` → exit 0. `WINGFOIL="node $PWD/dist/cli.js" bash docs/examples/0*/run.sh` →
+  all 5 exit 0. Live: `node dist/cli.js directives list --format json` → `"warnings": []`.
+
 ### Pending amendments (approver)
 
-- `spec-013-directive-frontmatter-schema` — `--reason "Declares scope (literal global) and version
-  (string) as optional directive frontmatter keys and states that roles.yaml global decides, with
-  directives list reporting a disagreement in either direction, per task-144 (bug-113, bug-148) and
-  the approver ruling of 2026-10-01 on version."`
+- `spec-013-directive-frontmatter-schema` — `--reason "Declares scope (any string; global is the one
+  defined value) and version (string or number, never a reason to fail the pillar) as optional
+  directive frontmatter keys, states that roles.yaml global decides and that directives list reports
+  a declared scope contradicting it or undefined here, and brings the Context up to date (the P3.8
+  built-ins ship; twelve custom directives). Per task-144 (bug-113, bug-148) and the approver rulings
+  of 2026-10-01 and 2026-10-02 (R1 to R3)."`
