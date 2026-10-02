@@ -413,7 +413,8 @@ describe('directivesList — the warnings channel (dl-042 A + D)', () => {
 // task-144 (bug-148; RED-FIRST) — a directive's `scope: global` frontmatter and `roles.yaml`'s `global:`
 // list declare the same fact twice. `roles.yaml` stays the authority (spec-013, Revision 2026-10-01): the
 // entry's `global`/`assignment` follow it alone. When the two disagree, in either direction, the
-// unfiltered listing names the disagreement in its own `warnings` array — not only on stderr.
+// unfiltered listing names the disagreement in its own `warnings` array — not only on stderr. The first
+// case transcribes P3.4's "Edge - a directive's scope disagrees with roles.yaml" scenario.
 describe('directivesList — `scope` against roles.yaml `global:` (task-144, bug-148)', () => {
   let repo: string;
 

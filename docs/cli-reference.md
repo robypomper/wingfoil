@@ -671,6 +671,11 @@ wingfoil directives list [--role <role>]
 Each entry carries `path`, `frontmatter` (`id`, `name`, `kind`, …), `roles`, `global` and a readable
 `assignment`. `--role` keeps only the directives that apply to that role, globals included.
 
+The payload also carries `warnings`. Without `--role` it names every id defined by two files (and
+the one in force), and every directive whose `scope: global` frontmatter disagrees with `roles.yaml`'s
+`global:` list — `roles.yaml` decides. With `--role` it names a role with no assignments of its own,
+a binding with no directive file, and shadowed ids.
+
 - **Commit:** none.
 
 ### `wingfoil directive create`
