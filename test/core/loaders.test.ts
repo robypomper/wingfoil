@@ -3,7 +3,7 @@
  * pillar, each independently reading its own artifact(s) through the shared two-pass validation
  * pipeline (spec-009), with no cross-pillar schema dependency.
  */
-import { symlinkSync } from 'fs';
+import { chmodSync, mkdirSync, symlinkSync } from 'fs';
 import { join } from 'path';
 
 import {
@@ -196,6 +196,32 @@ describe('per-pillar loaders — fixture repo', () => {
         expect(stderr.mock.calls.map(([chunk]) => String(chunk))).toEqual([`Warning: ${WARNING}\n`]);
       } finally {
         stderr.mockRestore();
+      }
+    });
+
+    it('a symlink loop is skipped too, with the error code as its reason', () => {
+      symlinkSync('loop.md', join(repo, '.wingfoil/directives/custom/loop.md'));
+      expect(loadDirectiveInventory(repo).warnings).toEqual([
+        WARNING,
+        "directive entry '.wingfoil/directives/custom/loop.md' skipped: it cannot be read (ELOOP)",
+      ]);
+    });
+
+    // Permission bits do not bind root, so the case only exists for an unprivileged user.
+    const unprivileged = typeof process.getuid === 'function' && process.getuid() !== 0;
+    (unprivileged ? it : it.skip)('a subdirectory that cannot be listed is skipped, not fatal', () => {
+      const locked = join(repo, '.wingfoil/directives/custom/locked');
+      mkdirSync(locked);
+      chmodSync(locked, 0o000);
+      try {
+        const inventory = loadDirectiveInventory(repo);
+        expect(inventory.files.map((file) => file.frontmatter.id)).toEqual(['sample']);
+        expect(inventory.warnings).toEqual([
+          WARNING,
+          "directive entry '.wingfoil/directives/custom/locked' skipped: it cannot be read (EACCES)",
+        ]);
+      } finally {
+        chmodSync(locked, 0o755);
       }
     });
 

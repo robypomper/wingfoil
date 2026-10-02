@@ -63,7 +63,8 @@ function resolveEntry(full: string): Stats | { readonly reason: string } {
  * order from `readdirSync` is not guaranteed stable, so traversal always sorts explicitly, mirroring
  * `src/storage/snapshot.ts`'s `listFilesSorted`). Returns no files if `dir` doesn't exist.
  *
- * An entry that cannot be resolved — a dangling symbolic link above all — is **skipped**, and its
+ * An entry that cannot be resolved — a dangling symbolic link above all, or a subdirectory that
+ * cannot be listed — is **skipped**, and its
  * `dir`-relative path is returned in `skipped` with the reason, in traversal order (task-143,
  * `bug-125`). Whatever the link's name, it is reported: a dangling link has no type, so one named
  * without `.md` may have been a directory of directives.
@@ -76,7 +77,17 @@ function listMarkdownFilesSorted(dir: string): {
   const skipped: { relative: string; reason: string }[] = [];
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return { files, skipped };
   const walk = (current: string, prefix: string): void => {
-    for (const entry of readdirSync(current).sort()) {
+    let entries: string[];
+    try {
+      entries = readdirSync(current);
+    } catch (error) {
+      // The directives directory itself is the pillar: an unreadable one fails the read. A
+      // subdirectory under it is one entry, and goes the way of an unresolvable file.
+      if (prefix === '') throw error;
+      skipped.push({ relative: prefix, reason: `it cannot be read (${String((error as NodeJS.ErrnoException).code)})` });
+      return;
+    }
+    for (const entry of entries.sort()) {
       const full = join(current, entry);
       const relative = prefix ? `${prefix}/${entry}` : entry;
       const resolved = resolveEntry(full);
