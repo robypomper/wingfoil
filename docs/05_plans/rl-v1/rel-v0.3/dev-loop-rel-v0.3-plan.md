@@ -142,7 +142,7 @@ most later work go first (`task-136` → 40 later tasks, `task-130` → 26, `tas
 | **B1** | 130, 131, 133, 136, 139, 140, 166, 170 | `133` → `136` (`src/storage/templates.ts`); `131` → `130` (refusal paths of `memory add` and the transition verbs) |
 | **B2** | 132, 134, 135, 137, 138, 141, 161, 167 | `137` after `136`; `138` → `132` (`src/core/index.ts`); `138` → `161` (`docs/cli-reference.md`); `161` → `132` (`spec-006`) |
 | **B3** | 142, 143, 144, 145, 147, 150, 169 | `143` → `144` (`src/core/directives-list.ts`); `144` after `161` (`command-baseline.md`) |
-| **B4** | 146, 148, 149, 151, 152, 155, 168 | `146` → `152` (`jest.config.js`) |
+| **B4** | 146, 148, 149, 151, 152, 155, 168, 247 | `146` → `152` (`jest.config.js`) |
 | **B5** | 153, 154, 158, 159, 162, 163 | `162` → `163` (`spec-001`) |
 | **B6** | 156, 157, 160, 164, 165 | `165` → `156` (`spec-008`, `docs/cli-reference.md`); `164` after `163` |
 
@@ -331,3 +331,15 @@ commit, right after the task's transition and on the task branch:
       refusal and the `ci.yml` and governance checks.
   - **Fix share:** 31 open fix tasks of 101 open tasks (31%).
   - **Next:** B3 (`142`, `143`, `144`, `145`, `147`, `150`, `169`).
+- **2026-10-02 — `main` pushed** (`050c938c..cac8a447`, 165 commits) after the approver cleared the
+  push-protection hit on the fake fixture secret.
+- **2026-10-02 — B2 follow-up triage** (approver): proposals accepted.
+  - **`task-247` added to the backlog** after `commit-backlog`: a new fix task for `bug-187`, wave 1,
+    batch B4 (`depends_on` `task-137`, done). It goes into `minor-v0.3`'s scope changes at the next
+    checkpoint (`dl-100` §2).
+  - `bug-188` and `bug-189` → `task-171`; `bug-190` → `task-182`; `bug-191` → `task-188`;
+    `bug-192` → `task-208`.
+  - `bug-193` → v0.4.
+  - `dl-139` ratified (a) → `task-208`.
+
+  W1 now holds 42 tasks.
