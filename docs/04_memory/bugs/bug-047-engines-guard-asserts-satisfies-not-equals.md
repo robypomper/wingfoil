@@ -141,3 +141,20 @@ Related: `bug-023-engines-node-floor-contradicts-commander` (`planned`, the inst
 `task-074-fix-engines-node-floor` (`backlog`, AC3/AC4), `task-059-publish-metadata` (`done`, owns
 `test/cli/publish-metadata.test.ts`), `spec-015-packaging-publishing` `:60`,
 `dl-047-tech-specs-carry-no-version-field` (the amendment route for an `approved` spec).
+
+## Addendum (2026-10-02) — the spec premise has changed; option 1 chosen; resolved by task-155
+
+The Notes above say `spec-015` §1 has no "must equal" rule. That was true when this bug was filed, on
+2026-09-21. It is no longer true. `task-074-fix-engines-node-floor` revised §1, and `spec-015` now
+reads, at `:71`, that `engines.node` "must equal the highest `engines.node` floor declared anywhere in
+the **production** dependency closure" (`grep -n "must equal" docs/04_memory/design/specs/spec-015-packaging-publishing.md`).
+
+**Option 1, the equality half, was chosen.** `task-155-assert-lockfile-root-engines-equals-package-json-floor`
+adds it to `test/cli/publish-metadata.test.ts` (`floorEqualityViolation`), next to the existing
+satisfies assertion, so the floor is now pinned from both sides. An over-tight floor (`>=24.0.0`,
+`>=22.13.0`) fails the suite, and so does a loose one.
+
+At review, "the highest floor" was made precise: it is the lowest version **every** range in the
+closure admits (`closureFloor`), not the maximum of each range's own minimum. A gapped range such as
+`^20.19.0 || ^22.13.0 || >=24` would make the max-of-minimums reading unsatisfiable together with the
+satisfies guard. The matching `spec-015` §1 clarification is an amendment for the approver to record.

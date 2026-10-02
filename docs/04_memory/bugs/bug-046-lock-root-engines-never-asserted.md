@@ -158,3 +158,13 @@ returns nothing), which is why a mirror can drift from its manifest without any 
 
 This widens the bug's scope rather than changing its class, so it is recorded here instead of being
 filed as a separate element.
+
+## Addendum (2026-10-02) — resolved by task-155; the characterization suggestion was overtaken
+
+The *Suggested fix* above classified the assertion as **characterization**, on the grounds that it
+passes on first run. `task-155-assert-lockfile-root-engines-equals-package-json-floor` classified it
+**red-first** instead, and showed the gap by mutation rather than reasoning about it. With the lock
+root's `engines.node` set to `>=18.0.0` on the unchanged `main`, `test/cli/publish-metadata.test.ts`
+stayed green (68/68). After the task, the same mutation fails two cases. One checks `engines`
+equality. The other checks the whole `packages[""]` mirror, which covers this bug's 2026-09-22
+addendum (dependency ranges). The real repository's agreement is pinned as well.
