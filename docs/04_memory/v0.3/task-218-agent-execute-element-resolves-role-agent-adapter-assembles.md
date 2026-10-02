@@ -23,7 +23,10 @@ This task builds the pre-launch half of `agent execute`, for the stepless (`adho
 - (red-first) No flag at all → exit `2` `error: missing required argument: --next or --element`. `--resume`/`--ref` → exit 2 as unknown options (v0.4, §3.1).
 - (red-first) The role defaults to `developer` with a `warning:` line when neither a step nor `--role` gives one. P5.3.1 sc. 2's fixture holds a matching full id.
 - (red-first) dl-050 option 4: a role with a dangling binding prints `spec-012` §5.1's warnings on stderr, in order, before the MCP pre-flight, and nothing on stdout.
-- (red-first) The bootstrap bytes equal §2.4's template for `(role, element, run id, state_ref)`. Two runs from the same `HEAD` render identical bootstrap bytes. The handoff line depends on the type template's `## Execution Notes` heading.
+- (red-first) The bootstrap bytes equal §2.4's template for `(role, element, run id, state_ref)`. Two runs from the same `HEAD` render identical bootstrap bytes. The handoff line depends on the type template's `
+- **Handover from wave 1 B3 (2026-10-02, `task-169`).** Reuse the success-warning channel: `coreOk(value, commit?, warnings?)` in `src/core/types.ts` and the single CLI renderer `src/cli/warning.ts` (`emitWarning`, `emitWarnings`; console `warning: …`, json one object per line, yaml documents closed by `...` so a following error is its own document). `spec-008` §6 records where this departs from `spec-005` §3.2 (stderr may be non-empty on exit 0) until this task amends `spec-005`.
+
+## Execution Notes` heading.
 - (red-first) Temporary files are created under the OS temp dir, never inside the repository, and are removed on every exit path, refusals included.
 - (characterization) The MCP pre-flight spawns the running build (`node <dist/cli.js> mcp`, §2.5). A project's `.mcp.json` is neither read nor modified.
 - (characterization) BDD `P5.4.3-context-preloading.feature` sc. 1–2 are amended (`doc-versioning` note) to §3.1's reading: WingFoil assembles, validates and proves the context fetchable before the spawn. The sc. 3 message is kept.
