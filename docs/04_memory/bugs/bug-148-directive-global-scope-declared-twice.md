@@ -2,7 +2,7 @@
 id: "bug-148-directive-global-scope-declared-twice"
 type: bug
 title: "A directive's `scope: global` frontmatter and `roles.yaml`'s `global:` list are two independent declarations of the same fact, and only the second one is ever consulted"
-status: planned
+status: in-progress
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"
