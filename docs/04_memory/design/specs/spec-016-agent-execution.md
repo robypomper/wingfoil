@@ -652,7 +652,7 @@ wingfoil agent list [--past] [--waiting] [--element <type>:<id>] [--phase <name>
 Both commands read the run log, and `list` also the workflow deduction, **at `HEAD`**. This departs
 from the ratified default: `dl-084` was ratified (A) (approve `2985b0ee`, "Options: (A) + (D)"), and
 the `command-baseline` directive says "A read that gates nothing keeps reporting the working tree"
-(`.wingfoil/directives/custom/command-baseline.md:94`), as `spec-006` §6 item 4 does for the read-only
+(the `command-baseline` directive's *Consequences already decided* bullet "A read that gates nothing keeps reporting the working tree", `.wingfoil/directives/custom/command-baseline.md`), as `spec-006` §6 item 4 does for the read-only
 verbs. It is the same **declared exception** `spec-017` makes for `workflow status`, `list`, `show`
 and its two Resources (`spec-017` §1.1, §11), decided with it (approver ruling R15, 2026-09-30, `release-planning-rel-v0.3-plan`), for the same
 reason, determinism:
@@ -762,7 +762,7 @@ that bullet.
 - *Q6, built-in adapters in v0.3:* Resolved: R17 — Claude Code and Codex CLI, each verified by hand
   and carrying `verified_with` (§2.8).
 - *Q9, `HEAD` for `agent list` and `agent show`:* Resolved: R15 — a declared exception to `spec-006`
-  §6 item 4, `command-baseline.md:94` and `dl-084` (A), decided together with `spec-017` OQ-10
+  §6 item 4, the `command-baseline` directive's *Consequences already decided* bullet "A read that gates nothing keeps reporting the working tree" and `dl-084` (A), decided together with `spec-017` OQ-10
   (§5.1).
 - *Q10, choosing a step when the frontier holds several:* Resolved: R16 — `agent execute --step
   <key>` (§3.1, §3.2 step 1), carried in `spec-017` §6.1's `agent` binding argv. The rejected
@@ -879,3 +879,10 @@ Q10 (R16), Q6 (R17), Q2, Q3 and Q5's second half (R18) are closed and stated as 
 verification by hand (§2.8).
 
 Confirming dl-022 pass (2026-09-30): N1, N2, N6, N7, N8, N10 applied.
+
+**Revision (2026-10-01) — line-offset citations of the `command-baseline` directive replaced by
+section names, per `dl-075-no-bare-line-offsets-in-memory` and `task-161-revise-command-baseline-which-verbs-read-head-filesystem`.**
+`task-161` revised the directive to 1.2, which moved every line it had; the `command-baseline.md:<n>`
+citations in §5.1 and in Q9 of the open questions named lines that no longer held the quoted text (they had already drifted with
+`task-128`'s 1.1). Each now names the section or bullet it meant. No rule changed. Edited in place
+without a supersede or a state change (`dl-047`); recorded with `memory amend`.
