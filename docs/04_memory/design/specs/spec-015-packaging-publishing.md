@@ -70,12 +70,16 @@ Required additions (values are the contract; exact URLs confirmed at implementat
 
 - `engines.node`: **`>=22.12.0`** — and it is a *derived* value, not a preference. It must equal the
   highest `engines.node` floor declared anywhere in the **production** dependency closure
-  (`dependencies`, transitively), because `files: ["dist", "README.md"]` means that closure is exactly
+  (`dependencies`, transitively) — read as the lowest Node version **every** range in that closure
+  admits (the least element of their intersection), which for plain `>=` ranges is their maximum and
+  for a gapped range such as `^20.19.0 || ^22.13.0 || >=24` can lie above every range's own minimum —
+  because `files: ["dist", "README.md"]` means that closure is exactly
   what a consumer installs. Two packages bind it today: `commander@15` (`>=22.12.0`) and
   `@hono/node-server@1.19.14` (`>=18.14.1`, reached through `@modelcontextprotocol/sdk`). The floor
   is written as a plain `>=major.minor.patch` so "the advertised floor" is a single number, and it is
   enforced by an assertion in `test/cli/publish-metadata.test.ts` that recomputes it from the
-  installed tree — a dependency bump that raises a floor fails the suite instead of silently making
+  installed tree, in both directions (satisfied by every dependency, and equal to the closure's floor)
+  — a dependency bump that raises a floor fails the suite instead of silently making
   the manifest false again. Previously listed under *Unchanged* as `engines: node >=18`, which
   `bug-023` showed was false of the tree; amended by `task-074-fix-engines-node-floor`. **The
   product-level "Node.js 18+" claim — carried by `adr-005-typescript-node-stack`, `dl-001`, `dna.yaml`
@@ -518,3 +522,16 @@ The pattern gate → stage → smoke → promote is unchanged, and so are §2 an
 is a revision, not a new spec, as *Consequences* anticipated for a change that leaves the
 architecture's shape intact. Edited in place — no supersede, no state change, and no `version:` bump
 (`dl-047`) — per the precedent of the revisions above.
+
+**Revision (2026-10-02) — §1 `engines.node`: "the highest floor" defined as the least element of the
+closure's intersection, and the assertion is two-sided (`task-155`, `bug-047`).** §1 said the floor
+"must equal the highest `engines.node` floor" of the production closure without saying what the floor
+of a compound range is. Read as the maximum of each range's own minimum, the rule is unsatisfiable as
+soon as one range has a gap above that maximum: with `>=22.12.0` and `^20.19.0 || ^22.13.0 || >=24`
+(the shape `eslint@10` declares; a devDependency today, so outside the closure), `>=22.12.0` fails the
+satisfies assertion and `>=22.13.0` fails the equality one. The bullet now names the reading that
+always has an answer, the lowest version every range admits, which `.github/workflows/publish.yml`'s
+Node-versions header already used ("the lowest version every PRODUCTION dependency accepts"). The
+value is unchanged: `>=22.12.0`, set by `commander@15`. The bullet also records that the assertion
+now checks equality as well as satisfaction; before `task-155` it checked satisfaction only.
+Edited in place: no supersede, no state change, no `version:` bump (`dl-047`), as in the revisions above.
