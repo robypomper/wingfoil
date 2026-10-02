@@ -29,6 +29,7 @@ tmpl_version: 260703
 - **Features:** P3.7, P3.8.
 - **Notes:** Proposal key: C37 (merged: D05). Merged with proposal D05 (same `dl-060`/`bug-040` change). Runs after task-153 because both edit the same `spec-011` passage; task-196 extends `spec-011`'s layout after this task.
 - Planned by `release-planning-rel-v0.3-plan` step 6 (build-backlog), 2026-09-30.
+- **Handover from wave 1 B3 (2026-10-02, `task-169`'s independent review).** `dl-062`'s approve Reason (`4cd18767`) keeps the Action "the write contract into spec-011, merged with dl-060's and bug-040's corrections": a `roles.yaml` write-contract subsection in `spec-011`. This task edits `spec-011` for `dl-060` and `bug-040`, so it carries that subsection too. `task-169` shipped the behaviour it describes: `directive assign` refuses the whole-file rewrite unless `--force`.
 
 ## Execution Notes
 
