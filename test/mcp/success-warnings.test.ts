@@ -13,14 +13,14 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { CoreModule } from '../../src/core/registry';
-import type { CoreResult } from '../../src/core/types';
+import { coreOk, type CoreResult } from '../../src/core/types';
 import { registerCoreModules } from '../../src/mcp/registrar';
 
 const VALUE = { directives: ['testing'], role: 'developer', assignments: ['code-quality', 'testing'] };
 const WARNING = 'roles.yaml was rewritten as a whole file (--force)';
 
 const success = (warnings: readonly string[]): CoreResult<unknown> =>
-  ({ ok: true, value: VALUE, commit: { sha: 'abc123', message: 'wf(directive): assign testing to developer' }, warnings }) as CoreResult<unknown>;
+  coreOk<unknown>(VALUE, { sha: 'abc123', message: 'wf(directive): assign testing to developer' }, warnings);
 
 const MODULES: CoreModule[] = [
   {

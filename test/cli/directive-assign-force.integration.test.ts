@@ -27,8 +27,8 @@ const FLOW_ROLES = 'version: 1.0\n\nassignments: {developer: [code-quality]}\ngl
 const CONFLICT =
   'error: roles.yaml cannot be updated in place; edit assignments.developer by hand, or pass --force to rewrite the whole file\n';
 const WARNING =
-  'roles.yaml was rewritten as a whole file (--force): comments were dropped, and quoting, key order, flow style, ' +
-  'blank lines, line endings and number formatting (1.0 becomes 1) were not preserved';
+  'roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, ' +
+  'blank lines, line endings or number formatting (1.0 becomes 1)';
 const PAYLOAD = { directives: ['testing'], role: 'developer', assignments: ['code-quality', 'testing'] };
 
 interface CliRun {

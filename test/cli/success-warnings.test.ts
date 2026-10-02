@@ -8,16 +8,18 @@
  */
 import { load, loadAll } from 'js-yaml';
 
+import { emitError } from '../../src/cli/error';
 import { buildCliCommands, type CliCommand } from '../../src/cli/registrar';
+import { emitWarning } from '../../src/cli/warning';
 import type { CoreModule } from '../../src/core/registry';
-import type { CoreResult } from '../../src/core/types';
+import { coreOk, type CoreResult } from '../../src/core/types';
 
 const VALUE = { directives: ['testing'], role: 'developer', assignments: ['code-quality', 'testing'] };
 const WARNINGS = ['first warning', 'second warning'];
 
-/** A success carrying `warnings` (built literally so this suite does not depend on `coreOk`'s signature). */
+/** A success carrying `warnings`. */
 const withWarnings = (warnings: readonly string[]): CoreResult<unknown> =>
-  ({ ok: true, value: VALUE, commit: { sha: 'abc123', message: 'wf(directive): assign testing to developer' }, warnings }) as CoreResult<unknown>;
+  coreOk<unknown>(VALUE, { sha: 'abc123', message: 'wf(directive): assign testing to developer' }, warnings);
 
 function command(result: CoreResult<unknown>): CliCommand {
   const modules: CoreModule[] = [
@@ -74,6 +76,28 @@ describe('CLI registrar — success warnings go to stderr, never stdout (task-16
     await command(withWarnings(WARNINGS)).run('yaml');
     expect(loadAll(stderr())).toEqual([{ warning: 'first warning' }, { warning: 'second warning' }]);
     expect(load(stdout())).toEqual(VALUE);
+  });
+
+  // task-169 review F1: spec-016 §3.4 puts warnings and then an error on the same stderr. Each YAML
+  // warning document is closed with `...`, so whatever follows it starts a new document.
+  it('yaml: a warning followed by an error on the same stderr parses as separate documents', () => {
+    emitWarning('first warning', { format: 'yaml' });
+    emitWarning('second warning', { format: 'yaml' });
+    emitError('boom', { format: 'yaml', details: [{ detail: 'why' }] });
+    expect(loadAll(stderr())).toEqual([
+      { warning: 'first warning' },
+      { warning: 'second warning' },
+      { error: 'boom', details: [{ detail: 'why' }] },
+    ]);
+  });
+
+  it('json: a warning followed by an error on the same stderr is one parseable document per line', () => {
+    emitWarning('first warning', { format: 'json' });
+    emitError('boom', { format: 'json' });
+    expect(stderr().trimEnd().split('\n').map((line) => JSON.parse(line) as unknown)).toEqual([
+      { warning: 'first warning' },
+      { error: 'boom' },
+    ]);
   });
 
   it.each(['console', 'json', 'yaml'])('%s: stdout is byte-identical with and without warnings', async (format) => {

@@ -31,6 +31,7 @@ import { join } from 'node:path';
 import { CORE_MODULES, initWingfoilProject, loadDirectiveListing, loadRolesYaml } from '../../src/core';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
+import type { CoreResult } from '../../src/core/types';
 import { deriveVerb, enumerateOperations } from '../../src/core/registry';
 import { UsageError } from '../../src/core/usage-error';
 import { deriveMcpToolName } from '../../src/mcp/registrar';
@@ -38,8 +39,8 @@ import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../
 
 const ROLES = '.wingfoil/roles.yaml';
 
-/** A success's `warnings` (task-169), read untyped so the suite compiles against any `CoreResult` shape. */
-const warningsOf = (result: unknown): readonly string[] | undefined => (result as { warnings?: readonly string[] }).warnings;
+/** A success's `warnings` (task-169); `undefined` for a failure or a success without any. */
+const warningsOf = (result: CoreResult<unknown>): readonly string[] | undefined => (result.ok ? result.warnings : undefined);
 
 /** The CONFLICT reason pinned in spec-008 §6 (task-169, dl-062 Q1 option 3). */
 const rewriteConflict = (role: string): string =>
@@ -47,8 +48,8 @@ const rewriteConflict = (role: string): string =>
 
 /** The warning pinned in spec-008 §6 for a `--force` whole-file rewrite (task-169, dl-062 Q1 option 3). */
 const FORCE_REWRITE_WARNING =
-  'roles.yaml was rewritten as a whole file (--force): comments were dropped, and quoting, key order, flow style, ' +
-  'blank lines, line endings and number formatting (1.0 becomes 1) were not preserved';
+  'roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, ' +
+  'blank lines, line endings or number formatting (1.0 becomes 1)';
 
 /** The real, registered `directive.directiveAssign` `CoreFn` — fails loudly if it is ever un-registered. */
 function directiveAssignFn(): CoreFn<unknown, unknown> {
@@ -622,6 +623,16 @@ describe('CORE_MODULES directive.directiveAssign — built-in assets, missing an
     expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('wf(directive): assign testing to developer');
     expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
     expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  // task-169 review F3: the evidence for leaving "key order" out of the warning — the dump keeps it.
+  it('characterization: --force keeps the top-level key order of the file it rewrites', async () => {
+    writeFixtureFile(repo, ROLES, 'global: []\nassignments: {developer: [code-quality]}\nversion: 1\n');
+    commitAll(repo, 'fixture: keys in an unusual order');
+
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' }, force: true });
+    expect(result.ok).toBe(true);
+    expect(readRoles(repo)).toBe('global: []\nassignments:\n  developer:\n    - code-quality\n    - testing\nversion: 1\n');
   });
 
   it('--force on a file the editor CAN edit keeps the in-place edit and emits no warning', async () => {
