@@ -13,32 +13,21 @@
  *
  * `dist/` is built once by jest's `globalSetup` (bug-003-cli-integration-dist-race) — never here.
  */
-import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { git, makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
-
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
+import { CLI_ENTRY, runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 /**
- * Spawn the published entry point with `spawnSync`, capturing stderr on every run — success
+ * Spawn the published entry point through `./helpers/spawn-cli` (`spawnSync`, bug-197), capturing stderr on every run — success
  * included. `execFileSync` surfaces stderr only on the error path, so a command that exits `0`
  * *while* printing git's `fatal:` reads back as `stderr: ''` and the assertion passes vacuously
  * (`bug-070-cli-integration-helpers-fabricate-empty-stderr`; same rationale as
  * `./reason-control-chars.integration.test.ts`).
  */
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 /**
@@ -69,7 +58,7 @@ interface HistoryResult {
   readonly entries: readonly HistoryEntry[];
 }
 
-function history(repo: string, id: string): { run: CliRun; result: HistoryResult } {
+function history(repo: string, id: string): { run: SpawnedRun; result: HistoryResult } {
   const run = wingfoil(repo, 'memory', 'history', id, '--format', 'json');
   return { run, result: JSON.parse(run.stdout) as HistoryResult };
 }
@@ -81,7 +70,7 @@ describe('`memory history` on a project scaffolded by `wingfoil init`', () => {
   let scaffoldSha = '';
 
   beforeAll(() => {
-    expect(existsSync(CLI)).toBe(true);
+    expect(existsSync(CLI_ENTRY)).toBe(true);
     repo = makeTempGitRepo();
 
     const init = wingfoil(repo, 'init', '--template', 'scrum');

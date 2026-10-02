@@ -20,18 +20,12 @@
  * shallowness is the reason rather than skipping quietly. `dist/` is built once by jest's
  * `globalSetup`.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
 const BUG_ID = 'bug-077-history-follow-attributes-template-commits';
-
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
 
 interface HistoryEntry {
   readonly operation: string | null;
@@ -40,10 +34,8 @@ interface HistoryEntry {
   readonly subject: string;
 }
 
-function wingfoil(...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd: REPO_ROOT, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(...args: readonly string[]): SpawnedRun {
+  return runCliEntry(REPO_ROOT, args);
 }
 
 /** Whether this checkout carries the full history the history assertions read. */

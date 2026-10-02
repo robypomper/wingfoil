@@ -6,16 +6,15 @@
  *
  * Pins what only the process boundary shows: that Commander collects the REPEATED option into every
  * occurrence (not just the last), that `--help` advertises it, and the exit codes of §10's error
- * table. `spawnSync` so stderr is captured on a 0-exit run too (see
+ * table. Spawned through `./helpers/spawn-cli` (bug-197), whose `spawnSync` means stderr is captured on a 0-exit run too (see
  * `memory-add-type-baseline.integration.test.ts`). `dist/` is built once by jest's `globalSetup`.
  */
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
+import { runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
-const CLI = join(__dirname, '..', '..', 'dist', 'cli.js');
 
 const MEMORY_YAML = `version: 1
 types:
@@ -42,16 +41,8 @@ tmpl_version: 260929
 ## Scope
 `;
 
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  const run = spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-  if (run.error) throw run.error;
-  return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 describe('wingfoil memory add --set (task-110, spec-008 §10)', () => {

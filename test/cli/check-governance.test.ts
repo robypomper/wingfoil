@@ -10,7 +10,7 @@
  * One throwaway fixture repository per rule, each with a violating and a conforming commit. Identities
  * are passed per command (`GIT_AUTHOR_*`), never through `git config` (`dl-094` (ii)).
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { checkGovernance, exitCodeFor } from '../../scripts/check-governance.cjs';
 import type { GovernanceReport, GovernanceRule } from '../../scripts/check-governance.cjs';
 import { git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
+import { spawnCapture } from './helpers/spawn-cli';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const SCRIPT = join(REPO_ROOT, 'scripts', 'check-governance.cjs');
@@ -430,12 +431,12 @@ describe('starting mode — hard-fail after the introduction commit, report hist
   it('as a command: exit 2 with a message, never 1, when it cannot run', () => {
     const outside = mkdtempSync(join(tmpdir(), 'wf-governance-outside-'));
     fixtures.push(outside);
-    const notARepository = spawnSync('node', [SCRIPT], { cwd: outside, encoding: 'utf-8' });
+    const notARepository = spawnCapture('node', [SCRIPT], { cwd: outside });
     expect(notARepository.status).toBe(2);
     expect(notARepository.stderr).toMatch(/^error: /);
     const empty = makeTempGitRepo();
     fixtures.push(empty);
-    const noCommit = spawnSync('node', [SCRIPT, '--root', empty], { encoding: 'utf-8' });
+    const noCommit = spawnCapture('node', [SCRIPT, '--root', empty]);
     expect(noCommit.status).toBe(2);
     expect(noCommit.stderr).toMatch(/has no commit/);
   });
@@ -446,7 +447,7 @@ describe('starting mode — hard-fail after the introduction commit, report hist
   });
 
   it('as a command: prints each finding with sha and rule, exit 1 when gated, exit 0 for history, exit 2 on a bad option', () => {
-    const run = (args: string[]) => spawnSync('node', [SCRIPT, '--root', f.root, ...args], { encoding: 'utf-8' });
+    const run = (args: string[]) => spawnCapture('node', [SCRIPT, '--root', f.root, ...args]);
     const gated = run([]);
     expect(gated.status).toBe(1);
     expect(gated.stdout).toContain(after);
