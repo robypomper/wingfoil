@@ -1202,6 +1202,29 @@ types:
       ]);
     });
 
+    // task-143 review finding 3: core printed `Warning: …` to stderr ahead of the `{"error"}` object, so
+    // a `--format json` refusal was two things on stderr, not the one object spec-005 §3.2 promises.
+    it('`directive remove --format json` with a dangling link writes exactly one JSON object to stderr', () => {
+      writeFixtureFile(
+        repo,
+        '.wingfoil/directives/custom/testing.md',
+        ['---', 'id: testing', 'name: "testing"', 'type: directive', 'kind: custom', 'title: "testing"', '---', ''].join('\n'),
+      );
+      symlinkSync(join(repo, 'gone.md'), join(repo, '.wingfoil/directives/custom/ghost.md'));
+      commitAll(repo, 'seed');
+      const result = runCliInRoot(repo, 'directive', 'remove', 'ghost', '--format', 'json');
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stderr)).toEqual({
+        error: 'unknown directive: ghost',
+        details: [
+          {
+            detail:
+              "directive entry '.wingfoil/directives/custom/ghost.md' skipped: it is a symbolic link whose target does not exist",
+          },
+        ],
+      });
+    });
+
     it.each([[[] as string[]], [['--role', 'developer']]])(
       'with no .wingfoil/ at the root, `directives list %j` exits 1 with the not-initialized message (bug-154)',
       (extra) => {

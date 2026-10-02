@@ -15,7 +15,7 @@
  * therefore exercised against a genuine shipped built-in, not a hand-made fixture.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -226,6 +226,33 @@ describe('CORE_MODULES directive.directiveRemove — P3.3 scenarios (initialized
     expect(result.error).toEqual({ code: 'NOT_FOUND', message: 'unknown directive: ghost' });
     expect(exitCodeForResult(result)).toBe(1);
     expect(head(repo)).toBe(before);
+  });
+
+  // task-143 review finding 3: the loader's skipped-entry warnings ride the refusal's `details` (the
+  // channel both surfaces render, task-130) instead of a core stderr write — the entry the user asked
+  // to remove may be the one that was skipped. Nothing is printed by core.
+  it('an unknown name with a skipped directive entry carries the skip warning in details, printing nothing', async () => {
+    symlinkSync(join(repo, 'gone.md'), join(repo, '.wingfoil/directives/custom/ghost.md'));
+    const stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      const result = await directiveRemoveFn()({ root: repo, positional: 'ghost' });
+      if (result.ok) throw new Error('expected a refusal');
+      expect(result.error).toEqual({
+        code: 'NOT_FOUND',
+        message: 'unknown directive: ghost',
+        details: {
+          issues: [
+            {
+              detail:
+                "directive entry '.wingfoil/directives/custom/ghost.md' skipped: it is a symbolic link whose target does not exist",
+            },
+          ],
+        },
+      });
+      expect(stderr).not.toHaveBeenCalled();
+    } finally {
+      stderr.mockRestore();
+    }
   });
 
   it('a traversal-shaped name resolves to no directive — refused before any path is built', async () => {

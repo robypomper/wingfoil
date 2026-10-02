@@ -3,7 +3,7 @@
  * pillar, each independently reading its own artifact(s) through the shared two-pass validation
  * pipeline (spec-009), with no cross-pillar schema dependency.
  */
-import { chmodSync, mkdirSync, symlinkSync } from 'fs';
+import { chmodSync, mkdirSync, rmSync, symlinkSync } from 'fs';
 import { join } from 'path';
 
 import {
@@ -189,17 +189,40 @@ describe('per-pillar loaders — fixture repo', () => {
       ]);
     });
 
-    it('loadDirectives does not throw: it returns the other directives and writes the warning to stderr', () => {
+    // task-143 review finding 3: `src/core` does not print — under `--format json` a stray stderr line
+    // breaks spec-005 §3.2's one-object contract. A caller that wants the warnings reads the inventory.
+    it('loadDirectives does not throw and prints nothing: it returns the other directives', () => {
       const stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const stdout = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
       try {
         expect(loadDirectives(repo).map((file) => file.frontmatter.id)).toEqual(['sample']);
-        expect(stderr.mock.calls.map(([chunk]) => String(chunk))).toEqual([`Warning: ${WARNING}\n`]);
+        expect(stderr).not.toHaveBeenCalled();
+        expect(stdout).not.toHaveBeenCalled();
       } finally {
         stderr.mockRestore();
+        stdout.mockRestore();
       }
     });
 
-    it('a symlink loop is skipped too, with the error code as its reason', () => {
+    // task-143 review finding 1: a directory link to an ancestor used to be walked again and again until
+    // the OS gave up (ELOOP after ~40 levels) — every directive listed 41 times, reported as success.
+    it('a directory symlink to an ancestor is skipped, never walked: each directive is listed once', () => {
+      symlinkSync('..', join(repo, '.wingfoil/directives/custom/loop'));
+      const inventory = loadDirectiveInventory(repo);
+      expect(inventory.files.map((file) => file.frontmatter.id)).toEqual(['sample']);
+      expect(inventory.warnings).toEqual([
+        WARNING,
+        "directive entry '.wingfoil/directives/custom/loop' skipped: it is a symbolic link to an ancestor directory",
+      ]);
+    });
+
+    it('a directory symlink to a sibling (not an ancestor) is still walked (characterization)', () => {
+      writeFixtureFile(repo, 'outside/team/team-rule.md', ['---', 'id: team-rule', 'name: "team-rule"', 'type: directive', 'kind: custom', 'title: "team-rule"', '---', ''].join('\n'));
+      symlinkSync(join(repo, 'outside/team'), join(repo, '.wingfoil/directives/custom/team'));
+      expect(loadDirectiveInventory(repo).files.map((file) => file.frontmatter.id)).toEqual(['sample', 'team-rule']);
+    });
+
+    it('a file symlink to itself is skipped too, with the error code as its reason', () => {
       symlinkSync('loop.md', join(repo, '.wingfoil/directives/custom/loop.md'));
       expect(loadDirectiveInventory(repo).warnings).toEqual([
         WARNING,
@@ -225,11 +248,36 @@ describe('per-pillar loaders — fixture repo', () => {
       }
     });
 
-    (unprivileged ? it : it.skip)('the directives directory itself unreadable still fails the read: it is the pillar', () => {
+    // task-143 review finding 2: a directive FILE that cannot be read used to fail the whole read with a
+    // raw EACCES carrying an absolute path. Its bytes never reach the parser, so it is an entry like any
+    // other unreadable one; a file that IS read and fails to parse stays fatal (see E_MISSING_FRONTMATTER).
+    (unprivileged ? it : it.skip)('a directive file that cannot be read is skipped, not fatal', () => {
+      const locked = join(repo, '.wingfoil/directives/custom/locked.md');
+      writeFixtureFile(repo, '.wingfoil/directives/custom/locked.md', '');
+      chmodSync(locked, 0o000);
+      try {
+        const inventory = loadDirectiveInventory(repo);
+        expect(inventory.files.map((file) => file.frontmatter.id)).toEqual(['sample']);
+        expect(inventory.warnings).toEqual([
+          WARNING,
+          "directive entry '.wingfoil/directives/custom/locked.md' skipped: it cannot be read (EACCES)",
+        ]);
+      } finally {
+        chmodSync(locked, 0o644);
+      }
+    });
+
+    // task-143 review finding 4: the directives directory itself is the pillar, so an unreadable one
+    // still fails the read — but as a validation refusal naming it root-relative, never a raw EACCES
+    // with an absolute path.
+    (unprivileged ? it : it.skip)('the directives directory itself unreadable fails the read, naming it root-relative', () => {
       const directivesDir = join(repo, '.wingfoil/directives');
       chmodSync(directivesDir, 0o000);
       try {
-        expect(() => loadDirectiveInventory(repo)).toThrow(/EACCES/);
+        expect(() => loadDirectiveInventory(repo)).toThrow(ValidationError);
+        expect(() => loadDirectiveInventory(repo)).toThrow(
+          "E_DIRECTIVES_UNREADABLE (.wingfoil/directives): it cannot be read (EACCES)",
+        );
       } finally {
         chmodSync(directivesDir, 0o755);
       }
@@ -247,6 +295,15 @@ describe('per-pillar loaders — fixture repo', () => {
       } finally {
         chmodSync(noSearch, 0o755);
       }
+    });
+
+    it('`.wingfoil/directives` itself a dangling symlink: no files, and a warning naming it', () => {
+      rmSync(join(repo, '.wingfoil/directives'), { recursive: true, force: true });
+      symlinkSync(join(repo, 'no-such-dir'), join(repo, '.wingfoil/directives'));
+      expect(loadDirectiveInventory(repo)).toEqual({
+        files: [],
+        warnings: ["directive entry '.wingfoil/directives' skipped: it is a symbolic link whose target does not exist"],
+      });
     });
 
     it('a symlink whose target exists is still followed and loaded (characterization)', () => {
