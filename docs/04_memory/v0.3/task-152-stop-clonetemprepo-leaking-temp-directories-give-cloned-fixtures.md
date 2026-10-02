@@ -8,7 +8,7 @@ kind: "fix"
 priority: "low"
 tags: ["v0.3", "core", "tests"]
 ref: "dl-121"
-bug: ["bug-064", "bug-065"]
+bug: ["bug-064", "bug-065", "bug-197"]
 depends_on: []
 tmpl_version: 260703
 ---

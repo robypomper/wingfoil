@@ -8,7 +8,7 @@ kind: "fix"
 priority: "medium"
 tags: ["v0.3", "core", "directives", "tests"]
 ref: "dl-121"
-bug: ["bug-045", "bug-096"]
+bug: ["bug-045", "bug-096", "bug-194"]
 depends_on: ["task-139-extend-documentation-doc-versioning-testing-directives-ratified-clauses"]
 tmpl_version: 260703
 ---

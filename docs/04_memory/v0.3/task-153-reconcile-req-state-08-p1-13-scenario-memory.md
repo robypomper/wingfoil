@@ -8,7 +8,7 @@ kind: "fix"
 priority: "low"
 tags: ["v0.3", "core", "docs", "memory", "init"]
 ref: "dl-072"
-bug: ["bug-052", "bug-053", "bug-177"]
+bug: ["bug-052", "bug-053", "bug-177", "bug-196"]
 depends_on: []
 tmpl_version: 260703
 ---
