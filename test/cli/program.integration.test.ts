@@ -20,7 +20,7 @@
  * The fix here is compile-then-spawn, not import-then-call: the compiled `dist/` (CommonJS output —
  * confirmed by inspecting `dist/cli/program.js`) is built once by jest's `globalSetup`
  * (`test/global-setup.cjs`) before any worker starts, then every test case spawns
- * `test/cli/fixtures/cli-harness.cjs` as a separate `node` process (via `execFileSync`), which
+ * `test/cli/fixtures/cli-harness.cjs` as a separate `node` process (via `spawnSync`, in `./helpers/spawn-cli`), which
  * `require()`s the COMPILED `dist/cli/program.js` and `dist/core/index.js` and drives `buildProgram`
  * exactly like a real `bin/wingfoil` entrypoint would. That sidesteps the Jest/ESM limitation
  * entirely (the harness never touches `ts-jest`) and gives `program.ts`'s Commander wiring a
@@ -61,47 +61,19 @@ import { load as yamlLoad } from 'js-yaml';
 import { initWingfoilProject } from '../../src/core';
 import { renderCustomDirective } from '../../src/directives/create';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile, commitAll } from '../storage/helpers/git-fixture';
+import { CLI_FIXTURE_ROOT, DIST_DIR, runCliHarness, type SpawnedRun } from './helpers/spawn-cli';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
-const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
 const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
 
-interface CliResult {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
-}
-
 /** Spawn the real, compiled CLI wiring against a given project root and capture exit code/stdout/stderr. */
-function runCliInRoot(root: string, ...args: readonly string[]): CliResult {
-  try {
-    const stdout = execFileSync('node', [HARNESS, DIST_DIR, root, ...args], { encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return {
-      status: error.status ?? 1,
-      stdout: error.stdout.toString(),
-      stderr: error.stderr.toString(),
-    };
-  }
+function runCliInRoot(root: string, ...args: readonly string[]): SpawnedRun {
+  return runCliHarness(root, args);
 }
 
 /** Spawn the real, compiled CLI wiring against the static read-only fixture root. */
-function runCli(...args: readonly string[]): CliResult {
-  return runCliInRoot(FIXTURE_ROOT, ...args);
+function runCli(...args: readonly string[]): SpawnedRun {
+  return runCliInRoot(CLI_FIXTURE_ROOT, ...args);
 }
 
 describe('program.ts — real commander wiring (compiled + spawned, out-of-process)', () => {

@@ -35,48 +35,23 @@
  * usage error while every obvious test stayed green.
  *
  * Every assertion here is an **out-of-process** exit code: each case spawns `fixtures/cli-harness.cjs`
- * against the COMPILED `dist/` (built once by jest's `globalSetup`), and `execFileSync`'s `status` is
+ * against the COMPILED `dist/` (built once by jest's `globalSetup`), and the `status` `spawnSync` reports is
  * the real process status. Nothing is measured through a pipe — a pipe reports the last command's
  * status, which is how this class of measurement goes wrong.
  */
-import { execFileSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import { buildCliCommands, listRegisteredCliCommands } from '../../src/cli/registrar';
 import { CORE_MODULES } from '../../src/core';
+import { CLI_FIXTURE_ROOT, DIST_DIR, runCliHarness, type SpawnedRun } from './helpers/spawn-cli';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
-const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
 const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
 
-interface CliResult {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
-}
-
 /** Spawn the compiled CLI against the static fixture root; `status` is the real process exit code. */
-function runCli(...args: readonly string[]): CliResult {
-  try {
-    const stdout = execFileSync('node', [HARNESS, DIST_DIR, FIXTURE_ROOT, ...args], { encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return { status: error.status ?? 1, stdout: error.stdout.toString(), stderr: error.stderr.toString() };
-  }
+function runCli(...args: readonly string[]): SpawnedRun {
+  return runCliHarness(CLI_FIXTURE_ROOT, args);
 }
 
 /**
@@ -89,7 +64,7 @@ function runCli(...args: readonly string[]): CliResult {
 const NOUNS_WITH_VERBS: readonly string[] = [
   ...new Set(
     listRegisteredCliCommands(
-      buildCliCommands(CORE_MODULES, { resolveRoot: () => FIXTURE_ROOT, buildParams: (ctx) => ({ root: ctx.root }) }),
+      buildCliCommands(CORE_MODULES, { resolveRoot: () => CLI_FIXTURE_ROOT, buildParams: (ctx) => ({ root: ctx.root }) }),
     )
       .map((name) => name.split(' '))
       .filter((path) => path.length > 1)

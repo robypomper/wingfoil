@@ -27,41 +27,12 @@ import { join } from 'path';
 import { load as yamlLoad } from 'js-yaml';
 
 import { makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
-
-interface CliResult {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
-}
+import { DIST_DIR, runCliHarness, type SpawnedRun } from './helpers/spawn-cli';
 
 /** Spawn the real, compiled CLI wiring against a given project root (a fresh throwaway git repo here,
  *  never this repository's own `.wingfoil/` — same rule the manual walkthrough follows). */
-function runCliInRoot(root: string, ...args: readonly string[]): CliResult {
-  try {
-    const stdout = execFileSync('node', [HARNESS, DIST_DIR, root, ...args], { encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return {
-      status: error.status ?? 1,
-      stdout: error.stdout.toString(),
-      stderr: error.stderr.toString(),
-    };
-  }
+function runCliInRoot(root: string, ...args: readonly string[]): SpawnedRun {
+  return runCliHarness(root, args);
 }
 
 describe('Journey 0a (v0.1-scoped slice) — real CLI, fresh throwaway project (task-033)', () => {

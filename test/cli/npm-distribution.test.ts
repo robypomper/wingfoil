@@ -37,10 +37,9 @@ import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { CLI_ENTRY, runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const BIN_ENTRY = join(DIST_DIR, 'cli.js');
 const PKG_VERSION = (JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string }).version;
 
 interface PackedFile {
@@ -51,39 +50,13 @@ interface PackResult {
   readonly files: readonly PackedFile[];
 }
 
-interface CliResult {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
-}
-
 /** Spawn the compiled bin entrypoint from `cwd` and capture its real exit code/stdout/stderr. */
-function runBinIn(cwd: string, ...args: readonly string[]): CliResult {
-  try {
-    const stdout = execFileSync('node', [BIN_ENTRY, ...args], { cwd, encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return {
-      status: error.status ?? 1,
-      stdout: error.stdout.toString(),
-      stderr: error.stderr.toString(),
-    };
-  }
+function runBinIn(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 /** Spawn the compiled bin entrypoint from the repo root (a valid git root) — the common case. */
-function runBin(...args: readonly string[]): CliResult {
+function runBin(...args: readonly string[]): SpawnedRun {
   return runBinIn(REPO_ROOT, ...args);
 }
 
@@ -91,7 +64,7 @@ describe('npm distribution (task-007) — bin entrypoint + package contents', ()
   // `dist/` is built once by jest's globalSetup (test/global-setup.cjs) before any worker starts — no
   // per-suite build here anymore (bug-003-cli-integration-dist-race); the first case asserts it exists.
   it('compiles a `dist/cli.js` bin entrypoint', () => {
-    expect(existsSync(BIN_ENTRY)).toBe(true);
+    expect(existsSync(CLI_ENTRY)).toBe(true);
   });
 
   it('`node dist/cli.js --help` exits 0 and prints usage', () => {

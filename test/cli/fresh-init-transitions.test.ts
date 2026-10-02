@@ -32,41 +32,16 @@
  * fixed step list; nothing asserted depends on a clock, on randomness, or on the temp directory name.
  * `dist/` is built once by jest's `globalSetup` (bug-003-cli-integration-dist-race) — never rebuilt here.
  */
-import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { TEMPLATES } from '../../src/storage/templates';
 import { git, makeTempGitRepo, removeTempDir } from '../storage/helpers/git-fixture';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const CLI = join(REPO_ROOT, 'dist', 'cli.js');
-
-interface CliRun {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error;
-}
+import { CLI_ENTRY, runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
 /** Spawn the real published entry point (`node dist/cli.js`) inside a project root. */
-function wingfoil(cwd: string, ...args: readonly string[]): CliRun {
-  try {
-    const stdout = execFileSync('node', [CLI, ...args], { cwd, encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return { status: error.status ?? 1, stdout: error.stdout.toString(), stderr: error.stderr.toString() };
-  }
+function wingfoil(cwd: string, ...args: readonly string[]): SpawnedRun {
+  return runCliEntry(cwd, args);
 }
 
 /** Number of commits on HEAD — the "exactly one commit per operation" counter. */
@@ -107,7 +82,7 @@ function grantApproverRole(repo: string): void {
 describe('a freshly `wingfoil init`-ed project runs every Memory transition verb (bug-030, AC1)', () => {
   beforeAll(() => {
     // Built once by test/global-setup.cjs before any worker starts — just assert it is there.
-    expect(existsSync(CLI)).toBe(true);
+    expect(existsSync(CLI_ENTRY)).toBe(true);
   });
 
   for (const def of TEMPLATES) {
