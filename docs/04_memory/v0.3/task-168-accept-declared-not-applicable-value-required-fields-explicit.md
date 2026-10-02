@@ -72,10 +72,10 @@ apply to both verbs from one function, or the two would disagree about what "fil
 | AC | Class | Why |
 |---|---|---|
 | 1 — declared `"n/a — patch release"` passes; bare `n/a` or an undeclared field holding it is refused naming the field | **red-first** for the refusals and the schema key; the accepting half is characterization (a non-empty string already passes `isEmptyValue`) | no `not_applicable_allowed` key and no refusal existed on `903b87a6` |
-| 2 — the empty-list rule, asserted and stated in spec-010 | **stopped for the approver** (below) | — |
-| 3 — `memory.yaml` declares not-applicable for `release`'s `pillar`/`requirements` | **stopped for the approver** (below; the AC itself says "if the approver confirms") | — |
+| 2 — the empty-list rule (ruling Q-A (1)), asserted and stated in spec-010 | **red-first** both ways | an explicit `[]` was refused on `903b87a6`; the untouched-scaffold test passed then and turns red once `[]` is accepted, until the scaffold changes |
+| 3 — `memory.yaml` declares not-applicable for `release`'s `pillar`/`requirements` (ruling Q-B) | characterization (configuration), with a test on the live file | — |
 
-### Questions for the approver (the task stops here, before AC2 and AC3)
+### Questions for the approver (asked 2026-10-02, ruled the same day — see below)
 
 **Q-A — the empty-list rule (AC2, `bug-147`).** The two sources point different ways once the
 scaffolds are read:
@@ -139,9 +139,85 @@ Gates on `775e52f4` plus the uncommitted spec amendments (`npm run build` first)
 BDD: `P1.6-memory-submit.feature` has no scenario on required-field content and no AC asks for one;
 none added.
 
+### approver rulings (Roberto, 2026-10-02, relayed by the coordinator)
+
+- **Q-A: option (1).** An author's explicit `[]` counts as filled. The `release` scaffold changes
+  `features: []` to `features:` (null) so an untouched scaffold still fails submit. Its
+  `tmpl_version` is bumped by the file's precedent: `92908e8c` (dl-092) moved it to the change date,
+  `260703 → 260929`; this change makes it `261002`.
+- **Q-B:** `memory.yaml` 1.9 → 1.10 declares `not_applicable_allowed: [ pillar, requirements ]` on
+  `release`, **not** `features`.
+- **Design decisions 1, 2 and 4 accepted as defaults:** em dash only (`n/a — <reason>`); optional
+  fields unchecked; both errors joined by `; `, missing first.
+
+### red, second pass (developer)
+
+`3411da67`:
+- `test/memory/submit.test.ts`: the `d: []` expectation inverted (an explicit `[]` is filled), plus
+  `[]` filled and `null` missing.
+- `test/core/memory-submit.test.ts`: a block on the REAL `.wingfoil/memory.yaml` and the REAL
+  `release` scaffold, every other required field filled. (a) The untouched scaffold refuses, naming
+  `features`. (b) `features: []` passes. (c) `n/a — …` passes on `pillar`/`requirements` and is
+  refused on `features`.
+- `test/memory/schema.test.ts`: the live `release` lists exactly `[pillar, requirements]`, and `task`
+  lists nothing.
+
+`npx jest test/memory/submit.test.ts test/memory/schema.test.ts test/core/memory-submit.test.ts` →
+**5 failed, 55 passed**: the two pure tests, (b), (c) and the live-config test. (a) passed, since `[]`
+was still missing. With only `isEmptyValue` changed, the same run on the two submit suites →
+**2 failed** ((a) and (c)): (a) was red as predicted, because the scaffold's `[]` now passed.
+
+### green, second pass (developer)
+
+`84646e40`:
+- `isEmptyValue` (`src/memory/submit.ts`) drops the array branch.
+- `.wingfoil/memory/templates/release.md`: `features:` (null), with a comment, `tmpl_version 261002`.
+- `.wingfoil/memory.yaml` 1.10: `not_applicable_allowed: [ pillar, requirements ]` on `release`.
+- `docs/cli-reference.md`: one sentence on `[]` versus an empty value.
+- The `src/core/required-fields.ts` header comment no longer lists the empty list as missing (the one
+  same-class statement found by `grep -rn "empty list" src/ docs/cli-reference.md docs/user-guide.md
+  docs/agents.md .wingfoil/*.yaml`).
+
+The `wingfoil init` scaffold declares no required list field. Its only `required:` is
+`[id, type, title, status]` (`grep -n "required:" src/storage/templates.ts` → line 308). So nothing
+changes there. The tests that write their own `release` template (`memory-add-id-tokens`,
+`memory-add-set`) use fixtures, not the real scaffold. Pinned build on 1.10:
+`npm run -s wingfoil -- memory search --type release` → exit 0.
+
+**The `1.10` version reads as `1.1`.** YAML parses `version: 1.10` as the number 1.1, and
+`MemoryYaml.version` is `z.number()`, so a quoted `"1.10"` would fail the schema. The full suite
+showed it: `test/core/task-kind.test.ts` (task-150) "memory.yaml is version 1.9" failed with
+`toBe(1.9)` against 1.1. No `src/` code reads `memory.yaml`'s `version`
+(`grep -rn "\.version\b" src/`; only package, MCP and directive versions). `b0e1ee4f` pins the
+version as written (`/^version: 1\.10\b/m`) instead. The ruling's number is kept; flagged to the
+approver (`2.0` is the alternative that parses monotonically).
+
+### refactor, second pass (developer)
+
+Gates on `b0e1ee4f` plus the uncommitted spec amendments (`npm run build` first):
+
+| Command | Result |
+|---|---|
+| `npm run test:coverage` | exit 0; 200 suites / 3386 tests; 98.86 / 95.42 / 95.23 / 99.57 (main after B3, plan v1.8: 98.85 / 95.39 / 95.18 / 99.56) |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 (on `84646e40`; `b0e1ee4f` changes one test only) |
+| `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
+| `npm run -s wingfoil -- memory search --type release` (pinned build, `memory.yaml` 1.10) | exit 0 |
+
+### review (reviewer)
+
+Evidence per AC:
+- AC1: `test/core/memory-submit.test.ts` "declared not-applicable values" block (accept, bare `n/a`,
+  undeclared `kind`, both errors joined). The same rule on amend is in `test/core/memory-amend.test.ts`
+  "task-168 —" cases. The pure rules are in `test/memory/submit.test.ts`.
+- AC2: `test/memory/submit.test.ts` "bug-147 …", and the "empty required list vs untouched scaffold"
+  block. Stated in `spec-010` (pending amendment).
+- AC3: `test/memory/schema.test.ts` "task-168 (dl-124 Action 4 …)" on the live file, and block (c).
+- Same class: the `required-fields.ts` comment (above). `docs/agents.md` §119 lists only the missing-field
+  error; it is owned by `user-docs` and is left for the coordinator.
+
 ### Pending amendments (approver)
 
-Uncommitted in the worktree:
-- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2 — TemplateConfig.frontmatter gains not_applicable_allowed, a list of required fields that may hold the not-applicable value; each entry must be in required and never title. Revision note added."`
-- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 — Validation rules gain the not-applicable row and the paragraph on the reserved value \"n/a — <reason>\" and how it is read; it applies to submit and to amend past the initial state. Revision note added."`
-Both will need one more sentence once Q-A is ruled (the empty-list rule belongs in spec-010).
+Uncommitted in the worktree, final text:
+- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2. TemplateConfig.frontmatter gains not_applicable_allowed, the required fields that may hold the not-applicable value; each entry must be in required and is never title. This repository's memory.yaml 1.10 declares it on release for pillar and requirements (dl-124 Action 4, approver ruling 2026-10-02). Revision note added."`
+- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. Validation rules gain the not-applicable row and the paragraph on the reserved value \"n/a — <reason>\" and how it is read, for submit and for amend past the initial state, and a paragraph on what non-empty means: an explicit [] is filled, an empty value is not (approver ruling 2026-10-02). Revision note added."`
