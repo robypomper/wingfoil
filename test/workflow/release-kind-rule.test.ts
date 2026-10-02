@@ -9,6 +9,8 @@
  *
  * This test holds the three declarations together:
  * - the check's field list is the release type's `template.frontmatter.required` list;
+ * - `initial-design`'s `seed-releases`, the phase that adds a release-line's minors, states the same
+ *   check and passes the `kind` the type's `id_pattern` (`{kind}-{version}`) needs;
  * - the check states the exemption, and only for `kind`;
  * - every release document under `docs/04_memory/planning/` — `minor-v0.3` first among them, the
  *   release the contradiction was found on — carries every field the check requires of it.
@@ -39,16 +41,29 @@ function list(text: string): string[] {
     .filter((item) => item.length > 0);
 }
 
-function defineScopeCheck(): RequiredCheck {
+/** The `frontmatter.required` post-check of `workflow`'s `phase`, parsed. */
+function requiredCheck(workflow: string, phaseName: string): RequiredCheck {
   const { workflows } = loadWorkflowsYaml(repoRoot);
-  const planning = workflows.find((w) => w.name === 'release-planning');
-  const phase = planning?.phases.find((p) => p.name === 'define-scope');
+  const owner = workflows.find((w) => w.name === workflow);
+  const phase = owner?.phases.find((p) => p.name === phaseName);
   const checks = (phase?.checks?.post ?? []).filter((c) => c.startsWith('frontmatter.required:'));
   expect(checks).toHaveLength(1);
   const match = CHECK_RE.exec(checks[0]!);
   expect(match).not.toBeNull();
   const [, fields, field, ids] = match!;
   return { fields: list(fields!), exempt: field ? { [field]: list(ids!) } : {} };
+}
+
+function defineScopeCheck(): RequiredCheck {
+  return requiredCheck('release-planning', 'define-scope');
+}
+
+/** The `actions` of `initial-design`'s `seed-releases` phase, the step that adds a release-line's minors. */
+function seedReleasesActions(): readonly string[] {
+  const { workflows } = loadWorkflowsYaml(repoRoot);
+  const phase = workflows.find((w) => w.name === 'initial-design')?.phases.find((p) => p.name === 'seed-releases');
+  expect(phase).toBeDefined();
+  return phase?.actions ?? [];
 }
 
 /** Every release document under `docs/04_memory/planning/{release-line}/`, as `[id, frontmatter]`. */
@@ -95,6 +110,18 @@ describe('release `kind`: memory.yaml, the define-scope check and the release do
     const doc = releaseDocuments().find(([id]) => id === 'minor-v0.3');
     expect(doc).toBeDefined();
     expect(missingFields('minor-v0.3', doc![1], check)).toEqual([]);
+  });
+
+  it("initial-design's seed-releases check states the same rule as define-scope (review F2)", () => {
+    const seed = requiredCheck('initial-design', 'seed-releases');
+    expect([...seed.fields].sort()).toEqual([...required].sort());
+    expect(seed.exempt).toEqual(check.exempt);
+  });
+
+  it("initial-design's seed-releases action passes the `kind` its id_pattern needs (review F2)", () => {
+    const adds = seedReleasesActions().filter((action) => action.includes('memory.add(type: release,'));
+    expect(adds).toHaveLength(1);
+    expect(adds[0]).toMatch(/\bkind: "minor"/);
   });
 
   it('every release document carries every field the check requires of it', () => {
