@@ -150,8 +150,8 @@ describe('DirectiveFrontmatter — validates every real, live .wingfoil/directiv
  * RolesYaml schema (task-037-role-task-scoped-context, REQ-STATE-05) — the role → directive binding
  * config (`.wingfoil/roles.yaml`, P3.2/P3.7) `directive-loader` (spec-012 §5) resolves against. A
  * minimal [AUTHORING] shape grounded directly in the real `.wingfoil/roles.yaml` file's
- * fields (`version`, `assignments`, `global`) — same rationale as `DirectiveFrontmatter` above: no
- * dedicated tech-spec exists for this pillar's file shapes yet.
+ * fields (`version`, `assignments`, `global`): `spec-013` specifies the directive files only, and no
+ * tech-spec covers `roles.yaml`'s own shape yet.
  */
 describe('RolesYaml — structural shape', () => {
   it('accepts the real roles.yaml shape (assignments + global)', () => {
