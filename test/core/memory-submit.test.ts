@@ -462,14 +462,29 @@ describe('CORE_MODULES memory.memorySubmit — empty required list vs untouched 
     expect(result.error.message).toBe('missing required field on submit: title, release, kind');
   });
 
-  it('review ruling 1: with no committed scaffold, `[]` is missing everywhere (features included)', async () => {
-    rmSync(join(repo, '.wingfoil/memory/templates/release.md'));
+  it('re-review ruling 1: without `lists` in memory.yaml, `[]` is missing (features included) — the scaffold is not read for it', async () => {
+    const config = readFileSync(join(REPO_ROOT, '.wingfoil/memory.yaml'), 'utf-8').replace(/^\s*lists: .*\n/m, '');
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', config);
     writeFixtureFile(repo, PATH, fromScaffold('features: []'));
     commitAll(repo, 'seed');
     const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.message).toBe('missing required field on submit: features');
+  });
+
+  it('re-review ruling 2: a mapping or a list in a scalar field (task kind) is missing', async () => {
+    const path = 'docs/04_memory/v9.9/task-902-x.md';
+    writeFixtureFile(
+      repo,
+      path,
+      '---\nid: "task-902-x"\ntype: task\ntitle: "T"\nstatus: draft\nrelease: [""]\nkind: {}\ntmpl_version: 260703\n---\n\nBody.\n',
+    );
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-902-x' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: release, kind');
   });
 
   it('review fix 3: a separator other than the em dash names the exact form', async () => {

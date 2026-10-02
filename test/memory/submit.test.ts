@@ -4,10 +4,7 @@
  * `template.frontmatter.required` field non-empty once `status` leaves `draft`) and "Field-write
  * ownership" (`memory.submit` sets `status` and clears `rejection_reason` by removing the key).
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { missingRequiredFields, notApplicableRefusals, renderSubmitDocument, scaffoldListFields } from '../../src/memory/submit';
+import { missingRequiredFields, notApplicableRefusals, renderSubmitDocument } from '../../src/memory/submit';
 
 describe('missingRequiredFields', () => {
   it('returns [] when title and every required field are non-empty', () => {
@@ -20,7 +17,20 @@ describe('missingRequiredFields', () => {
     ).toEqual(['d', 'c', 'b', 'a']);
   });
 
-  it('bug-147 (task-168): an explicit empty list is filled on a field the scaffold declares a list; an empty value (null) is not', () => {
+  it('re-review ruling 2: on a field not in `lists`, any list or mapping is missing; a date is a value', () => {
+    expect(missingRequiredFields({ title: 'T', kind: {} }, ['kind'], [])).toEqual(['kind']);
+    expect(missingRequiredFields({ title: 'T', kind: [''] }, ['kind'], [])).toEqual(['kind']);
+    expect(missingRequiredFields({ title: 'T', kind: ['feature'] }, ['kind'], [])).toEqual(['kind']);
+    expect(missingRequiredFields({ title: { a: 1 } }, [])).toEqual(['title']);
+    expect(missingRequiredFields({ title: 'T', renews: new Date('2026-10-01') }, ['renews'])).toEqual([]);
+  });
+
+  it('re-review ruling 1: on a field in `lists`, any list is filled ([] and [""] included); a mapping is not', () => {
+    expect(missingRequiredFields({ title: 'T', features: [''] }, ['features'], ['features'])).toEqual([]);
+    expect(missingRequiredFields({ title: 'T', features: {} }, ['features'], ['features'])).toEqual(['features']);
+  });
+
+  it('bug-147 (task-168): an explicit empty list is filled on a field the type declares in `lists`; an empty value (null) is not', () => {
     expect(missingRequiredFields({ title: 'T', features: [] }, ['features'], ['features'])).toEqual([]);
     expect(missingRequiredFields({ title: 'T', features: null }, ['features'], ['features'])).toEqual(['features']);
   });
@@ -102,44 +112,6 @@ describe('not-applicable values (dl-124, task-168)', () => {
 
   it('a refused not-applicable value is not reported as missing too', () => {
     expect(missingRequiredFields({ title: 'T', pillar: 'n/a', requirements: 'r', kind: 'n/a — x' }, required)).toEqual([]);
-  });
-});
-
-/**
- * task-168 review ruling 1: which fields a type's scaffold declares as lists. A field is a list field
- * when its scaffold value is a YAML sequence, or when it is empty and its inline comment carries the
- * word `LIST` (upper case, a whole word).
- */
-describe('scaffoldListFields (task-168 review ruling 1)', () => {
-  const scaffold = `---
-id: "{auto}"           # auto-generated
-title: ""              # REQUIRED — e.g. "x"
-tags: []               # optional — labels
-bug: []                # optional — LIST of bug ids
-features:              # REQUIRED — LIST of feature IDs, e.g. [P1.1]
-notes:                 # optional — a list of things, lower case does not count
-empty:
-sub: [a, b]
----
-
-Body: []
-`;
-
-  it('returns sequence-valued fields and empty fields whose comment says LIST, in scaffold order', () => {
-    expect(scaffoldListFields(scaffold)).toEqual(['tags', 'bug', 'features', 'sub']);
-  });
-
-  it('returns [] for no frontmatter or unparseable frontmatter', () => {
-    expect(scaffoldListFields('no frontmatter')).toEqual([]);
-    expect(scaffoldListFields('---\n: : :\n---\n')).toEqual([]);
-  });
-
-  it("this repository's release scaffold declares `features` a list, and the task scaffold none of its required fields", () => {
-    const read = (name: string): string => readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory', 'templates', name), 'utf-8');
-    expect(scaffoldListFields(read('release.md'))).toEqual(['features']);
-    const taskLists = scaffoldListFields(read('task.md'));
-    expect(taskLists).not.toEqual(expect.arrayContaining(['title']));
-    expect(taskLists.filter((field) => ['title', 'release', 'kind'].includes(field))).toEqual([]);
   });
 });
 
