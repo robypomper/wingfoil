@@ -9,6 +9,8 @@
  */
 import { z } from 'zod';
 
+import { ID_CHAR_CLASS, isIdPiece } from '../validation/id';
+
 /**
  * An array of named entries in which **no two entries share a `name`**.
  *
@@ -118,12 +120,24 @@ export const TeamMember = z
 /** Parsed shape of the {@link TeamMember} schema. */
 export type TeamMember = z.infer<typeof TeamMember>;
 
-/** One `team.agents[]` entry — an AI agent, the roles it `executes_as`, and whether it may hold `approval_authority` (REQ-SEC-03). */
+/**
+ * One `team.agents[]` entry — an AI agent, the roles it `executes_as`, whether it may hold
+ * `approval_authority` (REQ-SEC-03), and the `adapter` that says *how* it is launched.
+ *
+ * `adapter` is the link from DNA to an adapter manifest (`spec-016-agent-execution` §2.1, task-138):
+ * the manifest's file basename under `.wingfoil/agents/{built-in,custom}/`, so it is held to the shared
+ * id character class (`spec-009-validation-strategy` §1, `src/validation/id.ts`). It is optional — an
+ * agent without one can be named in DNA but not launched (`spec-016` §3.7, `NO_ADAPTER`).
+ */
 export const AgentEntry = z
   .object({
     name: z.string(),
     executes_as: z.array(z.string()),
     approval_authority: z.boolean().optional(),
+    adapter: z
+      .string()
+      .refine(isIdPiece, { message: `an adapter name must be non-empty and use only [${ID_CHAR_CLASS}] (spec-009 id class)` })
+      .optional(),
   })
   .passthrough();
 /** Parsed shape of the {@link AgentEntry} schema. */
@@ -182,7 +196,13 @@ export const Team = z
   });
 export type Team = z.infer<typeof Team>;
 
-/** Category names are fixed per P2.5, but `.passthrough()` tolerates a future extra category. */
+/**
+ * Category names are fixed per P2.5, but `.passthrough()` tolerates a future extra category.
+ *
+ * `runs` is the sixth category (`spec-016-agent-execution` §4.1, task-138): the run log's directory.
+ * Unlike the other five it holds **exactly one** entry, because `agent execute` writes each record to
+ * `<runs>/<element-id>.jsonl` and two directories would make where a run is recorded ambiguous.
+ */
 export const Paths = z
   .object({
     sources: z.array(z.string()).optional(),
@@ -190,6 +210,10 @@ export const Paths = z
     docs: z.array(z.string()).optional(),
     config: z.array(z.string()).optional(),
     governance: z.array(z.string()).optional(),
+    runs: z
+      .array(z.string())
+      .length(1, { message: 'paths.runs holds exactly one directory, the run log (spec-016 §4.1)' })
+      .optional(),
   })
   .passthrough();
 export type Paths = z.infer<typeof Paths>;

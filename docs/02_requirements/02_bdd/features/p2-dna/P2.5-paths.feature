@@ -21,6 +21,14 @@ Feature: P2.5 (US-0A-22) - wingfoil paths [category]
       | json    |
       | yaml    |
 
+  Scenario: Query the run-log category of a freshly initialized project
+    # spec-016 §4.1: `runs` is the sixth category, holding exactly one directory; `wingfoil init`
+    # scaffolds it as docs/runs/.
+    Given a project initialized with "wingfoil init"
+    When I run "wingfoil paths runs"
+    Then the output contains "docs/runs/"
+    And the command exits with code 0
+
   Scenario: Error - querying an undefined category
     When I run "wingfoil paths governance"
     And no "governance" category is mapped in DNA

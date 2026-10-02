@@ -385,3 +385,19 @@ describe('scaffolded dna.yaml shows the technology {name, category} shape (task-
     });
   }
 });
+
+describe('scaffolded dna.yaml declares the run log, paths.runs (task-138, spec-016 §4.1)', () => {
+  for (const def of TEMPLATES) {
+    it(`${def.name}: paths.runs is [docs/runs/], and the scaffold still loads through the real loader`, () => {
+      const text = templateScaffold(def).find((f) => f.path === '.wingfoil/dna.yaml')!.content;
+      const root = mkdtempSync(join(tmpdir(), 'wf-task-138-'));
+      try {
+        mkdirSync(join(root, '.wingfoil'));
+        writeFileSync(join(root, '.wingfoil', 'dna.yaml'), text);
+        expect(loadDnaYaml(root).paths.runs).toEqual(['docs/runs/']);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+  }
+});

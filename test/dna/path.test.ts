@@ -124,7 +124,16 @@ describe('resolveDnaPath — the four path shapes dl-081 enumerates (AC3, AC5)',
       { name: 'name', kind: 'string', required: true },
       { name: 'executes_as', kind: 'string-list', required: true },
       { name: 'approval_authority', kind: 'boolean', required: false },
+      { name: 'adapter', kind: 'string', required: false },
     ]);
+  });
+
+  it('paths.runs is a declared list of values (task-138, spec-016 §4.1), not an unknown field', () => {
+    const empty = { version: 1, modules: [], stacks: {}, team: { members: [], roles: [] }, paths: {} };
+    const resolved = target('paths.runs', empty as unknown as Record<string, unknown>);
+    expect(resolved.kind).toBe('string-list');
+    expect(resolved.exists).toBe(false);
+    expect(resolved.required).toBe(false);
   });
 });
 

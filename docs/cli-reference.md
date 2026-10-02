@@ -196,7 +196,7 @@ wingfoil dna add <path> --value <name-or-values> [--entry-<field> <value> ...]
 | `stacks.methodologies` | `phase`, `notes` |
 | `team.members` | `email`, `roles` (comma-separated) |
 | `team.roles` | `description` |
-| `team.agents` | `executes_as` (comma-separated), `approval_authority` (`true`/`false`) |
+| `team.agents` | `executes_as` (comma-separated), `approval_authority` (`true`/`false`), `adapter` (the agent's adapter name: lowercase letters, digits, `-` and `.`) |
 
 ```console
 $ wingfoil dna add team.members --value "Ada Lovelace" --entry-email ada@example.com --entry-roles approver,developer
@@ -270,9 +270,13 @@ Print the resource paths declared in `dna.yaml` `paths:`.
 wingfoil paths [<category>] [--list]
 ```
 
-`<category>` is `sources`, `tests`, `docs`, `config` or `governance`. Without it the whole map is
-printed. `--list` is accepted for a planned drill-down view, but in this release it does not change
-the output.
+`<category>` is `sources`, `tests`, `docs`, `config`, `governance` or `runs`. Without it the whole
+map is printed. `--list` is accepted for a planned drill-down view, but in this release it does not
+change the output.
+
+`runs` is the directory of the agent run log, and it holds exactly one entry: a `dna.yaml` that
+declares none or two is refused, naming `paths.runs`. `wingfoil init` scaffolds it as `docs/runs/`;
+change it with `wingfoil dna update paths.runs --value <dir>`.
 
 ```console
 $ wingfoil paths sources

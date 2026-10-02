@@ -270,12 +270,14 @@ team:
     - name: approver
 
 # Resource paths — query categories used to navigate the project.
+# \`runs\` holds exactly one directory: the agent run log, one <element-id>.jsonl per element.
 paths:
   sources: []
   tests: []
   docs: []
   config: [.wingfoil]
   governance: []
+  runs: [docs/runs/]
 `;
 }
 

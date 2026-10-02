@@ -106,3 +106,81 @@ describe('DnaYaml — validates the real, live .wingfoil/dna.yaml', () => {
     }
   });
 });
+
+/**
+ * task-138 — the two DNA declarations `spec-016` needs (§2.1 the agent → adapter link, §4.1 the run
+ * log). Before this task both were merely tolerated by `.passthrough()`: any `adapter` value loaded,
+ * and `paths.runs` could carry any number of entries.
+ */
+describe('DnaYaml — team.agents[].adapter (task-138, spec-016 §2.1)', () => {
+  function withAgent(agent: Record<string, unknown>): unknown {
+    return {
+      ...MINIMAL_VALID,
+      team: {
+        members: [{ name: 'X', roles: ['developer'] }],
+        agents: [{ name: 'claude', executes_as: ['developer'], ...agent }],
+        roles: [{ name: 'developer' }, { name: 'approver' }],
+      },
+    };
+  }
+
+  it('stays optional: an agent without `adapter` loads (it can be named, not launched — spec-016 §3.7)', () => {
+    expect(DnaYaml.safeParse(withAgent({})).success).toBe(true);
+  });
+
+  it('accepts an adapter name in the shared id class (spec-009 §1: [a-z0-9-.])', () => {
+    const result = DnaYaml.safeParse(withAgent({ adapter: 'claude-code' }));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.team.agents?.[0]?.adapter).toBe('claude-code');
+  });
+
+  it.each<[string, unknown]>([
+    ['a number', 42],
+    ['a boolean', true],
+    ['a list', ['claude-code']],
+  ])('refuses a non-string adapter (%s), naming team.agents.0.adapter', (_case, adapter) => {
+    const result = DnaYaml.safeParse(withAgent({ adapter }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain('team.agents.0.adapter');
+    }
+  });
+
+  it.each(['Claude Code', 'claude_code', 'CLAUDE', ''])('refuses an adapter name outside the id class (%j)', (adapter) => {
+    const result = DnaYaml.safeParse(withAgent({ adapter }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path.join('.') === 'team.agents.0.adapter');
+      expect(issue?.message).toContain('a-z0-9-.');
+    }
+  });
+});
+
+describe('DnaYaml — paths.runs, the run log (task-138, spec-016 §4.1)', () => {
+  function withRuns(runs: unknown): unknown {
+    return { ...MINIMAL_VALID, paths: { ...MINIMAL_VALID.paths, runs } };
+  }
+
+  it('stays optional: a document without paths.runs loads', () => {
+    expect(DnaYaml.safeParse(MINIMAL_VALID).success).toBe(true);
+  });
+
+  it('accepts exactly one directory', () => {
+    const result = DnaYaml.safeParse(withRuns(['docs/runs/']));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.paths.runs).toEqual(['docs/runs/']);
+  });
+
+  it.each<[string, unknown]>([
+    ['two entries', ['docs/runs/', 'var/runs/']],
+    ['no entry', []],
+  ])('refuses %s with an issue at, and a message naming, paths.runs', (_case, runs) => {
+    const result = DnaYaml.safeParse(withRuns(runs));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path.join('.') === 'paths.runs');
+      expect(issue).toBeDefined();
+      expect(issue?.message).toContain('paths.runs');
+    }
+  });
+});
