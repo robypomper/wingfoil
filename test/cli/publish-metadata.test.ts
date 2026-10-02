@@ -554,24 +554,30 @@ function comparatorLowerBound(operator: string, literal: string): Version {
   }
 }
 
+/** The lower bound of every comparator in a range, in order of appearance. */
+function comparatorLowerBounds(range: string): readonly Version[] {
+  return parseRangeClauses(range).flatMap((clause) =>
+    clause.map(({ operator, literal }) => comparatorLowerBound(operator, literal)),
+  );
+}
+
 /**
- * task-155 (`bug-047`): the lowest Node version an `engines.node` range admits — "the floor" a
- * dependency declares. Per `||` alternative it is the highest of its comparators' lower bounds, if the
- * alternative admits it at all; across alternatives, the lowest. A range that admits nothing throws
- * instead of yielding a floor nobody declared.
+ * task-155 (`bug-047`, review fix): the lowest version **every** range admits — the least element of
+ * the intersection of `ranges`, not the highest of each range's own minimum. The two differ on a gapped
+ * range: `>=22.12.0` with `^20.19.0 || ^22.13.0 || >=24` gives 22.13.0, which max-of-minimums (22.12.0)
+ * would miss, leaving no floor that both the satisfies guard and the equality guard accept.
+ *
+ * The intersection is a union of intervals, and each interval starts at some comparator's lower bound
+ * (or at 0.0.0), so the answer is the smallest such candidate every range admits. An empty
+ * intersection throws instead of yielding a floor no dependency set accepts.
  */
-function minAdmitted(range: string): Version {
-  const candidates = parseRangeClauses(range)
-    .map((clause) => ({
-      clause,
-      lower: clause
-        .map(({ operator, literal }) => comparatorLowerBound(operator, literal))
-        .reduce<Version>((max, bound) => (compareVersions(bound, max) > 0 ? bound : max), [0, 0, 0]),
-    }))
-    .filter(({ clause, lower }) => clauseAllows(clause, lower))
-    .map(({ lower }) => lower);
-  if (candidates.length === 0) throw new Error(`engines range "${range}" admits no version`);
-  return candidates.reduce((min, lower) => (compareVersions(lower, min) < 0 ? lower : min));
+function closureFloor(ranges: readonly string[]): Version {
+  const candidates = [[0, 0, 0] as Version, ...ranges.flatMap(comparatorLowerBounds)].sort(compareVersions);
+  const floor = candidates.find((candidate) => ranges.every((range) => rangeAllows(range, candidate)));
+  if (floor === undefined) {
+    throw new Error(`no version every engines range admits: ${JSON.stringify(ranges)}`);
+  }
+  return floor;
 }
 
 /**
@@ -741,9 +747,11 @@ describe('publish surface (task-074) — the engines-range evaluator itself', ()
  * dependency, so an over-tight floor (`>=24.0.0`, or `>=22.13.0`, which even the `@types/node`
  * major pin of `types-node-floor.test.ts` cannot see) passes. `spec-015` §1 says the floor "must
  * equal" the highest `engines.node` floor in the production closure, recomputed from the installed
- * tree; the equality half below is that sentence made executable. "The floor" of a dependency's
- * range is the lowest version the range admits (`^20.19.0 || >=24` → `20.19.0`), so the maximum
- * over the closure is the lowest Node every dependency's own declaration starts from.
+ * tree; the equality half below is that sentence made executable. "The highest floor" is read as
+ * the lowest version **every** production dependency admits — the least element of the intersection
+ * of their ranges (`closureFloor`). For plain `>=` ranges that is their maximum; with a gapped range
+ * (`^20.19.0 || ^22.13.0 || >=24`) it can sit above every range's own minimum, and only this reading
+ * leaves a floor that the satisfies guard above and the equality guard below both accept.
  *
  * Same determinism as the block above: pure reads of `package.json`, `package-lock.json` and the
  * installed manifests; no network, no subprocess; comparisons are key-order-insensitive.
@@ -757,7 +765,8 @@ type JsonRecord = Readonly<Record<string, unknown>>;
 /**
  * The manifest fields npm copies into the lockfile root (`packages[""]`). A field listed here that the
  * manifest declares must appear in the root with the same value, so a mirror that *dropped* it is
- * caught as well as one that changed it.
+ * caught as well as one that changed it. npm may normalize some of them in the lock root (`bin`
+ * paths, `funding` shape), so a new mismatch on those may be npm's rewrite rather than a stale mirror.
  */
 const LOCK_ROOT_MIRRORED_FIELDS: readonly string[] = [
   'bin',
@@ -826,31 +835,29 @@ function formatVersion(version: Version): string {
 }
 
 /**
- * task-155 (`bug-047`, `spec-015` §1): why `declared` is not the highest floor of `closure`, or
- * `undefined` when it is. The highest floor is the maximum of `minAdmitted` over every entry that
- * declares `engines.node`; the message names the entries that set it.
+ * task-155 (`bug-047`, `spec-015` §1): why `declared` is not the floor of `closure`, or `undefined`
+ * when it is. The floor is `closureFloor` over every entry that declares `engines.node`; the message
+ * names the entries whose ranges have a comparator starting exactly there — the ones that set it.
  */
 function floorEqualityViolation(
   declared: string | undefined,
   closure: readonly ClosureEntry[],
 ): string | undefined {
   const floor = parseNodeFloor(declared);
-  const floors = closure
-    .filter((entry) => entry.enginesNode !== undefined)
-    .map((entry) => ({ entry, min: minAdmitted(entry.enginesNode ?? '') }));
-  if (floors.length === 0) throw new Error('the production closure declares no engines.node at all');
-  const highest = floors
-    .map(({ min }) => min)
-    .reduce((max, min) => (compareVersions(min, max) > 0 ? min : max));
-  const order = compareVersions(floor, highest);
+  const declaring = closure.filter((entry) => entry.enginesNode !== undefined);
+  if (declaring.length === 0) throw new Error('the production closure declares no engines.node at all');
+  const expected = closureFloor(declaring.map((entry) => entry.enginesNode ?? ''));
+  const order = compareVersions(floor, expected);
   if (order === 0) return undefined;
-  const holders = floors
-    .filter(({ min }) => compareVersions(min, highest) === 0)
-    .map(({ entry }) => `${entry.name}@${entry.version}`)
+  const holders = declaring
+    .filter((entry) =>
+      comparatorLowerBounds(entry.enginesNode ?? '').some((bound) => compareVersions(bound, expected) === 0),
+    )
+    .map((entry) => `${entry.name}@${entry.version}`)
     .join(', ');
   return (
-    `engines.node ${declared ?? ''} is ${order > 0 ? 'above' : 'below'} the production closure's ` +
-    `highest floor ${formatVersion(highest)} (${holders})`
+    `engines.node ${declared ?? ''} is ${order > 0 ? 'above' : 'below'} the production closure's floor, ` +
+    `the lowest version every dependency admits: ${formatVersion(expected)} (${holders})`
   );
 }
 
@@ -939,25 +946,28 @@ describe('publish surface (task-155) — the floor equals the closure floor (bug
     ).toThrow(/declares no engines\.node/);
   });
 
-  const minCases: [string, Version][] = [
-    ['>=22.12.0', [22, 12, 0]],
-    ['>= 0.4', [0, 4, 0]],
-    ['>=18', [18, 0, 0]],
-    ['>18', [19, 0, 0]],
-    ['>18.1.2', [18, 1, 3]],
-    ['^20.19.0 || ^22.13.0 || >=24', [20, 19, 0]],
-    ['~22.12', [22, 12, 0]],
-    ['>=18 <23', [18, 0, 0]],
-    ['<24', [0, 0, 0]],
-    ['*', [0, 0, 0]],
-    ['22', [22, 0, 0]],
+  const floorCases: [readonly string[], Version][] = [
+    [['>=22.12.0'], [22, 12, 0]],
+    [['>= 0.4', '>=18'], [18, 0, 0]],
+    [['>18'], [19, 0, 0]],
+    [['>18.1.2'], [18, 1, 3]],
+    [['^20.19.0 || ^22.13.0 || >=24'], [20, 19, 0]],
+    [['>=22.12.0', '^20.19.0 || ^22.13.0 || >=24'], [22, 13, 0]],
+    [['>=23.0.0', '^20.19.0 || ^22.13.0 || >=24'], [24, 0, 0]],
+    [['>=18 <23', '~22.12'], [22, 12, 0]],
+    [['<24'], [0, 0, 0]],
+    [['*'], [0, 0, 0]],
+    [['22'], [22, 0, 0]],
   ];
 
-  it.each(minCases)('reads the lowest version "%s" admits as %j', (range, expected) => {
-    expect(minAdmitted(range)).toEqual(expected);
+  it.each(floorCases)('reads the lowest version every range of %j admits as %j', (ranges, expected) => {
+    expect(closureFloor(ranges)).toEqual(expected);
   });
 
-  it('refuses a range that admits nothing rather than inventing a floor', () => {
-    expect(() => minAdmitted('>=24 <22')).toThrow(/admits no version/);
-  });
+  it.each([[['>=24 <22']], [['>=24', '<22']]])(
+    'refuses %j, whose intersection is empty, rather than inventing a floor',
+    (ranges) => {
+      expect(() => closureFloor(ranges)).toThrow(/no version every engines range admits/);
+    },
+  );
 });
