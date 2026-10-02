@@ -1532,6 +1532,8 @@ const directiveCreateFn: CoreFn<unknown, { name: string; path: string }> = async
 export interface DirectiveAssignParams {
   readonly root: string;
   readonly options?: Readonly<Record<string, string>>;
+  /** `--force` (task-169, `dl-062` Q1 option 3): authorize the whole-file rewrite of `roles.yaml`. */
+  readonly force?: boolean;
 }
 
 /**
@@ -1575,10 +1577,12 @@ export interface DirectiveAssignResult {
  *    never sorting) through the comment-preserving `roles.yaml` writer and makes ONE commit,
  *    `wf(directive): assign <id1>, <id2> to <role>`, staging only `.wingfoil/roles.yaml`. A request
  *    whose ids are all already bound is a success with no write and no commit (P3.7 Sc.2 "Binding is
- *    idempotent"); a partially overlapping one appends only what is missing.
+ *    idempotent"); a partially overlapping one appends only what is missing. A file the in-place
+ *    editor cannot edit is refused (`CONFLICT`, exit 1) unless `--force` authorizes the whole-file
+ *    rewrite, whose success then carries a warning the CLI prints on stderr (task-169, `dl-062`).
  */
 const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params) => {
-  const { root, options } = params as DirectiveAssignParams;
+  const { root, options, force } = params as DirectiveAssignParams;
 
   const directive = options?.directive;
   if (directive === undefined) throw new UsageError('missing required argument: --directive');
@@ -1594,9 +1598,11 @@ const directiveAssignFn: CoreFn<unknown, DirectiveAssignResult> = async (params)
   if (invalid) return coreErr(invalid);
 
   const message = `wf(directive): assign ${directives.join(', ')} to ${role}`;
-  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, directives), message);
+  const updated = updateRoleAssignments(root, role, (current) => withAssignedDirectives(current, directives), message, {
+    force: force === true,
+  });
   if (!updated.ok) return updated;
-  return coreOk({ directives, role, assignments: updated.value.assignments }, updated.commit);
+  return coreOk({ directives, role, assignments: updated.value.assignments }, updated.commit, updated.warnings);
 };
 
 /**
@@ -2061,6 +2067,9 @@ export const CORE_MODULES: readonly CoreModule[] = [
           { name: 'directive', required: true, valueName: 'name[,name...]', description: 'the directive(s) to assign, comma-separated' },
           { name: 'role', required: true, valueName: 'role', description: 'the role to assign them to, as the committed dna.yaml declares it' },
         ],
+        // task-169 (`dl-062` Q1 option 3): the opt-in to the whole-file rewrite the in-place editor
+        // would otherwise refuse. A per-command flag, documented in spec-008 §12, not §2.
+        flags: [{ name: 'force', description: 'rewrite the whole roles.yaml when it cannot be edited in place (comments and formatting are not kept)' }],
         example: 'wingfoil directive assign --directive api-style --role developer',
         fn: directiveAssignFn,
       },

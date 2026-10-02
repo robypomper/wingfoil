@@ -9,7 +9,8 @@
  * does not ship. It is the documentation twin of the API-docs gate (`api-docs.test.ts`): the
  * reference cannot silently fall behind the surface. Since task-120 it also holds the TEXT together:
  * each command's `--help` description is its entry's first sentence, and each declared positional
- * appears in its entry under the name `--help` shows. Deterministic: both sides are sorted lists
+ * appears in its entry under the name `--help` shows, and (task-169) so does every declared flag and
+ * option. Deterministic: both sides are sorted lists
  * derived from fixed inputs.
  */
 import { readFileSync } from 'node:fs';
@@ -87,6 +88,25 @@ describe('CLI reference coverage (docs/cli-reference.md)', () => {
       const verb = deriveVerb(module.name, operation.name);
       const path = verb ? `${module.name} ${verb}` : module.name;
       if (!(entryBody(markdown, path) ?? '').includes(`<${operation.positional.name}>`)) missing.push(`${path}: <${operation.positional.name}>`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  // task-169: a command-specific flag or option (`directive assign --force`, dl-062) is part of the
+  // command's contract, so its entry must name it — the twin of the positional check above.
+  it("names every flag and option a command declares, as `--<name>`, in the command's entry", () => {
+    const markdown = readFileSync(referencePath, 'utf8');
+    const missing: string[] = [];
+    for (const { module, operation } of enumerateOperations(CORE_MODULES)) {
+      const verb = deriveVerb(module.name, operation.name);
+      const path = verb ? `${module.name} ${verb}` : module.name;
+      const body = entryBody(markdown, path) ?? '';
+      // A family of derived options is documented once as a pattern, `--entry-<field>` (dl-082).
+      const patterns = [...body.matchAll(/--([a-z][a-z-]*)<[a-z_]+>/g)].map(([, prefix]) => prefix ?? '');
+      for (const { name } of [...(operation.flags ?? []), ...(operation.options ?? [])]) {
+        const named = new RegExp(`--${name}(?![a-z_-])`).test(body) || patterns.some((prefix) => name.startsWith(prefix));
+        if (!named) missing.push(`${path}: --${name}`);
+      }
     }
     expect(missing).toEqual([]);
   });

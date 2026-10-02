@@ -37,16 +37,13 @@
  *   binds, naming the referrer.
  * - {@link updateRoleAssignments} — the ONE read → edit → validate → write → commit path for
  *   `.wingfoil/roles.yaml`. It edits through the comment-preserving `setRoleAssignmentsInText`
- *   (`src/directives/roles-edit.ts`); only when that cannot apply does it consider a whole-file
- *   `dump`, and then only for a file with no comment to lose — otherwise it fails closed (bug-019's
- *   lesson: never a silent comment loss). **This `#`-gated split is what `dl-062` ratified away**
- *   (Q1 option 3, `ready`, approve commit `4cd1876`): `undefined` is to mean `CONFLICT` regardless of
- *   any `#`, with the whole-file rewrite reachable only behind an explicit `--force` and a stderr
- *   warning naming what it normalizes. That is **not implemented here** — it needs a
- *   success-warning channel this codebase does not have (`CoreResult`'s success arm carries `value`
- *   and `commit` and nothing else) — and is scheduled to v0.3 as its own task. The code below is
- *   therefore knowingly one step behind a ratified decision; read `dl-062`, not this paragraph, for
- *   the intended contract.
+ *   (`src/directives/roles-edit.ts`). When that cannot apply, the result is `CONFLICT` whether or not
+ *   the file has a comment, and the whole-file `dump` runs only when the caller passes `force`
+ *   (`wingfoil directive assign --force`), with a success warning naming what it normalizes. That is
+ *   `dl-062` Q1 option 3 (`ready`, approve commit `4cd1876`), implemented by task-169; the refusal and
+ *   the warning are pinned in `spec-008` §6. It replaced a `#`-gated split that rewrote a comment-free
+ *   file silently at exit 0. A missing `roles.yaml` is still written whole without the flag: there is
+ *   nothing to preserve.
  *
  * Lives in `src/core` (not `src/directives`) for the same reason `directives-list.ts` does: it
  * operates on `DirectiveFile` (`./loaders`) and returns `CoreResult`s, so a `src/directives` home
@@ -76,6 +73,27 @@ import {
 import type { CoreError, CoreResult } from './types';
 import { coreErr, coreOk } from './types';
 import { committedScopeError, requireUnmodifiedTarget } from './write-guard';
+
+/**
+ * The `CONFLICT` reason when `setRoleAssignmentsInText` cannot edit `roles.yaml` in place and the
+ * caller did not pass `force` (task-169, `dl-062` Q1 option 3). Pinned in `spec-008` §6.
+ */
+export function rolesRewriteConflict(role: string): string {
+  return `roles.yaml cannot be updated in place; edit assignments.${role} by hand, or pass --force to rewrite the whole file`;
+}
+
+/**
+ * The warning a `force`d whole-file rewrite of an existing `roles.yaml` carries on its success
+ * (task-169, `dl-062` Q1 option 3: "the stderr warning enumerating the normalizations"). Pinned in
+ * `spec-008` §6. It names what a `js-yaml` `dump` of the parsed file does not keep, which `dl-062`'s
+ * Context measured: comments, explicit quoting, the blank lines, CRLF line endings, and the
+ * `version: 1.0` → `1` number formatting, plus flow style (the dump writes block style). It does not
+ * name key order, which the dump keeps, and it says comments "are not kept" rather than "were
+ * dropped", which would be false of a file that had none (task-169 review).
+ */
+export const ROLES_REWRITE_WARNING =
+  'roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, ' +
+  'blank lines, line endings or number formatting (1.0 becomes 1)';
 
 /** The outcome of {@link updateRoleAssignments}: the role's list as it stands afterwards. */
 export interface RoleAssignmentUpdate {
@@ -306,8 +324,10 @@ function parseRoles(text: string, filePath: string): CoreResult<{ raw: Record<st
  *   deterministic `dump` — there is nothing to preserve.
  * - An unchanged list is an idempotent success: nothing is written and no commit is made.
  * - The edit goes through `setRoleAssignmentsInText`, keeping every comment and unrelated line. When it
- *   cannot apply, a whole-file `dump` is used only if the file contains no `#` at all; otherwise the
- *   result is `CONFLICT` and the file is left untouched.
+ *   cannot apply, the result is `CONFLICT` ({@link rolesRewriteConflict}) and the file is left
+ *   untouched, unless `options.force` authorizes the whole-file `dump`; that success then carries
+ *   {@link ROLES_REWRITE_WARNING} (`dl-062` Q1 option 3, task-169). `force` authorizes the rewrite,
+ *   it does not demand it: an edit the in-place editor can make is still made in place, unwarned.
  * - No second schema pass on the output is needed: the in-place edit is only accepted when its
  *   re-parse equals the validated input with `assignments.<role>` replaced by a string list
  *   (`setRoleAssignmentsInText`'s self-check), and the whole-file `dump` serializes exactly that object.
@@ -319,7 +339,9 @@ function parseRoles(text: string, filePath: string): CoreResult<{ raw: Record<st
  * @param role - The role whose list is updated (already validated by the caller).
  * @param update - Pure function from the current list to the desired list.
  * @param message - The commit subject.
- * @returns The role's resulting list, with the commit when one was made.
+ * @param options - `force`: authorize the whole-file rewrite when the in-place edit cannot apply.
+ * @returns The role's resulting list, with the commit when one was made and the rewrite warning when
+ *   `force` was used.
  * @throws whatever `git` raises inside `commitPaths`.
  */
 export function updateRoleAssignments(
@@ -327,6 +349,7 @@ export function updateRoleAssignments(
   role: string,
   update: (current: readonly string[]) => readonly string[],
   message: string,
+  options: { readonly force: boolean },
 ): CoreResult<RoleAssignmentUpdate> {
   // dl-080 (B) / bug-078: refuse while `roles.yaml` carries modifications this operation does not
   // own — otherwise an unrelated uncommitted edit rides into `wf(directive): assign <id> to <role>`,
@@ -357,19 +380,16 @@ export function updateRoleAssignments(
   const wholeFile = (): string =>
     dump({ ...raw, assignments: { ...(raw.assignments as Record<string, unknown>), [role]: next } }, { lineWidth: -1 });
   let serialized = exists ? setRoleAssignmentsInText(text, role, next) : wholeFile();
+  const warnings: string[] = [];
   if (serialized === undefined) {
-    if (text.includes('#')) {
-      return coreErr({
-        code: 'CONFLICT',
-        message: `roles.yaml cannot be updated without discarding its comments; edit assignments.${role} by hand`,
-      });
-    }
+    if (!options.force) return coreErr({ code: 'CONFLICT', message: rolesRewriteConflict(role) });
     serialized = wholeFile();
+    warnings.push(ROLES_REWRITE_WARNING);
   }
 
   writeDocument(filePath, serialized);
   const sha = commitPaths(root, [ROLES_YAML_PATH], message);
   const leaked = committedScopeError(root, sha, ROLES_YAML_PATH, serialized);
   if (leaked) return leaked;
-  return coreOk({ assignments: next }, { sha, message });
+  return coreOk({ assignments: next }, { sha, message }, warnings);
 }

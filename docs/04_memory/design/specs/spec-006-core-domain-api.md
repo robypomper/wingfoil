@@ -71,7 +71,7 @@ returned as `CoreResult.error`, so both the CLI's exit-code/stderr rendering and
 ```ts
 // src/core/types.ts
 export type CoreResult<T> =
-  | { ok: true; value: T; commit?: { sha: string; message: string } }
+  | { ok: true; value: T; commit?: { sha: string; message: string }; warnings?: readonly string[] }
   | { ok: false; error: CoreError };
 
 export interface CoreError {
@@ -100,6 +100,12 @@ export interface CoreOperation {
   readonly example?: string;                   // one complete invocation shown under "Example:" (spec-008 §8)
 }
 ```
+
+`warnings` is the success-warning channel: what a successful operation wants the operator told,
+kept out of `value` so it never becomes part of the payload a caller parses. It is absent when there
+is nothing to say. The CLI writes each warning to stderr (`spec-008` §6), an MCP Tool result carries
+them as `structuredContent` (`spec-004` §4.3 item 5). A failure has no `warnings`: its reason and
+details are the whole message.
 
 `mutates: true` operations MUST be exposed by `src/mcp` only as MCP **Tools** (never Resources, which
 are read-only per REQ-INT-01: "MCP Resources are read-only — mutations only via
@@ -695,3 +701,11 @@ rather than in `spec-008`, because the order is `src/core`'s and binds the MCP T
 CLI, the same reasoning the 2026-09-24 revision gives for §6. Tech-specs carry no `version:` field
 (`dl-047`). Edited in place without a supersede or a state change, per the same `spec-001` precedent
 the 2026-09-17 revision cites.
+
+**Revision (2026-10-02, `task-169-make-directive-assign-refuse-whole-file-rewrite-unless`) — §2's
+`CoreResult` success arm gains `warnings`, per `dl-062-roles-yaml-unwritable-fallback` (`ready`, Q1
+option 3; scheduling addendum §2).** The `--force` rewrite must warn on stderr, and no success result
+could carry a warning: the arm held `value` and `commit` only. §2 now declares the optional
+`warnings` list and the paragraph after the code block says where each surface renders it. No other
+section changed. Tech-specs carry no `version:` field (`dl-047`); edited in place without a supersede
+or a state change.

@@ -11,6 +11,11 @@
  * comma-separated list. P3.7 registers no operation of its own, so the registration block below is
  * unchanged — which the P3.7 describe relies on rather than restating.
  *
+ * task-169 (`dl-062` Q1 option 3) adds `--force`: a file the in-place editor cannot edit is `CONFLICT`
+ * whether or not it has a comment, unless `force` authorizes the whole-file rewrite, whose success
+ * carries a warning. P3.2's two scenarios for it run end to end in
+ * `test/cli/directive-assign-force.integration.test.ts`.
+ *
  * Exercises the REAL registered `CORE_MODULES` operation against THROWAWAY temp git repos carrying the
  * real `wingfoil init` scaffold, never this repository's own `.wingfoil/`.
  *
@@ -26,12 +31,25 @@ import { join } from 'node:path';
 import { CORE_MODULES, initWingfoilProject, loadDirectiveListing, loadRolesYaml } from '../../src/core';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
 import type { CoreFn } from '../../src/core/registry';
+import type { CoreResult } from '../../src/core/types';
 import { deriveVerb, enumerateOperations } from '../../src/core/registry';
 import { UsageError } from '../../src/core/usage-error';
 import { deriveMcpToolName } from '../../src/mcp/registrar';
 import { commitAll, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const ROLES = '.wingfoil/roles.yaml';
+
+/** A success's `warnings` (task-169); `undefined` for a failure or a success without any. */
+const warningsOf = (result: CoreResult<unknown>): readonly string[] | undefined => (result.ok ? result.warnings : undefined);
+
+/** The CONFLICT reason pinned in spec-008 §6 (task-169, dl-062 Q1 option 3). */
+const rewriteConflict = (role: string): string =>
+  `roles.yaml cannot be updated in place; edit assignments.${role} by hand, or pass --force to rewrite the whole file`;
+
+/** The warning pinned in spec-008 §6 for a `--force` whole-file rewrite (task-169, dl-062 Q1 option 3). */
+const FORCE_REWRITE_WARNING =
+  'roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, ' +
+  'blank lines, line endings or number formatting (1.0 becomes 1)';
 
 /** The real, registered `directive.directiveAssign` `CoreFn` — fails loudly if it is ever un-registered. */
 function directiveAssignFn(): CoreFn<unknown, unknown> {
@@ -104,6 +122,11 @@ describe('CORE_MODULES directive.directiveAssign — registration (spec-006 §3,
       expect.objectContaining({ name: 'directive', required: true }),
       expect.objectContaining({ name: 'role', required: true }),
     ]);
+  });
+
+  it('declares the boolean `--force` flag that authorizes the whole-file rewrite (dl-062 Q1 option 3)', () => {
+    const operation = CORE_MODULES.find((m) => m.name === 'directive')?.operations.directiveAssign;
+    expect(operation?.flags).toEqual([expect.objectContaining({ name: 'force' })]);
   });
 });
 
@@ -545,18 +568,26 @@ describe('CORE_MODULES directive.directiveAssign — built-in assets, missing an
     expect(result.ok).toBe(true);
     expect(readRoles(repo)).toBe('version: 1\nassignments:\n  developer:\n    - testing\nglobal: []\n');
     expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
+    // task-169 AC3 / dl-062: "nothing to preserve", so no flag is needed and no warning is emitted.
+    if (result.ok) expect(warningsOf(result)).toBeUndefined();
   });
 
-  it('falls back to a whole-file rewrite only when the file has no comment to lose', async () => {
-    writeFixtureFile(repo, ROLES, 'version: 1\nassignments: {developer: [code-quality]}\nglobal: [documentation]\n');
+  // task-169 / dl-062 Q1 option 3: `undefined` from the in-place editor is CONFLICT whether or not the
+  // file has a `#` — the comment-free file used to be rewritten silently, at exit 0.
+  it('fails closed (CONFLICT, exit 1, file and HEAD untouched) on a comment-free file the editor cannot edit', async () => {
+    const text = 'version: 1.0\n\nassignments: {developer: [code-quality]}\nglobal: ["documentation"]\n';
+    writeFixtureFile(repo, ROLES, text);
     commitAll(repo, 'fixture: flow-style roles.yaml without comments');
+    const sha = head(repo);
 
     const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' } });
-    expect(result.ok).toBe(true);
-    const rolesYaml = loadRolesYaml(repo);
-    expect(rolesYaml.assignments.developer).toEqual(['code-quality', 'testing']);
-    expect(rolesYaml.global).toEqual(['documentation']);
-    expect(rolesYaml.version).toBe(1);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({ code: 'CONFLICT', message: rewriteConflict('developer') });
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(readRoles(repo)).toBe(text);
+    expect(head(repo)).toBe(sha);
+    expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
   });
 
   // D6 — bug-019's lesson: never a silent comment loss.
@@ -569,11 +600,61 @@ describe('CORE_MODULES directive.directiveAssign — built-in assets, missing an
     const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' } });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toEqual({
-      code: 'CONFLICT',
-      message: 'roles.yaml cannot be updated without discarding its comments; edit assignments.developer by hand',
-    });
+    expect(result.error).toEqual({ code: 'CONFLICT', message: rewriteConflict('developer') });
     expect(exitCodeForResult(result)).toBe(1);
+    expect(readRoles(repo)).toBe(text);
+    expect(head(repo)).toBe(sha);
+  });
+
+  // task-169 / dl-062 Q1 option 3: `--force` authorizes the whole-file rewrite, and the success
+  // carries the warning that names what it normalizes.
+  it('--force rewrites the whole file, commits only roles.yaml, and warns what the rewrite normalizes', async () => {
+    writeFixtureFile(repo, ROLES, '# hand-written\nversion: 1.0\n\nassignments: {developer: [code-quality]}\nglobal: ["documentation"]\n');
+    commitAll(repo, 'fixture: flow-style roles.yaml with a comment');
+    const sha = head(repo);
+
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' }, force: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ directives: ['testing'], role: 'developer', assignments: ['code-quality', 'testing'] });
+    expect(warningsOf(result)).toEqual([FORCE_REWRITE_WARNING]);
+    expect(readRoles(repo)).toBe('version: 1\nassignments:\n  developer:\n    - code-quality\n    - testing\nglobal:\n  - documentation\n');
+    expect(gitOut(repo, ['rev-list', '--count', `${sha}..HEAD`])).toBe('1');
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('wf(directive): assign testing to developer');
+    expect(gitOut(repo, ['show', '--name-only', '--format=', 'HEAD'])).toBe(ROLES);
+    expect(gitOut(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  // task-169 review F3: the evidence for leaving "key order" out of the warning — the dump keeps it.
+  it('characterization: --force keeps the top-level key order of the file it rewrites', async () => {
+    writeFixtureFile(repo, ROLES, 'global: []\nassignments: {developer: [code-quality]}\nversion: 1\n');
+    commitAll(repo, 'fixture: keys in an unusual order');
+
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'testing', role: 'developer' }, force: true });
+    expect(result.ok).toBe(true);
+    expect(readRoles(repo)).toBe('global: []\nassignments:\n  developer:\n    - code-quality\n    - testing\nversion: 1\n');
+  });
+
+  it('--force on a file the editor CAN edit keeps the in-place edit and emits no warning', async () => {
+    const before = readRoles(repo);
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'security', role: 'developer' }, force: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(warningsOf(result)).toBeUndefined();
+    expect(readRoles(repo)).toBe(before.replace('    - determinism\n', '    - determinism\n    - security\n'));
+  });
+
+  it('--force with nothing to change writes nothing, commits nothing and emits no warning', async () => {
+    const text = 'version: 1\nassignments: {developer: [code-quality]}\nglobal: []\n';
+    writeFixtureFile(repo, ROLES, text);
+    commitAll(repo, 'fixture: flow-style roles.yaml');
+    const sha = head(repo);
+
+    const result = await directiveAssignFn()({ root: repo, options: { directive: 'code-quality', role: 'developer' }, force: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(warningsOf(result)).toBeUndefined();
+    expect(result.commit).toBeUndefined();
     expect(readRoles(repo)).toBe(text);
     expect(head(repo)).toBe(sha);
   });
