@@ -69,7 +69,9 @@ wingfoil [global-flags] <noun> [args] [flags]              # flat command, e.g. 
 
 ### 2. Global flags
 
-Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08:
+Accepted by every command, in any position, per REQ-INT-04/REQ-INT-05/REQ-INT-08. The one
+exception is `--reason`, a flag several `memory` verbs share, whose row names the commands that take
+it. A flag a single command declares is not listed here: it is in §12.
 
 | Flag              | Type                   | Default   | Behaviour                                                                                             |
 |-------------------|------------------------|-----------|---------------------------------------------------------------------------------------------------------|
@@ -328,6 +330,38 @@ argument, missing verb) included. The rules for both fields are `spec-005-cli-co
 `--verbose` appends diagnostic lines (stack trace, underlying git output) to stderr after the error line;
 it never changes the error line itself or the exit code.
 
+**Pinned refusal strings.** §6 fixes the format of an error line; these reasons are fixed word for
+word, beside the ones the BDD features pin (`dl-062-roles-yaml-unwritable-fallback`, Q1 option 3 and
+Q2 option 1):
+
+| Command | Exit | Reason |
+|---------|------|--------|
+| `directive assign` | `1` | `roles.yaml cannot be updated in place; edit assignments.<role> by hand, or pass --force to rewrite the whole file` — the in-place editor cannot apply the edit and `--force` was not given, whether or not the file has comments. Nothing is written. |
+| `directive remove` | `1` | `cannot remove '<id>': still assigned to every role via roles.yaml 'global'` — the directive is bound through `roles.yaml`'s `global` list. A per-role binding gives `P3.3-directive-remove.feature`'s `cannot remove '<id>': still assigned to role '<role>'`. |
+
+**Warnings on a successful command.** A command that succeeds may also have something to tell the
+operator (`CoreResult.warnings`, `spec-006` §2). A warning goes to **stderr only**, under every
+`--format`, so stdout is byte-identical with and without it (`spec-005` §2). In `console` it is the
+line `warning: <text>`, beside the `error: ` prefix; a continuation line of a multi-line warning is
+indented. Under `--format json` each warning is one `{"warning": "<text>"}` document on its own
+line, and under `--format yaml` one YAML document opened by `---` and closed by `...`. Each is
+therefore self-delimiting: warnings followed by an error on the same stderr (`spec-016` §3.4) read as
+separate documents, and the error object keeps its `spec-005` §3.2 bytes. These are `spec-016` §3.4's
+shapes, used by every command. Warnings are written before the payload, in the order core recorded
+them, and never change the exit code. So stderr can be non-empty on exit `0`, and under
+`json`/`yaml` a refusal can follow warnings. `spec-005` §3.2 still says stderr under `json`/`yaml`
+carries "the one object and nothing else". That sentence is about refusals and predates warnings.
+Its amendment, together with §2's, is the task that implements `spec-016` §3.4 (task-218), and this
+paragraph is the rule until then. The text of the one warning shipped today is pinned:
+
+| Command | Warning |
+|---------|---------|
+| `directive assign --force`, when the whole file was rewritten | `roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, blank lines, line endings or number formatting (1.0 becomes 1)` |
+
+An MCP Tool has no stderr: its result carries the warnings as `structuredContent` (`spec-004` §4.3
+item 5). The shipped `wingfoil mcp` registers no Tools before P5.2.3 (v0.4), so on that surface the
+field is not reachable yet.
+
 ### 7. Element-ref syntax
 
 A Memory document is referenced on the command line as `<type>:<id>` (colon separator):
@@ -524,6 +558,17 @@ CLI reference's *Git side effects* says the same to users.
 `init` and `mcp` read no committed configuration: `init` writes the scaffold, and `mcp` starts the
 server, whose Resources and Prompts follow `spec-006` §6 item 4 — except the two v0.3 workflow
 Resources, which follow item 6.
+
+### 12. Command-specific flags
+
+A flag one command declares, as opposed to §2's global flags. Each is registered on that command
+only (`CoreOperation.flags`, `spec-006` §2), appears in its `--help`, and is documented in its CLI
+reference entry. A command that does not declare it refuses it as an unknown option (exit `2`, §5).
+
+| Command | Flag | Behaviour |
+|---------|------|-----------|
+| `paths` | `--list` | Accepted for the planned drill-down view; it does not change the output yet. |
+| `directive assign` | `--force` | Authorizes the whole-file rewrite of `roles.yaml` when the in-place edit cannot apply (`dl-062` Q1 option 3). Without it that case is §6's `CONFLICT` refusal. With it the file is written again from its parsed content in the one `wf(directive): assign …` commit, and the success carries §6's warning. `--force` does not force a rewrite: an edit the in-place editor can make is made in place, with no warning. A missing `roles.yaml` is written whole without the flag, since there is nothing to preserve. |
 
 ## Consequences
 
@@ -823,3 +868,17 @@ the shipped code still makes on the working tree (`directive remove`'s lookup, `
 transition verbs' document lookup and `memory submit`'s status read, found at the task's
 independent review), so the list describes the code rather than the rule. No other section changed. Edited in place
 without a supersede or a state change (`dl-047`); recorded with `memory amend`.
+
+**Revision (2026-10-02, `task-169-make-directive-assign-refuse-whole-file-rewrite-unless`) — a home
+for command-specific flags, the `directive assign --force` contract, and the warning format, per
+`dl-062-roles-yaml-unwritable-fallback` (`ready`; Q1 option 3 with the flag `--force`, approve
+`4cd1876`; Q2 option 1).** `dl-062`'s scheduling addendum §3 found that §2 claims to list flags
+"accepted by every command" and so could not hold `--force`, and left the replacement home to this
+spec. The new §12 lists command-specific flags, `--force` and `paths --list` (the one such flag that
+already shipped). §2's lead line now names `--reason` as its one shared, non-global exception and
+points to §12. §6 gains the two pinned refusal strings `dl-062` asks for (the `CONFLICT` reason, in
+the wording task-169 gives it, and Q2's `global`-binding wording as ratified) and the warning format
+of a successful command, which is `spec-016` §3.4's, applied to every command. Under `yaml` each
+warning is closed by `...` so that an error after it stays a separate document. §6 also notes where it
+departs from `spec-005` §3.2 until task-218 amends that spec. No other section changed. Edited in place
+without a supersede or a state change (`dl-047`).
