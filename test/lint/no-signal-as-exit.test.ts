@@ -56,4 +56,15 @@ describe('no test source reads a signal-killed child as an exit code (bug-197)',
     expect(offenders('x.ts', 'const s = run.status??0;')).toEqual(['x.ts:1']);
     expect(offenders('x.ts', 'return { status: run.status, stdout };')).toEqual([]);
   });
+
+  it('can fail: flags the `||` form of the same coalescing', () => {
+    expect(offenders('x.ts', 'return { status: run.status || 1, stdout };')).toEqual(['x.ts:1']);
+    expect(offenders('x.ts', 'const s = run.status||0;')).toEqual(['x.ts:1']);
+  });
+
+  it('walks the JavaScript test sources too (harnesses and jest hooks spawn children)', () => {
+    const walked = testSources(TEST_ROOT).map((file) => relative(TEST_ROOT, file).split(sep).join('/'));
+
+    expect(walked).toEqual(expect.arrayContaining(['cli/fixtures/cli-harness.cjs', 'global-setup.cjs']));
+  });
 });
