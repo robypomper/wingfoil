@@ -39,8 +39,10 @@ import {
   type NameIndex,
   applyAllowlist,
   buildNameIndex,
+  classifyName,
   findingKey,
   findUnresolvedNames,
+  inlineCodeSpans,
   trackedFiles,
 } from './support/name-resolvability';
 
@@ -85,8 +87,14 @@ beforeAll(async () => {
 });
 
 describe('name resolvability — the engine, on a fixture', () => {
-  it('resolves a name of each class at HEAD', () => {
-    expect(findUnresolvedNames(fixtureSection('Names that resolve at HEAD'), index)).toEqual([]);
+  it('resolves a name of each class against the repository', () => {
+    const section = fixtureSection('Names that resolve');
+    // Not vacuous: every name in the section is one the engine classifies, and all five classes occur.
+    const topLevel = new Set([...index.dirs].map((dir) => dir.split('/')[0] ?? ''));
+    const classes = inlineCodeSpans(section[0]?.text ?? '').map((name) => [name, classifyName(name, topLevel)] as const);
+    expect(classes.filter(([, nameClass]) => nameClass === undefined).map(([name]) => name)).toEqual([]);
+    expect([...new Set(classes.map(([, nameClass]) => nameClass))].sort()).toEqual(['command', 'config', 'element', 'path', 'symbol']);
+    expect(findUnresolvedNames(section, index)).toEqual([]);
   });
 
   it('reports a dangling name of each class as a finding', () => {
@@ -113,6 +121,21 @@ describe('name resolvability — the engine, on a fixture', () => {
 
   it('skips placeholders, prose and fenced code blocks', () => {
     expect(findUnresolvedNames(fixtureSection('Spans the check skips'), index)).toEqual([]);
+  });
+
+  // Review fix 4: a backtick pairs only within its paragraph (CommonMark), so a stray one cannot hide
+  // every name after it; and a fence nobody closes runs to the end of the document.
+  it('pairs backticks within a paragraph, so a stray backtick hides nothing after it', () => {
+    const probe = { path: 'probe.md', text: 'A stray ` backtick in one paragraph.\n\nThen `src/teleport/x.ts` and `teleportFoo`.\n' };
+    expect(findUnresolvedNames([probe], index).map(findingKey)).toEqual([
+      'probe.md|path|src/teleport/x.ts',
+      'probe.md|symbol|teleportFoo',
+    ]);
+  });
+
+  it('treats an unclosed fence as code to the end of the document', () => {
+    const probe = { path: 'probe.md', text: 'Before `teleportBefore`.\n\n```yaml\nteleport: `teleportInside`\n\nAfter `teleportAfter`.\n' };
+    expect(findUnresolvedNames([probe], index).map(findingKey)).toEqual(['probe.md|symbol|teleportBefore']);
   });
 });
 

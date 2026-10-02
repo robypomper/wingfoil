@@ -3,7 +3,7 @@
 Read by `test/docs/name-resolvability.test.ts`, never by the repository scan (it lives under `test/`,
 not among the specs, ADRs and requirements). Each section holds one name per class.
 
-## Names that resolve at HEAD
+## Names that resolve
 
 - command: `wingfoil memory add --set <name>=<value>`, `wingfoil dna show`
 - element: `spec-001`, `dl-116-document-parity-tests-beyond-the-cli-reference`, `REQ-SYS-03`
