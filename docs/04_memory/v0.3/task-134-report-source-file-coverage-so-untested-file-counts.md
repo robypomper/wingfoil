@@ -2,7 +2,7 @@
 id: "task-134-report-source-file-coverage-so-untested-file-counts"
 type: task
 title: "Report every source file in coverage, so an untested file counts at 0%"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "high"
