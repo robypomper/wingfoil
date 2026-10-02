@@ -30,6 +30,7 @@ Seven ratified decisions each add a check to `dev-loop.yaml`. One revision (v1.6
 - **Features:** P4.1, P4.12 (declared only).
 - **Notes:** Proposal key: D08. Single owner of the dev-loop `start` stop-the-line check (`dl-133` Q4 (i)); task-205 (v1.5) lands first.
 - Planned by `release-planning-rel-v0.3-plan` step 6 (build-backlog), 2026-09-30.
+- **Handover from wave 1 B3 (2026-10-02, `task-150`).** Read the threshold from `.wingfoil/memory.yaml` `task.stop_the_line` (`max_share: 30`, `open: "status != done"`, `blocks: feature`, `at: "dev-loop start"`) rather than restating 30 percent. The approver ruled `dl-133` option (a) on 2026-10-02: the threshold applies as ratified, counting every open task of the release, so fixes are taken first until the share falls under it. Decide in design whether `deprecated` (and `draft`/`pending`) tasks count as open: as written they do.
 
 ## Execution Notes
 
