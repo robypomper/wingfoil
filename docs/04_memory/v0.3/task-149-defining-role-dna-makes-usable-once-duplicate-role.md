@@ -47,8 +47,12 @@ P5.4.1 is in `minor-v0.3` `features:` with no task yet. Sc. 1–2 are characteri
   `'<path>' already exists`), but "define the role again" in `spec-008` §9's grammar is
   `dna add team.roles --value reviewer`, which reaches `mutateCollection` (`mutate.ts:247`,
   `'team.roles' already carries an entry named 'reviewer' — …`). That is the one changed.
-  `dna add team.roles.reviewer` (entry path, no `--value`) is a misuse of `add`, not a definition, and
-  keeps its generic `already exists` text. **Approver to confirm.**
+  The entry-path spelling is a misuse of `add`, not a definition, and is left unchanged:
+  `wingfoil dna add team.roles.reviewer` → exit `2`, `error: missing required argument: --value`
+  (usage error raised before the mutation, `dnaMutationRequest` in `src/core/index.ts`);
+  `wingfoil dna add team.roles.reviewer --value x` → exit `1`, the generic
+  `error: 'team.roles.reviewer' already exists: …` (`mutateEntry`). Both reproduced with
+  `node dist/cli.js` on a scratch repo (corrected at independent review). **Approver to confirm.**
 - **"Usable at once", read against the HEAD baseline** (`command-baseline` 1.3, `spec-006` §6,
   `spec-008` §11). `directive assign` validates the role against `dna.yaml` at `HEAD`
   (`src/core/directive-assign.ts`, bug-082). `dna add` writes and commits its own change
@@ -107,8 +111,18 @@ P5.4.1 is in `minor-v0.3` `features:` with no task yet. Sc. 1–2 are characteri
   passes `assertRoleDefined` and `directive assign`, which commits `wf(directive): assign testing to <role>`.
 - AC2 met: the message is exactly `role already defined: reviewer`, `exitCodeForResult` gives 1, `HEAD` and
   `dna.yaml` bytes are unchanged, and only one `reviewer` entry exists.
-- Same-class sweep in touched files: `mutateEntry`'s `already exists` (`mutate.ts`) is a different case,
-  addressing an existing entry with `add`. It is left generic by the design decision above.
+- Same-class sweep in touched files: `mutateEntry`'s `already exists` (`mutate.ts`, reached only with
+  `--value`, see design) is a different case, addressing an existing entry with `add`. It is left generic by the design decision above.
   `mutateStringList`'s `already contains` (`team.members.<m>.roles --value reviewer`) gives a member a role
   they hold. That is not defining a role, so it is also left unchanged.
 - No pending amendments (approver): no approved spec, DL or other element was edited.
+
+### review (independent)
+
+- **Verdict: approve with fixes.** One false sentence in design: it said
+  `dna add team.roles.reviewer` (no `--value`) gets the generic `already exists` text; it exits `2`
+  with `missing required argument: --value`, and the generic text (exit `1`) needs `--value x`.
+  Corrected above, with both commands.
+- **Observation (not a defect of this task):** role uniqueness is case-sensitive. `entry.name === name`
+  in `mutateCollection` and `uniquelyNamed` both compare exactly, so `Reviewer` beside `reviewer` is
+  accepted as a new role.
