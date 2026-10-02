@@ -1,7 +1,7 @@
 # User Journeys — WingFoil
 
-**Version:** 1.2
-**Date:** 2026-06-24
+**Version:** 1.3
+**Date:** 2026-10-01
 **Status:** Approved
 
 ---
@@ -96,8 +96,9 @@ to launch the agent with pre-loaded context.
 - Relevance filtering is imperfect; context is noisy rather than crisp
 
 **Success:** Task begins within 30 seconds of session start. Agent output is consistent with prior decisions and
-conventions. No context window exhaustion. Alex doesn't re-explain anything; conventions and next steps are
-deterministic across sessions.
+conventions. No context window exhaustion. Alex doesn't re-explain anything; the agent receives the same context for
+the same inputs (the Determinism Index's *Input* component), so conventions and next steps stay consistent across
+sessions.
 
 ---
 
