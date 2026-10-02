@@ -25,7 +25,9 @@ function mentions(text: string, name: string): boolean {
 }
 
 describe('WORKFLOW.md parity with workflows.yaml (.wingfoil/WORKFLOW.md)', () => {
-  const reference = readFileSync(referencePath, 'utf8');
+  // A Mermaid label writes its line breaks as the two characters `\n`; read them as whitespace, so a
+  // name that opens a label line counts as a whole word.
+  const reference = readFileSync(referencePath, 'utf8').replace(/\\n/g, ' ');
   const { workflows } = loadWorkflowsYaml(repoRoot);
 
   it('loads a non-empty registry to compare against', () => {
