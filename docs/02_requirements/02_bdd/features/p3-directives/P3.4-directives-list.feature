@@ -20,3 +20,9 @@ Feature: P3.4 (US-4-04) - wingfoil directives list
     Given no custom directives exist
     When I run "wingfoil directives list"
     Then exactly the 6 built-in directives are listed
+
+  Scenario: Edge - a directive entry that cannot be read
+    Given a symbolic link "custom/broken.md" whose target does not exist
+    When I run "wingfoil directives list"
+    Then the other directives are listed
+    And a warning names ".wingfoil/directives/custom/broken.md" as skipped

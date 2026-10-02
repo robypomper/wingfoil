@@ -26,11 +26,15 @@
  * `resolveRoleDirectives` warnings — the dl-029 no-assignments warning and the dangling-binding
  * warning. `entries` is unchanged: this listing still does not deduplicate — see the `shadowed id` cases.
  */
-import { CORE_MODULES } from '../../src/core';
+import { symlinkSync } from 'fs';
+import { join } from 'path';
+
+import { buildDirectiveListing, CORE_MODULES, WINGFOIL_NOT_INITIALIZED } from '../../src/core';
 import { resolveRoleDirectives } from '../../src/core/context';
 import { loadDirectives, loadRolesYaml } from '../../src/core/loaders';
 import type { CoreOperation } from '../../src/core/registry';
 import type { CoreResult } from '../../src/core/types';
+import { exitCodeForResult } from '../../src/core/exit-code';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 /**
@@ -404,5 +408,91 @@ describe('directivesList — the warnings channel (dl-042 A + D)', () => {
       const expected = resolveRoleDirectives(loadDirectives(repo), loadRolesYaml(repo), role).warnings;
       expect((await listingOk(repo, { role })).warnings).toEqual(expected);
     }
+  });
+});
+
+// task-143 (bug-125), RED-FIRST: a dangling symlink no longer takes the whole listing down — it is
+// skipped and named on the listing's own warnings channel (dl-042), ahead of the shadow warnings.
+// Transcribes the P3.4 feature's "Edge - a directive entry that cannot be read" scenario.
+describe('directivesList — a dangling symlink is skipped and reported (task-143, bug-125)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/directives/custom/testing.md', directiveDoc('testing', 'Testing'));
+    writeFixtureFile(repo, '.wingfoil/roles.yaml', ROLES_YAML);
+    symlinkSync(join(repo, 'gone.md'), join(repo, '.wingfoil/directives/custom/dangling.md'));
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  const WARNING =
+    "directive entry '.wingfoil/directives/custom/dangling.md' skipped: it is a symbolic link whose target does not exist";
+
+  it('lists the other directives, exit 0, with a warning naming the link', async () => {
+    const result = await runList(repo);
+    expect(exitCodeForResult(result)).toBe(0);
+    const listing = await listingOk(repo);
+    expect(listing.entries.map((entry) => entry.frontmatter.id)).toEqual(['testing']);
+    expect(listing.warnings).toEqual([WARNING]);
+  });
+
+  it('buildDirectiveListing called without skipped warnings adds none (the parameter is optional)', () => {
+    expect(buildDirectiveListing([], undefined).warnings).toEqual([]);
+    expect(buildDirectiveListing([], undefined, undefined, ['w']).warnings).toEqual(['w']);
+  });
+
+  it('under --role the skipped entry comes first, before the role warnings', async () => {
+    const listing = await listingOk(repo, { role: 'developer' });
+    expect(listing.entries.map((entry) => entry.frontmatter.id)).toEqual(['testing']);
+    expect(listing.warnings).toEqual([
+      WARNING,
+      "directive 'no-direct-db-access' bound to role 'developer' has no directive file",
+      "directive 'security-secrets' bound to role 'developer' has no directive file",
+    ]);
+  });
+});
+
+// task-143 (bug-154), RED-FIRST: with no `.wingfoil/` at the root the listing used to answer an empty
+// inventory with exit 0 — and, under `--role`, a "no directives assigned" warning nothing was read to
+// establish. It now refuses like its sibling reads, with the one shared not-initialized message.
+describe('directivesList — a project with no configuration is refused (task-143, bug-154)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it.each([
+    ['without --role', undefined],
+    ['with --role developer', { role: 'developer' }],
+  ])('%s: exit 1 with the not-initialized message, naming no absolute path', async (_label, options) => {
+    const result = await runList(repo, options);
+    expect(exitCodeForResult(result)).toBe(1);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.error.code).toBe('VALIDATION');
+    expect(result.error.message).toBe(WINGFOIL_NOT_INITIALIZED);
+    expect(result.error.message).not.toContain(repo);
+  });
+
+  it('a `.wingfoil` that is a file, not a directory, is refused the same way', async () => {
+    writeFixtureFile(repo, '.wingfoil', 'not a directory\n');
+    const result = await runList(repo);
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.error.message).toBe(WINGFOIL_NOT_INITIALIZED);
+  });
+
+  it('the message says the project is not initialized and how to fix it', () => {
+    expect(WINGFOIL_NOT_INITIALIZED).toContain('not initialized');
+    expect(WINGFOIL_NOT_INITIALIZED).toContain('wingfoil init');
+  });
+
+  it('an initialized project that declares no directives still lists nothing, exit 0 (characterization)', async () => {
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'version: 1.1\n');
+    const result = await runList(repo);
+    expect(exitCodeForResult(result)).toBe(0);
+    expect(await listingOk(repo)).toEqual({ entries: [], warnings: [] });
   });
 });

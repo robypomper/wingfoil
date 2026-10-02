@@ -41,7 +41,7 @@ import { documentExists } from '../storage';
 import type { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 
 import { resolveRoleDirectives, selectDirectivesById } from './context';
-import { loadDirectives, loadRolesYaml, type DirectiveFile } from './loaders';
+import { loadDirectiveInventory, loadRolesYaml, type DirectiveFile } from './loaders';
 
 /**
  * {@link DirectiveListEntry.assignment} for a directive no role names and `roles.yaml`'s `global`
@@ -147,11 +147,16 @@ function renderAssignment(roles: readonly string[], isGlobal: boolean): string {
  * role is therefore not an error and not empty: it lists exactly the globals, matching
  * `dl-029-role-with-no-directive-assignments` (the ratified hybrid) rather than inventing a
  * `NOT_FOUND` this read-only command has no grounds to return.
+ *
+ * `skippedWarnings` are the loader's own — one per directive entry it could not resolve and skipped
+ * (task-143, `bug-125`, {@link loadDirectiveInventory}) — and lead the `warnings` array, ahead of the
+ * shadow and role warnings, since they qualify the inventory every later warning is computed over.
  */
 export function buildDirectiveListing(
   directiveFiles: readonly DirectiveFile[],
   rolesYaml: RolesYaml | undefined,
   role?: string,
+  skippedWarnings: readonly string[] = [],
 ): DirectiveListing {
   const byId = rolesByDirectiveId(rolesYaml);
   const globalIds = new Set<string>(rolesYaml?.global ?? []);
@@ -173,7 +178,7 @@ export function buildDirectiveListing(
   const warnings = role === undefined
     ? selectDirectivesById(directiveFiles).warnings
     : resolveRoleDirectives(directiveFiles, rolesYaml ?? NO_BINDINGS, role).warnings;
-  return { entries, warnings };
+  return { entries, warnings: [...skippedWarnings, ...warnings] };
 }
 
 /**
@@ -185,9 +190,14 @@ export function buildDirectiveListing(
  * validating `loadRolesYaml` every other consumer uses, so a malformed or schema-invalid file still
  * raises a `ValidationError` (surfaced as `VALIDATION`, exit 1) rather than being silently downgraded
  * to "nothing is bound". Only a genuinely absent file is tolerated.
+ *
+ * The directive files come from {@link loadDirectiveInventory}, so an entry it skipped (a dangling
+ * symbolic link, task-143) is named in the listing's `warnings` instead of failing the whole read.
+ * Whether the project is initialized at all is the operation's pre-flight, not this function's
+ * (`requireInitializedProject`, `./init.ts`).
  */
 export function loadDirectiveListing(root: string, role?: string): DirectiveListing {
-  const directiveFiles = loadDirectives(root);
+  const { files, warnings } = loadDirectiveInventory(root);
   const rolesYaml = documentExists(join(root, '.wingfoil', 'roles.yaml')) ? loadRolesYaml(root) : undefined;
-  return buildDirectiveListing(directiveFiles, rolesYaml, role);
+  return buildDirectiveListing(files, rolesYaml, role, warnings);
 }

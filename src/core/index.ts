@@ -66,7 +66,7 @@ import {
 
 import {
   DNA_YAML_PATH,
-  loadDirectives,
+  loadDirectiveInventory,
   loadDnaYaml,
   loadMemoryYaml,
   loadWorkflowsYaml,
@@ -77,6 +77,7 @@ import { selectDirectivesById } from './context';
 import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
+import { requireInitializedProject } from './init';
 import { requireCustomAsset } from './builtin-asset';
 import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
@@ -145,7 +146,13 @@ export * from './require-reason';
 export * from './builtin-asset';
 export * from './confinement';
 export * from './usage-error';
-export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
+export {
+  initWingfoilStorage,
+  initWingfoilProject,
+  requireInitializedProject,
+  WINGFOIL_ALREADY_INITIALIZED,
+  WINGFOIL_NOT_INITIALIZED,
+} from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
 export {
   DEFAULT_CONTEXT_LIMITS,
@@ -1665,11 +1672,19 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity;
 
-  const directiveFiles = loadOrError(() => loadDirectives(root));
-  if (!directiveFiles.ok) return directiveFiles;
-  const target = selectDirectivesById(directiveFiles.value, new Set([name])).byId.get(name);
+  const inventory = loadOrError(() => loadDirectiveInventory(root));
+  if (!inventory.ok) return inventory;
+  const target = selectDirectivesById(inventory.value.files, new Set([name])).byId.get(name);
   if (target === undefined) {
-    return coreErr({ code: 'NOT_FOUND', message: `unknown directive: ${name}` });
+    // task-143: the entry asked for may be one the loader skipped (a dangling link, an unreadable
+    // file), so its warnings ride this refusal's `details` — the channel both surfaces render
+    // (task-130) — rather than a stderr line from core, which `--format json` cannot carry.
+    const { warnings } = inventory.value;
+    return coreErr({
+      code: 'NOT_FOUND',
+      message: `unknown directive: ${name}`,
+      ...(warnings.length > 0 ? { details: { issues: warnings.map((detail) => ({ detail })) } } : {}),
+    });
   }
 
   const custom = requireCustomAsset('directive', target.path);
@@ -1718,6 +1733,10 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
  */
 const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
   const { root, options } = params as DirectivesListParams;
+  // task-143 (bug-154): with no `.wingfoil/` the loaders read nothing and the listing came back empty,
+  // exit 0 — under `--role`, with a "no directives assigned" warning nothing was read to establish.
+  const initialized = requireInitializedProject(root);
+  if (!initialized.ok) return initialized;
   return loadOrError(() => loadDirectiveListing(root, options?.role));
 };
 
