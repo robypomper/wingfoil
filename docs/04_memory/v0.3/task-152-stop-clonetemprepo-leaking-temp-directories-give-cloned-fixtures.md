@@ -2,7 +2,7 @@
 id: "task-152-stop-clonetemprepo-leaking-temp-directories-give-cloned-fixtures"
 type: task
 title: "Stop `cloneTempRepo` leaking temp directories and give cloned fixtures `gc.auto=0`"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "low"
