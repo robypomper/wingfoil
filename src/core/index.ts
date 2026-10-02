@@ -121,7 +121,7 @@ export {
   loadWorkflowsYamlAtRev,
 } from './loaders';
 export { isWellFormedRevision, resolveRevision, RevisionError } from './revision';
-export type { DirectiveFile, DirectiveInventory, WorkflowsLoadResult } from './loaders';
+export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
 export { assembleExecutionContext, resolveRoleDirectives, selectDirectivesById } from './context';
 export {
   buildDirectiveListing,

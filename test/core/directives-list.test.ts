@@ -29,7 +29,7 @@
 import { symlinkSync } from 'fs';
 import { join } from 'path';
 
-import { CORE_MODULES, WINGFOIL_NOT_INITIALIZED } from '../../src/core';
+import { buildDirectiveListing, CORE_MODULES, WINGFOIL_NOT_INITIALIZED } from '../../src/core';
 import { resolveRoleDirectives } from '../../src/core/context';
 import { loadDirectives, loadRolesYaml } from '../../src/core/loaders';
 import type { CoreOperation } from '../../src/core/registry';
@@ -435,6 +435,11 @@ describe('directivesList — a dangling symlink is skipped and reported (task-14
     const listing = await listingOk(repo);
     expect(listing.entries.map((entry) => entry.frontmatter.id)).toEqual(['testing']);
     expect(listing.warnings).toEqual([WARNING]);
+  });
+
+  it('buildDirectiveListing called without skipped warnings adds none (the parameter is optional)', () => {
+    expect(buildDirectiveListing([], undefined).warnings).toEqual([]);
+    expect(buildDirectiveListing([], undefined, undefined, ['w']).warnings).toEqual(['w']);
   });
 
   it('under --role the skipped entry comes first, before the role warnings', async () => {

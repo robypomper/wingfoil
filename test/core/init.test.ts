@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { exitCodeForResult } from '../../src/core';
+import { exitCodeForResult, requireInitializedProject, WINGFOIL_NOT_INITIALIZED } from '../../src/core';
 import { WINGFOIL_ALREADY_INITIALIZED, initWingfoilProject, initWingfoilStorage } from '../../src/core/init';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
@@ -177,5 +177,31 @@ describe('initWingfoilStorage (P1.1, REQ-SYS-01)', () => {
       expect(readFileSync(join(repo, '.wingfoil'), 'utf-8')).toBe('not a directory\n');
       expect(git(repo, ['rev-list', '--all', '--count']).trim()).toBe('0');
     });
+  });
+});
+
+// task-143 (bug-154): the shared not-initialized refusal, through the `src/core` barrel the MCP
+// pre-flight (task-174) will import it from. spec-011's `absent` state is refused; an `incomplete`
+// (empty) `.wingfoil/` is a configured project that declares nothing yet, and passes.
+describe('requireInitializedProject (task-143, spec-011 absent state)', () => {
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('refuses a root with no .wingfoil/: VALIDATION, exit 1, the shared message', () => {
+    const result = requireInitializedProject(repo);
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result).toEqual({ ok: false, error: { code: 'VALIDATION', message: WINGFOIL_NOT_INITIALIZED } });
+  });
+
+  it('passes an empty .wingfoil/ directory (spec-011 incomplete) and a populated one', () => {
+    mkdirSync(join(repo, '.wingfoil'));
+    expect(requireInitializedProject(repo).ok).toBe(true);
+    writeFixtureFile(repo, '.wingfoil/dna.yaml', 'version: 1.1\n');
+    expect(requireInitializedProject(repo).ok).toBe(true);
   });
 });
