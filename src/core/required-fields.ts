@@ -3,7 +3,7 @@
  * leaving the initial state, and `memory amend` on a document already past it (task-127 review F1).
  * One function, so the two can never disagree about what "filled" means.
  *
- * A field is refused when it is missing (absent, `null`, blank, or an empty list), or when it holds a
+ * A field is refused when it is missing (absent, `null` or blank; an explicit `[]` is filled, bug-147), or when it holds a
  * not-applicable value that may not stand (`dl-124`, task-168): the type does not list the field in
  * `template.frontmatter.not_applicable_allowed`, or the value is not `"n/a — <reason>"`. A required
  * field the type does not list — `task.kind` in this repository — therefore cannot be skipped by

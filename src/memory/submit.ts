@@ -17,11 +17,15 @@ import { removeFrontmatterField, setFrontmatterField } from './frontmatter-edit'
 /** The frontmatter key `memory.reject` sets and `memory.submit` removes (spec-010). */
 export const REJECTION_REASON_FIELD = 'rejection_reason';
 
-/** Absent, `null`, a blank string or an empty list count as "not filled in". */
+/**
+ * Absent, `null` (an empty YAML value, `features:`) or a blank string count as "not filled in". An
+ * explicit empty list (`features: []`) is filled: the author declared "none" (`bug-147`, approver
+ * ruling 2026-10-02 at `task-168`). A scaffold that must not pass untouched leaves a list field empty
+ * (`features:`) rather than `[]`.
+ */
 function isEmptyValue(value: unknown): boolean {
   if (value === undefined || value === null) return true;
   if (typeof value === 'string') return value.trim().length === 0;
-  if (Array.isArray(value)) return value.length === 0;
   return false;
 }
 

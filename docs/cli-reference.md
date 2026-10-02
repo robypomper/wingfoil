@@ -402,7 +402,8 @@ records the document's content **and** its state change together. A submit also 
 
 Unreleased (v0.3): a required field that does not apply to this document can hold
 `"n/a — <reason>"` (quoted, with an em dash and a reason) — but only if the type lists the field in
-`template.frontmatter.not_applicable_allowed` in `memory.yaml`.
+`template.frontmatter.not_applicable_allowed` in `memory.yaml`. An explicit empty list (`features: []`) counts as filled;
+an empty value (`features:`) does not.
 
 ```console
 $ wingfoil memory submit task-001-my-first-task
