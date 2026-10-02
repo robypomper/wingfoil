@@ -482,37 +482,102 @@ function comparatorAllows(operator: string, literal: string, candidate: Version)
   }
 }
 
+/** One comparator of an `engines.node` range: an operator (possibly empty) and its version literal. */
+interface Comparator {
+  readonly operator: string;
+  readonly literal: string;
+}
+
 /**
- * Does an npm `engines.node` range admit `candidate`?
+ * Split an npm `engines.node` range into its `||` alternatives, each a list of comparators.
  *
- * Supports `||`-separated alternatives of whitespace-separated comparators, the `>= > <= < =` and
- * `^ ~` operators (with or without a space before the literal), partial X-ranges and `*`. Everything
- * else — hyphen ranges, prereleases, build metadata — throws, by design: see the header note.
+ * Supports whitespace-separated comparators, the `>= > <= < =` and `^ ~` operators (with or without a
+ * space before the literal), partial X-ranges and `*`. Everything else — hyphen ranges, prereleases,
+ * build metadata — throws, by design: see the header note. An empty range is one empty alternative.
  */
-function rangeAllows(range: string, candidate: Version): boolean {
+function parseRangeClauses(range: string): readonly (readonly Comparator[])[] {
   const trimmed = range.trim();
-  if (trimmed === '') return true;
+  if (trimmed === '') return [[]];
   if (/\s-\s/.test(trimmed)) throw new Error(`unsupported engines range (hyphen): "${range}"`);
-  return trimmed.split('||').some((clause) => {
+  return trimmed.split('||').map((clause) => {
     const comparatorPattern = /(\^|~|>=|<=|>|<|=)?\s*(\d+(?:\.\d+){0,2}|[*xX])/g;
+    const comparators: Comparator[] = [];
     let consumedTo = 0;
-    let sawComparator = false;
-    let clauseAllows = true;
     for (const match of clause.matchAll(comparatorPattern)) {
       const at = match.index ?? 0;
       if (clause.slice(consumedTo, at).trim() !== '') {
         throw new Error(`unsupported engines range syntax: "${range}"`);
       }
       consumedTo = at + (match[0] ?? '').length;
-      sawComparator = true;
-      if (!comparatorAllows(match[1] ?? '', match[2] ?? '', candidate)) clauseAllows = false;
+      comparators.push({ operator: match[1] ?? '', literal: match[2] ?? '' });
     }
     if (clause.slice(consumedTo).trim() !== '') {
       throw new Error(`unsupported engines range syntax: "${range}"`);
     }
-    if (!sawComparator) throw new Error(`unsupported engines range syntax: "${range}"`);
-    return clauseAllows;
+    if (comparators.length === 0) throw new Error(`unsupported engines range syntax: "${range}"`);
+    return comparators;
   });
+}
+
+/**
+ * Does every comparator of one `||` alternative admit `candidate`? Every comparator is evaluated (no
+ * short-circuit), so an unsupported one throws even when an earlier one already rejected `candidate`.
+ */
+function clauseAllows(clause: readonly Comparator[], candidate: Version): boolean {
+  return clause
+    .map(({ operator, literal }) => comparatorAllows(operator, literal, candidate))
+    .every(Boolean);
+}
+
+/**
+ * Does an npm `engines.node` range admit `candidate`? Grammar: see `parseRangeClauses`. The whole
+ * range is parsed before any alternative is evaluated, so unsupported syntax anywhere in it throws.
+ */
+function rangeAllows(range: string, candidate: Version): boolean {
+  return parseRangeClauses(range)
+    .map((clause) => clauseAllows(clause, candidate))
+    .some(Boolean);
+}
+
+/** The lowest version one comparator admits, ignoring any upper bound it also sets. */
+function comparatorLowerBound(operator: string, literal: string): Version {
+  if (literal === '*' || literal === 'x' || literal === 'X') return [0, 0, 0];
+  const parts = parseVersionParts(literal);
+  switch (operator) {
+    case '>':
+      return parts.length === 3 ? [parts[0] ?? 0, parts[1] ?? 0, (parts[2] ?? 0) + 1] : nextAfterParts(parts);
+    case '<':
+    case '<=':
+      return [0, 0, 0];
+    default:
+      return toVersion(parts);
+  }
+}
+
+/** The lower bound of every comparator in a range, in order of appearance. */
+function comparatorLowerBounds(range: string): readonly Version[] {
+  return parseRangeClauses(range).flatMap((clause) =>
+    clause.map(({ operator, literal }) => comparatorLowerBound(operator, literal)),
+  );
+}
+
+/**
+ * task-155 (`bug-047`, review fix): the lowest version **every** range admits — the least element of
+ * the intersection of `ranges`, not the highest of each range's own minimum. The two differ on a gapped
+ * range: `>=22.12.0` with `^20.19.0 || ^22.13.0 || >=24` gives 22.13.0, which max-of-minimums (22.12.0)
+ * would miss, leaving no floor that both the satisfies guard and the equality guard accept.
+ *
+ * The intersection is a union of intervals, and each interval starts at some comparator's lower bound
+ * (or at 0.0.0), so the answer is the smallest such candidate every range admits. An empty
+ * intersection throws instead of yielding a floor no dependency set accepts.
+ */
+function closureFloor(ranges: readonly string[]): Version {
+  const candidates = [[0, 0, 0] as Version, ...ranges.flatMap(comparatorLowerBounds)].sort(compareVersions);
+  const floor = candidates.find((candidate) => ranges.every((range) => rangeAllows(range, candidate)));
+  if (floor === undefined) {
+    throw new Error(`no version every engines range admits: ${JSON.stringify(ranges)}`);
+  }
+  return floor;
 }
 
 /**
@@ -667,4 +732,242 @@ describe('publish surface (task-074) — the engines-range evaluator itself', ()
   it('reads a well-formed floor', () => {
     expect(parseNodeFloor('>=22.12.0')).toEqual([22, 12, 0]);
   });
+});
+
+/* ---------------------------------------------------------------------------------------------- *
+ * task-155-assert-lockfile-root-engines-equals-package-json-floor (`bug-046`, `bug-047`,
+ * `spec-015` §1) — the two blind spots of the `engines.node` guard above.
+ *
+ * `bug-046`: `package-lock.json` carries its own copy of the root manifest (`packages[""]`), and
+ * `npm ci` never compares it with `package.json` — measured in the bug for `engines`, and in its
+ * 2026-09-22 addendum for the dependency ranges too. So a manifest edit that forgets the lock merges
+ * green. The guard below asserts the whole mirror, `engines` first among it.
+ *
+ * `bug-047`: the guard above asserts only that the floor is *satisfied by* every production
+ * dependency, so an over-tight floor (`>=24.0.0`, or `>=22.13.0`, which even the `@types/node`
+ * major pin of `types-node-floor.test.ts` cannot see) passes. `spec-015` §1 says the floor "must
+ * equal" the highest `engines.node` floor in the production closure, recomputed from the installed
+ * tree; the equality half below is that sentence made executable. "The highest floor" is read as
+ * the lowest version **every** production dependency admits — the least element of the intersection
+ * of their ranges (`closureFloor`). For plain `>=` ranges that is their maximum; with a gapped range
+ * (`^20.19.0 || ^22.13.0 || >=24`) it can sit above every range's own minimum, and only this reading
+ * leaves a floor that the satisfies guard above and the equality guard below both accept.
+ *
+ * Same determinism as the block above: pure reads of `package.json`, `package-lock.json` and the
+ * installed manifests; no network, no subprocess; comparisons are key-order-insensitive.
+ * ---------------------------------------------------------------------------------------------- */
+
+const LOCK_PATH = join(REPO_ROOT, 'package-lock.json');
+
+/** A JSON object read from `package.json` or the lockfile root, as untyped data. */
+type JsonRecord = Readonly<Record<string, unknown>>;
+
+/**
+ * The manifest fields npm copies into the lockfile root (`packages[""]`). A field listed here that the
+ * manifest declares must appear in the root with the same value, so a mirror that *dropped* it is
+ * caught as well as one that changed it. npm may normalize some of them in the lock root (`bin`
+ * paths, `funding` shape), so a new mismatch on those may be npm's rewrite rather than a stale mirror.
+ */
+const LOCK_ROOT_MIRRORED_FIELDS: readonly string[] = [
+  'bin',
+  'cpu',
+  'dependencies',
+  'devDependencies',
+  'engines',
+  'funding',
+  'license',
+  'name',
+  'optionalDependencies',
+  'os',
+  'peerDependencies',
+  'peerDependenciesMeta',
+  'version',
+  'workspaces',
+];
+
+/** Lockfile-root keys npm computes rather than copies — no manifest counterpart to compare with. */
+const LOCK_ROOT_COMPUTED_FIELDS: ReadonlySet<string> = new Set(['hasInstallScript']);
+
+/** The parsed `package.json`, as untyped data for the field-by-field mirror comparison. */
+function rawManifest(): JsonRecord {
+  return JSON.parse(rawPackageJson) as JsonRecord;
+}
+
+/** The lockfile's root entry, `packages[""]`. Throws when the lockfile has none (lockfileVersion < 2). */
+function readLockRoot(lockPath: string): JsonRecord {
+  const lock = JSON.parse(readFileSync(lockPath, 'utf-8')) as {
+    readonly packages?: Readonly<Record<string, JsonRecord>>;
+  };
+  const root = lock.packages?.[''];
+  if (root === undefined) throw new Error(`${lockPath} has no packages[""] root entry`);
+  return root;
+}
+
+/** JSON with object keys sorted at every depth, so equality does not depend on key order. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const record = value as JsonRecord;
+    const body = Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(',');
+    return `{${body}}`;
+  }
+  return JSON.stringify(value) ?? 'undefined';
+}
+
+/**
+ * task-155 (`bug-046`): the fields on which the lockfile root disagrees with the manifest, sorted.
+ * Compared: every key the root carries (bar the computed ones) plus every mirrored field the manifest
+ * declares. An empty list means the mirror is exact.
+ */
+function lockRootMirrorDrift(manifest: JsonRecord, root: JsonRecord): readonly string[] {
+  const keys = new Set<string>([
+    ...Object.keys(root).filter((key) => !LOCK_ROOT_COMPUTED_FIELDS.has(key)),
+    ...LOCK_ROOT_MIRRORED_FIELDS.filter((key) => key in manifest),
+  ]);
+  return [...keys].filter((key) => canonicalJson(manifest[key]) !== canonicalJson(root[key])).sort();
+}
+
+function formatVersion(version: Version): string {
+  return version.join('.');
+}
+
+/**
+ * task-155 (`bug-047`, `spec-015` §1): why `declared` is not the floor of `closure`, or `undefined`
+ * when it is. The floor is `closureFloor` over every entry that declares `engines.node`; the message
+ * names the entries whose ranges have a comparator starting exactly there — the ones that set it.
+ */
+function floorEqualityViolation(
+  declared: string | undefined,
+  closure: readonly ClosureEntry[],
+): string | undefined {
+  const floor = parseNodeFloor(declared);
+  const declaring = closure.filter((entry) => entry.enginesNode !== undefined);
+  if (declaring.length === 0) throw new Error('the production closure declares no engines.node at all');
+  const expected = closureFloor(declaring.map((entry) => entry.enginesNode ?? ''));
+  const order = compareVersions(floor, expected);
+  if (order === 0) return undefined;
+  const holders = declaring
+    .filter((entry) =>
+      comparatorLowerBounds(entry.enginesNode ?? '').some((bound) => compareVersions(bound, expected) === 0),
+    )
+    .map((entry) => `${entry.name}@${entry.version}`)
+    .join(', ');
+  return (
+    `engines.node ${declared ?? ''} is ${order > 0 ? 'above' : 'below'} the production closure's floor, ` +
+    `the lowest version every dependency admits: ${formatVersion(expected)} (${holders})`
+  );
+}
+
+describe('publish surface (task-155) — the lockfile root mirrors package.json (bug-046)', () => {
+  const lockRoot = readLockRoot(LOCK_PATH);
+
+  it('declares in the lockfile root exactly the `engines` package.json declares', () => {
+    expect(lockRoot['engines']).toBeDefined();
+    expect(lockRoot['engines']).toEqual(pkg.engines);
+  });
+
+  it('mirrors every manifest field the lockfile root carries — dependency ranges included', () => {
+    expect(lockRootMirrorDrift(rawManifest(), lockRoot)).toEqual([]);
+  });
+
+  it('reports a lockfile root `engines` edited to differ', () => {
+    const manifest = { name: 'x', version: '1.0.0', engines: { node: '>=22.12.0' } };
+    const root = { name: 'x', version: '1.0.0', engines: { node: '>=18.0.0' } };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['engines']);
+  });
+
+  it('reports a lockfile root that dropped `engines` the manifest declares', () => {
+    const manifest = { name: 'x', version: '1.0.0', engines: { node: '>=22.12.0' } };
+    const root = { name: 'x', version: '1.0.0' };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['engines']);
+  });
+
+  it('reports a dependency range that drifted in the mirror only (bug-046 addendum)', () => {
+    const manifest = { name: 'x', devDependencies: { '@types/node': '^22.20.4', jest: '^30.0.0' } };
+    const root = { name: 'x', devDependencies: { '@types/node': '^18.19.130', jest: '^30.0.0' } };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['devDependencies']);
+  });
+
+  it('ignores key order and the lock-only `hasInstallScript` flag', () => {
+    const manifest = { name: 'x', dependencies: { a: '^1.0.0', b: '^2.0.0' } };
+    const root = { name: 'x', dependencies: { b: '^2.0.0', a: '^1.0.0' }, hasInstallScript: true };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual([]);
+  });
+});
+
+describe('publish surface (task-155) — the floor equals the closure floor (bug-047)', () => {
+  const closureFixture: readonly ClosureEntry[] = [
+    { name: 'a', version: '1.0.0', enginesNode: '>=18.14.1' },
+    { name: 'b', version: '1.0.0', enginesNode: '>=22.12.0' },
+    { name: 'c', version: '1.0.0', enginesNode: '^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0' },
+    { name: 'd', version: '1.0.0', enginesNode: undefined },
+  ];
+
+  /** A gapped range above the plain maximum: the shape eslint@10 declares (publish.yml header). */
+  const gappedFixture: readonly ClosureEntry[] = [
+    { name: 'a', version: '1.0.0', enginesNode: '>=18.14.1' },
+    { name: 'b', version: '1.0.0', enginesNode: '>=22.12.0' },
+    { name: 'c', version: '1.0.0', enginesNode: '^20.19.0 || ^22.13.0 || >=24' },
+  ];
+
+  it('declares exactly the floor of the production closure (spec-015 §1)', () => {
+    expect(floorEqualityViolation(pkg.engines?.node, productionClosure())).toBeUndefined();
+  });
+
+  it.each([['>=24.0.0'], ['>=22.13.0'], ['>=22.12.1']])(
+    'fails an over-tight floor %s, above the closure floor',
+    (declared) => {
+      expect(floorEqualityViolation(declared, closureFixture)).toMatch(/above .*22\.12\.0 \(b@1\.0\.0\)/);
+    },
+  );
+
+  it('fails a floor below the closure floor too — equality, not a one-sided bound', () => {
+    expect(floorEqualityViolation('>=18.14.1', closureFixture)).toMatch(/below/);
+  });
+
+  it('accepts the floor that equals the closure floor', () => {
+    expect(floorEqualityViolation('>=22.12.0', closureFixture)).toBeUndefined();
+  });
+
+  it('takes the lowest version EVERY range admits, so a gapped range lifts the floor past the highest minimum', () => {
+    // Max-of-minimums would say 22.12.0, which `c` rejects (it skips 21.x and 22.0–22.12): the
+    // satisfies guard and the equality guard could then never both pass. 22.13.0 is the answer.
+    expect(floorEqualityViolation('>=22.13.0', gappedFixture)).toBeUndefined();
+    expect(floorEqualityViolation('>=22.12.0', gappedFixture)).toMatch(/below .*22\.13\.0 \(c@1\.0\.0\)/);
+    expect(gappedFixture.every((entry) => rangeAllows(entry.enginesNode ?? '', [22, 13, 0]))).toBe(true);
+  });
+
+  it('refuses to compute a floor from a closure that declares none', () => {
+    expect(() =>
+      floorEqualityViolation('>=22.12.0', [{ name: 'a', version: '1.0.0', enginesNode: undefined }]),
+    ).toThrow(/declares no engines\.node/);
+  });
+
+  const floorCases: [readonly string[], Version][] = [
+    [['>=22.12.0'], [22, 12, 0]],
+    [['>= 0.4', '>=18'], [18, 0, 0]],
+    [['>18'], [19, 0, 0]],
+    [['>18.1.2'], [18, 1, 3]],
+    [['^20.19.0 || ^22.13.0 || >=24'], [20, 19, 0]],
+    [['>=22.12.0', '^20.19.0 || ^22.13.0 || >=24'], [22, 13, 0]],
+    [['>=23.0.0', '^20.19.0 || ^22.13.0 || >=24'], [24, 0, 0]],
+    [['>=18 <23', '~22.12'], [22, 12, 0]],
+    [['<24'], [0, 0, 0]],
+    [['*'], [0, 0, 0]],
+    [['22'], [22, 0, 0]],
+  ];
+
+  it.each(floorCases)('reads the lowest version every range of %j admits as %j', (ranges, expected) => {
+    expect(closureFloor(ranges)).toEqual(expected);
+  });
+
+  it.each([[['>=24 <22']], [['>=24', '<22']]])(
+    'refuses %j, whose intersection is empty, rather than inventing a floor',
+    (ranges) => {
+      expect(() => closureFloor(ranges)).toThrow(/no version every engines range admits/);
+    },
+  );
 });
