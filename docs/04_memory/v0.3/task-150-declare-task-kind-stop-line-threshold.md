@@ -2,7 +2,7 @@
 id: "task-150-declare-task-kind-stop-line-threshold"
 type: task
 title: "Declare a task `kind` and the stop-the-line threshold"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "feature"
 priority: "medium"
