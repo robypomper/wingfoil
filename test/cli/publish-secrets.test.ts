@@ -11,11 +11,14 @@
  * `PATH` that only records what it saw.
  */
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { load as yamlLoad } from 'js-yaml';
+
+import { withCallerEnv } from './helpers/npm-env';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const WORKFLOW_PATH = join(REPO_ROOT, '.github', 'workflows', 'publish.yml');
@@ -300,17 +303,46 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
     };
   }
 
-  it('publishes (dry run) the tarball the step names, without npm ever invoking git', () => {
+  /** Run the step's own tarball argument through a real `npm publish --dry-run`. */
+  function dryRunPublish(): SpawnSyncReturns<string> {
     const arg = /npm stage publish (\S+)/.exec(stageStep?.run ?? '')?.[1];
     expect(arg).toBeDefined();
     // The argument is spliced unquoted, exactly as the step's shell sees it, so its glob expands the same way.
-    const result = spawnSync(
+    return spawnSync(
       'bash',
       ['-c', `npm publish ${arg ?? ''} --dry-run --ignore-scripts --offline --registry http://localhost:9/ --provenance=false`],
       { cwd: work, encoding: 'utf-8', env: npmEnv() },
     );
+  }
+
+  it('publishes (dry run) the tarball the step names, without npm ever invoking git', () => {
+    const result = dryRunPublish();
     expect(existsSync(join(work, 'bin', 'git-called'))).toBe(false);
     expect(result.stderr).not.toContain('ls-remote');
+    expect(result.status).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('+ wf-fixture@1.0.0');
+  }, 60_000);
+
+  /*
+   * bug-181 / bug-167 (task-146): `npm run -s …` exports `npm_config_loglevel=silent` to the suite, and
+   * the inner npm used to inherit it and print nothing, so the case above failed under `npm run -s
+   * test:coverage` and passed under `npm run test:coverage`. The invariant the fix restores (testing
+   * directive, T2) is that the inner npm reads no npm configuration from the caller: only the
+   * throwaway files this fixture names. Both cases inject the condition themselves, so they fail
+   * wherever the suite runs if the leak returns, not only under `npm run -s`.
+   */
+  it('hands the inner npm none of the caller\'s npm configuration, in either letter case', () => {
+    const env = withCallerEnv({ npm_config_loglevel: 'silent', NPM_CONFIG_DRY_RUN: 'false' }, () => npmEnv());
+    expect(Object.keys(env).filter((k) => /^npm_config_/i.test(k)).sort()).toEqual([
+      'npm_config_cache',
+      'npm_config_globalconfig',
+      'npm_config_userconfig',
+    ]);
+    expect(env.npm_config_globalconfig).toBe(join(work, 'npmrc'));
+  });
+
+  it('publishes (dry run) the same way when the caller runs the suite with npm_config_loglevel=silent', () => {
+    const result = withCallerEnv({ npm_config_loglevel: 'silent' }, () => dryRunPublish());
     expect(result.status).toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain('+ wf-fixture@1.0.0');
   }, 60_000);

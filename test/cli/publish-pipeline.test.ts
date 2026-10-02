@@ -98,6 +98,9 @@ describe('bin entry (bug-020) — spec-015 §1 amended: no leading `./`', () => 
       { cwd: REPO_ROOT, encoding: 'utf-8' },
     );
     expect(result.status).toBe(0);
+    // npm reported the publish at all: without this, an npm that printed nothing (a caller's
+    // `npm_config_loglevel=silent`, bug-181) would pass the two absence checks below vacuously.
+    expect(`${result.stdout}${result.stderr}`).toContain(`+ wingfoil@${pkg.version}`);
     expect(result.stderr).not.toContain('auto-corrected');
     expect(result.stderr).not.toContain('bin[wingfoil]');
   });
