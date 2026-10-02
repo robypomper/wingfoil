@@ -891,33 +891,46 @@ describe('publish surface (task-155) — the lockfile root mirrors package.json 
   });
 });
 
-describe('publish surface (task-155) — the floor equals the closure maximum (bug-047)', () => {
+describe('publish surface (task-155) — the floor equals the closure floor (bug-047)', () => {
   const closureFixture: readonly ClosureEntry[] = [
     { name: 'a', version: '1.0.0', enginesNode: '>=18.14.1' },
     { name: 'b', version: '1.0.0', enginesNode: '>=22.12.0' },
-    { name: 'c', version: '1.0.0', enginesNode: '^20.19.0 || ^22.13.0 || >=24' },
+    { name: 'c', version: '1.0.0', enginesNode: '^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0' },
     { name: 'd', version: '1.0.0', enginesNode: undefined },
   ];
 
-  it('declares exactly the highest floor of the production closure (spec-015 §1)', () => {
+  /** A gapped range above the plain maximum: the shape eslint@10 declares (publish.yml header). */
+  const gappedFixture: readonly ClosureEntry[] = [
+    { name: 'a', version: '1.0.0', enginesNode: '>=18.14.1' },
+    { name: 'b', version: '1.0.0', enginesNode: '>=22.12.0' },
+    { name: 'c', version: '1.0.0', enginesNode: '^20.19.0 || ^22.13.0 || >=24' },
+  ];
+
+  it('declares exactly the floor of the production closure (spec-015 §1)', () => {
     expect(floorEqualityViolation(pkg.engines?.node, productionClosure())).toBeUndefined();
   });
 
   it.each([['>=24.0.0'], ['>=22.13.0'], ['>=22.12.1']])(
-    'fails an over-tight floor %s, above the closure maximum',
+    'fails an over-tight floor %s, above the closure floor',
     (declared) => {
-      expect(floorEqualityViolation(declared, closureFixture)).toMatch(
-        /above the production closure's highest floor 22\.12\.0 \(b@1\.0\.0\)/,
-      );
+      expect(floorEqualityViolation(declared, closureFixture)).toMatch(/above .*22\.12\.0 \(b@1\.0\.0\)/);
     },
   );
 
-  it('fails a floor below the closure maximum too — equality, not a one-sided bound', () => {
+  it('fails a floor below the closure floor too — equality, not a one-sided bound', () => {
     expect(floorEqualityViolation('>=18.14.1', closureFixture)).toMatch(/below/);
   });
 
-  it('accepts the floor that equals the closure maximum', () => {
+  it('accepts the floor that equals the closure floor', () => {
     expect(floorEqualityViolation('>=22.12.0', closureFixture)).toBeUndefined();
+  });
+
+  it('takes the lowest version EVERY range admits, so a gapped range lifts the floor past the highest minimum', () => {
+    // Max-of-minimums would say 22.12.0, which `c` rejects (it skips 21.x and 22.0–22.12): the
+    // satisfies guard and the equality guard could then never both pass. 22.13.0 is the answer.
+    expect(floorEqualityViolation('>=22.13.0', gappedFixture)).toBeUndefined();
+    expect(floorEqualityViolation('>=22.12.0', gappedFixture)).toMatch(/below .*22\.13\.0 \(c@1\.0\.0\)/);
+    expect(gappedFixture.every((entry) => rangeAllows(entry.enginesNode ?? '', [22, 13, 0]))).toBe(true);
   });
 
   it('refuses to compute a floor from a closure that declares none', () => {
