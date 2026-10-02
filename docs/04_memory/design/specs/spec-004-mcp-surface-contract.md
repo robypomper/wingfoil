@@ -200,6 +200,14 @@ Each Tool's input schema mirrors its CLI's required flags one-to-one (e.g. `memo
    ride as `structuredContent: {"error": "<reason>", "details": [...]}` — the CLI's `--format json`
    error object. A failed Resource read *is* a JSON-RPC error, and carries them as
    `error.data.details`. A refusal with no details carries neither field.
+5. On success, carries the operation's warnings (`CoreResult.warnings`, `spec-006` §2), which the CLI
+   prints on stderr (`spec-008` §6). A Tool has no stderr, so they ride as
+   `structuredContent: {"value": <payload>, "warnings": ["<text>", …]}`, the success counterpart of
+   item 4's `{error, details}`. The text content stays the payload's JSON, so a client that reads
+   only `content` sees what it always saw. A success with no warnings carries no `structuredContent`.
+   This is the registrar's rule (`src/mcp/registrar.ts`). The shipped `wingfoil mcp` server registers
+   no Tools until P5.2.3 (v0.4), so no client receives the field yet. When Tools ship, a flag such as
+   `directive assign`'s `--force` must become a Tool input as well.
 
 **The `[{from} → {to}]` bracket belongs to the verbs of the `spec-003` verb table that carry one**
 (`dl-079` (A); the list and each verb's bracket rule are `spec-008-cli-grammar` §2's). Those are the
@@ -313,3 +321,12 @@ where JSON-RPC defines `data` for exactly this, and `structuredContent` for a to
 returns as a result and never as a JSON-RPC error. The text of a refusal is unchanged, so item 3's
 parity with the CLI holds. Edited in place without a supersede or a state change, per `dl-047` (no
 `version:` field).
+
+**Revision (2026-10-02) — §4.3 item 5: success warnings reach the MCP client, per
+`task-169-make-directive-assign-refuse-whole-file-rewrite-unless` (`dl-062-roles-yaml-unwritable-fallback`,
+`ready`, Q1 option 3; scheduling addendum §2, which asks how an MCP Tool result carries a warning when
+there is no stderr).** A successful Tool result carries `structuredContent: {value, warnings}` when
+the operation returned warnings. A Resource read is not given a field: no read-only operation returns
+warnings. The rule is implemented and tested in the registrar. The shipped `wingfoil mcp` registers no
+Tools before P5.2.3 (v0.4), so it is not reachable from a client yet. No other item changed. Edited in place without a supersede or a state change, per `dl-047`
+(no `version:` field).
