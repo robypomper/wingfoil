@@ -99,16 +99,23 @@ patterns:
   - id: dotenv-style-secret-line
     description: ".env-style KEY=VALUE line where KEY names a credential"
     severity: block
-    regex: '(?im)^[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
+    regex: '(?im)^\s*(?:export\s+|[-*]\s+)?[A-Z0-9_]*(SECRET|TOKEN|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*\S+'
 ```
 
 Notes on the set:
 
 - `block` patterns are unambiguous secret *shapes* (vendor-specific prefixes, PEM headers) — a match is
   treated as a real finding with no tunable threshold.
-- `warn` patterns are heuristic (generic high-entropy / JWT-shaped strings) — reported for human review
-  but do not by themselves abort a scan, to bound false-positive noise on identifiers that merely look
-  like tokens (e.g. long UUIDs, content hashes).
+- The one `warn` pattern, `generic-high-entropy-string`, is heuristic — reported for human review but
+  does not by itself abort a scan, to bound false-positive noise on identifiers that merely look like
+  tokens (e.g. long UUIDs, content hashes). `jwt-like` was promoted to `block` by `dl-036` (§4 step 6).
+- `dotenv-style-secret-line` is anchored at the start of the line but tolerates a prefix: leading
+  whitespace, an `export` keyword, or a `-`/`*` list marker — the ordinary shapes of shell profiles,
+  `.envrc` files, indented examples and bulleted documentation. The price is a known false-positive
+  shape: an indented code assignment whose name contains a credential word (a `token` variable
+  assigned a function call, a `max_tokens` setting, a CI step passing a token from a secrets store)
+  matches too. Such lines belong in an example fence marked `<!-- example -->` or, for a file that
+  must carry them, under a `.wingfoil/security-ignore` entry (§3).
 - The generic high-entropy rule intentionally uses a *named-key proximity* heuristic (`auth|credential|
   bearer` near the value) rather than raw Shannon-entropy scoring, to keep the check regex-only,
   deterministic, and dependency-free (no entropy-calculation library), consistent with the project's
@@ -148,7 +155,7 @@ Finding = { pattern_id, severity, file, line, column, excerpt }
 5. Return `ScanResult`. The caller decides disposition:
    - **`init` integrity check (REQ-SEC-10):** run the scan over the built-in directive/workflow
      templates about to be installed *before* writing any file. Any `blocking` finding aborts `init`
-     before writing partial assets, with a message naming the failing template path and `pattern_id`
+     before writing partial assets, with a message naming the failing template and `pattern_id`
      (mirrors the "corrupted template" abort behaviour REQ-SEC-10 already requires for schema checks —
      this scan is an additional integrity gate run in the same pre-write pass).
    - **Future `wingfoil audit` / `memory.submit` pre-commit gate (REQ-SEC-08):** run the scan over the
@@ -157,7 +164,9 @@ Finding = { pattern_id, severity, file, line, column, excerpt }
      surfaced to the operator but do not block.
 6. **Severity is per-pattern, and the split is deliberate** (`dl-036-secret-scan-warn-severity-vs-req-sec-08`).
    Seven patterns `block`; `jwt-like` and `dotenv-style-secret-line` were promoted to `block` because
-   their triggers are structural and near-unambiguous on a curated documentation surface;
+   their triggers are structural and rarely ambiguous on a curated documentation surface (the
+   dotenv pattern's indented-code-assignment shape, §2 notes, is the known exception, handled by the
+   §3 escape hatches);
    `generic-high-entropy-string` remains `warn` because its trigger is loose enough to match prose.
    REQ-SEC-08's "matches 0 known secret patterns" is therefore enforced as "0 blocking matches" — the
    one remaining warn-only pattern is surfaced for review rather than failing the gate.
@@ -209,3 +218,19 @@ tool-managed root exists". That task moved both to the root with `git mv`: the f
 `docs/04_memory`. The scanned content is the same files at their new paths. Edited in place without a
 supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's
 sign-off at that task's review.
+
+**Revision (2026-10-01) — `dotenv-style-secret-line` tolerates a line prefix, the stale `warn` note is
+corrected, and §4 step 5 names the template rather than its path, per
+`task-135-make-init-scan-builtin-templates-secrets-refuse-reinitialize` (`bug-037`, `bug-038`).** The
+pattern was anchored at column 0, so a credential line behind indentation, `export ` or a list marker
+went unseen whenever its value was shorter than the 16 characters `generic-api-key-assignment` needs;
+§2's regex now allows that prefix, and `SECRET_PATTERNS` (`src/validation/secret-scan.ts`) mirrors it.
+§2's "Notes on the set" still described the `warn` patterns as "generic high-entropy / JWT-shaped",
+although `dl-036` had promoted `jwt-like` to `block`; the note now names the one `warn` pattern left.
+§4 step 5's `init` caller now exists (`verifyBuiltinTemplates`, `src/core/builtin-integrity.ts`); a
+built-in template source carries a name and a kind but no path, so the abort message names the
+template as the REQ-SEC-10 schema-check messages do, `built-in <kind> template secret scan failed:
+<name> (<pattern_id>, line <n>)`. Tolerating the prefix makes indented code assignments a known
+false-positive shape; §2's notes name it with its escape hatches, and §4 step 6 no longer calls the
+dotenv trigger near-unambiguous. Edited in place without a supersede or a state change; pending the
+approver's sign-off at that task's review.
