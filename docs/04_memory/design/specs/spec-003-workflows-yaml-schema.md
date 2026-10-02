@@ -485,7 +485,10 @@ Assertion strings, evaluated to a boolean gate. Observed forms:
   `tests.bdd.passing`, and `tests.unchanged(since: <phase>)` — the tests written in the named phase
   are unmodified (`dl-134` §2, declared on `green`/`refactor` by `dev-loop.yaml` v1.5, evaluated from
   v1.0).
-- Frontmatter gates — `frontmatter.required: [title, scope]`.
+- Frontmatter gates — `frontmatter.required: [title, scope]`. A gate may exempt named elements from
+  one field: `frontmatter.required: [<fields>] except <field> for [<id>, …]` — the listed ids need not
+  carry `<field>`; every other element needs every field (`release-planning`'s `define-scope` and
+  `initial-design`'s `seed-releases`, for the releases added before `dl-092`, `bug-175`).
 - Element-state gates — `tech-spec.approved`, `"all releases where release-line={release-line.version} are status: released"`.
 
 **Every check resolves through a declared binding, and an unbound check fails closed** (`dl-090` Q2
@@ -880,3 +883,14 @@ structurally invalid. It also states that a YAML parse failure joins the array a
 `E_YAML_PARSE_ERROR`, and that the reason of an error is `<code> <path> (<file>): <message>`. Every
 implementation then produces the same array and the same reason. No code, severity or diagnostic
 message changes. Edited in place without a supersede or a state change (`dl-047`).
+
+**Revision (2026-10-02) — the frontmatter gate's exemption form, carried out by
+`task-148-correct-stale-workflow-comments-workflow-md-diagrams-kind` (`bug-175`).** `memory.yaml`
+requires `kind` on every release, and declares the releases added before `dl-092` (`minor-v0.1` …
+`minor-v1.0`) immutable and without `kind:`. The approver ruled on 2026-09-30
+(`release-planning-rel-v0.3-plan` R20) that those minors are exempt in the check and gain no field.
+§ "Check expressions" now lists the form that states it, `frontmatter.required: [<fields>] except
+<field> for [<id>, …]`, which `release-planning.yaml` 1.5 uses on `define-scope` and
+`initial-design.yaml` 1.1 on `seed-releases`. No schema field
+changes: a check is still a free string. Edited in place without a supersede or a state change
+(`dl-047`).
