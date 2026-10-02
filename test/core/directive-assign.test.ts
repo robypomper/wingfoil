@@ -11,6 +11,11 @@
  * comma-separated list. P3.7 registers no operation of its own, so the registration block below is
  * unchanged — which the P3.7 describe relies on rather than restating.
  *
+ * task-169 (`dl-062` Q1 option 3) adds `--force`: a file the in-place editor cannot edit is `CONFLICT`
+ * whether or not it has a comment, unless `force` authorizes the whole-file rewrite, whose success
+ * carries a warning. P3.2's two scenarios for it run end to end in
+ * `test/cli/directive-assign-force.integration.test.ts`.
+ *
  * Exercises the REAL registered `CORE_MODULES` operation against THROWAWAY temp git repos carrying the
  * real `wingfoil init` scaffold, never this repository's own `.wingfoil/`.
  *

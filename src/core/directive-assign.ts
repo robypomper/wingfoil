@@ -347,7 +347,7 @@ export function updateRoleAssignments(
   role: string,
   update: (current: readonly string[]) => readonly string[],
   message: string,
-  options: { readonly force?: boolean } = {},
+  options: { readonly force: boolean },
 ): CoreResult<RoleAssignmentUpdate> {
   // dl-080 (B) / bug-078: refuse while `roles.yaml` carries modifications this operation does not
   // own — otherwise an unrelated uncommitted edit rides into `wf(directive): assign <id> to <role>`,
@@ -380,7 +380,7 @@ export function updateRoleAssignments(
   let serialized = exists ? setRoleAssignmentsInText(text, role, next) : wholeFile();
   const warnings: string[] = [];
   if (serialized === undefined) {
-    if (options.force !== true) return coreErr({ code: 'CONFLICT', message: rolesRewriteConflict(role) });
+    if (!options.force) return coreErr({ code: 'CONFLICT', message: rolesRewriteConflict(role) });
     serialized = wholeFile();
     warnings.push(ROLES_REWRITE_WARNING);
   }
