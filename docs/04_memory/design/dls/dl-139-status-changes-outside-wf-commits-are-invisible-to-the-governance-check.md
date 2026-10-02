@@ -2,8 +2,8 @@
 id: dl-139-status-changes-outside-wf-commits-are-invisible-to-the-governance-check
 type: decision-log
 title: "Status changes outside wf() commits are invisible to the governance check"
-status: draft
-context: ""            # optional — short label for the context, e.g. "retrospective", "planning", "ad-hoc"
+status: in-discussion
+context: "dev-loop"            # optional — short label for the context, e.g. "retrospective", "planning", "ad-hoc"
 release: ""            # optional — implementation release this DL is assigned to (stamped at release-planning/build-backlog, dl-016), e.g. "v0.1"
 contributor: ""        # optional — who originated this contribution, if not the git author (dl-020); credited for AI-generated work derived from it
 credit: ""             # optional — free-text credit note (dl-020)
@@ -13,22 +13,29 @@ tags: ["governance","audit"]
 
 ## Context
 
-<!-- The situation or question that prompted this decision. -->
+`scripts/check-governance.cjs` (`task-167`) checks `wf()` commits only, which is the scope `dl-103`
+§1 gives it. A commit with any other subject can change an element's `status` and pass unchecked.
+For example, `docs: edit task-1` moving a task from `backlog` to `done` gives no finding (reproduced
+by `task-167`'s independent reviewer). Every state change is supposed to be a `wf()` commit (P1.2),
+so this is the one remaining way around the enforcement point that `task-208` will put in CI.
 
 ## Decision
 
-<!-- What was decided. State it directly, in the present tense.
-     Do NOT mark the body as unratified (no "proposed, not yet ratified" preamble): `status:` already
-     says whether the decision is `in-discussion` or `ready`, and a body marker cannot be corrected by
-     `memory.approve`, which per CLAUDE.md §5.1 may change only `status`. The result is a `ready`
-     document that goes on declaring itself unratified — this had accumulated across 16 decision-logs
-     before the convention was adopted. Where options are still open, present them as options; the
-     approver's choice is recorded in the approve commit's `Reason:`. -->
+Open, for the approver:
+
+- **(a) Widen the check.** Any commit touching a Memory document must leave every `status` unchanged
+  unless its subject is a `wf()` operation that declares the move.
+- **(b) Keep the scope.** Record the limit in `dl-103` and in the check's documentation.
+
+**Recommendation: (a).** It closes the gap with one rule that needs no new grammar, and the history
+mode keeps older commits reported rather than failing.
 
 ## Rationale
 
-<!-- Why this option was chosen over alternatives. Include the key trade-offs considered. -->
+The check exists to make the audit trail trustworthy. A status change in a commit that does not
+declare it is exactly what the trail cannot show.
 
 ## Actions
 
-<!-- Optional: follow-up actions that result from this decision, with owners and deadlines. -->
+1. Ratify (a) or (b). Owner: approver.
+2. If (a): extend `scripts/check-governance.cjs`, with or before `task-208`.
