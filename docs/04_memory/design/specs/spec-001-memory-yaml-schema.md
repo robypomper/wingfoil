@@ -57,6 +57,8 @@ const MemoryYaml = z.object({
 
 `version` MUST be `z.number().positive()`, **not** `z.number().int()`: the file's `version: 1.0` is a
 YAML float and `.int()` would spuriously reject a future `1.1`.
+Because it is a number, `version` is compared numerically, and a bump must increase it as a number:
+`1.9` is followed by `2.0`, never `1.10`, which YAML reads as `1.1` (`task-168` review).
 
 ### Sub-schema: `StateMachine` — the sequence/gates/waiting format (REPLACES `transitions`)
 
@@ -120,7 +122,11 @@ const MemoryTypeEntry = z.object({
 }).passthrough();
 
 const TemplateConfig = z.object({
-  frontmatter: z.object({ required: z.array(z.string()) }),  // fields enforced on submit (P4.12)
+  frontmatter: z.object({
+    required:               z.array(z.string()),             // fields enforced on submit (P4.12)
+    not_applicable_allowed: z.array(z.string()).optional(),  // required fields that may hold "n/a — <reason>" (dl-124)
+    lists:                  z.array(z.string()).optional(),  // required fields whose value is a list; [] is filled there (bug-147)
+  }),
   file:        z.string(),                                   // scaffold path, relative to config root
 }).passthrough();
 ```
@@ -136,6 +142,23 @@ type at exit `1`. Absent means `false` so that amending is a choice made per typ
 content is a decision, such as `adr`, is corrected by a new element and declares `false` explicitly.
 The key is read from the `memory.yaml` committed at `HEAD`, like the state machine (`dl-080` (B)).
 There is no `defaults.amendable`: the choice is never inherited.
+
+**`not_applicable_allowed` — which required fields may say "does not apply"** (`dl-124` Q2 (a),
+`task-168`). A field listed here may hold the reserved not-applicable value `"n/a — <reason>"`
+instead of data, and `memory submit` (and `memory amend` past the initial state) counts it as filled;
+the value and how it is read are `spec-010`'s § Validation rules. Absent means no field accepts it.
+Semantic validation: every entry must be a member of `required` (`not_applicable_allowed entry
+'<field>' is not in template.frontmatter.required`), and `title` may never be listed, since
+`spec-010` requires a title of every type.
+
+**`lists` — which required fields take a list** (`bug-147`, `task-168`, approver ruling 2026-10-02).
+On a field listed here a list is the field's value, and an explicit `[]` counts as filled: the author
+declared "none". On every other required field a list, or a mapping, counts as missing (`spec-010`
+§ Validation rules). Absent means no field takes a list. The same two semantic checks as
+`not_applicable_allowed` apply: every entry must be a member of `required` (`lists entry '<field>'
+is not in template.frontmatter.required`), and `title` may never be listed. The declaration lives here,
+not in the scaffold: a scaffold that must not pass a submit untouched leaves the field empty
+(`features:`), and nothing in it has to say the field is a list.
 
 ### `id_pattern` placeholder notation
 
@@ -414,3 +437,18 @@ at `task-127`'s review (2026-10-01, ruling (a)): `true` for `tech-spec`, `decisi
 `task`, `bug` and `plan`; `false` for `adr` (`dl-108` A3), `release` and `release-line`. The
 `wingfoil init` scaffold follows the same rule for the types it declares (ruling (c)). Edited in place, with no `version:` bump
 (`dl-047`); pending the approver's sign-off at `task-127`'s review.
+
+**Revision (2026-10-02, `task-168-accept-declared-not-applicable-value-required-fields-explicit`) —
+`template.frontmatter.not_applicable_allowed`.** `dl-124` (`ready`; Q1 (A), Q2 (a), Q3 (ii)) lets a
+type declare which required fields accept a not-applicable value; its Action 2 asks this spec for the
+declaration. `TemplateConfig.frontmatter` gains the optional list, described in the paragraph after
+the `amendable` one, with its two semantic checks (a member of `required`; never `title`). At the
+approver's ruling of 2026-10-02 (`task-168` re-review, `bug-147`) it also gains `lists`, the required
+fields whose value is a list, with the same two checks. This
+repository's `memory.yaml` 2.0 declares `not_applicable_allowed: [ pillar, requirements ]` on
+`release` (`dl-124` Action 4, approver ruling 2026-10-02), and `lists: [ features ]`. `features` is
+not in `not_applicable_allowed`: as a declared list field, an explicit `[]` already says "none"
+(`spec-010`). The same commit
+moved `version` from 1.9 to 2.0, not 1.10. `version` is a number, compared numerically, and YAML
+reads `1.10` as 1.1, below 1.9 (approver ruling, `task-168` review). Edited in
+place, with no `version:` bump (`dl-047`); pending the approver's sign-off at `task-168`'s review.
