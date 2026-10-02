@@ -458,7 +458,7 @@ const BRACKET_ARROW_RE = /\s*(?:→|->)\s*/;
 const WF_SUBJECT_WITH_BRACKET_RE = /^wf\([^)]*\):.*[[\]]/;
 
 /** One hop of a transition bracket: `[a → b]` has one, the chain `[a → b → c]` has two. */
-interface BracketHop {
+export interface BracketHop {
   readonly from: string;
   readonly to: string;
 }
@@ -467,8 +467,10 @@ interface BracketHop {
  * The hops a subject's trailing bracket names, in order — one for `[a → b]`, more for a chain
  * (`[a → b → c]`, `spec-008` §2: `sync` may chain) — or `null` when there is no trailing bracket, or
  * it is not a transition: fewer than two states, or an empty one anywhere. Never an empty array.
+ * Exported for the governance check (`scripts/check-governance.cjs`, `task-167`), which judges a
+ * single hop against the machine where {@link verifyTransitionConsistency} judges only a chain's.
  */
-function parseBracketHops(subject: string): BracketHop[] | null {
+export function parseBracketHops(subject: string): BracketHop[] | null {
   const match = TRAILING_BRACKET_RE.exec(subject);
   if (!match) return null;
   // The group always participates in a match of TRAILING_BRACKET_RE.
