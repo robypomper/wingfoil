@@ -32,6 +32,7 @@ The two catalogues are fixed in a versioned file, not chosen per run. v2 adds th
 - **Features:** P4.1.
 - **Notes:** Proposal key: D14. `script.run(...)` tokens bind through `bindings.yaml` (dl-090); until P4.10 the scripts run by hand. `dl-090` Action 4: the `script.run(...)` tokens of this workflow are bound in task-199's `bindings.yaml`. `dl-114` Action 3 (cost metrics from the run records) is optional in the catalogue, decided at design.
 - Planned by `release-planning-rel-v0.3-plan` step 6 (build-backlog), 2026-09-30.
+- **Handover from wave 1 B2 (2026-10-02, `task-141`'s independent review).** REQ-STATE-10 (`docs/02_requirements/03_sard/03_state-context.md`, ratified 2026-10-01) cites the catalogue v2 process-conformance entries that this task declares: add the P entries its fit criterion lists (checks 1-6, byte-identical reruns), and give REQ-STATE-10 its user story and BDD scenario, which it still lacks.
 
 ## Execution Notes
 
