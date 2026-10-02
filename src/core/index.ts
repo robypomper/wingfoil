@@ -66,7 +66,7 @@ import {
 
 import {
   DNA_YAML_PATH,
-  loadDirectives,
+  loadDirectiveInventory,
   loadDnaYaml,
   loadMemoryYaml,
   loadWorkflowsYaml,
@@ -1672,11 +1672,19 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
   const identity = requireGitIdentity(root);
   if (!identity.ok) return identity;
 
-  const directiveFiles = loadOrError(() => loadDirectives(root));
-  if (!directiveFiles.ok) return directiveFiles;
-  const target = selectDirectivesById(directiveFiles.value, new Set([name])).byId.get(name);
+  const inventory = loadOrError(() => loadDirectiveInventory(root));
+  if (!inventory.ok) return inventory;
+  const target = selectDirectivesById(inventory.value.files, new Set([name])).byId.get(name);
   if (target === undefined) {
-    return coreErr({ code: 'NOT_FOUND', message: `unknown directive: ${name}` });
+    // task-143: the entry asked for may be one the loader skipped (a dangling link, an unreadable
+    // file), so its warnings ride this refusal's `details` — the channel both surfaces render
+    // (task-130) — rather than a stderr line from core, which `--format json` cannot carry.
+    const { warnings } = inventory.value;
+    return coreErr({
+      code: 'NOT_FOUND',
+      message: `unknown directive: ${name}`,
+      ...(warnings.length > 0 ? { details: { issues: warnings.map((detail) => ({ detail })) } } : {}),
+    });
   }
 
   const custom = requireCustomAsset('directive', target.path);
