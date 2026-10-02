@@ -508,8 +508,16 @@ export const DIRECTIVES_DIR_PATH = '.wingfoil/directives' as const;
  * cannot drift on what a directive file *is*.
  *
  * @param relativePath - The file's path relative to `.wingfoil/directives/`, POSIX-spelled.
+ * @param warn - Receives a `version` warning (task-144, R1). `src/core` prints nothing (task-143): the
+ *   working-tree inventory forwards it to its `warnings`; a reader at a revision has no channel and
+ *   drops it.
  */
-function parseDirectiveFile(raw: string, filePath: string, relativePath: string): DirectiveFile {
+function parseDirectiveFile(
+  raw: string,
+  filePath: string,
+  relativePath: string,
+  warn: (warning: string) => void = () => {},
+): DirectiveFile {
   const frontmatterText = extractFrontmatter(raw);
   if (frontmatterText === null) {
     throw ValidationError.semantic([
@@ -523,7 +531,7 @@ function parseDirectiveFile(raw: string, filePath: string, relativePath: string)
   }
   // `version` never fails the pillar (task-144 review, R1): a lossy number or a wrong type is a warning.
   const versionCheck = checkDirectiveVersion(parseYaml(frontmatterText, filePath), frontmatterText);
-  if (versionCheck.warning !== null) process.stderr.write(`Warning: ${filePath}: ${versionCheck.warning}\n`);
+  if (versionCheck.warning !== null) warn(versionCheck.warning);
   const frontmatter = runValidation(DirectiveFrontmatter, versionCheck.data, filePath);
   // `join`, so `DirectiveFile.path` carries the platform separator on both loaders — `requireCustomAsset`
   // and `selectDirectivesById` see one spelling whichever baseline produced the file.
@@ -582,7 +590,11 @@ export function loadDirectiveInventory(root: string): DirectiveInventory {
       skip(entry.relative, cannotBeRead(error));
       continue;
     }
-    files.push(parseDirectiveFile(raw, absolute, entry.relative));
+    files.push(
+      parseDirectiveFile(raw, absolute, entry.relative, (warning) =>
+        warnings.push(`directive '.wingfoil/directives/${entry.relative}': ${warning}`),
+      ),
+    );
   }
   return { files, warnings };
 }
