@@ -19,7 +19,7 @@ tags: ["v0.3"]
 
 ## Steps to Reproduce
 
-1. `node -e "console.log(require('./dist/memory').isValidAttribution('a@example.org'))"` (after `npm run build`).
+1. `node -e "console.log(require('./dist/memory').isValidAttribution('A', 'a@example.org'))"` (after `npm run build`).
 
 ## Expected Behavior
 
@@ -27,7 +27,7 @@ A decision whether second-level reserved domains count as placeholders, and the 
 
 ## Actual Behavior
 
-Accepted. `task-132` moved three audit fixtures to `example.org` precisely because it is accepted, so a rule change has to move them again.
+`true` (accepted), while `isValidAttribution('A', 'a@x.invalid')` is `false` (re-run on `main` on 2026-10-02). `task-132` moved three audit fixtures to `example.org` precisely because it is accepted, so a rule change has to move them again.
 
 ## Notes
 
