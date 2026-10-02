@@ -121,6 +121,10 @@ const AgentEntry = z.object({
   name:               z.string(),
   executes_as:        z.array(z.string()),
   approval_authority: z.boolean().optional(),  // always false — agents never approve (REQ-SYS-08)
+  // The adapter manifest that says HOW the agent is launched: its basename under
+  // .wingfoil/agents/{built-in,custom}/, held to the shared id class [a-z0-9-.] (spec-009 §1).
+  // Optional — an agent without one can be named but not launched. [SPEC: spec-016 §2.1]
+  adapter:            z.string().refine(isIdPiece).optional(),
 }).passthrough();
 
 const RoleEntry = z.object({
@@ -135,13 +139,15 @@ const Team = z.object({
 }).passthrough();
 
 // paths: category name → list of path strings. Fixed category names per P2.5 / X_cli-cmds.md,
-// but tolerant of extra categories via passthrough.
+// but tolerant of extra categories via passthrough. `runs` holds EXACTLY one directory, the run
+// log. [SPEC: spec-016 §4.1]
 const Paths = z.object({
   sources:    z.array(z.string()).optional(),
   tests:      z.array(z.string()).optional(),
   docs:       z.array(z.string()).optional(),
   config:     z.array(z.string()).optional(),
   governance: z.array(z.string()).optional(),
+  runs:       z.array(z.string()).length(1).optional(),
 }).passthrough();
 
 export const DnaYaml = z.object({
@@ -211,9 +217,16 @@ perform a change of shape.
 
 ### Categories (P2.5)
 
-`wingfoil paths [category]` queries `paths` by the five category names **sources, tests, docs, config,
-governance** (X_cli-cmds.md). Each maps to an ordered `string[]`; missing categories are permitted,
-and `.passthrough()` allows a future category to be added without invalidating existing files.
+`wingfoil paths [category]` queries `paths` by the six category names **sources, tests, docs, config,
+governance, runs** (X_cli-cmds.md; `runs` per `spec-016-agent-execution` §4.1). Each maps to an
+ordered `string[]`; missing categories are permitted, and `.passthrough()` allows a future category to
+be added without invalidating existing files.
+
+`runs` is the one category with a cardinality rule: it names the directory of the agent run log
+(`<runs>/<element-id>.jsonl`), so it holds **exactly one** entry, and a document declaring zero or two
+is a validation error at `paths.runs`. `wingfoil init` scaffolds `paths.runs: [docs/runs/]`.
+`governance` was not reused for it, because it already holds `.wingfoil/` and the run log would be
+ambiguous there (`spec-016` §4.1).
 
 ### Minimal valid instance
 
@@ -352,3 +365,18 @@ Edited in place without a supersede or a state change, per the `dl-041` / `spec-
 `docs/self/.wingfoil/dna.yaml` and said it "will move to the repository-root `.wingfoil/dna.yaml`";
 that task moved it. The illustrative example under Specification is not the live file and keeps its
 values. Edited in place without a supersede or a state change (the `spec-001` precedent `dl-041` cites); pending the approver's sign-off at that task's review.
+
+**Revision (2026-10-01) — `team.agents[].adapter` and the sixth `paths` category, `runs`, are
+declared, per `task-138-dna-yaml-declares-team-agents-adapter-runs-paths` and `spec-016-agent-execution`
+§2.1 and §4.1 (approver ruling R18, `release-planning-rel-v0.3-plan`).** Both were already tolerated on
+read by `.passthrough()`, which is why `spec-016` could name them before this spec did; but the
+*Unknown keys* section above refuses an undeclared path on write, so `dna update team.agents.<name>
+--entry-adapter <a>` and `dna add paths.runs --value <dir>` were refused until they were declared here.
+`adapter` takes the shared id class (`spec-009` §1) because it is a manifest's file basename; `runs`
+takes exactly one entry because two would make where a run is recorded ambiguous. Nothing else in the
+schema changes, and a document carrying neither field — this repository's own included, until the tasks
+that adopt them land — loads as before (`test/dna/schema.test.ts`, "validates the real, live
+.wingfoil/dna.yaml").
+
+Edited in place without a supersede or a state change, per the `dl-041` / `spec-001` precedent
+`spec-006`'s 2026-09-17 revision cites.
