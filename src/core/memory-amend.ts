@@ -12,9 +12,9 @@
 import { load } from 'js-yaml';
 
 import { describeDocumentChanges, resolveStateMachine, type MemoryYaml } from '../memory';
-import { extractFrontmatter, readPathAtRev } from '../storage';
+import { extractFrontmatter, readPathAtRev, WINGFOIL_DIR } from '../storage';
 
-import { readCommittedScaffold, requireRequiredFields } from './required-fields';
+import { requireRequiredFields } from './required-fields';
 import { coreErr, coreOk, type CoreResult } from './types';
 
 /**
@@ -40,7 +40,9 @@ const ASSIGN_OWNED_FIELD = 'release';
  * when there is no scaffold to read — no `template.file`, not committed, or no parseable frontmatter.
  */
 function committedScaffoldDeclaresRelease(root: string, memoryYaml: MemoryYaml, type: string): boolean | null {
-  const scaffold = readCommittedScaffold(root, memoryYaml, type);
+  const file = memoryYaml.types[type]?.template?.file;
+  if (file === undefined) return null;
+  const scaffold = readPathAtRev(root, 'HEAD', `${WINGFOIL_DIR}/${file}`);
   if (scaffold === null) return null;
   try {
     const fields: unknown = load(extractFrontmatter(scaffold) ?? '');
@@ -134,12 +136,11 @@ export function requireAmendableEdit(
  * which is `draft` for every type `spec-001` declares.
  */
 export function requireRequiredFieldsKept(
-  root: string,
   memoryYaml: MemoryYaml,
   type: string,
   state: string,
   frontmatter: Readonly<Record<string, unknown>>,
 ): CoreResult<undefined> {
   if (state === resolveStateMachine(memoryYaml, type).sequence[0]) return coreOk(undefined);
-  return requireRequiredFields(root, memoryYaml, type, frontmatter, 'amend');
+  return requireRequiredFields(memoryYaml, type, frontmatter, 'amend');
 }

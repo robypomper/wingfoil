@@ -1048,7 +1048,7 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
   if (!prepared.ok) return prepared;
   const { type, path, frontmatter, content, from, to } = prepared.value;
 
-  const fieldsFilled = requireRequiredFields(root, prepared.value.memoryYaml, type, frontmatter, 'submit');
+  const fieldsFilled = requireRequiredFields(prepared.value.memoryYaml, type, frontmatter, 'submit');
   if (!fieldsFilled.ok) return fieldsFilled;
 
   const message = formatMemoryCommitMessage({ type, op: 'submit', ids: [id] });
@@ -1418,7 +1418,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   if (!amendable.ok) return amendable;
   const edit = requireAmendableEdit(root, id, path, content, amendReservedFields(root, memoryYaml, type));
   if (!edit.ok) return edit;
-  const filled = requireRequiredFieldsKept(root, memoryYaml, type, from, frontmatter);
+  const filled = requireRequiredFieldsKept(memoryYaml, type, from, frontmatter);
   if (!filled.ok) return filled;
 
   const { name, email } = prepared.value.identity;

@@ -405,10 +405,9 @@ Unreleased (v0.3): a required field that does not apply to this document can hol
 recommended) — but only if the type lists the field in `template.frontmatter.not_applicable_allowed`
 in `memory.yaml`.
 
-Unreleased (v0.3): an explicit empty list (`features: []`) counts as filled, but only on a field the
-type's committed scaffold declares as a list: its scaffold value is a list (`tags: []`), or it is
-empty and its comment contains the word `LIST` (`features:   # REQUIRED — LIST of feature IDs`). On
-any other required field, `[]` is missing, as is an empty value (`features:`).
+Unreleased (v0.3): a list, an explicit empty list (`features: []`) included, counts as filled only
+on a field the type declares in `template.frontmatter.lists` in `memory.yaml`. On any other required
+field a list or a mapping counts as missing. An empty value (`features:`) is always missing.
 
 ```console
 $ wingfoil memory submit task-001-my-first-task

@@ -105,6 +105,7 @@ types:
       frontmatter:
         required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
         not_applicable_allowed: [ pillar, requirements ]   # [AUTHORING] dl-124 Action 4, task-168 (2.0, approver ruling 2026-10-02): a patch may write "n/a — <reason>" here; `features` takes [] instead
+        lists: [ features ]   # [AUTHORING] bug-147, task-168 (2.0, approver ruling 2026-10-02): the required fields whose value is a list — there `[]` is filled ("none"); a list anywhere else is missing
       file: "memory/templates/release.md"
     amendable: false     # key [SPEC: spec-001, dl-108 A3]; value: approver ruling 2026-10-01 (task-127)
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding

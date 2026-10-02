@@ -11,10 +11,10 @@ describe('missingRequiredFields', () => {
     expect(missingRequiredFields({ title: 'T', release: 'v0.2' }, ['title', 'release'])).toEqual([]);
   });
 
-  it('treats absent, null, blank strings and (on a field no scaffold declares a list) empty lists as missing; reports in declared order', () => {
+  it('treats absent, null, blank strings and (on a field not declared in `lists`) any list as missing; reports in declared order', () => {
     expect(
       missingRequiredFields({ title: 'T', a: '  ', b: null, d: [], e: ['x'], f: 0 }, ['e', 'd', 'c', 'b', 'a', 'f']),
-    ).toEqual(['d', 'c', 'b', 'a']);
+    ).toEqual(['e', 'd', 'c', 'b', 'a']);
   });
 
   it('re-review ruling 2: on a field not in `lists`, any list or mapping is missing; a date is a value', () => {
