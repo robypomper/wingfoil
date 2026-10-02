@@ -2,7 +2,7 @@
 id: bug-187-memory-submit-decides-the-transition-on-the-working-tree-not-on-the-committed-status
 type: bug
 title: "memory submit decides the transition on the working tree, not on the committed status"
-status: in-review
+status: closed
 severity: "high"           # REQUIRED — critical | high | medium | low
 release-origin: "v0.3"     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
 release: "v0.3"            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)
