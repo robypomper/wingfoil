@@ -6,6 +6,7 @@ kind: custom
 title: "Security"
 tags: [custom, security, secrets]
 ref: [P3.8]
+scope: global
 ---
 
 # Directive — Security

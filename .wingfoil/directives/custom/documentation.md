@@ -6,6 +6,7 @@ kind: custom
 title: "Documentation"
 tags: [custom, documentation]
 ref: [P3.8]
+scope: global
 ---
 
 # Directive — Documentation

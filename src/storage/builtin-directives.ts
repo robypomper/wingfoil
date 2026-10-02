@@ -11,7 +11,8 @@
  * derived by `builtinTemplateSources`): adding or editing a template here is automatically checked.
  *
  * **Frontmatter** (`spec-013-directive-frontmatter-schema`): exactly the declared keys `id` (the filename
- * stem), `name`, `type: directive`, `kind: built-in`, `title`, `tags`, `ref: [P3.8]`. No other key: an
+ * stem), `name`, `type: directive`, `kind: built-in`, `title`, `tags`, `ref: [P3.8]`, and `scope: global` on
+ * the two templates the `init` scaffold binds globally (`security`, `documentation`; task-144). No other key: an
  * undeclared key rides `.passthrough()` and prints an `unknown field(s) ignored` warning on stderr during
  * every `init` (task-044's hand-off).
  *
@@ -38,6 +39,12 @@ export interface BuiltinDirectiveTemplate {
   readonly appliesTo: string;
   /** The normative rules, in order, rendered as a Markdown bullet list. */
   readonly rules: readonly string[];
+  /**
+   * `'global'` for a template the `init` scaffold's `roles.yaml` lists under `global:`, rendered as the
+   * spec-013 `scope: global` frontmatter key so the file and the binding agree (task-144: `directives
+   * list` reports a disagreement; `roles.yaml` stays the authority). Absent for a role-bound template.
+   */
+  readonly scope?: 'global';
 }
 
 const CODE_QUALITY: BuiltinDirectiveTemplate = {
@@ -98,6 +105,7 @@ const SECURITY: BuiltinDirectiveTemplate = {
   id: 'security',
   name: 'Security',
   appliesTo: 'Applies to every role.',
+  scope: 'global',
   rules: [
     'Never hardcode credentials, tokens, private keys or other secrets in source code, configuration, documentation or project memory.',
     'Keep secrets out of version control; supply them at runtime from the environment or a secret manager.',
@@ -111,6 +119,7 @@ const SECURITY: BuiltinDirectiveTemplate = {
 const DOCUMENTATION: BuiltinDirectiveTemplate = {
   id: 'documentation',
   name: 'Documentation',
+  scope: 'global',
   appliesTo: 'Applies to every role.',
   rules: [
     'Document every user-facing command and feature before it ships.',
@@ -153,7 +162,7 @@ kind: built-in
 title: "${t.name}"
 tags: [built-in, ${t.id}]
 ref: [P3.8]
----
+${t.scope === undefined ? '' : `scope: ${t.scope}\n`}---
 
 # Directive — ${t.name}
 

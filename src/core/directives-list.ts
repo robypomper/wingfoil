@@ -21,7 +21,9 @@
  * The payload is {@link DirectiveListing} — `entries` plus a `warnings` channel — so the two things a
  * reader cannot see in the inventory are said out loud: which of two same-id files is in force, and
  * whether a role is bound at all. Neither is computed here. Without a role filter the warnings are
- * {@link selectDirectivesById}'s shadow warnings over every file; with `--role` they are exactly
+ * {@link selectDirectivesById}'s shadow warnings over every file, followed by
+ * {@link directiveScopeWarnings}' report of every directive whose `scope: global` frontmatter disagrees
+ * with `roles.yaml`'s `global:` list (task-144, bug-148 — `roles.yaml` decides); with `--role` they are exactly
  * {@link resolveRoleDirectives}' warnings for that role (no-assignments, dangling binding, shadowed
  * ids). Both live in `./context.ts`, so the precedence rule the listing reports is the one context
  * assembly applies — it is never implemented twice.
@@ -41,6 +43,7 @@ import { documentExists } from '../storage';
 import type { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
 
 import { resolveRoleDirectives, selectDirectivesById } from './context';
+import { directiveScopeWarnings } from './directive-scope';
 import { loadDirectives, loadRolesYaml, type DirectiveFile } from './loaders';
 
 /**
@@ -93,8 +96,9 @@ export interface DirectiveListEntry {
 export interface DirectiveListing {
   /** One entry per directive file on disk — never deduplicated (see the module doc comment). */
   readonly entries: readonly DirectiveListEntry[];
-  /** Shadowed ids (always); no-assignments and dangling-binding warnings (with a role filter). Fixed
-   * order, empty when there is nothing to report. */
+  /** Without a role filter: shadowed ids, then `scope`/`roles.yaml` disagreements (task-144). With a
+   * role filter: no-assignments, dangling-binding and shadowed-id warnings. Fixed order, empty when
+   * there is nothing to report. */
   readonly warnings: readonly string[];
 }
 
@@ -171,7 +175,7 @@ export function buildDirectiveListing(
     });
   }
   const warnings = role === undefined
-    ? selectDirectivesById(directiveFiles).warnings
+    ? [...selectDirectivesById(directiveFiles).warnings, ...directiveScopeWarnings(directiveFiles, rolesYaml)]
     : resolveRoleDirectives(directiveFiles, rolesYaml ?? NO_BINDINGS, role).warnings;
   return { entries, warnings };
 }

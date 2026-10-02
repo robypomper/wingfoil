@@ -1,35 +1,32 @@
 /**
- * DirectiveFrontmatter schema (task-004-decoupled-pillars, REQ-SYS-02) — the fourth pillar named by
- * this task's Acceptance Criteria ("memory.yaml, dna.yaml, directives/*.yaml, and workflows.yaml
- * each validate against their own Zod schema independently").
+ * DirectiveFrontmatter schema (task-004-decoupled-pillars, REQ-SYS-02) — the Directives pillar's
+ * per-file YAML frontmatter shape, validated independently of the other three pillars (`memory.yaml`,
+ * `dna.yaml`, `workflows.yaml`).
  *
- * UNLIKE memory.yaml/dna.yaml/workflows.yaml, there is currently no dedicated, approved tech-spec
- * for the Directives pillar's own file shape: spec-010-memory-frontmatter-schema's scope is
- * explicitly `docs/04_memory/**\/*.md frontmatter` (Memory documents), not
- * `.wingfoil/directives/**` (Directives files are `.md` with YAML frontmatter, not `.yaml` — the
- * AC's "directives/*.yaml" phrasing does not match the real file extension either). This schema is
- * therefore an [AUTHORING]-level minimal shape, grounded directly in the fields every one of the
- * twelve real files under `.wingfoil/directives/custom/*.md` actually carries (`id`,
- * `name`, `type: directive`, `kind`, `title`, `tags`, `ref`, and — on three files — `scope`), not a
- * transcription of an approved spec. See this task's Execution Notes for why this was not treated
- * as a hard STOP (design-gap) and the follow-up this leaves for the reviewer/approver (a candidate
- * `spec-013-directive-frontmatter-schema`).
+ * The shape is specified by `spec-013-directive-frontmatter-schema` (`approved`), which `task-004`'s
+ * fast-follow wrote to close the traceability gap this schema was first shipped with: its field table
+ * is the authority for every key below, and this file is its reference implementation. The files are
+ * `.md` with YAML frontmatter, not `.yaml` (spec-013 Context corrects REQ-SYS-02's
+ * "directives/*.yaml" wording).
  *
- * `name` is REQUIRED, not merely observed: REQ-SYS-02's own traceability cites
- * `p3-directives/P3.5-project-directives.feature`, whose "Error - a directive file missing required
- * header fields" scenario is explicit ("Given a custom directive file lacks its required 'name'
- * header ... Then loading reports the file as invalid") — the one piece of that BDD contract this
- * schema honors even without a tech-spec of its own.
+ * `name` is REQUIRED as a `[SPEC]` field: `p3-directives/P3.5-project-directives.feature`'s "Error - a
+ * directive file missing required header fields" scenario reports a file lacking `name` as invalid.
+ * The other required keys are `[AUTHORING]` (spec-013 Consequences).
+ *
+ * `scope` and `version` are declared optional keys since `task-144` (spec-013 Revision 2026-10-01;
+ * bug-113, bug-148): a directive carrying either one no longer prints spec-009's unknown-field warning.
+ * `scope` does not decide anything — `roles.yaml`'s `global:` list is the authority on which directives
+ * bind every role, and `directives list` reports a disagreement between the two (`src/core/directive-scope.ts`).
  *
  * `.passthrough()` per spec-009-validation-strategy §2, matching every other pillar schema.
  */
 import { z } from 'zod';
 
 /**
- * The YAML frontmatter of a `.wingfoil/directives/**\/*.md` file — the minimal [AUTHORING] shape
- * grounded in the fields the real custom directive files carry (see the module doc for why there is
- * no dedicated tech-spec). `name` is required per REQ-SYS-08's BDD contract. `.passthrough()` per
- * spec-009 §2.
+ * The YAML frontmatter of a `.wingfoil/directives/**\/*.md` file, per `spec-013`'s field table. `name`
+ * is required per P3.5's BDD contract. `scope` admits only `global` (the one value spec-013 defines);
+ * `version` is a string, so a quoted `"1.10"` is never read back as the number `1.1`. `.passthrough()`
+ * per spec-009 §2.
  */
 export const DirectiveFrontmatter = z
   .object({
@@ -40,6 +37,8 @@ export const DirectiveFrontmatter = z
     title: z.string(),
     tags: z.array(z.string()).optional(),
     ref: z.array(z.string()).optional(),
+    scope: z.literal('global').optional(),
+    version: z.string().optional(),
   })
   .passthrough();
 /** Parsed shape of the {@link DirectiveFrontmatter} schema. */
@@ -48,11 +47,11 @@ export type DirectiveFrontmatter = z.infer<typeof DirectiveFrontmatter>;
 /**
  * `.wingfoil/roles.yaml` schema (task-037-role-task-scoped-context, REQ-STATE-05's
  * `directive-loader`, P3.2/P3.7) — the role → directive binding config
- * `resolveRoleDirectives`/`assembleExecutionContext` (`src/core/context.ts`) resolve against. Same
- * [AUTHORING]-level rationale as {@link DirectiveFrontmatter}: no dedicated tech-spec covers this
- * pillar's own file shapes yet (spec-012-context-loader-relevance-filtering §5 describes the
- * `directive-loader`'s *behavior* — "look up the request role in `roles.yaml`" — but not roles.yaml's
- * own schema), so this is grounded directly in the fields the real, live
+ * `resolveRoleDirectives`/`assembleExecutionContext` (`src/core/context.ts`) resolve against. An
+ * [AUTHORING]-level shape: `spec-013` specifies the directive files only, and
+ * spec-012-context-loader-relevance-filtering §5 describes the `directive-loader`'s *behavior* — "look
+ * up the request role in `roles.yaml`" — but not roles.yaml's own schema, so this is grounded directly
+ * in the fields the real, live
  * `.wingfoil/roles.yaml` file carries: `version`, `assignments` (role name -> directive id
  * array), and `global` (directive ids applied to every role). `assignments` keys are role names
  * (validated against `dna.yaml`'s `team.roles` catalogue elsewhere, by REQ-SYS-08/task-034 — NOT here,
