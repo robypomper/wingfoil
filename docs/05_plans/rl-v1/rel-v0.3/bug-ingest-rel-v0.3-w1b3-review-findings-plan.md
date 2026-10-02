@@ -2,7 +2,7 @@
 id: bug-ingest-rel-v0.3-w1b3-review-findings-plan
 type: plan
 title: "Bug-ingest — rel-v0.3 wave 1 B3 review findings"
-status: active
+status: done
 version: "1.0"
 workflow: "bug-ingest"
 phase: "rel-v0.3-w1b3-review-findings"
@@ -47,3 +47,16 @@ rest on the named reviewer's reproduction.
 - **Completion criteria:** every captured bug `triaged` or `closed`; this plan `active → done`.
 
 ## Execution Notes
+- **triage done (2026-10-02)**, on the approver's instruction, with the proposals accepted:
+
+  | Bug | Outcome |
+  |---|---|
+  | `bug-194` | `task-184` |
+  | `bug-196` | `task-153` |
+  | `bug-197` | `task-152`, already in progress; its agent merges `main` and takes the added scope |
+  | `bug-198` | `task-179` |
+  | `bug-201` | `task-171` |
+  | `bug-202` | `task-218` |
+  | `bug-195`, `bug-199`, `bug-200` | `triaged`, v0.4, unabsorbed |
+
+  Each absorbing task names its bug through `memory amend`. Plan complete.
