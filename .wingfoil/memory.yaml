@@ -55,7 +55,7 @@
 # docs/03_backlog/; each `requirements:` points to its by-release backlog JSON) plus the initial `adr`
 # and `decision-log` content recorded by initial-design (under design/adrs/ and design/dls/).
 # The per-type `template.file:` scaffolds live alongside the config under .wingfoil/memory/templates/.
-version: 1.9                     # [AUTHORING] config-file format version (WingFoil convention)
+version: 2.0                     # [AUTHORING] config-file format version (WingFoil convention); a NUMBER, compared numerically (spec-001) — 1.9 -> 2.0 at task-168, never 1.10, which YAML reads as 1.1
 
 # Default machine used by any type that does not declare its own `states` block.
 # [SPEC: REQ-STATE-08] default machine: draft -> pending -> approved/rejected -> deprecated.
@@ -104,6 +104,8 @@ types:
     template:                   # [AUTHORING] scaffold for `wingfoil memory add --type release`
       frontmatter:
         required: [ title, kind, version, pillar, features, requirements, release-line ]   # `kind` [AUTHORING] dl-092: minor | patch; optional `patch-of` (the released minor's id) when kind is patch
+        not_applicable_allowed: [ pillar, requirements ]   # [AUTHORING] dl-124 Action 4, task-168 (2.0, approver ruling 2026-10-02): a patch may write "n/a — <reason>" here; `features` takes [] instead
+        lists: [ features ]   # [AUTHORING] bug-147, task-168 (2.0, approver ruling 2026-10-02): the required fields whose value is a list — there `[]` is filled ("none"); a list anywhere else is missing
       file: "memory/templates/release.md"
     amendable: false     # key [SPEC: spec-001, dl-108 A3]; value: approver ruling 2026-10-01 (task-127)
     states: # [SPEC] structure (P1.13 / REQ-SYS-04); sequence/gates/waiting below is [AUTHORING] vocabulary+encoding

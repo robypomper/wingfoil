@@ -46,7 +46,6 @@ import {
   formatMemoryCommitMessage,
   hasNumericToken,
   isArchivedStatus,
-  missingRequiredFields,
   nextSequenceNumber,
   parseSetOptions,
   parseTags,
@@ -77,6 +76,7 @@ import { selectDirectivesById } from './context';
 import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
+import { requireRequiredFields } from './required-fields';
 import { requireInitializedProject } from './init';
 import { requireCustomAsset } from './builtin-asset';
 import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
@@ -1027,6 +1027,9 @@ export interface MemorySubmitResult {
  *    carries the pinned `illegal transition <from> -> <to> for type '<type>'` (`dl-032`, P1.6 sc.2).
  * 5. **Required fields** (spec-010 validation rules) — `title` and every `template.frontmatter.required`
  *    field must be non-empty, else `VALIDATION` `missing required field on submit: <fields>` (exit 1).
+ *    A field the type lists in `template.frontmatter.not_applicable_allowed` may hold
+ *    `"n/a — <reason>"`; a not-applicable value anywhere else, or one with no reason, is `VALIDATION`
+ *    `not-applicable value on submit: …` naming the field (`dl-124`, task-168, {@link requireRequiredFields}).
  * 6. **Edit + commit** — `status` set to the target and `rejection_reason` removed (spec-010 field-write
  *    ownership; every other byte kept), then one commit scoped to that file, subject
  *    `wf(<type>): submit <id>` with no bracket and no body (spec-004 §4.3). The rendered document is
@@ -1045,11 +1048,8 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
   if (!prepared.ok) return prepared;
   const { type, path, frontmatter, content, from, to } = prepared.value;
 
-  const required = prepared.value.memoryYaml.types[type]?.template?.frontmatter.required ?? [];
-  const missing = missingRequiredFields(frontmatter, required);
-  if (missing.length > 0) {
-    return coreErr({ code: 'VALIDATION', message: `missing required field on submit: ${missing.join(', ')}` });
-  }
+  const fieldsFilled = requireRequiredFields(prepared.value.memoryYaml, type, frontmatter, 'submit');
+  if (!fieldsFilled.ok) return fieldsFilled;
 
   const message = formatMemoryCommitMessage({ type, op: 'submit', ids: [id] });
   const rendered = renderSubmitDocument(content, to);

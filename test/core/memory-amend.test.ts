@@ -34,6 +34,7 @@ types:
       file: "memory/templates/tech-spec.md"
       frontmatter:
         required: [title, scope]
+        not_applicable_allowed: [scope]
     states:
       sequence: [draft, pending, approved, superseded]
       gates:
@@ -261,6 +262,31 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
         expectNothingWritten(before, SPEC, edited);
       },
     );
+
+    it('task-168 — a declared field amended to "n/a — <reason>" is kept (the same rule as submit)', async () => {
+      writeFixtureFile(repo, SPEC, doc({ id: 'spec-001', type: 'tech-spec', status: 'approved', scope: 'n/a — process-only spec' }));
+      const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+      expect(result.ok).toBe(true);
+    });
+
+    it.each([
+      ['bare `n/a` in a declared field', { scope: 'n/a' }, 'not-applicable value on amend: scope needs a reason, written "n/a — <reason>"'],
+      [
+        'a not-applicable title',
+        { title: 'n/a — none' },
+        "not-applicable value on amend: title does not accept one (type 'tech-spec' does not list it in template.frontmatter.not_applicable_allowed)",
+      ],
+    ])('task-168 — %s on a non-draft document → exit 1 naming the field', async (_label, change, message) => {
+      const edited = doc({ id: 'spec-001', type: 'tech-spec', status: 'approved', ...change });
+      writeFixtureFile(repo, SPEC, edited);
+      const before = head(repo);
+      const result = await amend()({ root: repo, positional: 'spec-001', options: { reason: 'r' } });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(exitCodeForResult(result)).toBe(1);
+      expect(result.error.message).toBe(message);
+      expectNothingWritten(before, SPEC, edited);
+    });
 
     it('review F1 — a document still in its initial state (draft) may leave a required field empty, as submit allows', async () => {
       writeFixtureFile(repo, 'docs/memory/specs/spec-002.md', doc({ id: 'spec-002', type: 'tech-spec', status: 'draft' }));

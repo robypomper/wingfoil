@@ -9,7 +9,7 @@
  * what is pinned is what the CLI enforces here, not a hand-written copy of it.
  *
  * - **AC 1 (red-first).** `task` requires `kind`, declares its values `[feature, fix]` and the
- *   stop-the-line block; the scaffold carries `kind` marked REQUIRED; `memory.yaml` is 1.9.
+ *   stop-the-line block; the scaffold carries `kind` marked REQUIRED; `memory.yaml` is 1.9 (2.0 since task-168).
  * - **AC 2 (characterization).** Every non-draft task of v0.3 and later carries `kind` in
  *   `{feature, fix}`.
  * - **AC 3 (red-first).** `memory submit` of a task without `kind` is refused, nothing committed; with
@@ -61,8 +61,8 @@ describe('the `task` type declares `kind` and the stop-the-line threshold (task-
   const memoryYaml = loadMemoryYaml(REPO_ROOT);
   const task = memoryYaml.types.task as Record<string, unknown> & { template?: { frontmatter: Record<string, unknown>; file: string } };
 
-  it('AC 1: memory.yaml is version 1.9', () => {
-    expect(memoryYaml.version).toBe(1.9);
+  it('AC 1: memory.yaml is version 2 or later (1.9 at task-150; 2.0 since task-168), compared as a number', () => {
+    expect(memoryYaml.version).toBeGreaterThanOrEqual(2);
   });
 
   it('AC 1: `kind` is a required task field, with the declared values feature | fix (dl-133 Q1 (b))', () => {

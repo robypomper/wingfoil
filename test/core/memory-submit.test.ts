@@ -306,6 +306,214 @@ describe('CORE_MODULES memory.memorySubmit — P1.6 fit criteria', () => {
 });
 
 /**
+ * task-168 — `dl-124` (Q1 (A), Q2 (a), Q3 (ii)): a required field the type declares in
+ * `template.frontmatter.not_applicable_allowed` may hold `"n/a — <reason>"`; bare `n/a`, or the value
+ * on an undeclared field, is refused naming the field. `kind` is required and NOT declared, the shape
+ * task-150 gave this repository's `task.kind`: a not-applicable value must not let it be skipped.
+ */
+describe('CORE_MODULES memory.memorySubmit — declared not-applicable values (task-168, dl-124)', () => {
+  const RELEASE_YAML = `version: 1
+types:
+  release:
+    path: "docs/memory/planning/{id}.md"
+    template:
+      file: "memory/templates/release.md"
+      frontmatter:
+        required: [title, kind, pillar, requirements]
+        not_applicable_allowed: [pillar, requirements]
+    states:
+      sequence: [draft, planning, in-development]
+      waiting: [planning]
+`;
+  const PATH = 'docs/memory/planning/patch-v0.9.1.md';
+  const release = (fields: { kind?: string; pillar?: string; requirements?: string }): string => `---
+id: "patch-v0.9.1"
+type: release
+title: "A patch"
+status: draft
+kind: "${fields.kind ?? 'patch'}"
+pillar: "${fields.pillar ?? 'n/a — patch release'}"
+requirements: "${fields.requirements ?? 'n/a — no per-release backlog for a patch'}"
+tmpl_version: 260703
+---
+
+Body.
+`;
+  let repo: string;
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', RELEASE_YAML);
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  async function submitWith(fields: Parameters<typeof release>[0]): ReturnType<ReturnType<typeof memorySubmitFn>> {
+    writeFixtureFile(repo, PATH, release(fields));
+    commitAll(repo, 'seed');
+    return memorySubmitFn()({ root: repo, positional: 'patch-v0.9.1' });
+  }
+
+  it('AC1: declared fields holding "n/a — <reason>" pass the submit (exit 0, draft -> planning)', async () => {
+    const result = await submitWith({});
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.to).toBe('planning');
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('wf(release): submit patch-v0.9.1');
+  });
+
+  it('AC1: bare `n/a` in a declared field is refused (exit 1) naming the field, nothing written', async () => {
+    const result = await submitWith({ pillar: 'n/a' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.code).toBe('VALIDATION');
+    expect(result.error.message).toBe(
+      'not-applicable value on submit: pillar needs a reason, written "n/a — <reason>"',
+    );
+    expect(gitOut(repo, ['log', '-1', '--format=%s'])).toBe('seed');
+    expect(readFileSync(join(repo, PATH), 'utf-8')).toContain('status: draft');
+  });
+
+  it('AC1: an undeclared required field (`kind`) holding a not-applicable value is refused (exit 1) naming the field', async () => {
+    const result = await submitWith({ kind: 'n/a — patch release' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toBe(
+      "not-applicable value on submit: kind does not accept one (type 'release' does not list it in template.frontmatter.not_applicable_allowed)",
+    );
+  });
+
+  it('a missing field and a refused not-applicable value are both reported, missing first', async () => {
+    const result = await submitWith({ kind: '', pillar: 'n/a' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      'missing required field on submit: kind; not-applicable value on submit: pillar needs a reason, written "n/a — <reason>"',
+    );
+  });
+});
+
+/**
+ * bug-147 (task-168, approver ruling Q-A (1), 2026-10-02): an author's explicit `features: []` is
+ * filled, and this repository's own `release` scaffold leaves `features:` empty (null), so a scaffold
+ * submitted untouched still fails on it. Runs against the REAL `.wingfoil/memory.yaml` and the REAL
+ * `.wingfoil/memory/templates/release.md`, every other required field filled in.
+ */
+describe('CORE_MODULES memory.memorySubmit — empty required list vs untouched scaffold (bug-147, task-168)', () => {
+  const REPO_ROOT = join(__dirname, '..', '..');
+  const PATH = 'docs/04_memory/planning/v1/minor-v9.9.md';
+  let repo: string;
+
+  /** The real release scaffold with every required field but `features` filled, its `features` line as given. */
+  function fromScaffold(featuresLine?: string): string {
+    const scaffold = readFileSync(join(REPO_ROOT, '.wingfoil/memory/templates/release.md'), 'utf-8');
+    const filled = scaffold
+      .replace(/^id: .*$/m, 'id: "minor-v9.9"')
+      .replace(/^title: .*$/m, 'title: "A release"')
+      .replace(/^kind: .*$/m, 'kind: "minor"')
+      .replace(/^version: .*$/m, 'version: "v9.9"')
+      .replace(/^pillar: .*$/m, 'pillar: "P1"')
+      .replace(/^requirements: .*$/m, 'requirements: "docs/x.json"')
+      .replace(/^release-line: .*$/m, 'release-line: "v1"');
+    return featuresLine === undefined ? filled : filled.replace(/^features:.*$/m, featuresLine);
+  }
+
+  beforeEach(() => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', readFileSync(join(REPO_ROOT, '.wingfoil/memory.yaml'), 'utf-8'));
+    for (const name of ['release.md', 'task.md']) {
+      writeFixtureFile(repo, `.wingfoil/memory/templates/${name}`, readFileSync(join(REPO_ROOT, '.wingfoil/memory/templates', name), 'utf-8'));
+    }
+  });
+
+  afterEach(() => removeTempDir(repo));
+
+  it('the untouched scaffold `features` value refuses the submit, naming features', async () => {
+    writeFixtureFile(repo, PATH, fromScaffold());
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: features');
+  });
+
+  it('an explicit `features: []` is filled: the submit passes (draft -> planning)', async () => {
+    writeFixtureFile(repo, PATH, fromScaffold('features: []'));
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.to).toBe('planning');
+  });
+
+  it('review ruling 1: `[]` on a field the scaffold does not declare a list (task title, release, kind) is missing', async () => {
+    const path = 'docs/04_memory/v9.9/task-901-x.md';
+    writeFixtureFile(
+      repo,
+      path,
+      '---\nid: "task-901-x"\ntype: task\ntitle: []\nstatus: draft\nrelease: []\nkind: []\ntmpl_version: 260703\n---\n\nBody.\n',
+    );
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-901-x' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: title, release, kind');
+  });
+
+  it('re-review ruling 1: without `lists` in memory.yaml, `[]` is missing (features included) — the scaffold is not read for it', async () => {
+    const config = readFileSync(join(REPO_ROOT, '.wingfoil/memory.yaml'), 'utf-8').replace(/^\s*lists: .*\n/m, '');
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', config);
+    writeFixtureFile(repo, PATH, fromScaffold('features: []'));
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: features');
+  });
+
+  it('re-review ruling 2: a mapping or a list in a scalar field (task kind) is missing', async () => {
+    const path = 'docs/04_memory/v9.9/task-902-x.md';
+    writeFixtureFile(
+      repo,
+      path,
+      '---\nid: "task-902-x"\ntype: task\ntitle: "T"\nstatus: draft\nrelease: [""]\nkind: {}\ntmpl_version: 260703\n---\n\nBody.\n',
+    );
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-902-x' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: release, kind');
+  });
+
+  it('review fix 3: a separator other than the em dash names the exact form', async () => {
+    writeFixtureFile(repo, PATH, fromScaffold('features: []').replace(/^pillar: .*$/m, 'pillar: "n/a - patch release"'));
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      'not-applicable value on submit: pillar must be written "n/a — <reason>", with an em dash before the reason',
+    );
+  });
+
+  it('dl-124 Action 4: `pillar` and `requirements` may say "n/a — <reason>" on a release; `features` may not', async () => {
+    const doc = fromScaffold('features: "n/a — patch release"')
+      .replace(/^pillar: .*$/m, 'pillar: "n/a — patch release"')
+      .replace(/^requirements: .*$/m, 'requirements: "n/a — no per-release backlog for a patch"');
+    writeFixtureFile(repo, PATH, doc);
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      "not-applicable value on submit: features does not accept one (type 'release' does not list it in template.frontmatter.not_applicable_allowed)",
+    );
+  });
+});
+
+/**
  * bug-030-init-memory-yaml-has-no-state-machine (task-071) — **this block's expectation is inverted
  * from what task-045 wrote here.** It used to assert that a config with no per-type `states` and no
  * `defaults` block made `memory submit` fail with a `VALIDATION` error naming REQ-STATE-08 — and its

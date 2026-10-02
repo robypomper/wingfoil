@@ -406,6 +406,15 @@ Before running it, fill the document's body and every frontmatter field its type
 records the document's content **and** its state change together. A submit also clears a previous
 `rejection_reason`.
 
+Unreleased (v0.3): a required field that does not apply to this document can hold
+`n/a — <reason>` (`n/a`, an em dash, then the reason; any letter case; quoting the value is
+recommended) — but only if the type lists the field in `template.frontmatter.not_applicable_allowed`
+in `memory.yaml`.
+
+Unreleased (v0.3): a list, an explicit empty list (`features: []`) included, counts as filled only
+on a field the type declares in `template.frontmatter.lists` in `memory.yaml`. On any other required
+field a list or a mapping counts as missing. An empty value (`features:`) is always missing.
+
 ```console
 $ wingfoil memory submit task-001-my-first-task
 {
@@ -418,7 +427,11 @@ $ wingfoil memory submit task-001-my-first-task
 
 - **Commit:** `wf(<type>): submit <id>`
 - **Errors:** unknown id → exit `1`; the current state is a **gate** (its forward step needs
-  `memory approve`) or the end of the sequence → exit `1` (`error: illegal transition …`).
+  `memory approve`) or the end of the sequence → exit `1` (`error: illegal transition …`); a required
+  field is empty → exit `1` (`error: missing required field on submit: <fields>`). Unreleased (v0.3):
+  a required field holds `n/a` but the type does not list it, holds it with no reason, or separates
+  the reason with anything but an em dash → exit `1`, naming the field
+  (`error: not-applicable value on submit: <field> …`).
 
 ### `wingfoil memory approve`
 
@@ -553,7 +566,8 @@ Other modified or staged files are left as they are and are not committed.
 - **Errors:** missing or blank `--reason` → exit `2`; the document has no uncommitted change, or is not
   committed at all → exit `1`; the edit changes one of those six fields → exit `1`, naming the field;
   past `draft`, the edit empties `title` or a required field → exit `1`
-  (`error: missing required field on amend: <fields>`);
+  (`error: missing required field on amend: <fields>`), or (Unreleased (v0.3)) sets a not-applicable
+  value the type does not allow on that field → exit `1` (`error: not-applicable value on amend: <field> …`);
   the type is not amendable → exit `1` (`error: type 'adr' is not amendable: …`); not an approver →
   exit `1` (`error: user not authorized to approve type 'tech-spec'`).
 

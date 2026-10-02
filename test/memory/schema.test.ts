@@ -141,6 +141,74 @@ describe('MemoryYaml — StateMachine semantic checks (spec-001 "Semantic valida
   });
 });
 
+describe('MemoryYaml — template.frontmatter.not_applicable_allowed (dl-124 Q2 (a), task-168)', () => {
+  const withTemplate = (frontmatter: Record<string, unknown>): unknown => ({
+    ...MINIMAL_VALID,
+    types: { task: { ...MINIMAL_VALID.types.task, template: { file: 'memory/templates/task.md', frontmatter } } },
+  });
+
+  it('accepts a list of required fields', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title', 'release', 'pillar'], not_applicable_allowed: ['pillar'] }));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.types.task?.template?.frontmatter.not_applicable_allowed).toEqual(['pillar']);
+  });
+
+  it('rejects an entry that is not in `required`, naming it', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title', 'release'], not_applicable_allowed: ['pillar'] }));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.message)).toContain(
+      "not_applicable_allowed entry 'pillar' is not in template.frontmatter.required",
+    );
+  });
+
+  it('rejects `title`, which spec-010 requires of every type', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title'], not_applicable_allowed: ['title'] }));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.message)).toContain(
+      "not_applicable_allowed may not list 'title': spec-010 requires it of every type",
+    );
+  });
+
+  it('rejects a non-list value', () => {
+    expect(MemoryYaml.safeParse(withTemplate({ required: ['title'], not_applicable_allowed: 'pillar' })).success).toBe(false);
+  });
+});
+
+describe('MemoryYaml — template.frontmatter.lists (task-168 re-review ruling 1)', () => {
+  const withTemplate = (frontmatter: Record<string, unknown>): unknown => ({
+    ...MINIMAL_VALID,
+    types: { task: { ...MINIMAL_VALID.types.task, template: { file: 'memory/templates/task.md', frontmatter } } },
+  });
+
+  it('accepts a list of required fields', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title', 'features'], lists: ['features'] }));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.types.task?.template?.frontmatter.lists).toEqual(['features']);
+  });
+
+  it('rejects an entry that is not in `required`, naming it', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title'], lists: ['features'] }));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.message)).toContain("lists entry 'features' is not in template.frontmatter.required");
+  });
+
+  it('rejects `title`', () => {
+    const result = MemoryYaml.safeParse(withTemplate({ required: ['title'], lists: ['title'] }));
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.message)).toContain("lists may not list 'title': spec-010 requires it of every type");
+  });
+
+  it('rejects a non-list value', () => {
+    expect(MemoryYaml.safeParse(withTemplate({ required: ['title'], lists: 'features' })).success).toBe(false);
+  });
+});
+
 describe('MemoryYaml — validates the real, live .wingfoil/memory.yaml', () => {
   it('parses with zero structural or semantic errors', () => {
     const raw = readFileSync(
@@ -153,5 +221,17 @@ describe('MemoryYaml — validates the real, live .wingfoil/memory.yaml', () => 
     if (!result.success) {
       console.error(result.error.issues);
     }
+  });
+
+  it('task-168 (dl-124 Action 4, approver ruling Q-B): `release` declares pillar and requirements not-applicable, not features', () => {
+    const data = MemoryYaml.parse(load(readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8')));
+    expect(data.types.release?.template?.frontmatter.not_applicable_allowed).toEqual(['pillar', 'requirements']);
+    expect(data.types.task?.template?.frontmatter.not_applicable_allowed).toBeUndefined();
+  });
+
+  it('task-168 (re-review ruling 1): `release` declares `features` a list field; `task` declares none', () => {
+    const data = MemoryYaml.parse(load(readFileSync(join(__dirname, '..', '..', '.wingfoil', 'memory.yaml'), 'utf-8')));
+    expect(data.types.release?.template?.frontmatter.lists).toEqual(['features']);
+    expect(data.types.task?.template?.frontmatter.lists).toBeUndefined();
   });
 });
