@@ -56,6 +56,32 @@ export const WINGFOIL_ALREADY_INITIALIZED =
   'WingFoil already initialized (to change its configuration, edit the files under .wingfoil/ and commit them, or use the wingfoil dna and wingfoil directive commands)';
 
 /**
+ * The refusal a read gives in a git root that has no `.wingfoil/` (task-143, `bug-154`): spec-011's
+ * `absent` init state, whose action is "suggest `wingfoil init`". Defined once, here beside
+ * {@link WINGFOIL_ALREADY_INITIALIZED}, so every surface that needs it — `directives list` today, the
+ * MCP server's pre-flight (`task-174`, `bug-035`) next — says the same thing. It names no path: the
+ * root is the user's own working directory, and an absolute path is what `bug-035` objects to.
+ */
+export const WINGFOIL_NOT_INITIALIZED =
+  "WingFoil not initialized (no .wingfoil/ directory at the project root): run 'wingfoil init' first";
+
+/**
+ * Refuse a read in a project with no configuration: `ok` when `root` has a `.wingfoil/` directory,
+ * else a `VALIDATION` error carrying {@link WINGFOIL_NOT_INITIALIZED} (exit 1, spec-005 §1).
+ *
+ * Only spec-011's `absent` state is refused. An `incomplete` (empty) `.wingfoil/`, or one that lacks
+ * the pillar a read is after, is a configured project that declares nothing yet — each pillar's own
+ * loader answers for that. A `.wingfoil` that is not a directory is not a configuration either, and is
+ * refused the same way; `statSync` follows a symlink, so a dangling one is `absent`, as it is for
+ * `detectInitState`.
+ */
+export function requireInitializedProject(root: string): CoreResult<undefined> {
+  const wingfoilDir = join(root, '.wingfoil');
+  if (existsSync(wingfoilDir) && statSync(wingfoilDir).isDirectory()) return coreOk(undefined);
+  return coreErr({ code: 'VALIDATION', message: WINGFOIL_NOT_INITIALIZED });
+}
+
+/**
  * The already-initialized refusal both init entry points run, or `null` when `root` may be
  * initialized. A `.wingfoil` that exists but is not a directory is refused too: spec-011's
  * `detectInitState` reads it with `readdirSync`, which throws `ENOTDIR` on a file, and that throw

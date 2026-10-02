@@ -442,6 +442,7 @@ describe('directivesList — a dangling symlink is skipped and reported (task-14
     expect(listing.warnings).toEqual([
       WARNING,
       "directive 'no-direct-db-access' bound to role 'developer' has no directive file",
+      "directive 'security-secrets' bound to role 'developer' has no directive file",
     ]);
   });
 });

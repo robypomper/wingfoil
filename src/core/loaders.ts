@@ -9,7 +9,7 @@
  * change to `dna.yaml` or `workflows.yaml`, and is the structural guarantee the cross-pillar load
  * test in `test/core/pillar-isolation.test.ts` exercises.
  */
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, lstatSync, readdirSync, statSync, type Stats } from 'fs';
 import { join, posix } from 'path';
 
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
@@ -33,27 +33,64 @@ import { atHeadOr, listPathsAtCommit, resolveRevision } from './revision';
 import { indexWorkflowFiles, LoadedWorkflowFile, noStartableDiagnostic, workflowFileDiagnostics } from './workflow-diagnostics';
 
 /**
+ * The resolved `Stats` of `full`, or why it cannot be resolved (task-143, `bug-125`). `statSync`
+ * follows a symbolic link, so a dangling one throws `ENOENT` — the raw error that used to escape every
+ * directive read. `lstatSync` sees the entry itself first, so a broken link is told apart from any
+ * other failure and named as one. The reasons are phrased like `requireInspectableTarget`'s
+ * (`./write-guard.ts`), the write-side guard over the same kind of entry.
+ */
+function resolveEntry(full: string): Stats | { readonly reason: string } {
+  try {
+    return statSync(full);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    let isLink = false;
+    try {
+      isLink = lstatSync(full).isSymbolicLink();
+    } catch {
+      // The entry vanished between `readdirSync` and here: report what `stat` said.
+    }
+    if (isLink && (code === 'ENOENT' || code === 'ENOTDIR')) {
+      return { reason: 'it is a symbolic link whose target does not exist' };
+    }
+    return { reason: `it cannot be read (${String(code)})` };
+  }
+}
+
+/**
  * Recursively list every `.md` file under `dir`, as paths relative to `dir`, sorted
  * lexicographically (REQ-SYS-07: no unordered iteration in a context-building path — directory-entry
  * order from `readdirSync` is not guaranteed stable, so traversal always sorts explicitly, mirroring
- * `src/storage/snapshot.ts`'s `listFilesSorted`). Returns `[]` if `dir` doesn't exist.
+ * `src/storage/snapshot.ts`'s `listFilesSorted`). Returns no files if `dir` doesn't exist.
+ *
+ * An entry that cannot be resolved — a dangling symbolic link above all — is **skipped**, and its
+ * `dir`-relative path is returned in `skipped` with the reason, in traversal order (task-143,
+ * `bug-125`). Whatever the link's name, it is reported: a dangling link has no type, so one named
+ * without `.md` may have been a directory of directives.
  */
-function listMarkdownFilesSorted(dir: string): string[] {
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];
-  const out: string[] = [];
+function listMarkdownFilesSorted(dir: string): {
+  readonly files: string[];
+  readonly skipped: { readonly relative: string; readonly reason: string }[];
+} {
+  const files: string[] = [];
+  const skipped: { relative: string; reason: string }[] = [];
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) return { files, skipped };
   const walk = (current: string, prefix: string): void => {
     for (const entry of readdirSync(current).sort()) {
       const full = join(current, entry);
       const relative = prefix ? `${prefix}/${entry}` : entry;
-      if (statSync(full).isDirectory()) {
+      const resolved = resolveEntry(full);
+      if (!('isDirectory' in resolved)) {
+        skipped.push({ relative, reason: resolved.reason });
+      } else if (resolved.isDirectory()) {
         walk(full, relative);
       } else if (entry.endsWith('.md')) {
-        out.push(relative);
+        files.push(relative);
       }
     }
   };
   walk(dir, '');
-  return out.sort();
+  return { files: files.sort(), skipped };
 }
 
 /** Load and validate `.wingfoil/memory.yaml` in isolation (spec-001-memory-yaml-schema). */
@@ -444,6 +481,35 @@ function parseDirectiveFile(raw: string, filePath: string, relativePath: string)
 }
 
 /**
+ * The working-tree directive inventory with the entries it had to skip (task-143, `bug-125`): every
+ * directive file that loaded, and one operator warning per entry under `.wingfoil/directives/**` that
+ * could not be resolved (a dangling symbolic link), naming it root-relative — never as an absolute
+ * path. One broken entry no longer takes down the pillar's whole read surface.
+ */
+export interface DirectiveInventory {
+  readonly files: DirectiveFile[];
+  /** `directive entry '<root-relative path>' skipped: <reason>`, in traversal order; empty when none. */
+  readonly warnings: string[];
+}
+
+/**
+ * {@link loadDirectives} with its skipped-entry warnings returned rather than written: the form a
+ * caller that has its own warnings channel reads — `directives list` puts them in its payload
+ * (`dl-042`), so they reach `--format json` readers and MCP clients, not only a terminal.
+ */
+export function loadDirectiveInventory(root: string): DirectiveInventory {
+  const directivesDir = join(root, '.wingfoil', 'directives');
+  const { files: relativePaths, skipped } = listMarkdownFilesSorted(directivesDir);
+  const files = relativePaths.map((relativePath) =>
+    parseDirectiveFile(readDocument(join(directivesDir, relativePath)), join(directivesDir, relativePath), relativePath),
+  );
+  const warnings = skipped.map(
+    ({ relative, reason }) => `directive entry '.wingfoil/directives/${relative}' skipped: ${reason}`,
+  );
+  return { files, warnings };
+}
+
+/**
  * Load and validate every Directives file in isolation (task-004-decoupled-pillars — see
  * `src/directives/schema.ts` for why this pillar has no dedicated approved tech-spec yet). Reads
  * every `.md` file under `.wingfoil/directives/**` (built-in + custom) **in the working tree**,
@@ -453,12 +519,15 @@ function parseDirectiveFile(raw: string, filePath: string, relativePath: string)
  * This is the *report* baseline — what the user has now — and it is what `directives list`, context
  * assembly and the MCP Resources read. A read that **gates** a mutation reads
  * {@link loadDirectivesAtHead} instead (`dl-080` (B)).
+ *
+ * An entry that cannot be resolved is skipped (task-143, `bug-125`) and its warning written to stderr
+ * as `Warning: <warning>`, the line spec-009 §2's unknown-field warning uses; callers with a channel
+ * of their own read {@link loadDirectiveInventory} instead.
  */
 export function loadDirectives(root: string): DirectiveFile[] {
-  const directivesDir = join(root, '.wingfoil', 'directives');
-  return listMarkdownFilesSorted(directivesDir).map((relativePath) =>
-    parseDirectiveFile(readDocument(join(directivesDir, relativePath)), join(directivesDir, relativePath), relativePath),
-  );
+  const { files, warnings } = loadDirectiveInventory(root);
+  for (const warning of warnings) process.stderr.write(`Warning: ${warning}\n`);
+  return files;
 }
 
 /**

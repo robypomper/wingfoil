@@ -77,6 +77,7 @@ import { selectDirectivesById } from './context';
 import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
 import { requireGitIdentity } from './git-identity';
+import { requireInitializedProject } from './init';
 import { requireCustomAsset } from './builtin-asset';
 import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
@@ -120,7 +121,7 @@ export {
   loadWorkflowsYamlAtRev,
 } from './loaders';
 export { isWellFormedRevision, resolveRevision, RevisionError } from './revision';
-export type { DirectiveFile, WorkflowsLoadResult } from './loaders';
+export type { DirectiveFile, DirectiveInventory, WorkflowsLoadResult } from './loaders';
 export { assembleExecutionContext, resolveRoleDirectives, selectDirectivesById } from './context';
 export {
   buildDirectiveListing,
@@ -145,7 +146,13 @@ export * from './require-reason';
 export * from './builtin-asset';
 export * from './confinement';
 export * from './usage-error';
-export { initWingfoilStorage, initWingfoilProject, WINGFOIL_ALREADY_INITIALIZED } from './init';
+export {
+  initWingfoilStorage,
+  initWingfoilProject,
+  requireInitializedProject,
+  WINGFOIL_ALREADY_INITIALIZED,
+  WINGFOIL_NOT_INITIALIZED,
+} from './init';
 export type { InitStorageValue, InitProjectValue } from './init';
 export {
   DEFAULT_CONTEXT_LIMITS,
@@ -1718,6 +1725,10 @@ const directiveRemoveFn: CoreFn<unknown, DirectiveRemoveResult> = async (params)
  */
 const directivesListFn: CoreFn<unknown, DirectiveListing> = async (params) => {
   const { root, options } = params as DirectivesListParams;
+  // task-143 (bug-154): with no `.wingfoil/` the loaders read nothing and the listing came back empty,
+  // exit 0 — under `--role`, with a "no directives assigned" warning nothing was read to establish.
+  const initialized = requireInitializedProject(root);
+  if (!initialized.ok) return initialized;
   return loadOrError(() => loadDirectiveListing(root, options?.role));
 };
 
