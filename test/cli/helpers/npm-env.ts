@@ -22,3 +22,11 @@ export function withCallerEnv<T>(vars: Readonly<Record<string, string>>, body: (
     }
   }
 }
+
+/**
+ * `env` without any variable npm reads as configuration (`npm_config_*`, in either letter case).
+ * A spawned npm then sees only the configuration its caller sets explicitly on top of the result.
+ */
+export function withoutCallerNpmConfig(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(env).filter(([k]) => !/^npm_config_/i.test(k)));
+}

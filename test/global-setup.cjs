@@ -10,15 +10,23 @@
  * (bug-003-cli-integration-dist-race). Building here, once, before the worker pool exists removes the
  * race entirely — and does one build per run instead of two.
  *
- * Deterministic by construction: a clean `rmSync` + a single `tsc` invocation, no wall-clock or
- * ordering dependence.
+ * The same race between two jest RUNS in one worktree (bug-095) is closed by the lock in
+ * `test/dist-lock.cjs`: the build happens only once this run holds `.jest-dist.lock`, which it keeps
+ * until `test/global-teardown.cjs`. A second run waits for it, or refuses naming the holder; it never
+ * deletes the `dist/` another run is using.
+ *
+ * Deterministic by construction: a clean removal + a single `tsc` invocation, no wall-clock or
+ * ordering dependence in what is built.
  */
 const { execSync } = require('node:child_process');
-const { rmSync } = require('node:fs');
 const { join } = require('node:path');
+
+const { prepareDist } = require('./dist-lock.cjs');
 
 module.exports = async () => {
   const repoRoot = join(__dirname, '..');
-  rmSync(join(repoRoot, 'dist'), { recursive: true, force: true });
-  execSync('npx tsc -p tsconfig.build.json', { cwd: repoRoot, stdio: 'pipe' });
+  await prepareDist({
+    repoRoot,
+    build: () => execSync('npx tsc -p tsconfig.build.json', { cwd: repoRoot, stdio: 'pipe' }),
+  });
 };

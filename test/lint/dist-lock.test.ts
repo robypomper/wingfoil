@@ -149,7 +149,8 @@ describe('dist/ lock wiring (task-146, bug-095)', () => {
   });
 
   it('the setup builds dist/ only through prepareDist, and the teardown releases the lock', () => {
-    const setup = readFileSync(join(REPO_ROOT, 'test', 'global-setup.cjs'), 'utf-8');
+    const withoutComments = (src: string): string => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const setup = withoutComments(readFileSync(join(REPO_ROOT, 'test', 'global-setup.cjs'), 'utf-8'));
     const teardown = readFileSync(join(REPO_ROOT, 'test', 'global-teardown.cjs'), 'utf-8');
     expect(setup).toMatch(/prepareDist\(/);
     expect(setup).not.toMatch(/rmSync/);

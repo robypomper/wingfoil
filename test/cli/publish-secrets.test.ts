@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 import { load as yamlLoad } from 'js-yaml';
 
-import { withCallerEnv } from './helpers/npm-env';
+import { withCallerEnv, withoutCallerNpmConfig } from './helpers/npm-env';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const WORKFLOW_PATH = join(REPO_ROOT, '.github', 'workflows', 'publish.yml');
@@ -274,6 +274,8 @@ describe('release authorization and rollback — spec-015 §5, adr-006, adr-011'
 describe('promote publish step (task-108) — a real npm reads the tarball argument as a file', () => {
   let work: string;
 
+  // Declared resource need (bug-167): the hook spawns a real `npm pack`, which under a loaded machine
+  // and coverage can outlast jest's 5 s default hook timeout. The npm cases below declare 60 s likewise.
   beforeEach(() => {
     work = mkdtempSync(join(tmpdir(), 'wf-promote-npm-'));
     mkdirSync(join(work, 'bin'));
@@ -282,6 +284,7 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
     writeFileSync(join(work, 'bin', 'git'), '#!/usr/bin/env bash\ntouch "$(dirname "$0")/git-called"\nexit 128\n');
     chmodSync(join(work, 'bin', 'git'), 0o755);
     writeFileSync(join(work, 'npmrc'), '');
+    writeFileSync(join(work, 'global-npmrc'), '');
     writeFileSync(join(work, 'fixture', 'package.json'), JSON.stringify({ name: 'wf-fixture', version: '1.0.0' }));
     const pack = spawnSync('npm', ['pack', '--ignore-scripts', '--pack-destination', join(work, 'dist-pack')], {
       cwd: join(work, 'fixture'),
@@ -289,16 +292,20 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
       env: npmEnv(),
     });
     if (pack.status !== 0) throw new Error(`fixture npm pack failed: ${pack.stderr}`);
-  });
+  }, 60_000);
 
   afterEach(() => rmSync(work, { recursive: true, force: true }));
 
-  /** npm with an empty user config and a throwaway cache, and the stub git first on PATH. */
+  /**
+   * npm with empty user and global configs, a throwaway cache, the stub git first on PATH, and none of
+   * the caller's own npm configuration (bug-181: `npm run -s` exports `npm_config_loglevel=silent`).
+   */
   function npmEnv(): NodeJS.ProcessEnv {
     return {
-      ...process.env,
+      ...withoutCallerNpmConfig(process.env),
       PATH: `${join(work, 'bin')}:${process.env.PATH ?? ''}`,
       npm_config_userconfig: join(work, 'npmrc'),
+      npm_config_globalconfig: join(work, 'global-npmrc'),
       npm_config_cache: join(work, 'cache'),
     };
   }
@@ -338,7 +345,7 @@ describe('promote publish step (task-108) — a real npm reads the tarball argum
       'npm_config_globalconfig',
       'npm_config_userconfig',
     ]);
-    expect(env.npm_config_globalconfig).toBe(join(work, 'npmrc'));
+    expect(env.npm_config_globalconfig).toBe(join(work, 'global-npmrc'));
   });
 
   it('publishes (dry run) the same way when the caller runs the suite with npm_config_loglevel=silent', () => {
