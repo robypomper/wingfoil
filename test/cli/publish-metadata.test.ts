@@ -668,3 +668,121 @@ describe('publish surface (task-074) — the engines-range evaluator itself', ()
     expect(parseNodeFloor('>=22.12.0')).toEqual([22, 12, 0]);
   });
 });
+
+/* ---------------------------------------------------------------------------------------------- *
+ * task-155-assert-lockfile-root-engines-equals-package-json-floor (`bug-046`, `bug-047`,
+ * `spec-015` §1) — the two blind spots of the `engines.node` guard above.
+ *
+ * `bug-046`: `package-lock.json` carries its own copy of the root manifest (`packages[""]`), and
+ * `npm ci` never compares it with `package.json` — measured in the bug for `engines`, and in its
+ * 2026-09-22 addendum for the dependency ranges too. So a manifest edit that forgets the lock merges
+ * green. The guard below asserts the whole mirror, `engines` first among it.
+ *
+ * `bug-047`: the guard above asserts only that the floor is *satisfied by* every production
+ * dependency, so an over-tight floor (`>=24.0.0`, or `>=22.13.0`, which even the `@types/node`
+ * major pin of `types-node-floor.test.ts` cannot see) passes. `spec-015` §1 says the floor "must
+ * equal" the highest `engines.node` floor in the production closure, recomputed from the installed
+ * tree; the equality half below is that sentence made executable. "The floor" of a dependency's
+ * range is the lowest version the range admits (`^20.19.0 || >=24` → `20.19.0`), so the maximum
+ * over the closure is the lowest Node every dependency's own declaration starts from.
+ *
+ * Same determinism as the block above: pure reads of `package.json`, `package-lock.json` and the
+ * installed manifests; no network, no subprocess; comparisons are key-order-insensitive.
+ * ---------------------------------------------------------------------------------------------- */
+
+const LOCK_PATH = join(REPO_ROOT, 'package-lock.json');
+
+describe('publish surface (task-155) — the lockfile root mirrors package.json (bug-046)', () => {
+  const lockRoot = readLockRoot(LOCK_PATH);
+
+  it('declares in the lockfile root exactly the `engines` package.json declares', () => {
+    expect(lockRoot['engines']).toBeDefined();
+    expect(lockRoot['engines']).toEqual(pkg.engines);
+  });
+
+  it('mirrors every manifest field the lockfile root carries — dependency ranges included', () => {
+    expect(lockRootMirrorDrift(rawManifest(), lockRoot)).toEqual([]);
+  });
+
+  it('reports a lockfile root `engines` edited to differ', () => {
+    const manifest = { name: 'x', version: '1.0.0', engines: { node: '>=22.12.0' } };
+    const root = { name: 'x', version: '1.0.0', engines: { node: '>=18.0.0' } };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['engines']);
+  });
+
+  it('reports a lockfile root that dropped `engines` the manifest declares', () => {
+    const manifest = { name: 'x', version: '1.0.0', engines: { node: '>=22.12.0' } };
+    const root = { name: 'x', version: '1.0.0' };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['engines']);
+  });
+
+  it('reports a dependency range that drifted in the mirror only (bug-046 addendum)', () => {
+    const manifest = { name: 'x', devDependencies: { '@types/node': '^22.20.4', jest: '^30.0.0' } };
+    const root = { name: 'x', devDependencies: { '@types/node': '^18.19.130', jest: '^30.0.0' } };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual(['devDependencies']);
+  });
+
+  it('ignores key order and the lock-only `hasInstallScript` flag', () => {
+    const manifest = { name: 'x', dependencies: { a: '^1.0.0', b: '^2.0.0' } };
+    const root = { name: 'x', dependencies: { b: '^2.0.0', a: '^1.0.0' }, hasInstallScript: true };
+    expect(lockRootMirrorDrift(manifest, root)).toEqual([]);
+  });
+});
+
+describe('publish surface (task-155) — the floor equals the closure maximum (bug-047)', () => {
+  const closureFixture: readonly ClosureEntry[] = [
+    { name: 'a', version: '1.0.0', enginesNode: '>=18.14.1' },
+    { name: 'b', version: '1.0.0', enginesNode: '>=22.12.0' },
+    { name: 'c', version: '1.0.0', enginesNode: '^20.19.0 || ^22.13.0 || >=24' },
+    { name: 'd', version: '1.0.0', enginesNode: undefined },
+  ];
+
+  it('declares exactly the highest floor of the production closure (spec-015 §1)', () => {
+    expect(floorEqualityViolation(pkg.engines?.node, productionClosure())).toBeUndefined();
+  });
+
+  it.each([['>=24.0.0'], ['>=22.13.0'], ['>=22.12.1']])(
+    'fails an over-tight floor %s, above the closure maximum',
+    (declared) => {
+      expect(floorEqualityViolation(declared, closureFixture)).toMatch(
+        /above the production closure's highest floor 22\.12\.0 \(b@1\.0\.0\)/,
+      );
+    },
+  );
+
+  it('fails a floor below the closure maximum too — equality, not a one-sided bound', () => {
+    expect(floorEqualityViolation('>=18.14.1', closureFixture)).toMatch(/below/);
+  });
+
+  it('accepts the floor that equals the closure maximum', () => {
+    expect(floorEqualityViolation('>=22.12.0', closureFixture)).toBeUndefined();
+  });
+
+  it('refuses to compute a floor from a closure that declares none', () => {
+    expect(() =>
+      floorEqualityViolation('>=22.12.0', [{ name: 'a', version: '1.0.0', enginesNode: undefined }]),
+    ).toThrow(/declares no engines\.node/);
+  });
+
+  const minCases: [string, Version][] = [
+    ['>=22.12.0', [22, 12, 0]],
+    ['>= 0.4', [0, 4, 0]],
+    ['>=18', [18, 0, 0]],
+    ['>18', [19, 0, 0]],
+    ['>18.1.2', [18, 1, 3]],
+    ['^20.19.0 || ^22.13.0 || >=24', [20, 19, 0]],
+    ['~22.12', [22, 12, 0]],
+    ['>=18 <23', [18, 0, 0]],
+    ['<24', [0, 0, 0]],
+    ['*', [0, 0, 0]],
+    ['22', [22, 0, 0]],
+  ];
+
+  it.each(minCases)('reads the lowest version "%s" admits as %j', (range, expected) => {
+    expect(minAdmitted(range)).toEqual(expected);
+  });
+
+  it('refuses a range that admits nothing rather than inventing a floor', () => {
+    expect(() => minAdmitted('>=24 <22')).toThrow(/admits no version/);
+  });
+});
