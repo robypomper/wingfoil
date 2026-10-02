@@ -24,9 +24,11 @@ import { z } from 'zod';
 
 /**
  * The YAML frontmatter of a `.wingfoil/directives/**\/*.md` file, per `spec-013`'s field table. `name`
- * is required per P3.5's BDD contract. `scope` admits only `global` (the one value spec-013 defines);
- * `version` is a string, so a quoted `"1.10"` is never read back as the number `1.1`. `.passthrough()`
- * per spec-009 §2.
+ * is required per P3.5's BDD contract. `scope` is any string: `global` is the one value spec-013
+ * defines, and `directives list` reports any other rather than failing the pillar (forward
+ * compatibility, approver ruling R2 2026-10-02). `version` is a string or a number, like
+ * `memory.yaml`'s and `roles.yaml`'s (R1); `./version` warns when a number loses what was written.
+ * `.passthrough()` per spec-009 §2.
  */
 export const DirectiveFrontmatter = z
   .object({
@@ -37,8 +39,8 @@ export const DirectiveFrontmatter = z
     title: z.string(),
     tags: z.array(z.string()).optional(),
     ref: z.array(z.string()).optional(),
-    scope: z.literal('global').optional(),
-    version: z.string().optional(),
+    scope: z.string().optional(),
+    version: z.union([z.string(), z.number()]).optional(),
   })
   .passthrough();
 /** Parsed shape of the {@link DirectiveFrontmatter} schema. */
