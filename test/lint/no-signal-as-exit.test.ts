@@ -7,28 +7,33 @@
  * spawn helpers coalesced that to a number — `status: run.status ?? 1` — so a crashed or killed child
  * read back as an ordinary exit 1 and could pass a `toBe(1)` assertion meant for a refusal. The shared
  * helper `test/cli/helpers/spawn-cli.ts` (`spawnCapture`, task-145) throws on a signal instead, and
- * every suite now spawns through it. This gate fails, with the file and line, on any `status ??` in a
- * test source, so the coalescing cannot come back.
+ * every suite that coalesced now spawns through it. This gate fails, with the file and line, on any
+ * `status ??` or `status ||` in a test source — TypeScript, and the JavaScript harnesses and jest
+ * hooks under `test/` (`.js`, `.cjs`, `.mjs`), which spawn children too — so the coalescing cannot
+ * come back.
  *
- * Textual, and deliberately strict: it reads lines, so a `status ??` in a comment or string is
- * flagged too. Deterministic: a sorted walk over a fixed source tree, no clock, no subprocess.
+ * Textual, and deliberately strict: it reads lines, so either form in a comment or string is flagged
+ * too. Deterministic: a sorted walk over a fixed source tree, no clock, no subprocess.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const TEST_ROOT = join(__dirname, '..');
 
-/** A `status` coalesced with `??` — the shape that turns a signal into an exit code. */
-const SIGNAL_AS_EXIT = /\bstatus\s*\?\?/;
+/** A `status` coalesced with `??` or `||` — the shapes that turn a signal into an exit code. */
+const SIGNAL_AS_EXIT = /\bstatus\s*(\?\?|\|\|)/;
 
-/** Every `*.ts` file under `test/`, in a stable (sorted, depth-first) order. */
+/** The extensions walked: TypeScript suites and helpers, and the JavaScript harnesses and jest hooks. */
+const SOURCE_EXTENSIONS = ['.ts', '.js', '.cjs', '.mjs'];
+
+/** Every TypeScript or JavaScript file under `test/`, in a stable (sorted, depth-first) order. */
 function testSources(dir: string): readonly string[] {
   const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1));
   const found: string[] = [];
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) found.push(...testSources(full));
-    else if (entry.name.endsWith('.ts')) found.push(full);
+    else if (SOURCE_EXTENSIONS.some((extension) => entry.name.endsWith(extension))) found.push(full);
   }
   return found;
 }
@@ -41,7 +46,7 @@ function offenders(path: string, source: string): readonly string[] {
 }
 
 describe('no test source reads a signal-killed child as an exit code (bug-197)', () => {
-  it('no `status ??` remains under test/', () => {
+  it('no `status ??` or `status ||` remains under test/', () => {
     const self = relative(TEST_ROOT, __filename);
     const found = testSources(TEST_ROOT)
       .map((file) => relative(TEST_ROOT, file).split(sep).join('/'))

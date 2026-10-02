@@ -15,7 +15,6 @@ import { join } from 'node:path';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 import { runCliEntry, type SpawnedRun } from './helpers/spawn-cli';
 
-
 const MEMORY_YAML = `version: 1
 types:
   release:
