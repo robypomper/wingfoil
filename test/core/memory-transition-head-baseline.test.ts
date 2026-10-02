@@ -245,6 +245,49 @@ describe('task-247 — a transition decides from the status committed at HEAD (b
     },
   );
 
+  // Review fix 1 (task-247 review): the hint must work when the index lacks the path too.
+  it.each([
+    ['a staged deletion (git rm)', ['rm', '-q', 'docs/memory/bugs/bug-001.md']],
+    ['a staged rename (git mv)', ['mv', 'docs/memory/bugs/bug-001.md', 'docs/memory/bugs/bug-001-renamed.md']],
+  ])('review: after %s, the refusal names a restore command that works', async (_label, args) => {
+    gitOut(repo, args);
+    const result = await run('memoryApprove', repo, 'bug-001');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const hint = 'git restore --source=HEAD --staged --worktree -- docs/memory/bugs/bug-001.md';
+    expect(result.error.message).toContain(hint);
+    gitOut(repo, hint.split(' ').slice(1));
+    expect(readFileSync(join(repo, 'docs/memory/bugs/bug-001.md'), 'utf-8')).toBe(bugDoc('bug-001', 'open'));
+  });
+
+  // Review fix 2: a dangling symlink in place of the committed file is a symlink, not a deletion.
+  it('review: a dangling symbolic link in place of the committed document is refused as a symbolic link, not as deleted', async () => {
+    unlinkSync(join(repo, 'docs/memory/bugs/bug-001.md'));
+    symlinkSync(join(repo, 'no-such-target.md'), join(repo, 'docs/memory/bugs/bug-001.md'));
+    const before = head(repo);
+    const result = await run('memorySubmit', repo, 'bug-001');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toContain('symbolic link');
+    expect(result.error.message).not.toContain('deleted in the working tree');
+    expect(head(repo)).toBe(before);
+  });
+
+  // Review fix 5: a malformed document committed at HEAD, sorting before the target, is a refusal
+  // naming it, not a raw YAML throw at exit 2.
+  it('review: a committed document that does not parse is a refusal naming HEAD:<path>, exit 1', async () => {
+    writeFixtureFile(repo, 'docs/memory/bugs/bug-000.md', '---\nid: [unclosed\n---\n');
+    commitAll(repo, 'a malformed document');
+    const before = head(repo);
+    const result = await run('memorySubmit', repo, 'task-001');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(exitCodeForResult(result)).toBe(1);
+    expect(result.error.message).toContain('HEAD:docs/memory/bugs/bug-000.md');
+    expect(head(repo)).toBe(before);
+  });
+
   it.each(VERBS)('AC3: %s on a document HEAD holds but the working tree deleted is not "document not found"', async (verb) => {
     unlinkSync(join(repo, 'docs/memory/bugs/bug-001.md'));
     const before = head(repo);
