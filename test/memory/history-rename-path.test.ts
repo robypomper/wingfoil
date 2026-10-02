@@ -254,3 +254,83 @@ describe('bug-071 — git writes to a pipe this process owns, never to the opera
     expect([run.status, run.stderr]).toEqual([0, '']);
   });
 });
+
+/**
+ * `task-142` (`bug-093`, `bug-097` item 2) — the same out-of-process harness, aimed at the other git
+ * calls of the history path. Each runs against a directory that is not a repository, the case where
+ * git has something to say (`fatal: not a git repository …`): whatever the function does with the
+ * failure, git's text must reach the caller inside the error, never on the operator's fd 2.
+ */
+describe('task-142 — no Memory git call writes to the operator\'s stderr (AC2)', () => {
+  let dir = '';
+
+  afterEach(() => removeTempDir(dir));
+
+  /** Call `module.fn(root, …args)` from `dist/` in a child; report whether it threw, and its stderr. */
+  function callOutOfProcess(
+    module: string,
+    fn: string,
+    args: readonly unknown[],
+  ): { status: number; stdout: string; stderr: string } {
+    const compiled = join(__dirname, '..', '..', 'dist', 'memory', `${module}.js`);
+    const script = [
+      `const m = require(${JSON.stringify(compiled)});`,
+      `try { m[${JSON.stringify(fn)}](...${JSON.stringify(args)}); process.stdout.write('returned'); }`,
+      `catch (error) { process.stdout.write('threw: ' + error.message); }`,
+    ].join('\n');
+    const run = spawnSync(process.execPath, ['-e', script], { encoding: 'utf-8' });
+    if (run.error) throw run.error;
+    return { status: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
+  }
+
+  it.each([
+    ['git-log', 'walkGitLogFields', (root: string) => [root, ['%H'], [NEW_PATH]]],
+    ['history', 'findElementCreationSha', (root: string) => [root, NEW_PATH]],
+    ['history', 'collectHistoricalPaths', (root: string) => [root, NEW_PATH]],
+  ] as const)('%s.%s reports a failure in its error and leaves stderr empty', (module, fn, args) => {
+    dir = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
+
+    const run = callOutOfProcess(module, fn, args(dir));
+
+    // The run must have reached git and failed there, or the empty stderr proves nothing.
+    expect(run.stdout).toMatch(/^threw: .*not a git repository/s);
+    expect([run.status, run.stderr]).toEqual([0, '']);
+  });
+});
+
+/**
+ * `task-142` (`bug-097` item 1) — `core.quotePath=false` is load-bearing: without it git reports a
+ * non-ASCII path C-quoted (`"docs/caf\303\251.md"`), the walk hands that spelling to `git show`, and
+ * every state reads `null`. A rename makes the probe's path the only one each pre-rename commit can be
+ * read at.
+ */
+describe('task-142 — a non-ASCII element path round-trips through history (AC3)', () => {
+  let repo = '';
+
+  afterEach(() => removeTempDir(repo));
+
+  const OLD_ACCENTED = 'docs/04_memory/planning/v1/caffè-v0.1.md';
+  const NEW_ACCENTED = 'docs/04_memory/planning/rl-v1/caffè-v0.1.md';
+
+  it('reports each commit at its own accented path and reads a real state at every one', () => {
+    repo = makeTempGitRepo();
+    writeDoc(repo, OLD_ACCENTED, 'draft');
+    commitAll(repo, 'wf(release): add caffè');
+    mkdirSync(join(repo, dirname(NEW_ACCENTED)), { recursive: true });
+    git(repo, ['mv', OLD_ACCENTED, NEW_ACCENTED]);
+    commitAll(repo, 'wf(release): move caffè under rl-v1');
+    writeDoc(repo, NEW_ACCENTED, 'planning');
+    commitAll(repo, 'wf(release): submit caffè');
+
+    expect(getMemoryHistory(repo, NEW_ACCENTED).map((entry) => entry.path)).toEqual([
+      OLD_ACCENTED,
+      NEW_ACCENTED,
+      NEW_ACCENTED,
+    ]);
+    expect(reconstructMemoryTransitions(repo, NEW_ACCENTED).map((t) => t.toState)).toEqual([
+      'draft',
+      'draft',
+      'planning',
+    ]);
+  });
+});

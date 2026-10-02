@@ -75,10 +75,10 @@ describe('getMemoryHistory — git-log walk over one Memory document', () => {
     expect(getMemoryHistory(repo, 'docs/04_memory/v0.1/does-not-exist.md')).toEqual([]);
   });
 
-  it('returns an empty array (never throws) when `root` is not a git repository at all', () => {
+  it('throws E_GIT_READ_FAILED, rather than answering "no history", when `root` is not a git repository (task-142, bug-072)', () => {
     repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
-    writeDoc(repo, 'draft'); // plain file write, no `git init` — exercises getMemoryHistory's catch path
-    expect(getMemoryHistory(repo, DOC_PATH)).toEqual([]);
+    writeDoc(repo, 'draft'); // plain file write, no `git init`
+    expect(() => getMemoryHistory(repo, DOC_PATH)).toThrow(/E_GIT_READ_FAILED: .*not a git repository/s);
   });
 
   it('is deterministic — repeated calls over unchanged state produce the exact same result', () => {
