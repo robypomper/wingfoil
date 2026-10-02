@@ -107,9 +107,9 @@ is to predict an imminent filesystem effect.
 **Where the shipped code still deviates — and it has an owner.** The Memory transition verbs used to
 find the document their `<id>` names by scanning the working tree and to take the current `status`
 from the working-tree frontmatter (`bug-187`); since `task-247`, `prepareMemoryTransition` resolves
-`HEAD` once and reads both there (`findMemoryDocumentByIdAtRev`), taking only the content from the
-working tree, and reads the working tree otherwise only to word a refusal — the pattern the paragraph
-after next prescribes. The case left, argued in full here, is `directive remove`. `directiveRemoveFn`
+`HEAD` once and reads both there (`findMemoryDocumentByIdAtRev`). The working tree supplies the
+content to commit, is checked to be the same element `HEAD` records (present, same `id` and `type`),
+and is otherwise read only to word a refusal — the pattern the paragraph after next prescribes. The case left, argued in full here, is `directive remove`. `directiveRemoveFn`
 (`src/core/index.ts`, step 3 of its TSDoc: "This read stays on the **working tree**, deliberately")
 resolves the directive it is asked to delete from the working tree, on exactly the "this read only
 resolves a name" argument refused above — and that read returns a domain `NOT_FOUND` at exit `1`,

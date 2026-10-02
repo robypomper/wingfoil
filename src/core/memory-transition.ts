@@ -8,7 +8,8 @@
  * 1. {@link prepareMemoryTransition} — find the document by its bare id (spec-008-cli-grammar §7), read
  *    its declared `type` and current `status`, and resolve the legal target for the verb, **all at
  *    `HEAD`**: the committed `memory.yaml` (task-091, `bug-081`, `dl-080` (B)) and the committed
- *    document (task-247, `bug-187`); the working tree supplies only the content. Every expected
+ *    document (task-247, `bug-187`); the working tree supplies the content to commit and is checked to
+ *    be the same element `HEAD` records. Every expected
  *    refusal is returned as a `CoreResult.error` (exit `1`), **before anything is written**, so "the
  *    state is unchanged" (P1.6 sc.2, REQ-STATE-01) holds by construction.
  * 2. {@link commitMemoryTransition} — write the new bytes and turn them into exactly one commit scoped
@@ -17,7 +18,7 @@
  * What happens in between (required-field checks, which fields change, the commit message) is the
  * verb's own business; see `memorySubmitFn` in `./index.ts`.
  */
-import { existsSync } from 'fs';
+import { existsSync, lstatSync } from 'fs';
 import { join } from 'path';
 
 import {
@@ -95,6 +96,16 @@ function uncommittedMachineNote(root: string): string {
     ` — note that '${MEMORY_YAML_PATH}' carries uncommitted modifications and the state machine is read from the ` +
     `committed copy (dl-080); commit '${MEMORY_YAML_PATH}' first if this transition depends on that change`
   );
+}
+
+/** Whether `full` names a directory entry at all — `lstat`, so a link is present even when dangling. */
+function isPresent(full: string): boolean {
+  try {
+    lstatSync(full);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -197,7 +208,23 @@ export function prepareMemoryTransition(
     });
   }
 
-  const found = findMemoryDocumentByIdAtRev(root, sha, memoryYaml, id);
+  let found: ReturnType<typeof findMemoryDocumentByIdAtRev>;
+  try {
+    found = findMemoryDocumentByIdAtRev(root, sha, memoryYaml, id);
+  } catch (error) {
+    if (!(error instanceof ValidationError)) throw error;
+    // The scan parses every committed document in path order until it meets the id, so one that does
+    // not parse refuses every transition behind it. Say which, as HEAD names it (the reader labels it
+    // with the resolved sha), at exit 1 rather than as a raw throw.
+    const message = error.message.split(`${sha}:`).join('HEAD:');
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `cannot resolve ${id} at HEAD: a Memory document committed at HEAD does not parse — ${message}. A transition ` +
+        'reads the documents the repository records (spec-006 §6 item 1); fix that document and commit the fix, then retry.',
+      details: { issues: error.issues },
+    });
+  }
   if (!found) {
     const onDisk = uncommittedDocumentPath(root, memoryYaml, id);
     if (onDisk !== undefined) {
@@ -229,12 +256,27 @@ export function prepareMemoryTransition(
   }
 
   const path = found.path;
-  if (!existsSync(join(root, path))) {
+  // `lstat`, which never follows a link: a symbolic link in place of the document is present even when
+  // it dangles. A live one reaches the write-side guards `commitMemoryTransition` runs (REQ-SEC-06,
+  // `bug-120`); a dangling one is refused here, because the content read below would fail on it first
+  // (task-247 review).
+  const present = isPresent(join(root, path));
+  if (present && !existsSync(join(root, path))) {
+    return coreErr({
+      code: 'VALIDATION',
+      message:
+        `refusing to ${op} ${id}: its document '${path}' is a symbolic link whose target does not exist in the working ` +
+        `tree. Restore the committed file (git restore --source=HEAD --staged --worktree -- ${path}) and retry.`,
+    });
+  }
+  if (!present) {
+    // `--source=HEAD --staged --worktree`: a plain `git restore -- <path>` restores from the index,
+    // which no longer holds the path after `git rm` or `git mv` (task-247 review).
     return coreErr({
       code: 'VALIDATION',
       message:
         `refusing to ${op} ${id}: its document '${path}' is held by HEAD but deleted in the working tree. Restore it ` +
-        `(git restore -- ${path}) and retry.`,
+        `(git restore --source=HEAD --staged --worktree -- ${path}) and retry.`,
     });
   }
 
