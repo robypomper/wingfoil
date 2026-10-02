@@ -42,7 +42,7 @@ There is still no workflow engine: a workflow phase is carried out by hand again
 | `roles.yaml`                   | Directives (P3.2/P3.7) | Role → directive bindings                                      |
 | `workflows.yaml`               | Workflow (P4.1)        | Main config; `include()`s the workflow files                   |
 | `workflows/custom/`            | Workflow (P4.1)        | 5 `main` (`sw-life-cycle` + 4 ingest) + the `sub` workflows they compose |
-| `WORKFLOW.md`                  | Workflow (P4.1)        | Human-readable reference of the workflows above (diagrams, phase by phase) |
+| `WORKFLOW.md`                  | Workflow (P4.1)        | Human-readable reference of the workflows above (diagrams, phase by phase); produced by `align-agent-docs`, and `test/docs/workflow-md.test.ts` requires it to name every workflow and phase |
 
 > **Directives — built-in vs custom (interim decision):** when this config was written, WingFoil's
 > official built-in directive templates (P3.8) did not exist, so the six P3.8 templates (code-quality,

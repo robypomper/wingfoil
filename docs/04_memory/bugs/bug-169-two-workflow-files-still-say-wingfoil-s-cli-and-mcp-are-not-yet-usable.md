@@ -2,7 +2,7 @@
 id: bug-169-two-workflow-files-still-say-wingfoil-s-cli-and-mcp-are-not-yet-usable
 type: bug
 title: "Two workflow files still say WingFoil's CLI and MCP are not yet usable"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"

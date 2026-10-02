@@ -2,7 +2,7 @@
 id: bug-170-workflow-md-draws-a-release-cycle-without-user-docs-e2e-smoke-and-three-release-planning-phases
 type: bug
 title: "WORKFLOW.md draws a release cycle without user-docs, e2e-smoke and three release-planning phases"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2.2"
 release: "v0.3"
