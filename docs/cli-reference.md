@@ -71,9 +71,27 @@ Every command that changes the project writes **exactly one git commit**, author
 Read-only commands never commit. The commit subject is listed per command below; `wingfoil memory
 history` reads the Memory ones back.
 
-A command reads WingFoil's configuration (`dna.yaml`, `memory.yaml`, `roles.yaml`, directives) **as
-committed at `HEAD`**. If you edit a configuration file by hand, commit it before running the command
-that depends on it — otherwise the command fails and says the change is not committed.
+Which state a command reads depends on whether that state can stop it:
+
+- **Commands that change the project read the configuration as committed at `HEAD`** — `memory add`,
+  `submit`, `approve`, `reject`, `deprecate`, `amend`, the `dna` verbs `set`, `add`, `update`,
+  `remove`, and `directive assign`. If you edit `dna.yaml`, `memory.yaml` or `roles.yaml` by hand,
+  commit it before running the command that depends on it — otherwise the command fails and says the
+  change is not committed.
+- **Read-only commands read the working tree** — `dna show`, `paths`, `directives list`,
+  `memory search`, `memory history`, `workflow list`, and the MCP server's Resources. They show what
+  is on disk, uncommitted edits included: a draft you have not committed is exactly what
+  `memory search` should find. So `memory add --type <t>` can refuse a type your working copy of
+  `memory.yaml` declares, while `memory search` searches the documents that same working copy
+  declares — the type is on disk and in no commit; commit `memory.yaml` and the two agree.
+- **Safety checks on the file about to be written or deleted look at the disk itself** — for
+  example, whether a path leads outside the project through a symbolic link — because that is what
+  the write will follow.
+
+Two known defects break this today: `directive remove` looks up the directive to delete in the
+working tree (`bug-108`), and the Memory transition verbs (`submit`, `approve`, `reject`,
+`deprecate`, `amend`) find the document their `<id>` names in the working tree — `memory submit`
+also reads its current status there — so an uncommitted or hand-made document can be acted on.
 
 ### Git identity
 

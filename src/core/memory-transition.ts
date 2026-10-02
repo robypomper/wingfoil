@@ -286,11 +286,11 @@ export function verifyCommittedScope(
  * Checks 1–3 report a `VALIDATION` error (exit 1) with nothing written or committed. Check 4 can
  * only report; see {@link verifyCommittedScope}.
  *
- * Check 1 resolves on the **working tree**, not at `HEAD`, which departs from `command-baseline`'s
- * rule for a gating read. The argument is `task-102`'s, recorded in
- * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` (`in-discussion`) and cited
- * rather than re-made: it predicts where `writeDocument` will land, and that follows the symlinks on
- * disk rather than the ones a commit records.
+ * Check 1 resolves on the **working tree**, not at `HEAD`: it is the filesystem-effect read
+ * `command-baseline` and `spec-006-core-domain-api` §6 declare, ratified in
+ * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem` from `task-102`'s argument,
+ * which is cited rather than re-made: it predicts where `writeDocument` will land, and that follows
+ * the symlinks on disk rather than the ones a commit records.
  *
  * @param scope - How much of the document this operation owns; defaults to the strict
  *   `declared-fields-only`, so a new verb is guarded unless it opts out deliberately.

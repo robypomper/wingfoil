@@ -17,6 +17,19 @@ TSDoc. A rule bound only to the coding roles would miss the sentences that have 
 most often here, which is why this directive is `scope: global` rather than a section of the
 `command-baseline` directive it shares a cause with.
 
+## Who this reaches
+
+Stated per `dl-085-how-tool-implementation-rules-reach-anyone-outside-this-repo` (`ready`, option
+(A)). This directive reaches an agent executing under any role of **this repository's own**
+`.wingfoil/roles.yaml`, which auto-loads it (P3.6). It reaches nobody else: a contributor arriving
+through `COLLABORATION.md` meets it only by opening this file, and a project scaffolded by
+`wingfoil init` does not receive it. Unlike `command-baseline`, the rule is not about implementing
+`wingfoil` and could hold in any project, so shipping it as a built-in directive (`dl-085` option
+(C)) stays open; it has not been done, and `dl-085` Action 3 requires this file to stay separate
+from `command-baseline` if it ever is. No spec states this rule — `spec-011` and `spec-012` only list
+the file — so this directive is its normative text; its citation half is stated in full in the
+`documentation` directive, clause D1.
+
 ## The rule
 
 **A sentence that asserts a fact about the code names the command that establishes it, and is true

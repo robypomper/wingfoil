@@ -20,9 +20,10 @@
  * have prevented; the refusal has to land before the filesystem is touched at all.
  *
  * **Baseline.** This guard resolves against the **working tree**, not `HEAD`, and that is deliberate
- * — a departure from the `command-baseline` directive's read half, argued (as that directive
- * requires) in `task-102`'s Execution Notes and in the decision-log filed from them, never settled
- * here. The one-line reason: what this predicts is where `unlinkSync` — or, on the write path,
+ * — the filesystem-effect read the `command-baseline` directive and `spec-006-core-domain-api` §6
+ * declare, argued in `task-102`'s Execution Notes and ratified in
+ * `dl-086-a-guard-over-a-filesystem-effect-resolves-on-the-filesystem`, never settled here. The
+ * one-line reason: what this predicts is where `unlinkSync` — or, on the write path,
  * `writeFileSync` — will land, and both follow the symlinks that are on disk, not the ones a commit
  * records.
  */
