@@ -109,7 +109,8 @@ export {
   verifyFrontmatterEdit,
 } from './frontmatter-edit';
 export type { DocumentScope } from './frontmatter-edit';
-export { missingRequiredFields, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
+export { missingRequiredFields, notApplicableRefusals, REJECTION_REASON_FIELD, renderSubmitDocument } from './submit';
+export type { NotApplicableProblem, NotApplicableRefusal } from './submit';
 export { renderRejectDocument } from './reject';
 export {
   auditAttribution,

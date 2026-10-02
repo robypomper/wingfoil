@@ -36,7 +36,7 @@ describe('not-applicable values (dl-124, task-168)', () => {
   const allowed = ['pillar', 'requirements'];
 
   it('a declared field holding "n/a — <reason>" is present', () => {
-    expect(missingRequiredFields({ title: 'T', pillar: 'n/a — patch release', requirements: 'r', kind: 'patch' }, required, allowed)).toEqual([]);
+    expect(missingRequiredFields({ title: 'T', pillar: 'n/a — patch release', requirements: 'r', kind: 'patch' }, required)).toEqual([]);
     expect(notApplicableRefusals({ title: 'T', pillar: 'n/a — patch release', requirements: 'r', kind: 'patch' }, required, allowed)).toEqual([]);
   });
 
@@ -68,7 +68,7 @@ describe('not-applicable values (dl-124, task-168)', () => {
   });
 
   it('a refused not-applicable value is not reported as missing too', () => {
-    expect(missingRequiredFields({ title: 'T', pillar: 'n/a', requirements: 'r', kind: 'n/a — x' }, required, allowed)).toEqual([]);
+    expect(missingRequiredFields({ title: 'T', pillar: 'n/a', requirements: 'r', kind: 'n/a — x' }, required)).toEqual([]);
   });
 });
 

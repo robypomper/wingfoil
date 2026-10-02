@@ -91,10 +91,30 @@ export const StateMachine = z
   });
 export type StateMachine = z.infer<typeof StateMachine>;
 
-/** `template.frontmatter.required` + the scaffold file path a `memory.add --type <t>` copies. */
+/**
+ * `template.frontmatter`: `required`, plus `not_applicable_allowed` — the required fields that may
+ * hold `"n/a — <reason>"` instead of data (`dl-124` Q2 (a), task-168). Each entry must be one of
+ * `required`, and `title` is never one: spec-010 requires a title of every type.
+ */
+const TemplateFrontmatter = z
+  .object({ required: z.array(z.string()), not_applicable_allowed: z.array(z.string()).optional() })
+  .passthrough()
+  .superRefine((value, ctx) => {
+    const required = new Set(value.required);
+    (value.not_applicable_allowed ?? []).forEach((field, index) => {
+      const path = ['not_applicable_allowed', index];
+      if (field === 'title') {
+        ctx.addIssue({ code: 'custom', message: "not_applicable_allowed may not list 'title': spec-010 requires it of every type", path });
+      } else if (!required.has(field)) {
+        ctx.addIssue({ code: 'custom', message: `not_applicable_allowed entry '${field}' is not in template.frontmatter.required`, path });
+      }
+    });
+  });
+
+/** `template.frontmatter` (see above) + the scaffold file path a `memory.add --type <t>` copies. */
 export const TemplateConfig = z
   .object({
-    frontmatter: z.object({ required: z.array(z.string()) }).passthrough(),
+    frontmatter: TemplateFrontmatter,
     file: z.string(),
   })
   .passthrough();
