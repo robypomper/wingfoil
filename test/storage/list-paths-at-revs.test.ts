@@ -6,7 +6,7 @@
  *
  * Throwaway temp git repositories throughout. Deterministic (REQ-SYS-07).
  */
-import { symlinkSync } from 'node:fs';
+import { rmSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { E_GIT_READ_FAILED, E_INVALID_REVISION, listPathsAtRev, listPathsAtRevs } from '../../src/storage';
@@ -74,5 +74,31 @@ describe('listPathsAtRevs — one listing for many revisions (task-142, bug-178)
 
   it('refuses a revision that would change the batch request', () => {
     expect(() => listPathsAtRevs(repo, ['HEAD\nHEAD'], 'docs/')).toThrow(E_INVALID_REVISION);
+  });
+
+  it('reads a prefix that cannot travel on the batch protocol (a newline) revision by revision', () => {
+    writeFixtureFile(repo, 'odd\ndir/task-001-n.md', 'n\n');
+    commitAll(repo, 'four: a directory whose name holds a newline');
+    const withOdd = [...revs, git(repo, ['rev-parse', 'HEAD']).trim()];
+
+    expect(listPathsAtRevs(repo, withOdd, 'odd\ndir/')).toEqual(['odd\ndir/task-001-n.md']);
+    expect(() => listPathsAtRevs(repo, ['0'.repeat(40)], 'odd\ndir/')).toThrow(E_GIT_READ_FAILED);
+  });
+
+  it('reads a directory two revisions share once, and lists it once', () => {
+    writeFixtureFile(repo, 'docs/mem/v0.1/task-001-a.md', 'a\n');
+    commitAll(repo, 'four: docs back');
+    writeFixtureFile(repo, 'README.md', '# changed outside docs\n');
+    commitAll(repo, 'five: same docs tree');
+    const shared = [git(repo, ['rev-parse', 'HEAD~1']).trim(), git(repo, ['rev-parse', 'HEAD']).trim()];
+
+    expect(listPathsAtRevs(repo, shared, 'docs/', { env: { GIT_OPTIONAL_LOCKS: '0' } })).toEqual(['docs/mem/v0.1/task-001-a.md']);
+  });
+
+  it('fails loudly when a subtree object cannot be read, rather than listing less', () => {
+    const subtree = git(repo, ['rev-parse', `${revs[1]}:docs/mem/v0.3`]).trim();
+    rmSync(join(repo, '.git', 'objects', subtree.slice(0, 2), subtree.slice(2)));
+
+    expect(() => listPathsAtRevs(repo, revs, 'docs/')).toThrow(new RegExp(`E_GIT_READ_FAILED: .*tree ${subtree} is missing`));
   });
 });

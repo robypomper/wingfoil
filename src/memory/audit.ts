@@ -114,8 +114,9 @@ const AUDIT_LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s'];
  * REQ-SEC-02's "0 'unknown author'" fit criterion. `pathspecs` is sorted before being passed to git
  * so the invocation itself is deterministic regardless of caller-supplied order (REQ-SYS-07); a
  * commit touching more than one of the given pathspecs still appears exactly once (git's own log
- * de-duplicates by commit, not by path). Returns `[]` (never throws) when none of `pathspecs` has
- * any history, mirroring {@link getMemoryHistory}.
+ * de-duplicates by commit, not by path). Returns `[]` when none of `pathspecs` has any history,
+ * mirroring {@link getMemoryHistory}; a git read that fails throws `StorageError`
+ * `E_GIT_READ_FAILED` rather than passing for a clean, empty audit (task-142, `bug-072`).
  */
 export function auditAttribution(root: string, pathspecs: readonly string[]): AttributionEntry[] {
   const sortedPathspecs = [...pathspecs].sort();
