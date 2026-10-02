@@ -2,7 +2,7 @@
 id: "task-145-replace-cli-test-helpers-fabricated-stderr-child-real"
 type: task
 title: "Replace the CLI test helpers' fabricated `stderr: ''` with the child's real stderr"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "fix"
 priority: "medium"
