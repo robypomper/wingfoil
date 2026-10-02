@@ -2,7 +2,7 @@
 id: "task-146-make-suite-result-independent-concurrent-runs-machine-load"
 type: task
 title: "Make the suite's result independent of concurrent runs and machine load"
-status: in-review
+status: approved
 release: "v0.3"
 kind: "fix"
 priority: "medium"
