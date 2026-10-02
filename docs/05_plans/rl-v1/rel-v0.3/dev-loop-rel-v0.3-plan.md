@@ -3,7 +3,7 @@ id: dev-loop-rel-v0.3-plan
 type: plan
 title: "Dev-loop — rel-v0.3"
 status: active
-version: "1.7"
+version: "1.8"
 workflow: "dev-loop"
 phase: "rel-v0.3"
 element: "minor-v0.3"
@@ -343,3 +343,37 @@ commit, right after the task's transition and on the task branch:
   - `dl-139` ratified (a) → `task-208`.
 
   W1 now holds 42 tasks.
+- **2026-10-02 — `main` received two intake batches** (`774c74e0`, `91007463`) by fast-forward from a
+  separate session's branch `intake/memory-notes`. It added `dl-140` … `dl-145` (`in-discussion`) and
+  their capture plan. The approver deferred their ratification to v0.3's retrospective or v0.4's
+  release-planning. Protocol: the intake session works in its own worktree; this session
+  fast-forwards when `main` is clean.
+- **2026-10-02 — batch B3 `done`** (`task-142`, `143`, `144`, `145`, `147`, `150`, `169`).
+  - **Review.** Every task had an independent review; all were "approve with fixes" except
+    `task-150` (approve), and every fix was applied in-task.
+  - **Approver rulings:**
+    - `task-144`: R1–R4 — directive `version` is a number or string, `scope` any string, the
+      reverse rule fires only on a declared contradiction, and `command-baseline` is bumped to 1.3;
+    - **`dl-133` option (a):** the stop-the-line threshold applies as ratified, counting every open
+      task, so fixes come first while the share exceeds 30%.
+  - **Amendments: 4 `memory amend`.** `task-144`: spec-013. `task-169`: spec-008 (new §12),
+    spec-006, spec-004.
+  - **Bugs closed:** bug-036, bug-070, bug-072, bug-093, bug-097, bug-109, bug-113, bug-125, bug-148,
+    bug-154, bug-178.
+  - **Merges,** in order 143 → 144 → 142 → 145 → 147 → 150 → 169. `task-144` conflicted with
+    `task-143` in five files and was resolved by keeping both (`da9fca55`).
+  - **Integration fix** `89c93556` (branch `fix/directive-version-warning-channel`, red-first):
+    `task-144`'s `version` warning moves from a stderr write in `src/core` to
+    `loadDirectiveInventory`'s `warnings`, since after `task-143` the core prints nothing.
+  - **Gates on `main`:** 200 suites, 3363 tests, coverage 98.85 / 95.39 / 95.18 / 99.56; lint,
+    `docs:api` and both `tsc` exit 0.
+  - **Governance check over B3:** `--base 91007463` gives 65 gated `wf()` commits, 0 findings, exit 0.
+    Its first real gating run, now that it is on `main`.
+  - **Pushed:** `91007463..ee8133c9`.
+  - **Follow-ups.** `bug-194` … `bug-202` are open, with triage proposals in
+    `bug-ingest-rel-v0.3-w1b3-review-findings-plan`. Handover notes are on `task-188`, `task-174`,
+    `task-221` and `task-218`.
+  - **For `align-agent-docs`:** `CLAUDE.md` §3 still names the pinned build as 0.2.1 (it is 0.2.2),
+    and §8 still states the old bump rule.
+  - **Fix share:** 27 open fix tasks of 95 open (28.4%), under the threshold.
+  - **Next:** B4 (`146`, `148`, `149`, `151`, `152`, `155`, `168`, `247`).
