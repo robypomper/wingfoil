@@ -58,6 +58,7 @@ describe('`wingfoil directive assign` — refuse the whole-file rewrite unless -
 
   afterEach(() => removeTempDir(repo));
 
+  // P3.2 "Error - roles.yaml cannot be edited in place".
   it('AC1: without --force a comment-free file the editor cannot edit is refused at exit 1; file and HEAD unchanged', () => {
     const before = gitOut(repo, ['rev-parse', 'HEAD']);
     const run = wingfoil(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer');
@@ -70,6 +71,7 @@ describe('`wingfoil directive assign` — refuse the whole-file rewrite unless -
     expect(readFileSync(join(repo, ROLES_PATH), 'utf-8')).toBe(FLOW_ROLES);
   });
 
+  // P3.2 "Rewrite roles.yaml as a whole file with --force".
   it('AC2: --force exits 0 with one wf commit holding only roles.yaml, and a `warning:` line on stderr', () => {
     const before = gitOut(repo, ['rev-parse', 'HEAD']);
     const run = wingfoil(repo, 'directive', 'assign', '--directive', 'testing', '--role', 'developer', '--force');

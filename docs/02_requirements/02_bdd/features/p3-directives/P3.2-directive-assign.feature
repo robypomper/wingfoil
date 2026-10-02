@@ -21,3 +21,18 @@ Feature: P3.2 (US-4-05) - wingfoil directive assign
     When I run "wingfoil directive assign --directive ghost --role developer"
     Then no assignment is made
     And the command exits with code 1 and message "unknown directive: ghost"
+
+  # dl-062 Q1 option 3 (flag `--force`), task-169.
+  Scenario: Error - roles.yaml cannot be edited in place
+    Given roles.yaml is committed with the role "developer" bound by an inline list "[code-quality]"
+    When I run "wingfoil directive assign --directive testing --role developer"
+    Then no assignment is made
+    And the command exits with code 1 and message "roles.yaml cannot be updated in place; edit assignments.developer by hand, or pass --force to rewrite the whole file"
+
+  Scenario: Rewrite roles.yaml as a whole file with --force
+    Given roles.yaml is committed with the role "developer" bound by an inline list "[code-quality]"
+    When I run "wingfoil directive assign --directive testing --role developer --force"
+    Then the role "developer" lists "testing" among its assigned directives
+    And one commit records only roles.yaml
+    And stderr carries a "warning:" line naming what the rewrite did not preserve
+    And the command exits with code 0

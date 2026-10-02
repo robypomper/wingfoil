@@ -65,6 +65,12 @@ When the refusal names a file or explains itself, indented lines follow the `err
 finding (`<file>: <detail>`); under `--format json`/`yaml` they are a `details` array of
 `{"file", "detail"}` entries beside `error`.
 
+Unreleased (v0.3): a command that succeeds can also print **warnings** — something it did that you
+should know about, such as `directive assign --force` rewriting a whole file. A warning goes to stderr
+only, as a `warning: <text>` line, or under `--format json`/`yaml` as one `{"warning": "<text>"}`
+document per warning. Stdout is the same with or without warnings, so a script parsing it is not
+affected. Through MCP, a Tool result carries them as `structuredContent: {"value", "warnings"}`.
+
 ### Git side effects
 
 Every command that changes the project writes **exactly one git commit**, authored by your git identity.
@@ -700,7 +706,7 @@ the same id: it takes precedence, and `directives list` reports the override.
 Assign one or more directives to a role in `roles.yaml`.
 
 ```
-wingfoil directive assign --directive <name[,name...]> --role <role>
+wingfoil directive assign --directive <name[,name...]> --role <role> [--force]
 ```
 
 ```console
@@ -721,6 +727,16 @@ $ wingfoil directive assign --directive api-style --role developer
 
 - **Commit:** `wf(directive): assign <name> to <role>`
 - **Errors:** missing option → exit `2`; role not in the committed `dna.yaml` → exit `1`.
+- **`--force`** — Unreleased (v0.3). `directive assign` edits `roles.yaml` in place, keeping its
+  comments and layout. When it cannot — for example, the role's list is written inline as
+  `developer: [code-quality]` — it refuses with exit `1`, writes nothing, and says
+  `error: roles.yaml cannot be updated in place; edit assignments.<role> by hand, or pass --force to rewrite the whole file`.
+  This applies whether or not the file has comments (0.2.2 rewrote a file without comments silently).
+  `--force` allows the rewrite: the whole file is written again from its parsed content, one commit
+  holds only `roles.yaml`, and a warning on stderr names what was not kept:
+  `warning: roles.yaml was rewritten as a whole file (--force): comments were dropped, and quoting, key order, flow style, blank lines, line endings and number formatting (1.0 becomes 1) were not preserved`.
+  `--force` changes nothing when the in-place edit works. A project with no `roles.yaml` yet gets
+  one written whole without the flag, since there is nothing to keep.
 
 ### `wingfoil directive remove`
 

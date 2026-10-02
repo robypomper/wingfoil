@@ -7,7 +7,7 @@
  * operation regardless of `mutates`"). No business logic lives outside `run`: it only (a)
  * validates the global `--format` flag, (b) turns the invocation into typed params via the
  * caller-supplied `buildParams`, (c) calls the one core function, (d) renders the resulting
- * `CoreResult` via `renderSuccess`/`emitError` and terminates via `exitWith` — matching spec-005
+ * `CoreResult` via `renderSuccess` (plus `emitWarnings` for its warnings, task-169)/`emitError` and terminates via `exitWith` — matching spec-005
  * §1's "exactly one process exit call per invocation".
  *
  * Deliberately Commander-independent (see `./program.ts`'s module doc for why): this module owns
@@ -24,6 +24,7 @@ import { errorDetails } from '../core/error-details';
 import { emitError } from './error';
 import { exitWith } from './exit';
 import { isValidFormat, renderSuccess } from './output';
+import { emitWarnings } from './warning';
 
 /** Ambient dependencies {@link buildCliCommands} needs: how to resolve the project root and how to shape each operation's params. */
 export interface BuildCommandsOptions {
@@ -161,6 +162,9 @@ export function buildCliCommands(modules: readonly CoreModule[], options: BuildC
         // selects for this result (`0` success / `1` logic error) — the CLI does not re-decide the
         // `0`/`1` mapping (task-012, spec-005 §1). `2` (usage error) is handled above, pre-core.
         if (result.ok) {
+          // The success-warning channel (task-169, `dl-062`): stderr only, before the payload, so stdout
+          // is the same bytes with and without warnings under every `--format`.
+          emitWarnings(result.warnings, { format });
           process.stdout.write(renderSuccess(result.value, format));
         } else {
           // `details` too (task-130, `dl-055` option 1): the file and the explanation core recorded.

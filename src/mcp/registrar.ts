@@ -63,6 +63,9 @@ export function deriveMcpResourceUri(moduleName: string, verb: string): string {
  * failure (spec-004 §2.2's "resource not found"-style refusal, generalized to any read failure).
  * Either way the error's operator-facing details (`../core/error-details.ts`) travel with it — as the
  * read error's JSON-RPC `error.data.details`, or as the tool result's `structuredContent` (task-130).
+ * A successful Tool result carries the operation's `CoreResult.warnings`, when it has any, as
+ * `structuredContent: {value, warnings}` (task-169). A Resource read has no such field: no read-only
+ * operation returns warnings today, so a Resource's warnings are not rendered.
  */
 export function registerCoreModules(
   server: McpServer,
@@ -81,7 +84,8 @@ export function registerCoreModules(
     const verb = deriveVerb(module.name, operation.name);
 
     const callCore = async (): Promise<
-      { ok: true; text: string } | { ok: false; message: string; details: readonly ErrorDetail[] }
+      | { ok: true; value: unknown; text: string; warnings: readonly string[] }
+      | { ok: false; message: string; details: readonly ErrorDetail[] }
     > => {
       const params = options.buildParams({
         moduleName: module.name,
@@ -90,7 +94,7 @@ export function registerCoreModules(
       });
       const result = await operation.fn(params);
       return result.ok
-        ? { ok: true, text: JSON.stringify(result.value) }
+        ? { ok: true, value: result.value, text: JSON.stringify(result.value), warnings: result.warnings ?? [] }
         : { ok: false, message: result.error.message, details: errorDetails(result.error) };
     };
 
@@ -98,7 +102,16 @@ export function registerCoreModules(
       const toolName = deriveMcpToolName(module.name, verb);
       server.registerTool(toolName, { description: `${module.name} ${verb} (mutating)` }, async () => {
         const outcome = await callCore();
-        if (outcome.ok) return { content: [{ type: 'text', text: outcome.text }] };
+        if (outcome.ok) {
+          // The success-warning channel (task-169, `dl-062`): a Tool has no stderr, so the warnings ride
+          // as `structuredContent: {value, warnings}` — the success twin of the refusal's `{error,
+          // details}` below. The text stays the payload's JSON, so a client reading only `content` sees
+          // what it always saw. No warnings, no `structuredContent`.
+          return {
+            content: [{ type: 'text', text: outcome.text }],
+            ...(outcome.warnings.length > 0 ? { structuredContent: { value: outcome.value, warnings: outcome.warnings } } : {}),
+          };
+        }
         // A tool error is a RESULT, not a JSON-RPC error, so it has no `error.data`: the details ride as
         // `structuredContent`, in the CLI's `--format json` error shape (task-130, `dl-055` option 1).
         // The text stays the bare reason, identical to the CLI's (spec-004 §4.3).
