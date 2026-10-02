@@ -2,7 +2,7 @@
 id: "bug-064-fixture-temp-dirs-leak-with-no-aggregate-visibility"
 type: bug
 title: "`cloneTempRepo` leaks two temp directories per call and nothing counts them, so fixture leaks — including `removeTempDir`'s new give-up path — are visible only as console noise"
-status: in-progress
+status: in-review
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"
