@@ -11,7 +11,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { load } from 'js-yaml';
 
-import { loadDirectives } from '../../src/core/loaders';
+import { loadDirectiveInventory, loadDirectives } from '../../src/core/loaders';
 import { makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 import { DirectiveFrontmatter, RolesYaml } from '../../src/directives/schema';
 import { extractFrontmatter } from '../../src/storage/frontmatter';
@@ -134,9 +134,11 @@ describe('DirectiveFrontmatter — declared optional `scope` and `version` (task
 
 /**
  * Approver ruling R1 (2026-10-02) — a `version` is never a whole-pillar failure. An unquoted YAML number
- * that does not read back as written (`1.10` → `1.1`, `1.0` → `1`) loads, with a stderr warning telling
- * the author to quote it; a value that is neither a string nor a number loads without it, with a
- * warning. RED-FIRST against task-144's first pass, which declared `version` as a string only.
+ * that does not read back as written (`1.10` → `1.1`, `1.0` → `1`) loads, with a warning telling the
+ * author to quote it; a value that is neither a string nor a number loads without it, with a warning.
+ * RED-FIRST against task-144's first pass, which declared `version` as a string only. Since task-143,
+ * `src/core` prints nothing: the warning rides `loadDirectiveInventory`'s `warnings` (the list
+ * `directives list` puts in its payload) and stderr stays empty (spec-005 §3.2 under `--format json`).
  */
 describe('loadDirectives — `version` never fails the pillar (task-144 review, R1)', () => {
   let repo: string;
@@ -153,15 +155,15 @@ describe('loadDirectives — `version` never fails the pillar (task-144 review, 
     );
   }
 
-  function load2(): { stderr: string; version: unknown } {
+  function load2(): { stderr: string; warnings: string; version: unknown } {
     const writes: string[] = [];
     const spy = jest.spyOn(process.stderr, 'write').mockImplementation((chunk: string | Uint8Array) => {
       writes.push(String(chunk));
       return true;
     });
     try {
-      const [file] = loadDirectives(repo);
-      return { stderr: writes.join(''), version: file?.frontmatter.version };
+      const { files, warnings } = loadDirectiveInventory(repo);
+      return { stderr: writes.join(''), warnings: warnings.join('\n'), version: files[0]?.frontmatter.version };
     } finally {
       spy.mockRestore();
     }
@@ -169,31 +171,37 @@ describe('loadDirectives — `version` never fails the pillar (task-144 review, 
 
   it('an unquoted number that reads back as written loads silently', () => {
     seed('version: 1.2');
-    expect(load2()).toEqual({ stderr: '', version: 1.2 });
+    expect(load2()).toEqual({ stderr: '', warnings: '', version: 1.2 });
   });
 
   it('a quoted string loads silently', () => {
     seed('version: "1.10"');
-    expect(load2()).toEqual({ stderr: '', version: '1.10' });
+    expect(load2()).toEqual({ stderr: '', warnings: '', version: '1.10' });
   });
 
   it('an unquoted `1.10` loads as 1.1 and warns the author to quote it', () => {
     seed('version: 1.10');
-    const { stderr, version } = load2();
+    const { stderr, warnings, version } = load2();
     expect(version).toBe(1.1);
-    expect(stderr).toContain("version: 1.10 reads as the number 1.1; quote it (version: \"1.10\") to keep it as written");
+    expect(stderr).toBe('');
+    expect(warnings).toBe(
+      "directive '.wingfoil/directives/custom/x.md': version: 1.10 reads as the number 1.1; quote it (version: \"1.10\") to keep it as written",
+    );
   });
 
   it('an unquoted `1.0` warns too — it reads back as 1', () => {
     seed('version: 1.0');
-    expect(load2().stderr).toContain('version: 1.0 reads as the number 1; quote it');
+    const { stderr, warnings } = load2();
+    expect(stderr).toBe('');
+    expect(warnings).toContain('version: 1.0 reads as the number 1; quote it');
   });
 
   it('a version that is neither a string nor a number is dropped with a warning, not a validation error', () => {
     seed('version: [1, 2]');
-    const { stderr, version } = load2();
+    const { stderr, warnings, version } = load2();
     expect(version).toBeUndefined();
-    expect(stderr).toContain('version must be a string or a number; ignored');
+    expect(stderr).toBe('');
+    expect(warnings).toContain('version must be a string or a number; ignored');
   });
 });
 
