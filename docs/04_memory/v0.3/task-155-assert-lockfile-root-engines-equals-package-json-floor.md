@@ -159,3 +159,52 @@ without it. `bc1d6816` is the clean 175+/13− diff.
   `package.json`. `types-node-floor.test.ts` already pins `@types/node` to the floor's major and is
   left as it is.
 - No spec, ADR or other Memory element was edited, so there are no pending amendments (approver).
+
+### review — pass 2: coordinator review fixes (2026-10-02)
+
+The review verdict was *approve with fixes*. Three fixes were applied on this branch. The status stays
+`in-review` and there was no re-submit.
+
+1. **Floor definition.** The design section above reads "the floor" of a compound range as the
+   lowest version that one range admits, and takes the maximum of those minimums over the closure.
+   That reading fails on a gapped range. With `>=22.12.0` and `^20.19.0 || ^22.13.0 || >=24` (the
+   shape `eslint@10` declares), `>=22.12.0` fails the satisfies guard and `>=22.13.0` fails the
+   equality guard, so no floor passes both. The floor is now `closureFloor`: the least element of the
+   intersection of every range. It is found as the smallest candidate among 0.0.0 and every
+   comparator's lower bound that all ranges admit. An empty intersection throws. `minAdmitted` and
+   its tests were replaced by `closureFloor` and 13 cases, gapped ones included.
+   - Red `4f409a91`: the base fixture's `c` became non-gapped, and a new gapped fixture was added.
+     `npx jest test/cli/publish-metadata.test.ts` → **1 failed, 93 passed**. The failure is the
+     gapped case: `>=22.13.0 is above the production closure's highest floor 22.12.0`.
+   - Green `538adc52` → 95/95.
+   - The real value is unchanged, `>=22.12.0` (`commander@15.0.0`), because the production closure
+     has no gapped range above it.
+   - Same mutations, re-run after the fix, each restored afterwards. Lock root `engines` `>=18.0.0`:
+     2 failed. Floor `>=22.13.0`: 1 failed ("is above … 22.12.0 (commander@15.0.0)"). Floor
+     `>=24.0.0`: 1 failed. Floor `>=22.11.0`: 2 failed, the satisfies check and "is below".
+2. **bug-046 and bug-047 addenda** (`6519d069`). bug-047 records that `spec-015:71` now has the "must
+   equal" rule (`task-074`), that option 1 was chosen, and that this task resolves it. bug-046 records
+   that its characterization suggestion was overtaken by the red shown by mutation.
+3. **`LOCK_ROOT_MIRRORED_FIELDS`** now carries a note that npm may normalize fields such as `bin` and
+   `funding` in the lock root (`538adc52`).
+
+**Gates**, run with the pending amendment in the working tree:
+
+| Gate | Command | Result |
+|---|---|---|
+| unit + integration | `npm test` | 200 suites / 3391 tests, all pass |
+| coverage | `npm run test:coverage` | 98.85 / 95.35 / 95.18 / 99.56 |
+| lint | `npm run lint` | exit 0 |
+| API docs | `npm run docs:api` | exit 0 |
+| types | `npx tsc --noEmit -p tsconfig.json`; `npx tsc -p tsconfig.build.json --noEmit` | exit 0; exit 0 |
+
+`src/` is unchanged (`git diff --stat 903b87a6..HEAD -- src/` → empty). The branch figure moved from
+95.39 in pass 1 to 95.35 on the same `src/`, which suggests run-to-run noise in branch coverage, not
+an effect of this task.
+
+**Pending amendments (approver)**
+
+- `spec-015-packaging-publishing` (uncommitted in this worktree). The edit clarifies the §1
+  `engines.node` bullet, says the assertion is two-sided, and adds a dated *Revision (2026-10-02)*
+  note. Proposed reason:
+  `§1 engines.node: "the highest floor" of the production closure is defined as the lowest version every range in it admits (the least element of their intersection), because the maximum of each range's own minimum is unsatisfiable together with the satisfies assertion once a range has a gap above it; the value stays >=22.12.0. The bullet also records that the assertion is now two-sided (task-155, bug-047).`
