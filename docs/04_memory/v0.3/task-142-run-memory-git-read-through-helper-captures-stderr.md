@@ -162,9 +162,54 @@ Gates, at `137f97c5`:
 - AC5 met: the `bug-178` spawn-count test, plus the measurement above.
 - `grep -rln "child_process" src/memory` → nothing. Spawning code left in `src/` (`grep -rln
   "spawnSync\|execFileSync" src`): `src/core/git-identity.ts`, `src/core/confinement.ts`,
-  `src/storage/commit.ts`, `src/storage/git-read.ts`, `src/validation/secret-scan.ts`. None of them
-  is a Memory read, so they are outside this task's ACs.
+  `src/storage/commit.ts`, `src/storage/git-read.ts`, `src/validation/secret-scan.ts`. *Corrected
+  by the independent review:* `readPathAtRev` / `listPathsAtRev` in `commit.ts` **are** Memory reads
+  (callers `memory amend`, `memory add-type`, the loaders, the write guard), and they had the same
+  defect. They now go through the helper (see "review (independent)" below). After that fix,
+  `probeGit` is left only for `pathPorcelainStatus` and `commitParent`, which read no document
+  content.
 - Unasserted (T1): the 256 MiB ceiling itself is not exercised (a test would need over 256 MiB of
   git output). Only "past 1 MiB" is asserted.
+
+### review (independent)
+
+Verdict **APPROVE WITH FIXES**, five findings, all applied while the task stays `in-review`. The red
+commit is `9e0d8ee0` and the fix is `3d125403`.
+
+1. **The gitlink test was vacuous.** `update-index --cacheinfo 160000,…` was followed by
+   `commitAll`'s `git add -A`, which dropped the entry because its path is absent on disk. The
+   gitlink branch of `listPathsAtRevs` had 0 hits. The fixture now stages with `add -A` first, then
+   adds the gitlink, then runs a plain `git commit`. The test asserts that `git ls-tree` shows the
+   `160000 commit` entry before it asserts the entry is excluded.
+2. **Zero-padded tree modes were read as files.** A legacy `040000` tree entry did not match the
+   text comparison with `'40000'`. That under-counts ids, the `bug-087` reissue class. Modes are now
+   compared by their type bits (`& 0o170000`). The red case is a tree written with
+   `hash-object -t tree --literally`. `listPathsAtRev` already answered correctly, and `listPathsAtRevs`
+   did not.
+3. **`readPathAtRev` / `listPathsAtRev` had the same defect.** Through `probeGit` they had no
+   `maxBuffer` and turned every failure into `null`, so a committed 1.2 MiB document read as absent.
+   They now go through `runGitRead` with `accepted: [0, 128]`. Exit 128 stays `null`, because git
+   gives that status to an absent path, an unresolvable revision and an unreadable object alike.
+   Spawn and buffer failures throw. Red: `test/storage/read-at-rev-large.test.ts`, 3 failed out of 4.
+   The 18,000-entry listing was checked to exceed 1 MiB before the assertion. The `revision.ts`
+   comment saying `readPathAtRev` "answers `null` for every git failure" is now in the past tense.
+4. **Coverage.** New tests cover the default prefix and the non-`StorageError` rethrow in
+   `memoryHistoryFn`. The rethrow is pinned as today's behaviour (a `ValidationError` for unparsable
+   frontmatter at a revision); that tolerance is `bug-188`'s, not this task's. Lines still uncovered
+   in `commit.ts`:
+   - 347 and 391, the "truncated answer" guards of the two `cat-file --batch` parsers. They fire only
+     if git exits 0 having printed fewer header lines than it was sent requests, which no fixture can
+     provoke without a fake git.
+   - 158, `pathPorcelainStatus`'s default `?? ''`. This was already uncovered on `main`.
+5. **The `listPathsAtRevs` TSDoc claimed equivalence "by construction".** The prefix is now
+   canonicalised: leading `./` and trailing `/` are dropped, and a file prefix lists that file. The
+   TSDoc narrows the claim to "compared case by case in the test" and names the spellings that are
+   not normalised (`..`, inner `//`).
+
+Gates at `3d125403`, each run alone:
+- `npm test`: 192 suites, 3234 tests, all passed.
+- `npm run test:coverage`: 192 suites, 3234 tests, coverage **98.85 / 95.34 / 95.09 / 99.55**. That
+  is at or above `main`'s 98.84 / 95.24 / 95.01 / 99.54 on all four.
+- `npm run lint`: exit 0. `npm run docs:api`: exit 0, 0 warnings. Both `tsc` runs: exit 0.
 
 **Pending amendments (approver):** none. No approved element was edited.
