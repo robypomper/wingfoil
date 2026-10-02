@@ -2,7 +2,7 @@
 id: "task-147-detect-created-files-commits-req-sec-05-nopersistence"
 type: task
 title: "Detect created files and commits in the REQ-SEC-05 no-persistence check"
-status: approved
+status: done
 release: "v0.3"
 kind: "fix"
 priority: "medium"
