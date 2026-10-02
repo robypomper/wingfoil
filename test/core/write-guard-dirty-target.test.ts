@@ -30,7 +30,9 @@
  *   `initWingfoilProject` refuses before any write when `.wingfoil/` holds any entry
  *   (`detectInitState`), and every path it writes is under `.wingfoil/`, so no target can pre-exist
  *   — a guard there would be unreachable. `initWingfoilStorage`, the library entry point exported
- *   from `src/core`, runs no such check and does absorb; it is guarded.
+ *   from `src/core`, ran no such check and did absorb; it is guarded. Since task-135 (`bug-088`) it
+ *   also refuses an initialized project, but only AFTER this guard, so a dirty target is still
+ *   refused with the message naming it.
  *
  * Refusals exit **`1`**, not `2`: `spec-005-cli-command-contract` § "1. Exit-code contract
  * (REQ-INT-04)" reserves `2` for a malformed *invocation* and puts "validation failure, git
@@ -412,7 +414,7 @@ describe('init — scoped out on the wingfoil init path, guarded on the library 
     expect(porcelain).toContain('src/');
   });
 
-  it('AC3: `initWingfoilStorage` — the one init path with no already-initialized guard — refuses a dirty target', () => {
+  it('AC3: `initWingfoilStorage` refuses a dirty target, naming it (before its already-initialized refusal)', () => {
     writeFixtureFile(repo, DNA, '# a hand-written dna.yaml, uncommitted');
     writeFixtureFile(repo, 'seed.txt', 'seed');
     commitAll(repo, 'seed: a committed dna.yaml');

@@ -102,6 +102,72 @@ describe('scanText — patterns promoted warn → block by dl-036 (spec-007 §2)
   });
 });
 
+/**
+ * task-135 / `bug-037-dotenv-secret-pattern-misses-prefixed-lines`: `dotenv-style-secret-line` was
+ * anchored at column 0, so a credential assignment behind indentation, an `export` keyword or a
+ * Markdown list marker went unseen. The other block patterns catch the same lines only when the value
+ * is 16+ characters long (`generic-api-key-assignment`), so every value below is SHORT on purpose:
+ * it is the dotenv pattern, and only it, that has to catch them.
+ */
+describe('scanText — dotenv-style-secret-line tolerates a line prefix (bug-037, spec-007 §2)', () => {
+  const blockingIds = (line: string): string[] =>
+    scanText(`${line}\n`, '.envrc.fixture').blocking.map((f) => f.patternId);
+
+  it.each([
+    ['indentation', '  TOKEN=abcd1234'],
+    ['a tab', '\tNPM_TOKEN=abc123'],
+    ['an `export` keyword', 'export API_SECRET=fake99'],
+    ['indentation and `export`', '    export DB_PASSWORD=fake99'],
+    ['a `-` list marker', '- PASSWORD=fake99'],
+    ['a `*` list marker', '* GH_TOKEN=fake99'],
+  ])('blocks a credential line behind %s', (_prefix, line) => {
+    expect(blockingIds(line)).toContain('dotenv-style-secret-line');
+  });
+
+  it('still blocks the column-0 form', () => {
+    expect(blockingIds('NPM_TOKEN=abc123')).toContain('dotenv-style-secret-line');
+  });
+
+  it.each([
+    ['prose naming a token', 'the token = abc123'],
+    ['a code assignment', 'const token = getToken()'],
+    ['a YAML colon mapping, not an assignment', '  TOKEN: abc123'],
+    ['an unrelated key', '  export NODE_ENV=production'],
+    ['an empty value', 'export API_SECRET='],
+  ])('does not match %s', (_what, line) => {
+    expect(blockingIds(line)).not.toContain('dotenv-style-secret-line');
+  });
+
+  /**
+   * task-135 review: the cost of tolerating a prefix. An indented code assignment whose name contains
+   * a credential word now matches too — a known false-positive shape, documented in spec-007 §2's
+   * notes with its escape hatches (an `<!-- example -->` fence, a `security-ignore` entry). Pinned
+   * so the trade-off is a decision on record, not a surprise.
+   */
+  it.each([
+    ['an indented code assignment', '  token = getToken()'],
+    ['an indented counter', '    tokens_used = len(x)'],
+    ['an indented config value', '  max_tokens = 4096'],
+  ])('BLOCKS %s (known false-positive shape, spec-007 §2 notes)', (_what, line) => {
+    expect(blockingIds(line)).toContain('dotenv-style-secret-line');
+  });
+
+  it('exempts the same line inside an `<!-- example -->` fence (spec-007 §3 escape hatch)', () => {
+    const result = scanText('<!-- example -->\n```\n  token = getToken()\n```\n', 'fixture.md');
+    expect(result.blocking).toEqual([]);
+    expect(result.info.map((f) => f.exemptReason)).toContain('fenced-example');
+  });
+
+  it('downgrades a prefixed placeholder value to info, as the column-0 form is (spec-007 §3)', () => {
+    const result = scanText('export API_TOKEN=REDACTED\n', '.envrc.fixture');
+    expect(result.blocking).toEqual([]);
+    expect(result.info.map((f) => [f.patternId, f.exemptReason])).toContainEqual([
+      'dotenv-style-secret-line',
+      'placeholder-value',
+    ]);
+  });
+});
+
 describe('scanText — warn-severity pattern shapes (spec-007 §2)', () => {
   it('warns (not blocks) on a generic high-entropy string near a credential-shaped key', () => {
     const result = scanText('auth: fakeFAKEfakeFAKEfakeFAKEfakeFAKE1234\n', 'fixture.txt');
