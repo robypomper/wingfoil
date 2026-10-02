@@ -32,9 +32,41 @@ tmpl_version: 260703
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop — filled in
-     incrementally per phase, not written after the fact. Raw material for the release's Execution
-     Notes / the retrospective, not the retrospective itself.
-     - design: tech-specs found missing/needing revision (dev-loop/design safety net).
-     - red/green/refactor: deviations from the plan above, blockers, scope surprises.
-     - review: rejection reasons and what changed on the next pass. -->
+### design (architect, 2026-10-02)
+
+- `depends_on: []`; no tech-spec cited. Scope: `bug-064`, `bug-065`, and `bug-197` (absorbed by the approver's triage on 2026-10-02, merged from `main` at `ce315e70`).
+- AC classification:
+
+| AC | Class | Why |
+|----|-------|-----|
+| AC1 no directory `cloneTempRepo` created remains | red-first | `cloneTempRepo` made two `mkdtemp` dirs and returned a child of one |
+| AC2 cloned fixture `gc.auto` = `0` | red-first | `git clone` does not copy local config |
+| AC3 test title/TSDoc match assertions | characterization | prose fix (dl-121 T1) |
+| AC-197 (added) CLI suites spawn through `test/cli/helpers/spawn-cli.ts`, none coalesces `status ?? 1` | red-first | textual guard, 12 offenders on the branch |
+
+- Design: the clone *is* its `mkdtemp` directory (`git clone <src> .` from inside it), so the caller's existing `removeTempDir(clone)` removes everything; no registry is needed. Aggregate visibility (bug-064 second half): `test/global-setup.cjs` sets `WF_FIXTURE_RUN_TAG=r<pid>` before workers fork; the fixture prefix becomes `wf-storage-<tag>-`; the new `test/global-teardown.cjs` counts, reports in one line and removes only this run's tagged leftovers. Runs in parallel worktrees use different tags, so they never count or delete each other's fixtures. Leftovers are reported, never fatal (open sub-question in bug-064: approver to decide).
+
+### red
+
+- `8651bbb5`: `npx jest test/storage/git-fixture-teardown.test.ts` → 2 failed, 8 passed (AC1 lists `/tmp/wf-storage-clone-*` and `/tmp/wf-storage-cwd-*` still present; AC2 `git config --get gc.auto` exits 1 in the clone).
+- `test/storage/fixture-run-sweep.test.ts` (count, report, tag) was written with the implementation. Against the pre-fix tree it fails to load (`Cannot find module '../global-teardown.cjs'`), checked by restoring the `HEAD` copies of the helper, setup and config.
+- AC-197 `23515785`: `npx jest test/lint/no-signal-as-exit.test.ts` → 1 failed, 1 passed. 12 offenders: the 10 `test/cli` suites with `status: run.status ?? 1` (the 9 named in bug-197 other than `check-governance`, plus `directive-assign-force`), and 2 in `test/memory/history-rename-path.test.ts`.
+- Teardown ownership, red commit `52c736dc` (see refactor). That commit's test set `process.env.TMPDIR`, which jest sandboxes, so `os.tmpdir()` never saw it: that test was unsound and was replaced in `922f05f2` by one calling the pure `teardownRun`. Shown red by removing the pid check: 1 failed, 7 passed ("leaves the fixtures alone when the tag names another process").
+
+### green
+
+- `227111d5` (bug-064, bug-065): `cloneTempRepo` makes one directory and sets `gc.auto=0`; `disableAutoGc` is shared with `makeTempGitRepo`; run tag plus `globalTeardown` (one line added to `jest.config.js`; `roots` unchanged).
+- `902bb67a` (bug-197): the 10 local `wingfoil()` helpers delegate to `runCliEntry`; `check-governance` uses `spawnCapture`; the 2 `history-rename-path` helpers use `spawnCapture`; unused `CLI`/`REPO_ROOT`/`spawnSync` removed. Every assertion is unchanged (the diff touches only helper definitions, imports and comments).
+- `922f05f2`: the teardown sweeps only when `WF_FIXTURE_RUN_TAG === r<process.pid>`.
+
+### refactor (gates)
+
+- **Defect found here, in this task's own change:** the first full runs failed 4–18 tests, a different set each run, with `spawnSync git ENOENT` (fixture `cwd` gone mid-test), even with a private `TMPDIR`. Cause: `test/lint/coverage-parity.test.ts` runs a child jest from this `jest.config.js`. The child drops `globalSetup` but kept the new `globalTeardown` and inherited the parent's tag, so it swept the parent's live fixtures. Fixed in `922f05f2` (ownership check). The earlier "load" reading of these failures was wrong.
+- After the fix: `TMPDIR=<private> npm test` → 202/202 suites, 3379/3379 tests (load average ~17–20), leaving 0 fixture dirs. `npm run test:coverage` in `/tmp` → 202/202, 3379/3379, All files 98.85 stmts / 95.39 branches / 95.18 funcs / 99.56 lines; `ls -d /tmp/wf-storage-r*` → 0. The task changes no `src/` file (`git diff --stat <merge-base> HEAD -- src` is empty), so coverage cannot regress; the ±0.03 against an earlier run is run-to-run variation.
+- Leak measurement (private `TMPDIR`): before the fix, a full `npx jest` left 2 fixture dirs, and `test/storage/snapshot.test.ts` alone left 2. After, 0 for both.
+- `npm run lint` clean; `npm run docs:api` clean; `npx tsc --noEmit -p tsconfig.json` and `npx tsc -p tsconfig.build.json --noEmit` clean.
+
+### review (self)
+
+- AC1 is met (tests plus leak measurement). AC2 is met. AC3: the auto-gc test title now names `makeTempGitRepo` only, the clone has its own test, and the bug-065 extras are done (retry budget asserted, the concurrent-writer `finally` uses `removeTempDir`, the retry TSDoc says the 300ms bounds sleep, not elapsed time). AC-197 is met (guard green).
+- For the approver: leftovers are reported, never fatal (bug-064's open sub-question). `test/global-teardown.cjs` exports one self-contained async function; task-146 adds its own teardown, so the two need chaining at merge.
