@@ -101,20 +101,40 @@ describe('no test/ file returns a literal `stderr` (bug-070)', () => {
     );
   });
 
-  it('flags the old helper’s shape, in every returning form, and nothing else', () => {
+  it('flags the old helper’s shape, in every returning form it can take', () => {
     const source = [
       'function a() { try { return run(); } catch { /* */ } return { status: 0, stdout, stderr: \'\' }; }',
       'const b = () => ({ status: 0, stderr: `` } as Run);',
       'function c() { return { status: 0, stderr: "fixed" }; }',
-      "let placeholder: Run = { status: 0, stdout: '', stderr: '' };",
-      "// return { status: 0, stderr: '' };",
-      'function d() { return { status: 0, stderr: run.stderr }; }',
+      "function d() { return { status: 0, 'stderr': '' }; }",
+      "function e(ok: boolean) { return ok ? { status: 0, stdout, stderr: '' } : failed(); }",
+      "const EMPTY = ''; function f() { return { status: 0, stdout, stderr: EMPTY }; }",
+      "function g() { const stderr = ''; return { status: 0, stdout, stderr }; }",
+      "function h() { const r = { status: 0, stdout, stderr: '' }; return r; }",
     ].join('\n');
     expect(fabricatedStderrSites('sample.ts', source)).toEqual([
       "1: stderr: ''",
       '2: stderr: ``',
       '3: stderr: "fixed"',
+      "4: 'stderr': ''",
+      "5: stderr: ''",
+      '6: stderr: EMPTY',
+      '7: stderr',
+      "8: stderr: ''",
     ]);
+  });
+
+  it('flags nothing that is not a returned spawn result with a fixed stderr', () => {
+    const source = [
+      "let placeholder: Run = { status: 0, stdout: '', stderr: '' };",
+      "// return { status: 0, stderr: '' };",
+      'function d() { return { status: 0, stderr: run.stderr }; }',
+      "spy.mockImplementation(() => ({ stdout: 'x', stderr: '' }));",
+      "const stderr = ''; function f(stderr: string) { return { status: 0, stderr }; }",
+      "function g() { let stderr = ''; stderr = read(); return { status: 0, stderr }; }",
+      'function h() { const { stderr } = spawn(); return { status: 0, stderr }; }',
+    ].join('\n');
+    expect(fabricatedStderrSites('sample.ts', source)).toEqual([]);
   });
 
   it('no file under test/ returns one', () => {
