@@ -24,6 +24,12 @@
  *   type's template field (`task.release`), or occur verbatim in a `.wingfoil/` YAML file or in
  *   `src/` (an action name such as `memory.add`).
  *
+ * The lookups are heuristics, chosen to be cheap and to err towards resolving: a `symbol` resolves
+ * when its words occur anywhere in the code, comments and string literals included, so a name kept
+ * only in a comment still resolves; a `config` name resolves when it occurs verbatim in a source.
+ * "The repository" is the working-tree content of the files git tracks (`git ls-files`): an untracked
+ * file never makes a name resolve, an uncommitted edit to a tracked file does.
+ *
  * Spans with placeholders (`{id}`, `<type>`, `*`, `…`) are patterns, not names, and are skipped, as are
  * fenced code blocks. Everything is deterministic: inputs are read in sorted order and findings come
  * back sorted by document, class and name, with duplicates removed — a finding is keyed by name, never
@@ -243,6 +249,11 @@ export function compareFindings(a: Finding, b: Finding): number {
 export interface AllowlistEntry extends Finding {
   /** Why the name does not resolve: never empty. */
   reason: string;
+  /**
+   * For a `planned` entry only: the short ids (`task-217`) of the tasks that name it and were not
+   * `done` when the entry was written. Once every one is `done`, the plan is spent (see {@link planProblems}).
+   */
+  plannedBy?: readonly string[];
 }
 
 /** Findings split by an allowlist, each list in the order it came in. */
@@ -264,6 +275,39 @@ export function applyAllowlist(findings: readonly Finding[], allowlist: readonly
     listed: allowlist.filter((entry) => found.has(findingKey(entry))),
     stale: allowlist.filter((entry) => !found.has(findingKey(entry))),
   };
+}
+
+/** What is wrong with the `planned` entries of an allowlist, against the tasks' current statuses. */
+export interface PlanProblems {
+  /** Entries whose cited tasks are all `done` — the name was planned and did not arrive. */
+  exhausted: AllowlistEntry[];
+  /** `document|class|name: task-id` for every cited task that does not exist. */
+  unknownTasks: string[];
+}
+
+/** Check each entry's `plannedBy` against `statuses` (short task id → status), in entry order. */
+export function planProblems(entries: readonly AllowlistEntry[], statuses: ReadonlyMap<string, string>): PlanProblems {
+  const exhausted: AllowlistEntry[] = [];
+  const unknownTasks: string[] = [];
+  for (const entry of entries) {
+    const cited = entry.plannedBy ?? [];
+    if (cited.length === 0) continue;
+    for (const task of cited) if (!statuses.has(task)) unknownTasks.push(`${findingKey(entry)}: ${task}`);
+    if (cited.every((task) => statuses.get(task) === 'done')) exhausted.push(entry);
+  }
+  return { exhausted, unknownTasks };
+}
+
+/** Short task id (`task-151`) → frontmatter `status`, for every tracked task file under `docs/04_memory/`, sorted by id. */
+export function taskStatuses(repoRoot: string): Map<string, string> {
+  const entries: [string, string][] = [];
+  for (const file of trackedFiles(repoRoot)) {
+    const id = /^docs\/04_memory\/.*\/(task-\d{3})-[^/]*\.md$/.exec(file)?.[1];
+    if (id === undefined) continue;
+    const status = /^status:\s*"?([a-z-]+)"?\s*$/m.exec(readFileSync(join(repoRoot, file), 'utf8'))?.[1];
+    if (status !== undefined) entries.push([id, status]);
+  }
+  return new Map(entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
 /** Every repository file git tracks, sorted. */

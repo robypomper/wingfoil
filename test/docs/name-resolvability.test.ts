@@ -5,7 +5,7 @@
  * Every backticked name in a tech-spec (`docs/04_memory/design/specs/`), an ADR
  * (`docs/04_memory/design/adrs/`) or a SARD requirement document (`docs/02_requirements/03_sard/`)
  * that has the shape of a command, a Memory element or requirement id, a repository path, a code
- * symbol or a configuration key path must resolve at `HEAD` — or be listed in
+ * symbol or a configuration key path must resolve in the repository — or be listed in
  * `name-resolvability.allowlist.ts` with the reason it does not. The classes and what each resolves
  * against are documented in `support/name-resolvability.ts`. This is the generic check for the
  * largest group of document divergences `dl-116` counted: a name that was renamed, moved or retired
@@ -16,12 +16,17 @@
  *
  * - in both, a finding that the allowlist does not list fails — a document changed in v0.3 cannot add
  *   a dangling name without saying why — and so does an allowlist entry with no reason, out of order
- *   or listed twice;
+ *   or listed twice, and a `planned` entry citing no task or a task that does not exist;
  * - `warn` reports, without failing, the entries still marked `UNTRIAGED` (first-run findings nobody
- *   has fixed or justified yet) and the entries that no longer match a finding (the name was fixed or
- *   now resolves, so the entry should go);
- * - `fail` fails on both: by v0.4 every first-run finding is fixed in its document or carries the
- *   reason it is quoted on purpose, and the allowlist holds nothing stale.
+ *   has fixed or justified yet), the entries that no longer match a finding (the name was fixed or now
+ *   resolves, so the entry should go) and the `planned` entries whose cited tasks are all `done`;
+ * - `fail` fails on all three: by v0.4 every first-run finding is fixed in its document, carries the
+ *   reason it is quoted on purpose, or is still planned by a task that is not `done`; and the
+ *   allowlist holds nothing stale.
+ *
+ * "In the repository" means the working-tree content of the files git tracks (`git ls-files`):
+ * untracked files never make a name resolve, but an uncommitted edit to a tracked file does. In CI's
+ * clean checkout that is `HEAD`; locally, run it on a clean tree to get the `HEAD` answer.
  *
  * Deterministic: documents are read in `git ls-files` order, findings and the allowlist are sorted by
  * `document|class|name`, and a finding never carries a line offset (`dl-075`).
@@ -176,7 +181,7 @@ describe('name resolvability — planned entries', () => {
   });
 });
 
-describe(`name resolvability — specs, ADRs and requirements at HEAD (mode: ${MODE})`, () => {
+describe(`name resolvability — specs, ADRs and requirements in the repository (mode: ${MODE})`, () => {
   const documents = (): Document[] =>
     trackedFiles(repoRoot)
       .filter((file) => SCANNED.test(file))
