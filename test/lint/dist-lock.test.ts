@@ -15,7 +15,8 @@
  *   lock once the holder releases it;
  * - a lock still held when the wait ends is refused with a message naming the holder's pid and the
  *   lock path, and the refused setup neither deletes `dist/` nor builds;
- * - a lock left by a dead process (a run killed before its teardown) is taken over;
+ * - a lock left by a dead process (a run killed before its teardown) is taken over, and only by a run
+ *   holding the break lock, so two runs breaking it at once cannot both end up holding it;
  * - a release removes only the releaser's own lock, so a nested jest (`coverage-parity.test.ts`) or a
  *   refused run cannot release the lock of the run that holds it;
  * - `jest.config.js` wires the setup and the teardown that do this.
@@ -24,7 +25,7 @@
  * step took — only on the order of the events.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -129,6 +130,27 @@ describe('dist/ lock (task-146, bug-095) — one jest run at a time owns a workt
     expect(holder(lockPath)).toBe(process.pid);
   });
 
+  it('breaks a stale lock only while holding the break lock: a run busy breaking it makes the others wait', async () => {
+    // Without this mutex, runs breaking the same stale lock at once could each delete the lock a
+    // faster one had just created, and more than one run held it (review of task-146: 4 of 80 trials
+    // with 4 simultaneous takers). Here the break lock is held by a live run.
+    const dead = deadPid();
+    writeFileSync(lockPath, `${dead}\n`);
+    writeFileSync(`${lockPath}.break`, `${LIVE_OTHER_PID}\n`);
+    await expect(acquireDistLock({ lockPath, pid: process.pid, waitMs: 50, pollMs: 10, log })).rejects.toThrow(
+      `${lockPath}.break`,
+    );
+    expect(holder(lockPath)).toBe(dead);
+    expect(holder(`${lockPath}.break`)).toBe(LIVE_OTHER_PID);
+  });
+
+  it('leaves no break lock or temporary file behind after taking over a stale lock', async () => {
+    writeFileSync(lockPath, `${deadPid()}\n`);
+    await acquireDistLock({ lockPath, pid: process.pid, waitMs: 1_000, pollMs: 10, log });
+    expect(holder(lockPath)).toBe(process.pid);
+    expect(readdirSync(root).sort()).toEqual(['.jest-dist.lock']);
+  });
+
   it('releases only its own lock: another run\'s lock survives a foreign release', () => {
     writeFileSync(lockPath, `${LIVE_OTHER_PID}\n`);
     expect(releaseDistLock({ lockPath, pid: process.pid })).toBe(false);
@@ -157,8 +179,10 @@ describe('dist/ lock wiring (task-146, bug-095)', () => {
     expect(teardown).toMatch(/releaseDistLock\(/);
   });
 
-  it('the lock file is git-ignored', () => {
-    const ignored = spawnSync('git', ['check-ignore', '-q', '.jest-dist.lock'], { cwd: REPO_ROOT });
-    expect(ignored.status).toBe(0);
+  it('the lock, its break lock and their temporary files are git-ignored', () => {
+    for (const path of ['.jest-dist.lock', '.jest-dist.lock.break', `.jest-dist.lock.${process.pid}.tmp`]) {
+      const ignored = spawnSync('git', ['check-ignore', '-q', path], { cwd: REPO_ROOT });
+      expect([path, ignored.status]).toEqual([path, 0]);
+    }
   });
 });
