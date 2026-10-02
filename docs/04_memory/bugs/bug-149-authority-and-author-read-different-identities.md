@@ -2,7 +2,7 @@
 id: "bug-149-authority-and-author-read-different-identities"
 type: bug
 title: "Approval authority is checked against the live `git config` identity, but the commit that actually records the approval is authored using git's normal env-vs-config resolution, so the two can disagree"
-status: planned
+status: closed
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"

@@ -2,7 +2,7 @@
 id: "bug-153-audit-accepts-reserved-domain-authors"
 type: bug
 title: "`isValidAttribution` accepts RFC 2606 reserved-TLD email domains (`.invalid`, `.example`, `.test`, `.localhost`) as valid authors"
-status: planned
+status: closed
 severity: "medium"
 release-origin: "v0.2"
 release: "v0.3"

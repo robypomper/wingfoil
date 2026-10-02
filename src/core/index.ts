@@ -76,12 +76,12 @@ import { loadDirectiveListing, type DirectiveListing } from './directives-list';
 import { selectDirectivesById } from './context';
 import { checkAssignable, checkUnreferenced, updateRoleAssignments } from './directive-assign';
 import type { MemoryYaml } from '../memory/schema';
-import { requireGitIdentity, readGitIdentity } from './git-identity';
+import { requireGitIdentity } from './git-identity';
 import { requireCustomAsset } from './builtin-asset';
 import { requireConfinedTarget, requireConfinedWriteTarget } from './confinement';
 import { APPROVER_ROLE, requireApprovalAuthority } from './approval-authority';
 import { optionalReason, requireReason } from './require-reason';
-import { commitMemoryTransition, prepareMemoryTransition } from './memory-transition';
+import { beginMemoryTransition, commitMemoryTransition } from './memory-transition';
 import { amendReservedFields, requireAmendableEdit, requireAmendableType, requireRequiredFieldsKept } from './memory-amend';
 import { resolveAddType } from './memory-add-type';
 import { committedScopeError, requireAbsentTarget, requireUnmodifiedTarget } from './write-guard';
@@ -158,7 +158,10 @@ export type {
   RelevantMemoryDocument,
   RelevantMemoryResult,
 } from './relevance';
-export { commitMemoryTransition, prepareMemoryTransition, verifyCommittedScope } from './memory-transition';
+// `prepareMemoryTransition` is deliberately not re-exported: outside `./memory-transition` a transition
+// starts at `beginMemoryTransition`, which runs the identity pre-flight first (task-132 review).
+export { beginMemoryTransition, commitMemoryTransition, verifyCommittedScope } from './memory-transition';
+export type { BegunMemoryTransition } from './memory-transition';
 export type { PreparedMemoryTransition } from './memory-transition';
 export { resolveAddType } from './memory-add-type';
 export type { ResolvedAddType } from './memory-add-type';
@@ -998,7 +1001,8 @@ export interface MemorySubmitResult {
  *
  * 1. **`<id>`** absent or blank → `UsageError` (exit 2), as `memory history` — before the identity
  *    check, so the exit code does not depend on the machine (task-125, `bug-172`).
- * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit 1.
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. Steps 2 and 3 are {@link beginMemoryTransition},
+ *    the preamble every transition verb shares (task-132, `bug-142`; `spec-006` §7).
  * 3. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
  *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
@@ -1019,10 +1023,7 @@ const memorySubmitFn: CoreFn<unknown, MemorySubmitResult> = async (params) => {
     throw new UsageError('missing required argument: memory submit <id>');
   }
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const prepared = prepareMemoryTransition(root, id, 'submit');
+  const prepared = beginMemoryTransition(root, id, 'submit');
   if (!prepared.ok) return prepared;
   const { type, path, frontmatter, content, from, to } = prepared.value;
 
@@ -1074,8 +1075,10 @@ export interface MemoryApproveResult {
  * 2. **`requireReason`** (REQ-SEC-04, task-041) → `UsageError` `missing required argument: --reason`
  *    (exit 2, P1.7 sc.2). Placed before any file is read, so an omitted reason touches nothing. Both
  *    usage checks precede the identity check (task-125, `bug-172`).
- * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. It is also the identity the `Approver:` line and
- *    the commit's own author record, so the two can never name different principals.
+ * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. Steps 3 and 4 are {@link beginMemoryTransition}
+ *    (task-132, `bug-142`; `spec-006` §7), which reads the identity ONCE: step 6 authorizes it, the
+ *    `Approver:` line names it, and the commit is authored as it (`--author`), so the three can never
+ *    name different principals (`bug-149`).
  * 4. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
  *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
@@ -1108,17 +1111,14 @@ const memoryApproveFn: CoreFn<unknown, MemoryApproveResult> = async (params) => 
   }
   const reason = requireReason(options);
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const prepared = prepareMemoryTransition(root, id, 'approve');
+  const prepared = beginMemoryTransition(root, id, 'approve');
   if (!prepared.ok) return prepared;
   const { type, path, content, from, to } = prepared.value;
 
-  const authorized = requireApprovalAuthority(root, type);
+  const authorized = requireApprovalAuthority(root, type, prepared.value.identity);
   if (!authorized.ok) return authorized;
 
-  const { name, email } = readGitIdentity(root);
+  const { name, email } = prepared.value.identity;
   const message = formatMemoryCommitMessage({
     type,
     op: 'approve',
@@ -1168,7 +1168,8 @@ export interface MemoryRejectResult {
  * 2. **`requireReason`** (REQ-SEC-04, task-041-mandatory-reason-on-verbs) → `UsageError`
  *    `missing required argument: --reason` (exit `2`, P1.8 sc.3). Both usage checks precede the
  *    identity check (task-125, `bug-172`).
- * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Steps 3 and 4 are {@link beginMemoryTransition}
+ *    (task-132, `bug-142`; `spec-006` §7).
  * 4. **{@link prepareMemoryTransition}** with op `reject`, against the `memory.yaml` committed at
  *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
  *    unknown type, invalid state, or an illegal transition (the document is in no `gates`
@@ -1188,9 +1189,9 @@ export interface MemoryRejectResult {
  *    document and refuses (`VALIDATION`, exit `1`, nothing written) unless `status` AND
  *    `rejection_reason` hold their expected values and no other field moved.
  *
- * The `Approver:` identity is the live git identity at `root` — the same one step 5 checked and the
- * same one git records as the commit author, so the body line can never disagree with the attribution
- * (adr-001/adr-006) — under the `APPROVER_ROLE` the authority was exercised as.
+ * The `Approver:` identity is the one step 3 resolved — the same value step 5 checked and the commit
+ * is authored as (`--author`, task-132, `bug-149`), so the body line can never disagree with the
+ * attribution (adr-001/adr-006) — under the `APPROVER_ROLE` the authority was exercised as.
  */
 const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
   const { root, positional: id, options } = params as MemoryRejectParams;
@@ -1200,17 +1201,14 @@ const memoryRejectFn: CoreFn<unknown, MemoryRejectResult> = async (params) => {
   }
   const reason = requireReason(options);
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const prepared = prepareMemoryTransition(root, id, 'reject');
+  const prepared = beginMemoryTransition(root, id, 'reject');
   if (!prepared.ok) return prepared;
   const { type, path, from, to, content } = prepared.value;
 
-  const authorized = requireApprovalAuthority(root, type);
+  const authorized = requireApprovalAuthority(root, type, prepared.value.identity);
   if (!authorized.ok) return authorized;
 
-  const { name, email } = readGitIdentity(root);
+  const { name, email } = prepared.value.identity;
   const message = formatMemoryCommitMessage({
     type,
     op: 'reject',
@@ -1268,7 +1266,8 @@ export interface MemoryDeprecateResult {
  * 1. **`<id>`** absent or blank → `UsageError` (exit `2`), as `memory submit`/`memory reject`; so is a
  *    `--reason` that is given but blank, carrying a control character other than tab or newline, or
  *    trailer-shaped (`optionalReason`). Both precede the identity check (task-125, `bug-172`).
- * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Steps 2 and 3 are {@link beginMemoryTransition}
+ *    (task-132, `bug-142`; `spec-006` §7).
  * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` committed at
  *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
  *    unknown type, or a `status` that is not a state of the type, each a
@@ -1304,10 +1303,7 @@ const memoryDeprecateFn: CoreFn<unknown, MemoryDeprecateResult> = async (params)
   // `bug-042` F2/F3, whose amendment makes THIS verb the exploitable one).
   const reason = optionalReason(options);
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const prepared = prepareMemoryTransition(root, id, 'deprecate');
+  const prepared = beginMemoryTransition(root, id, 'deprecate');
   if (!prepared.ok) return prepared;
   const { type, path, from, to, content } = prepared.value;
   if (from === to) {
@@ -1352,7 +1348,9 @@ export interface MemoryAmendResult {
  *
  * 1. **`<id>`** absent or blank, then **`requireReason`** (`dl-067`) → `UsageError` (exit `2`), before
  *    anything is read. Both precede the identity check (task-125, `bug-172`), as on `approve`.
- * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`.
+ * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Step 2 and the lookup in step 3 are
+ *    {@link beginMemoryTransition} (task-132, `bug-142`; `spec-006` §7); the identity it returns is
+ *    the one step 4 authorizes, the `Approver:` line names and the commit is authored as.
  * 3. **{@link prepareMemoryTransition}** with op `amend` — the document located, its type and state
  *    resolved against the `memory.yaml` committed at `HEAD` (`dl-080` (B)); its target is its own
  *    state, so no illegal-transition refusal exists for this verb. Then
@@ -1385,10 +1383,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   }
   const reason = requireReason(options);
 
-  const identity = requireGitIdentity(root);
-  if (!identity.ok) return identity;
-
-  const prepared = prepareMemoryTransition(root, id, 'amend');
+  const prepared = beginMemoryTransition(root, id, 'amend');
   if (!prepared.ok) return prepared;
   const { memoryYaml, type, path, content, frontmatter, from, to } = prepared.value;
 
@@ -1398,7 +1393,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   // would otherwise be refused for a field change it never made.
   const confined = requireConfinedWriteTarget(root, path, 'write');
   if (!confined.ok) return confined;
-  const authorized = requireApprovalAuthority(root, type);
+  const authorized = requireApprovalAuthority(root, type, prepared.value.identity);
   if (!authorized.ok) return authorized;
 
   const amendable = requireAmendableType(memoryYaml, type);
@@ -1408,7 +1403,7 @@ const memoryAmendFn: CoreFn<unknown, MemoryAmendResult> = async (params) => {
   const filled = requireRequiredFieldsKept(memoryYaml, type, from, frontmatter);
   if (!filled.ok) return filled;
 
-  const { name, email } = readGitIdentity(root);
+  const { name, email } = prepared.value.identity;
   const message = formatMemoryCommitMessage({
     type,
     op: 'amend',

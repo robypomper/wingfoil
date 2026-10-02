@@ -129,6 +129,9 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
     // `auditAttribution`'s field list carries no `%b`, so a reason never reaches it — but the subject
     // does, and a hand-written commit can put anything there. The framing must not care.
     repo = makeTempGitRepo();
+    // An ordinary domain: the fixture's `example.invalid` is RFC 2606 reserved, which the audit counts
+    // as unattributed since task-132 (`bug-153`), and this case is about framing, not about domains.
+    git(repo, ['config', 'user.email', 'wf-test@example.org']);
     writeDoc(repo, 'draft');
     commitAll(repo, `wf(task): add task-900-framing${RS}${FORGED}`);
     writeDoc(repo, 'pending');
@@ -139,7 +142,7 @@ describe('git-log framing — a `--reason` cannot fabricate a history entry (bug
     expect(entries).toHaveLength(2);
     for (const entry of entries) {
       expect(entry.sha).toMatch(SHA_RE);
-      expect(entry.authorEmail).toBe('wf-test@example.invalid');
+      expect(entry.authorEmail).toBe('wf-test@example.org');
       expect(entry.valid).toBe(true);
     }
   });

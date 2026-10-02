@@ -122,6 +122,27 @@ describe('commitPaths — scoped, single-commit git primitive (task-018, P1.1)',
     expect(git(repo, ['log', '-1', '--format=%an']).trim()).toBe('Override Dev');
     expect(git(repo, ['log', '-1', '--format=%ae']).trim()).toBe('override@example.invalid');
   });
+
+  // task-132 review, finding 2: the author is pinned through the environment, never through a
+  // `--author "<name> <<email>>"` string git re-parses. With the string form, a `<` in the name moved
+  // the email git recorded (`Ann <x` → `x ann@…`), so the recorded author differed from the identity
+  // that was authorized.
+  it('pins options.author so the recorded email is exactly the one given, whatever the name holds', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'z.txt', 'Z');
+    commitPaths(repo, ['z.txt'], 'feat: z', { author: { name: 'Ann <x', email: 'ann@example.org' } });
+    expect(git(repo, ['log', '-1', '--format=%ae']).trim()).toBe('ann@example.org');
+  });
+
+  it('options.author outranks a GIT_AUTHOR_* override in options.env', () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, 'w.txt', 'W');
+    commitPaths(repo, ['w.txt'], 'feat: w', {
+      env: { GIT_AUTHOR_NAME: 'Other', GIT_AUTHOR_EMAIL: 'other@example.org' },
+      author: { name: 'Pinned', email: 'pinned@example.org' },
+    });
+    expect(git(repo, ['log', '-1', '--format=%an <%ae>']).trim()).toBe('Pinned <pinned@example.org>');
+  });
 });
 
 // Local seed helper: commit the seed file without depending on commitPaths' own contract.

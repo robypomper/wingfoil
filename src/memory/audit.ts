@@ -60,6 +60,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@()]+$/;
 // (user@hostname) and cannot determine a real domain — e.g. "root@buildhost.(none)". A commit
 // carrying this is not a deliberately-configured identity, so it counts as "unknown author".
 const GIT_GUESSED_DOMAIN_MARKER = '.(none)';
+// RFC 2606 §2 reserves these four top-level domains for testing, documentation, invalid addresses and
+// loopback. No mailbox exists under them, so an author on one is a placeholder — the same class of
+// "not a deliberately-configured identity" as git's guessed-domain marker (task-132, bug-153).
+const RFC2606_RESERVED_TLDS: readonly string[] = ['invalid', 'example', 'test', 'localhost'];
+
+/** Whether `email`'s domain is, or ends in, an RFC 2606 reserved top-level domain (case-insensitive). */
+function hasReservedDomain(email: string): boolean {
+  // A trailing dot is the fully-qualified spelling of the same domain (`foo.test.` is `foo.test`).
+  const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase().replace(/\.+$/, '');
+  const tld = domain.slice(domain.lastIndexOf('.') + 1);
+  return RFC2606_RESERVED_TLDS.includes(tld);
+}
 
 /**
  * Whether `name`/`email` look like a real, deliberately-configured git identity rather than an
@@ -67,7 +79,7 @@ const GIT_GUESSED_DOMAIN_MARKER = '.(none)';
  * `name` AND non-empty `email` — is NOT re-derived here: it delegates to
  * {@link isConfiguredIdentity} from `src/core/git-identity.ts`, the single source of truth also used
  * by `requireGitIdentity`'s write-time precondition (REQ-SEC-01). On top of that shared base, this
- * audit (REQ-SEC-02) layers two read-only augmentations that only make sense when inspecting
+ * audit (REQ-SEC-02) layers three read-only augmentations that only make sense when inspecting
  * *historical* commits rather than live config — `requireGitIdentity` has no need for either, because
  * it only ever looks at the identity a caller is about to write with:
  *
@@ -79,6 +91,11 @@ const GIT_GUESSED_DOMAIN_MARKER = '.(none)';
  *    because it only reads a git config value (itself always syntactically well-formed or absent);
  *    historical commit authors, however, can carry hand-edited or otherwise malformed values, so the
  *    audit validates the shape too.
+ *  - Rejects an email on an RFC 2606 reserved top-level domain (`.invalid`, `.example`, `.test`,
+ *    `.localhost`; task-132, `bug-153`): such an address names no mailbox, so a commit carrying it is
+ *    as unattributed as one carrying `.(none)`. Only the top-level label counts — `test.example.com`
+ *    is an ordinary domain. The write-time check does not apply this rule: test fixtures and scratch
+ *    repositories commit under these domains on purpose, and the audit is where they must show up.
  *
  * Pure predicate — no filesystem/git access.
  */
@@ -87,7 +104,8 @@ export function isValidAttribution(name: string, email: string): boolean {
   const trimmedEmail = email.trim();
   if (!isConfiguredIdentity(trimmedName, trimmedEmail)) return false;
   if (trimmedEmail.includes(GIT_GUESSED_DOMAIN_MARKER)) return false;
-  return EMAIL_RE.test(trimmedEmail);
+  if (!EMAIL_RE.test(trimmedEmail)) return false;
+  return !hasReservedDomain(trimmedEmail);
 }
 
 const AUDIT_LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s'];

@@ -37,12 +37,23 @@ function writeDoc(repo: string, status: string): void {
   );
 }
 
+/**
+ * A fixture repository whose author is not a placeholder: `makeTempGitRepo` configures an
+ * `example.invalid` address, an RFC 2606 reserved domain the audit counts as unattributed since
+ * task-132 (`bug-153`), and the scenarios below are about attribution being complete.
+ */
+function makeAttributedRepo(): string {
+  const dir = makeTempGitRepo();
+  git(dir, ['config', 'user.email', 'wf-test@example.org']);
+  return dir;
+}
+
 describe('P1.2 — Every state change records author and timestamp (BDD scenario 1)', () => {
   let repo: string;
   afterEach(() => removeTempDir(repo));
 
   it('a draft -> pending change committed via commitPaths is fully attributable and references the doc id + new state', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
 
     writeDoc(repo, 'draft');
     commitPaths(repo, [DOC_PATH], 'wf(task): add task-101');
@@ -59,7 +70,7 @@ describe('P1.2 — Every state change records author and timestamp (BDD scenario
     expect(entries.every((e) => e.valid)).toBe(true);
     for (const entry of entries) {
       expect(entry.authorName).toBe('WingFoil Test');
-      expect(entry.authorEmail).toBe('wf-test@example.invalid');
+      expect(entry.authorEmail).toBe('wf-test@example.org');
       expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/);
     }
 
@@ -77,7 +88,7 @@ describe('P1.2 — Audit trail completeness across pillars (BDD scenario 2)', ()
   afterEach(() => removeTempDir(repo));
 
   it('changes to a DNA, a directive, and a workflow file are all 100% attributable — no "unknown author"', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
 
     const dnaPath = '.wingfoil/dna.yaml';
     const directivePath = '.wingfoil/directives/custom/determinism.md';

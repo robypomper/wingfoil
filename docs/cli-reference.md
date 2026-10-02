@@ -95,10 +95,25 @@ also reads its current status there — so an uncommitted or hand-made document 
 
 ### Git identity
 
-Every command that commits requires `git config user.name` and `git config user.email` to be set.
-`memory approve` and `memory reject` additionally require that identity's email to belong to a
-`team.members` entry holding the `approver` role in the committed `dna.yaml` (see
-[`memory approve`](#wingfoil-memory-approve)).
+Every command that commits requires a git identity — usually `git config user.name` and
+`git config user.email`. Before it reads or writes anything else, it checks that both identities a
+commit carries resolve, the way git itself resolves them:
+
+- the **author** from `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL`, then `author.name` / `author.email`,
+  then `user.name` / `user.email`;
+- the **committer** from `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL`, then `committer.name` /
+  `committer.email`, then `user.name` / `user.email`.
+
+A variable that is set but blank does not fall back to the config: git refuses a blank name and
+records a blank email as `<>`; the check refuses both. Git's `EMAIL` variable and its hostname guess are not used. If any of the four values is missing, the command exits `1` with
+`git identity not configured (user.name/user.email)`; if one contains `<`, `>` or a control character,
+it exits `1` with `git identity not usable: …`. Either way nothing is written.
+
+`memory approve`, `memory reject` and `memory amend` additionally require the author's email to
+belong to a `team.members` entry holding the `approver` role in the committed `dna.yaml` (see
+[`memory approve`](#wingfoil-memory-approve)). The `memory` commands that move or amend a document
+use that one author identity for the approver check, the `Approver:` line and the commit's author,
+so the three never disagree.
 
 ---
 

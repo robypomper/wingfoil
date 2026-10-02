@@ -31,6 +31,7 @@ import { commitPaths, pathPorcelainStatus, readDocument, readPathAtRev, writeDoc
 import { ValidationError } from '../validation';
 
 import { requireConfinedWriteTarget } from './confinement';
+import { requireGitIdentity, type GitIdentity } from './git-identity';
 import { loadMemoryYamlAtHead, MEMORY_YAML_PATH } from './loaders';
 import { coreErr, coreOk, type CoreResult } from './types';
 import {
@@ -181,6 +182,46 @@ export function prepareMemoryTransition(
 }
 
 /**
+ * A {@link PreparedMemoryTransition} together with the git identity that will carry it out — the
+ * result of {@link beginMemoryTransition}, and the only thing {@link commitMemoryTransition} accepts,
+ * so a transition cannot be committed under an identity other than the one its pre-flight checked.
+ */
+export interface BegunMemoryTransition extends PreparedMemoryTransition {
+  /**
+   * The identity `requireGitIdentity` resolved and validated (REQ-SEC-01). The one "who" of the whole
+   * operation: the authority check takes it (REQ-SEC-03), the `Approver:` line is built from it, and
+   * {@link commitMemoryTransition} pins it as the commit's `--author` (`dl-064` B.1, task-132,
+   * `bug-149`).
+   */
+  readonly identity: GitIdentity;
+}
+
+/**
+ * The shared preamble of every state-moving `memory` verb — `submit`, `approve`, `reject`,
+ * `deprecate`, `amend` — written once (task-132, `bug-142`): resolve the git identity
+ * (`requireGitIdentity`, REQ-SEC-01, exit `1`), then locate the document and resolve verb `op` on it
+ * ({@link prepareMemoryTransition}, exit `1`). The first refusal is returned unchanged; nothing is
+ * written either way.
+ *
+ * The identity is read here ONCE and rides the result, so no verb reads it again (the structural test
+ * `test/core/memory-transition-preamble.test.ts` holds every registered transition verb to that).
+ * The order matches `spec-006` §7: a verb's usage checks run before it calls this (task-125,
+ * `bug-172`), and an approver-gated verb's authority check runs after it, because that check's
+ * message names the document's type, which only this step knows.
+ */
+export function beginMemoryTransition(
+  root: string,
+  id: string,
+  op: TransitionOp | 'amend',
+): CoreResult<BegunMemoryTransition> {
+  const identity = requireGitIdentity(root);
+  if (!identity.ok) return identity;
+  const prepared = prepareMemoryTransition(root, id, op);
+  if (!prepared.ok) return prepared;
+  return coreOk({ ...prepared.value, identity: identity.value });
+}
+
+/**
  * Refuse, before anything is written, a document that already carries modifications this transition
  * does not own (task-088, `bug-076`; AC2 option (b)).
  *
@@ -250,8 +291,11 @@ export function verifyCommittedScope(
 /**
  * Write `content` over the prepared document and commit exactly that one path with `message`,
  * returning the new commit's sha (`commitPaths`, task-018; scoped to that path even when other changes
- * are staged, bug-027). Callers must have run the git-identity pre-flight (REQ-SEC-01) and every refusal
- * check first; this step is the only write.
+ * are staged, bug-027). The commit's author is pinned to `prepared.identity` — the identity the
+ * pre-flight checked, and the one any `Approver:` line names — so git's own author resolution cannot
+ * substitute another (task-132, `bug-149`). `prepared` comes from {@link beginMemoryTransition}, which
+ * is how the git-identity pre-flight (REQ-SEC-01) is guaranteed to have run; callers run every other
+ * refusal check first, and this step is the only write.
  *
  * Four checks bound what reaches the repository, in this order — they are not redundant, they catch
  * different defects:
@@ -297,7 +341,7 @@ export function verifyCommittedScope(
  */
 export function commitMemoryTransition(
   root: string,
-  prepared: PreparedMemoryTransition,
+  prepared: BegunMemoryTransition,
   content: string,
   message: string,
   expected: Readonly<Record<string, string | undefined>> = {},
@@ -320,7 +364,7 @@ export function commitMemoryTransition(
     });
   }
   writeDocument(join(root, prepared.path), content);
-  const sha = commitPaths(root, [prepared.path], message);
+  const sha = commitPaths(root, [prepared.path], message, { author: prepared.identity });
 
   const leaked = verifyCommittedScope(root, sha, prepared.path, owned, scope);
   if (leaked.length > 0) {

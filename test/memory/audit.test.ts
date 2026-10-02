@@ -21,6 +21,7 @@ import { join } from 'path';
 import {
   commitAll,
   commitAllAs,
+  git,
   makeTempGitRepo,
   removeTempDir,
   writeFixtureFile,
@@ -61,6 +62,31 @@ describe('isValidAttribution — pure predicate, no git involved', () => {
   it('rejects git\'s own guessed-identity domain marker "user@host.(none)"', () => {
     expect(isValidAttribution('root', 'root@buildhost.(none)')).toBe(false);
   });
+
+  // task-132 AC3 (`bug-153`): RFC 2606 reserves these four top-level domains for testing,
+  // documentation and invalid addresses. An author on one of them is a placeholder, the same class
+  // of "not a deliberately-configured identity" as git's own `.(none)` marker.
+  it.each([
+    ['.invalid', 'scratch@example.invalid'],
+    ['.example', 'scratch@acme.example'],
+    ['.test', 'scratch@example.test'],
+    ['.localhost', 'scratch@example.localhost'],
+    ['.invalid, upper case', 'scratch@EXAMPLE.INVALID'],
+    ['.test, bare second level', 'scratch@build.test'],
+    // task-132 review, finding 6: a fully-qualified domain's trailing dot names the same domain.
+    ['.test, trailing dot', 'scratch@foo.test.'],
+    ['.invalid, trailing dots', 'scratch@foo.invalid..'],
+  ])('rejects an email on the RFC 2606 reserved domain %s', (_label, email) => {
+    expect(isValidAttribution('Scratch User', email)).toBe(false);
+  });
+
+  it.each([
+    ['a domain that merely contains a reserved label', 'dev@test.example.com'],
+    ['a domain ending in a longer label', 'dev@contest.org'],
+    ['a domain whose TLD starts like a reserved one', 'dev@company.testing'],
+  ])('still accepts %s', (_label, email) => {
+    expect(isValidAttribution('Dev', email)).toBe(true);
+  });
 });
 
 describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ task-015, REQ-SEC-01/REQ-SEC-02)', () => {
@@ -89,13 +115,26 @@ describe('isValidAttribution reconciled with isConfiguredIdentity (task-014 ↔ 
   });
 });
 
+/**
+ * A fixture repository whose configured author is NOT a placeholder. `makeTempGitRepo`'s identity is on
+ * `example.invalid`, an RFC 2606 reserved top-level domain the audit itself counts as unattributed
+ * since task-132 (`bug-153`), so the "every commit is valid" baseline needs another domain.
+ * `example.org` is IANA-reserved too, but at the second level, which the top-level-only rule accepts
+ * — so no registrable name is used; a future second-level rule would have to move it.
+ */
+function makeAttributedRepo(): string {
+  const dir = makeTempGitRepo();
+  git(dir, ['config', 'user.email', 'wf-test@example.org']);
+  return dir;
+}
+
 describe('auditAttribution — git-log walk with a 0-"unknown author" attribution check', () => {
   let repo: string;
 
   afterEach(() => removeTempDir(repo));
 
   it('reports every commit as valid when every commit has a real configured identity', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -109,7 +148,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('flags a commit with a git-guessed placeholder identity as invalid ("unknown author")', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -124,7 +163,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('merges multiple pathspecs without duplicating a commit that touches more than one', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     writeDoc(repo, OTHER_DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc, task-902-doc');
@@ -135,7 +174,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('is deterministic — repeated calls over unchanged state produce the exact same result', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
     writeDoc(repo, DOC_PATH, 'pending');
@@ -147,7 +186,7 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
   });
 
   it('returns [] over a pathspec with no history at all', () => {
-    repo = makeTempGitRepo();
+    repo = makeAttributedRepo();
     writeDoc(repo, DOC_PATH, 'draft');
     commitAll(repo, 'wf(task): add task-901-doc');
 
