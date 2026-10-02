@@ -19,31 +19,15 @@
  * Every invocation either refuses before touching the project or only reads it, so the shared fixture
  * root is never written.
  */
-import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
 import { CORE_MODULES } from '../../src/core';
 import { deriveVerb, enumerateOperations } from '../../src/core/registry';
+import { CLI_FIXTURE_ROOT, DIST_DIR, runCliHarness, type SpawnedRun } from './helpers/spawn-cli';
 
-const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
-const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
-
-interface CliResult {
-  readonly status: number;
-  readonly stderr: string;
-}
-
-function runCli(args: readonly string[]): CliResult {
-  try {
-    execFileSync('node', [HARNESS, DIST_DIR, FIXTURE_ROOT, ...args], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
-    return { status: 0, stderr: '' };
-  } catch (error) {
-    const failed = error as { status: number | null; stderr: Buffer | string };
-    return { status: failed.status ?? 1, stderr: failed.stderr.toString() };
-  }
+function runCli(args: readonly string[]): SpawnedRun {
+  return runCliHarness(CLI_FIXTURE_ROOT, args);
 }
 
 const COMMANDS = enumerateOperations(CORE_MODULES).map(({ module, operation }) => {

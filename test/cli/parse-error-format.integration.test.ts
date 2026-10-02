@@ -18,42 +18,15 @@
  * Every case spawns `fixtures/cli-harness.cjs` against the COMPILED `dist/` (built once by jest's
  * `globalSetup`), so the real ESM `commander` and the real process exit are what is measured.
  */
-import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
 import { load as yamlLoad } from 'js-yaml';
-
-const REPO_ROOT = join(__dirname, '..', '..');
-const DIST_DIR = join(REPO_ROOT, 'dist');
-const HARNESS = join(__dirname, 'fixtures', 'cli-harness.cjs');
-const FIXTURE_ROOT = join(__dirname, 'fixtures', 'wingfoil-root');
-
-interface CliResult {
-  readonly status: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-interface ExecFileSyncError {
-  readonly status: number | null;
-  readonly stdout: Buffer | string;
-  readonly stderr: Buffer | string;
-}
-
-function isExecFileSyncError(error: unknown): error is ExecFileSyncError {
-  return typeof error === 'object' && error !== null && 'status' in error && 'stdout' in error && 'stderr' in error;
-}
+import { CLI_FIXTURE_ROOT, DIST_DIR, runCliHarness, type SpawnedRun } from './helpers/spawn-cli';
 
 /** Spawn the compiled CLI against the static fixture root; `status` is the real process exit code. */
-function runCli(...args: readonly string[]): CliResult {
-  try {
-    const stdout = execFileSync('node', [HARNESS, DIST_DIR, FIXTURE_ROOT, ...args], { encoding: 'utf-8' });
-    return { status: 0, stdout, stderr: '' };
-  } catch (error) {
-    if (!isExecFileSyncError(error)) throw error;
-    return { status: error.status ?? 1, stdout: error.stdout.toString(), stderr: error.stderr.toString() };
-  }
+function runCli(...args: readonly string[]): SpawnedRun {
+  return runCliHarness(CLI_FIXTURE_ROOT, args);
 }
 
 /** Parse stderr as exactly ONE JSON object on one line — throws (fails the test) on anything else. */
