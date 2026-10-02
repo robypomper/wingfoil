@@ -31,6 +31,7 @@ tmpl_version: 260703
 - **Features:** P5.2.2, P5.2.1.
 - **Notes:** Proposal key: C32. B's `spec-004` §3.1–§3.2 Prompt-argument amendment (`element`, `state`; R18) edits the same section — whichever lands second rebases.
 - Planned by `release-planning-rel-v0.3-plan` step 6 (build-backlog), 2026-09-30.
+- **Handover from wave 1 B3 (2026-10-02, `task-143`).** Reuse `requireInitializedProject` and `WINGFOIL_NOT_INITIALIZED` (exported from `src/core`, `src/core/init.ts`) for the MCP server's pre-flight; do not word a second refusal. Known limit: when `.wingfoil` is a file, the message's "run 'wingfoil init' first" loops, because `init` refuses that case. `bug-198` covers the CLI read commands that should adopt the same refusal.
 
 ## Execution Notes
 
