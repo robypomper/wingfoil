@@ -2,7 +2,7 @@
 id: "task-155-assert-lockfile-root-engines-equals-package-json-floor"
 type: task
 title: "Assert that the lockfile's root `engines` equals `package.json`'s and that the floor equals the closure maximum"
-status: backlog
+status: in-progress
 release: "v0.3"
 kind: "fix"
 priority: "low"
