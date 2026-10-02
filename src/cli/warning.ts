@@ -9,8 +9,10 @@
  * - `console`: `warning: <text>`, beside the `error: ` prefix. A continuation line of a multi-line
  *   warning is indented, so no line of it can begin with the greppable `warning: ` or `error: `.
  * - `json`: one `{"warning": "<text>"}` document per line.
- * - `yaml`: one `warning: <text>` YAML document per warning, each opened by `---`, so several
- *   warnings stay one valid stream rather than a mapping with a repeated key.
+ * - `yaml`: one `warning: <text>` YAML document per warning, opened by `---` and closed by `...`, so
+ *   every warning is a self-delimiting document: several warnings, or warnings followed by an error
+ *   (`./error.ts`, whose bytes are unchanged), read as separate documents of one stream and never
+ *   merge into a single mapping (task-169 review).
  *
  * Every warning on the CLI goes through here: the success-warning channel the registrar renders
  * (`CoreResult.warnings`), and any warning a command prints while it runs (`spec-016` §3.4's
@@ -25,7 +27,7 @@ export function emitWarning(text: string, opts: { format: OutputFormat }): void 
   if (opts.format === 'json') {
     process.stderr.write(JSON.stringify({ warning: text }) + '\n');
   } else if (opts.format === 'yaml') {
-    process.stderr.write('---\n' + yamlDump({ warning: text }));
+    process.stderr.write('---\n' + yamlDump({ warning: text }) + '...\n');
   } else {
     process.stderr.write(`warning: ${text.replace(/\n/g, '\n  ')}\n`);
   }

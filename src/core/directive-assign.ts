@@ -87,11 +87,13 @@ export function rolesRewriteConflict(role: string): string {
  * (task-169, `dl-062` Q1 option 3: "the stderr warning enumerating the normalizations"). Pinned in
  * `spec-008` §6. It names what a `js-yaml` `dump` of the parsed file does not keep, which `dl-062`'s
  * Context measured: comments, explicit quoting, the blank lines, CRLF line endings, and the
- * `version: 1.0` → `1` number formatting; flow style and key order are the dump's own.
+ * `version: 1.0` → `1` number formatting, plus flow style (the dump writes block style). It does not
+ * name key order, which the dump keeps, and it says comments "are not kept" rather than "were
+ * dropped", which would be false of a file that had none (task-169 review).
  */
 export const ROLES_REWRITE_WARNING =
-  'roles.yaml was rewritten as a whole file (--force): comments were dropped, and quoting, key order, flow style, ' +
-  'blank lines, line endings and number formatting (1.0 becomes 1) were not preserved';
+  'roles.yaml was rewritten as a whole file (--force): comments are not kept, and neither are quoting, flow style, ' +
+  'blank lines, line endings or number formatting (1.0 becomes 1)';
 
 /** The outcome of {@link updateRoleAssignments}: the role's list as it stands afterwards. */
 export interface RoleAssignmentUpdate {
