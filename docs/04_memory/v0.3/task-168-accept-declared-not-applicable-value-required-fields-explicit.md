@@ -266,8 +266,53 @@ Gates on `b3ef59cf` plus the pending amendments (`npm run build` first):
 | `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
 | `npm run -s wingfoil -- memory search --type release` (pinned build, `memory.yaml` 2.0) | exit 0 |
 
+### Re-review fixes (coordinator re-review APPROVE WITH FIXES; approver ruling 2026-10-02)
+
+The task stays `in-review`; it was not resubmitted. **This supersedes the list-field rule of the
+first review fixes above.** The `LIST` comment convention, `scaffoldListFields` and the git read of the
+scaffold for it are gone.
+
+| # | Fix | Class |
+|---|---|---|
+| 1 | RULING: list fields are declared config, `template.frontmatter.lists`. `memory.yaml` (still 2.0) gives `release` `lists: [ features ]`. The schema checks each entry is in `required` and never `title`, as for `not_applicable_allowed`. A list counts as filled only on a declared field, `[]` included | **red-first** |
+| 2 | Same class: on a field not in `lists`, any list or mapping (`[]`, `[""]`, `[x]`, `{}`) is missing. A date is a value: the default js-yaml schema gives a `Date` object, and it must not count as a mapping | **red-first** (reviewer: `missingRequiredFields({title:"T",kind:{}},["kind"],[])` returned `[]`) |
+| 3 | spec-010: an unquoted `n/a: <reason>` "is not valid YAML", replacing "would parse as a mapping". Checked: `node -e "require('js-yaml').load('pillar: n/a: patch release\\n')"` → `bad indentation of a mapping entry` | documentation |
+
+**red** `3f9bec99`. `npx jest test/memory/submit.test.ts test/memory/schema.test.ts
+test/core/memory-submit.test.ts` → **8 failed, 66 passed**:
+- the `lists` schema refusals ×3 and the live-config `lists` test;
+- the pure list/mapping rules ×2;
+- the core run without `lists`, which passed through the `LIST` comment;
+- `release: [""]` / `kind: {}` on a task.
+
+The `scaffoldListFields` tests were removed with the function.
+
+**green** `d92b1301`:
+- `isEmptyValue(value, isListField)`;
+- `missingRequiredFields(…, listFields)` fed from `template.frontmatter.lists`;
+- `TemplateFrontmatter` checks both subsets;
+- `requireRequiredFields` / `requireRequiredFieldsKept` lose the `root` parameter again;
+- `readCommittedScaffold` is removed, so `committedScaffoldDeclaresRelease` is back to its own read, as on `main`;
+- `memory.yaml` `lists: [ features ]`;
+- the release scaffold comment no longer gives `LIST` a meaning;
+- `docs/cli-reference.md` updated.
+
+The original `e: ['x']` expectation now counts `e` missing (ruling 2).
+
+No committed document is affected. `grep -rnE '^(title|sard_ref|scope|severity|workflow|phase|provider|kind|owner_role|verify|release|version|pillar|requirements|release-line): *[\[{]' docs/04_memory docs/05_plans` → nothing. The same fields with an empty value and a block below match only two body lines, not frontmatter.
+
+Gates on `d92b1301` plus the pending amendments (`npm run build` first):
+
+| Command | Result |
+|---|---|
+| `npm run test:coverage` | exit 0; 200 suites / 3400 tests; 98.87 / 95.44 / 95.23 / 99.57 (main after B3, plan v1.8: 98.85 / 95.39 / 95.18 / 99.56) |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
+| `npm run -s wingfoil -- memory search --type release` (pinned build) | exit 0 |
+
 ### Pending amendments (approver)
 
-Uncommitted in the worktree, final text after the review fixes:
-- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2. TemplateConfig.frontmatter gains not_applicable_allowed, the required fields that may hold the not-applicable value; each entry must be in required and is never title. This repository's memory.yaml 2.0 declares it on release for pillar and requirements (dl-124 Action 4). The version rule now says version is a number compared numerically, so 1.9 is followed by 2.0, never 1.10 (approver rulings 2026-10-02). Revision note added."`
-- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. Validation rules gain the not-applicable row and the paragraph on the reserved value n/a — <reason> (any case, any spacing around the em dash; quoting recommended), for submit and for amend past the initial state. They also gain the definition of non-empty: an explicit [] is filled only on a field the committed scaffold declares as a list, by a sequence value or an empty value whose comment says LIST (approver rulings 2026-10-02). The note on readers is non-normative. Revision note added."`
+Uncommitted in the worktree, final text after the re-review:
+- `spec-001-memory-yaml-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. TemplateConfig.frontmatter gains two optional subsets of required, each entry in required and never title: not_applicable_allowed, the fields that may hold the not-applicable value, and lists, the fields whose value is a list. This repository's memory.yaml 2.0 declares not_applicable_allowed [pillar, requirements] and lists [features] on release (dl-124 Action 4). The version rule now says version is a number compared numerically, so 1.9 is followed by 2.0, never 1.10 (approver rulings 2026-10-02). Revision note added."`
+- `spec-010-memory-frontmatter-schema` — `--reason "task-168: dl-124 Action 2 and bug-147. Validation rules gain the not-applicable row and the paragraph on the reserved value n/a — <reason> (any case, any spacing around the em dash; quoting recommended), for submit and for amend past the initial state. They also gain the definition of non-empty: a list counts as filled only on a field declared in template.frontmatter.lists, [] included, and on any other field a list or a mapping is missing (approver rulings 2026-10-02). The note on readers is non-normative. Revision note added."`
