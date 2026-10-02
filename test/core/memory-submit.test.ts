@@ -423,6 +423,9 @@ describe('CORE_MODULES memory.memorySubmit — empty required list vs untouched 
   beforeEach(() => {
     repo = makeTempGitRepo();
     writeFixtureFile(repo, '.wingfoil/memory.yaml', readFileSync(join(REPO_ROOT, '.wingfoil/memory.yaml'), 'utf-8'));
+    for (const name of ['release.md', 'task.md']) {
+      writeFixtureFile(repo, `.wingfoil/memory/templates/${name}`, readFileSync(join(REPO_ROOT, '.wingfoil/memory/templates', name), 'utf-8'));
+    }
   });
 
   afterEach(() => removeTempDir(repo));
@@ -443,6 +446,41 @@ describe('CORE_MODULES memory.memorySubmit — empty required list vs untouched 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.to).toBe('planning');
+  });
+
+  it('review ruling 1: `[]` on a field the scaffold does not declare a list (task title, release, kind) is missing', async () => {
+    const path = 'docs/04_memory/v9.9/task-901-x.md';
+    writeFixtureFile(
+      repo,
+      path,
+      '---\nid: "task-901-x"\ntype: task\ntitle: []\nstatus: draft\nrelease: []\nkind: []\ntmpl_version: 260703\n---\n\nBody.\n',
+    );
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'task-901-x' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: title, release, kind');
+  });
+
+  it('review ruling 1: with no committed scaffold, `[]` is missing everywhere (features included)', async () => {
+    rmSync(join(repo, '.wingfoil/memory/templates/release.md'));
+    writeFixtureFile(repo, PATH, fromScaffold('features: []'));
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe('missing required field on submit: features');
+  });
+
+  it('review fix 3: a separator other than the em dash names the exact form', async () => {
+    writeFixtureFile(repo, PATH, fromScaffold('features: []').replace(/^pillar: .*$/m, 'pillar: "n/a - patch release"'));
+    commitAll(repo, 'seed');
+    const result = await memorySubmitFn()({ root: repo, positional: 'minor-v9.9' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toBe(
+      'not-applicable value on submit: pillar must be written "n/a — <reason>", with an em dash before the reason',
+    );
   });
 
   it('dl-124 Action 4: `pillar` and `requirements` may say "n/a — <reason>" on a release; `features` may not', async () => {
