@@ -6,6 +6,7 @@
  *
  * Throwaway temp git repositories throughout. Deterministic (REQ-SYS-07).
  */
+import { execFileSync } from 'node:child_process';
 import { rmSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -35,9 +36,12 @@ describe('listPathsAtRevs — one listing for many revisions (task-142, bug-178)
     const first = git(repo, ['rev-parse', 'HEAD']).trim();
     writeFixtureFile(repo, 'docs/mem/v0.3/deep/er/task-009-z.md', 'z\n');
     writeFixtureFile(repo, 'docs/mem/caffè.md', 'accent\n');
-    // A gitlink: an entry of the tree, but not a file (listPathsAtRev filters it out).
+    // A gitlink: an entry of the tree, but not a file (listPathsAtRev filters it out). Staged AFTER
+    // `git add -A`, and committed with a plain `git commit`: `add -A` would drop an index entry
+    // whose path is absent on disk (task-142 review, finding 1).
+    git(repo, ['add', '-A']);
     git(repo, ['update-index', '--add', '--cacheinfo', `160000,${first},docs/mem/submodule`]);
-    commitAll(repo, 'two');
+    git(repo, ['commit', '--quiet', '-m', 'two']);
     const second = git(repo, ['rev-parse', 'HEAD']).trim();
     git(repo, ['rm', '-r', '--quiet', 'docs']);
     commitAll(repo, 'three: no docs at all');
@@ -54,6 +58,8 @@ describe('listPathsAtRevs — one listing for many revisions (task-142, bug-178)
   });
 
   it('keeps an identical subtree or blob at two paths as two paths, and drops the gitlink', () => {
+    // The gitlink really is in the tree — otherwise "drops it" asserts nothing.
+    expect(git(repo, ['ls-tree', revs[1] as string, 'docs/mem/submodule'])).toMatch(/^160000 commit /);
     const answer = listPathsAtRevs(repo, revs, 'docs/mem/');
 
     expect(answer).toEqual(expect.arrayContaining(['docs/mem/v0.1/same.md', 'docs/mem/v0.2/same.md', 'docs/mem/v0.1/link.md', 'docs/mem/caffè.md']));
@@ -100,5 +106,40 @@ describe('listPathsAtRevs — one listing for many revisions (task-142, bug-178)
     rmSync(join(repo, '.git', 'objects', subtree.slice(0, 2), subtree.slice(2)));
 
     expect(() => listPathsAtRevs(repo, revs, 'docs/')).toThrow(new RegExp(`E_GIT_READ_FAILED: .*tree ${subtree} is missing`));
+  });
+
+  it('lists whole trees when no prefix is given (the default)', () => {
+    expect(listPathsAtRevs(repo, revs)).toEqual(reference(repo, revs, ''));
+  });
+
+  it.each([
+    ['a file path, no trailing slash', 'docs/other/x.md'],
+    ['a ./-prefixed directory', './docs/mem/'],
+  ])('gives the same answer as listPathsAtRev for %s', (_what, prefix) => {
+    const answer = listPathsAtRevs(repo, revs, prefix);
+
+    expect(answer).toEqual(reference(repo, revs, prefix));
+    expect(answer.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * task-142 review, finding 2: a tree entry whose mode is zero-padded (`040000`, which old git
+   * versions and some third-party writers produced; `git fsck` reports it as `zeroPaddedFilemode`)
+   * is still a directory. `git ls-tree` normalises the mode and recurses into it; reading it as a
+   * file would hide every id inside it from the counter and reissue a number (the `bug-087` class).
+   */
+  it('reads a zero-padded tree mode (040000) as a directory, as listPathsAtRev does', () => {
+    const blob = git(repo, ['rev-parse', `${revs[0]}:docs/mem/v0.1/task-001-a.md`]).trim();
+    const literalTree = (entries: [string, string, string][]): string => {
+      const raw = Buffer.concat(entries.map(([mode, name, oid]) => Buffer.concat([Buffer.from(`${mode} ${name}\0`), Buffer.from(oid, 'hex')])));
+      return execFileSync('git', ['hash-object', '-t', 'tree', '-w', '--literally', '--stdin'], { cwd: repo, input: raw, encoding: 'utf-8' }).trim();
+    };
+    const inner = literalTree([['100644', 'task-042-padded.md', blob]]);
+    const docs = literalTree([['040000', 'mem', inner]]);
+    const root = literalTree([['40000', 'docs', docs]]);
+    const commit = git(repo, ['commit-tree', root, '-m', 'zero-padded mode']).trim();
+
+    expect(listPathsAtRev(repo, commit, 'docs/')).toEqual(['docs/mem/task-042-padded.md']);
+    expect(listPathsAtRevs(repo, [commit], 'docs/')).toEqual(['docs/mem/task-042-padded.md']);
   });
 });

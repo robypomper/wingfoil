@@ -23,6 +23,7 @@ import { auditAttribution } from '../../src/memory/audit';
 import { walkGitLogFields } from '../../src/memory/git-log';
 import { getMemoryHistory } from '../../src/memory/history';
 import { E_GIT_READ_FAILED, StorageError } from '../../src/storage';
+import { ValidationError } from '../../src/validation';
 import { commitAll, git, makeTempGitRepo, removeTempDir, writeFixtureFile } from '../storage/helpers/git-fixture';
 
 const DOC = 'docs/04_memory/design/dls/dl-900.md';
@@ -144,6 +145,23 @@ describe('a genuine git failure is an error, not an empty history (bug-072, AC1)
     expect(result.ok).toBe(false);
     expect(result.error?.code).toBe('IO');
     expect(result.error?.message).toMatch(/unable to read tree/);
+  });
+
+  /**
+   * Only a `StorageError` becomes `IO`; anything else the reconstruction throws keeps propagating, as
+   * before task-142. Pinned, not endorsed: a revision whose frontmatter is not YAML throws a
+   * `ValidationError` today, which the CLI renders as exit 2 — that tolerance is `bug-188`'s, not
+   * this task's (task-142 review, finding 4).
+   */
+  it('`memory history` lets a non-storage failure propagate (today: a revision with unparsable frontmatter)', async () => {
+    repo = makeTempGitRepo();
+    writeFixtureFile(repo, '.wingfoil/memory.yaml', 'version: 1\ntypes:\n  decision-log:\n    path: "docs/04_memory/design/dls/{id}.md"\n');
+    writeFixtureFile(repo, DOC, ['---', 'id: dl-900', 'status: [unclosed', '---', ''].join('\n'));
+    commitAll(repo, 'wf(decision-log): add dl-900');
+    writeDoc(repo, 'draft');
+    commitAll(repo, 'wf(decision-log): fix dl-900');
+
+    await expect(memoryHistoryFn()({ root: repo, positional: 'dl-900' })).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('a repository with no commits yet still has no history: [] rather than an error', () => {
