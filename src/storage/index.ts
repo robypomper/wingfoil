@@ -7,7 +7,7 @@
  */
 export const MODULE_NAME = 'storage' as const;
 
-export { StorageError, E_GIT_READ_FAILED, E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, E_MISSING_PATH_VALUE } from './errors';
+export { StorageError, E_GIT_READ_FAILED, E_INVALID_REVISION, E_NO_GIT_ROOT, E_NOT_AT_GIT_ROOT, E_MISSING_PATH_VALUE } from './errors';
 export { findGitRoot, resolveProjectRoot } from './git-root';
 export { detectInitState } from './init-state';
 export type { InitState } from './init-state';
@@ -19,7 +19,7 @@ export type { RealPathResolution } from './confinement';
 export { extractFrontmatter, splitFrontmatter } from './frontmatter';
 export type { FrontmatterSplit } from './frontmatter';
 export { readDocument, documentExists, removeDocument, writeDocument } from './document';
-export { changedPathsBetween, commitParent, commitPaths, EMPTY_TREE_SHA, listPathsAtRev, pathPorcelainStatus, readPathAtRev } from './commit';
+export { changedPathsBetween, commitParent, commitPaths, EMPTY_TREE_SHA, listPathsAtRev, pathPorcelainStatus, readPathAtRev, readPathsAtRev, resolveCommitAtRev } from './commit';
 export type { CommitOptions } from './commit';
 export { initStorage, scaffoldFiles, WINGFOIL_DIR, INIT_COMMIT_MESSAGE } from './layout';
 export type { ScaffoldFile } from './layout';

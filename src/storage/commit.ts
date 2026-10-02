@@ -16,7 +16,9 @@
  * latter matters under Jest, whose worker env is not the ambient shell's, so relying on the default
  * env silently drops `GIT_*` overrides a test sets (the task-014 env-isolation gotcha).
  */
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
+
+import { E_GIT_READ_FAILED, E_INVALID_REVISION, StorageError } from './errors';
 
 /** Options for {@link commitPaths} — carries the git-author/env override used by callers (e.g. task-029's wizard). */
 export interface CommitOptions {
@@ -213,4 +215,120 @@ export function listPathsAtRev(
     .filter((record) => LS_TREE_BLOB_RECORD.test(record))
     .map((record) => record.slice(record.indexOf('\t') + 1))
     .sort();
+}
+
+// --- Resolving a revision, and reading MANY paths at it (task-137) -----------------------------
+
+/**
+ * The full 40-hex sha of the **commit** `rev` names, or `null` when it names none: an unknown name, an
+ * unborn `HEAD` in a repository with no commits, a tree or a blob (`git rev-parse --verify --quiet`
+ * exits `1` for all of them).
+ *
+ * The `…AtRev` readers (`src/core/loaders.ts`, `src/memory/query.ts`) resolve their revision through
+ * this **once**, then read every byte at the sha, so one read cannot mix two commits when a ref moves
+ * while it runs. `^{commit}` peels a tag to its commit and refuses anything that is not one.
+ *
+ * **A failure is not "no such commit"** (task-137 review): a `root` git cannot read as a repository
+ * (exit `128`) or a `git` that cannot be spawned throws {@link StorageError} `E_GIT_READ_FAILED`, so a
+ * caller never reports a broken environment as a missing revision.
+ *
+ * The syntax of `rev` is the caller's to check — the core resolver (`resolveRevision`,
+ * `src/core/revision.ts`) refuses a malformed one before it gets here, so that nothing shaped like a
+ * flag ever reaches git's argument list.
+ *
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot answer at all.
+ */
+export function resolveCommitAtRev(root: string, rev: string, options: CommitOptions = {}): string | null {
+  const run = spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${rev}^{commit}`], {
+    encoding: 'utf-8',
+    env: options.env ? { ...process.env, ...options.env } : process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  // `--verify --quiet` exits 1, printing nothing on stdout, for a name that resolves to no commit.
+  if (run.status === 1) return null;
+  if (run.error !== undefined || run.status !== 0) {
+    const detail = run.error !== undefined ? run.error.message : run.stderr.trim();
+    throw new StorageError(E_GIT_READ_FAILED, `git rev-parse ${rev} failed in ${root}: ${detail}`);
+  }
+  // `--verify` prints exactly one object name on success: the sha.
+  return run.stdout.trim();
+}
+
+/** Large enough for every Memory document of a repository; a larger answer fails loudly, never truncates. */
+const BATCH_READ_MAX_BUFFER = 256 * 1024 * 1024;
+
+/** One `git cat-file --batch` header for an object it found: `<oid> SP <type> SP <size>`. */
+const CAT_FILE_HEADER = /^[0-9a-f]+ ([a-z]+) (\d+)$/;
+
+/**
+ * The content of each of `paths` at revision `rev`, in input order — the bytes as UTF-8, or `null` when
+ * the revision does not hold that path as a **file** — read through **one** `git cat-file --batch`
+ * process instead of one `git show` per path. For a file or an absent path that is what
+ * {@link readPathAtRev} answers; for a directory it is `null`, where `git show` would print the tree's
+ * listing, which is no file's content.
+ *
+ * Why it exists (task-137): `spec-017` §1.1 reads every Memory document at `HEAD` on every workflow
+ * read, and `spec-012` builds an agent context from a commit. On this repository's 664 Memory and plan
+ * documents one `git show` per file took 5.49 s, the batch 0.39 s (task-137 design notes).
+ *
+ * **Fails closed.** A batch that cannot run, exits non-zero or answers past
+ * {@link BATCH_READ_MAX_BUFFER} throws {@link StorageError} `E_GIT_READ_FAILED`: a failed read must not
+ * pass for "every path is absent". `null` is reserved for a path the revision really does not hold.
+ *
+ * A path holding a newline or a carriage return cannot travel on the line-based batch protocol (git
+ * ends the request at the newline and strips a trailing CR); it is read on its own with
+ * {@link readPathAtRev}, which gives the same answer. Pass a resolved sha as `rev` when several calls
+ * must see one commit.
+ *
+ * @param root - Project root (the git repository).
+ * @param rev - A revision naming one commit — best a sha already resolved (`resolveCommitAtRev`). It
+ *   travels inside each request line, so a rev holding a newline, a carriage return, a `:` or a NUL is
+ *   refused with {@link StorageError} `E_INVALID_REVISION`: a newline would shift every answer onto
+ *   the wrong path, and a `:` would change which path is read.
+ * @param paths - Root-relative POSIX paths.
+ * @returns One entry per path, in the same order.
+ * @throws {@link StorageError} `E_INVALID_REVISION` for such a rev; `E_GIT_READ_FAILED` when the
+ *   batch read fails.
+ */
+export function readPathsAtRev(
+  root: string,
+  rev: string,
+  paths: readonly string[],
+  options: CommitOptions = {},
+): (string | null)[] {
+  if (/[\n\r:\0]/.test(rev)) {
+    throw new StorageError(E_INVALID_REVISION, `revision ${JSON.stringify(rev)} cannot be read in a batch: it holds a newline, a carriage return, a ':' or a NUL`);
+  }
+  const batched = paths.filter((path) => !/[\n\r]/.test(path));
+  const answers = new Map<string, string | null>();
+  if (batched.length > 0) {
+    const run = spawnSync('git', ['-C', root, 'cat-file', '--batch'], {
+      input: batched.map((path) => `${rev}:${path}\n`).join(''),
+      env: options.env ? { ...process.env, ...options.env } : process.env,
+      maxBuffer: BATCH_READ_MAX_BUFFER,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (run.error !== undefined || run.status !== 0) {
+      const detail = run.error !== undefined ? run.error.message : run.stderr.toString('utf-8').trim();
+      throw new StorageError(E_GIT_READ_FAILED, `git cat-file --batch at ${rev} failed in ${root}: ${detail}`);
+    }
+    const out = run.stdout;
+    let offset = 0;
+    for (const path of batched) {
+      const newline = out.indexOf(0x0a, offset);
+      if (newline === -1) throw new StorageError(E_GIT_READ_FAILED, `git cat-file --batch at ${rev} in ${root}: truncated answer`);
+      const header = CAT_FILE_HEADER.exec(out.subarray(offset, newline).toString('utf-8'));
+      offset = newline + 1;
+      if (header === null) {
+        // `<object> missing` (or `ambiguous`): the revision does not hold this path.
+        answers.set(path, null);
+        continue;
+      }
+      const size = Number(header[2]);
+      // Every found object is followed by its bytes and one LF — a tree included, which is skipped.
+      answers.set(path, header[1] === 'blob' ? out.subarray(offset, offset + size).toString('utf-8') : null);
+      offset += size + 1;
+    }
+  }
+  return paths.map((path) => (answers.has(path) ? answers.get(path)! : readPathAtRev(root, rev, path, options)));
 }
