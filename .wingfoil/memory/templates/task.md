@@ -4,6 +4,7 @@ type: task
 title: ""              # REQUIRED — e.g. "Implement git-backed Memory store (REQ-SYS-01)"
 status: draft          # auto-set by wingfoil
 release: ""            # REQUIRED — target release version, e.g. "v0.1"
+kind: ""               # REQUIRED — feature | fix (dl-133 Q1 (b)): `fix` when the task exists to close bugs; a feature task that absorbs a bug stays `feature`
 priority: ""           # optional — high | medium | low
 tags: []               # optional — additional labels, e.g. [architecture, backend]
 ref: ""                # optional — backlog item ID, e.g. "TASK-001"

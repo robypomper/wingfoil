@@ -233,7 +233,7 @@ flowchart TD
     DS["**define-scope** *(product-owner)*\nelement.set_state(planning)\nrelease: draft → planning\n✔ P4.12: [title, version, pillar, features, requirements]"]
     RA["**record-adrs** *(architect)* · **OPTIONAL**\nmemory.add(type: adr) → memory.submit\n✔ P4.12: [title, sard_ref]\n`docs/04_memory/design/adrs/{id}.md`"]
     IS["**identify-specs** *(architect)*\nagent.survey_specs → memory.add(type: tech-spec) → memory.submit\n✔ P4.12: [title, scope]\n🔑 Approval gate — *approver*\n`docs/04_memory/design/specs/{id}.md`"]
-    BB["**build-backlog** *(product-owner)*\nmemory.add(type: task) → memory.submit\nper selected triaged bug: memory.add(type: task, bug: {bug.id}) → memory.submit\n→ bug.set_state(planned)\n✔ P4.12: [title, release]\n`docs/04_memory/{release}/{id}.md`"]
+    BB["**build-backlog** *(product-owner)*\nmemory.add(type: task) → memory.submit\nper selected triaged bug: memory.add(type: task, bug: {bug.id}) → memory.submit\n→ bug.set_state(planned)\n✔ P4.12: [title, release, kind]\n`docs/04_memory/{release}/{id}.md`"]
     CB["**commit-backlog** *(tech-lead)*\ntask.set_state(backlog) · release.set_state(in-development)\n🔑 Approval gate — *approver*"]
 
     DS --> RA --> IS --> BB --> CB
