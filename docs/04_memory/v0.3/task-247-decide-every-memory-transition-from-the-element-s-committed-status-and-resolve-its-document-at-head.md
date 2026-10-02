@@ -60,4 +60,126 @@ readers at a commit.
 
 ## Execution Notes
 
-<!-- Running log of what actually happened while working this task through dev-loop. -->
+Branch `task/task-247-decide-every-memory-transition-from-the-element-s-committed-status-and-resolve-its-document-at-head`,
+worktree `../.wf2-wt/task-247`, cut from `main` at `903b87a6`; start `45f7148f`, `bug-187` synced
+`planned → in-progress` at `215af0b2`.
+
+### design (architect)
+
+**`depends_on` read (dl-015).** `task-137` (`done`): resolve `HEAD` once with `resolveRevision`, pass
+the sha to every reader so they see one commit, and feed the Memory readers the `memoryYaml` loaded at
+that sha. Its review records that a symlink committed under a scan root is listed at a commit as a
+blob (its link text), while the working-tree scan follows it. That matters here: a transition on a
+symlinked document now finds nothing at `HEAD` (see green). `task-132`'s `beginMemoryTransition` stays
+the single preamble; only `prepareMemoryTransition`, which it calls, changes.
+
+**Specs.** `spec-006` and `spec-008` are `approved` (`grep -m1 '^status:'`). `spec-006` §6 item 1 states
+the rule; its table and `spec-008` §11 list the transition verbs' id lookup and status read as
+working-tree deviations owed to `HEAD`. They become `HEAD` rows: pending amendments below.
+
+**Shape.** `prepareMemoryTransition` resolves `HEAD` once (`atHeadOr(resolveRevision)`, so no commit at
+all keeps the "not committed at HEAD" refusal), loads `memory.yaml` with `loadMemoryYamlAtRev(sha)` and
+finds the document by bare id with a new `findMemoryDocumentByIdAtRev` (`src/memory/query.ts`, the
+bare-id sibling of `task-137`'s `findMemoryDocumentByTypeAndIdAtRev`, same lazy batch parse). `type`
+and `from` come from `HEAD`; `content` and `frontmatter` from the working tree, which is what `submit`
+and `amend` commit. The working tree is otherwise read only to word a refusal (`command-baseline`:
+"may be read to explain a refusal, never to decide one"):
+
+- not found at `HEAD` but a working-tree document carries the id → `NOT_FOUND` naming the path, "is
+  not committed at HEAD" and `memory add`; when `HEAD` holds that path under another id →
+  `VALIDATION` naming `frontmatter field 'id'`; when the path is behind a symlink or outside the root
+  → the filesystem guards' own refusal (`requireConfinedWriteTarget`, `requireInspectableTarget`);
+- found at `HEAD`, deleted in the working tree → `VALIDATION` naming the path ("deleted in the working
+  tree"), instead of `document not found`;
+- working-tree `id` or `type` differs from `HEAD`'s → `VALIDATION` naming the field, so `submit`
+  cannot commit a different element than the one it decided on.
+
+**AC classification (T1).**
+
+| AC | Class | Why |
+|---|---|---|
+| 1 — submit decides from `HEAD`'s `open` | red-first | the working-tree status decided (red: the verb computed `draft → open` and `git commit` threw "nothing to commit") |
+| 2 — uncommitted document refused by all five verbs, naming `memory add` | red-first for submit/approve/reject/deprecate; characterization for amend | `amend` already refused it (`requireAmendableEdit`, "nothing to amend … memory add and memory submit"); the other four committed it or failed with the write guard's wording |
+| 3 — id resolved at `HEAD`; content from the working tree | red-first (lookup, deleted file, status edit on submit); characterization (amend content) | the working-tree scan picked an uncommitted copy and reported a deleted document as not found; amend already committed working-tree content |
+| 4 — existing suites green, spec tables amended | characterization | |
+
+### red (developer)
+
+`a41173c6` adds `test/core/memory-transition-head-baseline.test.ts`. `npx jest
+test/core/memory-transition-head-baseline.test.ts --json` → **13 failed, 3 passed of 16**: AC1, AC3
+submit-status, AC3 sorted copy, AC3 deleted ×5, AC2 ×4 (submit/approve/reject/deprecate), AC2 staged.
+The 3 passing are the two amend characterizations and the unchanged P1.6 sc.3 message. Each failure is
+the defect (wrong `from`, a commit made, `document not found`, the write guard's wording), not a fixture
+fault.
+
+### green (developer)
+
+`3638548b`: `src/core/memory-transition.ts`, `src/memory/query.ts` (+ barrel). Two test-side changes on
+the way, both wording, not rule: the red assertions expected `from 'open'`, the `dl-032` message reads
+`illegal transition open -> …`; fixed in the red suite. Existing suites that met the stricter rule:
+
+- `memory-amend.test.ts`: three refusals now come from the preamble; the preamble's messages were worded
+  to keep their pinned substrings (`frontmatter field 'id'|'type'`, `<path> is not committed at HEAD`)
+  rather than changing those tests.
+- `memory-transition-commit-scope.test.ts` "approve refuses a document not tracked at HEAD at all":
+  the refusal now precedes the write guard, so its expected text moves from the guard's "not tracked at
+  HEAD" to the preamble's "is not committed at HEAD" + `memory add`. Same rule, earlier refusal.
+- `memory-machine-baseline.test.ts`: its spy on `loadMemoryYamlAtHead` moves to `loadMemoryYamlAtRev`,
+  the reader the preamble now calls; the property pinned (a non-`ValidationError` propagates) is
+  unchanged.
+- The symlink suites (`memory-transition-symlink-target`, `memory-transition-confinement`,
+  `write-guard-uninspectable-target`) commit their documents already; at `HEAD` a symlinked document or
+  type directory is not a tree entry under the scan roots, so it is not found. The not-found branch
+  therefore asks the two filesystem guards first, which keeps those suites' "symbolic link" /
+  "outside the project root" refusals. No fixture needed to commit anything new.
+
+Also in `3638548b`: `command-baseline` 1.3 → 1.4 (its "where the shipped code still deviates" paragraph
+keeps only `bug-108`; `test/directives/schema.test.ts` pins 1.4) and `docs/cli-reference.md`'s *Git side
+effects* paragraph, which described this defect.
+
+### refactor (developer)
+
+`b5b9ef3c`. The first coverage run (`3638548b`) came back under `main`: 98.74 / 95.28 / 95.22 / 99.50
+against 98.85 / 95.39 / 95.18 / 99.56. Causes, by `lcov.info` diff: the preamble now shadows three
+defences that the suites reached through it — `requireAmendableEdit`'s not-at-`HEAD` refusal
+(`memory-amend.ts:104`), `requireNoDivergentStage`'s inspectability refusal (`write-guard.ts:181`), and
+`memoryAmendFn`'s confinement check (`index.ts:1413`) — plus a dead `catch` in the new `recordedIdAt`
+(the full `HEAD` scan has already parsed every path it could read). Changes: the dead `catch` removed;
+the first two defences pinned directly; a new case per write-side verb (`submit`, `amend`) where a
+committed document is swapped for a symlink out of the project in the working tree, which reaches the
+remaining two; a test that an unparsable working-tree document cannot change a refusal; a test for the
+renamed-id refusal.
+
+| Gate | Result |
+|---|---|
+| `npm run test:coverage` (worktree, `b5b9ef3c` + pending amendments) | 201 suites / 3387 tests passed; 98.86 / 95.42 / 95.22 / 99.57 |
+| the same on `903b87a6`, detached worktree | 200 suites / 3363 tests; 98.85 / 95.39 / 95.18 / 99.56 — no regression |
+| `memory-transition.ts` | 99.06 / 98.33 / 100 / 100; uncovered line 281 = rethrow of a non-`ValidationError` from the content read (base had the same, line 177) |
+| `npm run lint` | exit 0 |
+| `npm run docs:api` | exit 0, 0 warning lines (`grep -ci warning`) |
+| `npx tsc --noEmit -p tsconfig.json` / `npx tsc -p tsconfig.build.json --noEmit` | exit 0 / exit 0 |
+| `npm run -s check:governance` | exit 0; gated: 0 findings |
+| `npm run build && node scripts/e2e-smoke.cjs -- node "$PWD/dist/cli.js"` | exit 0, 19 `ok` lines, none other |
+
+BDD: `P1.6`–`P1.9` features have no scenario about the baseline (`grep -il "working tree\|committed"`
+over them → nothing); their scenarios run in `memory-submit`/`approve`/`reject`/`deprecate` suites,
+green above.
+
+### review (reviewer)
+
+| AC | Status | Evidence |
+|---|---|---|
+| 1 | met | "AC1: HEAD at `open` …": `INVALID_TRANSITION`, exit 1, `illegal transition open -> `, `HEAD` and the file unchanged |
+| 2 | met | "AC2: %s refuses a hand-made, untracked document" ×5 + staged variant: exit 1, message holds `memory add` and the path, no commit, file byte-identical |
+| 3 | met | sorted-copy case refused from `pending`; deleted ×5 name the path, never `document not found`; submit commits working-tree body with `from: draft` despite a hand-set `backlog`; amend commits working-tree body at `open → open` |
+| 4 | met | full suite 3387/3387; spec-006 §6 and spec-008 §11 edited with dated Revision notes (pending amendments) |
+
+Same-class sweep in touched files: `grep -n "findMemoryDocumentById(" src/core` → only `memoryHistory`
+(a read that gates nothing, `spec-006` §6 item 4) and the explaining scan. `directive remove`
+(`bug-108`) is the same class in another command, out of scope per the task.
+
+**Pending amendments (approver)** — uncommitted in the worktree, gates run with them:
+
+- `spec-006-core-domain-api` — `--reason "§6's table moves the transition verbs' id lookup and status read from working tree, deviating to HEAD, per item 1 and bug-187, as task-247 implements them; the deviating row keeps directiveRemove alone (bug-108)."`
+- `spec-008-cli-grammar` — `--reason "§11's working tree, a defect row drops the Memory transition verbs, which find their document and read its status at HEAD since task-247 (bug-187); the HEAD row names what they read there."`
+
