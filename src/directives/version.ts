@@ -12,8 +12,8 @@
  *   before validation, with a warning, so the rest of the file — and every other directive — still
  *   loads.
  *
- * Pure (REQ-SYS-07): the caller decides where the warning goes (`loadDirectiveInventory` puts it in its `warnings`,
- * in spec-009 §2's `Warning: <file>: …` form).
+ * Pure (REQ-SYS-07): the caller decides where the warning goes (`loadDirectiveInventory` puts it in its
+ * `warnings` as `directive '<.wingfoil/directives/…>': <warning>`).
  */
 
 /** The parsed frontmatter, possibly without its `version`, and the warning to show, if any. */
