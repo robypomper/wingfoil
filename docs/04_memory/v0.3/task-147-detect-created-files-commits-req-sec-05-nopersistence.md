@@ -79,9 +79,10 @@ is `Received promise resolved instead of rejected` — the four MA/MC cases; the
 `git status --porcelain --untracked-files=all` and `git rev-parse HEAD`. `assertFilesUnchanged`
 compares all three and throws a `channel-enumeration:` error naming which one changed (the status
 diff is printed before/after). The git queries run with `--no-optional-locks`, so taking a snapshot
-does not rewrite `.git/index`. The status is compared for equality with the "before" value rather than
-asserted empty, so a caller whose fixture is dirty at snapshot time is not broken; every current caller
-commits its fixture first.
+does not rewrite `.git/index`. The status was compared for equality with the "before" value rather than
+asserted empty, so a caller whose fixture is dirty at snapshot time would not break. **Reversed at the
+independent review (finding 3, below):** compare-to-before misses a rewrite of an already-dirty unlisted
+file, so `snapshotFiles` now requires an empty status.
 
 `npx jest test/mcp` → 9 suites, 77 tests, all passed: the new suite is green, and the four existing
 callers pass the stronger check unchanged — so their real read handlers create no file and make no
@@ -117,4 +118,52 @@ Same-class search outside MCP: `grep -rln "byte-for-byte\|persists nothing\|writ
 scope (REQ-SEC-05's read channel) and were not audited — reported to the coordinator as a candidate.
 
 Submitted for the approver's review; `bug-036` synced to `in-review`.
+
+### review (independent)
+
+Verdict from the coordinator's independent review: **approve with fixes**. The reviewer's probe script ran
+mutations against a scratch repository. All four findings were fixed while the task stayed `in-review`.
+
+1. **Ref, symbolic-HEAD and stash changes were missed.** The probe showed these passing the check:
+   a new branch, a tag, a note, `git stash` (clean tree afterwards), a commit on another branch via
+   `commit-tree` + `update-ref`, `checkout -b`, and `checkout --detach` at the same commit.
+   `PersistenceSnapshot` now also holds `symbolicHead` (`git rev-parse --symbolic-full-name HEAD`)
+   and `refs` (`git for-each-ref --format='%(refname) %(objectname)'`). The doc comments now say only
+   what is checked, and they state that `.git/config`, hooks, the reflog and unreferenced objects are
+   out of scope.
+2. **Ignored paths were missed.** The status query had no `--ignored`, and a global
+   `core.excludesFile` reaches the fixtures, so the result depended on the machine (determinism
+   directive). `--ignored` is now added. The test uses a path ignored by the fixture's own
+   `.gitignore` (`ign/`), so it behaves the same on every machine.
+3. **Comparing the status to its "before" value left a hole.** `snapshotFiles` now throws
+   `fixture must be committed` unless the status (untracked and ignored files included) is empty.
+   This reverses the green-phase decision above. Every current caller is clean at snapshot time:
+   `npx jest test/mcp` passes, see below.
+4. **Nit.** Each failure case now matches the message of the specific check that fires:
+   `file changed`, `working tree changed`, `HEAD moved`, `HEAD switched` or `refs changed`.
+
+**Red, `04bfae05`.** Nine new cases: an ignored-path file; a branch; a tag; a stash; a commit on
+another branch; a detach; `checkout -b`; and `snapshotFiles` on a dirty tree and on a tree with an
+ignored file. The six existing cases switched to the specific regexes.
+`npx jest test/mcp/channel-enumeration-persistence.test.ts` → **9 failed, 6 passed**: the nine
+failures are exactly the new cases.
+
+**Green, `73d1facf`.** `test/mcp/helpers/channel-enumeration.ts` only. `npx jest test/mcp` → 9 suites,
+86 tests, all passed.
+
+**Gates on `73d1facf`:**
+
+| Command | Result |
+|---|---|
+| `npm run -s test:coverage` | 189 suites / 3208 tests. The same single `publish-secrets` dry-run failure as before; re-run alone it passes 24/24 (load flake). Coverage 98.84 / 95.24 / 95.01 / 99.54, unchanged |
+| `npm run -s lint` | exit 0 |
+| `npm run -s docs:api` | exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npx tsc -p tsconfig.build.json --noEmit` | exit 0 |
+
+**Follow-up, filed by the coordinator.** The core and CLI "writes nothing" assertions check one file
+plus `HEAD` but never the status. Examples: `test/core/memory-approve.test.ts:274`,
+`test/core/dna-mutation-surface.test.ts:243` and `test/core/directive-assign.test.ts:238`. The
+follow-up is to move `PersistenceSnapshot` to a shared test helper and adopt it there. That is out of
+scope for this task.
 
