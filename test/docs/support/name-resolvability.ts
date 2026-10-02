@@ -91,24 +91,55 @@ const NOT_CONFIG_SUFFIX = /\.(?:com|org|io|dev|net|sh|txt|lock)$/;
 const PLACEHOLDER = /[{}<>*…|]/;
 
 /**
- * The inline code spans of a Markdown text, fenced code blocks excluded. A span opens with a run of
- * backticks and closes at the next run of the same length (CommonMark), and may wrap onto the next
- * line; its content is trimmed and inner whitespace runs collapse to one space.
+ * The inline code spans of a Markdown text, fenced code blocks excluded. Following CommonMark, a span
+ * opens with a run of backticks and closes at the next run of the same length within the same
+ * paragraph (it may wrap onto the next line, never across a blank line), so a stray backtick hides
+ * nothing beyond its paragraph; and a fence that is never closed runs to the end of the document.
+ * Each span's content is trimmed, inner whitespace runs collapsed to one space.
  */
 export function inlineCodeSpans(markdown: string): string[] {
-  const text = markdown.replace(/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[^\n]*$/gm, '');
+  const paragraphs: string[] = [];
+  let paragraph: string[] = [];
+  let fence: { char: string; length: number } | undefined;
+  const flush = (): void => {
+    if (paragraph.length > 0) paragraphs.push(paragraph.join('\n'));
+    paragraph = [];
+  };
+  for (const line of markdown.split('\n')) {
+    const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence !== undefined) {
+      if (marker !== undefined && marker[0] === fence.char && marker.length >= fence.length && /^ {0,3}[`~]+\s*$/.test(line)) {
+        fence = undefined;
+      }
+      continue;
+    }
+    if (marker !== undefined) {
+      flush();
+      fence = { char: marker[0] ?? '`', length: marker.length };
+    } else if (line.trim() === '') {
+      flush();
+    } else {
+      paragraph.push(line);
+    }
+  }
+  flush();
+  return paragraphs.flatMap(paragraphSpans);
+}
+
+/** The inline code spans of one paragraph (no blank line inside). */
+function paragraphSpans(text: string): string[] {
   const spans: string[] = [];
   const opener = /`+/g;
   let match: RegExpExecArray | null;
   while ((match = opener.exec(text)) !== null) {
-    const fence = match[0];
-    const start = match.index + fence.length;
-    const closer = new RegExp(`(?<!\`)${fence}(?!\`)`, 'g');
+    const run = match[0];
+    const start = match.index + run.length;
+    const closer = new RegExp(`(?<!\`)${run}(?!\`)`, 'g');
     closer.lastIndex = start;
     const end = closer.exec(text);
     if (end === null) continue;
     spans.push(text.slice(start, end.index).replace(/\s+/g, ' ').trim());
-    opener.lastIndex = end.index + fence.length;
+    opener.lastIndex = end.index + run.length;
   }
   return spans;
 }
