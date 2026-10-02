@@ -17,7 +17,8 @@ import {
 } from './helpers/git-fixture';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const teardown = require('../global-teardown.cjs') as (() => Promise<void>) & {
+const teardown = require('../global-teardown.cjs') as {
+  teardownRun(run: { tag: string | undefined; pid: number; tmpRoot: string }): string | null;
   sweepFixtureDirs(tmpRoot: string, tag: string): { found: string[]; unremoved: string[] };
   formatSweepReport(result: { found: string[]; unremoved: string[] }): string | null;
 };
@@ -94,42 +95,36 @@ describe('global teardown — only the run that owns the tag sweeps (task-152)',
   // repository's config, so it runs the same teardown, and it inherits the parent's tag through the
   // environment. Its teardown must not sweep the parent's fixtures while the parent's suites are still
   // using them: the tag is `r<pid>` of the process that set it, and only that process sweeps.
-  const saved = { tmp: process.env.TMPDIR, tag: process.env[FIXTURE_RUN_TAG_ENV] };
   let root: string;
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'wf-sweep-owner-'));
-    process.env.TMPDIR = root;
   });
 
   afterEach(() => {
-    process.env.TMPDIR = saved.tmp;
-    process.env[FIXTURE_RUN_TAG_ENV] = saved.tag;
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('leaves the fixtures alone when the tag names another process (an inherited tag)', async () => {
-    const foreign = `r${process.pid + 1}`;
-    process.env[FIXTURE_RUN_TAG_ENV] = foreign;
-    mkdirSync(join(root, `wf-storage-${foreign}-live`));
+  it('leaves the fixtures alone when the tag names another process (an inherited tag)', () => {
+    mkdirSync(join(root, 'wf-storage-r100-live'));
 
-    await teardown();
-
-    expect(readdirSync(root)).toEqual([`wf-storage-${foreign}-live`]);
+    expect(teardown.teardownRun({ tag: 'r100', pid: 200, tmpRoot: root })).toBeNull();
+    expect(readdirSync(root)).toEqual(['wf-storage-r100-live']);
   });
 
-  it('sweeps when the tag is its own', async () => {
-    const own = `r${process.pid}`;
-    process.env[FIXTURE_RUN_TAG_ENV] = own;
-    mkdirSync(join(root, `wf-storage-${own}-left`));
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it('does nothing outside a tagged run', () => {
+    mkdirSync(join(root, 'wf-storage-abc'));
 
-    try {
-      await teardown();
-    } finally {
-      warn.mockRestore();
-    }
+    expect(teardown.teardownRun({ tag: undefined, pid: 200, tmpRoot: root })).toBeNull();
+    expect(readdirSync(root)).toEqual(['wf-storage-abc']);
+  });
 
+  it('sweeps and reports when the tag is its own', () => {
+    mkdirSync(join(root, 'wf-storage-r200-left'));
+
+    expect(teardown.teardownRun({ tag: 'r200', pid: 200, tmpRoot: root })).toBe(
+      'fixture teardown: this run left 1 fixture directory behind; removed 1',
+    );
     expect(readdirSync(root)).toEqual([]);
   });
 });

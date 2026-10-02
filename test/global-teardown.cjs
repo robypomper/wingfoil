@@ -58,11 +58,28 @@ function formatSweepReport(result) {
   );
 }
 
+/**
+ * Sweep this run's leftovers and return the report line — only in the process that set the tag. A
+ * child jest started from inside a run (`test/lint/coverage-parity.test.ts`) loads this same config,
+ * so it runs this teardown too, and it inherits the parent's tag through the environment; sweeping
+ * there would delete the parent's fixtures while its suites are still using them. The tag is
+ * `r<pid>` of the process that set it (`test/global-setup.cjs`), so a mismatch means "not mine": do
+ * nothing.
+ *
+ * @param {{ tag: string | undefined, pid: number, tmpRoot: string }} run - The run's tag, the current
+ *   process id, and the temp directory fixtures were created in.
+ * @returns {string | null} The line to report, or `null` when there is nothing to say or nothing owned.
+ */
+function teardownRun({ tag, pid, tmpRoot }) {
+  if (!tag || tag !== `r${pid}`) return null;
+  return formatSweepReport(sweepFixtureDirs(tmpRoot, tag));
+}
+
+/** The jest `globalTeardown` entry point: one self-contained async function, easy to chain. */
 module.exports = async () => {
-  const tag = process.env.WF_FIXTURE_RUN_TAG;
-  if (!tag) return;
-  const report = formatSweepReport(sweepFixtureDirs(tmpdir(), tag));
+  const report = teardownRun({ tag: process.env.WF_FIXTURE_RUN_TAG, pid: process.pid, tmpRoot: tmpdir() });
   if (report) console.warn(report);
 };
 module.exports.sweepFixtureDirs = sweepFixtureDirs;
 module.exports.formatSweepReport = formatSweepReport;
+module.exports.teardownRun = teardownRun;
