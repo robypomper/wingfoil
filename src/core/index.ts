@@ -943,6 +943,8 @@ export interface MemoryHistoryResult {
  *
  * A document that exists on disk but has never been committed yields `entries: []` — correctly, not
  * as an error: per ADR-007 git history IS the audit trail, so an uncommitted document has none yet.
+ * A git read that fails — a tree git cannot read, an answer past the read buffer — is a `CoreError`
+ * `IO` (exit `1`) carrying git's message, never an empty trail (task-142, `bug-072`).
  */
 const memoryHistoryFn: CoreFn<unknown, MemoryHistoryResult> = async (params) => {
   const { root, positional: id } = params as MemoryHistoryParams;
@@ -958,7 +960,16 @@ const memoryHistoryFn: CoreFn<unknown, MemoryHistoryResult> = async (params) => 
     return coreErr({ code: 'NOT_FOUND', message: `document not found: ${id}` });
   }
 
-  const entries: MemoryHistoryEntryView[] = reconstructMemoryTransitions(root, found.path).map((transition) => ({
+  let transitions: ReturnType<typeof reconstructMemoryTransitions>;
+  try {
+    transitions = reconstructMemoryTransitions(root, found.path);
+  } catch (error) {
+    // A git read that failed is `IO`, never an empty trail (task-142, `bug-072`): the walk throws
+    // rather than answering "no history" for a history it could not read.
+    if (error instanceof StorageError) return coreErr({ code: 'IO', message: error.message });
+    throw error;
+  }
+  const entries: MemoryHistoryEntryView[] = transitions.map((transition) => ({
     sha: transition.sha,
     author: `${transition.authorName} <${transition.authorEmail}>`,
     timestamp: transition.date,

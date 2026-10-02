@@ -164,7 +164,7 @@ describe('nextSequenceNumber — every ref, HEAD, the index and the working tree
     commitAll(dir, 'base');
     const blob = git(dir, ['hash-object', '-w', 'README.md']).trim();
     git(dir, ['update-ref', 'refs/remotes/origin/not-a-commit', blob]);
-    expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(/E_GIT_READ_FAILED: git ls-tree/);
+    expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(new RegExp(`E_GIT_READ_FAILED: .*${blob} names no commit`));
   });
 
   /**

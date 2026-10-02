@@ -27,7 +27,7 @@
  * {@link findElementCreationSha} for the distinction that resolves it and why rename-following is
  * kept rather than traded away.
  */
-import { execFileSync } from 'child_process';
+import { E_GIT_READ_FAILED, runGitRead, StorageError } from '../storage';
 
 import { walkGitLogFields } from './git-log';
 
@@ -56,6 +56,21 @@ export interface MemoryHistoryEntry {
 }
 
 const LOG_FIELDS = ['%H', '%an', '%ae', '%aI', '%s', '%b'];
+
+/**
+ * Run one of this module's probes through `runGitRead` (`src/storage/git-read.ts`, task-142) and
+ * return its stdout, or throw `StorageError` `E_GIT_READ_FAILED` whose message says what the failure
+ * leaves unknown (`what`) and then git's own text. stderr is captured, never inherited: git's `fatal:`
+ * reaches the caller inside this error, not the operator's terminal on its own
+ * (`bug-093-two-more-git-calls-inherit-the-operator-stderr`, `bug-097`).
+ */
+function readOrExplain(root: string, args: readonly string[], what: string): string {
+  try {
+    return runGitRead(root, args).stdout;
+  } catch (error) {
+    throw new StorageError(E_GIT_READ_FAILED, `${what}: ${(error as Error).message.replace(/^E_GIT_READ_FAILED: /, '')}`);
+  }
+}
 
 /**
  * The same `--follow` walk as {@link getMemoryHistory}, narrowed by git to the commits whose edge for
@@ -89,10 +104,10 @@ const CREATION_PROBE_ARGS = ['--follow', '--diff-filter=C', '--format=%H'];
  * whatever the source itself was copied from. `git log` prints newest first, so that is the first
  * line.
  *
- * **Throws** — never returns `null` — when git itself fails. "git could not answer" and "this
+ * **Throws** `StorageError` `E_GIT_READ_FAILED` — never returns `null` — when git itself fails,
+ * with git's own message in the error (`readOrExplain`). "git could not answer" and "this
  * element was never copied from anything" are different answers, and collapsing the first into the
- * second would silently restore the phantom entry; it is also why this cannot borrow
- * `walkGitLogFields`, whose `catch` returns `[]` (`bug-072-oversized-git-log-becomes-empty-history`).
+ * second would silently restore the phantom entry.
  * {@link getMemoryHistory} calls this only once the main walk has already returned commits, so at
  * that point the repository and the path are both known good and a failure here is genuinely
  * exceptional.
@@ -102,17 +117,11 @@ const CREATION_PROBE_ARGS = ['--follow', '--diff-filter=C', '--format=%H'];
  * @returns The creation commit's full sha, or `null` when the chain has no copy edge.
  */
 export function findElementCreationSha(root: string, relativePath: string): string | null {
-  let stdout: string;
-  try {
-    stdout = execFileSync('git', ['-C', root, 'log', ...CREATION_PROBE_ARGS, '--', relativePath], {
-      encoding: 'utf-8',
-    });
-  } catch (cause) {
-    throw new Error(
-      `git log --follow --diff-filter=C failed for ${relativePath}: cannot establish where the element was created`,
-      { cause },
-    );
-  }
+  const stdout = readOrExplain(
+    root,
+    ['log', ...CREATION_PROBE_ARGS, '--', relativePath],
+    `git log --follow --diff-filter=C failed for ${relativePath}: cannot establish where the element was created`,
+  );
 
   const newestCopy = stdout.split('\n').find((line) => line.trim().length > 0);
   return newestCopy === undefined ? null : newestCopy.trim();
@@ -161,6 +170,8 @@ export function dropPreCreationAncestry(
  * `core.quotePath=false` is set for the invocation (never written to the repository's config) so a
  * path carrying non-ASCII bytes arrives as its own UTF-8 rather than as git's `"\303\251"` escape
  * form — the parser would otherwise have to un-escape it to hand `git show` something that resolves.
+ * Load-bearing, and pinned: `test/memory/history-rename-path.test.ts` (task-142 AC3, `bug-097`) goes
+ * red when the flag is removed.
  */
 const PATH_PROBE_ARGS = ['-c', 'core.quotePath=false'];
 const PATH_PROBE_LOG_ARGS = ['--follow', '--name-status', '--format=%H'];
@@ -182,7 +193,8 @@ const SHA_LINE_RE = /^[0-9a-f]{40}$/;
  * absent from the map; {@link attachHistoricalPaths} decides what to do about that, so the rule is
  * testable without a repository.
  *
- * **Throws** — never returns an empty map — when git itself fails, for the same reason
+ * **Throws** `StorageError` `E_GIT_READ_FAILED` — never returns an empty map — when git itself
+ * fails, with git's own message in the error (`readOrExplain`), for the same reason
  * {@link findElementCreationSha} does: "git could not answer" and "this element was never renamed"
  * are different answers, and folding the first into the second silently reinstates `bug-080` by
  * reading every commit at the current path again. {@link getMemoryHistory} calls this only once the
@@ -193,23 +205,11 @@ const SHA_LINE_RE = /^[0-9a-f]{40}$/;
  * @returns sha → the root-relative path the document occupied at that commit.
  */
 export function collectHistoricalPaths(root: string, relativePath: string): Map<string, string> {
-  let stdout: string;
-  try {
-    stdout = execFileSync(
-      'git',
-      ['-C', root, ...PATH_PROBE_ARGS, 'log', ...PATH_PROBE_LOG_ARGS, '--', relativePath],
-      // Same `stdio` rule as `./audit`'s `readStatusAt`, for the same reason
-      // (`bug-071-read-status-at-leaks-git-stderr`): the failure is reported by the throw below, so
-      // git's own `fatal:` must land in a pipe this process owns rather than on the operator's
-      // terminal. A call added while closing that bug must not reopen it somewhere else.
-      { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
-    );
-  } catch (cause) {
-    throw new Error(
-      `git log --follow --name-status failed for ${relativePath}: cannot establish where the element lived at each commit`,
-      { cause },
-    );
-  }
+  const stdout = readOrExplain(
+    root,
+    [...PATH_PROBE_ARGS, 'log', ...PATH_PROBE_LOG_ARGS, '--', relativePath],
+    `git log --follow --name-status failed for ${relativePath}: cannot establish where the element lived at each commit`,
+  );
 
   const pathBySha = new Map<string, string>();
   let currentSha: string | null = null;
@@ -258,11 +258,13 @@ export function attachHistoricalPaths(
  * disk keeps its history, but stops at the element's own creation rather than continuing into the
  * template it was copied from ({@link findElementCreationSha}).
  *
- * Returns `[]`, rather than throwing, both when `root` has no commits touching the path at all and
- * when `root` is not a git repository — "document not found" is a caller/feature-layer concern
- * (task-021/026-style CLI error rendering), not this primitive's. That is also why the creation
- * probe runs only on a non-empty walk: on an empty one there is nothing to truncate and nothing to
- * conclude from git's silence — and the same for the path probe.
+ * Returns `[]` when no commit touches the path, or the repository has none yet — "document not
+ * found" is a caller/feature-layer concern (task-021/026-style CLI error rendering), not this
+ * primitive's. That is also why the creation probe runs only on a non-empty walk: on an empty one
+ * there is nothing to truncate and nothing to conclude from git's silence — and the same for the path
+ * probe. **A git failure throws** `StorageError` `E_GIT_READ_FAILED` — a `root` that is not a
+ * repository included — rather than reading as an empty history (task-142, `bug-072`; see
+ * {@link walkGitLogFields}).
  *
  * Every returned entry carries the path the element occupied at its own commit
  * ({@link MemoryHistoryEntry.path}), not the one the caller named. That is what makes this walk the

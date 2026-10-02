@@ -29,8 +29,6 @@
  * - "Recomputing an element's state at any historical commit ... agrees with the transition history
  *   derived from git log ... no drift" -> {@link verifyTransitionConsistency}.
  */
-import { execFileSync } from 'child_process';
-
 import { isConfiguredIdentity } from '../core';
 import { parseYaml } from '../validation';
 
@@ -39,7 +37,7 @@ import { getMemoryHistory } from './history';
 import type { StateMachine } from './schema';
 import { isMachineEdge } from './state-machine';
 import { walkGitLogFields } from './git-log';
-import { splitFrontmatter } from '../storage';
+import { runGitRead, splitFrontmatter } from '../storage';
 
 // --- Attribution audit -----------------------------------------------------------------------
 
@@ -305,6 +303,9 @@ export interface MemoryTransition {
   readonly reason: string | null;
 }
 
+/** The exit status of `git show <sha>:<path>` for a path that commit does not hold (`fatal:`). */
+const GIT_FATAL = 128;
+
 /**
  * Read `historicalPath`'s frontmatter `status:` field as it existed at `sha` (`git show sha:path`),
  * without validating it against any type's Zod schema — this is a historical-snapshot read, not a
@@ -319,25 +320,21 @@ export interface MemoryTransition {
  * `HEAD` — does not reach here: this read gates nothing, and its subject is by construction *other*
  * commits.
  *
- * The explicit `stdio` is `bug-071-read-status-at-leaks-git-stderr`, and it is not made redundant by
- * the paragraph above. `execFileSync` hands the child this process's own stderr by default, so on
- * the failure that remains legitimate — a commit where the document genuinely does not exist, before
- * its creation or after a deletion — git's `fatal: path ... does not exist in '<sha>'` went straight
- * to the operator's terminal while the command reported success. Capturing it into a pipe this
- * process owns (and discarding it, the failure being handled right here) is what keeps a genuine
- * `fatal:` distinguishable from a routine one — that line is how `bug-050`'s forged history
- * announced itself.
+ * The read goes through `runGitRead` (`src/storage/git-read.ts`, task-142), so git's stderr lands in
+ * a pipe this process owns rather than on the operator's terminal
+ * (`bug-071-read-status-at-leaks-git-stderr`). Exit `128` is taken as "no document at this commit"
+ * and answers `null`, and git's text is then discarded: that is the legitimate case — a commit
+ * before the element's creation or after a deletion — but git uses the same exit status for an
+ * object it cannot read, so this read cannot tell the two apart, and does not try (`bug-097`). What
+ * catches a broken walk is the walk itself: `getMemoryHistory` throws when its own `git log` fails,
+ * and `dropPreCreationAncestry` when the creation probe and the walk disagree (`task-089`). Any other
+ * failure — git that cannot be spawned, an answer past the read buffer — throws `StorageError`
+ * `E_GIT_READ_FAILED`.
  */
 function readStatusAt(root: string, sha: string, historicalPath: string): string | null {
-  let raw: string;
-  try {
-    raw = execFileSync('git', ['-C', root, 'show', `${sha}:${historicalPath}`], {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } catch {
-    return null;
-  }
+  const run = runGitRead(root, ['show', `${sha}:${historicalPath}`], { accepted: [0, GIT_FATAL] });
+  if (run.status === GIT_FATAL) return null;
+  const raw = run.stdout;
 
   const { frontmatter } = splitFrontmatter(raw);
   if (!frontmatter) return null;
