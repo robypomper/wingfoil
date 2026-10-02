@@ -1,7 +1,12 @@
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/test'],
+  // `src/` is a root so coverage discovery walks it: Jest finds the files it reports as uncovered by
+  // walking `roots`, and with `test/` alone a source file no test loads was missing from the report
+  // instead of counting at 0% (task-134-report-source-file-coverage-so-untested-file-counts, bug-141).
+  // `src/` holds no `*.test.ts`, so `testMatch` still collects tests from `test/` only.
+  // `test/lint/coverage-parity.test.ts` fails if the report and `src/` ever disagree.
+  roots: ['<rootDir>/test', '<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
   // The ESM/CommonJS harness (task-065-fix-commander-esm-jest-harness, bug-007). This replaces the
   // bare `preset: 'ts-jest'` (which is exactly the first entry below with no `tsconfig` option) so
