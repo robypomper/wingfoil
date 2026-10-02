@@ -50,13 +50,15 @@ suite runs.
   shows `npm run -s` exports `npm_config_loglevel=silent` (and `npm_config_globalconfig`,
   `npm_config_local_prefix`, …). `npmEnv()` spread `process.env`, so the inner npm inherited all of it.
 - `bug-167`: did **not** reproduce. The baseline `npx jest --coverage` on `838746fc` passed:
-  200 suites / 3363 tests, exit 0, 275 s, load average ~9–13. The bug's report says the case failed
-  under coverage and passed under plain `npm test`. That fits `bug-181`'s mechanism if the runs went
-  through `npm run -s`, but the report did not capture the output, so that link is **unproven**. One
-  more load-dependent hazard was found by reading the code: the case's `beforeEach` spawns a real
-  `npm pack` under jest's default **5 s hook timeout**, while the case itself declares 60 s. The fix
-  covers both: the `npm_config_*` strip, and a 60 s hook timeout. The case already had its own npm
-  cache.
+  200 suites / 3363 tests, exit 0, 275 s, load average ~9–13. It is **not** `bug-181`'s mechanism.
+  The recorded commands are `npm run test:coverage` without `-s` (`task-120`'s Execution Notes) and
+  `npx jest --coverage` (`bug-167`), and neither exports the loglevel: `npm run env | grep -i loglevel`
+  and `npx -c env | grep -i loglevel` print nothing. Only `npm run -s` exports it. (The first version
+  of this note called the link "unproven". The review showed the record contradicts it.) The cause
+  is unknown. Reading the code found one load-dependent hazard: the case's `beforeEach` spawns a real
+  `npm pack` under jest's default **5 s hook timeout**, while the case itself declares 60 s. The
+  remaining guard is that 60 s hook timeout plus the green coverage runs under load recorded below.
+  `bug-167` is closed as "not reproduced; hypothesis guarded", recorded in its own notes.
 
 **Design decisions (approver to confirm):**
 - **Wait, then refuse.** A second run waits for the lock and prints one stderr line naming the
@@ -148,8 +150,40 @@ docs/user-guide.md docs/cli-reference.md README.md CLAUDE.md .wingfoil/README.md
 - **Unasserted (T1):** "serial execution" is not declared. Jest has no per-case serial switch, and
   the AC allows the isolated cache as the alternative. The suite never asserts the 5 s hook timeout
   as a *cause* of `bug-167`, which stays a hypothesis.
-- **Residual window:** two runs that break the same *stale* lock at the same instant can both take
-  it. The re-read before the unlink narrows that window; it does not close it. This is stated in
-  `test/dist-lock.cjs`.
+- ~~Residual window: two runs breaking the same stale lock at once can both take it.~~ Closed at
+  review (fix 2 below).
 
 **Pending amendments (approver):** none.
+
+### Review fixes (2026-10-02, verdict "approve with fixes"; not re-submitted)
+
+1. **`bug-167` record.** The link to `bug-181` is contradicted by the record, not merely unproven.
+   The design note above is corrected, and `bug-167`'s own notes now say "not reproduced; hypothesis
+   guarded", with the commands that show neither recorded runner exports the loglevel.
+2. **Stale-lock takeover race.** The reviewer's script
+   (`scratchpad/task-146/race.cjs`: 4 simultaneous takers on a lock left by a dead pid, wait 200 ms)
+   showed 2 holders in **4 / 80** trials on `c1f8a58a`. It was reproduced here before the fix: 4 / 80.
+   - **Fix (`559c8132`):** `breakStale` deletes a stale lock only while holding `<lock>.break`
+     (created atomically like the lock). Under it, the lock can change only through its owner's
+     release, and a stale lock's owner is dead.
+   - **If a run is killed while holding the break lock**, the others wait and then refuse, naming
+     it. Two holders cannot result.
+   - **After the fix:** **0 / 200** trials with more than one holder (exactly one each time), at load
+     ~21–28.
+   - **The interleaving itself has no deterministic test.** It needs a pause between a read and a
+     delete inside one synchronous step, so the script's trial counts are the evidence for it.
+   - **What the tests pin**, as a red-first test (`e7a54cbe`, failing before `559c8132`): a run
+     does not break a stale lock while another holds the break lock, and refuses naming it.
+     Characterization: no break lock or `.tmp` is left after a takeover.
+3. **`.gitignore`** now has `.jest-dist.lock*`, which covers `.break` and `.<pid>.tmp`. The wiring
+   test checks all three with `git check-ignore`.
+
+`test/global-teardown.cjs` stays a single exported function, so `task-152` can chain its fixture
+sweep onto it.
+
+Gates on `559c8132` + these notes:
+- `npx jest --coverage`: exit 0, 201 suites / 3382 tests, 98.85 / 95.39 / 95.18 / 99.56 (unchanged),
+  load ~28;
+- `npm run -s lint`, `npx tsc --noEmit -p tsconfig.json`, `npx tsc -p tsconfig.build.json --noEmit`
+  and `npm run -s docs:api`: all exit 0;
+- no `.jest-dist.lock*` was left behind.
