@@ -37,3 +37,19 @@ Ten local helpers remain: approval-authority-baseline, check-governance, directi
 
 Captured on 2026-10-02 by `bug-ingest-rel-v0.3-w1b3-review-findings-plan`, from the independent reviews of wave 1
 batch B3 (`dev-loop-rel-v0.3-plan`).
+
+**Closing note (2026-10-02, `task-152`).** What `task-152` resolved is narrower than the Expected
+Behavior's "every CLI suite spawns through the shared helper":
+
+- The ten suites named under Actual Behavior now spawn through `test/cli/helpers/spawn-cli.ts`.
+  Nine of them used to coalesce `status ?? 1`; `check-governance` called `spawnSync` directly.
+- Two more files had the same `status ?? 1` coalescing and were moved too:
+  `directive-assign-force.integration.test.ts`, and the two helpers in
+  `test/memory/history-rename-path.test.ts`.
+- `test/lint/no-signal-as-exit.test.ts` fails on any `status ??` or `status ||` in a TypeScript or
+  JavaScript source under `test/`, so the coalescing cannot come back.
+
+Some suites still call `spawnSync` directly: `extra-operand-refusal`, `dirty-target-refusal`,
+`derived-option-namespace`, `workflow-list-diagnostics`, `mcp-registration`, `check-lockfile-pins`
+and the `publish-*` suites. They keep `status: number | null`, so a signal reads as `null` and cannot
+pass a `toBe(1)`. They are not hazardous, and moving them is left to a follow-up.
