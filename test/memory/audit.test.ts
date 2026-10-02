@@ -193,10 +193,10 @@ describe('auditAttribution — git-log walk with a 0-"unknown author" attributio
     expect(auditAttribution(repo, ['docs/04_memory/v0.1/does-not-exist.md'])).toEqual([]);
   });
 
-  it('returns [] (never throws) when `root` is not a git repository at all', () => {
+  it('throws E_GIT_READ_FAILED, rather than reporting a clean empty audit, when `root` is not a git repository (task-142, bug-072)', () => {
     repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
     writeDoc(repo, DOC_PATH, 'draft'); // plain file write, no `git init`
-    expect(auditAttribution(repo, [DOC_PATH])).toEqual([]);
+    expect(() => auditAttribution(repo, [DOC_PATH])).toThrow(/E_GIT_READ_FAILED: .*not a git repository/s);
   });
 });
 

@@ -172,8 +172,7 @@ describe('the truncation never stands in for a failure (AC5) — a real error st
   it('surfaces a failing creation probe as an error, never as "this element was never copied"', () => {
     repo = mkdtempSync(join(tmpdir(), 'wf-not-a-repo-'));
     // A git failure and "no copy edge" are different answers. Folding the first into the second is
-    // how the phantom entry would come back silently, so the probe must not swallow it — which is
-    // also why it cannot reuse `walkGitLogFields`, whose catch returns `[]` (bug-072).
+    // how the phantom entry would come back silently, so the probe must not swallow it.
     expect(() => findElementCreationSha(repo, ADR_PATH)).toThrow(/git log --follow --diff-filter=C/);
   });
 

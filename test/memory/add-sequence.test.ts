@@ -7,7 +7,8 @@
  * - {@link nextSequenceNumber} is the git half: it collects those paths from every local branch,
  *   every remote-tracking ref, `HEAD`, the index and the untracked working-tree files, and adds one.
  */
-import { mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -163,6 +164,54 @@ describe('nextSequenceNumber — every ref, HEAD, the index and the working tree
     commitAll(dir, 'base');
     const blob = git(dir, ['hash-object', '-w', 'README.md']).trim();
     git(dir, ['update-ref', 'refs/remotes/origin/not-a-commit', blob]);
-    expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(/E_GIT_READ_FAILED: git ls-tree/);
+    expect(() => nextSequenceNumber(dir, TASK_PATH, TASK_ID)).toThrow(new RegExp(`E_GIT_READ_FAILED: .*${blob} names no commit`));
+  });
+
+  /**
+   * `bug-178` (absorbed by `task-142`): the counter used to spawn one `git ls-tree` per distinct ref
+   * commit, so its cost grew with the number of branches and remote-tracking refs. Counted with a
+   * `git` wrapper put first on `PATH` that logs each invocation and hands it to the real git — the
+   * same binary the code would run, observed from outside the process tree rather than by mocking.
+   */
+  it('spawns the same number of git processes whatever the number of refs (bug-178)', () => {
+    const realGit = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf-8' }).trim();
+    const shim = mkdtempSync(join(tmpdir(), 'wf-git-shim-'));
+    dirs.push(shim);
+    const log = join(shim, 'invocations.log');
+    writeFileSync(join(shim, 'git'), `#!/bin/sh\necho "$*" >> '${log}'\nexec '${realGit}' "$@"\n`);
+    chmodSync(join(shim, 'git'), 0o755);
+
+    /** A repository with `branches` extra branches, each holding one more task file than the last. */
+    const repoWithBranches = (branches: number): string => {
+      const dir = repo();
+      writeFixtureFile(dir, 'docs/memory/v0.1/task-001-base.md', 'x\n');
+      commitAll(dir, 'base');
+      for (let index = 0; index < branches; index += 1) {
+        git(dir, ['checkout', '--quiet', '-b', `b${index}`, 'main']);
+        writeFixtureFile(dir, `docs/memory/v0.${index + 2}/task-${String(index + 2).padStart(3, '0')}-b.md`, 'x\n');
+        commitAll(dir, `branch ${index}`);
+      }
+      git(dir, ['checkout', '--quiet', 'main']);
+      return dir;
+    };
+
+    const spawnsFor = (dir: string): { next: number; spawns: number } => {
+      writeFileSync(log, '');
+      const saved = process.env.PATH;
+      process.env.PATH = `${shim}:${saved ?? ''}`;
+      try {
+        const next = nextSequenceNumber(dir, TASK_PATH, TASK_ID);
+        return { next, spawns: readFileSync(log, 'utf-8').split('\n').filter((line) => line.length > 0).length };
+      } finally {
+        process.env.PATH = saved;
+      }
+    };
+
+    const few = spawnsFor(repoWithBranches(2));
+    const many = spawnsFor(repoWithBranches(12));
+
+    // The answers prove each run read every branch; the counts prove it did so at a constant cost.
+    expect([few.next, many.next]).toEqual([4, 14]);
+    expect(many.spawns).toBe(few.spawns);
   });
 });

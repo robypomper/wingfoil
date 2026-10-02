@@ -5,7 +5,20 @@
  * first" plumbing over a different field set/pathspec shape; this is that one shared primitive, so
  * the record-separator convention lives in exactly one place instead of being copy-pasted twice.
  */
-import { execFileSync } from 'child_process';
+import { E_GIT_READ_FAILED, runGitRead, StorageError } from '../storage';
+
+/** The exit status git uses for `fatal:` — a broken repository, and an unborn `HEAD` alike. */
+const GIT_FATAL = 128;
+
+/**
+ * Whether `root` is a repository with no commit yet — the one `fatal:` of a `git log` that is an
+ * answer ("nothing has been recorded") rather than a failure. `rev-parse --verify --quiet` exits `1`,
+ * printing nothing, for a `HEAD` that names no commit; outside a repository it exits `128` like the
+ * walk did. Asked only after the walk has failed, so a healthy walk costs no extra process.
+ */
+function isUnbornHead(root: string): boolean {
+  return runGitRead(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], { accepted: [0, 1, GIT_FATAL] }).status === 1;
+}
 
 /**
  * The `--format` placeholder git expands to a single NUL byte, used to delimit BOTH the fields of a
@@ -64,12 +77,19 @@ const NUL = String.fromCharCode(0);
  * a single leading `\n` on each record's first field after the first, and that is stripped; both call
  * sites put `%H` first, which never legitimately begins with one.
  *
- * Returns `[]` — never throws — both when `root` is not a git repository at all and when none of
- * `pathspecs` has any matching history; "not a repo"/"not found" is a caller concern, not this
- * primitive's (mirrors `getMemoryHistory`'s original contract). That now holds at EVERY arity: with
- * no matching commits git prints nothing, the split yields one piece, and dropping it leaves nothing
- * to group. An empty `fields` requests nothing and likewise yields `[]`, rather than looping forever
- * over zero-width groups.
+ * Returns `[]` when none of `pathspecs` has any matching history — git prints nothing, the split
+ * yields one piece, and dropping it leaves nothing to group, at EVERY arity — and when the repository
+ * has no commit yet: an unborn `HEAD` makes git exit `128`, and `isUnbornHead` confirms that
+ * is the reason. An empty `fields` requests nothing and likewise yields `[]`, rather than looping
+ * forever over zero-width groups.
+ *
+ * **Every other failure throws** `StorageError` `E_GIT_READ_FAILED` carrying git's own message
+ * (`task-142`): a `root` that is not a repository, a tree git cannot read, an output past the read
+ * buffer. It used to return `[]` for all of them, so an oversized walk — Node's 1 MiB default buffer,
+ * `ENOBUFS` — read as "this document has no history", and an audit over it as a clean pass
+ * (`bug-072-oversized-git-log-becomes-empty-history`). git runs through `runGitRead`
+ * (`src/storage/git-read.ts`), so its stderr travels inside that error and never reaches the
+ * operator's terminal (`bug-093-two-more-git-calls-inherit-the-operator-stderr`).
  */
 export function walkGitLogFields(
   root: string,
@@ -79,16 +99,13 @@ export function walkGitLogFields(
 ): string[][] {
   if (fields.length === 0) return [];
   const format = fields.map((field) => `${field}${NUL_PLACEHOLDER}`).join('');
-  let stdout: string;
-  try {
-    stdout = execFileSync(
-      'git',
-      ['-C', root, 'log', ...extraArgs, `--format=${format}`, '--', ...pathspecs],
-      { encoding: 'utf-8' },
-    );
-  } catch {
-    return [];
+  const args = ['log', ...extraArgs, `--format=${format}`, '--', ...pathspecs];
+  const run = runGitRead(root, args, { accepted: [0, GIT_FATAL] });
+  if (run.status === GIT_FATAL) {
+    if (isUnbornHead(root)) return [];
+    throw new StorageError(E_GIT_READ_FAILED, `git ${args.join(' ')} failed in ${root}: ${run.stderr.trim()}`);
   }
+  const stdout = run.stdout;
 
   // The stream is `<f1>NUL<f2>NUL…<fn>NUL` per commit, each run terminated by git's own newline, so
   // the text after the FINAL NUL is never a field — it is that newline, or the empty string when git

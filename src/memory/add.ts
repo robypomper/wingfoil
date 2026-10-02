@@ -10,9 +10,7 @@
  * wall-clock, no randomness, no unordered iteration in a value that reaches the produced id or
  * document.
  */
-import { spawnSync } from 'child_process';
-
-import { E_GIT_READ_FAILED, listPathsAtRev, splitFrontmatter, StorageError } from '../storage';
+import { listPathsAtRevs, runGitRead, splitFrontmatter } from '../storage';
 import { isIdPiece, patternTokens, patternToSource, ValidationError } from '../validation';
 import type { ValidationIssue } from '../validation';
 
@@ -98,30 +96,6 @@ export function highestSequenceNumber(paths: Iterable<string>, pathPattern: stri
   return highest;
 }
 
-/** Large enough for a whole tree's path list; a larger answer fails loudly rather than truncating. */
-const GIT_READ_MAX_BUFFER = 256 * 1024 * 1024;
-
-/**
- * Run a read-only `git` command in `root` and return its exit status and stdout. A spawn error (no
- * `git`, output past {@link GIT_READ_MAX_BUFFER}) or any exit status outside `accepted` throws a
- * {@link StorageError} carrying git's own stderr: this read decides an id, so a failure must never
- * pass for an empty answer. stderr is captured, never inherited, so git's text reaches the user only
- * inside that error.
- */
-function runGitRead(root: string, args: readonly string[], accepted: readonly number[] = [0]): { status: number; stdout: string } {
-  const run = spawnSync('git', ['-C', root, ...args], {
-    encoding: 'utf-8',
-    env: process.env,
-    maxBuffer: GIT_READ_MAX_BUFFER,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  if (run.error !== undefined || run.status === null || !accepted.includes(run.status)) {
-    const detail = run.error !== undefined ? run.error.message : run.stderr.trim();
-    throw new StorageError(E_GIT_READ_FAILED, `git ${args.join(' ')} failed in ${root}: ${detail}`);
-  }
-  return { status: run.status, stdout: run.stdout };
-}
-
 /** The literal directory a `path` pattern starts with (up to its last `/` before any token), or `''`. */
 function literalPrefix(pathPattern: string): string {
   const head = pathPattern.split('{', 1)[0] as string;
@@ -147,16 +121,12 @@ function sequenceCandidatePaths(root: string, prefix: string): string[] {
 
   const refs = runGitRead(root, ['for-each-ref', '--format=%(objectname)', 'refs/heads', 'refs/remotes']);
   // `--verify --quiet` exits 1, printing nothing, on an unborn `HEAD`: an answer, not a failure.
-  const head = runGitRead(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], [0, 1]);
+  const head = runGitRead(root, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], { accepted: [0, 1] });
   const commits = new Set(`${refs.stdout}\n${head.stdout}`.split('\n').map((sha) => sha.trim()));
   commits.delete('');
-  for (const sha of [...commits].sort()) {
-    const listed = listPathsAtRev(root, sha, prefix);
-    if (listed === null) {
-      throw new StorageError(E_GIT_READ_FAILED, `git ls-tree ${sha} failed in ${root}: the tree could not be listed`);
-    }
-    for (const path of listed) paths.add(path);
-  }
+  // One batched read for every commit, not one `git ls-tree` each (`bug-178`, task-142): the number of
+  // git processes no longer grows with the number of branches and remote-tracking refs.
+  for (const path of listPathsAtRevs(root, [...commits].sort(), prefix)) paths.add(path);
   return [...paths].sort();
 }
 

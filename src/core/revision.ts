@@ -102,7 +102,7 @@ export function listPathsAtCommit(root: string, sha: string, prefix: string): st
  * refusals mean that: {@link RevisionError} `NOT_FOUND` (a repository with no commit yet; `HEAD` is a
  * constant, so `VALIDATION` cannot occur) and `StorageError` `E_GIT_READ_FAILED` from resolving it (a
  * `root` that is not a repository, or no runnable `git`). Before task-137 those readers read through
- * `readPathAtRev`, which answers `null` for every git failure, and their callers treat that as
+ * `readPathAtRev`, which then answered `null` for every git failure, and their callers treat that as
  * "nothing committed" (task-090, task-091, task-096); this keeps it so. Any other error propagates.
  */
 export function atHeadOr<T, F>(read: () => T, fallback: F): T | F {

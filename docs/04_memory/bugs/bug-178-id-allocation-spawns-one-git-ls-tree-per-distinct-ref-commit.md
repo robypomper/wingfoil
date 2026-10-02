@@ -2,7 +2,7 @@
 id: bug-178-id-allocation-spawns-one-git-ls-tree-per-distinct-ref-commit
 type: bug
 title: "Id allocation spawns one git ls-tree per distinct ref commit"
-status: planned
+status: closed
 severity: "low"           # REQUIRED — critical | high | medium | low
 release-origin: "v0.3"     # optional — release where the bug was FOUND (dl-016), e.g. "v0.1"
 release: "v0.3"            # optional — fix/implementation release, stamped by release-planning/build-backlog (dl-016)

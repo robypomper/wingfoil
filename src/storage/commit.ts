@@ -19,6 +19,8 @@
 import { execFileSync, spawnSync } from 'child_process';
 
 import { E_GIT_READ_FAILED, E_INVALID_REVISION, StorageError } from './errors';
+import { runGitRead, runGitReadBytes } from './git-read';
+import type { GitReadOptions } from './git-read';
 
 /** Options for {@link commitPaths} — carries the git-author/env override used by callers (e.g. task-029's wizard). */
 export interface CommitOptions {
@@ -59,6 +61,14 @@ function probeGit(root: string, args: readonly string[], options: CommitOptions)
     env: options.env ? { ...process.env, ...options.env } : process.env,
     stdio: ['ignore', 'pipe', 'ignore'],
   });
+}
+
+/** git's exit status for `fatal:` — an absent path, an unresolvable revision, no repository. */
+const GIT_FATAL = 128;
+
+/** {@link CommitOptions} as the read helper takes them, with the exit statuses that are answers. */
+function gitReadOptions(options: CommitOptions, accepted: readonly number[]): GitReadOptions {
+  return options.env ? { accepted, env: options.env } : { accepted };
 }
 
 /**
@@ -109,20 +119,28 @@ export function commitPaths(
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 /**
- * The content of `path` at revision `rev`, or `null` when the path does not exist there (git exits
- * non-zero, which `execFileSync` raises).
+ * The content of `path` at revision `rev`, or `null` when git answers with its `fatal:` exit `128`:
+ * the path is absent there, or `rev` does not resolve (or `root` is no repository).
+ *
+ * Read through `runGitRead` (`./git-read`, task-142 review): stderr is captured, never inherited, and
+ * the buffer is `GIT_READ_MAX_BUFFER`. Before, a document past Node's 1 MiB default made
+ * `execFileSync` throw `ENOBUFS` and a blanket `catch` answered `null` — "absent" for a document that
+ * is there, which `memory amend`, the loaders and the write guard turned into a wrong refusal. A
+ * failure that is not git's answer — git that cannot be spawned, an answer past the buffer — now
+ * throws `StorageError` `E_GIT_READ_FAILED`. Exit `128` stays `null`: git gives it to an absent path
+ * and to an unreadable object alike, and this read does not tell them apart.
  *
  * `rev` is any revision git accepts before a `:` — a sha, `HEAD`, or the index stage `:0`, which is
  * how a caller reads what the user has **staged** as opposed to what is in the working tree. The two
  * can disagree, and the difference is load-bearing: `git add` would silently replace a staged version
  * with the working-tree one.
+ *
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot be spawned or its answer exceeds
+ *   the read buffer (task-142 review).
  */
 export function readPathAtRev(root: string, rev: string, path: string, options: CommitOptions = {}): string | null {
-  try {
-    return probeGit(root, ['show', `${rev}:${path}`], options);
-  } catch {
-    return null;
-  }
+  const run = runGitRead(root, ['show', `${rev}:${path}`], gitReadOptions(options, [0, GIT_FATAL]));
+  return run.status === GIT_FATAL ? null : run.stdout;
 }
 
 /**
@@ -204,7 +222,9 @@ const LS_TREE_BLOB_RECORD = /^\d+ blob [0-9a-f]+\t/;
  * @param prefix - Root-relative directory to limit the listing to; **omitted or empty lists the whole
  *   tree**, because `git ls-tree -- ''` is an error rather than a match-all. Passed verbatim after
  *   `--`, so a path that looks like a flag is never misread.
- * @returns The paths, or `null` when `rev` does not resolve.
+ * @returns The paths, or `null` when `rev` does not resolve (git's exit `128`).
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when git cannot be spawned or its answer exceeds
+ *   the read buffer (task-142 review).
  */
 export function listPathsAtRev(
   root: string,
@@ -213,15 +233,12 @@ export function listPathsAtRev(
   options: CommitOptions = {},
 ): string[] | null {
   const pathspec = prefix.length === 0 ? [] : ['--', prefix];
-  let records: string;
-  try {
-    // `probeGit`: an unresolvable revision is an expected answer here, and git's `fatal: Not a valid
-    // object name` must not reach the user's terminal beside the CLI's own message.
-    records = probeGit(root, ['ls-tree', '-r', '-z', '--full-tree', rev, ...pathspec], options);
-  } catch {
-    return null;
-  }
-  return records
+  // `runGitRead` (task-142 review): an unresolvable revision is git's exit `128`, an expected answer
+  // here, and its `fatal: Not a valid object name` stays in a captured pipe. A listing past Node's
+  // 1 MiB default no longer reads as "this revision does not resolve".
+  const run = runGitRead(root, ['ls-tree', '-r', '-z', '--full-tree', rev, ...pathspec], gitReadOptions(options, [0, GIT_FATAL]));
+  if (run.status === GIT_FATAL) return null;
+  return run.stdout
     .split('\0')
     .filter((record) => LS_TREE_BLOB_RECORD.test(record))
     .map((record) => record.slice(record.indexOf('\t') + 1))
@@ -342,4 +359,169 @@ export function readPathsAtRev(
     }
   }
   return paths.map((path) => (answers.has(path) ? answers.get(path)! : readPathAtRev(root, rev, path, options)));
+}
+
+// --- Listing a directory at MANY revisions in a constant number of processes (task-142) -------
+
+/** The object-type bits of a tree entry's mode (`S_IFMT`). */
+const MODE_TYPE_MASK = 0o170000;
+/** Type bits of a subtree. Compared as bits, not as text: a legacy writer's zero-padded `040000` is a directory too (task-142 review). */
+const MODE_TREE = 0o040000;
+/** Type bits of a gitlink (submodule): an entry of the tree, but not a file anyone can read back. */
+const MODE_GITLINK = 0o160000;
+
+/** One parsed answer of `git cat-file --batch`: the object's type and bytes, or `null` for `missing`. */
+interface BatchObject {
+  readonly type: string;
+  readonly oid: string;
+  readonly content: Buffer;
+}
+
+/** Ask one `git cat-file --batch` for every request, answering in request order. */
+function catFileBatch(root: string, requests: readonly string[], options: CommitOptions): (BatchObject | null)[] {
+  if (requests.length === 0) return [];
+  const out = runGitReadBytes(root, ['cat-file', '--batch'], {
+    input: requests.map((request) => `${request}\n`).join(''),
+    ...(options.env ? { env: options.env } : {}),
+  }).stdout;
+  const answers: (BatchObject | null)[] = [];
+  let offset = 0;
+  for (const request of requests) {
+    const newline = out.indexOf(0x0a, offset);
+    if (newline === -1) throw new StorageError(E_GIT_READ_FAILED, `git cat-file --batch in ${root}: truncated answer for ${request}`);
+    const header = /^([0-9a-f]+) ([a-z]+) (\d+)$/.exec(out.subarray(offset, newline).toString('utf-8'));
+    offset = newline + 1;
+    if (header === null) {
+      // `<request> missing` (or `ambiguous`): no object answers that name.
+      answers.push(null);
+      continue;
+    }
+    const size = Number(header[3]);
+    answers.push({ oid: header[1] as string, type: header[2] as string, content: out.subarray(offset, offset + size) });
+    offset += size + 1;
+  }
+  return answers;
+}
+
+/** The entries of a raw tree object: `<mode> SP <name> NUL <binary oid>`, repeated. */
+function treeEntries(tree: Buffer, oidBytes: number): { mode: string; name: string; oid: string }[] {
+  const entries: { mode: string; name: string; oid: string }[] = [];
+  let offset = 0;
+  while (offset < tree.length) {
+    const space = tree.indexOf(0x20, offset);
+    const nul = tree.indexOf(0x00, space);
+    entries.push({
+      mode: tree.subarray(offset, space).toString('utf-8'),
+      name: tree.subarray(space + 1, nul).toString('utf-8'),
+      oid: tree.subarray(nul + 1, nul + 1 + oidBytes).toString('hex'),
+    });
+    offset = nul + 1 + oidBytes;
+  }
+  return entries;
+}
+
+/**
+ * Every **file** any of `revs` holds under `prefix`, as one sorted, de-duplicated list of
+ * root-relative POSIX paths — the union of {@link listPathsAtRev} over `revs`, read in a number of git
+ * processes that does not depend on how many revisions there are (`bug-178`, absorbed by `task-142`).
+ *
+ * `memory add`'s id counter reads every local branch and remote-tracking ref (`dl-101` §2 (a)); one
+ * `git ls-tree` per ref made its cost grow with the clone's branch count. Here one
+ * `git cat-file --batch` resolves every revision's tree at `prefix`, and each further level of the
+ * directory costs one more batch, asking only for the subtrees no earlier answer already held — so the
+ * process count is the depth of the directory under `prefix` plus one, and branches that share a
+ * subtree (most of them, most of the time) read it once.
+ *
+ * It answers what {@link listPathsAtRev} answers, unioned — compared case by case in
+ * `test/storage/list-paths-at-revs.test.ts` rather than claimed by construction: blobs only (a symbolic
+ * link is a blob, a gitlink is not a file), a subtree recognised by its mode's **type bits** so a
+ * legacy zero-padded `040000` is still a directory, the path bytes as UTF-8, sorted (REQ-SYS-07). The
+ * prefix is taken in canonical spelling — leading `./` segments and trailing `/` are dropped — and a
+ * prefix naming a file lists that file unless it ends in `/`. Other non-canonical spellings (`..`,
+ * `//` inside) are not normalised, and `ls-tree`'s pathspec matching may answer them differently.
+ *
+ * @param root - Project root (the git repository).
+ * @param revs - Revisions naming commits — best full shas. One that names no commit fails the read.
+ * @param prefix - Root-relative directory or file, canonical spelling (see above); empty lists whole trees.
+ * @returns The union of the paths, sorted.
+ * @throws {@link StorageError} `E_GIT_READ_FAILED` when a revision names no commit or tree, or the
+ *   batch read fails; `E_INVALID_REVISION` for a revision that cannot travel on the batch protocol.
+ */
+export function listPathsAtRevs(
+  root: string,
+  revs: readonly string[],
+  prefix = '',
+  options: CommitOptions = {},
+): string[] {
+  for (const rev of revs) {
+    if (/[\n\r:\0]/.test(rev)) {
+      throw new StorageError(E_INVALID_REVISION, `revision ${JSON.stringify(rev)} cannot be read in a batch: it holds a newline, a carriage return, a ':' or a NUL`);
+    }
+  }
+  // Canonical spelling: `git ls-tree --full-tree -- ./docs/` reads `docs/`, and so must the batch.
+  const directory = prefix.replace(/^(?:\.\/+)+/, '').replace(/\/+$/, '');
+  if (/[\n\r]/.test(directory)) {
+    // Not expressible on the line-based batch protocol: read revision by revision instead.
+    const paths = new Set<string>();
+    for (const rev of revs) {
+      const listed = listPathsAtRev(root, rev, prefix, options);
+      if (listed === null) throw new StorageError(E_GIT_READ_FAILED, `git ls-tree ${rev} failed in ${root}: the tree could not be listed`);
+      for (const path of listed) paths.add(path);
+    }
+    return [...paths].sort();
+  }
+
+  // Round one: each revision's root tree (which proves it names a commit or a tree) and, under a
+  // prefix, its tree at that prefix — absent when the revision has no such directory.
+  const requests = revs.flatMap((rev) => (directory.length === 0 ? [`${rev}^{tree}`] : [`${rev}^{tree}`, `${rev}:${directory}`]));
+  const answers = catFileBatch(root, requests, options);
+  const paths = new Set<string>();
+  const cache = new Map<string, Buffer>();
+  let frontier: { oid: string; dir: string }[] = [];
+  let oidBytes = 20;
+  for (let index = 0; index < requests.length; index += 1) {
+    const answer = answers[index] ?? null;
+    const request = requests[index] as string;
+    if (request.endsWith('^{tree}')) {
+      if (answer === null || answer.type !== 'tree') {
+        throw new StorageError(E_GIT_READ_FAILED, `git cat-file --batch in ${root}: ${request.slice(0, -'^{tree}'.length)} names no commit whose tree can be listed`);
+      }
+      oidBytes = answer.oid.length / 2;
+      if (directory.length > 0) continue;
+    } else if (answer !== null && answer.type === 'blob' && !prefix.endsWith('/')) {
+      // A prefix naming a file lists that file, as `ls-tree -- <file>` does; with a trailing `/` it
+      // names a directory, and a file there lists nothing.
+      paths.add(directory);
+      continue;
+    } else if (answer === null || answer.type !== 'tree') {
+      continue;
+    }
+    const tree = answer as BatchObject;
+    cache.set(tree.oid, tree.content);
+    frontier.push({ oid: tree.oid, dir: directory });
+  }
+
+  // Each later round reads one level deeper, fetching only the subtrees not already read.
+  const seen = new Set<string>();
+  while (frontier.length > 0) {
+    const unread = [...new Set(frontier.map((node) => node.oid).filter((oid) => !cache.has(oid)))].sort();
+    catFileBatch(root, unread, options).forEach((answer, index) => {
+      if (answer === null) throw new StorageError(E_GIT_READ_FAILED, `git cat-file --batch in ${root}: tree ${unread[index]} is missing`);
+      cache.set(answer.oid, answer.content);
+    });
+    const next: { oid: string; dir: string }[] = [];
+    for (const node of frontier) {
+      const key = `${node.oid}\0${node.dir}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      for (const entry of treeEntries(cache.get(node.oid) as Buffer, oidBytes)) {
+        const path = node.dir.length === 0 ? entry.name : `${node.dir}/${entry.name}`;
+        const type = Number.parseInt(entry.mode, 8) & MODE_TYPE_MASK;
+        if (type === MODE_TREE) next.push({ oid: entry.oid, dir: path });
+        else if (type !== MODE_GITLINK) paths.add(path);
+      }
+    }
+    frontier = next;
+  }
+  return [...paths].sort();
 }
