@@ -1021,8 +1021,8 @@ export interface MemorySubmitResult {
  *    check, so the exit code does not depend on the machine (task-125, `bug-172`).
  * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit 1. Steps 2 and 3 are {@link beginMemoryTransition},
  *    the preamble every transition verb shares (task-132, `bug-142`; `spec-006` §7).
- * 3. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
- *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
+ * 3. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` and the document committed at
+ *    `HEAD` itself (task-091, `dl-080` (B); task-247, `bug-187`); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
  *    carries the pinned `illegal transition <from> -> <to> for type '<type>'` (`dl-032`, P1.6 sc.2).
  * 5. **Required fields** (spec-010 validation rules) — `title` and every `template.frontmatter.required`
@@ -1097,16 +1097,16 @@ export interface MemoryApproveResult {
  *    (task-132, `bug-142`; `spec-006` §7), which reads the identity ONCE: step 6 authorizes it, the
  *    `Approver:` line names it, and the commit is authored as it (`--author`), so the three can never
  *    name different principals (`bug-149`).
- * 4. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` committed at `HEAD` itself
- *    (task-091, `dl-080` (B)); no committed machine, an unreadable one, not found, unknown type,
+ * 4. **{@link prepareMemoryTransition}** — it resolves the `memory.yaml` and the document committed at
+ *    `HEAD` itself (task-091, `dl-080` (B); task-247, `bug-187`); no committed machine, an unreadable one, not found, unknown type,
  *    invalid state, or an illegal transition, each a `CoreResult.error` (exit 1); an illegal one
  *    carries the pinned `illegal transition <from> -> <to> for type '<type>'` (`dl-032`), whose `<to>`
  *    is `approve`'s own next legal edge (`dl-053`).
  * 6. **`requireApprovalAuthority`** (REQ-SEC-03, task-040) — exit 1 with
  *    `user not authorized to approve type '<type>'` (P1.7 sc.3). It runs after step 5 because its
  *    message interpolates the document's type, which is only knowable once the document is located,
- *    and `findMemoryDocumentById` is a full scan of the registered content roots — resolving the type
- *    twice would double the cost of every approve. Nothing is weakened by the order: the authority
+ *    and `findMemoryDocumentByIdAtRev` at `HEAD` is a full scan of the registered content roots —
+ *    resolving the type twice would double the cost of every approve. Nothing is weakened by the order: the authority
  *    *decision* depends on nothing step 5 computes (adr-006 fixes one uniform `approver` role, keyed
  *    on the git identity), and step 5 writes nothing. It reads the roles from the **committed**
  *    `.wingfoil/dna.yaml` and resolves that file itself (task-090, `bug-079`) — which is why no
@@ -1188,8 +1188,8 @@ export interface MemoryRejectResult {
  *    identity check (task-125, `bug-172`).
  * 3. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Steps 3 and 4 are {@link beginMemoryTransition}
  *    (task-132, `bug-142`; `spec-006` §7).
- * 4. **{@link prepareMemoryTransition}** with op `reject`, against the `memory.yaml` committed at
- *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
+ * 4. **{@link prepareMemoryTransition}** with op `reject`, against the `memory.yaml` and the document
+ *    committed at `HEAD` (task-091, `dl-080` (B); task-247, `bug-187`) — no committed machine, an unreadable one, not found,
  *    unknown type, invalid state, or an illegal transition (the document is in no `gates`
  *    state), each a `CoreResult.error` at exit `1` carrying `dl-032`'s pinned contract message. The
  *    target is the type's `gates.<from>.reject` value, taken verbatim (`spec-001`), so it need not be
@@ -1286,8 +1286,8 @@ export interface MemoryDeprecateResult {
  *    trailer-shaped (`optionalReason`). Both precede the identity check (task-125, `bug-172`).
  * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Steps 2 and 3 are {@link beginMemoryTransition}
  *    (task-132, `bug-142`; `spec-006` §7).
- * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` committed at
- *    `HEAD` (task-091, `dl-080` (B)) — no committed machine, an unreadable one, not found,
+ * 3. **{@link prepareMemoryTransition}** with op `deprecate`, against the `memory.yaml` and the
+ *    document committed at `HEAD` (task-091, `dl-080` (B); task-247, `bug-187`) — no committed machine, an unreadable one, not found,
  *    unknown type, or a `status` that is not a state of the type, each a
  *    `CoreResult.error` (exit `1`). There is no illegal-transition branch: the wildcard edge is legal
  *    from every state.
@@ -1369,8 +1369,9 @@ export interface MemoryAmendResult {
  * 2. **`requireGitIdentity`** (REQ-SEC-01) — exit `1`. Step 2 and the lookup in step 3 are
  *    {@link beginMemoryTransition} (task-132, `bug-142`; `spec-006` §7); the identity it returns is
  *    the one step 4 authorizes, the `Approver:` line names and the commit is authored as.
- * 3. **{@link prepareMemoryTransition}** with op `amend` — the document located, its type and state
- *    resolved against the `memory.yaml` committed at `HEAD` (`dl-080` (B)); its target is its own
+ * 3. **{@link prepareMemoryTransition}** with op `amend` — the document located at `HEAD`, its type and
+ *    state resolved against the `memory.yaml` committed there (`dl-080` (B); task-247, `bug-187`), its
+ *    content taken from the working tree; its target is its own
  *    state, so no illegal-transition refusal exists for this verb. Then
  *    {@link requireConfinedWriteTarget} (REQ-SEC-06): a document outside the project, or one that is
  *    itself a symbolic link, is refused before any question about its content.

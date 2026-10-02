@@ -20,6 +20,7 @@ import { buildProgram } from '../../src/cli/program';
 import { CORE_MODULES } from '../../src/core';
 import type { CoreFn } from '../../src/core/registry';
 import { exitCodeForResult, exitCodeForThrow } from '../../src/core/exit-code';
+import { requireAmendableEdit } from '../../src/core/memory-amend';
 import * as transition from '../../src/core/memory-transition';
 import { coreErr } from '../../src/core/types';
 import { UsageError } from '../../src/core/usage-error';
@@ -415,7 +416,18 @@ describe('CORE_MODULES memory.memoryAmend — task-127 (dl-108)', () => {
       if (result.ok) return;
       expect(exitCodeForResult(result)).toBe(1);
       expect(result.error.message).toContain(`${path} is not committed at HEAD`);
+      expect(result.error.message).toContain('memory add');
       expectNothingWritten(before, path, fresh);
+    });
+
+    // task-247: the HEAD preamble now refuses such a document before amend's own check runs, so the
+    // check is pinned directly, as the defence it still is.
+    it('requireAmendableEdit refuses a path no commit holds, before comparing anything', () => {
+      const path = 'docs/memory/specs/spec-009.md';
+      const result = requireAmendableEdit(repo, 'spec-009', path, doc({ id: 'spec-009', type: 'tech-spec', status: 'approved' }), []);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.message).toContain(`nothing to amend: ${path} is not committed at HEAD`);
     });
   });
 

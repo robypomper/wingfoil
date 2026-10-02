@@ -6,7 +6,7 @@ kind: custom
 title: "Which baseline a command reads and writes"
 tags: [custom, determinism, git, baseline]
 ref: [REQ-SEC-02, REQ-STATE-02, REQ-SYS-07]
-version: "1.3"
+version: "1.4"
 ---
 
 # Directive — Which baseline a command reads and writes
@@ -104,11 +104,12 @@ The test in (B) is mechanical — *can this read change whether the command refu
 writes?* — and that is its whole value. If it can, the read resolves at `HEAD`, unless its purpose
 is to predict an imminent filesystem effect.
 
-**Where the shipped code still deviates — and each has an owner.** The Memory transition verbs
-find the document their `<id>` names by scanning the working tree (`findMemoryDocumentById`, called
-from `prepareMemoryTransition`), and `memory submit` also takes the current `status` from the
-working-tree frontmatter; both are gating reads owed to `HEAD`, recorded as a bug from `task-161`'s
-independent review. The older case, argued in full here, is `directive remove`. `directiveRemoveFn`
+**Where the shipped code still deviates — and it has an owner.** The Memory transition verbs used to
+find the document their `<id>` names by scanning the working tree and to take the current `status`
+from the working-tree frontmatter (`bug-187`); since `task-247`, `prepareMemoryTransition` resolves
+`HEAD` once and reads both there (`findMemoryDocumentByIdAtRev`). The working tree supplies the
+content to commit, is checked to be the same element `HEAD` records (present, same `id` and `type`),
+and is otherwise read only to word a refusal — the pattern the paragraph after next prescribes. The case left, argued in full here, is `directive remove`. `directiveRemoveFn`
 (`src/core/index.ts`, step 3 of its TSDoc: "This read stays on the **working tree**, deliberately")
 resolves the directive it is asked to delete from the working tree, on exactly the "this read only
 resolves a name" argument refused above — and that read returns a domain `NOT_FOUND` at exit `1`,
@@ -236,3 +237,8 @@ exception for the workflow and agent read commands and the two v0.3 workflow Res
 **Revision 1.3 (2026-10-02, `task-144-declare-directive-scope-report-when-disagrees-roles-yaml`).** The
 version moves from the body's `**Version:**` line to the frontmatter `version:` key, which `spec-013`
 now declares (approver ruling 2026-10-01, at `task-128`'s review). The rule text is unchanged.
+
+**Revision 1.4 (2026-10-02, `task-247-decide-every-memory-transition-from-the-element-s-committed-status-and-resolve-its-document-at-head`).**
+*Where the shipped code still deviates* no longer lists the Memory transition verbs: their id lookup
+and status read resolve at `HEAD` (`bug-187`). `directive remove` (`bug-108`) is the deviation left.
+The rule text is unchanged.

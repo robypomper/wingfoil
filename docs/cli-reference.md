@@ -94,10 +94,12 @@ Which state a command reads depends on whether that state can stop it:
   example, whether a path leads outside the project through a symbolic link — because that is what
   the write will follow.
 
-Two known defects break this today: `directive remove` looks up the directive to delete in the
-working tree (`bug-108`), and the Memory transition verbs (`submit`, `approve`, `reject`,
-`deprecate`, `amend`) find the document their `<id>` names in the working tree — `memory submit`
-also reads its current status there — so an uncommitted or hand-made document can be acted on.
+The Memory transition verbs (`submit`, `approve`, `reject`, `deprecate`, `amend`) find the document
+their `<id>` names, and read its current status, as committed at `HEAD`; what `submit` and `amend`
+commit is the file in your working tree. A document you created by hand and never committed is
+refused (exit `1`) with a message naming `memory add`, and editing `status` by hand does not change
+which transition runs. One known defect breaks this rule today: `directive remove` looks up the
+directive to delete in the working tree (`bug-108`).
 
 ### Git identity
 

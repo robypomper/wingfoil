@@ -259,6 +259,28 @@ export function findMemoryDocumentById(
   return undefined;
 }
 
+/**
+ * {@link findMemoryDocumentById} **at commit `rev`** (task-247, `bug-187`): the first document, in
+ * the sorted path order of {@link listMemoryDocumentPathsAtRev}, whose own frontmatter `id` matches
+ * exactly, with its frontmatter and body as `rev` holds them; `undefined` when that commit holds none.
+ * A document present only in the working tree, or added after `rev`, is never returned. This is the
+ * lookup the Memory transition verbs decide from (`spec-006-core-domain-api` §6 item 1).
+ *
+ * @throws `RevisionError` when `rev` is malformed or names no commit.
+ */
+export function findMemoryDocumentByIdAtRev(
+  root: string,
+  rev: string,
+  memoryYaml: MemoryYaml,
+  id: string,
+): MemoryDocumentSummary | undefined {
+  const sha = resolveRevision(root, rev);
+  for (const summary of parseMemoryDocumentsAtSha(root, sha, rev, listMemoryDocumentPathsAtSha(root, sha, memoryYaml))) {
+    if (asString(summary.frontmatter.id) === id) return summary;
+  }
+  return undefined;
+}
+
 /** A Memory document's frontmatter-only summary — spec-004 §2.1's collection-listing shape
  * (id, title, status, tags), deliberately omitting body content to keep listing calls cheap. */
 export interface MemoryDocumentFrontmatterSummary {

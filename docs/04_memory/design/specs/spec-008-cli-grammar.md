@@ -549,11 +549,11 @@ CLI reference's *Git side effects* says the same to users.
 
 | Baseline | Commands | Why |
 |----------|----------|-----|
-| **committed at `HEAD`** | `memory add`, `memory submit`, `memory approve`, `memory reject`, `memory deprecate`, `memory amend` (their `memory.yaml` and approver authority); `dna set`, `dna add`, `dna update`, `dna remove`; `directive assign`; `directive remove`'s referrer check; `workflow next` (v0.3) | a read that can refuse the command or change what it writes (`spec-006` §6 items 1–2). When the working tree defines a type the commit does not, `memory add`'s refusal says the change is not committed (`dl-084` (D), `task-095`); the `dna` verbs first refuse a `dna.yaml` that differs from `HEAD`, so what they then read is `HEAD`'s; `memory add`'s `{n}` counter reads the wider baseline the `command-baseline` directive declares, which can only raise the number |
+| **committed at `HEAD`** | `memory add`, `memory submit`, `memory approve`, `memory reject`, `memory deprecate`, `memory amend` (their `memory.yaml`, the document the `<id>` names and its status, and approver authority — the content `submit` and `amend` commit is the working tree's); `dna set`, `dna add`, `dna update`, `dna remove`; `directive assign`; `directive remove`'s referrer check; `workflow next` (v0.3) | a read that can refuse the command or change what it writes (`spec-006` §6 items 1–2). When the working tree defines a type the commit does not, `memory add`'s refusal says the change is not committed (`dl-084` (D), `task-095`); the `dna` verbs first refuse a `dna.yaml` that differs from `HEAD`, so what they then read is `HEAD`'s; `memory add`'s `{n}` counter reads the wider baseline the `command-baseline` directive declares, which can only raise the number |
 | **committed at `HEAD`, declared** (v0.3, as each ships) | `workflow status`, `workflow list`, `workflow show`, `agent list`, `agent show` | approver ruling R15: one deduction, one baseline; a working tree that differs is reported as the warning `W_UNCOMMITTED_INPUTS`, and never decides the answer (`spec-006` §6 item 6, `spec-017` §1.2) |
 | **working tree** | `dna show`, `paths`, `directives list`, `memory search`, `memory history`; `workflow list` until its v0.3 reshape | a read that gates nothing: a draft you have not committed is what `memory search` exists to find (`spec-006` §6 item 4). `memory history` reads git's log for the entries and the working tree's `memory.yaml` |
 | **filesystem** | the confinement and symlink guards of every command that writes or deletes a file; `directive create`'s check that its target does not exist | the read predicts where a syscall will land, which no commit records (`spec-006` §6 item 5, `dl-086`) |
-| **working tree, a defect** | `directive remove`'s lookup of the directive it is asked to delete (`bug-108`); the lookup of the document `memory submit`, `approve`, `reject`, `deprecate` and `amend` act on, and `memory submit`'s read of its current status | owed to `HEAD` |
+| **working tree, a defect** | `directive remove`'s lookup of the directive it is asked to delete (`bug-108`) | owed to `HEAD` |
 
 `init` and `mcp` read no committed configuration: `init` writes the scaffold, and `mcp` starts the
 server, whose Resources and Prompts follow `spec-006` §6 item 4 — except the two v0.3 workflow
@@ -882,3 +882,10 @@ of a successful command, which is `spec-016` §3.4's, applied to every command. 
 warning is closed by `...` so that an error after it stays a separate document. §6 also notes where it
 departs from `spec-005` §3.2 until task-218 amends that spec. No other section changed. Edited in place
 without a supersede or a state change (`dl-047`).
+
+**Revision (2026-10-02, `task-247-decide-every-memory-transition-from-the-element-s-committed-status-and-resolve-its-document-at-head`)
+— §11's "working tree, a defect" row no longer lists the Memory transition verbs, per `bug-187`.**
+`memory submit`, `approve`, `reject`, `deprecate` and `amend` now find the document their `<id>`
+names, and read its current status, at `HEAD` (`spec-006` §6 item 1); a document no commit holds is
+refused at exit `1` with a message naming `memory add`. The row keeps `directive remove` alone
+(`bug-108`), and the `HEAD` row names what the verbs read there. No other section changed.

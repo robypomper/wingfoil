@@ -363,11 +363,11 @@ users is `spec-008-cli-grammar` §11):
 
 | Baseline | Operations |
 |----------|------------|
-| `HEAD`, gating (item 1) | `memoryAdd` (type registry and scaffold; its `{n}` counter reads the wider baseline `command-baseline` declares, which can only raise the id), `memorySubmit`, `memoryApprove`, `memoryReject`, `memoryDeprecate`, `memoryAmend` (state machine, and approver authority on the gated verbs); `dnaSet`, `dnaAdd`, `dnaUpdate`, `dnaRemove` (`dna.yaml`, read only after item 2 has refused any difference from `HEAD`); `directiveAssign` (role catalogue, directive inventory, bindings); `directiveRemove`'s referrer check (`roles.yaml`, `loadRolesYamlAtHead`); `workflowNext`, from the task that ships it in v0.3 |
+| `HEAD`, gating (item 1) | `memoryAdd` (type registry and scaffold; its `{n}` counter reads the wider baseline `command-baseline` declares, which can only raise the id), `memorySubmit`, `memoryApprove`, `memoryReject`, `memoryDeprecate`, `memoryAmend` (state machine, the document their `<id>` names and its committed `status` — `findMemoryDocumentByIdAtRev` at the one sha `prepareMemoryTransition` resolves — and approver authority on the gated verbs; the working tree supplies the content `memorySubmit` and `memoryAmend` commit and is checked to be the element `HEAD` records); `dnaSet`, `dnaAdd`, `dnaUpdate`, `dnaRemove` (`dna.yaml`, read only after item 2 has refused any difference from `HEAD`); `directiveAssign` (role catalogue, directive inventory, bindings); `directiveRemove`'s referrer check (`roles.yaml`, `loadRolesYamlAtHead`); `workflowNext`, from the task that ships it in v0.3 |
 | `HEAD`, declared (item 6) | `workflowStatus`, `workflowList`, `workflowShow`, `agentList`, `agentShow`, the two v0.3 workflow Resources — each from the task that ships it in v0.3 |
 | working tree, gating nothing (item 4) | `dnaShow`, `pathsQuery`, `directivesList`, `memorySearch`, `memoryHistory` (its log is git's, its `memory.yaml` the working tree's), the shipped MCP Resources and the role Prompts; `workflowList` until its v0.3 reshape moves it to item 6 |
 | filesystem, predicting an effect (item 5) | the confinement and symlink guards of every writing or deleting operation, and `directiveCreate`'s check that its target file does not exist |
-| working tree, deviating | `directiveRemove`'s name resolution (`bug-108`); the id lookup of `memorySubmit`, `memoryApprove`, `memoryReject`, `memoryDeprecate` and `memoryAmend` (`findMemoryDocumentById`, from `prepareMemoryTransition`), and `memorySubmit`'s read of the current `status` from the working-tree frontmatter — all owed to `HEAD` |
+| working tree, deviating | `directiveRemove`'s name resolution (`bug-108`) — owed to `HEAD` |
 
 Symbols in this section read at `9642ab5f`; items 4–6 and the table at `e942e8e9`.
 
@@ -709,3 +709,15 @@ could carry a warning: the arm held `value` and `commit` only. §2 now declares 
 `warnings` list and the paragraph after the code block says where each surface renders it. No other
 section changed. Tech-specs carry no `version:` field (`dl-047`); edited in place without a supersede
 or a state change.
+
+**Revision (2026-10-02, `task-247-decide-every-memory-transition-from-the-element-s-committed-status-and-resolve-its-document-at-head`)
+— §6's table moves the transition verbs' id lookup and status read from "working tree, deviating" to
+`HEAD`, per item 1 and `bug-187`.** `prepareMemoryTransition` (`src/core/memory-transition.ts`) now
+resolves `HEAD` once and reads `memory.yaml`, the document the `<id>` names and its `status` at that
+sha (`loadMemoryYamlAtRev`, `findMemoryDocumentByIdAtRev`, `task-137`'s readers). The working tree
+supplies the content `memorySubmit` and `memoryAmend` commit, is checked to be the same element `HEAD`
+records (present, same `id` and `type`), and is otherwise read only to word a refusal (a document no
+commit holds names `memory add`). The "working tree, deviating" row keeps
+`directiveRemove`'s name resolution alone (`bug-108`). Items 1–7 and every other section are
+unchanged. Tech-specs carry no `version:` field (`dl-047`); edited in place without a supersede or a
+state change.

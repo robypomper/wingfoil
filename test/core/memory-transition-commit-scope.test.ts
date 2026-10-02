@@ -230,7 +230,9 @@ describe('Memory transition verbs — the commit carries the declared change and
     const result = await memoryOp('memoryApprove')({ root: repo, positional: 'task-777', options: { reason: 'never committed' } });
 
     expect(result.ok).toBe(false);
-    expect(errorMessage(result)).toContain('not tracked at HEAD');
+    // Since task-247 (bug-187) the preamble refuses it, at HEAD, before the write guard is reached.
+    expect(errorMessage(result)).toContain('docs/memory/v0.2/task-777.md is not committed at HEAD');
+    expect(errorMessage(result)).toContain('memory add');
     expect(head(repo)).toBe(before);
   });
 

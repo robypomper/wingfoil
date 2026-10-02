@@ -57,6 +57,7 @@ export {
   computeMemoryContentRoots,
   E_EMPTY_SEARCH_QUERY,
   findMemoryDocumentById,
+  findMemoryDocumentByIdAtRev,
   findMemoryDocumentByTypeAndId,
   findMemoryDocumentByTypeAndIdAtRev,
   listMemoryDocumentPaths,
