@@ -13,6 +13,7 @@ import { existsSync, lstatSync, readdirSync, realpathSync, statSync, type Stats 
 import { join, posix } from 'path';
 
 import { DirectiveFrontmatter, RolesYaml } from '../directives/schema';
+import { checkDirectiveVersion } from '../directives/version';
 import { DnaYaml } from '../dna/schema';
 import { MemoryYaml } from '../memory/schema';
 import { documentExists, extractFrontmatter, readDocument, readPathAtRev, readPathsAtRev } from '../storage';
@@ -520,8 +521,10 @@ function parseDirectiveFile(raw: string, filePath: string, relativePath: string)
       },
     ]);
   }
-  const data = parseYaml(frontmatterText, filePath);
-  const frontmatter = runValidation(DirectiveFrontmatter, data, filePath);
+  // `version` never fails the pillar (task-144 review, R1): a lossy number or a wrong type is a warning.
+  const versionCheck = checkDirectiveVersion(parseYaml(frontmatterText, filePath), frontmatterText);
+  if (versionCheck.warning !== null) process.stderr.write(`Warning: ${filePath}: ${versionCheck.warning}\n`);
+  const frontmatter = runValidation(DirectiveFrontmatter, versionCheck.data, filePath);
   // `join`, so `DirectiveFile.path` carries the platform separator on both loaders — `requireCustomAsset`
   // and `selectDirectivesById` see one spelling whichever baseline produced the file.
   return { path: join('directives', ...relativePath.split('/')), frontmatter };
@@ -585,8 +588,8 @@ export function loadDirectiveInventory(root: string): DirectiveInventory {
 }
 
 /**
- * Load and validate every Directives file in isolation (task-004-decoupled-pillars — see
- * `src/directives/schema.ts` for why this pillar has no dedicated approved tech-spec yet). Reads
+ * Load and validate every Directives file in isolation (task-004-decoupled-pillars), against
+ * `spec-013-directive-frontmatter-schema`'s `DirectiveFrontmatter` (`src/directives/schema.ts`). Reads
  * every `.md` file under `.wingfoil/directives/**` (built-in + custom) **in the working tree**,
  * sorted deterministically (REQ-SYS-07: no unordered iteration in a context-building path), extracts
  * its frontmatter (`storage.extractFrontmatter`), and validates it against `DirectiveFrontmatter`.

@@ -26,3 +26,10 @@ Feature: P3.4 (US-4-04) - wingfoil directives list
     When I run "wingfoil directives list"
     Then the other directives are listed
     And a warning names ".wingfoil/directives/custom/broken.md" as skipped
+
+  Scenario: Edge - a directive's scope disagrees with roles.yaml
+    Given custom directive "no-direct-db-access" declares "scope: global"
+    And ".wingfoil/roles.yaml" does not list "no-direct-db-access" under "global"
+    When I run "wingfoil directives list"
+    Then "no-direct-db-access" is listed as not global, because roles.yaml decides
+    And the listing's warnings name "no-direct-db-access" and the disagreement

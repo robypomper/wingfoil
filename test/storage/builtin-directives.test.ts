@@ -31,8 +31,11 @@ import { parseYaml, scanText } from '../../src/validation';
 /** The P3.8 feature's set, in the order its Scenario 1 lists it. */
 const P38_IDS = ['code-quality', 'testing', 'code-review', 'architecture', 'security', 'documentation'];
 
-/** The keys `DirectiveFrontmatter` declares (spec-013); anything else rides `.passthrough()` and warns. */
-const DECLARED_KEYS = ['id', 'name', 'type', 'kind', 'title', 'tags', 'ref'];
+/**
+ * The keys `DirectiveFrontmatter` declares (spec-013; `scope` and `version` since task-144, spec-013
+ * Revision 2026-10-01); anything else rides `.passthrough()` and warns.
+ */
+const DECLARED_KEYS = ['id', 'name', 'type', 'kind', 'title', 'tags', 'ref', 'scope', 'version'];
 
 const rendered = (): Array<readonly [string, string]> =>
   BUILTIN_DIRECTIVE_TEMPLATES.map((t) => [t.id, builtinDirectiveMd(t)] as const);
@@ -69,6 +72,12 @@ describe.each(rendered())('built-in directive template %s', (id, content) => {
 
   it('uses only keys the schema declares (no passthrough stderr warning at init)', () => {
     for (const key of Object.keys(frontmatterOf(content))) expect(DECLARED_KEYS).toContain(key);
+  });
+
+  // Approver ruling R3 (2026-10-02): a shipped template must not encode one project's binding —
+  // whether a directive is global is `roles.yaml`'s to say.
+  it('declares no `scope`', () => {
+    expect(frontmatterOf(content)).not.toHaveProperty('scope');
   });
 
   it('passes the REQ-SEC-10 built-in integrity guard', () => {

@@ -2,7 +2,7 @@
 id: "bug-109-directives-schema-tsdoc-calls-spec-013-a-candidate"
 type: bug
 title: "`src/directives/schema.ts`'s module TSDoc says no approved tech-spec exists for the Directives pillar and names `spec-013` as a candidate — `spec-013` is `approved`"
-status: planned
+status: closed
 severity: "low"
 release-origin: "v0.2"
 release: "v0.3"

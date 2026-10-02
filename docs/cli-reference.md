@@ -671,11 +671,15 @@ wingfoil directives list [--role <role>]
 Each entry carries `path`, `frontmatter` (`id`, `name`, `kind`, …), `roles`, `global` and a readable
 `assignment`. `--role` keeps only the directives that apply to that role, globals included.
 
-`warnings` lists what the entries cannot show: an entry under `.wingfoil/directives/` that cannot be
-read (a symbolic link whose target does not exist, a file or directory without permission, a directory
-link back to one of its own parents), which is skipped and named there while the other directives are
-listed; a directive id defined twice; and, with `--role`, a role with no
-assignments or a binding with no directive file.
+The payload also carries `warnings`, which lists what the entries cannot show:
+- an entry under `.wingfoil/directives/` that cannot be read (a symbolic link whose target does not
+  exist, a file or directory without permission, a directory link back to one of its own parents),
+  which is skipped and named there while the other directives are listed;
+- without `--role`, every id defined by two files (and the one in force), and every directive whose
+  declared `scope` contradicts `roles.yaml`'s `global:` list (`roles.yaml` decides) or is a value
+  other than `global`. A directive that declares no `scope` is not reported;
+- with `--role`, a role with no assignments of its own, a binding with no directive file, and
+  shadowed ids.
 
 - **Commit:** none.
 - **Errors:** no `.wingfoil/` at the project root → exit `1`, `WingFoil not initialized (no .wingfoil/ directory at the project root): run 'wingfoil init' first`;

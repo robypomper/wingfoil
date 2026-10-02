@@ -17,8 +17,9 @@ Custom WingFoil rule. Applies to all roles editing versioned docs.
 
 - **The bump rule applies where a document declares a version**, as a frontmatter `version:` key or a
   `**Version:**` body line. Examples are the vision documents under `docs/01_vision/`, `plan`
-  elements, and directives that declare one. A document that declares no version is not given one in
-  order to satisfy this rule. Tech-specs, ADRs, decision-logs and tasks declare none: their templates
+  elements, and directives that declare one. A directive declares it as the frontmatter `version:`
+  key (`spec-013`; approver ruling 2026-10-01), not a body line. A document that declares no version
+  is not given one in order to satisfy this rule. Tech-specs, ADRs, decision-logs and tasks declare none: their templates
   have no `version:` key. The `version:` of a `release` or `release-line` names the release (e.g.
   `"v0.3"`), not a revision of the document, so the bump rule does not apply to it.
 - **An `approved` or `accepted` Memory element edited in place** records a dated
@@ -31,9 +32,11 @@ Custom WingFoil rule. Applies to all roles editing versioned docs.
 
 ## The bump rule
 
-- **Bump the version only on the first edit after the file has been committed to git.** Subsequent
-  edits within the same uncommitted change do not bump again.
-- Update the `**Date:**` to the edit date when bumping.
+- **Bump the version only on the first edit after the file was last committed to `main`.** The
+  baseline is the version on `main`, not the last commit on the branch you work on: a task branch
+  bumps a document once, and further edits on the same branch — review fixes included — do not bump
+  it again, even though each of them is committed (approver ruling 2026-10-01).
+- Update the `**Date:**` to the edit date when bumping, where the document has one.
 
-> Rationale: keeps version numbers meaningful (one bump per committed revision) rather than churning
-> on every micro-edit. Mirrors the standing project convention.
+> Rationale: keeps version numbers meaningful (one bump per revision that reaches `main`) rather than
+> churning on every micro-edit or review fix. Mirrors the standing project convention.

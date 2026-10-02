@@ -6,11 +6,12 @@ kind: custom
 title: "Which baseline a command reads and writes"
 tags: [custom, determinism, git, baseline]
 ref: [REQ-SEC-02, REQ-STATE-02, REQ-SYS-07]
+version: "1.3"
 ---
 
 # Directive — Which baseline a command reads and writes
 
-**Version:** 1.2 · **Date:** 2026-10-01
+**Date:** 2026-10-02
 
 Custom WingFoil rule. Applies to anyone adding or changing a command, a `src/core` operation, or an
 MCP Tool — every surface, because both surfaces run the same core function (REQ-SYS-05,
@@ -231,3 +232,7 @@ a limit and `bug-108` still owed to `HEAD`. The `dl-084` bullet under *Consequen
 ratified (A)+(D) instead of "`in-discussion`". *Declared `HEAD` reads* is new, with the R15
 exception for the workflow and agent read commands and the two v0.3 workflow Resources.
 *Declared baselines* (`task-128`'s counter) is unchanged.
+
+**Revision 1.3 (2026-10-02, `task-144-declare-directive-scope-report-when-disagrees-roles-yaml`).** The
+version moves from the body's `**Version:**` line to the frontmatter `version:` key, which `spec-013`
+now declares (approver ruling 2026-10-01, at `task-128`'s review). The rule text is unchanged.

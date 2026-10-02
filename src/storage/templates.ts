@@ -214,7 +214,7 @@ const MEMORY_ID_PATTERNS: Readonly<Record<(typeof MEMORY_TYPES)[number], string>
  */
 const DIRECTIVES: ReadonlyArray<{ name: string; title: string; summary: string }> = [
   { name: 'determinism', title: 'Determinism', summary: 'No wall-clock, randomness, or unordered iteration in context-building paths; prefer declared config.' },
-  { name: 'doc-versioning', title: 'Documentation versioning', summary: 'Bump a document version only on the first edit after it was committed; update its date when bumping.' },
+  { name: 'doc-versioning', title: 'Documentation versioning', summary: 'Bump a document version once per change merged to the default branch, on its first edit since then; update its date when bumping.' },
   { name: 'security-secrets', title: 'Secret hygiene', summary: 'Never commit credentials or secrets; the repository is the single source of truth and is shared.' },
   { name: 'traceability', title: 'Traceability', summary: 'Maintain the feature -> story -> acceptance -> requirement -> task chain across every change.' },
 ];
@@ -403,6 +403,9 @@ ${includes}
  * That is not cosmetic: it is the key `resolveRoleDirectives` (`src/core/context.ts`, spec-012 §5)
  * binds roles on, and {@link rolesYaml} lists exactly those stems in its `assignments`/`global` blocks
  * — so any other value would leave every scaffolded role binding dangling. Keep the two in step.
+ *
+ * No `scope:` key: {@link rolesYaml}'s `global:` list alone says which directives bind every role, and
+ * an absent `scope` is never reported as a disagreement (task-144 review, R3).
  *
  * `kind: custom` is correct for `directives/custom/`, the only place this generator's output is written;
  * the P3.8 built-ins carry `kind: built-in` and have their own renderer (`builtinDirectiveMd`,

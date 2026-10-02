@@ -11,7 +11,9 @@
  * derived by `builtinTemplateSources`): adding or editing a template here is automatically checked.
  *
  * **Frontmatter** (`spec-013-directive-frontmatter-schema`): exactly the declared keys `id` (the filename
- * stem), `name`, `type: directive`, `kind: built-in`, `title`, `tags`, `ref: [P3.8]`. No other key: an
+ * stem), `name`, `type: directive`, `kind: built-in`, `title`, `tags`, `ref: [P3.8]`. No `scope`: whether a
+ * directive binds every role is the project's `roles.yaml` to say, not a shipped template's (task-144
+ * review, R3). No other key: an
  * undeclared key rides `.passthrough()` and prints an `unknown field(s) ignored` warning on stderr during
  * every `init` (task-044's hand-off).
  *
