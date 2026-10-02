@@ -40,11 +40,11 @@ function frontmatterOf(content: string): Record<string, unknown> {
   return (load(frontmatter ?? '') as Record<string, unknown> | undefined) ?? {};
 }
 
-/** `[major, minor, patch]` of a release folder name such as `v0.3` or `v0.2.2`; `null` for any other folder. */
-function releaseOf(folder: string): number[] | null {
-  const match = /^v(\d+)\.(\d+)(?:\.(\d+))?$/.exec(folder);
+/** `{ major, minor }` of a release folder name such as `v0.3` or `v0.2.2`; `null` for any other folder. */
+function releaseOf(folder: string): { major: number; minor: number } | null {
+  const match = /^v(\d+)\.(\d+)(?:\.\d+)?$/.exec(folder);
   if (match === null) return null;
-  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
+  return { major: Number(match[1]), minor: Number(match[2]) };
 }
 
 /** `v0.3` and every later release folder, sorted. */
@@ -52,7 +52,7 @@ function releaseFoldersFromV03(): string[] {
   return readdirSync(MEMORY_ROOT)
     .filter((folder) => {
       const version = releaseOf(folder);
-      return version !== null && (version[0] > 0 || version[1] >= 3);
+      return version !== null && (version.major > 0 || version.minor >= 3);
     })
     .sort();
 }
