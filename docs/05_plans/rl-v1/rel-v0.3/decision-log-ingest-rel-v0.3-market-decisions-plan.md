@@ -71,3 +71,7 @@ Produces `docs/04_memory/design/dls/{id}.md` for each decision, in state `in-dis
   - third-party migrators between spec tools exist, so `dl-144` says "no official converter".
 - **Next:** ⛔ approver ratification of `dl-140`…`dl-145`, plus the final tagline (`dl-140`).
 
+- 2026-10-02 — **ratification deferred by the approver** to the v0.3 retrospective or v0.4
+  release-planning, whichever comes first. Release-planning's `reconcile-governance` phase
+  (`dl-016`) sweeps decision-logs that are not `ready` into its scope, so `dl-140`…`dl-145` reach
+  it without a separate reminder. This plan stays `active` until they are ratified.
